@@ -1,4 +1,4 @@
-# Roadmap — ComptAsso
+# Roadmap — Solde ⚖️
 
 ## Vue d'ensemble
 

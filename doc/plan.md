@@ -1,4 +1,4 @@
-# Plan : ComptAsso — Application de gestion comptable associative
+# Plan : Solde ⚖️ — Application de gestion comptable associative
 
 ## TL;DR
 
