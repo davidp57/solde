@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.config import get_settings
 from backend.database import init_db
-from backend.routers import auth, settings
+from backend.routers import accounting_account, auth, contact, settings
 
 
 @asynccontextmanager
@@ -44,6 +44,8 @@ def create_app() -> FastAPI:
 
     # API routers
     app.include_router(auth.router, prefix="/api")
+    app.include_router(contact.router, prefix="/api")
+    app.include_router(accounting_account.router, prefix="/api")
     app.include_router(settings.router, prefix="/api")
 
     # Serve Vue.js frontend static files (built output)

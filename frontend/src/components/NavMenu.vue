@@ -26,11 +26,13 @@ const auth = useAuthStore()
 const menuItems = computed(() => {
   const items = [
     { to: '/dashboard', icon: 'pi-home', label: t('nav.dashboard') },
+    { to: '/contacts', icon: 'pi-users', label: t('nav.contacts') },
     { to: '/invoices', icon: 'pi-file', label: t('nav.invoices') },
     { to: '/payments', icon: 'pi-credit-card', label: t('nav.payments') },
     { to: '/bank', icon: 'pi-building-columns', label: t('nav.bank') },
     { to: '/cash', icon: 'pi-wallet', label: t('nav.cash') },
     { to: '/accounting', icon: 'pi-book', label: t('nav.accounting') },
+    { to: '/accounting/accounts', icon: 'pi-list', label: t('nav.accounting_accounts') },
   ]
 
   if (auth.isAdmin) {
