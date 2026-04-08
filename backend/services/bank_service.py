@@ -98,6 +98,13 @@ async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
         p.deposited = True
         p.deposit_date = payload.date
 
+    # Auto-generate accounting entries
+    from backend.services.accounting_engine import (  # noqa: PLC0415
+        generate_entries_for_deposit,
+    )
+
+    await generate_entries_for_deposit(db, deposit)
+
     await db.commit()
     await db.refresh(deposit)
     return deposit

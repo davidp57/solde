@@ -7,7 +7,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.invoice import Invoice, InvoiceStatus
+from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment
 from backend.schemas.payment import PaymentCreate, PaymentUpdate
 
@@ -18,6 +18,14 @@ async def create_payment(db: AsyncSession, payload: PaymentCreate) -> Payment:
     db.add(payment)
     await db.flush()
     await _refresh_invoice_status(db, payload.invoice_id)
+    # Auto-generate accounting entries (no-op if no rules seeded)
+    invoice_type = await _get_invoice_type(db, payload.invoice_id)
+    if invoice_type is not None:
+        from backend.services.accounting_engine import (  # noqa: PLC0415
+            generate_entries_for_payment,
+        )
+
+        await generate_entries_for_payment(db, payment, invoice_type)
     await db.commit()
     await db.refresh(payment)
     return payment
@@ -66,6 +74,12 @@ async def delete_payment(db: AsyncSession, payment: Payment) -> None:
     await db.flush()
     await _refresh_invoice_status(db, invoice_id)
     await db.commit()
+
+
+async def _get_invoice_type(db: AsyncSession, invoice_id: int) -> InvoiceType | None:
+    """Return the type of the invoice (CLIENT/FOURNISSEUR), or None if not found."""
+    result = await db.execute(select(Invoice.type).where(Invoice.id == invoice_id))
+    return result.scalar_one_or_none()
 
 
 async def _refresh_invoice_status(db: AsyncSession, invoice_id: int) -> None:

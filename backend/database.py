@@ -49,10 +49,13 @@ async def init_db() -> None:
         await conn.exec_driver_sql("PRAGMA foreign_keys=ON")
         from backend.models import (  # noqa: F401
             accounting_account,
+            accounting_entry,
+            accounting_rule,
             app_settings,
             bank,
             cash,
             contact,
+            fiscal_year,
             invoice,
             payment,
             user,

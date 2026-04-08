@@ -11,7 +11,35 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
-**Backend (Phase 4 — Paiements & Trésorerie)**
+**Backend (Phase 5 — Comptabilité)**
+- Modèle `FiscalYear` : exercice comptable avec statuts `open/closing/closed`
+- Modèle `AccountingEntry` : écriture en partie double (numéro, date, compte, libellé, débit, crédit, exercice, source)
+- Modèle `AccountingRule` + `AccountingRuleEntry` : règles configurables par déclencheur (`TriggerType` — 14 valeurs), libellés avec templates `{{key}}`
+- Migrations Alembic `0007` (fiscal_years), `0008` (accounting_entries), `0009` (accounting_rules)
+- Schémas Pydantic v2 : `FiscalYearCreate/Read`, `AccountingEntryRead`, `ManualEntryCreate`, `BalanceRow`, `LedgerEntry/Read`, `ResultatRead`, `AccountingRuleRead/Update`
+- `accounting_engine.py` : moteur de génération d'écritures basé sur les règles — `generate_entries_for_invoice/payment/deposit`, `seed_default_rules` (13 règles par défaut issues du plan.md)
+- `fiscal_year_service.py` : CRUD exercices, clôture (calcul résultat → écriture CLOTURE → statut CLOSED)
+- `accounting_entry_service.py` : journal (filtres date/compte/source/exercice), balance, grand livre avec solde glissant, compte de résultat, saisie manuelle équilibrée
+- `accounting_rule_service.py` : liste, lecture et mise à jour des règles
+- Hooks automatiques dans `invoice.py` (status → SENT), `payment.py` (create_payment) et `bank_service.py` (create_deposit)
+- Routeurs `/api/accounting/entries/*`, `/api/accounting/rules/*`, `/api/accounting/fiscal-years/*` enregistrés dans `main.py`
+- 93 nouveaux tests (3 fichiers unitaires + 1 intégration) — 87 % couverture globale (301 tests au total)
+
+**Frontend (Phase 5)**
+- Types et fonctions API dans `accounting.ts` : journal, balance, grand livre, résultat, saisie manuelle, règles, exercices
+- `AccountingJournalView.vue` : journal filtrable + dialog saisie manuelle
+- `AccountingBalanceView.vue` : balance agrégée par compte avec totaux débit/crédit/solde
+- `AccountingLedgerView.vue` : grand livre par compte avec solde glissant
+- `AccountingResultatView.vue` : compte de résultat charges/produits, excédent ou déficit
+- `AccountingRulesView.vue` : liste des règles avec activation/désactivation, pré-remplissage
+- `FiscalYearView.vue` : liste des exercices, création, clôture avec confirmation
+- Routes `/accounting/journal`, `/balance`, `/ledger`, `/resultat`, `/rules`, `/fiscal-years`
+- Clés i18n `accounting.journal.*`, `accounting.balance.*`, `accounting.ledger.*`, `accounting.resultat.*`, `accounting.rules.*`, `accounting.fiscalYear.*` dans `fr.ts`
+- NavMenu mis à jour avec les 7 nouvelles entrées comptabilité
+
+---
+
+## [0.4.0] — Phase 4 — Paiements & Trésorerie
 - Modèle `Payment` : paiement par facture, méthode (espèces/chèque/virement), suivi dépôt en banque
 - Modèle `CashRegister` + `CashCount` : journal de caisse avec solde glissant, comptage physique par coupure
 - Modèle `BankTransaction` + `Deposit` + table d'association `deposit_payments`

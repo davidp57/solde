@@ -12,10 +12,13 @@ from backend.config import get_settings
 from backend.database import init_db
 from backend.routers import (
     accounting_account,
+    accounting_entry,
+    accounting_rule,
     auth,
     bank,
     cash,
     contact,
+    fiscal_year,
     invoice,
     payment,
     settings,
@@ -55,6 +58,9 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix="/api")
     app.include_router(contact.router, prefix="/api")
     app.include_router(accounting_account.router, prefix="/api")
+    app.include_router(accounting_entry.router, prefix="/api")
+    app.include_router(accounting_rule.router, prefix="/api")
+    app.include_router(fiscal_year.router, prefix="/api")
     app.include_router(invoice.router, prefix="/api")
     app.include_router(payment.router, prefix="/api")
     app.include_router(cash.router, prefix="/api")

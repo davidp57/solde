@@ -6,10 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from backend.database import Base, get_db
 from backend.models import accounting_account as _acct_module  # noqa: F401 — register all models
+from backend.models import accounting_entry as _entry_module  # noqa: F401 — register all models
+from backend.models import accounting_rule as _rule_module  # noqa: F401 — register all models
 from backend.models import app_settings  # noqa: F401 — register all models
 from backend.models import bank as _bank_module  # noqa: F401 — register all models
 from backend.models import cash as _cash_module  # noqa: F401 — register all models
 from backend.models import contact as _contact_module  # noqa: F401 — register all models
+from backend.models import fiscal_year as _fy_module  # noqa: F401 — register all models
 from backend.models import invoice as _invoice_module  # noqa: F401 — register all models
 from backend.models import payment as _payment_module  # noqa: F401 — register all models
 from backend.models import user as _user_module  # noqa: F401 — register all models

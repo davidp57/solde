@@ -61,6 +61,36 @@ const router = createRouter({
           component: () => import('../views/BankView.vue'),
         },
         {
+          path: 'accounting/journal',
+          name: 'accounting-journal',
+          component: () => import('../views/AccountingJournalView.vue'),
+        },
+        {
+          path: 'accounting/balance',
+          name: 'accounting-balance',
+          component: () => import('../views/AccountingBalanceView.vue'),
+        },
+        {
+          path: 'accounting/ledger',
+          name: 'accounting-ledger',
+          component: () => import('../views/AccountingLedgerView.vue'),
+        },
+        {
+          path: 'accounting/resultat',
+          name: 'accounting-resultat',
+          component: () => import('../views/AccountingResultatView.vue'),
+        },
+        {
+          path: 'accounting/rules',
+          name: 'accounting-rules',
+          component: () => import('../views/AccountingRulesView.vue'),
+        },
+        {
+          path: 'accounting/fiscal-years',
+          name: 'accounting-fiscal-years',
+          component: () => import('../views/FiscalYearView.vue'),
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('../views/SettingsView.vue'),
