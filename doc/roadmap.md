@@ -1,8 +1,59 @@
 # Roadmap — Solde ⚖️
 
-## Vue d'ensemble
+## État d'avancement
 
-```
+> Dernière mise à jour : 2026-04-08 — branche active `feature/phase2-base`
+
+| Phase | Statut | Tâches complètes |
+|---|---|---|
+| **1. Fondations** | ✅ Terminé | 9/9 |
+| **2. Gestion de base** | 🔄 En cours | 0/7 |
+| **3. Facturation** | ⬜ Non démarré | 0/7 |
+| **4. Paiements & Trésorerie** | ⬜ Non démarré | 0/14 |
+| **5. Comptabilité** | ⬜ Non démarré | 0/16 |
+| **6. Avancé** | ⬜ Non démarré | 0/14 |
+
+### Prochaines tâches immédiates (Phase 2)
+
+1. **Modèle Contact** (2.1) : SQLAlchemy `Contact` (type client|fournisseur|les_deux, nom, prénom, email, téléphone, adresse, notes), migration Alembic
+2. **API Contacts** (2.2) : CRUD REST `GET/POST /api/contacts/`, `GET/PUT/DELETE /api/contacts/{id}`, recherche et filtres par type
+3. **Vue Contacts** (2.3) : liste DataTable PrimeVue, Dialog création/édition, fiche contact
+4. **Tests Contacts** : unit (service) + integration (API) — ≥ 90% coverage service
+5. **Modèle AccountingAccount** (2.4) + **seed** (2.5) : 24 comptes associatifs pré-configurés, migration Alembic
+6. **API Plan comptable** (2.6) : CRUD + endpoint de seed
+7. **Vue Plan comptable** (2.7) : liste arborescente, ajout/modification de comptes
+
+### Stack mise en place
+
+**Backend** (`backend/`)
+- `config.py` — Pydantic Settings (`JWT_SECRET_KEY`, `FISCAL_YEAR_START_MONTH=8`, SMTP optionnel)
+- `database.py` — SQLAlchemy 2 async + SQLite WAL + `get_db()` dependency
+- `models/user.py` — `User`, `UserRole` (READONLY/SECRETAIRE/TRESORIER/ADMIN)
+- `services/auth.py` — bcrypt direct (Python 3.13), JWT create/decode
+- `schemas/auth.py` — `LoginRequest`, `TokenResponse`, `UserCreate`, `UserRead`
+- `routers/auth.py` — `/api/auth/login`, `/refresh`, `/me`, `/users` (admin)
+- `main.py` — `create_app()`, lifespan, CORS, mount `frontend/dist/`
+- Tests : `tests/unit/test_config.py` (7), `tests/unit/test_auth_service.py` (8), `tests/integration/test_auth_api.py` (9) → **24 passing, 83% coverage**
+
+**Frontend** (`frontend/src/`)
+- `main.ts` — PrimeVue 4 (Aura theme), vue-i18n v11, Pinia, Vue Router
+- `i18n/fr.ts` — toutes les clés UI (auth, nav, settings, user.role)
+- `api/auth.ts` — `loginApi`, `refreshApi`, `getMeApi`
+- `api/settings.ts` — `getSettingsApi`, `updateSettingsApi`
+- `api/client.ts` — axios avec intercepteur JWT + auto-refresh 401
+- `api/types.ts` — `LoginRequest`, `TokenResponse`, `UserRead`
+- `stores/auth.ts` — login/logout/refresh, persistance localStorage, computed `isAdmin`/`isTresorier`
+- `views/LoginView.vue` — formulaire PrimeVue complet avec gestion d'erreurs i18n
+- `views/SettingsView.vue` — formulaire complet (infos asso + SMTP avec TLS toggle)
+- `layouts/AppLayout.vue` — sidebar desktop + Drawer mobile responsive
+- `components/NavMenu.vue` — menu dynamique selon le rôle
+- `views/DashboardView.vue` — placeholder
+- `router/index.ts` — guards `requiresAuth` et `requiresAdmin`, lazy-loading
+- Tests : `tests/stores/auth.spec.ts` (11) + setup localStorage mock → **11 passing**
+
+---
+
+```text
 Phase 1          Phase 2        Phase 3          Phase 4              Phase 5           Phase 6
 Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &     ──►  Comptabilité ──►  Avancé
                  de base                         Trésorerie
@@ -21,20 +72,28 @@ Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &  
 
 > **Objectif** : infrastructure fonctionnelle de bout en bout (Docker → login → page de config)
 
-| # | Tâche | Détails |
-|---|---|---|
-| 1.1 | Setup projet | Structure de dossiers, `.gitignore`, `pyproject.toml`, `.env.example` |
-| 1.2 | Docker | `Dockerfile` multi-stage (build Vue.js + Python runtime), `docker-compose.yml` (1 service, 1 volume `./data`) |
-| 1.3 | Backend FastAPI | `main.py`, `config.py` (Settings Pydantic), `database.py` (SQLite WAL, AsyncSession) |
-| 1.4 | Alembic | Init, première migration avec modèle `User` |
-| 1.5 | Auth JWT | Login/logout, refresh token, middleware de vérification, modèle User + rôles (admin, trésorier, secrétaire, readonly) |
-| 1.6 | Frontend scaffold | Vue.js 3 + Vite + PrimeVue + Pinia + Vue Router, layout responsive (sidebar + topbar), page de login |
-| 1.7 | Page de configuration | Infos asso (nom, SIRET, adresse, logo), année comptable (défaut août→juillet), paramètres SMTP |
-| 1.8 | Servir le frontend | FastAPI `StaticFiles` pour servir le build Vue.js |
+| # | Statut | Tâche | Détails |
+|---|---|---|---|
+| 1.1 | ✅ | Setup projet | Structure de dossiers, `.gitignore`, `pyproject.toml` |
+| 1.2 | ✅ | Docker | `Dockerfile` multi-stage (build Vue.js + Python runtime), `docker-compose.yml` (1 service, 1 volume `./data`) |
+| 1.3 | ✅ | Backend FastAPI | `main.py`, `config.py` (Settings Pydantic), `database.py` (SQLite WAL, AsyncSession) |
+| 1.4 | ✅ | Alembic | Init, `env.py` async, migration `0001` (users + app_settings) |
+| 1.5 | ✅ | Auth JWT | Login/logout, refresh token, middleware de vérification, modèle User + rôles (admin, trésorier, secrétaire, readonly) |
+| 1.6 | ✅ | Frontend scaffold | Vue.js 3 + Vite + PrimeVue 4 + Pinia + Vue Router, layout responsive (sidebar + drawer mobile), page de login |
+| 1.7 | ✅ | Page de configuration | Modèle `AppSettings`, API `GET/PUT /api/settings` (admin), `SettingsView.vue` complet (infos asso + SMTP) |
+| 1.8 | ✅ | Servir le frontend | FastAPI `StaticFiles` pour servir le build Vue.js (`frontend/dist/`) |
+| 1.9 | ✅ | `.env.example` + README | Variables d'environnement documentées, README installation dev |
 
-**Critère de validation** : `docker-compose up` → navigateur → login → page de configuration fonctionnelle
+**Critère de validation** : `docker-compose up` → navigateur → login → page de configuration fonctionnelle ✅
+
+**État final (branche `feature/phase1-foundations`)** :
+
+- Backend : FastAPI + SQLite WAL + Alembic + auth JWT bcrypt + settings API → **44 tests, 88% coverage**
+- Frontend : scaffold + login + layout + guards + store auth + SettingsView complet → **11 tests Vitest**
+- Infra : Dockerfile multi-stage, docker-compose.yml, .dockerignore, .env.example
 
 ### Dépendances
+
 - Aucune (point de départ)
 
 ---
