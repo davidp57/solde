@@ -50,6 +50,8 @@ export default {
   },
   settings: {
     title: 'Paramètres',
+    section_asso: "Informations de l'association",
+    section_smtp: 'Configuration e-mail (SMTP)',
     asso_name: "Nom de l'association",
     siret: 'N° SIRET',
     address: 'Adresse',
@@ -58,7 +60,9 @@ export default {
     smtp_port: 'Port SMTP',
     smtp_username: 'Utilisateur SMTP',
     smtp_password: 'Mot de passe SMTP',
+    smtp_password_placeholder: 'Laisser vide pour conserver le mot de passe actuel',
     smtp_from: 'Adresse expéditeur',
+    smtp_use_tls: 'Utiliser TLS',
     saved: 'Paramètres enregistrés avec succès.',
     save_error: "Échec de l'enregistrement des paramètres.",
   },

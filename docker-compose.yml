@@ -1,0 +1,13 @@
+services:
+  solde:
+    build: .
+    container_name: solde
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "sqlite+aiosqlite:///data/solde.db"

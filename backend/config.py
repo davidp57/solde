@@ -71,6 +71,4 @@ def get_settings() -> Settings:
 
 
 # Module-level singleton — overridden in tests via dependency injection
-_settings = Settings(
-    jwt_secret_key="dev-secret-key-change-this-in-production-please"
-)
+_settings = Settings(jwt_secret_key="dev-secret-key-change-this-in-production-please")

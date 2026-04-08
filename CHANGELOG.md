@@ -19,7 +19,11 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - Service d'authentification : hachage bcrypt (direct, compatible Python 3.13), tokens JWT accès + rafraîchissement
 - Routeur auth : `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me`, `POST /api/auth/users` (admin uniquement)
 - Dépendance `get_current_user` et fabrique `require_role(*roles)` pour l'autorisation des routes
-- 24 tests pytest (unitaires + intégration) — 83 % de couverture
+- **Alembic** : `alembic.ini`, `backend/alembic/env.py` (async), `script.py.mako`, migration `0001` (tables `users` + `app_settings`)
+- **Modèle `AppSettings`** : table single-row (id=1) pour les paramètres de l'association et SMTP
+- **API Settings** : `GET /api/settings/` et `PUT /api/settings/` avec mise à jour partielle (admin uniquement) — `smtp_password` exclu de la réponse
+- **Service settings** : `get_settings()` (création automatique si absente) et `update_settings()` (partial update)
+- 44 tests pytest (unitaires + intégration) — 88 % de couverture
 
 **Frontend**
 - Scaffold Vue.js 3 avec TypeScript, Vue Router, Pinia, Vitest, ESLint + Prettier
@@ -31,12 +35,22 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `AppLayout.vue` : layout responsive — barre latérale desktop + tiroir mobile
 - `NavMenu.vue` : menu de navigation adapté au rôle
 - Vue Router avec guards `requiresAuth` et `requiresAdmin`, chargement paresseux des routes protégées
-- Vues placeholder : `DashboardView.vue`, `SettingsView.vue`
+- **`api/settings.ts`** : `getSettingsApi()` et `updateSettingsApi()`
+- **`SettingsView.vue`** : formulaire PrimeVue complet — infos association (nom, SIRET, adresse, mois début exercice) + configuration SMTP (host, port, user, from, TLS toggle) avec messages de succès/erreur
 - 11 tests Vitest unitaires pour le store auth — tous verts
+
+**Infra**
+- `Dockerfile` multi-stage : `node:22-alpine` pour le build Vue.js, `python:3.13-slim` pour le runtime, utilisateur non-root `solde`
+- `docker-compose.yml` : 1 service, 1 volume `./data`, port 8000
+- `.dockerignore`
+- `.env.example` documenté (JWT_SECRET_KEY, DATABASE_URL, SMTP optionnel)
+- README mis à jour avec les instructions d'installation dev et Docker
 
 ### Modifié
 
 - Remplacement de `passlib[bcrypt]` par `bcrypt` en import direct (compatibilité Python 3.13 + bcrypt ≥ 4.0)
+- `UserRole` migré de `(str, Enum)` vers `StrEnum` (Python 3.11+)
+- Annotations de type ajoutées sur `_build_engine()`, `lifespan()`, `require_role()` et `do_run_migrations()` (mypy strict)
 
 ---
 

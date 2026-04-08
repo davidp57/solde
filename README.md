@@ -39,7 +39,7 @@ cp .env.example .env
 docker-compose up -d
 
 # 4. Ouvrir dans le navigateur
-# http://localhost:8080
+# http://localhost:8000
 ```
 
 Le premier démarrage crée automatiquement la base de données et un compte administrateur

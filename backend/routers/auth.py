@@ -1,6 +1,7 @@
 """Authentication router — login, refresh, current user."""
 
-from typing import Annotated
+from collections.abc import Callable
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -47,7 +48,7 @@ async def get_current_user(
     return user
 
 
-def require_role(*roles: UserRole):
+def require_role(*roles: UserRole) -> Callable[..., Any]:
     """Dependency factory restricting access to users with the specified roles."""
 
     async def _check(current_user: Annotated[User, Depends(get_current_user)]) -> User:
@@ -126,9 +127,7 @@ async def create_user(
 ) -> User:
     """Create a new user (admin only)."""
     existing = await db.execute(
-        select(User).where(
-            (User.username == body.username) | (User.email == body.email)
-        )
+        select(User).where((User.username == body.username) | (User.email == body.email))
     )
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(

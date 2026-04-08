@@ -1,7 +1,7 @@
 """User model — authentication and role management."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from backend.database import Base
 
 
-class UserRole(str, Enum):
+class UserRole(StrEnum):
     """Application roles ordered from least to most privileged."""
 
     READONLY = "readonly"

@@ -2,24 +2,26 @@
 
 ## État d'avancement
 
-> Dernière mise à jour : 2026-04-08 — branche active `feature/phase1-foundations`
+> Dernière mise à jour : 2026-04-08 — branche active `feature/phase2-base`
 
 | Phase | Statut | Tâches complètes |
 |---|---|---|
-| **1. Fondations** | 🔄 En cours | 5/9 |
-| **2. Gestion de base** | ⬜ Non démarré | 0/7 |
+| **1. Fondations** | ✅ Terminé | 9/9 |
+| **2. Gestion de base** | 🔄 En cours | 0/7 |
 | **3. Facturation** | ⬜ Non démarré | 0/7 |
 | **4. Paiements & Trésorerie** | ⬜ Non démarré | 0/14 |
 | **5. Comptabilité** | ⬜ Non démarré | 0/16 |
 | **6. Avancé** | ⬜ Non démarré | 0/14 |
 
-### Prochaines tâches immédiates (Phase 1 — suite)
+### Prochaines tâches immédiates (Phase 2)
 
-1. **Alembic** (1.4) : `alembic init`, `env.py` → modèles async, `revision --autogenerate -m "create users table"`, `alembic upgrade head`
-2. **API Settings** (1.7 back) : modèle `AppSettings` SQLite, endpoint `GET/PUT /api/settings`, schémas Pydantic
-3. **Vue Settings** (1.7 front) : `SettingsView.vue` complet avec formulaire PrimeVue (remplacer le placeholder actuel)
-4. **Docker** (1.2) : `Dockerfile` multi-stage (`node:22-alpine` build + `python:3.13-slim` runtime), `docker-compose.yml`, volume `./data`
-5. **`.env.example` + README** (1.9) : toutes les variables documentées, instructions `docker-compose up`
+1. **Modèle Contact** (2.1) : SQLAlchemy `Contact` (type client|fournisseur|les_deux, nom, prénom, email, téléphone, adresse, notes), migration Alembic
+2. **API Contacts** (2.2) : CRUD REST `GET/POST /api/contacts/`, `GET/PUT/DELETE /api/contacts/{id}`, recherche et filtres par type
+3. **Vue Contacts** (2.3) : liste DataTable PrimeVue, Dialog création/édition, fiche contact
+4. **Tests Contacts** : unit (service) + integration (API) — ≥ 90% coverage service
+5. **Modèle AccountingAccount** (2.4) + **seed** (2.5) : 24 comptes associatifs pré-configurés, migration Alembic
+6. **API Plan comptable** (2.6) : CRUD + endpoint de seed
+7. **Vue Plan comptable** (2.7) : liste arborescente, ajout/modification de comptes
 
 ### Stack mise en place
 
@@ -37,22 +39,21 @@
 - `main.ts` — PrimeVue 4 (Aura theme), vue-i18n v11, Pinia, Vue Router
 - `i18n/fr.ts` — toutes les clés UI (auth, nav, settings, user.role)
 - `api/auth.ts` — `loginApi`, `refreshApi`, `getMeApi`
+- `api/settings.ts` — `getSettingsApi`, `updateSettingsApi`
 - `api/client.ts` — axios avec intercepteur JWT + auto-refresh 401
 - `api/types.ts` — `LoginRequest`, `TokenResponse`, `UserRead`
 - `stores/auth.ts` — login/logout/refresh, persistance localStorage, computed `isAdmin`/`isTresorier`
 - `views/LoginView.vue` — formulaire PrimeVue complet avec gestion d'erreurs i18n
+- `views/SettingsView.vue` — formulaire complet (infos asso + SMTP avec TLS toggle)
 - `layouts/AppLayout.vue` — sidebar desktop + Drawer mobile responsive
 - `components/NavMenu.vue` — menu dynamique selon le rôle
 - `views/DashboardView.vue` — placeholder
-- `views/SettingsView.vue` — placeholder (à implémenter en 1.7)
 - `router/index.ts` — guards `requiresAuth` et `requiresAdmin`, lazy-loading
 - Tests : `tests/stores/auth.spec.ts` (11) + setup localStorage mock → **11 passing**
 
 ---
 
-
-
-```
+```text
 Phase 1          Phase 2        Phase 3          Phase 4              Phase 5           Phase 6
 Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &     ──►  Comptabilité ──►  Avancé
                  de base                         Trésorerie
@@ -74,23 +75,25 @@ Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &  
 | # | Statut | Tâche | Détails |
 |---|---|---|---|
 | 1.1 | ✅ | Setup projet | Structure de dossiers, `.gitignore`, `pyproject.toml` |
-| 1.2 | ⬜ | Docker | `Dockerfile` multi-stage (build Vue.js + Python runtime), `docker-compose.yml` (1 service, 1 volume `./data`) |
+| 1.2 | ✅ | Docker | `Dockerfile` multi-stage (build Vue.js + Python runtime), `docker-compose.yml` (1 service, 1 volume `./data`) |
 | 1.3 | ✅ | Backend FastAPI | `main.py`, `config.py` (Settings Pydantic), `database.py` (SQLite WAL, AsyncSession) |
-| 1.4 | ⬜ | Alembic | Init, première migration avec modèle `User` |
+| 1.4 | ✅ | Alembic | Init, `env.py` async, migration `0001` (users + app_settings) |
 | 1.5 | ✅ | Auth JWT | Login/logout, refresh token, middleware de vérification, modèle User + rôles (admin, trésorier, secrétaire, readonly) |
 | 1.6 | ✅ | Frontend scaffold | Vue.js 3 + Vite + PrimeVue 4 + Pinia + Vue Router, layout responsive (sidebar + drawer mobile), page de login |
-| 1.7 | ⬜ | Page de configuration | Infos asso (nom, SIRET, adresse, logo), année comptable (défaut août→juillet), paramètres SMTP — placeholder créé, API `/api/settings` à faire |
+| 1.7 | ✅ | Page de configuration | Modèle `AppSettings`, API `GET/PUT /api/settings` (admin), `SettingsView.vue` complet (infos asso + SMTP) |
 | 1.8 | ✅ | Servir le frontend | FastAPI `StaticFiles` pour servir le build Vue.js (`frontend/dist/`) |
-| 1.9 | ⬜ | `.env.example` + README | Variables d'environnement documentées, README installation dev |
+| 1.9 | ✅ | `.env.example` + README | Variables d'environnement documentées, README installation dev |
 
-**Critère de validation** : `docker-compose up` → navigateur → login → page de configuration fonctionnelle
+**Critère de validation** : `docker-compose up` → navigateur → login → page de configuration fonctionnelle ✅
 
-**État courant (branche `feature/phase1-foundations`)** :
-- Backend 100% fonctionnel : FastAPI + SQLite WAL + auth JWT bcrypt + 24 tests (83% coverage)
-- Frontend : scaffold opérationnel, login, layout, router avec guards, store auth, 11 tests Vitest
-- Restant : Alembic, page de config (back + front), Docker, `.env.example`, README
+**État final (branche `feature/phase1-foundations`)** :
+
+- Backend : FastAPI + SQLite WAL + Alembic + auth JWT bcrypt + settings API → **44 tests, 88% coverage**
+- Frontend : scaffold + login + layout + guards + store auth + SettingsView complet → **11 tests Vitest**
+- Infra : Dockerfile multi-stage, docker-compose.yml, .dockerignore, .env.example
 
 ### Dépendances
+
 - Aucune (point de départ)
 
 ---

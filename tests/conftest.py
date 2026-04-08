@@ -1,14 +1,14 @@
 """Shared pytest fixtures for all tests."""
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.database import Base, get_db
+from backend.models import app_settings  # noqa: F401 — register all models
+from backend.models import user as _user_module  # noqa: F401 — register all models
 from backend.models.user import User, UserRole
 from backend.services.auth import hash_password
-
 
 # In-memory SQLite for tests
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -51,9 +51,7 @@ async def client(db_session: AsyncSession) -> AsyncClient:
 
     app.dependency_overrides[get_db] = _override_get_db
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
 
 

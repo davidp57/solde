@@ -1,6 +1,5 @@
 """Tests for authentication service (JWT + password hashing)."""
 
-import pytest
 from datetime import timedelta
 
 

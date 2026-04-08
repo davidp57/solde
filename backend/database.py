@@ -4,6 +4,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
@@ -19,7 +20,7 @@ class Base(DeclarativeBase):
     pass
 
 
-def _build_engine(database_url: str | None = None):
+def _build_engine(database_url: str | None = None) -> AsyncEngine:
     """Create async SQLAlchemy engine with WAL journal mode."""
     url = database_url or get_settings().database_url
     engine = create_async_engine(
@@ -46,7 +47,7 @@ async def init_db() -> None:
         # Enable WAL mode for better concurrent read performance
         await conn.exec_driver_sql("PRAGMA journal_mode=WAL")
         await conn.exec_driver_sql("PRAGMA foreign_keys=ON")
-        from backend.models import user  # noqa: F401 — ensure model is registered
+        from backend.models import app_settings, user  # noqa: F401 — ensure models are registered
 
         await conn.run_sync(Base.metadata.create_all)
 
