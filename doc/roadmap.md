@@ -7,21 +7,21 @@
 | Phase | Statut | Tâches complètes |
 |---|---|---|
 | **1. Fondations** | ✅ Terminé | 9/9 |
-| **2. Gestion de base** | 🔄 En cours | 0/7 |
+| **2. Gestion de base** | ✅ Terminé | 7/7 |
 | **3. Facturation** | ⬜ Non démarré | 0/7 |
 | **4. Paiements & Trésorerie** | ⬜ Non démarré | 0/14 |
 | **5. Comptabilité** | ⬜ Non démarré | 0/16 |
 | **6. Avancé** | ⬜ Non démarré | 0/14 |
 
-### Prochaines tâches immédiates (Phase 2)
+### Prochaines tâches immédiates (Phase 3)
 
-1. **Modèle Contact** (2.1) : SQLAlchemy `Contact` (type client|fournisseur|les_deux, nom, prénom, email, téléphone, adresse, notes), migration Alembic
-2. **API Contacts** (2.2) : CRUD REST `GET/POST /api/contacts/`, `GET/PUT/DELETE /api/contacts/{id}`, recherche et filtres par type
-3. **Vue Contacts** (2.3) : liste DataTable PrimeVue, Dialog création/édition, fiche contact
-4. **Tests Contacts** : unit (service) + integration (API) — ≥ 90% coverage service
-5. **Modèle AccountingAccount** (2.4) + **seed** (2.5) : 24 comptes associatifs pré-configurés, migration Alembic
-6. **API Plan comptable** (2.6) : CRUD + endpoint de seed
-7. **Vue Plan comptable** (2.7) : liste arborescente, ajout/modification de comptes
+1. **Modèle Invoice + InvoiceLine** (3.1) : numéro YYYY-NNNN, type client/fournisseur, label cs|a|cs+a|general, lignes multi, statuts
+2. **Tests + API Factures clients** (3.2) : CRUD, numérotation auto séquentielle, changement statut, duplication
+3. **Vue Factures clients** (3.3) : liste filtrable (statut, date, contact), formulaire avec lignes dynamiques
+4. **Tests + API Factures fournisseurs** (3.4) : CRUD, upload fichier PDF/image
+5. **Vue Factures fournisseurs** (3.5) : liste, formulaire avec upload de fichier
+6. **Génération PDF** (3.6) : WeasyPrint + template Jinja2 (logo, coordonnées, lignes, mention Loi 1901)
+7. **Envoi email** (3.7) : SMTP, facture PDF en pièce jointe
 
 ### Stack mise en place
 
@@ -102,19 +102,26 @@ Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &  
 
 > **Objectif** : pouvoir gérer les contacts et le plan comptable
 
-| # | Tâche | Détails |
-|---|---|---|
-| 2.1 | Modèle Contact | SQLAlchemy : type (client\|fournisseur\|les_deux), nom, prénom, email, téléphone, adresse, notes |
-| 2.2 | API Contacts | CRUD REST, recherche, filtres par type |
-| 2.3 | Vue Contacts | Liste (DataTable PrimeVue), création/édition (Dialog), fiche contact avec historique |
-| 2.4 | Modèle AccountingAccount | SQLAlchemy : numéro, label, type (actif\|passif\|charge\|produit), parent |
-| 2.5 | Plan comptable par défaut | Seed des 24 comptes identifiés dans les Excel |
-| 2.6 | API Plan comptable | CRUD REST, import du plan par défaut |
-| 2.7 | Vue Plan comptable | Liste arborescente, ajout/modification de comptes |
+| # | Statut | Tâche | Détails |
+|---|---|---|---|
+| 2.1 | ✅ | Modèle Contact | SQLAlchemy `Contact` + migration Alembic 0002 |
+| 2.2 | ✅ | API Contacts | CRUD REST, recherche (nom/prénom/email), filtres par type, soft-delete |
+| 2.3 | ✅ | Vue Contacts | DataTable PrimeVue, Dialog création/édition (`ContactForm.vue`), suppression confirmée |
+| 2.4 | ✅ | Modèle AccountingAccount | SQLAlchemy + migration Alembic 0003 |
+| 2.5 | ✅ | Plan comptable par défaut | 24 comptes pré-configurés, seed idempotent |
+| 2.6 | ✅ | API Plan comptable | CRUD REST + `POST /api/accounting/accounts/seed` |
+| 2.7 | ✅ | Vue Plan comptable | DataTable avec filtre par type, Dialog création/édition (`AccountForm.vue`) |
 
-**Critère de validation** : créer, modifier, rechercher, supprimer des contacts et des comptes comptables
+**Critère de validation** : créer, modifier, rechercher, supprimer des contacts et des comptes comptables ✅
+
+**État final (branche `feature/phase2-base`)** :
+
+- Backend : modèles Contact + AccountingAccount, services, schemas, routers → **103 tests, 89% coverage**
+- Frontend : ContactsView, ContactForm, AccountingAccountsView, AccountForm, routes, i18n
+- Alembic : migrations 0002 (contacts) + 0003 (accounting_accounts)
 
 ### Dépendances
+
 - Phase 1 (auth + DB)
 
 ---

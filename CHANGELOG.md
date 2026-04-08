@@ -12,6 +12,31 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ### Ajouté
 
 **Backend**
+- Modèle `Contact` : type (`client` | `fournisseur` | `les_deux`), nom, prénom, email, téléphone, adresse, notes, soft-delete (`is_active`)
+- Migration Alembic `0002` : table `contacts`
+- Service contacts : CRUD complet, recherche insensible à la casse sur nom/prénom/email, filtrage par type, pagination
+- Routeur `/api/contacts/` : CRUD REST avec guards rôle (`SECRETAIRE+`)
+- Modèle `AccountingAccount` : numéro (unique), label, type (`actif` | `passif` | `charge` | `produit`), soft-delete
+- 24 comptes comptables associatifs pré-configurés (`DEFAULT_ACCOUNTS`) + seed idempotent
+- Migration Alembic `0003` : table `accounting_accounts`
+- Service plan comptable : CRUD, seed idempotent, filtre par type
+- Routeur `/api/accounting/accounts/` : CRUD REST + `POST /seed` avec guards rôle (`TRESORIER+`)
+- 103 tests pytest (unitaires + intégration) — 89 % de couverture
+
+**Frontend**
+- `api/contacts.ts` : fonctions CRUD vers `/api/contacts/`
+- `api/accounting.ts` : fonctions CRUD vers `/api/accounting/accounts/` + seed
+- `ContactsView.vue` : DataTable PrimeVue avec recherche (debounce 300 ms) et filtre par type, Dialog création/édition, suppression avec confirmation
+- `AccountingAccountsView.vue` : DataTable avec filtre par type (boutons), bouton Seed, Dialog création/édition
+- `ContactForm.vue` : formulaire de création/édition de contact
+- `AccountForm.vue` : formulaire de création/édition de compte comptable (numéro désactivé en édition)
+- Routes `/contacts` et `/accounting/accounts` ajoutées au Vue Router
+- Entrées de navigation contacts (`pi-users`) et plan comptable (`pi-list`) dans `NavMenu.vue`
+- Clés i18n supplémentaires : `contacts.*`, `accounting.*`, `common.all`, `common.actions`
+
+---
+
+**Backend (Phase 1)**
 - Fabrique d'application FastAPI (`create_app()`) avec lifespan, CORS, service des fichiers statiques Vue.js
 - Configuration Pydantic Settings avec validation : `JWT_SECRET_KEY` (min 32 caractères), `FISCAL_YEAR_START_MONTH` (défaut 8 = août), paramètres SMTP optionnels
 - Moteur SQLAlchemy 2 async avec SQLite en mode WAL et contrôle des clés étrangères
