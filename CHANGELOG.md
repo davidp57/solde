@@ -11,7 +11,27 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
-**Backend (Phase 3)**
+**Backend (Phase 4 — Paiements & Trésorerie)**
+- Modèle `Payment` : paiement par facture, méthode (espèces/chèque/virement), suivi dépôt en banque
+- Modèle `CashRegister` + `CashCount` : journal de caisse avec solde glissant, comptage physique par coupure
+- Modèle `BankTransaction` + `Deposit` + table d'association `deposit_payments`
+- Migrations Alembic `0005` (payments) et `0006` (caisse + banque)
+- Schémas Pydantic v2 : `PaymentCreate/Update/Read`, `CashEntryCreate/Read`, `CashCountCreate/Read`, `BankTransactionCreate/Update/Read`, `DepositCreate/Read`
+- Service `payment.py` : CRUD complet, refresh automatique du statut facture (PARTIAL/PAID) à chaque opération
+- Service `cash_service.py` : ajout écriture caisse avec solde recalculé, comptage physique, solde actuel
+- Service `bank_service.py` : transactions bancaires, rapprochement, bordereaux de remise multi-paiements
+- Service `bank_import.py` : import CSV Crédit Mutuel (séparateur `;`, montants en locale française)
+- Routeurs `/api/payments/`, `/api/cash/`, `/api/bank/` enregistrés dans `main.py`
+- 208 tests (12 nouveaux fichiers de tests) — 84 % de couverture globale
+
+**Frontend (Phase 4)**
+- `api/payments.ts`, `api/cash.ts`, `api/bank.ts` : clients API typés
+- `PaymentsView.vue` : liste globale des paiements, filtre "à remettre en banque"
+- `CashView.vue` : journal de caisse + interface comptage par coupure (onglets)
+- `BankView.vue` : relevé bancaire, import CSV, bordereaux de remise, bouton de lettrage
+- Routes `/payments`, `/cash`, `/bank` enregistrées dans le router
+- Clés i18n `payments.*`, `cash.*`, `bank.*` ajoutées dans `fr.ts`
+
 - Modèle `Invoice` + `InvoiceLine` : numéro `YYYY-C-NNNN` / `YYYY-F-NNNN`, type (`client` | `fournisseur`), label, statuts (draft→sent→paid/partial/overdue/disputed), lignes multi
 - Migration Alembic `0004` : tables `invoices` + `invoice_lines`
 - Service factures : numérotation auto séquentielle par type et année, calcul total, transitions de statut avec validation, duplication, soft-delete (draft uniquement)

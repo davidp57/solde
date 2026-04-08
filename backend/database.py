@@ -50,8 +50,11 @@ async def init_db() -> None:
         from backend.models import (  # noqa: F401
             accounting_account,
             app_settings,
+            bank,
+            cash,
             contact,
             invoice,
+            payment,
             user,
         )
 

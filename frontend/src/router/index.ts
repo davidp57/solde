@@ -46,6 +46,21 @@ const router = createRouter({
           component: () => import('../views/SupplierInvoicesView.vue'),
         },
         {
+          path: 'payments',
+          name: 'payments',
+          component: () => import('../views/PaymentsView.vue'),
+        },
+        {
+          path: 'cash',
+          name: 'cash',
+          component: () => import('../views/CashView.vue'),
+        },
+        {
+          path: 'bank',
+          name: 'bank',
+          component: () => import('../views/BankView.vue'),
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('../views/SettingsView.vue'),
