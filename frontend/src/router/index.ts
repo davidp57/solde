@@ -26,6 +26,16 @@ const router = createRouter({
           component: () => import('../views/DashboardView.vue'),
         },
         {
+          path: 'contacts',
+          name: 'contacts',
+          component: () => import('../views/ContactsView.vue'),
+        },
+        {
+          path: 'accounting/accounts',
+          name: 'accounting-accounts',
+          component: () => import('../views/AccountingAccountsView.vue'),
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('../views/SettingsView.vue'),
