@@ -2,26 +2,29 @@
 
 ## État d'avancement
 
-> Dernière mise à jour : 2026-04-08 — branche active `feature/phase2-base`
+> Dernière mise à jour : 2026-04-08 — branche active `feature/phase3-invoicing`
 
 | Phase | Statut | Tâches complètes |
 |---|---|---|
 | **1. Fondations** | ✅ Terminé | 9/9 |
 | **2. Gestion de base** | ✅ Terminé | 7/7 |
-| **3. Facturation** | ⬜ Non démarré | 0/7 |
+| **3. Facturation** | ✅ Terminé | 7/7 |
 | **4. Paiements & Trésorerie** | ⬜ Non démarré | 0/14 |
 | **5. Comptabilité** | ⬜ Non démarré | 0/16 |
 | **6. Avancé** | ⬜ Non démarré | 0/14 |
 
-### Prochaines tâches immédiates (Phase 3)
+### Prochaines tâches immédiates (Phase 4)
 
-1. **Modèle Invoice + InvoiceLine** (3.1) : numéro YYYY-NNNN, type client/fournisseur, label cs|a|cs+a|general, lignes multi, statuts
-2. **Tests + API Factures clients** (3.2) : CRUD, numérotation auto séquentielle, changement statut, duplication
-3. **Vue Factures clients** (3.3) : liste filtrable (statut, date, contact), formulaire avec lignes dynamiques
-4. **Tests + API Factures fournisseurs** (3.4) : CRUD, upload fichier PDF/image
-5. **Vue Factures fournisseurs** (3.5) : liste, formulaire avec upload de fichier
-6. **Génération PDF** (3.6) : WeasyPrint + template Jinja2 (logo, coordonnées, lignes, mention Loi 1901)
-7. **Envoi email** (3.7) : SMTP, facture PDF en pièce jointe
+1. **Modèle Payment** (4.1) : montant, mode (espèces|chèque|virement), N° chèque, dates, statut de dépôt
+2. **Tests + API Paiements** (4.2) : enregistrement sur facture, paiement partiel, mise à jour statut facture
+3. **Vue Paiements** (4.3) : liste par facture et globale, formule, vue "à encaisser"
+4. **Modèle CashRegister + CashCount** (4.4) : journal de caisse, comptages par coupure
+5. **Tests + API Caisse** (4.5) : journal, comptage, rapprochement
+6. **Vue Caisse** (4.6) : journal avec solde glissant, interface de comptage par coupure
+7. **Modèles BankTransaction + Deposit** (4.7, 4.9) : transactions bancaires, bordereaux
+8. **API + Vue Banque + Bordereaux** (4.8, 4.10, 4.11)
+9. **Import relevés bancaires CSV/OFX** (4.12, 4.13)
+10. **Rapprochement bancaire** (4.14)
 
 ### Stack mise en place
 
@@ -130,17 +133,23 @@ Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &  
 
 > **Objectif** : créer des factures, générer des PDF, envoyer par email
 
-| # | Tâche | Détails |
-|---|---|---|
-| 3.1 | Modèle Invoice + InvoiceLine | Numéro YYYY-NNNN, type client/fournisseur, label (cs\|a\|cs+a\|general), lignes multi, statuts |
-| 3.2 | API Factures clients | CRUD, numérotation auto séquentielle, changement de statut, duplication |
-| 3.3 | Vue Factures clients | Liste filtrable (statut, date, contact), formulaire de création/édition avec lignes dynamiques |
-| 3.4 | API Factures fournisseurs | CRUD, upload fichier PDF/image |
-| 3.5 | Vue Factures fournisseurs | Liste, formulaire avec upload, prévisualisation du fichier |
-| 3.6 | Génération PDF | WeasyPrint + template Jinja2 : logo asso, coordonnées, détail lignes, mention « Loi 1901, non assujettie à la TVA » |
-| 3.7 | Envoi email | Configuration SMTP, envoi facture PDF en pièce jointe |
+| # | Statut | Tâche | Détails |
+|---|---|---|---|
+| 3.1 | ✅ | Modèle Invoice + InvoiceLine | Numéro YYYY-C/F-NNNN, type client/fournisseur, label (cs\|a\|cs+a\|general), lignes multi, statuts |
+| 3.2 | ✅ | API Factures clients | CRUD, numérotation auto séquentielle, changement de statut, duplication, migration 0004 |
+| 3.3 | ✅ | Vue Factures clients | `ClientInvoicesView.vue`, `ClientInvoiceForm.vue` avec lignes dynamiques, filtres statut/année |
+| 3.4 | ✅ | API Factures fournisseurs | CRUD, upload fichier PDF/image/WebP (10 MB max, UUID filename) |
+| 3.5 | ✅ | Vue Factures fournisseurs | `SupplierInvoicesView.vue`, `SupplierInvoiceForm.vue`, dialog upload |
+| 3.6 | ✅ | Génération PDF | WeasyPrint (import paresseux) + template Jinja2 `invoice.html` |
+| 3.7 | ✅ | Envoi email | smtplib + STARTTLS/SSL, facture PDF en pièce jointe, transition draft→sent automatique |
 
-**Critère de validation** : créer une facture client cs+a → générer le PDF → l'envoyer par email → la retrouver dans la liste ; enregistrer une facture fournisseur avec un fichier joint
+**Critère de validation** : créer une facture client cs+a → générer le PDF → l'envoyer par email → la retrouver dans la liste ; enregistrer une facture fournisseur avec un fichier joint ✅
+
+**État final (branche `feature/phase3-invoicing`)** :
+
+- Backend : modèles Invoice + InvoiceLine, service (numérotation, transitions, duplication), schemas, router, pdf_service, email_service → **145 tests, 79% coverage**
+- Frontend : ClientInvoicesView, SupplierInvoicesView, ClientInvoiceForm, SupplierInvoiceForm, routes, i18n
+- Alembic : migration 0004 (invoices + invoice_lines)
 
 ### Dépendances
 - Phase 2 (contacts pour `contact_id`)
