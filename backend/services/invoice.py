@@ -202,6 +202,10 @@ async def update_invoice_status(
         raise InvoiceStatusError(f"Cannot transition from '{invoice.status}' to '{new_status}'")
     invoice.status = new_status
     invoice.updated_at = datetime.now(UTC)
+    if new_status == InvoiceStatus.SENT:
+        from backend.services.accounting_engine import generate_entries_for_invoice  # noqa: PLC0415
+
+        await generate_entries_for_invoice(db, invoice)
     await db.commit()
     await db.refresh(invoice)
     return invoice

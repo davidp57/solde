@@ -32,8 +32,13 @@ const menuItems = computed(() => {
     { to: '/payments', icon: 'pi-credit-card', label: t('nav.payments') },
     { to: '/bank', icon: 'pi-building-columns', label: t('nav.bank') },
     { to: '/cash', icon: 'pi-wallet', label: t('nav.cash') },
-    { to: '/accounting', icon: 'pi-book', label: t('nav.accounting') },
-    { to: '/accounting/accounts', icon: 'pi-list', label: t('nav.accounting_accounts') },
+    { to: '/accounting/journal', icon: 'pi-book', label: t('nav.accounting_journal') },
+    { to: '/accounting/balance', icon: 'pi-chart-bar', label: t('nav.accounting_balance') },
+    { to: '/accounting/ledger', icon: 'pi-list', label: t('nav.accounting_ledger') },
+    { to: '/accounting/resultat', icon: 'pi-chart-pie', label: t('nav.accounting_resultat') },
+    { to: '/accounting/accounts', icon: 'pi-database', label: t('nav.accounting_accounts') },
+    { to: '/accounting/rules', icon: 'pi-sliders-h', label: t('nav.accounting_rules') },
+    { to: '/accounting/fiscal-years', icon: 'pi-calendar', label: t('nav.accounting_fiscal_years') },
   ]
 
   if (auth.isAdmin) {

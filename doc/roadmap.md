@@ -10,7 +10,7 @@
 | **2. Gestion de base** | ✅ Terminé | 7/7 |
 | **3. Facturation** | ✅ Terminé | 7/7 |
 | **4. Paiements & Trésorerie** | ✅ Terminé | 14/14 |
-| **5. Comptabilité** | ⬜ Non démarré | 0/16 |
+| **5. Comptabilité** | ✅ Terminé | 16/16 |
 | **6. Avancé** | ⬜ Non démarré | 0/14 |
 
 ### Prochaines tâches immédiates (Phase 5 — Comptabilité)
