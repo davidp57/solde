@@ -2,29 +2,25 @@
 
 ## État d'avancement
 
-> Dernière mise à jour : 2026-04-08 — branche active `feature/phase3-invoicing`
+> Dernière mise à jour : 2026-06-13 — branche active `develop`
 
 | Phase | Statut | Tâches complètes |
 |---|---|---|
 | **1. Fondations** | ✅ Terminé | 9/9 |
 | **2. Gestion de base** | ✅ Terminé | 7/7 |
 | **3. Facturation** | ✅ Terminé | 7/7 |
-| **4. Paiements & Trésorerie** | ⬜ Non démarré | 0/14 |
+| **4. Paiements & Trésorerie** | ✅ Terminé | 14/14 |
 | **5. Comptabilité** | ⬜ Non démarré | 0/16 |
 | **6. Avancé** | ⬜ Non démarré | 0/14 |
 
-### Prochaines tâches immédiates (Phase 4)
+### Prochaines tâches immédiates (Phase 5 — Comptabilité)
 
-1. **Modèle Payment** (4.1) : montant, mode (espèces|chèque|virement), N° chèque, dates, statut de dépôt
-2. **Tests + API Paiements** (4.2) : enregistrement sur facture, paiement partiel, mise à jour statut facture
-3. **Vue Paiements** (4.3) : liste par facture et globale, formule, vue "à encaisser"
-4. **Modèle CashRegister + CashCount** (4.4) : journal de caisse, comptages par coupure
-5. **Tests + API Caisse** (4.5) : journal, comptage, rapprochement
-6. **Vue Caisse** (4.6) : journal avec solde glissant, interface de comptage par coupure
-7. **Modèles BankTransaction + Deposit** (4.7, 4.9) : transactions bancaires, bordereaux
-8. **API + Vue Banque + Bordereaux** (4.8, 4.10, 4.11)
-9. **Import relevés bancaires CSV/OFX** (4.12, 4.13)
-10. **Rapprochement bancaire** (4.14)
+1. **Écritures comptables** (5.1) : pièces comptables, journaux (achat/vente/banque/caisse/OD)
+2. **Lettrage** (5.2) : rapprochement factures ↔ paiements ↔ compte 411/401
+3. **Grand livre** (5.3) : liste des écritures par compte, solde courant
+4. **Balance** (5.4) : balance des comptes à une date donnée
+5. **Compte de résultat** (5.5) : charges/produits par classe, excédent/déficit
+6. **Clôture exercice** (5.6) : report à-nouveau, initialisation nouvel exercice
 
 ### Stack mise en place
 
