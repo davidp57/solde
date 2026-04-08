@@ -11,8 +11,30 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
-**Backend**
-- Modèle `Contact` : type (`client` | `fournisseur` | `les_deux`), nom, prénom, email, téléphone, adresse, notes, soft-delete (`is_active`)
+**Backend (Phase 3)**
+- Modèle `Invoice` + `InvoiceLine` : numéro `YYYY-C-NNNN` / `YYYY-F-NNNN`, type (`client` | `fournisseur`), label, statuts (draft→sent→paid/partial/overdue/disputed), lignes multi
+- Migration Alembic `0004` : tables `invoices` + `invoice_lines`
+- Service factures : numérotation auto séquentielle par type et année, calcul total, transitions de statut avec validation, duplication, soft-delete (draft uniquement)
+- Exceptions typées : `InvoiceStatusError`, `InvoiceDeleteError`
+- Routeur `/api/invoices/` : CRUD REST, `PATCH /{id}/status`, `POST /{id}/duplicate`, `DELETE /{id}`, `GET /{id}/pdf`, `POST /{id}/send-email`, `POST /{id}/file` (upload)
+- Upload fichier facture fournisseur : validation MIME (PDF/JPEG/PNG/WebP), limite 10 MB, nom UUID (anti-path-traversal)
+- Service `pdf_service.py` : WeasyPrint (import paresseux), template Jinja2 `invoice.html` (logo, coordonnées, lignes, mention Loi 1901)
+- Service `email_service.py` : smtplib STARTTLS/SSL-SSL, PDF en pièce jointe, transition draft→sent automatique
+- 145 tests pytest (unitaires + intégration) — 79 % de couverture
+
+**Frontend (Phase 3)**
+- `api/invoices.ts` : toutes les fonctions CRUD + status + duplicate + pdf + email + upload
+- `ClientInvoicesView.vue` : liste filtrée (statut, année), actions PDF/email/dupliquer/supprimer
+- `ClientInvoiceForm.vue` : formulaire avec lignes dynamiques et total calculé
+- `SupplierInvoicesView.vue` : liste avec dialog upload fichier joint
+- `SupplierInvoiceForm.vue` : formulaire montant direct + référence fournisseur
+- Routes `/invoices/client` et `/invoices/supplier`
+- Clés i18n complètes : `invoices.*` (statuts, labels, actions)
+- Menu navigation : Factures clients (`pi-file`) + Factures fournisseurs (`pi-file-import`)
+
+---
+
+**Backend (Phase 2)**
 - Migration Alembic `0002` : table `contacts`
 - Service contacts : CRUD complet, recherche insensible à la casse sur nom/prénom/email, filtrage par type, pagination
 - Routeur `/api/contacts/` : CRUD REST avec guards rôle (`SECRETAIRE+`)

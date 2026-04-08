@@ -47,7 +47,13 @@ async def init_db() -> None:
         # Enable WAL mode for better concurrent read performance
         await conn.exec_driver_sql("PRAGMA journal_mode=WAL")
         await conn.exec_driver_sql("PRAGMA foreign_keys=ON")
-        from backend.models import accounting_account, app_settings, contact, user  # noqa: F401
+        from backend.models import (  # noqa: F401
+            accounting_account,
+            app_settings,
+            contact,
+            invoice,
+            user,
+        )
 
         await conn.run_sync(Base.metadata.create_all)
 

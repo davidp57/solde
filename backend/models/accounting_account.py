@@ -93,4 +93,3 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
         "is_default": True,
     },
 ]
-

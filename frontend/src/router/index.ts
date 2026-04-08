@@ -36,6 +36,16 @@ const router = createRouter({
           component: () => import('../views/AccountingAccountsView.vue'),
         },
         {
+          path: 'invoices/client',
+          name: 'invoices-client',
+          component: () => import('../views/ClientInvoicesView.vue'),
+        },
+        {
+          path: 'invoices/supplier',
+          name: 'invoices-supplier',
+          component: () => import('../views/SupplierInvoicesView.vue'),
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('../views/SettingsView.vue'),
