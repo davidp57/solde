@@ -8,6 +8,7 @@ from backend.database import Base, get_db
 from backend.models import accounting_account as _acct_module  # noqa: F401 — register all models
 from backend.models import app_settings  # noqa: F401 — register all models
 from backend.models import contact as _contact_module  # noqa: F401 — register all models
+from backend.models import invoice as _invoice_module  # noqa: F401 — register all models
 from backend.models import user as _user_module  # noqa: F401 — register all models
 from backend.models.user import User, UserRole
 from backend.services.auth import hash_password
