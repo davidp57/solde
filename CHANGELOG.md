@@ -11,6 +11,31 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+**Backend (Phase 6 — Fonctions avancées)**
+- Modèle `Salary` + migration `0010` : salaire mensuel par employé (brut, charges salariales/patronales, PAS, net, total_cost)
+- Schémas `SalaryCreate/Update/Read` (validateur YYYY-MM) + `SalarySummaryRow`
+- `salary_service.py` : CRUD + `get_monthly_summary` + hook `generate_entries_for_salary`
+- Router `/api/salaries` : GET / POST /{id} PUT /{id} DELETE /{id} GET /summary
+- `TriggerType` enrichi : `SALARY_GROSS`, `SALARY_EMPLOYER_CHARGES`, `SALARY_PAYMENT` ; 3 règles par défaut ajoutées (641000/421000, 645100/431100, 421000/512100)
+- `generate_entries_for_salary` dans `accounting_engine.py` : 3 jeux d'écritures automatiques
+- `fiscal_year_service.py` enrichi : `pre_close_checks` (balance, orphelins) et `open_new_fiscal_year` avec report à nouveau (comptes actif/passif à solde non nul)
+- Endpoints `/pre-close-checks` (GET) et `/open-next` (POST 201) sur le router fiscal_year
+- `dashboard_service.py` : `get_dashboard` (solde banque/caisse, factures impayées/en retard, paiements à remettre, exercice courant, résultat, alertes) et `get_monthly_chart`
+- Router `/api/dashboard` : GET / et GET /chart/monthly
+- `excel_import.py` service : parseur openpyxl flexible pour `Gestion YYYY.xlsx` (contacts, factures, paiements) et `Comptabilité YYYY.xlsx` (écritures) — détection auto des colonnes, idempotence
+- Router `/api/import/excel/gestion` et `/api/import/excel/comptabilite` (limite 10 Mo)
+- `main.py` + `database.py` + `conftest.py` : enregistrement des nouveaux modèles et routers
+- 22 nouveaux tests (4 fichiers) — 323 tests au total, 78 % couverture
+
+**Frontend (Phase 6)**
+- `DashboardView.vue` : KPIs temps réel (cards PrimeVue) + tableau mensuel charges/produits
+- `SalaryView.vue` : liste CRUD des salaires + résumé mensuel agrégé + dialog de saisie
+- `ImportExcelView.vue` : upload fichier Excel (gestion ou comptabilité) + affichage du rapport d'import
+- `api/accounting.ts` : types et fonctions pour salary, dashboard, import Excel, pre-close-checks, open-next
+- i18n `fr.ts` : clés `salary.*`, `dashboard.*`, `import.*` + `accounting.fiscalYear.pre_close_*`, `open_next_*`
+- Router : routes `/salaries` et `/import/excel`
+- NavMenu : entrées Salaires (pi-id-card) et Import Excel (pi-file-excel)
+
 **Backend (Phase 5 — Comptabilité)**
 - Modèle `FiscalYear` : exercice comptable avec statuts `open/closing/closed`
 - Modèle `AccountingEntry` : écriture en partie double (numéro, date, compte, libellé, débit, crédit, exercice, source)
