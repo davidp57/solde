@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     association_siret: str = ""
     association_logo_path: str = ""
 
+    # Bootstrap admin (created on first startup if no user exists)
+    admin_username: str = "admin"
+    admin_password: str = "changeme"
+    admin_email: str = "admin@exemple.fr"
+
     # SMTP (optional)
     smtp_host: str | None = None
     smtp_port: int = 587

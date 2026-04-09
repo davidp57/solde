@@ -160,7 +160,7 @@ export async function getJournalApi(filters: JournalFilters = {}): Promise<Accou
   if (filters.skip != null) params.set('skip', String(filters.skip))
   if (filters.limit != null) params.set('limit', String(filters.limit))
   const response = await apiClient.get<AccountingEntryRead[]>(
-    `/accounting/entries/journal?${params}`,
+    `/api/accounting/entries/journal?${params}`,
   )
   return response.data
 }
@@ -174,7 +174,7 @@ export async function getBalanceApi(filters: {
   if (filters.from_date) params.set('from_date', filters.from_date)
   if (filters.to_date) params.set('to_date', filters.to_date)
   if (filters.fiscal_year_id) params.set('fiscal_year_id', String(filters.fiscal_year_id))
-  const response = await apiClient.get<BalanceRow[]>(`/accounting/entries/balance?${params}`)
+  const response = await apiClient.get<BalanceRow[]>(`/api/accounting/entries/balance?${params}`)
   return response.data
 }
 
@@ -187,14 +187,14 @@ export async function getLedgerApi(
   if (filters.to_date) params.set('to_date', filters.to_date)
   if (filters.fiscal_year_id) params.set('fiscal_year_id', String(filters.fiscal_year_id))
   const response = await apiClient.get<LedgerRead>(
-    `/accounting/entries/ledger/${accountNumber}?${params}`,
+    `/api/accounting/entries/ledger/${accountNumber}?${params}`,
   )
   return response.data
 }
 
 export async function getResultatApi(fiscalYearId?: number): Promise<ResultatRead> {
   const params = fiscalYearId ? `?fiscal_year_id=${fiscalYearId}` : ''
-  const response = await apiClient.get<ResultatRead>(`/accounting/entries/resultat${params}`)
+  const response = await apiClient.get<ResultatRead>(`/api/accounting/entries/resultat${params}`)
   return response.data
 }
 
@@ -202,7 +202,7 @@ export async function createManualEntryApi(
   payload: ManualEntryCreate,
 ): Promise<AccountingEntryRead[]> {
   const response = await apiClient.post<AccountingEntryRead[]>(
-    '/accounting/entries/manual',
+    '/api/accounting/entries/manual',
     payload,
   )
   return response.data
@@ -230,22 +230,22 @@ export interface FiscalYearCreate {
 }
 
 export async function listFiscalYearsApi(): Promise<FiscalYearRead[]> {
-  const response = await apiClient.get<FiscalYearRead[]>('/accounting/fiscal-years/')
+  const response = await apiClient.get<FiscalYearRead[]>('/api/accounting/fiscal-years/')
   return response.data
 }
 
 export async function getCurrentFiscalYearApi(): Promise<FiscalYearRead | null> {
-  const response = await apiClient.get<FiscalYearRead | null>('/accounting/fiscal-years/current')
+  const response = await apiClient.get<FiscalYearRead | null>('/api/accounting/fiscal-years/current')
   return response.data
 }
 
 export async function createFiscalYearApi(payload: FiscalYearCreate): Promise<FiscalYearRead> {
-  const response = await apiClient.post<FiscalYearRead>('/accounting/fiscal-years/', payload)
+  const response = await apiClient.post<FiscalYearRead>('/api/accounting/fiscal-years/', payload)
   return response.data
 }
 
 export async function closeFiscalYearApi(id: number): Promise<FiscalYearRead> {
-  const response = await apiClient.post<FiscalYearRead>(`/accounting/fiscal-years/${id}/close`)
+  const response = await apiClient.post<FiscalYearRead>(`/api/accounting/fiscal-years/${id}/close`)
   return response.data
 }
 
@@ -278,7 +278,7 @@ export interface AccountingRuleUpdate {
 }
 
 export async function listRulesApi(): Promise<AccountingRuleRead[]> {
-  const response = await apiClient.get<AccountingRuleRead[]>('/accounting/rules/')
+  const response = await apiClient.get<AccountingRuleRead[]>('/api/accounting/rules/')
   return response.data
 }
 
@@ -286,12 +286,12 @@ export async function updateRuleApi(
   id: number,
   payload: AccountingRuleUpdate,
 ): Promise<AccountingRuleRead> {
-  const response = await apiClient.put<AccountingRuleRead>(`/accounting/rules/${id}`, payload)
+  const response = await apiClient.put<AccountingRuleRead>(`/api/accounting/rules/${id}`, payload)
   return response.data
 }
 
 export async function seedRulesApi(): Promise<{ inserted: number }> {
-  const response = await apiClient.post<{ inserted: number }>('/accounting/rules/seed')
+  const response = await apiClient.post<{ inserted: number }>('/api/accounting/rules/seed')
   return response.data
 }
 
@@ -344,27 +344,27 @@ export async function listSalariesApi(params?: {
   skip?: number
   limit?: number
 }): Promise<SalaryRead[]> {
-  const response = await apiClient.get<SalaryRead[]>('/salaries/', { params })
+  const response = await apiClient.get<SalaryRead[]>('/api/salaries/', { params })
   return response.data
 }
 
 export async function getSalarySummaryApi(): Promise<SalarySummaryRow[]> {
-  const response = await apiClient.get<SalarySummaryRow[]>('/salaries/summary')
+  const response = await apiClient.get<SalarySummaryRow[]>('/api/salaries/summary')
   return response.data
 }
 
 export async function createSalaryApi(payload: SalaryCreate): Promise<SalaryRead> {
-  const response = await apiClient.post<SalaryRead>('/salaries/', payload)
+  const response = await apiClient.post<SalaryRead>('/api/salaries/', payload)
   return response.data
 }
 
 export async function updateSalaryApi(id: number, payload: SalaryUpdate): Promise<SalaryRead> {
-  const response = await apiClient.put<SalaryRead>(`/salaries/${id}`, payload)
+  const response = await apiClient.put<SalaryRead>(`/api/salaries/${id}`, payload)
   return response.data
 }
 
 export async function deleteSalaryApi(id: number): Promise<void> {
-  await apiClient.delete(`/salaries/${id}`)
+  await apiClient.delete(`/api/salaries/${id}`)
 }
 
 // -----------------------------------------------------------------------
@@ -396,12 +396,12 @@ export interface MonthlyChartRow {
 }
 
 export async function getDashboardApi(): Promise<DashboardKPIs> {
-  const response = await apiClient.get<DashboardKPIs>('/dashboard/')
+  const response = await apiClient.get<DashboardKPIs>('/api/dashboard/')
   return response.data
 }
 
 export async function getMonthlyChartApi(year: number): Promise<MonthlyChartRow[]> {
-  const response = await apiClient.get<MonthlyChartRow[]>('/dashboard/chart/monthly', {
+  const response = await apiClient.get<MonthlyChartRow[]>('/api/dashboard/chart/monthly', {
     params: { year },
   })
   return response.data
@@ -423,14 +423,14 @@ export interface ImportResult {
 export async function importGestionFileApi(file: File): Promise<ImportResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<ImportResult>('/import/excel/gestion', form)
+  const response = await apiClient.post<ImportResult>('/api/import/excel/gestion', form)
   return response.data
 }
 
 export async function importComptabiliteFileApi(file: File): Promise<ImportResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<ImportResult>('/import/excel/comptabilite', form)
+  const response = await apiClient.post<ImportResult>('/api/import/excel/comptabilite', form)
   return response.data
 }
 
@@ -439,7 +439,7 @@ export async function importComptabiliteFileApi(file: File): Promise<ImportResul
 // -----------------------------------------------------------------------
 
 export async function getFiscalYearPreCloseChecksApi(id: number): Promise<string[]> {
-  const response = await apiClient.get<string[]>(`/accounting/fiscal-years/${id}/pre-close-checks`)
+  const response = await apiClient.get<string[]>(`/api/accounting/fiscal-years/${id}/pre-close-checks`)
   return response.data
 }
 
@@ -448,7 +448,7 @@ export async function openNextFiscalYearApi(
   payload: FiscalYearCreate,
 ): Promise<FiscalYearRead> {
   const response = await apiClient.post<FiscalYearRead>(
-    `/accounting/fiscal-years/${id}/open-next`,
+    `/api/accounting/fiscal-years/${id}/open-next`,
     payload,
   )
   return response.data
@@ -474,7 +474,7 @@ export interface BilanRead {
 
 export async function getBilanApi(fiscalYearId?: number): Promise<BilanRead> {
   const params = fiscalYearId ? `?fiscal_year_id=${fiscalYearId}` : ''
-  const response = await apiClient.get<BilanRead>(`/accounting/entries/bilan${params}`)
+  const response = await apiClient.get<BilanRead>(`/api/accounting/entries/bilan${params}`)
   return response.data
 }
 
@@ -524,7 +524,7 @@ export interface ContactHistory {
 }
 
 export async function getContactHistoryApi(contactId: number): Promise<ContactHistory> {
-  const response = await apiClient.get<ContactHistory>(`/contacts/${contactId}/history`)
+  const response = await apiClient.get<ContactHistory>(`/api/contacts/${contactId}/history`)
   return response.data
 }
 
@@ -535,7 +535,7 @@ export async function markCreanceDouteuse(contactId: number): Promise<{
   account_client: string
   amount: string
 }> {
-  const response = await apiClient.post(`/contacts/${contactId}/mark-douteux`)
+  const response = await apiClient.post(`/api/contacts/${contactId}/mark-douteux`)
   return response.data
 }
 
@@ -556,7 +556,7 @@ export async function previewRuleApi(
   label: string,
 ): Promise<RulePreviewEntry[]> {
   const response = await apiClient.post<RulePreviewEntry[]>(
-    `/accounting/rules/${ruleId}/preview`,
+    `/api/accounting/rules/${ruleId}/preview`,
     { amount, label },
   )
   return response.data
@@ -579,14 +579,14 @@ export interface PreviewResult {
 export async function previewGestionFileApi(file: File): Promise<PreviewResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<PreviewResult>('/import/excel/gestion/preview', form)
+  const response = await apiClient.post<PreviewResult>('/api/import/excel/gestion/preview', form)
   return response.data
 }
 
 export async function previewComptabiliteFileApi(file: File): Promise<PreviewResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<PreviewResult>('/import/excel/comptabilite/preview', form)
+  const response = await apiClient.post<PreviewResult>('/api/import/excel/comptabilite/preview', form)
   return response.data
 }
 
@@ -595,11 +595,11 @@ export async function previewComptabiliteFileApi(file: File): Promise<PreviewRes
 // -----------------------------------------------------------------------
 
 export async function importOFXApi(content: string) {
-  const response = await apiClient.post('/bank/transactions/import-ofx', { content })
+  const response = await apiClient.post('/api/bank/transactions/import-ofx', { content })
   return response.data
 }
 
 export async function importQIFApi(content: string) {
-  const response = await apiClient.post('/bank/transactions/import-qif', { content })
+  const response = await apiClient.post('/api/bank/transactions/import-qif', { content })
   return response.data
 }
