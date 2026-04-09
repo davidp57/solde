@@ -24,6 +24,9 @@ class TriggerType(StrEnum):
     DEPOSIT_ESPECES = "deposit_especes"
     DEPOSIT_CHEQUES = "deposit_cheques"
     BANK_FEES = "bank_fees"
+    SALARY_GROSS = "salary_gross"
+    SALARY_EMPLOYER_CHARGES = "salary_employer_charges"
+    SALARY_PAYMENT = "salary_payment"
     MANUAL = "manual"
 
 
@@ -296,6 +299,57 @@ DEFAULT_RULES: list[dict] = [
                 "account_number": "512100",
                 "side": EntrySide.CREDIT,
                 "description_template": "Frais bancaires {{date}}",
+            },
+        ],
+    },
+    {
+        "name": "Salaire brut — charge",
+        "trigger_type": TriggerType.SALARY_GROSS,
+        "description": "641000 D / 421000 C",
+        "entries": [
+            {
+                "account_number": "641000",
+                "side": EntrySide.DEBIT,
+                "description_template": "Salaire {{employee}} {{month}}",
+            },
+            {
+                "account_number": "421000",
+                "side": EntrySide.CREDIT,
+                "description_template": "Salaire {{employee}} {{month}}",
+            },
+        ],
+    },
+    {
+        "name": "Cotisations patronales",
+        "trigger_type": TriggerType.SALARY_EMPLOYER_CHARGES,
+        "description": "645100 D / 431100 C",
+        "entries": [
+            {
+                "account_number": "645100",
+                "side": EntrySide.DEBIT,
+                "description_template": "Cotisations {{employee}} {{month}}",
+            },
+            {
+                "account_number": "431100",
+                "side": EntrySide.CREDIT,
+                "description_template": "Cotisations {{employee}} {{month}}",
+            },
+        ],
+    },
+    {
+        "name": "Paiement salaire net",
+        "trigger_type": TriggerType.SALARY_PAYMENT,
+        "description": "421000 D / 512100 C",
+        "entries": [
+            {
+                "account_number": "421000",
+                "side": EntrySide.DEBIT,
+                "description_template": "Paiement salaire {{employee}} {{month}}",
+            },
+            {
+                "account_number": "512100",
+                "side": EntrySide.CREDIT,
+                "description_template": "Paiement salaire {{employee}} {{month}}",
             },
         ],
     },

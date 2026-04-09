@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 from datetime import date
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +22,9 @@ from backend.models.bank import Deposit, DepositType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.invoice import Invoice, InvoiceLabel, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
+
+if TYPE_CHECKING:
+    from backend.models.salary import Salary
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -243,6 +247,93 @@ async def generate_entries_for_deposit(
     )
     await db.flush()
     return entries
+
+
+async def generate_entries_for_salary(
+    db: AsyncSession,
+    salary: Salary,
+) -> list[AccountingEntry]:
+    """Generate three sets of entries for a salary record:
+
+    1. SALARY_GROSS   : 641000 D / 421000 C (gross amount)
+    2. SALARY_EMPLOYER_CHARGES : 645100 D / 431100 C (employer charges)
+    3. SALARY_PAYMENT : 421000 D / 512100 C (net pay disbursed)
+
+    Returns all generated entries (empty if no rules seeded).
+    """
+
+    fiscal_year_id = await _current_fiscal_year_id(db)
+
+    # Derive a display date from the month (last day of month heuristic: use day 1 for simplicity)
+    from datetime import date as _date  # noqa: PLC0415
+
+    year_str, month_str = salary.month.split("-")
+    entry_date = _date(int(year_str), int(month_str), 1)
+
+    employee_name = ""
+    if salary.employee:
+        parts = []
+        if salary.employee.prenom:
+            parts.append(salary.employee.prenom)
+        if salary.employee.nom:
+            parts.append(salary.employee.nom)
+        employee_name = " ".join(parts)
+
+    context = {
+        "employee": employee_name,
+        "month": salary.month,
+        "date": str(entry_date),
+    }
+
+    all_entries: list[AccountingEntry] = []
+
+    # 1. Gross salary
+    rule_gross = await _get_rule(db, TriggerType.SALARY_GROSS)
+    if rule_gross and Decimal(str(salary.gross)) > 0:
+        entries = await _apply_rule(
+            db,
+            rule_gross,
+            Decimal(str(salary.gross)),
+            entry_date,
+            context,
+            EntrySourceType.SALARY,
+            salary.id,
+            fiscal_year_id,
+        )
+        all_entries.extend(entries)
+
+    # 2. Employer charges
+    rule_charges = await _get_rule(db, TriggerType.SALARY_EMPLOYER_CHARGES)
+    if rule_charges and Decimal(str(salary.employer_charges)) > 0:
+        entries = await _apply_rule(
+            db,
+            rule_charges,
+            Decimal(str(salary.employer_charges)),
+            entry_date,
+            context,
+            EntrySourceType.SALARY,
+            salary.id,
+            fiscal_year_id,
+        )
+        all_entries.extend(entries)
+
+    # 3. Net payment
+    rule_payment = await _get_rule(db, TriggerType.SALARY_PAYMENT)
+    if rule_payment and Decimal(str(salary.net_pay)) > 0:
+        entries = await _apply_rule(
+            db,
+            rule_payment,
+            Decimal(str(salary.net_pay)),
+            entry_date,
+            context,
+            EntrySourceType.SALARY,
+            salary.id,
+            fiscal_year_id,
+        )
+        all_entries.extend(entries)
+
+    await db.flush()
+    return all_entries
 
 
 # ---------------------------------------------------------------------------

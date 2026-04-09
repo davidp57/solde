@@ -91,6 +91,16 @@ const router = createRouter({
           component: () => import('../views/FiscalYearView.vue'),
         },
         {
+          path: 'salaries',
+          name: 'salaries',
+          component: () => import('../views/SalaryView.vue'),
+        },
+        {
+          path: 'import/excel',
+          name: 'import-excel',
+          component: () => import('../views/ImportExcelView.vue'),
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('../views/SettingsView.vue'),

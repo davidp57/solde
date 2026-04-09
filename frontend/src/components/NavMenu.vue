@@ -39,6 +39,8 @@ const menuItems = computed(() => {
     { to: '/accounting/accounts', icon: 'pi-database', label: t('nav.accounting_accounts') },
     { to: '/accounting/rules', icon: 'pi-sliders-h', label: t('nav.accounting_rules') },
     { to: '/accounting/fiscal-years', icon: 'pi-calendar', label: t('nav.accounting_fiscal_years') },
+    { to: '/salaries', icon: 'pi-id-card', label: t('nav.salaries') },
+    { to: '/import/excel', icon: 'pi-file-excel', label: t('nav.import_excel') },
   ]
 
   if (auth.isAdmin) {

@@ -1,4 +1,4 @@
-"""Fiscal years API — CRUD and close."""
+"""Fiscal years API — CRUD, pre-close checks, close, and open new FY."""
 
 from typing import Annotated
 
@@ -60,6 +60,22 @@ async def get_fiscal_year(
     return fy  # type: ignore[return-value]
 
 
+@router.get("/{fy_id}/pre-close-checks", response_model=list[str])
+async def pre_close_checks(
+    fy_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _AdminAccess,
+) -> list[str]:
+    """Return a list of warning messages before closing a fiscal year.
+
+    Empty list means no issues found.
+    """
+    fy = await fiscal_year_service.get_fiscal_year(db, fy_id)
+    if fy is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found")
+    return await fiscal_year_service.pre_close_checks(db, fy)
+
+
 @router.post("/{fy_id}/close", response_model=FiscalYearRead)
 async def close_fiscal_year(
     fy_id: int,
@@ -76,3 +92,27 @@ async def close_fiscal_year(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
     return closed  # type: ignore[return-value]
+
+
+@router.post(
+    "/{fy_id}/open-next",
+    response_model=FiscalYearRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def open_new_fiscal_year(
+    fy_id: int,
+    payload: FiscalYearCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _AdminAccess,
+) -> FiscalYearRead:
+    """Open a new fiscal year from a closed one, generating report-à-nouveau entries."""
+    closed_fy = await fiscal_year_service.get_fiscal_year(db, fy_id)
+    if closed_fy is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found")
+    try:
+        new_fy = await fiscal_year_service.open_new_fiscal_year(db, closed_fy, payload)
+    except FiscalYearError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    return new_fy  # type: ignore[return-value]

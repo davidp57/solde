@@ -18,9 +18,12 @@ from backend.routers import (
     bank,
     cash,
     contact,
+    dashboard,
+    excel_import,
     fiscal_year,
     invoice,
     payment,
+    salary,
     settings,
 )
 
@@ -65,6 +68,9 @@ def create_app() -> FastAPI:
     app.include_router(payment.router, prefix="/api")
     app.include_router(cash.router, prefix="/api")
     app.include_router(bank.router, prefix="/api")
+    app.include_router(salary.router, prefix="/api")
+    app.include_router(dashboard.router, prefix="/api")
+    app.include_router(excel_import.router, prefix="/api")
     app.include_router(settings.router, prefix="/api")
 
     # Serve Vue.js frontend static files (built output)
