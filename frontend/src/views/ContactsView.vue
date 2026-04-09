@@ -48,9 +48,17 @@
       </Column>
       <Column field="email" :header="t('contacts.email')" />
       <Column field="telephone" :header="t('contacts.telephone')" />
-      <Column :header="t('common.actions')" style="width: 8rem">
+      <Column :header="t('common.actions')" style="width: 10rem">
         <template #body="{ data }">
           <div class="flex gap-1">
+            <Button
+              icon="pi pi-history"
+              size="small"
+              severity="info"
+              text
+              :title="t('contact_history.title')"
+              @click="$router.push(`/contacts/${data.id}/history`)"
+            />
             <Button
               icon="pi pi-pencil"
               size="small"

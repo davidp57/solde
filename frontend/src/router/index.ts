@@ -31,6 +31,11 @@ const router = createRouter({
           component: () => import('../views/ContactsView.vue'),
         },
         {
+          path: 'contacts/:id/history',
+          name: 'contact-history',
+          component: () => import('../views/ContactDetailView.vue'),
+        },
+        {
           path: 'accounting/accounts',
           name: 'accounting-accounts',
           component: () => import('../views/AccountingAccountsView.vue'),
@@ -79,6 +84,11 @@ const router = createRouter({
           path: 'accounting/resultat',
           name: 'accounting-resultat',
           component: () => import('../views/AccountingResultatView.vue'),
+        },
+        {
+          path: 'accounting/bilan',
+          name: 'accounting-bilan',
+          component: () => import('../views/AccountingBilanView.vue'),
         },
         {
           path: 'accounting/rules',

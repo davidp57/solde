@@ -50,6 +50,13 @@
         icon="pi pi-plus"
         @click="showManualDialog = true"
       />
+      <Button
+        :label="t('bilan.export_csv')"
+        icon="pi pi-download"
+        severity="secondary"
+        outlined
+        @click="downloadCsv"
+      />
     </div>
 
     <!-- Table -->
@@ -128,6 +135,7 @@ import { useToast } from 'primevue/usetoast'
 import {
   getJournalApi,
   createManualEntryApi,
+  getExportCsvUrl,
   listFiscalYearsApi,
   type AccountingEntryRead,
   type FiscalYearRead,
@@ -197,6 +205,16 @@ async function saveManualEntry() {
   } finally {
     saving.value = false
   }
+}
+
+function downloadCsv() {
+  const url = getExportCsvUrl('journal', {
+    from_date: filters.value.from_date || undefined,
+    to_date: filters.value.to_date || undefined,
+    account_number: filters.value.account_number || undefined,
+    fiscal_year_id: filters.value.fiscal_year_id,
+  })
+  window.open(url, '_blank')
 }
 
 onMounted(async () => {
