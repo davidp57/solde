@@ -159,9 +159,19 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import Button from 'primevue/button'
+import Column from 'primevue/column'
+import ConfirmDialog from 'primevue/confirmdialog'
+import DataTable from 'primevue/datatable'
+import Dialog from 'primevue/dialog'
+import InputNumber from 'primevue/inputnumber'
+import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
+import Textarea from 'primevue/textarea'
+import Toast from 'primevue/toast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { useI18n } from 'vue-i18n'
 import {
   listSalariesApi,
   getSalarySummaryApi,
