@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import get_db
 from backend.models.user import User, UserRole
 from backend.routers.auth import get_current_user, require_role
-from backend.schemas.accounting_rule import AccountingRuleRead, AccountingRuleUpdate
+from backend.schemas.accounting_rule import (
+    AccountingRuleRead,
+    AccountingRuleUpdate,
+    RulePreviewEntry,
+    RulePreviewRequest,
+)
 from backend.services import accounting_rule_service
 from backend.services.accounting_engine import seed_default_rules
 
@@ -64,3 +69,23 @@ async def seed_rules(
     """Insert default accounting rules if none exist. Returns the number of rules inserted."""
     count = await seed_default_rules(db)
     return {"inserted": count}
+
+
+@router.post("/{rule_id}/preview", response_model=list[RulePreviewEntry])
+async def preview_rule(
+    rule_id: int,
+    payload: RulePreviewRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+) -> list[RulePreviewEntry]:
+    """Simulate the accounting entries that a rule would generate, without writing to the DB."""
+    entries = await accounting_rule_service.preview_rule(
+        db,
+        rule_id,
+        amount=payload.amount,
+        label=payload.label,
+        entry_date=payload.entry_date,
+    )
+    if entries is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+    return entries

@@ -81,3 +81,14 @@ class ResultatRead(BaseModel):
     resultat: _Decimal  # positive = excédent, negative = déficit
     charges: list[BalanceRow]
     produits: list[BalanceRow]
+
+
+class BilanRead(BaseModel):
+    """Simplified balance sheet — assets vs liabilities."""
+
+    actif: list[BalanceRow]
+    passif: list[BalanceRow]
+    total_actif: _Decimal
+    total_passif: _Decimal
+    # Resultat of the period is included in passif (120000/129000)
+    resultat: _Decimal

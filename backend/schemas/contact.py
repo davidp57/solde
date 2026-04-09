@@ -1,6 +1,7 @@
 """Pydantic schemas for contacts."""
 
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, field_validator
 
@@ -55,3 +56,36 @@ class ContactRead(ContactBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ContactInvoiceSummary(BaseModel):
+    id: int
+    number: str
+    type: str
+    date: date
+    due_date: date | None
+    status: str
+    total_amount: Decimal
+    paid_amount: Decimal
+    balance_due: Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class ContactPaymentSummary(BaseModel):
+    id: int
+    date: date
+    amount: Decimal
+    method: str
+    invoice_number: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class ContactHistory(BaseModel):
+    contact: ContactRead
+    invoices: list[ContactInvoiceSummary]
+    payments: list[ContactPaymentSummary]
+    total_invoiced: Decimal
+    total_paid: Decimal
+    total_due: Decimal

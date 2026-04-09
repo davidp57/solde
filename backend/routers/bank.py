@@ -17,7 +17,12 @@ from backend.schemas.bank import (
     DepositRead,
 )
 from backend.services import bank_service
-from backend.services.bank_import import BankImportError, parse_credit_mutuel_csv
+from backend.services.bank_import import (
+    BankImportError,
+    parse_credit_mutuel_csv,
+    parse_ofx,
+    parse_qif,
+)
 
 router = APIRouter(prefix="/bank", tags=["bank"])
 
@@ -133,6 +138,74 @@ async def import_csv(
         tx = await bank_service.add_transaction(db, tx_payload)
         created.append(tx)  # type: ignore[arg-type]
     return created
+
+
+async def _import_rows(
+    rows: list[dict[str, object]],
+    db: AsyncSession,
+) -> list[BankTransactionRead]:
+    """Persist parsed bank transaction rows and return the created records."""
+    created: list[BankTransactionRead] = []
+    for row in rows:
+        tx_payload = BankTransactionCreate(
+            date=row["date"],  # type: ignore[arg-type]
+            amount=row["amount"],  # type: ignore[arg-type]
+            balance_after=row["balance_after"],  # type: ignore[arg-type]
+            description=str(row.get("description", "")),
+            reference=row.get("reference"),  # type: ignore[arg-type]
+            source="import",  # type: ignore[arg-type]
+        )
+        tx = await bank_service.add_transaction(db, tx_payload)
+        created.append(tx)  # type: ignore[arg-type]
+    return created
+
+
+class OFXImportRequest(BaseModel):
+    content: str  # raw OFX/QFX text
+
+
+class QIFImportRequest(BaseModel):
+    content: str  # raw QIF text
+
+
+@router.post(
+    "/transactions/import-ofx",
+    response_model=list[BankTransactionRead],
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_ofx(
+    payload: OFXImportRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _WriteAccess,
+) -> list[BankTransactionRead]:
+    """Import transactions from an OFX/QFX bank statement export."""
+    try:
+        rows = parse_ofx(payload.content)
+    except BankImportError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    return await _import_rows(rows, db)
+
+
+@router.post(
+    "/transactions/import-qif",
+    response_model=list[BankTransactionRead],
+    status_code=status.HTTP_201_CREATED,
+)
+async def import_qif(
+    payload: QIFImportRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _WriteAccess,
+) -> list[BankTransactionRead]:
+    """Import transactions from a QIF bank statement export."""
+    try:
+        rows = parse_qif(payload.content)
+    except BankImportError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    return await _import_rows(rows, db)
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,7 @@ from backend.models.accounting_account import AccountingAccount, AccountType
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.schemas.accounting_entry import (
     BalanceRow,
+    BilanRead,
     LedgerEntry,
     LedgerRead,
     ManualEntryCreate,
@@ -322,3 +323,32 @@ async def create_manual_entry(
     await db.refresh(debit_entry)
     await db.refresh(credit_entry)
     return debit_entry, credit_entry
+
+
+# ---------------------------------------------------------------------------
+# Bilan simplifié (actif / passif)
+# ---------------------------------------------------------------------------
+
+
+async def get_bilan(db: AsyncSession, fiscal_year_id: int | None = None) -> BilanRead:
+    """Build a simplified balance sheet grouping actif and passif accounts."""
+    balance_rows = await get_balance(db, fiscal_year_id=fiscal_year_id)
+
+    # Segregate by type
+    actif_rows = [r for r in balance_rows if r.account_type == AccountType.ACTIF]
+    passif_rows = [r for r in balance_rows if r.account_type == AccountType.PASSIF]
+
+    # Compute current period resultat (produits - charges) to embed in passif
+    total_c, total_p = await _compute_resultat(db, fiscal_year_id)
+    resultat = total_p - total_c
+
+    total_actif = sum((r.solde for r in actif_rows), Decimal("0"))
+    total_passif = sum((r.solde for r in passif_rows), Decimal("0"))
+
+    return BilanRead(
+        actif=actif_rows,
+        passif=passif_rows,
+        total_actif=total_actif,
+        total_passif=total_passif,
+        resultat=resultat,
+    )
