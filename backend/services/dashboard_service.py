@@ -39,19 +39,20 @@ async def get_dashboard(db: AsyncSession) -> dict:
     unpaid_result = await db.execute(
         select(Invoice).where(
             Invoice.type == "client",
-            Invoice.status.in_([
-                InvoiceStatus.SENT,
-                InvoiceStatus.PARTIAL,
-                InvoiceStatus.OVERDUE,
-                InvoiceStatus.DISPUTED,
-            ]),
+            Invoice.status.in_(
+                [
+                    InvoiceStatus.SENT,
+                    InvoiceStatus.PARTIAL,
+                    InvoiceStatus.OVERDUE,
+                    InvoiceStatus.DISPUTED,
+                ]
+            ),
         )
     )
     unpaid_invoices = unpaid_result.scalars().all()
     unpaid_count = len(unpaid_invoices)
     unpaid_total = sum(
-        Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount))
-        for inv in unpaid_invoices
+        Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount)) for inv in unpaid_invoices
     )
 
     # --- Overdue invoices (sent/partial/overdue with due_date < today) ---
@@ -65,8 +66,7 @@ async def get_dashboard(db: AsyncSession) -> dict:
     overdue_invoices = overdue_result.scalars().all()
     overdue_count = len(overdue_invoices)
     overdue_total = sum(
-        Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount))
-        for inv in overdue_invoices
+        Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount)) for inv in overdue_invoices
     )
 
     # --- Undeposited payments (chèques/espèces not yet deposited) ---
@@ -98,15 +98,19 @@ async def get_dashboard(db: AsyncSession) -> dict:
     alerts: list[dict] = []
 
     if overdue_count > 0:
-        alerts.append({
-            "type": "warning",
-            "message": f"{overdue_count} facture(s) en retard — {overdue_total:.2f} €",
-        })
+        alerts.append(
+            {
+                "type": "warning",
+                "message": f"{overdue_count} facture(s) en retard — {overdue_total:.2f} €",
+            }
+        )
     if undeposited_count > 0:
-        alerts.append({
-            "type": "info",
-            "message": f"{undeposited_count} paiement(s) non déposé(s) en banque.",
-        })
+        alerts.append(
+            {
+                "type": "info",
+                "message": f"{undeposited_count} paiement(s) non déposé(s) en banque.",
+            }
+        )
 
     return {
         "bank_balance": Decimal(str(bank_balance)),
@@ -136,9 +140,7 @@ async def get_monthly_chart(db: AsyncSession, year: int) -> list[dict]:
 
     # Get all entries for the year
     entries_result = await db.execute(
-        select(AccountingEntry).where(
-            func.strftime("%Y", AccountingEntry.date) == str(year)
-        )
+        select(AccountingEntry).where(func.strftime("%Y", AccountingEntry.date) == str(year))
     )
     entries = entries_result.scalars().all()
 

@@ -4,6 +4,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
@@ -13,11 +14,12 @@ from backend.routers.auth import get_current_user, require_role
 from backend.schemas.accounting_entry import (
     AccountingEntryRead,
     BalanceRow,
+    BilanRead,
     LedgerRead,
     ManualEntryCreate,
     ResultatRead,
 )
-from backend.services import accounting_entry_service
+from backend.services import accounting_entry_service, export_service
 
 router = APIRouter(prefix="/accounting/entries", tags=["accounting"])
 
@@ -103,3 +105,91 @@ async def create_manual_entry(
 ) -> list[AccountingEntryRead]:
     debit, credit = await accounting_entry_service.create_manual_entry(db, payload)
     return [debit, credit]  # type: ignore[return-value]
+
+
+@router.get("/bilan", response_model=BilanRead)
+async def get_bilan(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    fiscal_year_id: int | None = Query(default=None),
+) -> BilanRead:
+    """Return a simplified balance sheet (actif / passif)."""
+    return await accounting_entry_service.get_bilan(db, fiscal_year_id=fiscal_year_id)
+
+
+# ---------------------------------------------------------------------------
+# CSV export endpoints
+# ---------------------------------------------------------------------------
+
+
+@router.get("/journal/export/csv")
+async def export_journal_csv(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
+    account_number: str | None = Query(default=None),
+    fiscal_year_id: int | None = Query(default=None),
+) -> Response:
+    """Download journal entries as CSV."""
+    content = await export_service.export_journal_csv(
+        db,
+        from_date=from_date,
+        to_date=to_date,
+        account_number=account_number,
+        fiscal_year_id=fiscal_year_id,
+    )
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=journal.csv"},
+    )
+
+
+@router.get("/balance/export/csv")
+async def export_balance_csv(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
+    fiscal_year_id: int | None = Query(default=None),
+) -> Response:
+    """Download balance as CSV."""
+    content = await export_service.export_balance_csv(
+        db, from_date=from_date, to_date=to_date, fiscal_year_id=fiscal_year_id
+    )
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=balance.csv"},
+    )
+
+
+@router.get("/resultat/export/csv")
+async def export_resultat_csv(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    fiscal_year_id: int | None = Query(default=None),
+) -> Response:
+    """Download compte de résultat as CSV."""
+    content = await export_service.export_resultat_csv(db, fiscal_year_id=fiscal_year_id)
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=resultat.csv"},
+    )
+
+
+@router.get("/bilan/export/csv")
+async def export_bilan_csv(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    fiscal_year_id: int | None = Query(default=None),
+) -> Response:
+    """Download simplified bilan as CSV."""
+    content = await export_service.export_bilan_csv(db, fiscal_year_id=fiscal_year_id)
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=bilan.csv"},
+    )

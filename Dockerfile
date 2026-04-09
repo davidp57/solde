@@ -15,6 +15,15 @@ RUN npm run build-only
 # ── Stage 2: Python runtime ──────────────────────────────────────────────────
 FROM python:3.13-slim AS runtime
 
+# WeasyPrint requires Pango + Cairo + GDK-Pixbuf for PDF generation
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf2.0-0 \
+    shared-mime-info \
+    && rm -rf /var/lib/apt/lists/*
+
 # Non-root user for security
 RUN addgroup --system solde && adduser --system --ingroup solde solde
 

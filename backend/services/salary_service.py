@@ -41,9 +41,7 @@ async def list_salaries(
 
 async def get_salary(db: AsyncSession, salary_id: int) -> Salary | None:
     result = await db.execute(
-        select(Salary)
-        .options(selectinload(Salary.employee))
-        .where(Salary.id == salary_id)
+        select(Salary).options(selectinload(Salary.employee)).where(Salary.id == salary_id)
     )
     return result.scalar_one_or_none()
 
@@ -90,7 +88,9 @@ async def get_monthly_summary(db: AsyncSession) -> list[SalarySummaryRow]:
             func.sum(Salary.tax).label("total_tax"),
             func.sum(Salary.net_pay).label("total_net_pay"),
             func.count(Salary.id).label("count"),
-        ).group_by(Salary.month).order_by(Salary.month.desc())
+        )
+        .group_by(Salary.month)
+        .order_by(Salary.month.desc())
     )
     rows = result.all()
     return [

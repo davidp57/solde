@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal
+
 from pydantic import BaseModel
 
 from backend.models.accounting_rule import EntrySide, TriggerType
@@ -40,3 +43,16 @@ class AccountingRuleUpdate(BaseModel):
     priority: int | None = None
     description: str | None = None
     entries: list[AccountingRuleEntryCreate] | None = None
+
+
+class RulePreviewRequest(BaseModel):
+    amount: Decimal
+    label: str = "Libellé exemple"
+    entry_date: date | None = None
+
+
+class RulePreviewEntry(BaseModel):
+    account_number: str
+    label: str
+    debit: Decimal
+    credit: Decimal

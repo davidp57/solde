@@ -225,4 +225,3 @@ async def open_new_fiscal_year(
     await db.commit()
     await db.refresh(new_fy)
     return new_fy
-

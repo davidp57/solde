@@ -9,7 +9,12 @@ from backend.database import get_db
 from backend.models.contact import ContactType
 from backend.models.user import User, UserRole
 from backend.routers.auth import get_current_user, require_role
-from backend.schemas.contact import ContactCreate, ContactRead, ContactUpdate
+from backend.schemas.contact import (
+    ContactCreate,
+    ContactHistory,
+    ContactRead,
+    ContactUpdate,
+)
 from backend.services import contact as contact_service
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
@@ -91,3 +96,39 @@ async def delete_contact(
     if contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
     await contact_service.delete_contact(db, contact)
+
+
+@router.get("/{contact_id}/history", response_model=ContactHistory)
+async def get_contact_history(
+    contact_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _ReadAccess,
+) -> ContactHistory:
+    """Get full history of a contact: invoices, payments, and balance due."""
+    history = await contact_service.get_contact_history(db, contact_id)
+    if history is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+    return history
+
+
+@router.post("/{contact_id}/mark-douteux", status_code=status.HTTP_200_OK)
+async def mark_douteux(
+    contact_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _WriteAccess,
+) -> dict:
+    """Transfer the outstanding client balance to a doubtful receivable account (416xxx)."""
+    result = await contact_service.mark_creance_douteuse(db, contact_id)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Contact not found or no outstanding balance",
+        )
+    debit_entry, credit_entry = result
+    return {
+        "debit_entry_id": debit_entry.id,
+        "credit_entry_id": credit_entry.id,
+        "account_douteux": debit_entry.account_number,
+        "account_client": credit_entry.account_number,
+        "amount": str(debit_entry.debit),
+    }

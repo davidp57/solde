@@ -197,14 +197,10 @@ async def _import_contacts_sheet(db: AsyncSession, ws: Any, result: ImportResult
             continue
 
         prenom = (
-            _parse_str(row[prenom_idx])
-            if prenom_idx is not None and prenom_idx < len(row)
-            else ""
+            _parse_str(row[prenom_idx]) if prenom_idx is not None and prenom_idx < len(row) else ""
         )
         email = (
-            _parse_str(row[email_idx])
-            if email_idx is not None and email_idx < len(row)
-            else None
+            _parse_str(row[email_idx]) if email_idx is not None and email_idx < len(row) else None
         )
 
         # Idempotency: skip if contact with same nom+prenom exists
@@ -268,9 +264,7 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
             continue
 
         invoice_date = (
-            _parse_date(row[date_idx])
-            if date_idx is not None and date_idx < len(row)
-            else None
+            _parse_date(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
         )
         if invoice_date is None:
             invoice_date = date.today()
@@ -292,9 +286,7 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
 
         # Build number
         number_raw = (
-            _parse_str(row[numero_idx])
-            if numero_idx is not None and numero_idx < len(row)
-            else ""
+            _parse_str(row[numero_idx]) if numero_idx is not None and numero_idx < len(row) else ""
         )
         if not number_raw:
             number_raw = f"IMP-{invoice_date.year}-{row_count + 1:04d}"
@@ -354,9 +346,7 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
             continue
 
         pay_date = (
-            _parse_date(row[date_idx])
-            if date_idx is not None and date_idx < len(row)
-            else None
+            _parse_date(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
         )
         if pay_date is None:
             pay_date = date.today()
@@ -438,9 +428,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
             continue
 
         entry_date = (
-            _parse_date(row[date_idx])
-            if date_idx is not None and date_idx < len(row)
-            else None
+            _parse_date(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
         )
         if entry_date is None:
             entry_date = date.today()
@@ -457,9 +445,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
         if debit == 0 and credit == 0:
             continue
 
-        raw_label = (
-            row[libelle_idx] if libelle_idx is not None and libelle_idx < len(row) else None
-        )
+        raw_label = row[libelle_idx] if libelle_idx is not None and libelle_idx < len(row) else None
         label = _parse_str(raw_label, max_len=500) or "Import Excel"
 
         local_offset += 1
@@ -482,3 +468,158 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
     except Exception as exc:
         result.errors.append(f"Erreur import écritures : {exc}")
         await db.rollback()
+
+
+# ---------------------------------------------------------------------------
+# Preview (dry-run — no DB writes)
+# ---------------------------------------------------------------------------
+
+
+class PreviewResult:
+    """Dry-run parse summary with sample rows."""
+
+    def __init__(self) -> None:
+        self.sheets: list[dict] = []
+        self.estimated_contacts: int = 0
+        self.estimated_invoices: int = 0
+        self.estimated_payments: int = 0
+        self.estimated_entries: int = 0
+        self.errors: list[str] = []
+        self.sample_rows: list[dict] = []
+
+    def to_dict(self) -> dict:
+        return {
+            "sheets": self.sheets,
+            "estimated_contacts": self.estimated_contacts,
+            "estimated_invoices": self.estimated_invoices,
+            "estimated_payments": self.estimated_payments,
+            "estimated_entries": self.estimated_entries,
+            "sample_rows": self.sample_rows,
+            "errors": self.errors,
+        }
+
+
+def _preview_sheet_gestion(ws: Any, sheet_name: str, preview: PreviewResult) -> None:
+    """Count parseable rows without touching the DB."""
+    sheet_lower = sheet_name.lower()
+    header_info = _detect_header_row(ws, ["montant", "date"])
+    if header_info is None:
+        header_info = _detect_header_row(ws, ["nom", "prenom"])
+    if header_info is None:
+        preview.sheets.append({"name": sheet_name, "rows": 0, "skipped": True})
+        return
+
+    header_row, col_map = header_info
+    count = 0
+    is_contact = any(k in sheet_lower for k in ("contact", "fourniss"))
+    is_payment = any(k in sheet_lower for k in ("paie", "règl", "encaiss"))
+
+    montant_idx = next((col_map[k] for k in col_map if "montant" in k or "total" in k), None)
+    nom_idx = next((col_map[k] for k in col_map if "nom" in k), None)
+
+    for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
+        if all(c is None for c in row):
+            continue
+        if is_contact and nom_idx is not None:
+            if _parse_str(row[nom_idx] if nom_idx < len(row) else None):
+                count += 1
+        elif montant_idx is not None:
+            val = _parse_decimal(row[montant_idx] if montant_idx < len(row) else None)
+            if val and val > 0:
+                count += 1
+                # Collect up to 5 sample rows
+                if len(preview.sample_rows) < 5:
+                    preview.sample_rows.append(
+                        {
+                            k: _parse_str(row[v] if v < len(row) else None)
+                            for k, v in col_map.items()
+                        }
+                    )
+
+    preview.sheets.append({"name": sheet_name, "rows": count})
+    if is_contact:
+        preview.estimated_contacts += count
+    elif is_payment:
+        preview.estimated_payments += count
+    else:
+        preview.estimated_invoices += count
+
+
+def _preview_sheet_comptabilite(ws: Any, sheet_name: str, preview: PreviewResult) -> None:
+    """Count parseable accounting entry rows."""
+    header_info = _detect_header_row(ws, ["compte", "débit"])
+    if header_info is None:
+        header_info = _detect_header_row(ws, ["compte", "credit"])
+    if header_info is None:
+        preview.sheets.append({"name": sheet_name, "rows": 0, "skipped": True})
+        return
+
+    header_row, col_map = header_info
+    compte_idx = next((col_map[k] for k in col_map if "compte" in k), None)
+    debit_idx = next((col_map[k] for k in col_map if "débit" in k or "debit" in k), None)
+    credit_idx = next((col_map[k] for k in col_map if "crédit" in k or "credit" in k), None)
+
+    count = 0
+    for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
+        if all(c is None for c in row):
+            continue
+        compte = _parse_str(
+            row[compte_idx] if compte_idx is not None and compte_idx < len(row) else None
+        )
+        if not compte:
+            continue
+        d = _parse_decimal(
+            row[debit_idx] if debit_idx is not None and debit_idx < len(row) else None
+        ) or Decimal("0")
+        c = _parse_decimal(
+            row[credit_idx] if credit_idx is not None and credit_idx < len(row) else None
+        ) or Decimal("0")
+        if d != 0 or c != 0:
+            count += 1
+            if len(preview.sample_rows) < 5:
+                preview.sample_rows.append(
+                    {k: _parse_str(row[v] if v < len(row) else None) for k, v in col_map.items()}
+                )
+
+    preview.sheets.append({"name": sheet_name, "rows": count})
+    preview.estimated_entries += count
+
+
+def preview_gestion_file(file_bytes: bytes) -> PreviewResult:
+    """Dry-run parse of a Gestion file — no DB writes."""
+    from io import BytesIO  # noqa: PLC0415
+
+    import openpyxl  # noqa: PLC0415
+
+    preview = PreviewResult()
+    try:
+        wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+    except Exception as exc:
+        preview.errors.append(f"Impossible d'ouvrir le fichier : {exc}")
+        return preview
+
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        _preview_sheet_gestion(ws, sheet_name, preview)
+
+    return preview
+
+
+def preview_comptabilite_file(file_bytes: bytes) -> PreviewResult:
+    """Dry-run parse of a Comptabilité file — no DB writes."""
+    from io import BytesIO  # noqa: PLC0415
+
+    import openpyxl  # noqa: PLC0415
+
+    preview = PreviewResult()
+    try:
+        wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+    except Exception as exc:
+        preview.errors.append(f"Impossible d'ouvrir le fichier : {exc}")
+        return preview
+
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        _preview_sheet_comptabilite(ws, sheet_name, preview)
+
+    return preview
