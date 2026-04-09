@@ -33,3 +33,15 @@ async def update_settings(
 ) -> AppSettingsRead:
     """Update application settings (admin only)."""
     return await settings_service.update_settings(db, payload)  # type: ignore[return-value]
+
+
+@router.post("/reset-db", response_model=dict[str, int])
+async def reset_db(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _AdminRequired,
+) -> dict[str, int]:
+    """Delete all transactional data (contacts, invoices, payments, bank, cash, entries,
+    salaries) while preserving users, settings, chart of accounts and accounting rules.
+    Admin only. Intended for demos and user-acceptance testing.
+    """
+    return await settings_service.reset_data(db)

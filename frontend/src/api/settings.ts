@@ -35,3 +35,8 @@ export async function updateSettingsApi(payload: AppSettingsUpdate): Promise<App
   const response = await apiClient.put<AppSettings>('/api/settings/', payload)
   return response.data
 }
+
+export async function resetDbApi(): Promise<Record<string, number>> {
+  const response = await apiClient.post<Record<string, number>>('/api/settings/reset-db')
+  return response.data
+}

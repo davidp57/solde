@@ -157,6 +157,34 @@
     <Message v-if="errorMessage" severity="error" class="mt-4" :closable="true">
       {{ errorMessage }}
     </Message>
+
+    <!-- Danger zone -->
+    <Panel class="mt-8 danger-panel">
+      <template #header>
+        <span class="danger-panel-title">
+          <i class="pi pi-exclamation-triangle mr-2" />
+          {{ t('settings.danger_zone') }}
+        </span>
+      </template>
+      <div class="flex flex-col gap-2">
+        <p class="text-sm text-gray-600 mb-3">{{ t('settings.reset_db_desc') }}</p>
+        <div>
+          <Button
+            :label="t('settings.reset_db')"
+            icon="pi pi-trash"
+            severity="danger"
+            outlined
+            :loading="resetting"
+            @click="confirmReset"
+          />
+        </div>
+        <Message v-if="resetMessage" severity="warn" class="mt-2" :closable="true">
+          {{ resetMessage }}
+        </Message>
+      </div>
+    </Panel>
+
+    <ConfirmDialog />
   </div>
 </template>
 
@@ -164,6 +192,7 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
+import ConfirmDialog from 'primevue/confirmdialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
@@ -172,7 +201,8 @@ import Password from 'primevue/password'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
-import { getSettingsApi, updateSettingsApi, type AppSettingsUpdate } from '@/api/settings'
+import { useConfirm } from 'primevue/useconfirm'
+import { getSettingsApi, resetDbApi, updateSettingsApi, type AppSettingsUpdate } from '@/api/settings'
 
 const { t } = useI18n()
 
@@ -202,10 +232,13 @@ const defaultForm = (): SettingsForm => ({
   smtp_use_tls: true,
 })
 
+const confirm = useConfirm()
 const form = ref<SettingsForm>(defaultForm())
 const loading = ref(false)
+const resetting = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+const resetMessage = ref('')
 
 const MONTHS = [
   'Janvier',
@@ -277,6 +310,43 @@ function reset(): void {
   void load()
 }
 
+function confirmReset(): void {
+  confirm.require({
+    message: t('settings.reset_db_confirm'),
+    header: t('settings.reset_db'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('settings.reset_db_yes'),
+    rejectLabel: t('common.cancel'),
+    acceptSeverity: 'danger',
+    accept: doReset,
+  })
+}
+
+async function doReset(): Promise<void> {
+  resetting.value = true
+  resetMessage.value = ''
+  try {
+    const deleted = await resetDbApi()
+    const total = Object.values(deleted).reduce((s, n) => s + n, 0)
+    resetMessage.value = t('settings.reset_db_done', { count: total })
+  } catch {
+    resetMessage.value = t('settings.reset_db_error')
+  } finally {
+    resetting.value = false
+  }
+}
+
 onMounted(load)
 </script>
+
+<style scoped>
+.danger-panel :deep(.p-panel-header) {
+  background-color: var(--p-red-50);
+  border-color: var(--p-red-200);
+}
+.danger-panel-title {
+  color: var(--p-red-600);
+  font-weight: 600;
+}
+</style>
 

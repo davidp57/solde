@@ -237,6 +237,16 @@ export default {
     smtp_use_tls: 'Utiliser TLS',
     saved: 'Paramètres enregistrés avec succès.',
     save_error: "Échec de l'enregistrement des paramètres.",
+    danger_zone: 'Zone de danger',
+    reset_db: 'Réinitialiser les données',
+    reset_db_desc:
+      'Supprime tous les contacts, factures, paiements, opérations banque/caisse, écritures et salaires. ' +
+      'Les utilisateurs, les paramètres, le plan comptable et les règles sont conservés.',
+    reset_db_confirm:
+      'Cette action est irréversible. Toutes les données transactionnelles seront supprimées définitivement. Confirmer ?',
+    reset_db_yes: 'Oui, tout supprimer',
+    reset_db_done: '{count} ligne(s) supprimée(s). La base est réinitialisée.',
+    reset_db_error: 'Erreur lors de la réinitialisation.',
   },
   accounting: {
     account_types: {
