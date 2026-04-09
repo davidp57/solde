@@ -46,25 +46,25 @@ export interface PaymentListParams {
 }
 
 export async function listPayments(params?: PaymentListParams): Promise<Payment[]> {
-  const response = await apiClient.get<Payment[]>('/payments/', { params })
+  const response = await apiClient.get<Payment[]>('/api/payments/', { params })
   return response.data
 }
 
 export async function createPayment(payload: PaymentCreate): Promise<Payment> {
-  const response = await apiClient.post<Payment>('/payments/', payload)
+  const response = await apiClient.post<Payment>('/api/payments/', payload)
   return response.data
 }
 
 export async function getPayment(id: number): Promise<Payment> {
-  const response = await apiClient.get<Payment>(`/payments/${id}`)
+  const response = await apiClient.get<Payment>(`/api/payments/${id}`)
   return response.data
 }
 
 export async function updatePayment(id: number, payload: PaymentUpdate): Promise<Payment> {
-  const response = await apiClient.put<Payment>(`/payments/${id}`, payload)
+  const response = await apiClient.put<Payment>(`/api/payments/${id}`, payload)
   return response.data
 }
 
 export async function deletePayment(id: number): Promise<void> {
-  await apiClient.delete(`/payments/${id}`)
+  await apiClient.delete(`/api/payments/${id}`)
 }

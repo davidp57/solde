@@ -9,6 +9,16 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+
+**Frontend — bugfixes interface**
+- `main.ts` : enregistrement de `ConfirmationService` manquant — toutes les views utilisant `useConfirm()` (Contacts, Factures, Paiements, Exercices, Salaires) crashaient au chargement
+- `DashboardView.vue` : imports PrimeVue manquants (`Card`, `ProgressSpinner`, `Message`, `Select`) — la vue du tableau de bord était vide
+- `AccountingBilanView.vue` : imports PrimeVue manquants (`Button`, `Card`, `Column`, `DataTable`, `ProgressSpinner`, `Select`) — la vue était vide
+- `api/client.ts` : `baseURL` corrigé de `/api` à `''` — les appels API généraient des URLs en double (`/api/api/...`)
+- `api/bank.ts`, `api/cash.ts`, `api/payments.ts` : préfixe `/api/` ajouté aux chemins (cohérence avec le nouveau `baseURL`)
+- `i18n/fr.ts` : clés `user.role.*` corrigées en minuscules (`admin`, `tresorier`, `secretaire`, `readonly`) pour correspondre aux valeurs renvoyées par le backend
+
 ### Ajouté
 
 **Backend (Phase 7 — Complétion du plan)**

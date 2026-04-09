@@ -50,7 +50,7 @@ export interface DepositCreate {
 }
 
 export async function getBankBalance(): Promise<{ balance: string }> {
-  const response = await apiClient.get<{ balance: string }>('/bank/balance')
+  const response = await apiClient.get<{ balance: string }>('/api/bank/balance')
   return response.data
 }
 
@@ -59,12 +59,12 @@ export async function listTransactions(params?: {
   skip?: number
   limit?: number
 }): Promise<BankTransaction[]> {
-  const response = await apiClient.get<BankTransaction[]>('/bank/transactions', { params })
+  const response = await apiClient.get<BankTransaction[]>('/api/bank/transactions', { params })
   return response.data
 }
 
 export async function addTransaction(payload: BankTransactionCreate): Promise<BankTransaction> {
-  const response = await apiClient.post<BankTransaction>('/bank/transactions', payload)
+  const response = await apiClient.post<BankTransaction>('/api/bank/transactions', payload)
   return response.data
 }
 
@@ -72,12 +72,12 @@ export async function updateTransaction(
   id: number,
   payload: BankTransactionUpdate,
 ): Promise<BankTransaction> {
-  const response = await apiClient.put<BankTransaction>(`/bank/transactions/${id}`, payload)
+  const response = await apiClient.put<BankTransaction>(`/api/bank/transactions/${id}`, payload)
   return response.data
 }
 
 export async function importCsv(content: string): Promise<BankTransaction[]> {
-  const response = await apiClient.post<BankTransaction[]>('/bank/transactions/import-csv', {
+  const response = await apiClient.post<BankTransaction[]>('/api/bank/transactions/import-csv', {
     content,
   })
   return response.data
@@ -87,16 +87,16 @@ export async function listDeposits(params?: {
   skip?: number
   limit?: number
 }): Promise<Deposit[]> {
-  const response = await apiClient.get<Deposit[]>('/bank/deposits', { params })
+  const response = await apiClient.get<Deposit[]>('/api/bank/deposits', { params })
   return response.data
 }
 
 export async function createDeposit(payload: DepositCreate): Promise<Deposit> {
-  const response = await apiClient.post<Deposit>('/bank/deposits', payload)
+  const response = await apiClient.post<Deposit>('/api/bank/deposits', payload)
   return response.data
 }
 
 export async function getDeposit(id: number): Promise<Deposit> {
-  const response = await apiClient.get<Deposit>(`/bank/deposits/${id}`)
+  const response = await apiClient.get<Deposit>(`/api/bank/deposits/${id}`)
   return response.data
 }
