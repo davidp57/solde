@@ -11,6 +11,32 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+**Backend (Phase 7 — Complétion du plan)**
+- `ContactHistory` schéma + `get_contact_history()` service + `GET /contacts/{id}/history`
+- `POST /contacts/{id}/mark-douteux` : génère les écritures 411xxx → 416xxx pour créances douteuses
+- `BilanRead` schéma + `get_bilan()` service + `GET /accounting/entries/bilan` : bilan simplifié actif/passif
+- `export_service.py` : `export_journal_csv`, `export_balance_csv`, `export_resultat_csv`, `export_bilan_csv` (UTF-8 BOM, séparateur `;`, montants en format fr)
+- 4 endpoints `GET /accounting/entries/{journal,balance,resultat,bilan}/export/csv`
+- `PreviewResult` + `preview_gestion_file` + `preview_comptabilite_file` dans `excel_import.py` (dry-run sans DB)
+- `POST /import/excel/{gestion,comptabilite}/preview` : estimation du nombre de lignes avant import
+- `RulePreviewRequest/Entry` schémas + `preview_rule()` service (simulation sans commit)
+- `POST /accounting/rules/{id}/preview` : prévisualisation des écritures générées par une règle
+- `parse_ofx()` + `parse_qif()` dans `bank_import.py` (SGML/XML OFX, multi-format dates QIF)
+- `POST /bank/transactions/import-ofx` + `import-qif`
+- `Dockerfile` : ajout des bibliothèques WeasyPrint (pango, cairo, gdk-pixbuf)
+- 19 nouveaux tests (5 fichiers) — 342 tests au total
+
+**Frontend (Phase 7)**
+- `accounting.ts` : types `BilanRead`, `ContactHistory`, `RulePreviewEntry`, `PreviewResult` + fonctions `getBilanApi`, `getExportCsvUrl`, `getContactHistoryApi`, `markCreanceDouteuse`, `previewRuleApi`, `previewGestionFileApi`, `previewComptabiliteFileApi`, `importOFXApi`, `importQIFApi`
+- `AccountingBilanView.vue` : bilan actif/passif avec filtre exercice + bouton export CSV
+- `ContactDetailView.vue` : fiche contact avec historique factures/paiements + action mark-douteux
+- `ContactsView.vue` : bouton historique (pi-history) vers la fiche contact
+- `AccountingJournalView.vue` : bouton export CSV journal
+- `ImportExcelView.vue` : bouton preview (dry-run) avant import
+- Router : routes `/accounting/bilan` et `/contacts/:id/history`
+- NavMenu : entrée Bilan (pi-chart-line)
+- i18n `fr.ts` : clés `bilan.*`, `contact_history.*`, `rule_preview.*`, `bank_import.*`, `import.preview*`
+
 **Backend (Phase 6 — Fonctions avancées)**
 - Modèle `Salary` + migration `0010` : salaire mensuel par employé (brut, charges salariales/patronales, PAS, net, total_cost)
 - Schémas `SalaryCreate/Update/Read` (validateur YYYY-MM) + `SalarySummaryRow`
