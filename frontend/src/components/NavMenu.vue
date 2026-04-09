@@ -36,6 +36,7 @@ const menuItems = computed(() => {
     { to: '/accounting/balance', icon: 'pi-chart-bar', label: t('nav.accounting_balance') },
     { to: '/accounting/ledger', icon: 'pi-list', label: t('nav.accounting_ledger') },
     { to: '/accounting/resultat', icon: 'pi-chart-pie', label: t('nav.accounting_resultat') },
+    { to: '/accounting/bilan', icon: 'pi-chart-line', label: t('nav.accounting_bilan') },
     { to: '/accounting/accounts', icon: 'pi-database', label: t('nav.accounting_accounts') },
     { to: '/accounting/rules', icon: 'pi-sliders-h', label: t('nav.accounting_rules') },
     { to: '/accounting/fiscal-years', icon: 'pi-calendar', label: t('nav.accounting_fiscal_years') },

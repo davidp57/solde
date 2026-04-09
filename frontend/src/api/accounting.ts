@@ -453,3 +453,153 @@ export async function openNextFiscalYearApi(
   )
   return response.data
 }
+
+// -----------------------------------------------------------------------
+// Bilan (balance sheet) — actif / passif
+// -----------------------------------------------------------------------
+
+export interface BilanSection {
+  account_number: string
+  account_label: string
+  solde: string
+}
+
+export interface BilanRead {
+  actif: BilanSection[]
+  passif: BilanSection[]
+  total_actif: string
+  total_passif: string
+  resultat: string
+}
+
+export async function getBilanApi(fiscalYearId?: number): Promise<BilanRead> {
+  const params = fiscalYearId ? `?fiscal_year_id=${fiscalYearId}` : ''
+  const response = await apiClient.get<BilanRead>(`/accounting/entries/bilan${params}`)
+  return response.data
+}
+
+export function getExportCsvUrl(
+  type: 'journal' | 'balance' | 'resultat' | 'bilan',
+  params: Record<string, string | number | undefined> = {},
+): string {
+  const sp = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v != null) sp.set(k, String(v))
+  }
+  const qs = sp.toString() ? `?${sp}` : ''
+  return `/api/accounting/entries/${type}/export/csv${qs}`
+}
+
+// -----------------------------------------------------------------------
+// Contact history & créances douteuses
+// -----------------------------------------------------------------------
+
+export interface ContactInvoiceSummary {
+  id: number
+  number: string
+  type: string
+  date: string
+  due_date: string | null
+  status: string
+  total_amount: string
+  paid_amount: string
+  balance_due: string
+}
+
+export interface ContactPaymentSummary {
+  id: number
+  date: string
+  amount: string
+  method: string
+  invoice_number: string | null
+}
+
+export interface ContactHistory {
+  contact: Record<string, unknown>
+  invoices: ContactInvoiceSummary[]
+  payments: ContactPaymentSummary[]
+  total_invoiced: string
+  total_paid: string
+  total_due: string
+}
+
+export async function getContactHistoryApi(contactId: number): Promise<ContactHistory> {
+  const response = await apiClient.get<ContactHistory>(`/contacts/${contactId}/history`)
+  return response.data
+}
+
+export async function markCreanceDouteuse(contactId: number): Promise<{
+  debit_entry_id: number
+  credit_entry_id: number
+  account_douteux: string
+  account_client: string
+  amount: string
+}> {
+  const response = await apiClient.post(`/contacts/${contactId}/mark-douteux`)
+  return response.data
+}
+
+// -----------------------------------------------------------------------
+// Rule preview
+// -----------------------------------------------------------------------
+
+export interface RulePreviewEntry {
+  account_number: string
+  label: string
+  debit: string
+  credit: string
+}
+
+export async function previewRuleApi(
+  ruleId: number,
+  amount: string,
+  label: string,
+): Promise<RulePreviewEntry[]> {
+  const response = await apiClient.post<RulePreviewEntry[]>(
+    `/accounting/rules/${ruleId}/preview`,
+    { amount, label },
+  )
+  return response.data
+}
+
+// -----------------------------------------------------------------------
+// Import Excel — preview mode
+// -----------------------------------------------------------------------
+
+export interface PreviewResult {
+  sheets: string[]
+  estimated_contacts: number
+  estimated_invoices: number
+  estimated_payments: number
+  estimated_entries: number
+  errors: string[]
+  sample_rows: Record<string, unknown[][]>
+}
+
+export async function previewGestionFileApi(file: File): Promise<PreviewResult> {
+  const form = new FormData()
+  form.append('file', file)
+  const response = await apiClient.post<PreviewResult>('/import/excel/gestion/preview', form)
+  return response.data
+}
+
+export async function previewComptabiliteFileApi(file: File): Promise<PreviewResult> {
+  const form = new FormData()
+  form.append('file', file)
+  const response = await apiClient.post<PreviewResult>('/import/excel/comptabilite/preview', form)
+  return response.data
+}
+
+// -----------------------------------------------------------------------
+// Bank — OFX / QIF import
+// -----------------------------------------------------------------------
+
+export async function importOFXApi(content: string) {
+  const response = await apiClient.post('/bank/transactions/import-ofx', { content })
+  return response.data
+}
+
+export async function importQIFApi(content: string) {
+  const response = await apiClient.post('/bank/transactions/import-qif', { content })
+  return response.data
+}
