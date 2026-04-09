@@ -2,7 +2,7 @@
 
 ## État d'avancement
 
-> Dernière mise à jour : 2026-06-13 — branche active `develop`
+> Dernière mise à jour : 2026-04-09 — branche active `develop`
 
 | Phase | Statut | Tâches complètes |
 |---|---|---|
@@ -12,15 +12,12 @@
 | **4. Paiements & Trésorerie** | ✅ Terminé | 14/14 |
 | **5. Comptabilité** | ✅ Terminé | 16/16 |
 | **6. Avancé** | ✅ Terminé | 14/14 |
+| **7. Complétion plan** | ✅ Terminé | 9/9 |
 
-### Prochaines tâches immédiates (Phase 5 — Comptabilité)
+### ✅ Plan.md 100 % implémenté — application fonctionnelle complète
 
-1. **Écritures comptables** (5.1) : pièces comptables, journaux (achat/vente/banque/caisse/OD)
-2. **Lettrage** (5.2) : rapprochement factures ↔ paiements ↔ compte 411/401
-3. **Grand livre** (5.3) : liste des écritures par compte, solde courant
-4. **Balance** (5.4) : balance des comptes à une date donnée
-5. **Compte de résultat** (5.5) : charges/produits par classe, excédent/déficit
-6. **Clôture exercice** (5.6) : report à-nouveau, initialisation nouvel exercice
+Toutes les fonctionnalités du plan initial sont développées et testées.
+**357 tests backend (74 % couverture) + 11 tests Vitest frontend — 0 échec.**
 
 ### Stack mise en place
 
@@ -53,16 +50,16 @@
 ---
 
 ```text
-Phase 1          Phase 2        Phase 3          Phase 4              Phase 5           Phase 6
-Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &     ──►  Comptabilité ──►  Avancé
-                 de base                         Trésorerie
-├─ Docker        ├─ Contacts    ├─ Fact. clients  ├─ Paiements         ├─ Moteur règles   ├─ Clôture
-├─ FastAPI       └─ Plan        ├─ Fact. fourn.   ├─ Caisse            ├─ Journal         ├─ Salaires
-├─ SQLite          comptable    ├─ PDF            ├─ Comptage caisse   ├─ Balance         ├─ Import Excel
-├─ Auth JWT                     └─ Email          ├─ Banque            ├─ Grand livre     └─ Dashboard
-└─ Vue.js                                         ├─ Bordereaux        └─ Saisie manuelle
-                                                  ├─ Import CSV/OFX
-                                                  └─ Rapprochement
+Phase 1    Phase 2    Phase 3    Phase 4         Phase 5       Phase 6       Phase 7
+Fond.  ──► Gestion ──► Fact. ──► Paiements & ──► Comptab. ──► Avancé   ──►  Complétion
+                               Trésorerie
+├─ Docker  ├─Contacts ├─Clients  ├─Paiements     ├─Moteur      ├─Clôture     ├─Bilan
+├─FastAPI  └─Plan     ├─Fourn.   ├─Caisse        ├─Journal     ├─Salaires    ├─Créances
+├─SQLite   comptable  ├─PDF      ├─Comptage      ├─Balance     ├─Import XLS  │  douteuses
+├─Auth JWT            └─Email    ├─Banque        ├─GdLivre     └─Dashboard   ├─Export CSV
+└─Vue.js                         ├─Bordereaux    └─Saisie man.              ├─Preview XLS
+                                 ├─Import OFX                               ├─Preview règles
+                                 └─Rapprochement                            └─Import OFX/QIF
 ```
 
 ---
@@ -248,6 +245,39 @@ Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &  
 
 ---
 
+## Phase 7 — Complétion du plan
+
+> **Objectif** : implémenter tous les modules identifiés dans `plan.md` mais non couverts par les phases 1-6
+
+| # | Statut | Tâche | Détails |
+|---|---|---|---|
+| 7.1 | ✅ | Fiche contact avec historique | `ContactHistory` schema + service + `GET /contacts/{id}/history` ; `ContactDetailView.vue` |
+| 7.2 | ✅ | Créances douteuses 416xxx | `mark_creance_douteuse()` : écritures 411xxx → 416xxx + `POST /contacts/{id}/mark-douteux` |
+| 7.3 | ✅ | Bilan simplifié actif/passif | `BilanRead` schema + `get_bilan()` + `GET /accounting/entries/bilan` ; `AccountingBilanView.vue` |
+| 7.4 | ✅ | Export CSV comptabilité | `export_service.py` : journal, balance, résultat, bilan (UTF-8 BOM, séparateur `;`) |
+| 7.5 | ✅ | Preview import Excel | `PreviewResult` + `preview_gestion_file/comptabilite_file` + 2 endpoints preview (dry-run) |
+| 7.6 | ✅ | Prévisualisation règles | `preview_rule()` service + `POST /accounting/rules/{id}/preview` (simulation sans commit) |
+| 7.7 | ✅ | Import OFX/QIF | `parse_ofx()` (SGML + XML) + `parse_qif()` (multi-format dates) + 2 endpoints |
+| 7.8 | ✅ | Dockerfile WeasyPrint | Ajout libs système : libpango, libcairo, libgdk-pixbuf2.0, shared-mime-info |
+| 7.9 | ✅ | Tests Phase 7 | 19 nouveaux tests (OFX/QIF unit + 4 fichiers intégration) → 357 tests au total |
+
+**Critère de validation** :
+1. `POST /contacts/{id}/mark-douteux` → 2 écritures 411xxx/416xxx créées ✅
+2. `GET /accounting/entries/bilan` → actif et passif équilibrés ✅
+3. `GET /accounting/entries/journal/export/csv` → téléchargement CSV UTF-8 ✅
+4. `POST /import/excel/gestion/preview` → estimation lignes sans import ✅
+5. `POST /bank/transactions/import-ofx` → transactions créées depuis un fichier OFX ✅
+
+**État final** :
+- Backend : 357 tests, 0 échec, 74 % couverture
+- Frontend : `AccountingBilanView.vue`, `ContactDetailView.vue`, export CSV journal, preview import, nouvelles routes, i18n complète
+- Ruff : 0 erreur
+
+### Dépendances
+- Phases 1-6 (toutes les couches précédentes)
+
+---
+
 ## Résumé des livrables par phase
 
 | Phase | Modules | Tâches |
@@ -258,7 +288,8 @@ Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &  
 | **4. Paiements & Trésorerie** | Paiements, Caisse, Banque, Bordereaux, Import bancaire, Rapprochement | 14 tâches |
 | **5. Comptabilité** | Moteur de règles, Journal, Balance, Grand livre, État factures | 16 tâches |
 | **6. Avancé** | Clôture, Salaires, Import Excel, Dashboard | 14 tâches |
-| **Total** | **13 modules** | **66 tâches** |
+| **7. Complétion plan** | Bilan, créances douteuses, exports CSV, preview import, OFX/QIF | 9 tâches |
+| **Total** | **14 modules** | **75 tâches** |
 
 ---
 
@@ -281,6 +312,9 @@ Phase 5 (Comptabilité + Moteur de règles)
     │
     ▼
 Phase 6 (Clôture + Salaires + Import + Dashboard)
+    │
+    ▼
+Phase 7 (Bilan, Créances douteuses, Export CSV, Preview, OFX/QIF)
 ```
 
 > Chaque phase dépend de la précédente. Au sein d'une phase, certaines tâches sont parallélisables (ex: 2.1-2.3 Contacts et 2.4-2.7 Plan comptable).
