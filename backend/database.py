@@ -1,5 +1,6 @@
 """Database engine and session management (async SQLite with WAL mode)."""
 
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -63,6 +64,36 @@ async def init_db() -> None:
         )
 
         await conn.run_sync(Base.metadata.create_all)
+
+    await _bootstrap_admin()
+
+
+async def _bootstrap_admin() -> None:
+    """Create the default admin user on first startup if no user exists."""
+    from sqlalchemy import select
+
+    from backend.config import get_settings
+    from backend.models.user import User, UserRole
+    from backend.services.auth import hash_password
+
+    cfg = get_settings()
+    async with get_session() as session:
+        result = await session.execute(select(User).limit(1))
+        if result.scalar_one_or_none() is not None:
+            return  # At least one user exists, nothing to do
+
+        user = User(
+            username=cfg.admin_username,
+            email=cfg.admin_email,
+            password_hash=hash_password(cfg.admin_password),
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        session.add(user)
+        logging.getLogger(__name__).warning(
+            "Bootstrap: created admin user '%s' — change the password immediately!",
+            cfg.admin_username,
+        )
 
 
 @asynccontextmanager
