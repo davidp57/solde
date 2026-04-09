@@ -65,7 +65,7 @@ export interface CashCountCreate {
 }
 
 export async function getCashBalance(): Promise<{ balance: string }> {
-  const response = await apiClient.get<{ balance: string }>('/cash/balance')
+  const response = await apiClient.get<{ balance: string }>('/api/cash/balance')
   return response.data
 }
 
@@ -73,12 +73,12 @@ export async function listCashEntries(params?: {
   skip?: number
   limit?: number
 }): Promise<CashEntry[]> {
-  const response = await apiClient.get<CashEntry[]>('/cash/entries', { params })
+  const response = await apiClient.get<CashEntry[]>('/api/cash/entries', { params })
   return response.data
 }
 
 export async function addCashEntry(payload: CashEntryCreate): Promise<CashEntry> {
-  const response = await apiClient.post<CashEntry>('/cash/entries', payload)
+  const response = await apiClient.post<CashEntry>('/api/cash/entries', payload)
   return response.data
 }
 
@@ -86,11 +86,11 @@ export async function listCashCounts(params?: {
   skip?: number
   limit?: number
 }): Promise<CashCount[]> {
-  const response = await apiClient.get<CashCount[]>('/cash/counts', { params })
+  const response = await apiClient.get<CashCount[]>('/api/cash/counts', { params })
   return response.data
 }
 
 export async function addCashCount(payload: CashCountCreate): Promise<CashCount> {
-  const response = await apiClient.post<CashCount>('/cash/counts', payload)
+  const response = await apiClient.post<CashCount>('/api/cash/counts', payload)
   return response.data
 }

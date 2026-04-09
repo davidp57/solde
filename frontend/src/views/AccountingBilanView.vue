@@ -78,6 +78,12 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import Button from 'primevue/button'
+import Card from 'primevue/card'
+import Column from 'primevue/column'
+import DataTable from 'primevue/datatable'
+import ProgressSpinner from 'primevue/progressspinner'
+import Select from 'primevue/select'
 import { getBilanApi, getExportCsvUrl, listFiscalYearsApi } from '../api/accounting'
 import type { BilanRead, FiscalYearRead } from '../api/accounting'
 

@@ -43,10 +43,10 @@ export default {
   },
   user: {
     role: {
-      ADMIN: 'Administrateur',
-      TRESORIER: 'Trésorier',
-      SECRETAIRE: 'Secrétaire',
-      READONLY: 'Lecture seule',
+      admin: 'Administrateur',
+      tresorier: 'Trésorier',
+      secretaire: 'Secrétaire',
+      readonly: 'Lecture seule',
     },
   },
   common: {
