@@ -15,6 +15,7 @@ from backend.models import contact as _contact_module  # noqa: F401 — register
 from backend.models import fiscal_year as _fy_module  # noqa: F401 — register all models
 from backend.models import invoice as _invoice_module  # noqa: F401 — register all models
 from backend.models import payment as _payment_module  # noqa: F401 — register all models
+from backend.models import salary as _salary_module  # noqa: F401 — register all models
 from backend.models import user as _user_module  # noqa: F401 — register all models
 from backend.models.user import User, UserRole
 from backend.services.auth import hash_password
