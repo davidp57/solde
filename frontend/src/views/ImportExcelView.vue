@@ -153,6 +153,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import Button from 'primevue/button'
+import Card from 'primevue/card'
+import RadioButton from 'primevue/radiobutton'
+import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
 import {
   importGestionFileApi,
