@@ -1,45 +1,55 @@
 <template>
-  <div class="view-container">
-    <div class="view-header">
-      <h1>{{ t('accounting.balance.title') }}</h1>
-    </div>
+  <AppPage width="wide">
+    <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('accounting.balance.title')" />
 
-    <div class="filters-row">
-      <div class="filter-group">
-        <label>{{ t('accounting.journal.filter_from') }}</label>
-        <InputText v-model="fromDate" type="date" />
+    <AppPanel :title="t('accounting.balance.title')" dense>
+      <div class="app-toolbar">
+        <div class="app-filter-grid">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('accounting.journal.filter_from') }}</label>
+            <InputText v-model="fromDate" type="date" />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('accounting.journal.filter_to') }}</label>
+            <InputText v-model="toDate" type="date" />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('accounting.journal.filter_fiscal_year') }}</label>
+            <Select
+              v-model="fiscalYearId"
+              :options="fiscalYears"
+              option-label="name"
+              option-value="id"
+              :placeholder="t('common.all')"
+              show-clear
+            />
+          </div>
+          <div class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
+            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('common.search') }}</label>
+            <Button :label="t('common.search')" icon="pi pi-search" @click="load" />
+          </div>
+        </div>
       </div>
-      <div class="filter-group">
-        <label>{{ t('accounting.journal.filter_to') }}</label>
-        <InputText v-model="toDate" type="date" />
-      </div>
-      <div class="filter-group">
-        <label>{{ t('accounting.journal.filter_fiscal_year') }}</label>
-        <Select
-          v-model="fiscalYearId"
-          :options="fiscalYears"
-          option-label="name"
-          option-value="id"
-          :placeholder="t('common.all')"
-          show-clear
-        />
-      </div>
-      <Button icon="pi pi-search" @click="load" />
-      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
-    </div>
 
-    <DataTable :value="filtered" :loading="loading" striped-rows>
+      <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows size="small" row-hover>
       <Column field="account_number" :header="t('accounting.balance.account_number')" sortable />
       <Column field="account_label" :header="t('accounting.balance.account_label')" />
       <Column field="account_type" :header="t('accounting.balance.account_type')">
         <template #body="{ data }">{{ t(`accounting.account_types.${data.account_type}`) }}</template>
       </Column>
-      <Column field="total_debit" :header="t('accounting.balance.total_debit')" class="text-right" />
-      <Column field="total_credit" :header="t('accounting.balance.total_credit')" class="text-right" />
-      <Column field="solde" :header="t('accounting.balance.solde')" class="text-right" />
-      <template #empty>{{ t('accounting.balance.empty') }}</template>
-    </DataTable>
-  </div>
+      <Column field="total_debit" :header="t('accounting.balance.total_debit')" class="app-money" />
+      <Column field="total_credit" :header="t('accounting.balance.total_credit')" class="app-money" />
+      <Column field="solde" :header="t('accounting.balance.solde')" class="app-money" />
+        <template #empty>
+          <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
+        </template>
+      </DataTable>
+    </AppPanel>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -50,6 +60,9 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
+import AppPage from '../components/ui/AppPage.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPanel from '../components/ui/AppPanel.vue'
 import { getBalanceApi, listFiscalYearsApi, type BalanceRow, type FiscalYearRead } from '../api/accounting'
 import { useTableFilter } from '../composables/useTableFilter'
 

@@ -33,7 +33,9 @@ async def list_accounts(
     active_only: bool = Query(default=True),
 ) -> list[AccountingAccountRead]:
     """List accounts, optionally filtered by type."""
-    accounts = await account_service.list_accounts(db, type=type, active_only=active_only)
+    accounts = await account_service.list_accounts(
+        db, type=type, active_only=active_only
+    )
     return accounts  # type: ignore[return-value]
 
 
@@ -47,7 +49,9 @@ async def seed_accounts(
     return {"inserted": inserted}
 
 
-@router.post("/", response_model=AccountingAccountRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=AccountingAccountRead, status_code=status.HTTP_201_CREATED
+)
 async def create_account(
     payload: AccountingAccountCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -71,7 +75,9 @@ async def get_account(
 ) -> AccountingAccountRead:
     account = await account_service.get_account(db, account_id)
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
+        )
     return account  # type: ignore[return-value]
 
 
@@ -84,5 +90,7 @@ async def update_account(
 ) -> AccountingAccountRead:
     account = await account_service.get_account(db, account_id)
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
+        )
     return await account_service.update_account(db, account, payload)  # type: ignore[return-value]

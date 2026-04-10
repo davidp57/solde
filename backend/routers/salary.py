@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import get_db
 from backend.models.user import User, UserRole
 from backend.routers.auth import get_current_user, require_role
-from backend.schemas.salary import SalaryCreate, SalaryRead, SalarySummaryRow, SalaryUpdate
+from backend.schemas.salary import (
+    SalaryCreate,
+    SalaryRead,
+    SalarySummaryRow,
+    SalaryUpdate,
+)
 from backend.services import salary_service
 
 if TYPE_CHECKING:
@@ -16,7 +21,9 @@ if TYPE_CHECKING:
 
 router = APIRouter(prefix="/salaries", tags=["salaries"])
 
-_WriteAccess = Annotated[User, Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN))]
+_WriteAccess = Annotated[
+    User, Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN))
+]
 _ReadAccess = Annotated[User, Depends(get_current_user)]
 
 
@@ -81,7 +88,9 @@ async def get_salary(
 ) -> SalaryRead:
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found"
+        )
     return _to_read(salary)
 
 
@@ -94,7 +103,9 @@ async def update_salary(
 ) -> SalaryRead:
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found"
+        )
     updated = await salary_service.update_salary(db, salary, payload)
     return _to_read(updated)
 
@@ -107,5 +118,7 @@ async def delete_salary(
 ) -> None:
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found"
+        )
     await salary_service.delete_salary(db, salary)

@@ -73,7 +73,9 @@ class AccountingRuleEntry(Base):
         String(500), nullable=False, default="{{label}}"
     )
 
-    rule: Mapped[AccountingRule] = relationship("AccountingRule", back_populates="entries")
+    rule: Mapped[AccountingRule] = relationship(
+        "AccountingRule", back_populates="entries"
+    )
 
 
 # ---------------------------------------------------------------------------

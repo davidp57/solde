@@ -1,44 +1,64 @@
 <template>
-  <div class="contacts-view p-4">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-2xl font-semibold">{{ t('contacts.title') }}</h2>
-      <Button
-        :label="t('contacts.new')"
-        icon="pi pi-plus"
-        @click="openCreateDialog"
-      />
-    </div>
-
-    <!-- Filters -->
-    <div class="flex gap-3 mb-4 flex-wrap">
-      <InputText
-        v-model="search"
-        :placeholder="t('contacts.search_placeholder')"
-        class="w-64"
-        @input="debouncedLoad"
-      />
-      <Select
-        v-model="typeFilter"
-        :options="typeOptions"
-        option-label="label"
-        option-value="value"
-        :placeholder="t('contacts.filter_type')"
-        show-clear
-        class="w-48"
-        @change="loadContacts"
-      />
-    </div>
-
-    <!-- Table -->
-    <DataTable
-      :value="contacts"
-      :loading="loading"
-      striped-rows
-      paginator
-      :rows="20"
-      :rows-per-page-options="[10, 20, 50]"
-      data-key="id"
+  <AppPage>
+    <AppPageHeader
+      :eyebrow="t('ui.page.collection_eyebrow')"
+      :title="t('contacts.title')"
+      :subtitle="t('contacts.subtitle')"
     >
+      <template #actions>
+        <Button :label="t('contacts.new')" icon="pi pi-plus" @click="openCreateDialog" />
+      </template>
+    </AppPageHeader>
+
+    <section class="app-stat-grid">
+      <AppStatCard :label="t('contacts.metrics.total')" :value="contacts.length" :caption="t('contacts.metrics.clients', { count: clientCount })" />
+      <AppStatCard :label="t('contacts.metrics.suppliers')" :value="supplierCount" :caption="t('contacts.metrics.mixed', { count: mixedCount })" tone="success" />
+      <AppStatCard :label="t('contacts.metrics.with_email')" :value="emailCount" :caption="t('contacts.metrics.with_phone', { count: phoneCount })" tone="warn" />
+    </section>
+
+    <AppPanel :title="t('contacts.workspace_title')" :subtitle="t('contacts.workspace_subtitle')">
+      <div class="app-toolbar">
+        <div class="app-toolbar__meta">
+          <p class="app-toolbar__hint">{{ t('contacts.filters_hint') }}</p>
+          <span class="app-chip">{{ t('contacts.results_label', { count: contacts.length }) }}</span>
+        </div>
+
+        <div class="app-filter-grid">
+          <div class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('contacts.search_placeholder') }}</label>
+            <InputText
+              v-model="search"
+              :placeholder="t('contacts.search_placeholder')"
+              @input="debouncedLoad"
+            />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('contacts.filter_type') }}</label>
+            <Select
+              v-model="typeFilter"
+              :options="typeOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              show-clear
+              @change="loadContacts"
+            />
+          </div>
+        </div>
+      </div>
+
+      <DataTable
+        :value="contacts"
+        :loading="loading"
+        class="app-data-table contacts-table"
+        striped-rows
+        paginator
+        :rows="20"
+        :rows-per-page-options="[10, 20, 50]"
+        data-key="id"
+        size="small"
+        row-hover
+      >
       <Column field="nom" :header="t('contacts.nom')" sortable />
       <Column field="prenom" :header="t('contacts.prenom')" sortable />
       <Column field="type" :header="t('contacts.type')">
@@ -48,9 +68,9 @@
       </Column>
       <Column field="email" :header="t('contacts.email')" />
       <Column field="telephone" :header="t('contacts.telephone')" />
-      <Column :header="t('common.actions')" style="width: 10rem">
+      <Column :header="t('common.actions')" class="contacts-table__actions">
         <template #body="{ data }">
-          <div class="flex gap-1">
+          <div class="app-inline-actions">
             <Button
               icon="pi pi-history"
               size="small"
@@ -76,14 +96,17 @@
           </div>
         </template>
       </Column>
-    </DataTable>
+        <template #empty>
+          <div class="app-empty-state">{{ t('contacts.empty') }}</div>
+        </template>
+      </DataTable>
+    </AppPanel>
 
-    <!-- Create / Edit Dialog -->
     <Dialog
       v-model:visible="dialogVisible"
       :header="editingContact ? t('contacts.edit') : t('contacts.new')"
       modal
-      :style="{ width: '480px' }"
+      class="app-dialog app-dialog--medium"
     >
       <ContactForm
         :contact="editingContact"
@@ -92,9 +115,8 @@
       />
     </Dialog>
 
-    <!-- Confirm delete -->
     <ConfirmDialog />
-  </div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -108,8 +130,12 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppPage from '@/components/ui/AppPage.vue'
+import AppPageHeader from '@/components/ui/AppPageHeader.vue'
+import AppPanel from '@/components/ui/AppPanel.vue'
+import AppStatCard from '@/components/ui/AppStatCard.vue'
 import {
   deleteContactApi,
   listContactsApi,
@@ -128,6 +154,11 @@ const search = ref('')
 const typeFilter = ref<ContactType | undefined>(undefined)
 const dialogVisible = ref(false)
 const editingContact = ref<Contact | null>(null)
+const clientCount = computed(() => contacts.value.filter((contact) => contact.type === 'client').length)
+const supplierCount = computed(() => contacts.value.filter((contact) => contact.type === 'fournisseur').length)
+const mixedCount = computed(() => contacts.value.filter((contact) => contact.type === 'les_deux').length)
+const emailCount = computed(() => contacts.value.filter((contact) => Boolean(contact.email)).length)
+const phoneCount = computed(() => contacts.value.filter((contact) => Boolean(contact.telephone)).length)
 
 const typeOptions = [
   { label: t('contacts.types.client'), value: 'client' as ContactType },
@@ -182,7 +213,8 @@ function confirmDelete(contact: Contact): void {
     message: t('contacts.confirm_delete', { nom: contact.nom }),
     header: t('common.confirm'),
     icon: 'pi pi-exclamation-triangle',
-    acceptSeverity: 'danger',
+    acceptProps: { severity: 'danger', label: t('common.delete') },
+    rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
     accept: () => void doDelete(contact),
   })
 }
@@ -199,3 +231,9 @@ async function doDelete(contact: Contact): Promise<void> {
 
 onMounted(loadContacts)
 </script>
+
+<style scoped>
+.contacts-table__actions {
+  width: 8rem;
+}
+</style>

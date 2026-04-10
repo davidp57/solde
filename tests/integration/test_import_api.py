@@ -37,7 +37,9 @@ async def test_import_requires_auth(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
-async def test_import_gestion_empty_sheet(client: AsyncClient, auth_headers: dict) -> None:
+async def test_import_gestion_empty_sheet(
+    client: AsyncClient, auth_headers: dict
+) -> None:
     """Uploading an xlsx with empty valid sheet returns a result dict."""
     content = _make_simple_xlsx(["date", "montant", "nom"], [[]])
     response = await client.post(
@@ -57,7 +59,9 @@ async def test_import_gestion_empty_sheet(client: AsyncClient, auth_headers: dic
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
-async def test_import_comptabilite_empty_sheet(client: AsyncClient, auth_headers: dict) -> None:
+async def test_import_comptabilite_empty_sheet(
+    client: AsyncClient, auth_headers: dict
+) -> None:
     """Uploading an empty comptabilité sheet returns zero counts."""
     content = _make_simple_xlsx(["date", "compte", "libellé", "débit", "crédit"], [])
     response = await client.post(
@@ -71,7 +75,9 @@ async def test_import_comptabilite_empty_sheet(client: AsyncClient, auth_headers
 
 
 @pytest.mark.asyncio
-async def test_import_rejects_non_excel(client: AsyncClient, auth_headers: dict) -> None:
+async def test_import_rejects_non_excel(
+    client: AsyncClient, auth_headers: dict
+) -> None:
     """Uploading a non-Excel file returns 422."""
     response = await client.post(
         "/api/import/excel/gestion",

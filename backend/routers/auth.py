@@ -41,7 +41,9 @@ async def get_current_user(
     if username is None:
         raise credentials_exception
 
-    result = await db.execute(select(User).where(User.username == username, User.is_active == True))  # noqa: E712
+    result = await db.execute(
+        select(User).where(User.username == username, User.is_active == True)
+    )  # noqa: E712
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
@@ -69,7 +71,9 @@ async def login(
 ) -> TokenResponse:
     """Authenticate with username + password, return JWT tokens."""
     result = await db.execute(
-        select(User).where(User.username == form_data.username, User.is_active == True)  # noqa: E712
+        select(User).where(
+            User.username == form_data.username, User.is_active == True
+        )  # noqa: E712
     )
     user = result.scalar_one_or_none()
     if user is None or not verify_password(form_data.password, user.password_hash):
@@ -97,10 +101,14 @@ async def refresh_token(
             detail="Invalid or expired refresh token",
         )
     username: str = payload["sub"]
-    result = await db.execute(select(User).where(User.username == username, User.is_active == True))  # noqa: E712
+    result = await db.execute(
+        select(User).where(User.username == username, User.is_active == True)
+    )  # noqa: E712
     user = result.scalar_one_or_none()
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
     return TokenResponse(
         access_token=create_access_token(data={"sub": user.username}),
         refresh_token=create_refresh_token(user.username),
@@ -127,7 +135,9 @@ async def create_user(
 ) -> User:
     """Create a new user (admin only)."""
     existing = await db.execute(
-        select(User).where((User.username == body.username) | (User.email == body.email))
+        select(User).where(
+            (User.username == body.username) | (User.email == body.email)
+        )
     )
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(

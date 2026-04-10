@@ -1,19 +1,26 @@
 <template>
-  <div class="view-container">
-    <div class="view-header">
-      <h1>{{ t('accounting.fiscalYear.title') }}</h1>
-      <Button
-        :label="t('accounting.fiscalYear.new')"
-        icon="pi pi-plus"
-        @click="showDialog = true"
-      />
-    </div>
+  <AppPage width="wide">
+    <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('accounting.fiscalYear.title')">
+      <template #actions>
+        <Button
+          :label="t('accounting.fiscalYear.new')"
+          icon="pi pi-plus"
+          @click="showDialog = true"
+        />
+      </template>
+    </AppPageHeader>
 
-    <div class="mb-4">
-      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
-    </div>
+    <AppPanel :title="t('accounting.fiscalYear.title')" dense>
+      <div class="app-toolbar">
+        <div class="app-filter-grid">
+          <div class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
+            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+          </div>
+        </div>
+      </div>
 
-    <DataTable :value="filtered" :loading="loading" striped-rows>
+      <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows size="small" row-hover>
       <Column field="name" :header="t('accounting.fiscalYear.name')" />
       <Column field="start_date" :header="t('accounting.fiscalYear.start_date')" />
       <Column field="end_date" :header="t('accounting.fiscalYear.end_date')" />
@@ -37,29 +44,42 @@
           />
         </template>
       </Column>
-      <template #empty>{{ t('accounting.balance.empty') }}</template>
-    </DataTable>
+        <template #empty><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template>
+      </DataTable>
+    </AppPanel>
 
     <!-- Create dialog -->
     <Dialog
       v-model:visible="showDialog"
       :header="t('accounting.fiscalYear.new')"
       modal
-      style="width: 420px"
+      class="app-dialog app-dialog--medium"
     >
-      <div class="form-fields">
-        <div class="field">
-          <label>{{ t('accounting.fiscalYear.name') }}</label>
-          <InputText v-model="form.name" :placeholder="t('accounting.fiscalYear.name_placeholder')" />
-        </div>
-        <div class="field">
-          <label>{{ t('accounting.fiscalYear.start_date') }}</label>
-          <InputText v-model="form.start_date" type="date" />
-        </div>
-        <div class="field">
-          <label>{{ t('accounting.fiscalYear.end_date') }}</label>
-          <InputText v-model="form.end_date" type="date" />
-        </div>
+      <div class="app-dialog-form">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ t('accounting.fiscalYear.title') }}</p>
+          <p class="app-dialog-intro__text">{{ t('accounting.fiscalYear.form_intro') }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <div class="app-dialog-section__header">
+            <h3 class="app-dialog-section__title">{{ t('accounting.fiscalYear.calendar_title') }}</h3>
+            <p class="app-dialog-section__copy">{{ t('accounting.fiscalYear.calendar_subtitle') }}</p>
+          </div>
+          <div class="app-form-grid">
+            <div class="app-field app-field--full">
+              <label class="app-field__label">{{ t('accounting.fiscalYear.name') }}</label>
+              <InputText v-model="form.name" :placeholder="t('accounting.fiscalYear.name_placeholder')" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('accounting.fiscalYear.start_date') }}</label>
+              <InputText v-model="form.start_date" type="date" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('accounting.fiscalYear.end_date') }}</label>
+              <InputText v-model="form.end_date" type="date" />
+            </div>
+          </div>
+        </section>
       </div>
       <template #footer>
         <Button :label="t('common.cancel')" text @click="showDialog = false" />
@@ -69,7 +89,7 @@
 
     <!-- Confirm close dialog -->
     <ConfirmDialog />
-  </div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -84,6 +104,9 @@ import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import AppPage from '../components/ui/AppPage.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPanel from '../components/ui/AppPanel.vue'
 import {
   listFiscalYearsApi,
   createFiscalYearApi,

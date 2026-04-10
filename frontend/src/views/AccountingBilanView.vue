@@ -1,8 +1,8 @@
 <template>
-  <div class="accounting-bilan-view p-4">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-2xl font-semibold">{{ t('bilan.title') }}</h2>
-      <div class="flex gap-2 items-center">
+  <AppPage width="wide">
+    <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('bilan.title')">
+      <template #actions>
+        <div class="app-page-header__actions">
         <Select
           v-model="selectedFiscalYear"
           :options="fiscalYears"
@@ -19,43 +19,35 @@
           outlined
           @click="downloadCsv"
         />
-      </div>
-    </div>
+        </div>
+      </template>
+    </AppPageHeader>
 
-    <div v-if="loading" class="flex justify-center py-12">
+    <div v-if="loading" class="bilan-loading">
       <ProgressSpinner />
     </div>
 
-    <div v-else-if="bilan" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div v-else-if="bilan" class="bilan-grid">
       <!-- Actif -->
-      <Card>
-        <template #header>
-          <div class="px-4 pt-4 font-semibold text-lg">{{ t('bilan.actif') }}</div>
-        </template>
-        <template #content>
-          <DataTable :value="bilan.actif" class="text-sm" striped-rows>
+      <AppPanel :title="t('bilan.actif')" dense>
+          <DataTable :value="bilan.actif" class="app-data-table" striped-rows size="small" row-hover>
             <Column field="account_number" :header="t('accounting.accounts.number')" style="width:8rem" />
             <Column field="account_label" :header="t('accounting.accounts.label')" />
-            <Column field="solde" :header="t('accounting.balance.solde')" style="width:9rem" class="text-right font-mono">
+            <Column field="solde" :header="t('accounting.balance.solde')" style="width:9rem" class="app-money">
               <template #body="{ data }">{{ formatAmount(data.solde) }}</template>
             </Column>
           </DataTable>
           <div class="mt-3 flex justify-end font-semibold text-base border-t pt-2">
             <span>{{ t('bilan.total_actif') }} : {{ formatAmount(bilan.total_actif) }} €</span>
           </div>
-        </template>
-      </Card>
+      </AppPanel>
 
       <!-- Passif -->
-      <Card>
-        <template #header>
-          <div class="px-4 pt-4 font-semibold text-lg">{{ t('bilan.passif') }}</div>
-        </template>
-        <template #content>
-          <DataTable :value="bilan.passif" class="text-sm" striped-rows>
+      <AppPanel :title="t('bilan.passif')" dense>
+          <DataTable :value="bilan.passif" class="app-data-table" striped-rows size="small" row-hover>
             <Column field="account_number" :header="t('accounting.accounts.number')" style="width:8rem" />
             <Column field="account_label" :header="t('accounting.accounts.label')" />
-            <Column field="solde" :header="t('accounting.balance.solde')" style="width:9rem" class="text-right font-mono">
+            <Column field="solde" :header="t('accounting.balance.solde')" style="width:9rem" class="app-money">
               <template #body="{ data }">{{ formatAmount(data.solde) }}</template>
             </Column>
           </DataTable>
@@ -67,23 +59,24 @@
               {{ t('bilan.resultat') }} : {{ formatAmount(bilan.resultat) }} €
             </span>
           </div>
-        </template>
-      </Card>
+      </AppPanel>
     </div>
 
-    <div v-else class="text-gray-400 mt-8 text-center">{{ t('bilan.empty') }}</div>
-  </div>
+    <div v-else class="app-empty-state">{{ t('bilan.empty') }}</div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
-import Card from 'primevue/card'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import ProgressSpinner from 'primevue/progressspinner'
 import Select from 'primevue/select'
+import AppPage from '../components/ui/AppPage.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPanel from '../components/ui/AppPanel.vue'
 import { getBilanApi, getExportCsvUrl, listFiscalYearsApi } from '../api/accounting'
 import type { BilanRead, FiscalYearRead } from '../api/accounting'
 
@@ -119,3 +112,23 @@ onMounted(async () => {
   await loadBilan()
 })
 </script>
+
+<style scoped>
+.bilan-loading {
+  display: flex;
+  justify-content: center;
+  padding: 4rem 0;
+}
+
+.bilan-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--app-space-5);
+}
+
+@media (max-width: 900px) {
+  .bilan-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

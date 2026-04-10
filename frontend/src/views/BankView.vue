@@ -1,27 +1,30 @@
 <template>
-  <div class="bank-view p-4">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-2xl font-semibold">{{ t('bank.title') }}</h2>
-      <div class="flex gap-2">
+  <AppPage width="wide">
+    <AppPageHeader :eyebrow="t('ui.page.collection_eyebrow')" :title="t('bank.title')">
+      <template #actions>
         <Button :label="t('bank.import_csv')" icon="pi pi-upload" severity="secondary" @click="importDialogVisible = true" />
-        <Button :label="t('bank.new_deposit')" icon="pi pi-inbox" severity="secondary" @click="depositDialogVisible = true" />
+        <Button :label="t('bank.new_deposit')" icon="pi pi-inbox" severity="secondary" @click="openDepositDialog" />
         <Button :label="t('bank.new_transaction')" icon="pi pi-plus" @click="txDialogVisible = true" />
+      </template>
+    </AppPageHeader>
+
+    <section class="app-stat-grid">
+      <AppStatCard :label="t('bank.balance')" :value="formatAmount(balance)" />
+      <AppStatCard :label="t('bank.transactions_title')" :value="filteredTransactions.length" :caption="`${transactions.length} total`" />
+      <AppStatCard :label="t('bank.deposits_title')" :value="filteredDeposits.length" :caption="`${undepositedPayments.length} paiements en attente`" tone="warn" />
+    </section>
+
+    <AppPanel :title="t('bank.title')" dense>
+      <div class="app-toolbar">
+        <div class="app-filter-grid">
+          <div class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
+            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+          </div>
+        </div>
       </div>
-    </div>
 
-    <!-- Balance card -->
-    <div class="balance-card mb-6">
-      <span class="label">{{ t('bank.balance') }}</span>
-      <span class="amount">{{ formatAmount(balance) }}</span>
-    </div>
-
-    <!-- Generic filter -->
-    <div class="mb-3">
-      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
-    </div>
-
-    <!-- Tabs -->
-    <Tabs v-model:value="activeTab">
+      <Tabs v-model:value="activeTab">
       <TabList>
         <Tab value="transactions">{{ t('bank.transactions_title') }}</Tab>
         <Tab value="deposits">{{ t('bank.deposits_title') }}</Tab>
@@ -29,7 +32,7 @@
 
       <TabPanels>
         <TabPanel value="transactions">
-          <div class="flex gap-2 mb-3">
+          <div class="bank-panel-toolbar">
             <ToggleButton
               v-model="unreconciledOnly"
               :on-label="t('bank.tx_reconciled')"
@@ -37,11 +40,11 @@
               @change="loadTransactions"
             />
           </div>
-          <DataTable :value="filteredTransactions" :loading="loadingTx" striped-rows paginator :rows="20" data-key="id">
+          <DataTable :value="filteredTransactions" :loading="loadingTx" class="app-data-table" striped-rows paginator :rows="20" data-key="id" size="small" row-hover>
             <Column field="date" :header="t('bank.tx_date')" sortable />
-            <Column field="amount" :header="t('bank.tx_amount')">
+            <Column field="amount" :header="t('bank.tx_amount')" class="app-money">
               <template #body="{ data }">
-                <span :class="parseFloat(data.amount) >= 0 ? 'text-green-600' : 'text-red-500'">
+                <span :class="parseFloat(data.amount) >= 0 ? 'bank-positive' : 'bank-negative'">
                   {{ formatAmount(data.amount) }}
                 </span>
               </template>
@@ -74,18 +77,21 @@
                 />
               </template>
             </Column>
+            <template #empty>
+              <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
+            </template>
           </DataTable>
         </TabPanel>
 
         <TabPanel value="deposits">
-          <DataTable :value="filteredDeposits" :loading="loadingDeposits" striped-rows paginator :rows="20" data-key="id">
+          <DataTable :value="filteredDeposits" :loading="loadingDeposits" class="app-data-table" striped-rows paginator :rows="20" data-key="id" size="small" row-hover>
             <Column field="date" :header="t('bank.deposit_date')" sortable />
             <Column field="type" :header="t('bank.deposit_type')">
               <template #body="{ data }">
                 <Tag :value="t(`bank.deposit_types.${data.type}`)" />
               </template>
             </Column>
-            <Column field="total_amount" :header="t('bank.deposit_total')">
+            <Column field="total_amount" :header="t('bank.deposit_total')" class="app-money">
               <template #body="{ data }">{{ formatAmount(data.total_amount) }}</template>
             </Column>
             <Column field="bank_reference" :header="t('bank.deposit_bank_ref')" />
@@ -94,35 +100,47 @@
                 {{ data.payment_ids?.length || 0 }} paiements
               </template>
             </Column>
+            <template #empty>
+              <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
+            </template>
           </DataTable>
         </TabPanel>
       </TabPanels>
     </Tabs>
+    </AppPanel>
 
     <!-- Add transaction dialog -->
-    <Dialog v-model:visible="txDialogVisible" :header="t('bank.new_transaction')" modal :style="{ width: '420px' }">
-      <form class="flex flex-col gap-3" @submit.prevent="submitTransaction">
-        <div class="flex flex-col gap-1">
-          <label>{{ t('bank.tx_date') }}</label>
-          <DatePicker v-model="txForm.date" date-format="yy-mm-dd" show-icon />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label>{{ t('bank.tx_amount') }}</label>
-          <InputNumber v-model="txForm.amount" mode="decimal" :min-fraction-digits="2" :max-fraction-digits="2" />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label>{{ t('bank.tx_description') }}</label>
-          <InputText v-model="txForm.description" />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label>{{ t('bank.tx_reference') }}</label>
-          <InputText v-model="txForm.reference" />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label>{{ t('bank.tx_balance') }}</label>
-          <InputNumber v-model="txForm.balance_after" mode="decimal" :min-fraction-digits="2" :max-fraction-digits="2" />
-        </div>
-        <div class="flex justify-end gap-2 mt-2">
+    <Dialog v-model:visible="txDialogVisible" :header="t('bank.new_transaction')" modal class="app-dialog app-dialog--medium">
+      <form class="app-dialog-form bank-form" @submit.prevent="submitTransaction">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ t('bank.transactions_title') }}</p>
+          <p class="app-dialog-intro__text">{{ t('bank.transaction_intro') }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <div class="app-form-grid">
+            <div class="app-field">
+              <label class="app-field__label">{{ t('bank.tx_date') }}</label>
+              <DatePicker v-model="txForm.date" date-format="yy-mm-dd" show-icon />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('bank.tx_amount') }}</label>
+              <InputNumber v-model="txForm.amount" mode="decimal" :min-fraction-digits="2" :max-fraction-digits="2" />
+            </div>
+            <div class="app-field app-field--full">
+              <label class="app-field__label">{{ t('bank.tx_description') }}</label>
+              <InputText v-model="txForm.description" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('bank.tx_reference') }}</label>
+              <InputText v-model="txForm.reference" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('bank.tx_balance') }}</label>
+              <InputNumber v-model="txForm.balance_after" mode="decimal" :min-fraction-digits="2" :max-fraction-digits="2" />
+            </div>
+          </div>
+        </section>
+        <div class="app-form-actions">
           <Button :label="t('common.cancel')" severity="secondary" text @click="txDialogVisible = false" />
           <Button type="submit" :label="t('common.save')" :loading="saving" />
         </div>
@@ -130,13 +148,19 @@
     </Dialog>
 
     <!-- CSV import dialog -->
-    <Dialog v-model:visible="importDialogVisible" :header="t('bank.import_dialog_title')" modal :style="{ width: '560px' }">
-      <div class="flex flex-col gap-3">
-        <div class="flex flex-col gap-1">
-          <label>{{ t('bank.import_paste_label') }}</label>
-          <Textarea v-model="csvContent" rows="8" class="font-mono text-sm" />
-        </div>
-        <div class="flex justify-end gap-2">
+    <Dialog v-model:visible="importDialogVisible" :header="t('bank.import_dialog_title')" modal class="app-dialog app-dialog--medium">
+      <div class="app-dialog-form bank-form">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ t('bank.import_csv') }}</p>
+          <p class="app-dialog-intro__text">{{ t('bank.import_intro') }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('bank.import_paste_label') }}</label>
+            <Textarea v-model="csvContent" rows="8" class="font-mono text-sm" />
+          </div>
+        </section>
+        <div class="app-form-actions">
           <Button :label="t('common.cancel')" severity="secondary" text @click="importDialogVisible = false" />
           <Button :label="t('bank.import_csv')" icon="pi pi-upload" :loading="saving" @click="submitImport" />
         </div>
@@ -144,37 +168,54 @@
     </Dialog>
 
     <!-- Create deposit dialog -->
-    <Dialog v-model:visible="depositDialogVisible" :header="t('bank.new_deposit')" modal :style="{ width: '480px' }">
-      <div class="flex flex-col gap-3">
-        <div class="flex flex-col gap-1">
-          <label>{{ t('bank.deposit_date') }}</label>
-          <DatePicker v-model="depositForm.date" date-format="yy-mm-dd" show-icon />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label>{{ t('bank.deposit_type') }}</label>
-          <Select v-model="depositForm.type" :options="depositTypeOptions" option-label="label" option-value="value" />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label>{{ t('bank.deposit_bank_ref') }}</label>
-          <InputText v-model="depositForm.bank_reference" />
-        </div>
-        <Message v-if="undepositedPayments.length === 0" severity="warn">
-          Aucun paiement en attente de remise en banque.
-        </Message>
-        <div v-else class="flex flex-col gap-1">
-          <label>{{ t('bank.deposit_payments') }}</label>
-          <div v-for="p in undepositedPayments" :key="p.id" class="flex items-center gap-2">
-            <Checkbox v-model="depositForm.payment_ids" :value="p.id" />
-            <span>{{ p.date }} — {{ formatAmount(p.amount) }} ({{ p.method }})</span>
+    <Dialog v-model:visible="depositDialogVisible" :header="t('bank.new_deposit')" modal class="app-dialog app-dialog--medium">
+      <div class="app-dialog-form bank-form">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ t('bank.deposits_title') }}</p>
+          <p class="app-dialog-intro__text">{{ t('bank.deposit_intro') }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <div class="app-form-grid">
+            <div class="app-field">
+              <label class="app-field__label">{{ t('bank.deposit_date') }}</label>
+              <DatePicker v-model="depositForm.date" date-format="yy-mm-dd" show-icon />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('bank.deposit_type') }}</label>
+              <Select v-model="depositForm.type" :options="depositTypeOptions" option-label="label" option-value="value" />
+            </div>
+            <div class="app-field app-field--full">
+              <label class="app-field__label">{{ t('bank.deposit_bank_ref') }}</label>
+              <InputText v-model="depositForm.bank_reference" />
+            </div>
           </div>
-        </div>
-        <div class="flex justify-end gap-2">
+        </section>
+        <section class="app-dialog-section">
+          <div class="app-dialog-section__header">
+            <h3 class="app-dialog-section__title">{{ t('bank.deposit_selection_title') }}</h3>
+            <p class="app-dialog-section__copy">{{ t('bank.deposit_selection_subtitle') }}</p>
+          </div>
+          <Message v-if="undepositedPayments.length === 0" severity="warn">
+            {{ t('bank.deposit_empty') }}
+          </Message>
+          <p v-if="undepositedPayments.length === 0" class="app-dialog-note">{{ t('bank.deposit_empty_hint') }}</p>
+          <div v-else class="app-dialog-list">
+            <label v-for="p in undepositedPayments" :key="p.id" class="app-dialog-list__item bank-payment-option">
+              <Checkbox v-model="depositForm.payment_ids" :value="p.id" />
+              <span class="app-dialog-list__meta">
+                <span class="app-dialog-list__title">{{ p.date }} — {{ formatAmount(p.amount) }}</span>
+                <span class="app-dialog-list__caption">{{ t(`payments.methods.${p.method}`) }}</span>
+              </span>
+            </label>
+          </div>
+        </section>
+        <div class="app-form-actions">
           <Button :label="t('common.cancel')" severity="secondary" text @click="depositDialogVisible = false" />
           <Button :label="t('common.save')" :loading="saving" :disabled="depositForm.payment_ids.length === 0" @click="submitDeposit" />
         </div>
       </div>
     </Dialog>
-  </div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -199,6 +240,10 @@ import ToggleButton from 'primevue/togglebutton'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppPage from '../components/ui/AppPage.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPanel from '../components/ui/AppPanel.vue'
+import AppStatCard from '../components/ui/AppStatCard.vue'
 import {
   addTransaction,
   createDeposit,
@@ -343,22 +388,34 @@ onMounted(loadAll)
 </script>
 
 <style scoped>
-.balance-card {
-  display: inline-flex;
-  align-items: center;
-  gap: 1rem;
-  background: var(--p-surface-100);
-  border-radius: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  border: 1px solid var(--p-surface-200);
+.bank-panel-toolbar {
+  margin-bottom: var(--app-space-4);
 }
-.balance-card .label {
-  font-size: 0.9rem;
-  color: var(--p-text-muted-color);
+
+.bank-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
 }
-.balance-card .amount {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--p-primary-color);
+
+.bank-positive {
+  color: var(--p-green-600);
+}
+
+.bank-negative {
+  color: var(--p-red-500);
+}
+
+.bank-payment-option {
+  cursor: pointer;
+}
+
+.bank-payment-option :deep(.p-checkbox) {
+  margin-top: 0.15rem;
+}
+
+:deep(.p-tabpanels) {
+  padding-inline: 0;
+  padding-bottom: 0;
 }
 </style>

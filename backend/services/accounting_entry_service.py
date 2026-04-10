@@ -189,7 +189,9 @@ async def _compute_resultat(
             AccountingAccount.type.in_([AccountType.CHARGE, AccountType.PRODUIT])
         )
     )
-    acct_map: dict[str, AccountingAccount] = {a.number: a for a in result.scalars().all()}
+    acct_map: dict[str, AccountingAccount] = {
+        a.number: a for a in result.scalars().all()
+    }
 
     charges: dict[str, Decimal] = {}
     produits: dict[str, Decimal] = {}
@@ -214,7 +216,9 @@ async def _compute_resultat(
     return sum(charges.values(), Decimal("0")), sum(produits.values(), Decimal("0"))
 
 
-async def get_resultat(db: AsyncSession, fiscal_year_id: int | None = None) -> ResultatRead:
+async def get_resultat(
+    db: AsyncSession, fiscal_year_id: int | None = None
+) -> ResultatRead:
     """Build the compte de résultat for a given fiscal year."""
     entries = await get_journal(db, fiscal_year_id=fiscal_year_id, limit=100_000)
 
@@ -223,7 +227,9 @@ async def get_resultat(db: AsyncSession, fiscal_year_id: int | None = None) -> R
             AccountingAccount.type.in_([AccountType.CHARGE, AccountType.PRODUIT])
         )
     )
-    acct_map: dict[str, AccountingAccount] = {a.number: a for a in result.scalars().all()}
+    acct_map: dict[str, AccountingAccount] = {
+        a.number: a for a in result.scalars().all()
+    }
 
     charge_totals: dict[str, Decimal] = {}
     produit_totals: dict[str, Decimal] = {}

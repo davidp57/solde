@@ -41,7 +41,9 @@ async def list_salaries(
 
 async def get_salary(db: AsyncSession, salary_id: int) -> Salary | None:
     result = await db.execute(
-        select(Salary).options(selectinload(Salary.employee)).where(Salary.id == salary_id)
+        select(Salary)
+        .options(selectinload(Salary.employee))
+        .where(Salary.id == salary_id)
     )
     return result.scalar_one_or_none()
 
@@ -63,8 +65,12 @@ async def create_salary(db: AsyncSession, payload: SalaryCreate) -> Salary:
     return salary
 
 
-async def update_salary(db: AsyncSession, salary: Salary, payload: SalaryUpdate) -> Salary:
-    for field, value in payload.model_dump(exclude_unset=True, exclude_none=False).items():
+async def update_salary(
+    db: AsyncSession, salary: Salary, payload: SalaryUpdate
+) -> Salary:
+    for field, value in payload.model_dump(
+        exclude_unset=True, exclude_none=False
+    ).items():
         if value is not None:
             setattr(salary, field, value)
     await db.commit()

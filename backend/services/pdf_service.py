@@ -14,7 +14,9 @@ def render_invoice_html(invoice: object, contact_name: str, settings: object) ->
     """Render the invoice Jinja2 template to an HTML string."""
     env = _template_env()
     template = env.get_template("invoice.html")
-    return template.render(invoice=invoice, contact_name=contact_name, settings=settings)
+    return template.render(
+        invoice=invoice, contact_name=contact_name, settings=settings
+    )
 
 
 def generate_invoice_pdf(invoice: object, contact_name: str, settings: object) -> bytes:

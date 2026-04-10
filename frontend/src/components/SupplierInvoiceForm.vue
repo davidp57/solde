@@ -1,63 +1,76 @@
 <template>
-  <form @submit.prevent="submit">
-    <div class="flex flex-col gap-4">
-      <!-- Contact -->
-      <div class="flex flex-col gap-1">
-        <label class="font-medium">{{ t('invoices.contact') }}</label>
-        <Select
-          v-model="form.contact_id"
-          :options="contacts"
-          option-label="nom"
-          option-value="id"
-          :placeholder="t('invoices.contact_placeholder')"
-          filter
-          class="w-full"
-          required
-        />
-      </div>
+  <form class="app-dialog-form" @submit.prevent="submit">
+    <section class="app-dialog-intro">
+      <p class="app-dialog-intro__eyebrow">{{ t('invoices.supplier.title') }}</p>
+      <p class="app-dialog-intro__text">{{ t(isEditing ? 'invoices.supplier.form_intro_edit' : 'invoices.supplier.form_intro_create') }}</p>
+    </section>
 
-      <!-- Date / Due date -->
-      <div class="flex gap-3">
-        <div class="flex flex-col gap-1 flex-1">
-          <label class="font-medium">{{ t('invoices.date') }}</label>
-          <DatePicker v-model="form.date" date-format="dd/mm/yy" class="w-full" required />
-        </div>
-        <div class="flex flex-col gap-1 flex-1">
-          <label class="font-medium">{{ t('invoices.due_date') }}</label>
-          <DatePicker v-model="form.due_date" date-format="dd/mm/yy" class="w-full" show-clear />
-        </div>
+    <section class="app-dialog-section">
+      <div class="app-dialog-section__header">
+        <h3 class="app-dialog-section__title">{{ t('invoices.supplier.identity_title') }}</h3>
+        <p class="app-dialog-section__copy">{{ t('invoices.supplier.identity_subtitle') }}</p>
       </div>
-
-      <!-- Reference / Amount -->
-      <div class="flex gap-3">
-        <div class="flex flex-col gap-1 flex-1">
-          <label class="font-medium">{{ t('invoices.reference') }}</label>
-          <InputText
-            v-model="form.reference"
-            :placeholder="t('invoices.reference_placeholder')"
-            class="w-full"
-          />
-        </div>
-        <div class="flex flex-col gap-1 flex-1">
-          <label class="font-medium">{{ t('invoices.total') }} €</label>
-          <InputNumber
-            v-model="form.total_amount"
-            :min="0"
-            :max-fraction-digits="2"
+      <div class="supplier-invoice-form">
+        <div class="app-field">
+          <label class="app-field__label">{{ t('invoices.contact') }}</label>
+          <Select
+            v-model="form.contact_id"
+            :options="contacts"
+            option-label="nom"
+            option-value="id"
+            :placeholder="t('invoices.contact_placeholder')"
+            filter
             class="w-full"
             required
           />
         </div>
-      </div>
 
-      <!-- Description -->
-      <div class="flex flex-col gap-1">
-        <label class="font-medium">{{ t('invoices.description') }}</label>
+        <div class="app-form-grid">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('invoices.date') }}</label>
+            <DatePicker v-model="form.date" date-format="dd/mm/yy" class="w-full" required />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('invoices.due_date') }}</label>
+            <DatePicker v-model="form.due_date" date-format="dd/mm/yy" class="w-full" show-clear />
+          </div>
+        </div>
+
+        <div class="app-form-grid">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('invoices.reference') }}</label>
+            <InputText
+              v-model="form.reference"
+              :placeholder="t('invoices.reference_placeholder')"
+              class="w-full"
+            />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('invoices.total') }} €</label>
+            <InputNumber
+              v-model="form.total_amount"
+              :min="0"
+              :max-fraction-digits="2"
+              class="w-full"
+              required
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="app-dialog-section">
+      <div class="app-dialog-section__header">
+        <h3 class="app-dialog-section__title">{{ t('invoices.supplier.details_title') }}</h3>
+        <p class="app-dialog-section__copy">{{ t('invoices.supplier.details_subtitle') }}</p>
+      </div>
+      <div class="app-field">
+        <label class="app-field__label">{{ t('invoices.description') }}</label>
         <Textarea v-model="form.description" rows="2" class="w-full" auto-resize />
       </div>
+    </section>
 
-      <!-- Actions -->
-      <div class="flex justify-end gap-2 mt-2">
+      <div class="app-form-actions">
         <Button
           :label="t('common.cancel')"
           severity="secondary"
@@ -67,7 +80,6 @@
         />
         <Button :label="t('common.save')" type="submit" :loading="saving" />
       </div>
-    </div>
   </form>
 </template>
 
@@ -79,7 +91,7 @@ import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Contact } from '../api/contacts'
@@ -97,6 +109,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 const saving = ref(false)
+const isEditing = computed(() => props.invoice !== null)
 
 interface FormState {
   contact_id: number | null
@@ -144,7 +157,7 @@ watch(
 )
 
 function formatDate(d: Date): string {
-  return d.toISOString().split('T')[0]
+  return d.toISOString().slice(0, 10)
 }
 
 async function submit() {
@@ -173,3 +186,11 @@ async function submit() {
   }
 }
 </script>
+
+<style scoped>
+.supplier-invoice-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-5);
+}
+</style>

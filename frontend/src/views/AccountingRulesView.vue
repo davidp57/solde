@@ -1,20 +1,27 @@
 <template>
-  <div class="view-container">
-    <div class="view-header">
-      <h1>{{ t('accounting.rules.title') }}</h1>
-      <Button
-        :label="t('accounting.rules.seed')"
-        icon="pi pi-download"
-        :loading="seeding"
-        @click="seedRules"
-      />
-    </div>
+  <AppPage width="wide">
+    <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('accounting.rules.title')">
+      <template #actions>
+        <Button
+          :label="t('accounting.rules.seed')"
+          icon="pi pi-download"
+          :loading="seeding"
+          @click="seedRules"
+        />
+      </template>
+    </AppPageHeader>
 
-    <div class="mb-4">
-      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
-    </div>
+    <AppPanel :title="t('accounting.rules.title')" dense>
+      <div class="app-toolbar">
+        <div class="app-filter-grid">
+          <div class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
+            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+          </div>
+        </div>
+      </div>
 
-    <DataTable :value="filtered" :loading="loading" striped-rows>
+      <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows size="small" row-hover>
       <Column field="trigger_type" :header="t('accounting.rules.trigger_type')" />
       <Column field="name" :header="t('accounting.rules.name')" />
       <Column field="is_active" :header="t('accounting.rules.active')">
@@ -38,9 +45,10 @@
           />
         </template>
       </Column>
-      <template #empty>{{ t('accounting.balance.empty') }}</template>
-    </DataTable>
-  </div>
+        <template #empty><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template>
+      </DataTable>
+    </AppPanel>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -52,6 +60,9 @@ import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
+import AppPage from '../components/ui/AppPage.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPanel from '../components/ui/AppPanel.vue'
 import {
   listRulesApi,
   updateRuleApi,
