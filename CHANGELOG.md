@@ -22,9 +22,24 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `index.html` : script inline synchrone pour appliquer la classe `.dark-mode` avant le rendu (suppression du flash blanc au chargement)
 - `index.html` : titre corrigé « Solde ⚖️ », `lang="fr"`
 
+### Modifié
+
+**Outillage**
+- `dev.ps1` : remplacement de `Start-Process pwsh` (2 fenêtres séparées) par `Start-Job` — backend et frontend tournent dans la même session PowerShell, Ctrl+C arrête les deux proprement
+
+**Frontend — mode sombre (dark mode)**
+- `AppLayout.vue`, `LoginView.vue`, `NavMenu.vue`, `SettingsView.vue` : fonds et couleurs rendus réactifs via `v-bind()` CSS couplé à des `computed` Vue (les tokens `--p-surface-N` du thème Aura sont absolus, non réactifs au mode)
+- `AppLayout.vue` : suppression de l'en-tête de sidebar « ⚖️ Solde ⚖️ » (redondant avec le titre de la page)
+- `NavMenu.vue` : couleur et fond de l'élément de navigation actif adoucis en dark mode (`rgba(52,211,153,0.12)` + texte `primary-300`)
+- `SettingsView.vue` : fond de la « Zone de danger » adouci en dark mode (`rgba(239,68,68,0.08)`)
+
 ### Corrigé
 
+**Backend**
+- `excel_import.py` : support des feuilles Caisse (`caisse`/`cash`) et Banque (`banque`/`bank`/`relev`) dans l'import Excel de gestion ; déduplication des numéros de factures dans le même batch ; création automatique du contact si absent (plutôt que saut de ligne silencieux)
+
 **Frontend — bugfixes interface**
+- `index.html` : correction de `<\/script>` → `</script>` (artefact d'échappement introduit lors de la création du fichier)
 - `main.ts` : enregistrement de `ConfirmationService` manquant — toutes les views utilisant `useConfirm()` (Contacts, Factures, Paiements, Exercices, Salaires) crashaient au chargement
 - `DashboardView.vue` : imports PrimeVue manquants (`Card`, `ProgressSpinner`, `Message`, `Select`) — la vue du tableau de bord était vide
 - `AccountingBilanView.vue` : imports PrimeVue manquants (`Button`, `Card`, `Column`, `DataTable`, `ProgressSpinner`, `Select`) — la vue était vide

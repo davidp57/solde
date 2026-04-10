@@ -408,9 +408,7 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
                 entries = await generate_entries_for_invoice(db, inv_obj)
                 result.entries_created += len(entries)
             except Exception as e:
-                logger.warning(
-                    "Accounting entries skipped for invoice '%s': %s", inv_obj.number, e
-                )
+                logger.warning("Accounting entries skipped for invoice '%s': %s", inv_obj.number, e)
         logger.info(
             "Invoices import done — created=%d skipped=%d entries=%d",
             result.invoices_created,
@@ -606,11 +604,17 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
         else iter([]),
         None,
     )
-    type_idx = next(
-        (col_map[k] for k in col_map if k in ("type", "sens")), None
-    ) if montant_idx is not None else None
+    type_idx = (
+        next((col_map[k] for k in col_map if k in ("type", "sens")), None)
+        if montant_idx is not None
+        else None
+    )
     libelle_idx = next(
-        (col_map[k] for k in col_map if "libel" in k or "descr" in k or "label" in k or "objet" in k),
+        (
+            col_map[k]
+            for k in col_map
+            if "libel" in k or "descr" in k or "label" in k or "objet" in k
+        ),
         None,
     )
 
@@ -647,7 +651,9 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
                 amount, movement_type = sortie, CashMovementType.OUT
         elif montant_idx is not None:
             amount = _parse_decimal(row[montant_idx] if montant_idx < len(row) else None)
-            raw_type = _parse_str(row[type_idx] if type_idx is not None and type_idx < len(row) else None).lower()
+            raw_type = _parse_str(
+                row[type_idx] if type_idx is not None and type_idx < len(row) else None
+            ).lower()
             if raw_type in ("e", "in", "entrée", "recette", "crédit"):
                 movement_type = CashMovementType.IN
             else:
@@ -709,7 +715,11 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
         else None
     )
     libelle_idx = next(
-        (col_map[k] for k in col_map if "libel" in k or "descr" in k or "label" in k or "intitul" in k),
+        (
+            col_map[k]
+            for k in col_map
+            if "libel" in k or "descr" in k or "label" in k or "intitul" in k
+        ),
         None,
     )
     solde_idx = next((col_map[k] for k in col_map if "solde" in k or "balance" in k), None)

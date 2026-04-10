@@ -1,19 +1,14 @@
-# dev.ps1 — Démarre le backend (FastAPI) et le frontend (Vite) en local
-# Usage : .\dev.ps1
-# Chaque service s'ouvre dans sa propre fenêtre PowerShell.
+# dev.ps1 — Démarre le backend (FastAPI) et le frontend (Vite) dans la même session
+# Usage : .\dev.ps1   |   Ctrl+C pour tout arrêter
 
 $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 
 # ── Backend ────────────────────────────────────────────────────────────────────
-$venvActivate = Join-Path $root ".venv\Scripts\Activate.ps1"
-$venvPython   = Join-Path $root ".venv\Scripts\python.exe"
+$venvPython = Join-Path $root ".venv\Scripts\python.exe"
 if (-not (Test-Path $venvPython)) {
     Write-Error "venv introuvable : $venvPython`nLance d'abord : python -m venv .venv && pip install -e .[dev]"
 }
-
-$backendCmd = "Set-Location '$root'; & '$venvActivate'; python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000"
-Start-Process pwsh -ArgumentList "-NoExit", "-Command", $backendCmd
 
 # ── Frontend ───────────────────────────────────────────────────────────────────
 $frontendDir = Join-Path $root "frontend"
@@ -24,14 +19,43 @@ if (-not (Test-Path (Join-Path $frontendDir "node_modules"))) {
     Pop-Location
 }
 
-$frontendCmd = "Set-Location '$frontendDir'; npm run dev"
-Start-Process pwsh -ArgumentList "-NoExit", "-Command", $frontendCmd
+# ── Lancement des jobs ─────────────────────────────────────────────────────────
+Write-Host ""
+Write-Host "  Démarrage des services..." -ForegroundColor DarkGray
 
-# ── Résumé ─────────────────────────────────────────────────────────────────────
+$backendJob = Start-Job -Name "Backend" -ScriptBlock {
+    param($root, $python)
+    Set-Location $root
+    & $python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000 2>&1
+} -ArgumentList $root, $venvPython
+
+$frontendJob = Start-Job -Name "Frontend" -ScriptBlock {
+    param($dir)
+    Set-Location $dir
+    npm run dev 2>&1
+} -ArgumentList $frontendDir
+
+Write-Host "  Backend  → http://localhost:8000      [Ctrl+C pour tout stopper]" -ForegroundColor Cyan
+Write-Host "  Frontend → http://localhost:5173" -ForegroundColor Green
+Write-Host "  API docs → http://localhost:8000/docs" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Deux fenêtres PowerShell ont été ouvertes :" -ForegroundColor DarkGray
-Write-Host "  Backend  → http://localhost:8000      (fenêtre 1)" -ForegroundColor Green
-Write-Host "  Frontend → http://localhost:5173      (fenêtre 2)" -ForegroundColor Green
-Write-Host "  API docs → http://localhost:8000/docs (fenêtre 1)" -ForegroundColor Green
-Write-Host ""
-Write-Host "  Ferme chaque fenêtre ou fais Ctrl+C dedans pour stopper le service." -ForegroundColor DarkGray
+
+# ── Boucle d'affichage ─────────────────────────────────────────────────────────
+try {
+    while ($true) {
+        foreach ($line in (Receive-Job $backendJob -ErrorAction SilentlyContinue)) {
+            Write-Host "[backend]  $line" -ForegroundColor Cyan
+        }
+        foreach ($line in (Receive-Job $frontendJob -ErrorAction SilentlyContinue)) {
+            Write-Host "[frontend] $line" -ForegroundColor Green
+        }
+        Start-Sleep -Milliseconds 150
+    }
+}
+finally {
+    Write-Host ""
+    Write-Host "  Arrêt des services..." -ForegroundColor Yellow
+    Stop-Job  $backendJob, $frontendJob -ErrorAction SilentlyContinue
+    Remove-Job $backendJob, $frontendJob -Force -ErrorAction SilentlyContinue
+    Write-Host "  Services arrêtés." -ForegroundColor DarkGray
+}
