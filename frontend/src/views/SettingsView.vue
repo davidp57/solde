@@ -189,7 +189,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -203,8 +203,14 @@ import Textarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
 import { useConfirm } from 'primevue/useconfirm'
 import { getSettingsApi, resetDbApi, updateSettingsApi, type AppSettingsUpdate } from '@/api/settings'
+import { useDarkMode } from '../composables/useDarkMode'
 
 const { t } = useI18n()
+const { isDark } = useDarkMode()
+
+const dangerHeaderBg = computed(() => isDark.value ? 'rgba(239,68,68,0.08)' : 'var(--p-red-50)')
+const dangerBorderColor = computed(() => isDark.value ? 'rgba(239,68,68,0.25)' : 'var(--p-red-200)')
+const dangerTitleColor = computed(() => isDark.value ? 'var(--p-red-400)' : 'var(--p-red-600)')
 
 interface SettingsForm {
   association_name: string
@@ -341,11 +347,11 @@ onMounted(load)
 
 <style scoped>
 .danger-panel :deep(.p-panel-header) {
-  background-color: var(--p-red-50);
-  border-color: var(--p-red-200);
+  background-color: v-bind(dangerHeaderBg);
+  border-color: v-bind(dangerBorderColor);
 }
 .danger-panel-title {
-  color: var(--p-red-600);
+  color: v-bind(dangerTitleColor);
   font-weight: 600;
 }
 </style>
