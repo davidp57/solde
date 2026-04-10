@@ -10,7 +10,11 @@
       />
     </div>
 
-    <DataTable :value="rules" :loading="loading" striped-rows>
+    <div class="mb-4">
+      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
+    </div>
+
+    <DataTable :value="filtered" :loading="loading" striped-rows>
       <Column field="trigger_type" :header="t('accounting.rules.trigger_type')" />
       <Column field="name" :header="t('accounting.rules.name')" />
       <Column field="is_active" :header="t('accounting.rules.active')">
@@ -45,6 +49,7 @@ import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
+import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 import {
@@ -53,11 +58,13 @@ import {
   seedRulesApi,
   type AccountingRuleRead,
 } from '../api/accounting'
+import { useTableFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 const toast = useToast()
 
 const rules = ref<AccountingRuleRead[]>([])
+const { filterText, filtered } = useTableFilter(rules)
 const loading = ref(false)
 const seeding = ref(false)
 

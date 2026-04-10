@@ -25,9 +25,10 @@
         />
       </div>
       <Button icon="pi pi-search" @click="load" />
+      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
     </div>
 
-    <DataTable :value="rows" :loading="loading" striped-rows>
+    <DataTable :value="filtered" :loading="loading" striped-rows>
       <Column field="account_number" :header="t('accounting.balance.account_number')" sortable />
       <Column field="account_label" :header="t('accounting.balance.account_label')" />
       <Column field="account_type" :header="t('accounting.balance.account_type')">
@@ -50,10 +51,12 @@ import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import { getBalanceApi, listFiscalYearsApi, type BalanceRow, type FiscalYearRead } from '../api/accounting'
+import { useTableFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 
 const rows = ref<BalanceRow[]>([])
+const { filterText, filtered } = useTableFilter(rows)
 const fiscalYears = ref<FiscalYearRead[]>([])
 const loading = ref(false)
 const fromDate = ref('')

@@ -15,6 +15,11 @@
       <span class="amount">{{ formatAmount(balance) }}</span>
     </div>
 
+    <!-- Generic filter -->
+    <div class="mb-3">
+      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
+    </div>
+
     <!-- Tabs -->
     <Tabs v-model:value="activeTab">
       <TabList>
@@ -32,7 +37,7 @@
               @change="loadTransactions"
             />
           </div>
-          <DataTable :value="transactions" :loading="loadingTx" striped-rows paginator :rows="20" data-key="id">
+          <DataTable :value="filteredTransactions" :loading="loadingTx" striped-rows paginator :rows="20" data-key="id">
             <Column field="date" :header="t('bank.tx_date')" sortable />
             <Column field="amount" :header="t('bank.tx_amount')">
               <template #body="{ data }">
@@ -73,7 +78,7 @@
         </TabPanel>
 
         <TabPanel value="deposits">
-          <DataTable :value="deposits" :loading="loadingDeposits" striped-rows paginator :rows="20" data-key="id">
+          <DataTable :value="filteredDeposits" :loading="loadingDeposits" striped-rows paginator :rows="20" data-key="id">
             <Column field="date" :header="t('bank.deposit_date')" sortable />
             <Column field="type" :header="t('bank.deposit_type')">
               <template #body="{ data }">
@@ -192,7 +197,7 @@ import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import ToggleButton from 'primevue/togglebutton'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   addTransaction,
@@ -206,13 +211,16 @@ import {
   type Deposit,
 } from '@/api/bank'
 import { listPayments, type Payment } from '@/api/payments'
+import { useTableFilter, applyFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 const toast = useToast()
 
 const balance = ref('0')
 const transactions = ref<BankTransaction[]>([])
+const { filterText, filtered: filteredTransactions } = useTableFilter(transactions)
 const deposits = ref<Deposit[]>([])
+const filteredDeposits = computed(() => applyFilter(deposits.value, filterText.value))
 const undepositedPayments = ref<Payment[]>([])
 const loadingTx = ref(false)
 const loadingDeposits = ref(false)

@@ -13,7 +13,7 @@ export interface UserRead {
   id: number
   username: string
   email: string
-  role: 'READONLY' | 'SECRETAIRE' | 'TRESORIER' | 'ADMIN'
+  role: 'readonly' | 'secretaire' | 'tresorier' | 'admin'
   is_active: boolean
   created_at: string
 }

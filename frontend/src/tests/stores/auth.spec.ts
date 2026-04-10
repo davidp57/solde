@@ -19,7 +19,7 @@ const mockUser = {
   id: 1,
   username: 'admin',
   email: 'admin@example.com',
-  role: 'ADMIN' as const,
+  role: 'admin' as const,
   is_active: true,
   created_at: '2025-01-01T00:00:00',
 }
@@ -60,9 +60,9 @@ describe('useAuthStore', () => {
 
   it('isAdmin returns true only for ADMIN role', () => {
     const store = useAuthStore()
-    store.user = { ...mockUser, role: 'ADMIN' }
+    store.user = { ...mockUser, role: 'admin' }
     expect(store.isAdmin).toBe(true)
-    store.user = { ...mockUser, role: 'TRESORIER' }
+    store.user = { ...mockUser, role: 'tresorier' }
     expect(store.isAdmin).toBe(false)
   })
 

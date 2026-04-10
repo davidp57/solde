@@ -25,6 +25,8 @@ class ImportResult:
         self.invoices_created: int = 0
         self.payments_created: int = 0
         self.entries_created: int = 0
+        self.cash_created: int = 0
+        self.bank_created: int = 0
         self.skipped: int = 0
         self.errors: list[str] = []
 
@@ -34,6 +36,8 @@ class ImportResult:
             "invoices_created": self.invoices_created,
             "payments_created": self.payments_created,
             "entries_created": self.entries_created,
+            "cash_created": self.cash_created,
+            "bank_created": self.bank_created,
             "skipped": self.skipped,
             "errors": self.errors,
         }
@@ -129,6 +133,10 @@ async def import_gestion_file(db: AsyncSession, file_bytes: bytes) -> ImportResu
             await _import_payments_sheet(db, ws, result)
         elif any(k in sheet_lower for k in ("contact", "fourniss")):
             await _import_contacts_sheet(db, ws, result)
+        elif any(k in sheet_lower for k in ("caisse", "cash")):
+            await _import_cash_sheet(db, ws, result)
+        elif any(k in sheet_lower for k in ("banque", "bank", "relev")):
+            await _import_bank_sheet(db, ws, result)
 
     return result
 
@@ -211,7 +219,7 @@ async def _import_contacts_sheet(db: AsyncSession, ws: Any, result: ImportResult
         existing = await db.execute(
             select(Contact).where(Contact.nom == nom, Contact.prenom == (prenom or None))
         )
-        if existing.scalar_one_or_none() is not None:
+        if existing.scalars().first() is not None:
             result.skipped += 1
             continue
 
@@ -237,7 +245,7 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
     """Import invoices from a sheet with flexible column detection."""
     from sqlalchemy import select  # noqa: PLC0415
 
-    from backend.models.contact import Contact  # noqa: PLC0415
+    from backend.models.contact import Contact, ContactType  # noqa: PLC0415
     from backend.models.invoice import (  # noqa: PLC0415
         Invoice,
         InvoiceLabel,
@@ -255,7 +263,10 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
     # Map column positions
     date_idx = next((col_map[k] for k in col_map if "date" in k), None)
     montant_idx = next((col_map[k] for k in col_map if "montant" in k or "total" in k), None)
-    nom_idx = next((col_map[k] for k in col_map if "nom" in k), None)
+    nom_idx = next(
+        (col_map[k] for k in col_map if "nom" in k and "prenom" not in k and "prénom" not in k),
+        None,
+    )
     # Exclude the date column from number detection to avoid date values as invoice numbers
     numero_idx = next(
         (
@@ -284,6 +295,8 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
         r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$|^\d{2}/\d{2}/\d{4}$|^\d{2}-\d{2}-\d{4}$"
     )
 
+    seen_numbers: set[str] = set()  # deduplicate within the current batch
+    created_invoices: list[Invoice] = []
     row_count = 0
     for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
         if all(c is None for c in row):
@@ -305,17 +318,24 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
             result.skipped += 1
             continue
 
-        # Find contact — skip row if not found (no hardcoded fallback)
+        # Find or create contact
         contact_id: int | None = None
         if nom_idx is not None and nom_idx < len(row):
             nom = _parse_str(row[nom_idx])
             if nom:
                 existing = await db.execute(select(Contact).where(Contact.nom.ilike(f"%{nom}%")))
-                c = existing.scalar_one_or_none()
+                c = existing.scalars().first()
                 if c:
                     contact_id = c.id
                 else:
-                    logger.debug("Row %d — contact '%s' not found, skipping", row_count + 1, nom)
+                    new_contact = Contact(nom=nom, type=ContactType.CLIENT)
+                    db.add(new_contact)
+                    await db.flush()  # get id before using it
+                    contact_id = new_contact.id
+                    result.contacts_created += 1
+                    logger.debug(
+                        "Row %d — created contact '%s' (id=%s)", row_count + 1, nom, contact_id
+                    )
         if contact_id is None:
             result.skipped += 1
             continue
@@ -337,7 +357,15 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
         if not number_raw:
             number_raw = f"IMP-{invoice_date.year}-{row_count + 1:04d}"
 
-        # Idempotency
+        # Deduplicate within the current batch (avoid UNIQUE constraint in same flush)
+        if number_raw in seen_numbers:
+            logger.debug(
+                "Row %d — duplicate number '%s' in batch, skipping", row_count + 1, number_raw
+            )
+            result.skipped += 1
+            continue
+
+        # Idempotency: skip if already in DB
         existing_inv = await db.execute(select(Invoice).where(Invoice.number == number_raw))
         if existing_inv.scalar_one_or_none() is not None:
             logger.debug(
@@ -345,6 +373,8 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
             )
             result.skipped += 1
             continue
+
+        seen_numbers.add(number_raw)
 
         invoice = Invoice(
             number=number_raw,
@@ -357,6 +387,7 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
             label=InvoiceLabel.GENERAL,
         )
         db.add(invoice)
+        created_invoices.append(invoice)
         logger.debug(
             "Row %d — invoice '%s' queued (contact_id=%d, amount=%s)",
             row_count + 1,
@@ -369,8 +400,22 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
 
     try:
         await db.flush()
+        # Generate accounting entries for each new invoice (no-op if no rules configured)
+        from backend.services.accounting_engine import generate_entries_for_invoice  # noqa: PLC0415
+
+        for inv_obj in created_invoices:
+            try:
+                entries = await generate_entries_for_invoice(db, inv_obj)
+                result.entries_created += len(entries)
+            except Exception as e:
+                logger.warning(
+                    "Accounting entries skipped for invoice '%s': %s", inv_obj.number, e
+                )
         logger.info(
-            "Invoices import done — created=%d skipped=%d", result.invoices_created, result.skipped
+            "Invoices import done — created=%d skipped=%d entries=%d",
+            result.invoices_created,
+            result.skipped,
+            result.entries_created,
         )
     except Exception as exc:
         logger.error("Invoices flush failed: %s", exc, exc_info=True)
@@ -383,7 +428,7 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
     from sqlalchemy import select  # noqa: PLC0415
 
     from backend.models.contact import Contact  # noqa: PLC0415
-    from backend.models.invoice import Invoice  # noqa: PLC0415
+    from backend.models.invoice import Invoice, InvoiceType  # noqa: PLC0415
     from backend.models.payment import Payment  # noqa: PLC0415
 
     header_info = _detect_header_row(ws, ["montant", "date"])
@@ -397,7 +442,10 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
     montant_idx = next((col_map[k] for k in col_map if "montant" in k), None)
     mode_idx = next((col_map[k] for k in col_map if "mode" in k or "règl" in k), None)
     invoice_idx = next((col_map[k] for k in col_map if "facture" in k or "num" in k), None)
-    nom_idx = next((col_map[k] for k in col_map if "nom" in k), None)
+    nom_idx = next(
+        (col_map[k] for k in col_map if "nom" in k and "prenom" not in k and "prénom" not in k),
+        None,
+    )
 
     if montant_idx is None:
         result.skipped += 1
@@ -411,6 +459,8 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
         nom_idx,
     )
 
+    created_payments: list[tuple[Payment, InvoiceType]] = []
+    affected_invoice_ids: set[int] = set()
     row_num = 0
     for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
         row_num += 1
@@ -439,22 +489,24 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
         )
         invoice_id: int | None = None
         contact_id: int | None = None
+        inv_type: InvoiceType = InvoiceType.CLIENT
 
         if invoice_ref:
             inv_result = await db.execute(
                 select(Invoice).where(Invoice.number.ilike(f"%{invoice_ref}%"))
             )
-            inv = inv_result.scalar_one_or_none()
+            inv = inv_result.scalars().first()
             if inv:
                 invoice_id = inv.id
                 contact_id = inv.contact_id
+                inv_type = inv.type
 
         # Fallback: find contact by name and pick their latest invoice
         if invoice_id is None and nom_idx is not None and nom_idx < len(row):
             nom = _parse_str(row[nom_idx])
             if nom:
                 c_result = await db.execute(select(Contact).where(Contact.nom.ilike(f"%{nom}%")))
-                c = c_result.scalar_one_or_none()
+                c = c_result.scalars().first()
                 if c:
                     contact_id = c.id
                     inv_result2 = await db.execute(
@@ -463,9 +515,10 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
                         .order_by(Invoice.date.desc())
                         .limit(1)
                     )
-                    inv2 = inv_result2.scalar_one_or_none()
+                    inv2 = inv_result2.scalars().first()
                     if inv2:
                         invoice_id = inv2.id
+                        inv_type = inv2.type
 
         if invoice_id is None or contact_id is None:
             logger.debug(
@@ -485,6 +538,8 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
             deposited=False,
         )
         db.add(payment)
+        created_payments.append((payment, inv_type))
+        affected_invoice_ids.add(invoice_id)
         logger.debug(
             "Row %d — payment %s queued (invoice_id=%d, amount=%s)",
             row_num,
@@ -496,12 +551,232 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
 
     try:
         await db.flush()
+        # Refresh invoice statuses and generate accounting entries
+        from backend.services.accounting_engine import generate_entries_for_payment  # noqa: PLC0415
+        from backend.services.payment import _refresh_invoice_status  # noqa: PLC0415
+
+        for inv_id in affected_invoice_ids:
+            await _refresh_invoice_status(db, inv_id)
+        for p, p_inv_type in created_payments:
+            try:
+                entries = await generate_entries_for_payment(db, p, p_inv_type)
+                result.entries_created += len(entries)
+            except Exception as e:
+                logger.warning("Accounting entries skipped for payment: %s", e)
+        await db.flush()
         logger.info(
-            "Payments import done — created=%d skipped=%d", result.payments_created, result.skipped
+            "Payments import done — created=%d skipped=%d entries=%d",
+            result.payments_created,
+            result.skipped,
+            result.entries_created,
         )
     except Exception as exc:
         logger.error("Payments flush failed: %s", exc, exc_info=True)
         result.errors.append(f"Erreur import paiements : {exc}")
+        await db.rollback()
+
+
+async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
+    """Import cash register movements from a 'Caisse' sheet.
+
+    Expected columns (flexible): date | libellé/description | entrée | sortie
+    or: date | description | montant | type (E/S or in/out)
+    """
+    from backend.models.cash import CashMovementType, CashRegister  # noqa: PLC0415
+
+    header_info = _detect_header_row(ws, ["date", "entrée"]) or _detect_header_row(
+        ws, ["date", "montant"]
+    )
+    if header_info is None:
+        logger.info("Cash sheet skipped — header not detected")
+        return
+
+    header_row, col_map = header_info
+
+    date_idx = next((col_map[k] for k in col_map if "date" in k), None)
+    entree_idx = next(
+        (col_map[k] for k in col_map if "entr" in k or "recette" in k or "crédit" in k), None
+    )
+    sortie_idx = next(
+        (col_map[k] for k in col_map if "sort" in k or "dépense" in k or "débit" in k), None
+    )
+    montant_idx = next(
+        (col_map[k] for k in col_map if "montant" in k or "total" in k)
+        if entree_idx is None
+        else iter([]),
+        None,
+    )
+    type_idx = next(
+        (col_map[k] for k in col_map if k in ("type", "sens")), None
+    ) if montant_idx is not None else None
+    libelle_idx = next(
+        (col_map[k] for k in col_map if "libel" in k or "descr" in k or "label" in k or "objet" in k),
+        None,
+    )
+
+    row_num = 0
+    for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
+        row_num += 1
+        if all(c is None for c in row):
+            continue
+
+        entry_date = (
+            _parse_date(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
+        )
+        if entry_date is None:
+            continue
+
+        # Determine amount and direction
+        amount: Decimal | None = None
+        movement_type: CashMovementType | None = None
+
+        if entree_idx is not None or sortie_idx is not None:
+            entree = (
+                _parse_decimal(row[entree_idx])
+                if entree_idx is not None and entree_idx < len(row)
+                else None
+            )
+            sortie = (
+                _parse_decimal(row[sortie_idx])
+                if sortie_idx is not None and sortie_idx < len(row)
+                else None
+            )
+            if entree and entree > 0:
+                amount, movement_type = entree, CashMovementType.IN
+            elif sortie and sortie > 0:
+                amount, movement_type = sortie, CashMovementType.OUT
+        elif montant_idx is not None:
+            amount = _parse_decimal(row[montant_idx] if montant_idx < len(row) else None)
+            raw_type = _parse_str(row[type_idx] if type_idx is not None and type_idx < len(row) else None).lower()
+            if raw_type in ("e", "in", "entrée", "recette", "crédit"):
+                movement_type = CashMovementType.IN
+            else:
+                movement_type = CashMovementType.OUT
+
+        if amount is None or amount <= 0 or movement_type is None:
+            continue
+
+        description = (
+            _parse_str(row[libelle_idx], max_len=500)
+            if libelle_idx is not None and libelle_idx < len(row)
+            else "Import Excel"
+        ) or "Import Excel"
+
+        entry = CashRegister(
+            date=entry_date,
+            amount=amount,
+            type=movement_type,
+            description=description,
+            balance_after=Decimal("0"),
+        )
+        db.add(entry)
+        result.cash_created += 1
+
+    try:
+        await db.flush()
+        logger.info("Cash import done — created=%d", result.cash_created)
+    except Exception as exc:
+        logger.error("Cash flush failed: %s", exc, exc_info=True)
+        result.errors.append(f"Erreur import caisse : {exc}")
+        await db.rollback()
+
+
+async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
+    """Import bank transactions from a 'Banque' or 'Relevé' sheet.
+
+    Expected columns (flexible): date | libellé | débit | crédit | solde
+    or: date | description | montant (positive=credit, negative=debit)
+    """
+    from backend.models.bank import BankTransaction, BankTransactionSource  # noqa: PLC0415
+
+    header_info = (
+        _detect_header_row(ws, ["date", "débit"])
+        or _detect_header_row(ws, ["date", "credit"])
+        or _detect_header_row(ws, ["date", "montant"])
+    )
+    if header_info is None:
+        logger.info("Bank sheet skipped — header not detected")
+        return
+
+    header_row, col_map = header_info
+
+    date_idx = next((col_map[k] for k in col_map if "date" in k), None)
+    debit_idx = next((col_map[k] for k in col_map if "débit" in k or "debit" in k), None)
+    credit_idx = next((col_map[k] for k in col_map if "crédit" in k or "credit" in k), None)
+    montant_idx = (
+        next((col_map[k] for k in col_map if "montant" in k), None)
+        if debit_idx is None and credit_idx is None
+        else None
+    )
+    libelle_idx = next(
+        (col_map[k] for k in col_map if "libel" in k or "descr" in k or "label" in k or "intitul" in k),
+        None,
+    )
+    solde_idx = next((col_map[k] for k in col_map if "solde" in k or "balance" in k), None)
+
+    row_num = 0
+    for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
+        row_num += 1
+        if all(c is None for c in row):
+            continue
+
+        entry_date = (
+            _parse_date(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
+        )
+        if entry_date is None:
+            continue
+
+        # Compute signed amount: credit positive, debit negative
+        amount: Decimal | None = None
+        if debit_idx is not None or credit_idx is not None:
+            debit = (
+                _parse_decimal(row[debit_idx])
+                if debit_idx is not None and debit_idx < len(row)
+                else None
+            ) or Decimal("0")
+            credit = (
+                _parse_decimal(row[credit_idx])
+                if credit_idx is not None and credit_idx < len(row)
+                else None
+            ) or Decimal("0")
+            if credit > 0:
+                amount = credit
+            elif debit > 0:
+                amount = -debit
+        elif montant_idx is not None and montant_idx < len(row):
+            amount = _parse_decimal(row[montant_idx])
+
+        if amount is None or amount == 0:
+            continue
+
+        description = (
+            _parse_str(row[libelle_idx], max_len=500)
+            if libelle_idx is not None and libelle_idx < len(row)
+            else "Import Excel"
+        ) or "Import Excel"
+
+        balance_after = (
+            _parse_decimal(row[solde_idx])
+            if solde_idx is not None and solde_idx < len(row)
+            else None
+        ) or Decimal("0")
+
+        entry = BankTransaction(
+            date=entry_date,
+            amount=amount,
+            description=description,
+            balance_after=balance_after,
+            source=BankTransactionSource.IMPORT,
+        )
+        db.add(entry)
+        result.bank_created += 1
+
+    try:
+        await db.flush()
+        logger.info("Bank import done — created=%d", result.bank_created)
+    except Exception as exc:
+        logger.error("Bank flush failed: %s", exc, exc_info=True)
+        result.errors.append(f"Erreur import banque : {exc}")
         await db.rollback()
 
 

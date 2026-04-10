@@ -416,6 +416,8 @@ export interface ImportResult {
   invoices_created: number
   payments_created: number
   entries_created: number
+  cash_created: number
+  bank_created: number
   skipped: number
   errors: string[]
 }

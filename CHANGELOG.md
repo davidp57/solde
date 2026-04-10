@@ -9,6 +9,19 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+
+**Frontend — filtre générique**
+- Composable `useTableFilter` + `applyFilter` (`composables/useTableFilter.ts`) : filtre client-side fuzzy sur tous les champs d'un tableau
+- Champ de recherche générique ajouté dans les 11 écrans avec DataTable : Paiements, Exercices, Règles comptables, Plan comptable, Journal, Balance, Salaires, Factures clients, Factures fournisseurs, Banque (transactions + remises), Caisse (journal + comptages)
+- i18n : clé `common.filter_placeholder` → « Rechercher… »
+
+**Frontend — mode sombre**
+- `useDarkMode.ts` : watcher déplacé au niveau module (singleton) pour éviter les problèmes de lifecycle component
+- `main.css` : `body` reçoit `background: var(--p-surface-ground)` et `color: var(--p-text-color)` avec transition douce
+- `index.html` : script inline synchrone pour appliquer la classe `.dark-mode` avant le rendu (suppression du flash blanc au chargement)
+- `index.html` : titre corrigé « Solde ⚖️ », `lang="fr"`
+
 ### Corrigé
 
 **Frontend — bugfixes interface**

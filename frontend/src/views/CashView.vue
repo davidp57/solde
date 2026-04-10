@@ -14,6 +14,11 @@
       <span class="amount">{{ formatAmount(balance) }}</span>
     </div>
 
+    <!-- Generic filter -->
+    <div class="mb-3">
+      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
+    </div>
+
     <!-- Tabs: journal / counts -->
     <Tabs v-model:value="activeTab">
       <TabList>
@@ -23,7 +28,7 @@
 
       <TabPanels>
         <TabPanel value="journal">
-          <DataTable :value="entries" :loading="loadingEntries" striped-rows paginator :rows="20" data-key="id">
+          <DataTable :value="filteredEntries" :loading="loadingEntries" striped-rows paginator :rows="20" data-key="id">
             <Column field="date" :header="t('cash.entry_date')" sortable />
             <Column field="type" :header="t('cash.entry_type')">
               <template #body="{ data }">
@@ -50,7 +55,7 @@
         </TabPanel>
 
         <TabPanel value="counts">
-          <DataTable :value="counts" :loading="loadingCounts" striped-rows paginator :rows="10" data-key="id">
+          <DataTable :value="filteredCounts" :loading="loadingCounts" striped-rows paginator :rows="10" data-key="id">
             <Column field="date" :header="t('cash.count_date')" sortable />
             <Column field="total_counted" :header="t('cash.count_total')">
               <template #body="{ data }">{{ formatAmount(data.total_counted) }}</template>
@@ -142,7 +147,7 @@ import Tabs from 'primevue/tabs'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   addCashCount,
@@ -153,13 +158,16 @@ import {
   type CashCount,
   type CashEntry,
 } from '@/api/cash'
+import { useTableFilter, applyFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 const toast = useToast()
 
 const balance = ref('0')
 const entries = ref<CashEntry[]>([])
+const { filterText, filtered: filteredEntries } = useTableFilter(entries)
 const counts = ref<CashCount[]>([])
+const filteredCounts = computed(() => applyFilter(counts.value, filterText.value))
 const loadingEntries = ref(false)
 const loadingCounts = ref(false)
 const activeTab = ref('journal')

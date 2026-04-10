@@ -13,6 +13,13 @@
       <div class="topbar-user">
         <span class="topbar-username">{{ auth.user?.username }}</span>
         <Button
+          :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
+          text
+          rounded
+          :aria-label="isDark ? t('auth.light_mode') : t('auth.dark_mode')"
+          @click="toggleDark"
+        />
+        <Button
           icon="pi pi-sign-out"
           text
           rounded
@@ -45,6 +52,13 @@
             <span class="sidebar-role">{{ auth.user?.role ? t(`user.role.${auth.user.role}`) : '' }}</span>
           </div>
           <Button
+            :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
+            text
+            rounded
+            :aria-label="isDark ? t('auth.light_mode') : t('auth.dark_mode')"
+            @click="toggleDark"
+          />
+          <Button
             icon="pi pi-sign-out"
             text
             rounded
@@ -70,10 +84,12 @@ import Button from 'primevue/button'
 import Drawer from 'primevue/drawer'
 import { useAuthStore } from '../stores/auth'
 import NavMenu from '../components/NavMenu.vue'
+import { useDarkMode } from '../composables/useDarkMode'
 
 const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
+const { isDark, toggle: toggleDark } = useDarkMode()
 
 const sidebarVisible = ref(false)
 

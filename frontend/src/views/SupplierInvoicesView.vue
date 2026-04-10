@@ -24,11 +24,12 @@
         :use-grouping="false"
         @blur="loadInvoices"
       />
+      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
     </div>
 
     <!-- Table -->
     <DataTable
-      :value="invoices"
+      :value="filtered"
       :loading="loading"
       striped-rows
       paginator
@@ -148,6 +149,7 @@ import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import FileUpload from 'primevue/fileupload'
 import InputNumber from 'primevue/inputnumber'
+import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
@@ -164,12 +166,14 @@ import {
   type InvoiceStatus,
 } from '../api/invoices'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
+import { useTableFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 const confirm = useConfirm()
 const toast = useToast()
 
 const invoices = ref<Invoice[]>([])
+const { filterText, filtered } = useTableFilter(invoices)
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
