@@ -1,13 +1,16 @@
 <template>
-  <div class="settings-view p-4">
-    <h2 class="text-2xl font-semibold mb-6">{{ t('settings.title') }}</h2>
+  <AppPage>
+    <AppPageHeader
+      :eyebrow="t('ui.page.collection_eyebrow')"
+      :title="t('settings.title')"
+      :subtitle="t('settings.subtitle')"
+    />
 
-    <form @submit.prevent="save">
-      <!-- Association info -->
-      <Panel :header="t('settings.section_asso')" class="mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="flex flex-col gap-1">
-            <label for="association_name" class="font-medium text-sm">
+    <form class="settings-form" @submit.prevent="save">
+      <AppPanel :title="t('settings.section_asso')" :subtitle="t('settings.section_asso_subtitle')">
+        <div class="app-form-grid">
+          <div class="app-field">
+            <label for="association_name" class="app-field__label">
               {{ t('settings.asso_name') }}
             </label>
             <InputText
@@ -18,8 +21,8 @@
             />
           </div>
 
-          <div class="flex flex-col gap-1">
-            <label for="association_siret" class="font-medium text-sm">
+          <div class="app-field">
+            <label for="association_siret" class="app-field__label">
               {{ t('settings.siret') }}
             </label>
             <InputText
@@ -30,8 +33,8 @@
             />
           </div>
 
-          <div class="flex flex-col gap-1 md:col-span-2">
-            <label for="association_address" class="font-medium text-sm">
+          <div class="app-field app-field--full">
+            <label for="association_address" class="app-field__label">
               {{ t('settings.address') }}
             </label>
             <Textarea
@@ -43,8 +46,8 @@
             />
           </div>
 
-          <div class="flex flex-col gap-1">
-            <label for="fiscal_year_start_month" class="font-medium text-sm">
+          <div class="app-field">
+            <label for="fiscal_year_start_month" class="app-field__label">
               {{ t('settings.fiscal_year_start') }}
             </label>
             <Select
@@ -57,13 +60,12 @@
             />
           </div>
         </div>
-      </Panel>
+      </AppPanel>
 
-      <!-- SMTP -->
-      <Panel :header="t('settings.section_smtp')" class="mb-6" toggleable>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="flex flex-col gap-1">
-            <label for="smtp_host" class="font-medium text-sm">{{ t('settings.smtp_host') }}</label>
+      <AppPanel :title="t('settings.section_smtp')" :subtitle="t('settings.section_smtp_subtitle')">
+        <div class="app-form-grid">
+          <div class="app-field">
+            <label for="smtp_host" class="app-field__label">{{ t('settings.smtp_host') }}</label>
             <InputText
               id="smtp_host"
               v-model="form.smtp_host"
@@ -72,8 +74,8 @@
             />
           </div>
 
-          <div class="flex flex-col gap-1">
-            <label for="smtp_port" class="font-medium text-sm">{{ t('settings.smtp_port') }}</label>
+          <div class="app-field">
+            <label for="smtp_port" class="app-field__label">{{ t('settings.smtp_port') }}</label>
             <InputNumber
               id="smtp_port"
               v-model="form.smtp_port"
@@ -84,8 +86,8 @@
             />
           </div>
 
-          <div class="flex flex-col gap-1">
-            <label for="smtp_user" class="font-medium text-sm">
+          <div class="app-field">
+            <label for="smtp_user" class="app-field__label">
               {{ t('settings.smtp_username') }}
             </label>
             <InputText
@@ -97,8 +99,8 @@
             />
           </div>
 
-          <div class="flex flex-col gap-1">
-            <label for="smtp_password" class="font-medium text-sm">
+          <div class="app-field">
+            <label for="smtp_password" class="app-field__label">
               {{ t('settings.smtp_password') }}
             </label>
             <Password
@@ -111,8 +113,8 @@
             />
           </div>
 
-          <div class="flex flex-col gap-1">
-            <label for="smtp_from_email" class="font-medium text-sm">
+          <div class="app-field">
+            <label for="smtp_from_email" class="app-field__label">
               {{ t('settings.smtp_from') }}
             </label>
             <InputText
@@ -124,17 +126,16 @@
             />
           </div>
 
-          <div class="flex items-center gap-2 mt-4">
+          <div class="settings-switch">
             <ToggleSwitch id="smtp_use_tls" v-model="form.smtp_use_tls" />
-            <label for="smtp_use_tls" class="font-medium text-sm">
+            <label for="smtp_use_tls" class="app-field__label">
               {{ t('settings.smtp_use_tls') }}
             </label>
           </div>
         </div>
-      </Panel>
+      </AppPanel>
 
-      <!-- Actions -->
-      <div class="flex justify-end gap-3">
+      <div class="app-form-actions">
         <Button
           type="button"
           :label="t('common.cancel')"
@@ -158,16 +159,8 @@
       {{ errorMessage }}
     </Message>
 
-    <!-- Danger zone -->
-    <Panel class="mt-8 danger-panel">
-      <template #header>
-        <span class="danger-panel-title">
-          <i class="pi pi-exclamation-triangle mr-2" />
-          {{ t('settings.danger_zone') }}
-        </span>
-      </template>
-      <div class="flex flex-col gap-2">
-        <p class="text-sm text-gray-600 mb-3">{{ t('settings.reset_db_desc') }}</p>
+    <AppPanel class="danger-panel" :title="t('settings.danger_zone')" :subtitle="t('settings.reset_db_desc')">
+      <div class="settings-danger">
         <div>
           <Button
             :label="t('settings.reset_db')"
@@ -182,10 +175,10 @@
           {{ resetMessage }}
         </Message>
       </div>
-    </Panel>
+    </AppPanel>
 
     <ConfirmDialog />
-  </div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -196,13 +189,15 @@ import ConfirmDialog from 'primevue/confirmdialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
-import Panel from 'primevue/panel'
 import Password from 'primevue/password'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
 import { useConfirm } from 'primevue/useconfirm'
 import { getSettingsApi, resetDbApi, updateSettingsApi, type AppSettingsUpdate } from '@/api/settings'
+import AppPage from '@/components/ui/AppPage.vue'
+import AppPageHeader from '@/components/ui/AppPageHeader.vue'
+import AppPanel from '@/components/ui/AppPanel.vue'
 import { useDarkMode } from '../composables/useDarkMode'
 
 const { t } = useI18n()
@@ -321,9 +316,8 @@ function confirmReset(): void {
     message: t('settings.reset_db_confirm'),
     header: t('settings.reset_db'),
     icon: 'pi pi-exclamation-triangle',
-    acceptLabel: t('settings.reset_db_yes'),
-    rejectLabel: t('common.cancel'),
-    acceptSeverity: 'danger',
+    acceptProps: { severity: 'danger', label: t('settings.reset_db_yes') },
+    rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
     accept: doReset,
   })
 }
@@ -346,11 +340,31 @@ onMounted(load)
 </script>
 
 <style scoped>
-.danger-panel :deep(.p-panel-header) {
-  background-color: v-bind(dangerHeaderBg);
-  border-color: v-bind(dangerBorderColor);
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-6);
 }
-.danger-panel-title {
+
+.settings-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  padding-top: var(--app-space-4);
+}
+
+.settings-danger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.danger-panel :deep(.app-panel__header) {
+  background-color: v-bind(dangerHeaderBg);
+  border-bottom: 1px solid v-bind(dangerBorderColor);
+}
+
+.danger-panel :deep(.app-panel__title) {
   color: v-bind(dangerTitleColor);
   font-weight: 600;
 }

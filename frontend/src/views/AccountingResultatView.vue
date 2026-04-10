@@ -1,55 +1,57 @@
 <template>
-  <div class="view-container">
-    <div class="view-header">
-      <h1>{{ t('accounting.resultat.title') }}</h1>
-    </div>
+  <AppPage width="wide">
+    <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('accounting.resultat.title')" />
 
-    <div class="filters-row">
-      <div class="filter-group">
-        <label>{{ t('accounting.journal.filter_fiscal_year') }}</label>
-        <Select
-          v-model="fiscalYearId"
-          :options="fiscalYears"
-          option-label="name"
-          option-value="id"
-          :placeholder="t('common.all')"
-          show-clear
-        />
+    <AppPanel :title="t('accounting.resultat.title')" dense>
+      <div class="app-toolbar">
+        <div class="app-filter-grid">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('accounting.journal.filter_fiscal_year') }}</label>
+            <Select
+              v-model="fiscalYearId"
+              :options="fiscalYears"
+              option-label="name"
+              option-value="id"
+              :placeholder="t('common.all')"
+              show-clear
+            />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('common.search') }}</label>
+            <Button :label="t('common.search')" icon="pi pi-refresh" @click="load" />
+          </div>
+        </div>
       </div>
-      <Button icon="pi pi-refresh" @click="load" />
-    </div>
 
-    <div v-if="resultat" class="resultat-grid">
+      <div v-if="resultat" class="resultat-grid">
       <!-- Charges -->
-      <div class="resultat-col">
-        <h2>{{ t('accounting.resultat.charges') }}</h2>
-        <DataTable :value="resultat.charges" :loading="loading" size="small">
+      <AppPanel :title="t('accounting.resultat.charges')" dense>
+        <DataTable :value="resultat.charges" :loading="loading" class="app-data-table" size="small">
           <Column field="account_number" :header="t('accounting.balance.account_number')" />
           <Column field="account_label" :header="t('accounting.balance.account_label')" />
-          <Column field="solde" :header="t('accounting.resultat.total_charges')" class="text-right" />
-          <template #empty>{{ t('accounting.resultat.empty_charges') }}</template>
+          <Column field="solde" :header="t('accounting.resultat.total_charges')" class="app-money" />
+          <template #empty><div class="app-empty-state">{{ t('accounting.resultat.empty_charges') }}</div></template>
         </DataTable>
         <div class="resultat-total">
           {{ t('accounting.resultat.total_charges') }} : <strong>{{ resultat.total_charges }}</strong>
         </div>
-      </div>
+      </AppPanel>
 
       <!-- Produits -->
-      <div class="resultat-col">
-        <h2>{{ t('accounting.resultat.produits') }}</h2>
-        <DataTable :value="resultat.produits" :loading="loading" size="small">
+      <AppPanel :title="t('accounting.resultat.produits')" dense>
+        <DataTable :value="resultat.produits" :loading="loading" class="app-data-table" size="small">
           <Column field="account_number" :header="t('accounting.balance.account_number')" />
           <Column field="account_label" :header="t('accounting.balance.account_label')" />
-          <Column field="solde" :header="t('accounting.resultat.total_produits')" class="text-right" />
-          <template #empty>{{ t('accounting.resultat.empty_produits') }}</template>
+          <Column field="solde" :header="t('accounting.resultat.total_produits')" class="app-money" />
+          <template #empty><div class="app-empty-state">{{ t('accounting.resultat.empty_produits') }}</div></template>
         </DataTable>
         <div class="resultat-total">
           {{ t('accounting.resultat.total_produits') }} : <strong>{{ resultat.total_produits }}</strong>
         </div>
+      </AppPanel>
       </div>
-    </div>
 
-    <div v-if="resultat" class="resultat-bottom">
+      <div v-if="resultat" class="resultat-bottom">
       <span
         :class="[
           'resultat-net',
@@ -59,8 +61,9 @@
         {{ parseFloat(resultat.resultat) >= 0 ? t('accounting.resultat.excedent') : t('accounting.resultat.deficit') }} :
         <strong>{{ resultat.resultat }}</strong>
       </span>
-    </div>
-  </div>
+      </div>
+    </AppPanel>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -70,6 +73,9 @@ import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import Select from 'primevue/select'
+import AppPage from '../components/ui/AppPage.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPanel from '../components/ui/AppPanel.vue'
 import { getResultatApi, listFiscalYearsApi, type ResultatRead, type FiscalYearRead } from '../api/accounting'
 
 const { t } = useI18n()
@@ -98,8 +104,7 @@ onMounted(async () => {
 .resultat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  margin-top: 1rem;
+  gap: var(--app-space-5);
 }
 
 .resultat-total {
@@ -109,7 +114,7 @@ onMounted(async () => {
 }
 
 .resultat-bottom {
-  margin-top: 2rem;
+  margin-top: var(--app-space-6);
   text-align: right;
   font-size: 1.1rem;
 }
@@ -120,5 +125,11 @@ onMounted(async () => {
 
 .resultat-deficit {
   color: var(--p-red-600);
+}
+
+@media (max-width: 900px) {
+  .resultat-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

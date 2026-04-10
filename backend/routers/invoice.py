@@ -21,7 +21,12 @@ from backend.database import get_db
 from backend.models.invoice import InvoiceStatus, InvoiceType
 from backend.models.user import User, UserRole
 from backend.routers.auth import get_current_user, require_role
-from backend.schemas.invoice import InvoiceCreate, InvoiceRead, InvoiceStatusUpdate, InvoiceUpdate
+from backend.schemas.invoice import (
+    InvoiceCreate,
+    InvoiceRead,
+    InvoiceStatusUpdate,
+    InvoiceUpdate,
+)
 from backend.services import invoice as invoice_service
 from backend.services.invoice import InvoiceDeleteError, InvoiceStatusError
 
@@ -81,7 +86,9 @@ async def get_invoice(
     """Get a single invoice by ID."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        )
     return invoice  # type: ignore[return-value]
 
 
@@ -95,7 +102,9 @@ async def update_invoice(
     """Partially update an invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        )
     return await invoice_service.update_invoice(db, invoice, payload)  # type: ignore[return-value]
 
 
@@ -109,17 +118,23 @@ async def update_status(
     """Change the status of an invoice (enforces valid transitions)."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        )
     try:
         return await invoice_service.update_invoice_status(  # type: ignore[return-value]
             db, invoice, payload.status
         )
     except InvoiceStatusError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
 
 
 @router.post(
-    "/{invoice_id}/duplicate", response_model=InvoiceRead, status_code=status.HTTP_201_CREATED
+    "/{invoice_id}/duplicate",
+    response_model=InvoiceRead,
+    status_code=status.HTTP_201_CREATED,
 )
 async def duplicate_invoice(
     invoice_id: int,
@@ -129,7 +144,9 @@ async def duplicate_invoice(
     """Create a draft copy of an existing invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        )
     return await invoice_service.duplicate_invoice(db, invoice)  # type: ignore[return-value]
 
 
@@ -142,11 +159,15 @@ async def delete_invoice(
     """Delete an invoice. Only draft invoices can be deleted."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        )
     try:
         await invoice_service.delete_invoice(db, invoice)
     except InvoiceDeleteError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+        ) from exc
 
 
 @router.get("/{invoice_id}/pdf")
@@ -162,7 +183,9 @@ async def get_invoice_pdf(
 
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        )
     if invoice.type != InvoiceType.CLIENT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -209,7 +232,9 @@ async def send_invoice_email(
 
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        )
     if invoice.type != InvoiceType.CLIENT:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -277,7 +302,9 @@ async def upload_invoice_file(
     """Upload a file attachment for a supplier invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found"
+        )
     if invoice.type != InvoiceType.FOURNISSEUR:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

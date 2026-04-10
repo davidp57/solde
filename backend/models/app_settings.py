@@ -20,12 +20,20 @@ class AppSettings(Base):
     association_name: Mapped[str] = mapped_column(
         String(255), nullable=False, default="Mon Association"
     )
-    association_address: Mapped[str] = mapped_column(String(1000), nullable=False, default="")
-    association_siret: Mapped[str] = mapped_column(String(20), nullable=False, default="")
-    association_logo_path: Mapped[str] = mapped_column(String(500), nullable=False, default="")
+    association_address: Mapped[str] = mapped_column(
+        String(1000), nullable=False, default=""
+    )
+    association_siret: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=""
+    )
+    association_logo_path: Mapped[str] = mapped_column(
+        String(500), nullable=False, default=""
+    )
 
     # Fiscal year (month number: 8 = August)
-    fiscal_year_start_month: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
+    fiscal_year_start_month: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=8
+    )
 
     # SMTP (all optional)
     smtp_host: Mapped[str | None] = mapped_column(String(255), nullable=True)

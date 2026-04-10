@@ -61,14 +61,20 @@ class TestGenerateInvoiceNumber:
 
     async def test_supplier_invoice_uses_f_prefix(self, db_session: AsyncSession):
         invoice = await _make_invoice(
-            db_session, invoice_type=InvoiceType.FOURNISSEUR, total_amount=Decimal("100.00")
+            db_session,
+            invoice_type=InvoiceType.FOURNISSEUR,
+            total_amount=Decimal("100.00"),
         )
         assert invoice.number == "2025-F-0001"  # type: ignore[union-attr]
 
-    async def test_client_and_supplier_have_independent_sequences(self, db_session: AsyncSession):
+    async def test_client_and_supplier_have_independent_sequences(
+        self, db_session: AsyncSession
+    ):
         await _make_invoice(db_session)
         supplier = await _make_invoice(
-            db_session, invoice_type=InvoiceType.FOURNISSEUR, total_amount=Decimal("50.00")
+            db_session,
+            invoice_type=InvoiceType.FOURNISSEUR,
+            total_amount=Decimal("50.00"),
         )
         assert supplier.number == "2025-F-0001"  # type: ignore[union-attr]
 
@@ -79,14 +85,20 @@ class TestGenerateInvoiceNumber:
 
 
 class TestCreateInvoice:
-    async def test_creates_with_lines_and_computes_total(self, db_session: AsyncSession):
+    async def test_creates_with_lines_and_computes_total(
+        self, db_session: AsyncSession
+    ):
         contact = await _make_contact(db_session)
         lines = [
             InvoiceLineCreate(
-                description="Cours maths", quantity=Decimal("2"), unit_price=Decimal("30.00")
+                description="Cours maths",
+                quantity=Decimal("2"),
+                unit_price=Decimal("30.00"),
             ),
             InvoiceLineCreate(
-                description="Adhésion", quantity=Decimal("1"), unit_price=Decimal("20.00")
+                description="Adhésion",
+                quantity=Decimal("1"),
+                unit_price=Decimal("20.00"),
             ),
         ]
         payload = InvoiceCreate(
@@ -100,7 +112,9 @@ class TestCreateInvoice:
         assert len(invoice.lines) == 2
         assert invoice.status == InvoiceStatus.DRAFT
 
-    async def test_creates_supplier_invoice_with_total_amount(self, db_session: AsyncSession):
+    async def test_creates_supplier_invoice_with_total_amount(
+        self, db_session: AsyncSession
+    ):
         contact = await _make_contact(db_session)
         payload = InvoiceCreate(
             type=InvoiceType.FOURNISSEUR,
@@ -130,7 +144,10 @@ class TestCreateInvoice:
             )
         ]
         payload = InvoiceCreate(
-            type=InvoiceType.CLIENT, contact_id=contact.id, date=date(2025, 9, 1), lines=lines
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 9, 1),
+            lines=lines,
         )
         invoice = await create_invoice(db_session, payload)
         assert invoice.lines[0].amount == Decimal("75.00")
@@ -145,7 +162,10 @@ class TestGetInvoice:
             )
         ]
         payload = InvoiceCreate(
-            type=InvoiceType.CLIENT, contact_id=contact.id, date=date(2025, 9, 1), lines=lines
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 9, 1),
+            lines=lines,
         )
         created = await create_invoice(db_session, payload)
         found = await get_invoice(db_session, created.id)
@@ -161,7 +181,9 @@ class TestListInvoices:
     async def test_filter_by_type(self, db_session: AsyncSession):
         await _make_invoice(db_session)
         await _make_invoice(
-            db_session, invoice_type=InvoiceType.FOURNISSEUR, total_amount=Decimal("100.00")
+            db_session,
+            invoice_type=InvoiceType.FOURNISSEUR,
+            total_amount=Decimal("100.00"),
         )
         clients = await list_invoices(db_session, invoice_type=InvoiceType.CLIENT)
         assert len(clients) == 1
@@ -178,8 +200,12 @@ class TestListInvoices:
     async def test_filter_by_contact_id(self, db_session: AsyncSession):
         contact1 = await _make_contact(db_session, "Alpha")
         contact2 = await _make_contact(db_session, "Beta")
-        p1 = InvoiceCreate(type=InvoiceType.CLIENT, contact_id=contact1.id, date=date(2025, 9, 1))
-        p2 = InvoiceCreate(type=InvoiceType.CLIENT, contact_id=contact2.id, date=date(2025, 9, 1))
+        p1 = InvoiceCreate(
+            type=InvoiceType.CLIENT, contact_id=contact1.id, date=date(2025, 9, 1)
+        )
+        p2 = InvoiceCreate(
+            type=InvoiceType.CLIENT, contact_id=contact2.id, date=date(2025, 9, 1)
+        )
         await create_invoice(db_session, p1)
         await create_invoice(db_session, p2)
         results = await list_invoices(db_session, contact_id=contact1.id)
@@ -211,15 +237,22 @@ class TestUpdateInvoice:
             )
         ]
         payload = InvoiceCreate(
-            type=InvoiceType.CLIENT, contact_id=contact.id, date=date(2025, 9, 1), lines=lines_orig
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 9, 1),
+            lines=lines_orig,
         )
         invoice = await create_invoice(db_session, payload)
         new_lines = [
             InvoiceLineCreate(
-                description="Cours A", quantity=Decimal("2"), unit_price=Decimal("25.00")
+                description="Cours A",
+                quantity=Decimal("2"),
+                unit_price=Decimal("25.00"),
             ),
             InvoiceLineCreate(
-                description="Adhésion", quantity=Decimal("1"), unit_price=Decimal("15.00")
+                description="Adhésion",
+                quantity=Decimal("1"),
+                unit_price=Decimal("15.00"),
             ),
         ]
         updated = await update_invoice(
@@ -272,7 +305,10 @@ class TestDuplicate:
             )
         ]
         payload = InvoiceCreate(
-            type=InvoiceType.CLIENT, contact_id=contact.id, date=date(2025, 9, 1), lines=lines
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 9, 1),
+            lines=lines,
         )
         invoice = await create_invoice(db_session, payload)
         copy = await duplicate_invoice(db_session, invoice)

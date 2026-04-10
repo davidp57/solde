@@ -19,7 +19,9 @@ class AccountingAccount(Base):
     __tablename__ = "accounting_accounts"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
+    number: Mapped[str] = mapped_column(
+        String(20), unique=True, nullable=False, index=True
+    )
     label: Mapped[str] = mapped_column(String(200), nullable=False)
     type: Mapped[AccountType] = mapped_column(String(20), nullable=False, index=True)
     parent_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -32,21 +34,51 @@ class AccountingAccount(Base):
 DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
     # Actif — Immobilisations
     {"number": "211000", "label": "Terrains", "type": "actif", "is_default": True},
-    {"number": "215000", "label": "Installations techniques", "type": "actif", "is_default": True},
+    {
+        "number": "215000",
+        "label": "Installations techniques",
+        "type": "actif",
+        "is_default": True,
+    },
     # Actif — Trésorerie
-    {"number": "511200", "label": "Chèques à encaisser", "type": "actif", "is_default": True},
-    {"number": "512100", "label": "Compte courant", "type": "actif", "is_default": True},
+    {
+        "number": "511200",
+        "label": "Chèques à encaisser",
+        "type": "actif",
+        "is_default": True,
+    },
+    {
+        "number": "512100",
+        "label": "Compte courant",
+        "type": "actif",
+        "is_default": True,
+    },
     {"number": "531000", "label": "Caisse", "type": "actif", "is_default": True},
     # Actif — Créances
     {"number": "411100", "label": "Adhérents", "type": "actif", "is_default": True},
-    {"number": "416000", "label": "Clients douteux", "type": "actif", "is_default": True},
+    {
+        "number": "416000",
+        "label": "Clients douteux",
+        "type": "actif",
+        "is_default": True,
+    },
     # Passif — Dettes fournisseurs
     {"number": "401000", "label": "Fournisseurs", "type": "passif", "is_default": True},
     # Passif — Dettes sociales
-    {"number": "421000", "label": "Rémunérations dues", "type": "passif", "is_default": True},
+    {
+        "number": "421000",
+        "label": "Rémunérations dues",
+        "type": "passif",
+        "is_default": True,
+    },
     {"number": "431100", "label": "URSSAF", "type": "passif", "is_default": True},
     # Passif — Fonds propres
-    {"number": "110000", "label": "Report à nouveau", "type": "passif", "is_default": True},
+    {
+        "number": "110000",
+        "label": "Report à nouveau",
+        "type": "passif",
+        "is_default": True,
+    },
     {
         "number": "120000",
         "label": "Résultat de l'exercice (excédent)",
@@ -60,8 +92,18 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
         "is_default": True,
     },
     # Charges
-    {"number": "602250", "label": "Fournitures de bureau", "type": "charge", "is_default": True},
-    {"number": "611100", "label": "Sous-traitance cours", "type": "charge", "is_default": True},
+    {
+        "number": "602250",
+        "label": "Fournitures de bureau",
+        "type": "charge",
+        "is_default": True,
+    },
+    {
+        "number": "611100",
+        "label": "Sous-traitance cours",
+        "type": "charge",
+        "is_default": True,
+    },
     {"number": "616000", "label": "Assurances", "type": "charge", "is_default": True},
     {
         "number": "626000",
@@ -69,16 +111,31 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
         "type": "charge",
         "is_default": True,
     },
-    {"number": "627000", "label": "Services bancaires", "type": "charge", "is_default": True},
+    {
+        "number": "627000",
+        "label": "Services bancaires",
+        "type": "charge",
+        "is_default": True,
+    },
     {
         "number": "641000",
         "label": "Rémunérations du personnel",
         "type": "charge",
         "is_default": True,
     },
-    {"number": "645100", "label": "Cotisations URSSAF", "type": "charge", "is_default": True},
+    {
+        "number": "645100",
+        "label": "Cotisations URSSAF",
+        "type": "charge",
+        "is_default": True,
+    },
     # Produits
-    {"number": "706110", "label": "Cours de soutien", "type": "produit", "is_default": True},
+    {
+        "number": "706110",
+        "label": "Cours de soutien",
+        "type": "produit",
+        "is_default": True,
+    },
     {
         "number": "706120",
         "label": "Cours de soutien — autres",

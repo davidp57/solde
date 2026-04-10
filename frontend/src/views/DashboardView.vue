@@ -1,130 +1,83 @@
 <template>
-  <div class="dashboard-view p-4">
-    <h2 class="text-2xl font-semibold mb-6">{{ t('dashboard.title') }}</h2>
+  <AppPage width="wide">
+    <AppPageHeader
+      :eyebrow="t('ui.page.collection_eyebrow')"
+      :title="t('dashboard.title')"
+    />
 
-    <!-- KPI cards -->
-    <div v-if="loading" class="flex justify-center py-10">
+    <div v-if="loading" class="dashboard-loading">
       <ProgressSpinner />
     </div>
-    <div v-else class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      <Card class="kpi-card">
-        <template #title>{{ t('dashboard.bank_balance') }}</template>
-        <template #content>
-          <div class="kpi-value">
-            {{ kpis?.bank_balance != null ? formatAmount(kpis.bank_balance) : '—' }}
-          </div>
-        </template>
-      </Card>
-      <Card class="kpi-card">
-        <template #title>{{ t('dashboard.cash_balance') }}</template>
-        <template #content>
-          <div class="kpi-value">
-            {{ kpis?.cash_balance != null ? formatAmount(kpis.cash_balance) : '—' }}
-          </div>
-        </template>
-      </Card>
-      <Card class="kpi-card">
-        <template #title>{{ t('dashboard.unpaid_invoices') }}</template>
-        <template #content>
-          <div class="kpi-value">{{ kpis?.unpaid_count ?? 0 }}</div>
-          <div class="kpi-sub">{{ kpis ? formatAmount(kpis.unpaid_total) : '—' }}</div>
-        </template>
-      </Card>
-      <Card class="kpi-card" :class="{ 'kpi-card--alert': (kpis?.overdue_count ?? 0) > 0 }">
-        <template #title>{{ t('dashboard.overdue_invoices') }}</template>
-        <template #content>
-          <div class="kpi-value">{{ kpis?.overdue_count ?? 0 }}</div>
-          <div class="kpi-sub">{{ kpis ? formatAmount(kpis.overdue_total) : '—' }}</div>
-        </template>
-      </Card>
-    </div>
 
-    <!-- Second row -->
-    <div v-if="!loading" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-      <Card class="kpi-card">
-        <template #title>{{ t('dashboard.undeposited') }}</template>
-        <template #content>
-          <div class="kpi-value">{{ kpis?.undeposited_count ?? 0 }}</div>
-        </template>
-      </Card>
-      <Card class="kpi-card">
-        <template #title>{{ t('dashboard.current_fy') }}</template>
-        <template #content>
-          <div class="kpi-value text-base">{{ kpis?.current_fy_name ?? '—' }}</div>
-        </template>
-      </Card>
-      <Card class="kpi-card" :class="{ 'kpi-card--neg': (kpis?.current_resultat ?? 0) < 0 }">
-        <template #title>{{ t('dashboard.resultat') }}</template>
-        <template #content>
-          <div class="kpi-value">
-            {{ kpis?.current_resultat != null ? formatAmount(kpis.current_resultat) : '—' }}
+    <template v-else>
+      <section class="app-stat-grid">
+        <AppStatCard :label="t('dashboard.bank_balance')" :value="kpis ? formatAmount(kpis.bank_balance) : '—'" />
+        <AppStatCard :label="t('dashboard.cash_balance')" :value="kpis ? formatAmount(kpis.cash_balance) : '—'" />
+        <AppStatCard :label="t('dashboard.unpaid_invoices')" :value="kpis?.unpaid_count ?? 0" :caption="kpis ? formatAmount(kpis.unpaid_total) : '—'" />
+        <AppStatCard :label="t('dashboard.overdue_invoices')" :value="kpis?.overdue_count ?? 0" :caption="kpis ? formatAmount(kpis.overdue_total) : '—'" :tone="(kpis?.overdue_count ?? 0) > 0 ? 'danger' : 'warn'" />
+        <AppStatCard :label="t('dashboard.undeposited')" :value="kpis?.undeposited_count ?? 0" />
+        <AppStatCard :label="t('dashboard.current_fy')" :value="kpis?.current_fy_name ?? '—'" />
+        <AppStatCard :label="t('dashboard.resultat')" :value="kpis?.current_resultat != null ? formatAmount(kpis.current_resultat) : '—'" :tone="(kpis?.current_resultat ?? 0) < 0 ? 'danger' : 'success'" />
+      </section>
+
+      <div class="dashboard-grid">
+        <AppPanel :title="t('dashboard.chart_title')" dense>
+          <template #actions>
+            <Select
+              v-model="chartYear"
+              :options="yearOptions"
+              class="dashboard-year-select"
+              @change="loadChart"
+            />
+          </template>
+          <div v-if="chartData.length === 0" class="app-empty-state">—</div>
+          <div v-else class="dashboard-table-wrap">
+            <table class="dashboard-table">
+              <thead>
+                <tr>
+                  <th>{{ t('dashboard.chart_month') }}</th>
+                  <th>{{ t('dashboard.chart_charges') }}</th>
+                  <th>{{ t('dashboard.chart_produits') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in chartData" :key="row.month">
+                  <td>{{ row.month }}</td>
+                  <td>{{ formatAmount(row.charges) }}</td>
+                  <td>{{ formatAmount(row.produits) }}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-        </template>
-      </Card>
-    </div>
+        </AppPanel>
 
-    <!-- Alerts -->
-    <div v-if="!loading && kpis && kpis.alerts.length > 0" class="mb-8">
-      <h3 class="text-lg font-medium mb-2">{{ t('dashboard.alerts_title') }}</h3>
-      <Message
-        v-for="(alert, idx) in kpis.alerts"
-        :key="idx"
-        :severity="alert.type === 'overdue' ? 'warn' : 'info'"
-        class="mb-1"
-      >
-        {{ alert.message }}
-      </Message>
-    </div>
-
-    <!-- Monthly chart -->
-    <Card v-if="!loading" class="mb-4">
-      <template #title>
-        <div class="flex items-center gap-4">
-          {{ t('dashboard.chart_title') }}
-          <Select
-            v-model="chartYear"
-            :options="yearOptions"
-            class="w-28 text-sm"
-            @change="loadChart"
-          />
-        </div>
-      </template>
-      <template #content>
-        <div v-if="chartData.length === 0" class="text-center text-gray-400 py-6">—</div>
-        <div v-else class="overflow-x-auto">
-          <table class="min-w-full text-sm">
-            <thead>
-              <tr>
-                <th class="text-left pr-4 py-1">Mois</th>
-                <th class="text-right pr-4 py-1">{{ t('dashboard.chart_charges') }}</th>
-                <th class="text-right py-1">{{ t('dashboard.chart_produits') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="row in chartData"
-                :key="row.month"
-                class="border-t border-surface-200"
-              >
-                <td class="pr-4 py-1">{{ row.month }}</td>
-                <td class="text-right pr-4 py-1">{{ formatAmount(row.charges) }}</td>
-                <td class="text-right py-1">{{ formatAmount(row.produits) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </template>
-    </Card>
-  </div>
+        <AppPanel :title="t('dashboard.alerts_title')" dense>
+          <div v-if="!kpis || kpis.alerts.length === 0" class="app-empty-state">{{ t('dashboard.no_alerts') }}</div>
+          <div v-else class="dashboard-alerts">
+            <Message
+              v-for="(alert, idx) in kpis.alerts"
+              :key="idx"
+              :severity="alert.type === 'overdue' ? 'warn' : 'info'"
+            >
+              {{ alert.message }}
+            </Message>
+          </div>
+        </AppPanel>
+      </div>
+    </template>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import Card from 'primevue/card'
 import Message from 'primevue/message'
 import ProgressSpinner from 'primevue/progressspinner'
 import Select from 'primevue/select'
+import AppPage from '../components/ui/AppPage.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPanel from '../components/ui/AppPanel.vue'
+import AppStatCard from '../components/ui/AppStatCard.vue'
 import { getDashboardApi, getMonthlyChartApi } from '../api/accounting'
 import type { DashboardKPIs, MonthlyChartRow } from '../api/accounting'
 
@@ -137,7 +90,10 @@ const chartYear = ref(new Date().getFullYear())
 
 const yearOptions = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
 
-function formatAmount(v: number): string {
+function formatAmount(v: number | null | undefined): string {
+  if (v == null) {
+    return '—'
+  }
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v)
 }
 
@@ -162,24 +118,64 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.kpi-card {
-  min-width: 0;
+.dashboard-loading {
+  display: flex;
+  justify-content: center;
+  padding: 4rem 0;
 }
-.kpi-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-top: 0.25rem;
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: var(--app-space-5);
 }
-.kpi-sub {
-  font-size: 0.875rem;
+
+.dashboard-year-select {
+  width: 8rem;
+}
+
+.dashboard-table-wrap {
+  overflow-x: auto;
+}
+
+.dashboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.94rem;
+}
+
+.dashboard-table th,
+.dashboard-table td {
+  padding: 0.8rem 0.6rem;
+  border-bottom: 1px solid var(--app-surface-border);
+}
+
+.dashboard-table th {
+  text-align: left;
   color: var(--p-text-muted-color);
-  margin-top: 0.125rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-.kpi-card--alert :deep(.p-card-title) {
-  color: var(--p-orange-500);
+
+.dashboard-table td:nth-child(2),
+.dashboard-table td:nth-child(3),
+.dashboard-table th:nth-child(2),
+.dashboard-table th:nth-child(3) {
+  text-align: right;
 }
-.kpi-card--neg .kpi-value {
-  color: var(--p-red-500);
+
+.dashboard-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+@media (max-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
 

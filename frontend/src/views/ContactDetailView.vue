@@ -1,72 +1,53 @@
 <template>
-  <div class="contact-detail-view p-4">
-    <div class="flex items-center gap-3 mb-6">
-      <Button icon="pi pi-arrow-left" severity="secondary" text @click="$router.back()" />
-      <h2 class="text-2xl font-semibold">{{ t('contact_history.title') }}</h2>
-    </div>
+  <AppPage width="wide">
+    <AppPageHeader :eyebrow="t('ui.page.collection_eyebrow')" :title="t('contact_history.title')">
+      <template #actions>
+        <Button icon="pi pi-arrow-left" severity="secondary" text @click="$router.back()" />
+      </template>
+    </AppPageHeader>
 
-    <div v-if="loading" class="flex justify-center py-12">
+    <div v-if="loading" class="contact-detail-loading">
       <ProgressSpinner />
     </div>
 
     <template v-else-if="history">
-      <!-- Contact info card -->
-      <Card class="mb-6">
-        <template #content>
-          <div class="flex items-start justify-between">
-            <div class="flex flex-col gap-1">
-              <div class="text-xl font-semibold">
-                {{ history.contact.nom }} {{ history.contact.prenom }}
-              </div>
-              <div class="text-sm text-gray-500">{{ history.contact.email }}</div>
-              <div class="text-sm text-gray-500">{{ history.contact.telephone }}</div>
-            </div>
-            <div class="flex flex-col items-end gap-2">
-              <Tag :value="t(`contacts.types.${history.contact.type}`)" />
-              <Button
-                v-if="Number(history.total_due) > 0"
-                :label="t('contact_history.mark_douteux')"
-                icon="pi pi-exclamation-triangle"
-                severity="warn"
-                outlined
-                size="small"
-                @click="confirmMarkDouteux"
-              />
-            </div>
-          </div>
-
-          <!-- KPI strip -->
-          <div class="grid grid-cols-3 gap-4 mt-5 pt-4 border-t">
-            <div class="text-center">
-              <div class="text-xs text-gray-500 uppercase mb-1">{{ t('contact_history.total_invoiced') }}</div>
-              <div class="text-lg font-semibold">{{ fmt(history.total_invoiced) }} €</div>
-            </div>
-            <div class="text-center">
-              <div class="text-xs text-gray-500 uppercase mb-1">{{ t('contact_history.total_paid') }}</div>
-              <div class="text-lg font-semibold text-green-600">{{ fmt(history.total_paid) }} €</div>
-            </div>
-            <div class="text-center">
-              <div class="text-xs text-gray-500 uppercase mb-1">{{ t('contact_history.total_due') }}</div>
-              <div :class="['text-lg font-semibold', Number(history.total_due) > 0 ? 'text-red-600' : 'text-gray-700']">
-                {{ fmt(history.total_due) }} €
-              </div>
-            </div>
+      <AppPanel :title="contactFullName(history.contact)" :subtitle="contactSubtitle(history.contact)">
+        <template #actions>
+          <div class="contact-detail-actions">
+            <Tag :value="t(`contacts.types.${history.contact.type}`)" />
+            <Button
+              v-if="Number(history.total_due) > 0"
+              :label="t('contact_history.mark_douteux')"
+              icon="pi pi-exclamation-triangle"
+              severity="warn"
+              outlined
+              size="small"
+              @click="confirmMarkDouteux"
+            />
           </div>
         </template>
-      </Card>
 
-      <!-- Invoices -->
-      <Card class="mb-6">
-        <template #header>
-          <div class="px-4 pt-4 font-semibold">{{ t('contact_history.invoices_section') }}</div>
-        </template>
-        <template #content>
-          <DataTable
-            v-if="history.invoices.length"
-            :value="history.invoices"
-            class="text-sm"
-            striped-rows
-          >
+        <div class="contact-detail-meta">
+          <span v-if="history.contact.email">{{ history.contact.email }}</span>
+          <span v-if="history.contact.telephone">{{ history.contact.telephone }}</span>
+        </div>
+
+        <section class="app-stat-grid">
+          <AppStatCard :label="t('contact_history.total_invoiced')" :value="`${fmt(history.total_invoiced)} €`" />
+          <AppStatCard :label="t('contact_history.total_paid')" :value="`${fmt(history.total_paid)} €`" tone="success" />
+          <AppStatCard :label="t('contact_history.total_due')" :value="`${fmt(history.total_due)} €`" :tone="Number(history.total_due) > 0 ? 'danger' : 'default'" />
+        </section>
+      </AppPanel>
+
+      <AppPanel :title="t('contact_history.invoices_section')" dense>
+        <DataTable
+          v-if="history.invoices.length"
+          :value="history.invoices"
+          class="app-data-table"
+          striped-rows
+          size="small"
+          row-hover
+        >
             <Column field="number" :header="t('invoices.number')" style="width:10rem" />
             <Column field="date" :header="t('invoices.date')" style="width:8rem" />
             <Column field="status" :header="t('invoices.status')">
@@ -74,55 +55,49 @@
                 <Tag :value="t(`invoices.statuses.${data.status}`)" :severity="statusSeverity(data.status)" />
               </template>
             </Column>
-            <Column field="total_amount" :header="t('invoices.total')" class="text-right font-mono">
+            <Column field="total_amount" :header="t('invoices.total')" class="app-money">
               <template #body="{ data }">{{ fmt(data.total_amount) }} €</template>
             </Column>
-            <Column field="balance_due" :header="t('contact_history.total_due')" class="text-right font-mono">
+            <Column field="balance_due" :header="t('contact_history.total_due')" class="app-money">
               <template #body="{ data }">
-                <span :class="Number(data.balance_due) > 0 ? 'text-red-600' : ''">
+                <span :class="Number(data.balance_due) > 0 ? 'contact-detail-due' : ''">
                   {{ fmt(data.balance_due) }} €
                 </span>
               </template>
             </Column>
           </DataTable>
-          <div v-else class="text-gray-400 text-sm py-2">{{ t('contact_history.no_invoices') }}</div>
-        </template>
-      </Card>
+        <div v-else class="app-empty-state">{{ t('contact_history.no_invoices') }}</div>
+      </AppPanel>
 
-      <!-- Payments -->
-      <Card>
-        <template #header>
-          <div class="px-4 pt-4 font-semibold">{{ t('contact_history.payments_section') }}</div>
-        </template>
-        <template #content>
-          <DataTable
-            v-if="history.payments.length"
-            :value="history.payments"
-            class="text-sm"
-            striped-rows
-          >
+      <AppPanel :title="t('contact_history.payments_section')" dense>
+        <DataTable
+          v-if="history.payments.length"
+          :value="history.payments"
+          class="app-data-table"
+          striped-rows
+          size="small"
+          row-hover
+        >
             <Column field="date" :header="t('payments.date')" style="width:8rem" />
             <Column field="invoice_number" :header="t('payments.invoice')" style="width:10rem" />
             <Column field="method" :header="t('payments.method')">
               <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
             </Column>
-            <Column field="amount" :header="t('payments.amount')" class="text-right font-mono">
+            <Column field="amount" :header="t('payments.amount')" class="app-money">
               <template #body="{ data }">{{ fmt(data.amount) }} €</template>
             </Column>
           </DataTable>
-          <div v-else class="text-gray-400 text-sm py-2">{{ t('contact_history.no_payments') }}</div>
-        </template>
-      </Card>
+        <div v-else class="app-empty-state">{{ t('contact_history.no_payments') }}</div>
+      </AppPanel>
     </template>
 
-    <div v-else class="text-gray-400 text-center mt-12">
+    <div v-else class="app-empty-state">
       {{ t('common.error.notFound') }}
     </div>
 
-    <!-- Confirm dialog -->
     <ConfirmDialog />
     <Toast />
-  </div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -130,7 +105,6 @@ import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
-import Card from 'primevue/card'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
@@ -139,6 +113,10 @@ import Tag from 'primevue/tag'
 import Toast from 'primevue/toast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import AppPage from '../components/ui/AppPage.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPanel from '../components/ui/AppPanel.vue'
+import AppStatCard from '../components/ui/AppStatCard.vue'
 import { getContactHistoryApi, markCreanceDouteuse } from '../api/accounting'
 import type { ContactHistory } from '../api/accounting'
 
@@ -164,6 +142,16 @@ function statusSeverity(status: string): string {
     disputed: 'danger',
   }
   return map[status] ?? 'secondary'
+}
+
+function contactFullName(contact: ContactHistory['contact']): string {
+  return [contact.nom, contact.prenom].filter((value): value is string => typeof value === 'string' && value.length > 0).join(' ')
+}
+
+function contactSubtitle(contact: ContactHistory['contact']): string {
+  return [contact.email, contact.telephone]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .join(' • ')
 }
 
 function confirmMarkDouteux() {
@@ -211,3 +199,31 @@ async function loadHistory() {
 
 onMounted(loadHistory)
 </script>
+
+<style scoped>
+.contact-detail-loading {
+  display: flex;
+  justify-content: center;
+  padding: 4rem 0;
+}
+
+.contact-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  flex-wrap: wrap;
+}
+
+.contact-detail-meta {
+  display: flex;
+  gap: var(--app-space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--app-space-4);
+  color: var(--p-text-muted-color);
+  font-size: 0.95rem;
+}
+
+.contact-detail-due {
+  color: var(--p-red-600);
+}
+</style>

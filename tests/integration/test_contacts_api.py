@@ -13,7 +13,9 @@ class TestListContacts:
         assert response.status_code == 200
         assert response.json() == []
 
-    async def test_returns_created_contacts(self, client: AsyncClient, auth_headers: dict):
+    async def test_returns_created_contacts(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         await client.post(
             "/api/contacts/",
             json={"type": "client", "nom": "Dupont"},
@@ -24,7 +26,9 @@ class TestListContacts:
 
     async def test_filter_by_type(self, client: AsyncClient, auth_headers: dict):
         await client.post(
-            "/api/contacts/", json={"type": "client", "nom": "Client"}, headers=auth_headers
+            "/api/contacts/",
+            json={"type": "client", "nom": "Client"},
+            headers=auth_headers,
         )
         await client.post(
             "/api/contacts/",
@@ -38,10 +42,14 @@ class TestListContacts:
 
     async def test_search_by_name(self, client: AsyncClient, auth_headers: dict):
         await client.post(
-            "/api/contacts/", json={"type": "client", "nom": "Dupont"}, headers=auth_headers
+            "/api/contacts/",
+            json={"type": "client", "nom": "Dupont"},
+            headers=auth_headers,
         )
         await client.post(
-            "/api/contacts/", json={"type": "client", "nom": "Martin"}, headers=auth_headers
+            "/api/contacts/",
+            json={"type": "client", "nom": "Martin"},
+            headers=auth_headers,
         )
         response = await client.get("/api/contacts/?search=dup", headers=auth_headers)
         assert len(response.json()) == 1
@@ -69,7 +77,9 @@ class TestCreateContact:
         assert response.status_code == 422
 
     async def test_requires_auth(self, client: AsyncClient):
-        response = await client.post("/api/contacts/", json={"type": "client", "nom": "Test"})
+        response = await client.post(
+            "/api/contacts/", json={"type": "client", "nom": "Test"}
+        )
         assert response.status_code == 401
 
     async def test_readonly_user_cannot_create(
@@ -89,7 +99,8 @@ class TestCreateContact:
         await db_session.commit()
 
         login = await client.post(
-            "/api/auth/login", data={"username": "readonly", "password": "pass1234567890"}
+            "/api/auth/login",
+            data={"username": "readonly", "password": "pass1234567890"},
         )
         headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
         response = await client.post(
@@ -110,7 +121,9 @@ class TestGetContact:
         assert response.status_code == 200
         assert response.json()["nom"] == "ACME"
 
-    async def test_returns_404_for_unknown(self, client: AsyncClient, auth_headers: dict):
+    async def test_returns_404_for_unknown(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         response = await client.get("/api/contacts/99999", headers=auth_headers)
         assert response.status_code == 404
 
@@ -132,8 +145,12 @@ class TestUpdateContact:
         assert response.json()["nom"] == "Nouveau"
         assert response.json()["type"] == "client"  # unchanged
 
-    async def test_returns_404_for_unknown(self, client: AsyncClient, auth_headers: dict):
-        response = await client.put("/api/contacts/99999", json={"nom": "X"}, headers=auth_headers)
+    async def test_returns_404_for_unknown(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        response = await client.put(
+            "/api/contacts/99999", json={"nom": "X"}, headers=auth_headers
+        )
         assert response.status_code == 404
 
 
@@ -145,17 +162,23 @@ class TestDeleteContact:
             headers=auth_headers,
         )
         contact_id = created.json()["id"]
-        response = await client.delete(f"/api/contacts/{contact_id}", headers=auth_headers)
+        response = await client.delete(
+            f"/api/contacts/{contact_id}", headers=auth_headers
+        )
         assert response.status_code == 204
 
         # Still accessible by id
-        get_response = await client.get(f"/api/contacts/{contact_id}", headers=auth_headers)
+        get_response = await client.get(
+            f"/api/contacts/{contact_id}", headers=auth_headers
+        )
         assert get_response.json()["is_active"] is False
 
         # Not in default list
         list_response = await client.get("/api/contacts/", headers=auth_headers)
         assert all(c["id"] != contact_id for c in list_response.json())
 
-    async def test_returns_404_for_unknown(self, client: AsyncClient, auth_headers: dict):
+    async def test_returns_404_for_unknown(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         response = await client.delete("/api/contacts/99999", headers=auth_headers)
         assert response.status_code == 404

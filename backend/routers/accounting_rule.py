@@ -43,7 +43,9 @@ async def get_rule(
 ) -> AccountingRuleRead:
     rule = await accounting_rule_service.get_rule(db, rule_id)
     if rule is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found"
+        )
     return rule  # type: ignore[return-value]
 
 
@@ -56,7 +58,9 @@ async def update_rule(
 ) -> AccountingRuleRead:
     rule = await accounting_rule_service.get_rule(db, rule_id)
     if rule is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found"
+        )
     updated = await accounting_rule_service.update_rule(db, rule, payload)
     return updated  # type: ignore[return-value]
 
@@ -87,5 +91,7 @@ async def preview_rule(
         entry_date=payload.entry_date,
     )
     if entries is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found"
+        )
     return entries

@@ -52,12 +52,16 @@ async def list_payments(
         query = query.where(Payment.contact_id == contact_id)
     if undeposited_only:
         query = query.where(Payment.deposited == False)  # noqa: E712
-    query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip).limit(limit)
+    query = (
+        query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip).limit(limit)
+    )
     result = await db.execute(query)
     return list(result.scalars().all())
 
 
-async def update_payment(db: AsyncSession, payment: Payment, payload: PaymentUpdate) -> Payment:
+async def update_payment(
+    db: AsyncSession, payment: Payment, payload: PaymentUpdate
+) -> Payment:
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(payment, field, value)
     await db.flush()
@@ -89,7 +93,9 @@ async def _refresh_invoice_status(db: AsyncSession, invoice_id: int) -> None:
     if invoice is None:
         return
 
-    payments_result = await db.execute(select(Payment).where(Payment.invoice_id == invoice_id))
+    payments_result = await db.execute(
+        select(Payment).where(Payment.invoice_id == invoice_id)
+    )
     all_payments = list(payments_result.scalars().all())
     paid = sum(p.amount for p in all_payments) if all_payments else Decimal("0")
     invoice.paid_amount = paid
