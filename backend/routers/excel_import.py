@@ -14,7 +14,9 @@ router = APIRouter(prefix="/import", tags=["import"])
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB hard limit
 
-_WriteAccess = Annotated[User, Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN))]
+_WriteAccess = Annotated[
+    User, Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN))
+]
 
 
 async def _read_limited(upload: UploadFile) -> bytes:

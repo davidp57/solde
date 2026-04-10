@@ -1,57 +1,76 @@
 <template>
-  <div class="salary-view p-4">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-2xl font-semibold">{{ t('salary.title') }}</h2>
-      <Button :label="t('salary.new')" icon="pi pi-plus" @click="openCreateDialog" />
-    </div>
+  <AppPage width="wide">
+    <AppPageHeader :eyebrow="t('ui.page.collection_eyebrow')" :title="t('salary.title')">
+      <template #actions>
+        <Button :label="t('salary.new')" icon="pi pi-plus" @click="openCreateDialog" />
+      </template>
+    </AppPageHeader>
 
-    <!-- Filters -->
-    <div class="flex gap-3 mb-4 flex-wrap">
-      <Select
-        v-model="filterEmployee"
-        :options="employees"
-        option-label="label"
-        option-value="value"
-        :placeholder="t('salary.filter_employee')"
-        show-clear
-        class="w-56"
-        @change="loadSalaries"
-      />
-      <InputText
-        v-model="filterMonth"
-        :placeholder="t('salary.filter_month')"
-        class="w-36"
-        @change="loadSalaries"
-      />
-      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
-    </div>
+    <section class="app-stat-grid">
+      <AppStatCard :label="t('salary.title')" :value="filteredSalaries.length" />
+      <AppStatCard :label="t('salary.gross')" :value="formatAmount(salaryMetrics.gross)" />
+      <AppStatCard :label="t('salary.net_pay')" :value="formatAmount(salaryMetrics.netPay)" tone="success" />
+      <AppStatCard :label="t('salary.total_cost')" :value="formatAmount(salaryMetrics.totalCost)" tone="warn" />
+    </section>
 
-    <!-- Table -->
-    <DataTable
-      :value="filteredSalaries"
-      :loading="loading"
-      striped-rows
-      paginator
-      :rows="20"
-      data-key="id"
-    >
+    <AppPanel :title="t('salary.title')" dense>
+      <div class="app-toolbar">
+        <div class="app-filter-grid">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('salary.filter_employee') }}</label>
+            <Select
+              v-model="filterEmployee"
+              :options="employees"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('salary.filter_employee')"
+              show-clear
+              @change="loadSalaries"
+            />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('salary.filter_month') }}</label>
+            <InputText
+              v-model="filterMonth"
+              :placeholder="t('salary.filter_month')"
+              @change="loadSalaries"
+            />
+          </div>
+          <div class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
+            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+          </div>
+        </div>
+      </div>
+
+      <DataTable
+        :value="filteredSalaries"
+        :loading="loading"
+        class="app-data-table"
+        striped-rows
+        paginator
+        :rows="20"
+        data-key="id"
+        size="small"
+        row-hover
+      >
       <Column field="employee_name" :header="t('salary.employee')" sortable />
       <Column field="month" :header="t('salary.month')" sortable />
       <Column :header="t('salary.hours')">
         <template #body="{ data }">{{ data.hours }}</template>
       </Column>
-      <Column :header="t('salary.gross')">
+      <Column :header="t('salary.gross')" class="app-money">
         <template #body="{ data }">{{ formatAmount(data.gross) }}</template>
       </Column>
-      <Column :header="t('salary.net_pay')">
+      <Column :header="t('salary.net_pay')" class="app-money">
         <template #body="{ data }">{{ formatAmount(data.net_pay) }}</template>
       </Column>
-      <Column :header="t('salary.total_cost')">
+      <Column :header="t('salary.total_cost')" class="app-money">
         <template #body="{ data }">{{ formatAmount(data.total_cost) }}</template>
       </Column>
       <Column :header="t('common.actions')" style="width: 8rem">
         <template #body="{ data }">
-          <div class="flex gap-1">
+          <div class="salary-actions">
             <Button
               icon="pi pi-pencil"
               size="small"
@@ -69,82 +88,104 @@
           </div>
         </template>
       </Column>
-    </DataTable>
+        <template #empty><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template>
+      </DataTable>
+    </AppPanel>
 
-    <!-- Monthly summary -->
-    <div class="mt-8">
-      <h3 class="text-lg font-medium mb-3">{{ t('salary.summary_title') }}</h3>
-      <DataTable :value="filteredSummary" :loading="summaryLoading" striped-rows data-key="month">
+    <AppPanel :title="t('salary.summary_title')" dense>
+      <DataTable :value="filteredSummary" :loading="summaryLoading" class="app-data-table" striped-rows data-key="month" size="small" row-hover>
         <Column field="month" :header="t('salary.month')" sortable />
         <Column field="count" header="#" />
-        <Column :header="t('salary.gross')">
+        <Column :header="t('salary.gross')" class="app-money">
           <template #body="{ data }">{{ formatAmount(data.total_gross) }}</template>
         </Column>
-        <Column :header="t('salary.employer_charges')">
+        <Column :header="t('salary.employer_charges')" class="app-money">
           <template #body="{ data }">{{ formatAmount(data.total_employer_charges) }}</template>
         </Column>
-        <Column :header="t('salary.net_pay')">
+        <Column :header="t('salary.net_pay')" class="app-money">
           <template #body="{ data }">{{ formatAmount(data.total_net_pay) }}</template>
         </Column>
-        <Column :header="t('salary.total_cost')">
+        <Column :header="t('salary.total_cost')" class="app-money">
           <template #body="{ data }">{{ formatAmount(data.total_cost) }}</template>
         </Column>
+        <template #empty><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template>
       </DataTable>
-    </div>
+    </AppPanel>
 
-    <!-- Create / Edit dialog -->
     <Dialog
       v-model:visible="dialogVisible"
       :header="editing ? t('salary.edit') : t('salary.new')"
       modal
-      :style="{ width: '520px' }"
+      class="app-dialog app-dialog--medium"
     >
-      <div class="flex flex-col gap-4 pt-2">
-        <div class="flex flex-col gap-1">
-          <label class="font-medium text-sm">{{ t('salary.employee') }}</label>
-          <Select
-            v-model="form.employee_id"
-            :options="employees"
-            option-label="label"
-            option-value="value"
-            :placeholder="t('salary.employee_placeholder')"
-            class="w-full"
-          />
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="font-medium text-sm">{{ t('salary.month') }}</label>
-          <InputText v-model="form.month" :placeholder="t('salary.month_placeholder')" class="w-full" />
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="flex flex-col gap-1">
-            <label class="font-medium text-sm">{{ t('salary.hours') }}</label>
-            <InputNumber v-model="form.hours" :min-fraction-digits="2" class="w-full" />
+      <div class="app-dialog-form">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ t('salary.title') }}</p>
+          <p class="app-dialog-intro__text">
+            {{ t(isEditing ? 'salary.form_intro_edit' : 'salary.form_intro_create') }}
+          </p>
+        </section>
+        <section class="app-dialog-section">
+          <div class="app-dialog-section__header">
+            <h3 class="app-dialog-section__title">{{ t('salary.group_identity_title') }}</h3>
+            <p class="app-dialog-section__copy">{{ t('salary.group_identity_subtitle') }}</p>
           </div>
-          <div class="flex flex-col gap-1">
-            <label class="font-medium text-sm">{{ t('salary.gross') }}</label>
-            <InputNumber v-model="form.gross" :min-fraction-digits="2" suffix=" €" class="w-full" />
+          <div class="app-form-grid">
+            <div class="app-field app-field--full">
+              <label class="app-field__label">{{ t('salary.employee') }}</label>
+              <Select
+                v-model="form.employee_id"
+                :options="employees"
+                option-label="label"
+                option-value="value"
+                :placeholder="t('salary.employee_placeholder')"
+              />
+            </div>
+            <div class="app-field app-field--full">
+              <label class="app-field__label">{{ t('salary.month') }}</label>
+              <InputText v-model="form.month" :placeholder="t('salary.month_placeholder')" />
+            </div>
           </div>
-          <div class="flex flex-col gap-1">
-            <label class="font-medium text-sm">{{ t('salary.employee_charges') }}</label>
-            <InputNumber v-model="form.employee_charges" :min-fraction-digits="2" suffix=" €" class="w-full" />
+        </section>
+        <section class="app-dialog-section">
+          <div class="app-dialog-section__header">
+            <h3 class="app-dialog-section__title">{{ t('salary.group_amounts_title') }}</h3>
+            <p class="app-dialog-section__copy">{{ t('salary.group_amounts_subtitle') }}</p>
           </div>
-          <div class="flex flex-col gap-1">
-            <label class="font-medium text-sm">{{ t('salary.employer_charges') }}</label>
-            <InputNumber v-model="form.employer_charges" :min-fraction-digits="2" suffix=" €" class="w-full" />
+          <div class="app-form-grid">
+            <div class="app-field">
+              <label class="app-field__label">{{ t('salary.hours') }}</label>
+              <InputNumber v-model="form.hours" :min-fraction-digits="2" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('salary.gross') }}</label>
+              <InputNumber v-model="form.gross" :min-fraction-digits="2" suffix=" €" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('salary.employee_charges') }}</label>
+              <InputNumber v-model="form.employee_charges" :min-fraction-digits="2" suffix=" €" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('salary.employer_charges') }}</label>
+              <InputNumber v-model="form.employer_charges" :min-fraction-digits="2" suffix=" €" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('salary.tax') }}</label>
+              <InputNumber v-model="form.tax" :min-fraction-digits="2" suffix=" €" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('salary.net_pay') }}</label>
+              <InputNumber v-model="form.net_pay" :min-fraction-digits="2" suffix=" €" />
+            </div>
           </div>
-          <div class="flex flex-col gap-1">
-            <label class="font-medium text-sm">{{ t('salary.tax') }}</label>
-            <InputNumber v-model="form.tax" :min-fraction-digits="2" suffix=" €" class="w-full" />
+        </section>
+        <section class="app-dialog-section">
+          <div class="app-field app-field--full">
+            <label class="app-field__label">{{ t('salary.notes') }}</label>
+            <Textarea v-model="form.notes" rows="2" />
+            <small class="app-dialog-note">{{ t('salary.notes_help') }}</small>
           </div>
-          <div class="flex flex-col gap-1">
-            <label class="font-medium text-sm">{{ t('salary.net_pay') }}</label>
-            <InputNumber v-model="form.net_pay" :min-fraction-digits="2" suffix=" €" class="w-full" />
-          </div>
-        </div>
-        <div class="flex flex-col gap-1">
-          <label class="font-medium text-sm">{{ t('salary.notes') }}</label>
-          <Textarea v-model="form.notes" rows="2" class="w-full" />
-        </div>
+        </section>
       </div>
       <template #footer>
         <Button :label="t('common.cancel')" severity="secondary" text @click="dialogVisible = false" />
@@ -152,10 +193,9 @@
       </template>
     </Dialog>
 
-    <!-- Confirm delete -->
     <ConfirmDialog />
     <Toast />
-  </div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -173,6 +213,10 @@ import Textarea from 'primevue/textarea'
 import Toast from 'primevue/toast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import AppPage from '../components/ui/AppPage.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPanel from '../components/ui/AppPanel.vue'
+import AppStatCard from '../components/ui/AppStatCard.vue'
 import {
   listSalariesApi,
   getSalarySummaryApi,
@@ -195,6 +239,17 @@ const salaries = ref<SalaryRead[]>([])
 const summary = ref<SalarySummaryRow[]>([])
 const { filterText, filtered: filteredSalaries } = useTableFilter(salaries)
 const filteredSummary = computed(() => applyFilter(summary.value, filterText.value))
+const salaryMetrics = computed(() =>
+  filteredSalaries.value.reduce(
+    (accumulator, salary) => {
+      accumulator.gross += salary.gross
+      accumulator.netPay += salary.net_pay
+      accumulator.totalCost += salary.total_cost
+      return accumulator
+    },
+    { gross: 0, netPay: 0, totalCost: 0 },
+  ),
+)
 const employees = ref<EmployeeOption[]>([])
 const loading = ref(false)
 const summaryLoading = ref(false)
@@ -204,6 +259,7 @@ const filterMonth = ref('')
 const dialogVisible = ref(false)
 const editing = ref<SalaryRead | null>(null)
 const saving = ref(false)
+const isEditing = computed(() => editing.value !== null)
 
 interface SalaryForm {
   employee_id: number | null
@@ -325,7 +381,8 @@ function confirmDelete(salary: SalaryRead) {
     message: t('salary.confirm_delete', { employee: salary.employee_name, month: salary.month }),
     header: t('common.confirm'),
     icon: 'pi pi-exclamation-triangle',
-    acceptSeverity: 'danger',
+    acceptProps: { severity: 'danger', label: t('common.delete') },
+    rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
     accept: async () => {
       await deleteSalaryApi(salary.id)
       toast.add({ severity: 'success', summary: t('salary.deleted'), life: 2000 })
@@ -339,3 +396,10 @@ onMounted(async () => {
   await Promise.all([loadEmployees(), loadSalaries(), loadSummary()])
 })
 </script>
+
+<style scoped>
+.salary-actions {
+  display: flex;
+  gap: var(--app-space-1);
+}
+</style>

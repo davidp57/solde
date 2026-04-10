@@ -13,7 +13,9 @@ class TestGetSettings:
         response = await client.get("/api/settings/", headers=auth_headers)
         assert response.status_code == 200
 
-    async def test_returns_default_settings(self, client: AsyncClient, auth_headers: dict):
+    async def test_returns_default_settings(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         response = await client.get("/api/settings/", headers=auth_headers)
         data = response.json()
 
@@ -23,7 +25,9 @@ class TestGetSettings:
         assert data["smtp_port"] == 587
         assert data["smtp_use_tls"] is True
 
-    async def test_does_not_expose_smtp_password(self, client: AsyncClient, auth_headers: dict):
+    async def test_does_not_expose_smtp_password(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         response = await client.get("/api/settings/", headers=auth_headers)
         data = response.json()
         assert "smtp_password" not in data
@@ -34,7 +38,9 @@ class TestUpdateSettings:
         response = await client.put("/api/settings/", json={"association_name": "X"})
         assert response.status_code == 401
 
-    async def test_update_association_name(self, client: AsyncClient, auth_headers: dict):
+    async def test_update_association_name(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         response = await client.put(
             "/api/settings/",
             json={"association_name": "Soutien Scolaire Test"},
@@ -72,7 +78,9 @@ class TestUpdateSettings:
         assert data["association_name"] == "Asso Updated"
         assert data["fiscal_year_start_month"] == 9  # unchanged
 
-    async def test_invalid_fiscal_year_month(self, client: AsyncClient, auth_headers: dict):
+    async def test_invalid_fiscal_year_month(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         response = await client.put(
             "/api/settings/",
             json={"fiscal_year_start_month": 13},

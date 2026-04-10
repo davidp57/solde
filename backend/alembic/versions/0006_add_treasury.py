@@ -29,7 +29,9 @@ def upgrade() -> None:
         sa.Column("reference", sa.String(100), nullable=True),
         sa.Column("description", sa.Text(), nullable=False),
         sa.Column("balance_after", sa.Numeric(10, 2), nullable=False),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False
+        ),
         sa.ForeignKeyConstraint(["contact_id"], ["contacts.id"]),
         sa.ForeignKeyConstraint(["payment_id"], ["payments.id"]),
         sa.PrimaryKeyConstraint("id"),
@@ -37,8 +39,12 @@ def upgrade() -> None:
     op.create_index("ix_cash_register_id", "cash_register", ["id"], unique=False)
     op.create_index("ix_cash_register_date", "cash_register", ["date"], unique=False)
     op.create_index("ix_cash_register_type", "cash_register", ["type"], unique=False)
-    op.create_index("ix_cash_register_contact_id", "cash_register", ["contact_id"], unique=False)
-    op.create_index("ix_cash_register_payment_id", "cash_register", ["payment_id"], unique=False)
+    op.create_index(
+        "ix_cash_register_contact_id", "cash_register", ["contact_id"], unique=False
+    )
+    op.create_index(
+        "ix_cash_register_payment_id", "cash_register", ["payment_id"], unique=False
+    )
 
     op.create_table(
         "cash_counts",
@@ -61,7 +67,9 @@ def upgrade() -> None:
         sa.Column("balance_expected", sa.Numeric(10, 2), nullable=False),
         sa.Column("difference", sa.Numeric(10, 2), nullable=False),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_cash_counts_id", "cash_counts", ["id"], unique=False)
@@ -78,13 +86,22 @@ def upgrade() -> None:
         sa.Column("reconciled", sa.Boolean(), nullable=False),
         sa.Column("reconciled_with", sa.String(100), nullable=True),
         sa.Column("source", sa.String(10), nullable=False),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_bank_transactions_id", "bank_transactions", ["id"], unique=False)
-    op.create_index("ix_bank_transactions_date", "bank_transactions", ["date"], unique=False)
     op.create_index(
-        "ix_bank_transactions_reconciled", "bank_transactions", ["reconciled"], unique=False
+        "ix_bank_transactions_id", "bank_transactions", ["id"], unique=False
+    )
+    op.create_index(
+        "ix_bank_transactions_date", "bank_transactions", ["date"], unique=False
+    )
+    op.create_index(
+        "ix_bank_transactions_reconciled",
+        "bank_transactions",
+        ["reconciled"],
+        unique=False,
     )
 
     op.create_table(
@@ -95,7 +112,9 @@ def upgrade() -> None:
         sa.Column("total_amount", sa.Numeric(10, 2), nullable=False),
         sa.Column("bank_reference", sa.String(100), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_deposits_id", "deposits", ["id"], unique=False)

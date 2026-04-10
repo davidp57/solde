@@ -37,7 +37,9 @@ class UserCreate(BaseModel):
     @classmethod
     def username_alphanumeric(cls, v: str) -> str:
         if not v.replace("_", "").replace("-", "").isalnum():
-            raise ValueError("Username must be alphanumeric (underscores and hyphens allowed)")
+            raise ValueError(
+                "Username must be alphanumeric (underscores and hyphens allowed)"
+            )
         return v
 
 

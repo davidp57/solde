@@ -67,7 +67,9 @@ async def get_contact(
     """Get a single contact by ID."""
     contact = await contact_service.get_contact(db, contact_id)
     if contact is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found"
+        )
     return contact  # type: ignore[return-value]
 
 
@@ -81,7 +83,9 @@ async def update_contact(
     """Partially update a contact."""
     contact = await contact_service.get_contact(db, contact_id)
     if contact is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found"
+        )
     return await contact_service.update_contact(db, contact, payload)  # type: ignore[return-value]
 
 
@@ -94,7 +98,9 @@ async def delete_contact(
     """Soft-delete a contact (marks as inactive)."""
     contact = await contact_service.get_contact(db, contact_id)
     if contact is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found"
+        )
     await contact_service.delete_contact(db, contact)
 
 
@@ -107,7 +113,9 @@ async def get_contact_history(
     """Get full history of a contact: invoices, payments, and balance due."""
     history = await contact_service.get_contact_history(db, contact_id)
     if history is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found"
+        )
     return history
 
 

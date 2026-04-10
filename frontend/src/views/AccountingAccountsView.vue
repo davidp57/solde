@@ -1,8 +1,8 @@
 <template>
-  <div class="accounting-accounts-view p-4">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-2xl font-semibold">{{ t('accounting.accounts.title') }}</h2>
-      <div class="flex gap-2">
+  <AppPage width="wide">
+    <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('accounting.accounts.title')">
+      <template #actions>
+        <div class="app-page-header__actions">
         <Button
           :label="t('accounting.accounts.seed')"
           icon="pi pi-database"
@@ -15,11 +15,12 @@
           icon="pi pi-plus"
           @click="openCreateDialog"
         />
-      </div>
-    </div>
+        </div>
+      </template>
+    </AppPageHeader>
 
-    <!-- Type filter tabs -->
-    <div class="flex gap-2 mb-4 flex-wrap">
+    <AppPanel :title="t('accounting.accounts.title')" dense>
+      <div class="account-type-toolbar">
       <Button
         v-for="opt in typeOptions"
         :key="opt.value ?? 'all'"
@@ -28,10 +29,18 @@
         size="small"
         @click="typeFilter = opt.value; void loadAccounts()"
       />
-      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
-    </div>
+      </div>
 
-    <DataTable :value="filtered" :loading="loading" striped-rows data-key="id">
+      <div class="app-toolbar">
+        <div class="app-filter-grid">
+          <div class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
+            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+          </div>
+        </div>
+      </div>
+
+    <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows data-key="id" size="small" row-hover>
       <Column field="number" :header="t('accounting.accounts.number')" sortable style="width:8rem" />
       <Column field="label" :header="t('accounting.accounts.label')" sortable />
       <Column field="type" :header="t('accounting.accounts.type')" style="width:7rem">
@@ -55,14 +64,16 @@
           />
         </template>
       </Column>
+      <template #empty><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template>
     </DataTable>
+    </AppPanel>
 
     <!-- Create / Edit Dialog -->
     <Dialog
       v-model:visible="dialogVisible"
       :header="editingAccount ? t('accounting.accounts.edit') : t('accounting.accounts.new')"
       modal
-      :style="{ width: '440px' }"
+      class="app-dialog app-dialog--medium account-dialog"
     >
       <AccountForm
         :account="editingAccount"
@@ -72,7 +83,7 @@
     </Dialog>
 
     <Toast />
-  </div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -86,6 +97,9 @@ import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppPage from '@/components/ui/AppPage.vue'
+import AppPageHeader from '@/components/ui/AppPageHeader.vue'
+import AppPanel from '@/components/ui/AppPanel.vue'
 import {
   listAccountsApi,
   seedAccountsApi,
@@ -177,3 +191,20 @@ function onSaved(): void {
 
 onMounted(loadAccounts)
 </script>
+
+<style scoped>
+.account-type-toolbar {
+  display: flex;
+  gap: var(--app-space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--app-space-4);
+}
+
+.account-dialog :deep(.p-dialog-header) {
+  padding-bottom: var(--app-space-3);
+}
+
+.account-dialog :deep(.p-dialog-content) {
+  padding-top: 0;
+}
+</style>

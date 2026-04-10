@@ -92,11 +92,15 @@ async def get_resultat(
     _: _ReadAccess,
     fiscal_year_id: int | None = Query(default=None),
 ) -> ResultatRead:
-    return await accounting_entry_service.get_resultat(db, fiscal_year_id=fiscal_year_id)
+    return await accounting_entry_service.get_resultat(
+        db, fiscal_year_id=fiscal_year_id
+    )
 
 
 @router.post(
-    "/manual", response_model=list[AccountingEntryRead], status_code=status.HTTP_201_CREATED
+    "/manual",
+    response_model=list[AccountingEntryRead],
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_manual_entry(
     payload: ManualEntryCreate,
@@ -172,7 +176,9 @@ async def export_resultat_csv(
     fiscal_year_id: int | None = Query(default=None),
 ) -> Response:
     """Download compte de résultat as CSV."""
-    content = await export_service.export_resultat_csv(db, fiscal_year_id=fiscal_year_id)
+    content = await export_service.export_resultat_csv(
+        db, fiscal_year_id=fiscal_year_id
+    )
     return Response(
         content=content,
         media_type="text/csv; charset=utf-8",

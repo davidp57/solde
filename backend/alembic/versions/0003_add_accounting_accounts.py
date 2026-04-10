@@ -30,9 +30,15 @@ def upgrade() -> None:
         sa.Column("is_active", sa.Boolean(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_accounting_accounts_id", "accounting_accounts", ["id"], unique=False)
-    op.create_index("ix_accounting_accounts_number", "accounting_accounts", ["number"], unique=True)
-    op.create_index("ix_accounting_accounts_type", "accounting_accounts", ["type"], unique=False)
+    op.create_index(
+        "ix_accounting_accounts_id", "accounting_accounts", ["id"], unique=False
+    )
+    op.create_index(
+        "ix_accounting_accounts_number", "accounting_accounts", ["number"], unique=True
+    )
+    op.create_index(
+        "ix_accounting_accounts_type", "accounting_accounts", ["type"], unique=False
+    )
 
 
 def downgrade() -> None:

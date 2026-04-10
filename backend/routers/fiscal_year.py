@@ -56,7 +56,9 @@ async def get_fiscal_year(
 ) -> FiscalYearRead:
     fy = await fiscal_year_service.get_fiscal_year(db, fy_id)
     if fy is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found"
+        )
     return fy  # type: ignore[return-value]
 
 
@@ -72,7 +74,9 @@ async def pre_close_checks(
     """
     fy = await fiscal_year_service.get_fiscal_year(db, fy_id)
     if fy is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found"
+        )
     return await fiscal_year_service.pre_close_checks(db, fy)
 
 
@@ -84,7 +88,9 @@ async def close_fiscal_year(
 ) -> FiscalYearRead:
     fy = await fiscal_year_service.get_fiscal_year(db, fy_id)
     if fy is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found"
+        )
     try:
         closed = await fiscal_year_service.close_fiscal_year(db, fy)
     except FiscalYearError as exc:
@@ -108,7 +114,9 @@ async def open_new_fiscal_year(
     """Open a new fiscal year from a closed one, generating report-à-nouveau entries."""
     closed_fy = await fiscal_year_service.get_fiscal_year(db, fy_id)
     if closed_fy is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found"
+        )
     try:
         new_fy = await fiscal_year_service.open_new_fiscal_year(db, closed_fy, payload)
     except FiscalYearError as exc:

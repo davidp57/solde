@@ -13,12 +13,18 @@ def upgrade() -> None:
     op.create_table(
         "salaries",
         sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("employee_id", sa.Integer(), sa.ForeignKey("contacts.id"), nullable=False),
+        sa.Column(
+            "employee_id", sa.Integer(), sa.ForeignKey("contacts.id"), nullable=False
+        ),
         sa.Column("month", sa.String(7), nullable=False),
         sa.Column("hours", sa.Numeric(8, 2), nullable=False, server_default="0"),
         sa.Column("gross", sa.Numeric(10, 2), nullable=False),
-        sa.Column("employee_charges", sa.Numeric(10, 2), nullable=False, server_default="0"),
-        sa.Column("employer_charges", sa.Numeric(10, 2), nullable=False, server_default="0"),
+        sa.Column(
+            "employee_charges", sa.Numeric(10, 2), nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "employer_charges", sa.Numeric(10, 2), nullable=False, server_default="0"
+        ),
         sa.Column("tax", sa.Numeric(10, 2), nullable=False, server_default="0"),
         sa.Column("net_pay", sa.Numeric(10, 2), nullable=False),
         sa.Column("notes", sa.Text(), nullable=True),

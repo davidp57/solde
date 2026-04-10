@@ -1,57 +1,69 @@
 <template>
-  <form @submit.prevent="submit">
-    <div class="flex flex-col gap-4">
-      <!-- Contact -->
-      <div class="flex flex-col gap-1">
-        <label class="font-medium">{{ t('invoices.contact') }}</label>
-        <Select
-          v-model="form.contact_id"
-          :options="contacts"
-          option-label="nom"
-          option-value="id"
-          :placeholder="t('invoices.contact_placeholder')"
-          filter
-          class="w-full"
-          required
-        />
-      </div>
+  <form class="app-dialog-form" @submit.prevent="submit">
+    <section class="app-dialog-intro">
+      <p class="app-dialog-intro__eyebrow">{{ t('invoices.client.title') }}</p>
+      <p class="app-dialog-intro__text">{{ t(isEditing ? 'invoices.client.form_intro_edit' : 'invoices.client.form_intro_create') }}</p>
+    </section>
 
-      <!-- Date / Due date -->
-      <div class="flex gap-3">
-        <div class="flex flex-col gap-1 flex-1">
-          <label class="font-medium">{{ t('invoices.date') }}</label>
-          <DatePicker v-model="form.date" date-format="dd/mm/yy" class="w-full" required />
-        </div>
-        <div class="flex flex-col gap-1 flex-1">
-          <label class="font-medium">{{ t('invoices.due_date') }}</label>
-          <DatePicker v-model="form.due_date" date-format="dd/mm/yy" class="w-full" show-clear />
-        </div>
+    <section class="app-dialog-section">
+      <div class="app-dialog-section__header">
+        <h3 class="app-dialog-section__title">{{ t('invoices.client.identity_title') }}</h3>
+        <p class="app-dialog-section__copy">{{ t('invoices.client.identity_subtitle') }}</p>
       </div>
-
-      <!-- Label / Description -->
-      <div class="flex gap-3">
-        <div class="flex flex-col gap-1 flex-1">
-          <label class="font-medium">{{ t('invoices.label') }}</label>
+      <div class="invoice-form">
+        <div class="app-field">
+          <label class="app-field__label">{{ t('invoices.contact') }}</label>
           <Select
-            v-model="form.label"
-            :options="labelOptions"
-            option-label="label"
-            option-value="value"
-            :placeholder="t('invoices.label_placeholder')"
-            show-clear
+            v-model="form.contact_id"
+            :options="contacts"
+            option-label="nom"
+            option-value="id"
+            :placeholder="t('invoices.contact_placeholder')"
+            filter
             class="w-full"
+            required
           />
         </div>
-        <div class="flex flex-col gap-1 flex-1">
-          <label class="font-medium">{{ t('invoices.description') }}</label>
-          <InputText v-model="form.description" class="w-full" />
+
+        <div class="app-form-grid">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('invoices.date') }}</label>
+            <DatePicker v-model="form.date" date-format="dd/mm/yy" class="w-full" required />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('invoices.due_date') }}</label>
+            <DatePicker v-model="form.due_date" date-format="dd/mm/yy" class="w-full" show-clear />
+          </div>
+        </div>
+
+        <div class="app-form-grid">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('invoices.label') }}</label>
+            <Select
+              v-model="form.label"
+              :options="labelOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('invoices.label_placeholder')"
+              show-clear
+              class="w-full"
+            />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('invoices.description') }}</label>
+            <InputText v-model="form.description" class="w-full" />
+          </div>
         </div>
       </div>
+    </section>
 
-      <!-- Lines -->
-      <div>
-        <div class="flex items-center justify-between mb-2">
-          <label class="font-medium">{{ t('invoices.lines') }}</label>
+      <section class="invoice-form__lines app-dialog-section">
+        <div class="app-dialog-section__header">
+          <h3 class="app-dialog-section__title">{{ t('invoices.client.lines_title') }}</h3>
+          <p class="app-dialog-section__copy">{{ t('invoices.client.lines_subtitle') }}</p>
+        </div>
+        <div class="invoice-form__lines-header">
+          <label class="app-field__label">{{ t('invoices.lines') }}</label>
           <Button
             :label="t('invoices.add_line')"
             icon="pi pi-plus"
@@ -64,29 +76,29 @@
         <div
           v-for="(line, idx) in form.lines"
           :key="idx"
-          class="flex gap-2 items-center mb-2"
+          class="invoice-form__line-row"
         >
           <InputText
             v-model="line.description"
             :placeholder="t('invoices.line_description')"
-            class="flex-1"
+            class="invoice-form__description"
           />
           <InputNumber
             v-model="line.quantity"
             :placeholder="t('invoices.line_qty')"
             :min="0"
             :max-fraction-digits="3"
-            class="w-24"
+            class="invoice-form__quantity"
           />
           <InputNumber
             v-model="line.unit_price"
             :placeholder="t('invoices.line_price')"
             :min="0"
             :max-fraction-digits="2"
-            class="w-28"
+            class="invoice-form__price"
             suffix=" €"
           />
-          <span class="w-24 text-right text-sm font-medium">
+          <span class="invoice-form__total">
             {{ lineAmount(line) }} €
           </span>
           <Button
@@ -98,17 +110,15 @@
             @click="removeLine(idx)"
           />
         </div>
-        <div class="text-right font-bold mt-1">
+        <div class="invoice-form__grand-total">
           {{ t('invoices.total') }}: {{ computedTotal }} €
         </div>
-      </div>
+      </section>
 
-      <!-- Actions -->
-      <div class="flex justify-end gap-2 mt-2">
+      <div class="app-form-actions">
         <Button :label="t('common.cancel')" severity="secondary" type="button" outlined @click="emit('cancel')" />
         <Button :label="t('common.save')" type="submit" :loading="saving" />
       </div>
-    </div>
   </form>
 </template>
 
@@ -137,6 +147,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 const saving = ref(false)
+const isEditing = computed(() => props.invoice !== null)
 
 interface LineForm {
   description: string
@@ -217,7 +228,7 @@ watch(
 )
 
 function formatDate(d: Date): string {
-  return d.toISOString().split('T')[0]
+  return d.toISOString().slice(0, 10)
 }
 
 async function submit() {
@@ -254,3 +265,67 @@ onMounted(() => {
   if (form.lines.length === 0 && !props.invoice) addLine()
 })
 </script>
+
+<style scoped>
+.invoice-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-5);
+}
+
+.invoice-form__lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
+  border-radius: var(--app-surface-radius-sm);
+  background: color-mix(in srgb, var(--app-surface-bg) 84%, transparent 16%);
+  border: 1px solid var(--app-surface-border);
+}
+
+.invoice-form__lines-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  flex-wrap: wrap;
+}
+
+.invoice-form__line-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) 110px 140px 110px auto;
+  gap: var(--app-space-3);
+  align-items: center;
+}
+
+.invoice-form__description,
+.invoice-form__quantity,
+.invoice-form__price {
+  width: 100%;
+}
+
+.invoice-form__total {
+  text-align: right;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-form__grand-total {
+  text-align: right;
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .invoice-form__line-row {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-form__total,
+  .invoice-form__grand-total {
+    text-align: left;
+  }
+}
+</style>

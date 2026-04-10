@@ -40,7 +40,9 @@ def create_access_token(
         else timedelta(minutes=settings.jwt_access_token_expire_minutes)
     )
     payload["exp"] = expire
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return jwt.encode(
+        payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+    )
 
 
 def create_refresh_token(username: str) -> str:
@@ -60,7 +62,9 @@ def decode_access_token(token: str) -> dict[str, Any] | None:
     """
     settings = get_settings()
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
+        )
         return payload
     except JWTError:
         return None

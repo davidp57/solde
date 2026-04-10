@@ -35,8 +35,12 @@ class AccountingEntry(Base):
     # Denormalized account number (no FK — history must survive account changes)
     account_number: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     label: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    debit: Mapped[_Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=Decimal("0"))
-    credit: Mapped[_Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=Decimal("0"))
+    debit: Mapped[_Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=Decimal("0")
+    )
+    credit: Mapped[_Decimal] = mapped_column(
+        Numeric(12, 2), nullable=False, default=Decimal("0")
+    )
     fiscal_year_id: Mapped[int | None] = mapped_column(
         ForeignKey("fiscal_years.id"), nullable=True, index=True
     )
