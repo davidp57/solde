@@ -18,10 +18,22 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
+import { useDarkMode } from '../composables/useDarkMode'
 
 const emit = defineEmits<{ navigate: [] }>()
 const { t } = useI18n()
 const auth = useAuthStore()
+const { isDark } = useDarkMode()
+
+const activeItemBg = computed(() =>
+  isDark.value ? 'rgba(52, 211, 153, 0.12)' : 'var(--p-primary-50)',
+)
+const activeItemColor = computed(() =>
+  isDark.value ? 'var(--p-primary-300)' : 'var(--p-primary-color)',
+)
+const hoverBg = computed(() =>
+  isDark.value ? 'var(--p-surface-800)' : 'var(--p-surface-100)',
+)
 
 const menuItems = computed(() => {
   const items = [
@@ -74,12 +86,12 @@ const menuItems = computed(() => {
 }
 
 .nav-item:hover {
-  background: var(--p-surface-100);
+  background: v-bind(hoverBg);
 }
 
 .nav-item--active {
-  background: var(--p-primary-50);
-  color: var(--p-primary-color);
+  background: v-bind(activeItemBg);
+  color: v-bind(activeItemColor);
   font-weight: 500;
 }
 

@@ -41,10 +41,6 @@
     <div class="layout-body">
       <!-- Desktop sidebar -->
       <aside class="sidebar">
-        <div class="sidebar-header">
-          <span class="sidebar-logo">⚖️</span>
-          <span class="sidebar-title">{{ t('app.name') }}</span>
-        </div>
         <NavMenu />
         <div class="sidebar-footer">
           <div class="sidebar-user">
@@ -97,7 +93,6 @@ const sidebarVisible = ref(false)
 const panelBg = computed(() => isDark.value ? 'var(--p-surface-900)' : 'var(--p-surface-0)')
 const mainBg = computed(() => isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-50)')
 const borderColor = computed(() => isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)')
-const borderSubtle = computed(() => isDark.value ? 'var(--p-surface-800)' : 'var(--p-surface-100)')
 
 async function handleLogout(): Promise<void> {
   auth.logout()
@@ -170,22 +165,6 @@ async function handleLogout(): Promise<void> {
   min-height: calc(100vh - 53px);
 }
 
-.sidebar-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1.25rem 1rem 1rem;
-  border-bottom: 1px solid v-bind(borderSubtle);
-}
-
-.sidebar-logo {
-  font-size: 1.5rem;
-}
-
-.sidebar-title {
-  font-weight: 700;
-  font-size: 1rem;
-}
 
 .sidebar-footer {
   margin-top: auto;
