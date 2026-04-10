@@ -58,6 +58,7 @@ import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Card from 'primevue/card'
+import { useDarkMode } from '../composables/useDarkMode'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
 import Button from 'primevue/button'
@@ -68,6 +69,9 @@ const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const { isDark } = useDarkMode()
+
+const wrapperBg = computed(() => isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-100)')
 
 const username = ref('')
 const password = ref('')
@@ -100,7 +104,7 @@ async function handleSubmit(): Promise<void> {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--p-surface-100);
+  background: v-bind(wrapperBg);
   padding: 1rem;
 }
 
