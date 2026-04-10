@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
@@ -92,6 +92,12 @@ const auth = useAuthStore()
 const { isDark, toggle: toggleDark } = useDarkMode()
 
 const sidebarVisible = ref(false)
+
+// Reactive backgrounds for dark/light mode (v-bind in CSS)
+const panelBg = computed(() => isDark.value ? 'var(--p-surface-900)' : 'var(--p-surface-0)')
+const mainBg = computed(() => isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-50)')
+const borderColor = computed(() => isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)')
+const borderSubtle = computed(() => isDark.value ? 'var(--p-surface-800)' : 'var(--p-surface-100)')
 
 async function handleLogout(): Promise<void> {
   auth.logout()
@@ -111,8 +117,8 @@ async function handleLogout(): Promise<void> {
   display: flex;
   align-items: center;
   padding: 0.5rem 1rem;
-  background: var(--p-surface-0);
-  border-bottom: 1px solid var(--p-surface-200);
+  background: v-bind(panelBg);
+  border-bottom: 1px solid v-bind(borderColor);
   gap: 0.75rem;
   position: sticky;
   top: 0;
@@ -159,8 +165,8 @@ async function handleLogout(): Promise<void> {
   flex-direction: column;
   width: 240px;
   flex-shrink: 0;
-  background: var(--p-surface-0);
-  border-right: 1px solid var(--p-surface-200);
+  background: v-bind(panelBg);
+  border-right: 1px solid v-bind(borderColor);
   min-height: calc(100vh - 53px);
 }
 
@@ -169,7 +175,7 @@ async function handleLogout(): Promise<void> {
   align-items: center;
   gap: 0.75rem;
   padding: 1.25rem 1rem 1rem;
-  border-bottom: 1px solid var(--p-surface-100);
+  border-bottom: 1px solid v-bind(borderSubtle);
 }
 
 .sidebar-logo {
@@ -186,7 +192,7 @@ async function handleLogout(): Promise<void> {
   display: flex;
   align-items: center;
   padding: 0.75rem 1rem;
-  border-top: 1px solid var(--p-surface-100);
+  border-top: 1px solid v-bind(borderSubtle);
   gap: 0.5rem;
 }
 
@@ -215,7 +221,7 @@ async function handleLogout(): Promise<void> {
   flex: 1;
   padding: 1.5rem;
   overflow-y: auto;
-  background: var(--p-surface-50);
+  background: v-bind(mainBg);
   min-height: calc(100vh - 53px);
 }
 
