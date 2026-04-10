@@ -70,7 +70,9 @@ class TestUpdateSettings:
         )
 
         # Update only one field — the other must remain unchanged
-        settings = await update_settings(db_session, AppSettingsUpdate(association_name="Asso B"))
+        settings = await update_settings(
+            db_session, AppSettingsUpdate(association_name="Asso B")
+        )
         assert settings.association_name == "Asso B"
         assert settings.smtp_port == 465
 

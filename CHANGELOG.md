@@ -22,10 +22,18 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `index.html` : script inline synchrone pour appliquer la classe `.dark-mode` avant le rendu (suppression du flash blanc au chargement)
 - `index.html` : titre corrigé « Solde ⚖️ », `lang="fr"`
 
+**Frontend — système d’interface partagé**
+- `AppPage.vue`, `AppPageHeader.vue`, `AppPanel.vue`, `AppStatCard.vue` : primitives communes pour homogénéiser les pages, les en-têtes, les panneaux et les cartes de synthèse
+- `main.css` : langage visuel partagé pour les mises en page, les métriques, les en-têtes de contenu et les dialogues de formulaire
+
 ### Modifié
 
 **Outillage**
 - `dev.ps1` : remplacement de `Start-Process pwsh` (2 fenêtres séparées) par `Start-Job` — backend et frontend tournent dans la même session PowerShell, Ctrl+C arrête les deux proprement
+
+**Frontend — modernisation de l’interface**
+- Refonte des vues principales avec une présentation plus aérée et cohérente : tableau de bord, contacts, détail contact, factures clients et fournisseurs, paiements, banque, caisse, import Excel, exercices, salaires et écrans comptables (journal, balance, grand livre, résultat, bilan, règles, plan comptable)
+- Harmonisation des dialogues et formulaires métier avec une structure commune (introduction, sections, aides contextuelles) pour les comptes comptables, contacts, factures, salaires, dépôts bancaires, imports, opérations de caisse et saisie manuelle d’écritures
 
 **Frontend — mode sombre (dark mode)**
 - `AppLayout.vue`, `LoginView.vue`, `NavMenu.vue`, `SettingsView.vue` : fonds et couleurs rendus réactifs via `v-bind()` CSS couplé à des `computed` Vue (les tokens `--p-surface-N` du thème Aura sont absolus, non réactifs au mode)

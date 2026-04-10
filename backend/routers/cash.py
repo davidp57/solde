@@ -46,7 +46,9 @@ async def list_entries(
     return entries  # type: ignore[return-value]
 
 
-@router.post("/entries", response_model=CashEntryRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/entries", response_model=CashEntryRead, status_code=status.HTTP_201_CREATED
+)
 async def add_entry(
     payload: CashEntryCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -67,7 +69,9 @@ async def list_counts(
     return counts  # type: ignore[return-value]
 
 
-@router.post("/counts", response_model=CashCountRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/counts", response_model=CashCountRead, status_code=status.HTTP_201_CREATED
+)
 async def add_count(
     payload: CashCountCreate,
     db: Annotated[AsyncSession, Depends(get_db)],

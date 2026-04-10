@@ -1,49 +1,76 @@
 <template>
-  <div class="supplier-invoices-view p-4">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-2xl font-semibold">{{ t('invoices.supplier.title') }}</h2>
-      <Button :label="t('invoices.new')" icon="pi pi-plus" @click="openCreateDialog" />
-    </div>
-
-    <!-- Filters -->
-    <div class="flex gap-3 mb-4 flex-wrap">
-      <Select
-        v-model="statusFilter"
-        :options="statusOptions"
-        option-label="label"
-        option-value="value"
-        :placeholder="t('invoices.filter_status')"
-        show-clear
-        class="w-48"
-        @change="loadInvoices"
-      />
-      <InputNumber
-        v-model="yearFilter"
-        :placeholder="t('invoices.filter_year')"
-        class="w-28"
-        :use-grouping="false"
-        @blur="loadInvoices"
-      />
-      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
-    </div>
-
-    <!-- Table -->
-    <DataTable
-      :value="filtered"
-      :loading="loading"
-      striped-rows
-      paginator
-      :rows="20"
-      :rows-per-page-options="[10, 20, 50]"
-      data-key="id"
+  <AppPage>
+    <AppPageHeader
+      :eyebrow="t('ui.page.collection_eyebrow')"
+      :title="t('invoices.supplier.title')"
+      :subtitle="t('invoices.supplier.subtitle')"
     >
+      <template #actions>
+        <Button :label="t('invoices.new')" icon="pi pi-plus" @click="openCreateDialog" />
+      </template>
+    </AppPageHeader>
+
+    <section class="app-stat-grid">
+      <AppStatCard :label="t('invoices.supplier.metrics.visible_count')" :value="filtered.length" :caption="t('invoices.supplier.metrics.total_count', { count: invoices.length })" />
+      <AppStatCard :label="t('invoices.supplier.metrics.total_amount')" :value="formatAmount(totalAmount) + ' €'" :caption="t('invoices.supplier.metrics.files_attached', { count: attachedFilesCount })" />
+      <AppStatCard :label="t('invoices.supplier.metrics.overdue_count')" :value="overdueCount" :caption="t('invoices.supplier.metrics.pending_count', { count: pendingCount })" tone="warn" />
+    </section>
+
+    <AppPanel :title="t('invoices.supplier.workspace_title')" :subtitle="t('invoices.supplier.workspace_subtitle')">
+      <div class="app-toolbar">
+        <div class="app-toolbar__meta">
+          <p class="app-toolbar__hint">{{ t('invoices.supplier.filters_hint') }}</p>
+          <span class="app-chip">{{ t('invoices.supplier.results_label', { count: filtered.length }) }}</span>
+        </div>
+
+        <div class="app-filter-grid">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('invoices.filter_status') }}</label>
+            <Select
+              v-model="statusFilter"
+              :options="statusOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              show-clear
+              @change="loadInvoices"
+            />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('invoices.filter_year') }}</label>
+            <InputNumber
+              v-model="yearFilter"
+              :placeholder="t('invoices.filter_year')"
+              :use-grouping="false"
+              @blur="loadInvoices"
+            />
+          </div>
+          <div class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
+            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+          </div>
+        </div>
+      </div>
+
+      <DataTable
+        :value="filtered"
+        :loading="loading"
+        class="app-data-table supplier-invoices-table"
+        striped-rows
+        paginator
+        :rows="20"
+        :rows-per-page-options="[10, 20, 50]"
+        data-key="id"
+        size="small"
+        row-hover
+      >
       <Column field="number" :header="t('invoices.number')" sortable />
       <Column field="date" :header="t('invoices.date')" sortable />
       <Column field="contact_id" :header="t('invoices.contact')">
         <template #body="{ data }">{{ contactName(data.contact_id) }}</template>
       </Column>
       <Column field="reference" :header="t('invoices.reference')" />
-      <Column field="total_amount" :header="t('invoices.total')">
+      <Column field="total_amount" :header="t('invoices.total')" class="app-money">
         <template #body="{ data }">{{ formatAmount(data.total_amount) }} €</template>
       </Column>
       <Column field="status" :header="t('invoices.status')">
@@ -59,9 +86,9 @@
           <i v-if="data.file_path" class="pi pi-paperclip text-primary" />
         </template>
       </Column>
-      <Column :header="t('common.actions')" style="width: 10rem">
+      <Column :header="t('common.actions')" class="supplier-invoices-table__actions">
         <template #body="{ data }">
-          <div class="flex gap-1">
+          <div class="app-inline-actions">
             <Button
               icon="pi pi-pencil"
               size="small"
@@ -87,14 +114,17 @@
           </div>
         </template>
       </Column>
-    </DataTable>
+        <template #empty>
+          <div class="app-empty-state">{{ t('invoices.supplier.empty') }}</div>
+        </template>
+      </DataTable>
+    </AppPanel>
 
-    <!-- Create / Edit Dialog -->
     <Dialog
       v-model:visible="dialogVisible"
       :header="editingInvoice ? t('invoices.edit') : t('invoices.new')"
       modal
-      :style="{ width: '560px' }"
+      class="app-dialog app-dialog--medium"
     >
       <SupplierInvoiceForm
         :invoice="editingInvoice"
@@ -104,23 +134,28 @@
       />
     </Dialog>
 
-    <!-- Upload Dialog -->
     <Dialog
       v-model:visible="uploadDialogVisible"
       :header="t('invoices.upload_file')"
       modal
-      :style="{ width: '400px' }"
+      class="app-dialog app-dialog--medium"
     >
-      <div class="flex flex-col gap-3">
-        <FileUpload
-          mode="basic"
-          accept=".pdf,.jpg,.jpeg,.png,.webp"
-          :max-file-size="10000000"
-          :auto="false"
-          :choose-label="t('invoices.choose_file')"
-          @select="onFileSelect"
-        />
-        <div class="flex justify-end gap-2 mt-2">
+      <div class="app-dialog-form upload-dialog">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ t('invoices.file') }}</p>
+          <p class="app-dialog-intro__text">{{ t('invoices.supplier.upload_intro') }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <FileUpload
+            mode="basic"
+            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            :max-file-size="10000000"
+            :auto="false"
+            :choose-label="t('invoices.choose_file')"
+            @select="onFileSelect"
+          />
+        </section>
+        <div class="app-form-actions">
           <Button
             :label="t('common.cancel')"
             severity="secondary"
@@ -138,7 +173,7 @@
     </Dialog>
 
     <ConfirmDialog />
-  </div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
@@ -154,8 +189,12 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppPage from '../components/ui/AppPage.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPanel from '../components/ui/AppPanel.vue'
+import AppStatCard from '../components/ui/AppStatCard.vue'
 
 import { listContactsApi, type Contact } from '../api/contacts'
 import {
@@ -184,6 +223,10 @@ const selectedFile = ref<File | null>(null)
 const uploading = ref(false)
 const statusFilter = ref<InvoiceStatus | null>(null)
 const yearFilter = ref<number | null>(new Date().getFullYear())
+const totalAmount = computed(() => filtered.value.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0))
+const attachedFilesCount = computed(() => filtered.value.filter((invoice) => Boolean(invoice.file_path)).length)
+const overdueCount = computed(() => filtered.value.filter((invoice) => invoice.status === 'overdue').length)
+const pendingCount = computed(() => filtered.value.filter((invoice) => invoice.status === 'sent' || invoice.status === 'partial').length)
 
 const statusOptions = [
   { label: t('invoices.statuses.draft'), value: 'draft' },
@@ -194,8 +237,8 @@ const statusOptions = [
   { label: t('invoices.statuses.disputed'), value: 'disputed' },
 ]
 
-function formatAmount(val: string) {
-  return parseFloat(val).toFixed(2)
+function formatAmount(val: string | number) {
+  return parseFloat(String(val)).toFixed(2)
 }
 
 function contactName(id: number): string {
@@ -277,7 +320,8 @@ function confirmDelete(invoice: Invoice) {
     message: t('invoices.confirm_delete', { number: invoice.number }),
     header: t('common.confirm'),
     icon: 'pi pi-exclamation-triangle',
-    acceptSeverity: 'danger',
+    acceptProps: { severity: 'danger', label: t('common.delete') },
+    rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
     accept: async () => {
       try {
         await deleteInvoiceApi(invoice.id)
@@ -295,3 +339,15 @@ onMounted(() => {
   loadContacts()
 })
 </script>
+
+<style scoped>
+.supplier-invoices-table__actions {
+  width: 9rem;
+}
+
+.upload-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+</style>

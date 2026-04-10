@@ -42,9 +42,13 @@ async def test_dashboard_empty_db(client: AsyncClient, auth_headers: dict) -> No
 
 
 @pytest.mark.asyncio
-async def test_monthly_chart_returns_list(client: AsyncClient, auth_headers: dict) -> None:
+async def test_monthly_chart_returns_list(
+    client: AsyncClient, auth_headers: dict
+) -> None:
     """GET /api/dashboard/chart/monthly returns a list."""
-    response = await client.get("/api/dashboard/chart/monthly?year=2025", headers=auth_headers)
+    response = await client.get(
+        "/api/dashboard/chart/monthly?year=2025", headers=auth_headers
+    )
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 

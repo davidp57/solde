@@ -4,14 +4,20 @@ from httpx import AsyncClient
 
 
 class TestSeedAccounts:
-    async def test_seed_inserts_24_accounts(self, client: AsyncClient, auth_headers: dict):
-        response = await client.post("/api/accounting/accounts/seed", headers=auth_headers)
+    async def test_seed_inserts_24_accounts(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        response = await client.post(
+            "/api/accounting/accounts/seed", headers=auth_headers
+        )
         assert response.status_code == 200
         assert response.json()["inserted"] == 24
 
     async def test_seed_is_idempotent(self, client: AsyncClient, auth_headers: dict):
         await client.post("/api/accounting/accounts/seed", headers=auth_headers)
-        response = await client.post("/api/accounting/accounts/seed", headers=auth_headers)
+        response = await client.post(
+            "/api/accounting/accounts/seed", headers=auth_headers
+        )
         assert response.json()["inserted"] == 0
 
     async def test_requires_admin_or_tresorier(
@@ -31,7 +37,8 @@ class TestSeedAccounts:
         await db_session.commit()
 
         login = await client.post(
-            "/api/auth/login", data={"username": "secretaire", "password": "pass1234567890"}
+            "/api/auth/login",
+            data={"username": "secretaire", "password": "pass1234567890"},
         )
         headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
         response = await client.post("/api/accounting/accounts/seed", headers=headers)
@@ -39,19 +46,25 @@ class TestSeedAccounts:
 
 
 class TestListAccounts:
-    async def test_returns_empty_before_seed(self, client: AsyncClient, auth_headers: dict):
+    async def test_returns_empty_before_seed(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         response = await client.get("/api/accounting/accounts/", headers=auth_headers)
         assert response.status_code == 200
         assert response.json() == []
 
-    async def test_returns_all_after_seed(self, client: AsyncClient, auth_headers: dict):
+    async def test_returns_all_after_seed(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         await client.post("/api/accounting/accounts/seed", headers=auth_headers)
         response = await client.get("/api/accounting/accounts/", headers=auth_headers)
         assert len(response.json()) == 24
 
     async def test_filter_by_type(self, client: AsyncClient, auth_headers: dict):
         await client.post("/api/accounting/accounts/seed", headers=auth_headers)
-        response = await client.get("/api/accounting/accounts/?type=produit", headers=auth_headers)
+        response = await client.get(
+            "/api/accounting/accounts/?type=produit", headers=auth_headers
+        )
         data = response.json()
         assert all(a["type"] == "produit" for a in data)
 
@@ -68,7 +81,9 @@ class TestCreateAccount:
         assert data["number"] == "999999"
         assert data["is_default"] is False
 
-    async def test_rejects_duplicate_number(self, client: AsyncClient, auth_headers: dict):
+    async def test_rejects_duplicate_number(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         await client.post(
             "/api/accounting/accounts/",
             json={"number": "999999", "label": "Premier", "type": "charge"},
@@ -81,7 +96,9 @@ class TestCreateAccount:
         )
         assert response.status_code == 409
 
-    async def test_rejects_non_digit_number(self, client: AsyncClient, auth_headers: dict):
+    async def test_rejects_non_digit_number(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         response = await client.post(
             "/api/accounting/accounts/",
             json={"number": "ABC123", "label": "Test", "type": "charge"},
@@ -106,7 +123,9 @@ class TestUpdateAccount:
         assert response.status_code == 200
         assert response.json()["label"] == "Nouveau libellé"
 
-    async def test_returns_404_for_unknown(self, client: AsyncClient, auth_headers: dict):
+    async def test_returns_404_for_unknown(
+        self, client: AsyncClient, auth_headers: dict
+    ):
         response = await client.put(
             "/api/accounting/accounts/99999",
             json={"label": "X"},

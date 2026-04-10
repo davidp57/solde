@@ -14,7 +14,9 @@ async def test_get_bilan_requires_auth(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_bilan_no_fiscal_year(client: AsyncClient, auth_headers: dict) -> None:
+async def test_get_bilan_no_fiscal_year(
+    client: AsyncClient, auth_headers: dict
+) -> None:
     """Without a fiscal year, bilan should return empty totals."""
     response = await client.get("/api/accounting/entries/bilan", headers=auth_headers)
     assert response.status_code == 200

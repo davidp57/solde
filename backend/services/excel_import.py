@@ -54,7 +54,9 @@ def _parse_decimal(value: Any) -> Decimal | None:
         return None
     try:
         # Handle French locale: "1 234,56" → "1234.56"
-        cleaned = str(value).strip().replace("\xa0", "").replace(" ", "").replace(",", ".")
+        cleaned = (
+            str(value).strip().replace("\xa0", "").replace(" ", "").replace(",", ".")
+        )
         return Decimal(cleaned)
     except InvalidOperation:
         return None
@@ -173,7 +175,9 @@ async def import_comptabilite_file(db: AsyncSession, file_bytes: bytes) -> Impor
 # ---------------------------------------------------------------------------
 
 
-def _detect_header_row(ws: Any, keywords: list[str]) -> tuple[int, dict[str, int]] | None:
+def _detect_header_row(
+    ws: Any, keywords: list[str]
+) -> tuple[int, dict[str, int]] | None:
     """Find the header row and return (row_index, {col_name: col_index})."""
     for row_idx, row in enumerate(ws.iter_rows(max_row=20, values_only=True), start=1):
         row_lower = [_parse_str(c).lower() for c in row]
@@ -186,7 +190,9 @@ def _detect_header_row(ws: Any, keywords: list[str]) -> tuple[int, dict[str, int
     return None
 
 
-async def _import_contacts_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
+async def _import_contacts_sheet(
+    db: AsyncSession, ws: Any, result: ImportResult
+) -> None:
     """Import contacts from a sheet."""
     from sqlalchemy import select  # noqa: PLC0415
 
@@ -200,24 +206,40 @@ async def _import_contacts_sheet(db: AsyncSession, ws: Any, result: ImportResult
     header_row, col_map = header_info
 
     for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
-        nom_idx = next((col_map[k] for k in col_map if "nom" in k and "prenom" not in k), None)
-        prenom_idx = next((col_map[k] for k in col_map if "prenom" in k or "prénom" in k), None)
-        email_idx = next((col_map[k] for k in col_map if "email" in k or "mail" in k), None)
+        nom_idx = next(
+            (col_map[k] for k in col_map if "nom" in k and "prenom" not in k), None
+        )
+        prenom_idx = next(
+            (col_map[k] for k in col_map if "prenom" in k or "prénom" in k), None
+        )
+        email_idx = next(
+            (col_map[k] for k in col_map if "email" in k or "mail" in k), None
+        )
 
-        nom = _parse_str(row[nom_idx]) if nom_idx is not None and nom_idx < len(row) else ""
+        nom = (
+            _parse_str(row[nom_idx])
+            if nom_idx is not None and nom_idx < len(row)
+            else ""
+        )
         if not nom:
             continue
 
         prenom = (
-            _parse_str(row[prenom_idx]) if prenom_idx is not None and prenom_idx < len(row) else ""
+            _parse_str(row[prenom_idx])
+            if prenom_idx is not None and prenom_idx < len(row)
+            else ""
         )
         email = (
-            _parse_str(row[email_idx]) if email_idx is not None and email_idx < len(row) else None
+            _parse_str(row[email_idx])
+            if email_idx is not None and email_idx < len(row)
+            else None
         )
 
         # Idempotency: skip if contact with same nom+prenom exists
         existing = await db.execute(
-            select(Contact).where(Contact.nom == nom, Contact.prenom == (prenom or None))
+            select(Contact).where(
+                Contact.nom == nom, Contact.prenom == (prenom or None)
+            )
         )
         if existing.scalars().first() is not None:
             result.skipped += 1
@@ -241,7 +263,9 @@ async def _import_contacts_sheet(db: AsyncSession, ws: Any, result: ImportResult
         await db.rollback()
 
 
-async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
+async def _import_invoices_sheet(
+    db: AsyncSession, ws: Any, result: ImportResult
+) -> None:
     """Import invoices from a sheet with flexible column detection."""
     from sqlalchemy import select  # noqa: PLC0415
 
@@ -262,9 +286,15 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
 
     # Map column positions
     date_idx = next((col_map[k] for k in col_map if "date" in k), None)
-    montant_idx = next((col_map[k] for k in col_map if "montant" in k or "total" in k), None)
+    montant_idx = next(
+        (col_map[k] for k in col_map if "montant" in k or "total" in k), None
+    )
     nom_idx = next(
-        (col_map[k] for k in col_map if "nom" in k and "prenom" not in k and "prénom" not in k),
+        (
+            col_map[k]
+            for k in col_map
+            if "nom" in k and "prenom" not in k and "prénom" not in k
+        ),
         None,
     )
     # Exclude the date column from number detection to avoid date values as invoice numbers
@@ -303,7 +333,9 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
             continue
 
         invoice_date = (
-            _parse_date(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
+            _parse_date(row[date_idx])
+            if date_idx is not None and date_idx < len(row)
+            else None
         )
         if invoice_date is None:
             invoice_date = date.today()
@@ -323,7 +355,9 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
         if nom_idx is not None and nom_idx < len(row):
             nom = _parse_str(row[nom_idx])
             if nom:
-                existing = await db.execute(select(Contact).where(Contact.nom.ilike(f"%{nom}%")))
+                existing = await db.execute(
+                    select(Contact).where(Contact.nom.ilike(f"%{nom}%"))
+                )
                 c = existing.scalars().first()
                 if c:
                     contact_id = c.id
@@ -334,7 +368,10 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
                     contact_id = new_contact.id
                     result.contacts_created += 1
                     logger.debug(
-                        "Row %d — created contact '%s' (id=%s)", row_count + 1, nom, contact_id
+                        "Row %d — created contact '%s' (id=%s)",
+                        row_count + 1,
+                        nom,
+                        contact_id,
                     )
         if contact_id is None:
             result.skipped += 1
@@ -360,16 +397,22 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
         # Deduplicate within the current batch (avoid UNIQUE constraint in same flush)
         if number_raw in seen_numbers:
             logger.debug(
-                "Row %d — duplicate number '%s' in batch, skipping", row_count + 1, number_raw
+                "Row %d — duplicate number '%s' in batch, skipping",
+                row_count + 1,
+                number_raw,
             )
             result.skipped += 1
             continue
 
         # Idempotency: skip if already in DB
-        existing_inv = await db.execute(select(Invoice).where(Invoice.number == number_raw))
+        existing_inv = await db.execute(
+            select(Invoice).where(Invoice.number == number_raw)
+        )
         if existing_inv.scalar_one_or_none() is not None:
             logger.debug(
-                "Row %d — invoice '%s' already exists, skipping", row_count + 1, number_raw
+                "Row %d — invoice '%s' already exists, skipping",
+                row_count + 1,
+                number_raw,
             )
             result.skipped += 1
             continue
@@ -401,14 +444,18 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
     try:
         await db.flush()
         # Generate accounting entries for each new invoice (no-op if no rules configured)
-        from backend.services.accounting_engine import generate_entries_for_invoice  # noqa: PLC0415
+        from backend.services.accounting_engine import (
+            generate_entries_for_invoice,
+        )  # noqa: PLC0415
 
         for inv_obj in created_invoices:
             try:
                 entries = await generate_entries_for_invoice(db, inv_obj)
                 result.entries_created += len(entries)
             except Exception as e:
-                logger.warning("Accounting entries skipped for invoice '%s': %s", inv_obj.number, e)
+                logger.warning(
+                    "Accounting entries skipped for invoice '%s': %s", inv_obj.number, e
+                )
         logger.info(
             "Invoices import done — created=%d skipped=%d entries=%d",
             result.invoices_created,
@@ -421,7 +468,9 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
         await db.rollback()
 
 
-async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
+async def _import_payments_sheet(
+    db: AsyncSession, ws: Any, result: ImportResult
+) -> None:
     """Import payments from a sheet."""
     from sqlalchemy import select  # noqa: PLC0415
 
@@ -439,9 +488,15 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
     date_idx = next((col_map[k] for k in col_map if "date" in k), None)
     montant_idx = next((col_map[k] for k in col_map if "montant" in k), None)
     mode_idx = next((col_map[k] for k in col_map if "mode" in k or "règl" in k), None)
-    invoice_idx = next((col_map[k] for k in col_map if "facture" in k or "num" in k), None)
+    invoice_idx = next(
+        (col_map[k] for k in col_map if "facture" in k or "num" in k), None
+    )
     nom_idx = next(
-        (col_map[k] for k in col_map if "nom" in k and "prenom" not in k and "prénom" not in k),
+        (
+            col_map[k]
+            for k in col_map
+            if "nom" in k and "prenom" not in k and "prénom" not in k
+        ),
         None,
     )
 
@@ -466,7 +521,9 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
             continue
 
         pay_date = (
-            _parse_date(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
+            _parse_date(row[date_idx])
+            if date_idx is not None and date_idx < len(row)
+            else None
         )
         if pay_date is None:
             pay_date = date.today()
@@ -503,7 +560,9 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
         if invoice_id is None and nom_idx is not None and nom_idx < len(row):
             nom = _parse_str(row[nom_idx])
             if nom:
-                c_result = await db.execute(select(Contact).where(Contact.nom.ilike(f"%{nom}%")))
+                c_result = await db.execute(
+                    select(Contact).where(Contact.nom.ilike(f"%{nom}%"))
+                )
                 c = c_result.scalars().first()
                 if c:
                     contact_id = c.id
@@ -550,7 +609,9 @@ async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult
     try:
         await db.flush()
         # Refresh invoice statuses and generate accounting entries
-        from backend.services.accounting_engine import generate_entries_for_payment  # noqa: PLC0415
+        from backend.services.accounting_engine import (
+            generate_entries_for_payment,
+        )  # noqa: PLC0415
         from backend.services.payment import _refresh_invoice_status  # noqa: PLC0415
 
         for inv_id in affected_invoice_ids:
@@ -593,15 +654,19 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
 
     date_idx = next((col_map[k] for k in col_map if "date" in k), None)
     entree_idx = next(
-        (col_map[k] for k in col_map if "entr" in k or "recette" in k or "crédit" in k), None
+        (col_map[k] for k in col_map if "entr" in k or "recette" in k or "crédit" in k),
+        None,
     )
     sortie_idx = next(
-        (col_map[k] for k in col_map if "sort" in k or "dépense" in k or "débit" in k), None
+        (col_map[k] for k in col_map if "sort" in k or "dépense" in k or "débit" in k),
+        None,
     )
     montant_idx = next(
-        (col_map[k] for k in col_map if "montant" in k or "total" in k)
-        if entree_idx is None
-        else iter([]),
+        (
+            (col_map[k] for k in col_map if "montant" in k or "total" in k)
+            if entree_idx is None
+            else iter([])
+        ),
         None,
     )
     type_idx = (
@@ -625,7 +690,9 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
             continue
 
         entry_date = (
-            _parse_date(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
+            _parse_date(row[date_idx])
+            if date_idx is not None and date_idx < len(row)
+            else None
         )
         if entry_date is None:
             continue
@@ -650,7 +717,9 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
             elif sortie and sortie > 0:
                 amount, movement_type = sortie, CashMovementType.OUT
         elif montant_idx is not None:
-            amount = _parse_decimal(row[montant_idx] if montant_idx < len(row) else None)
+            amount = _parse_decimal(
+                row[montant_idx] if montant_idx < len(row) else None
+            )
             raw_type = _parse_str(
                 row[type_idx] if type_idx is not None and type_idx < len(row) else None
             ).lower()
@@ -693,7 +762,10 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
     Expected columns (flexible): date | libellé | débit | crédit | solde
     or: date | description | montant (positive=credit, negative=debit)
     """
-    from backend.models.bank import BankTransaction, BankTransactionSource  # noqa: PLC0415
+    from backend.models.bank import (
+        BankTransaction,
+        BankTransactionSource,
+    )  # noqa: PLC0415
 
     header_info = (
         _detect_header_row(ws, ["date", "débit"])
@@ -707,8 +779,12 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
     header_row, col_map = header_info
 
     date_idx = next((col_map[k] for k in col_map if "date" in k), None)
-    debit_idx = next((col_map[k] for k in col_map if "débit" in k or "debit" in k), None)
-    credit_idx = next((col_map[k] for k in col_map if "crédit" in k or "credit" in k), None)
+    debit_idx = next(
+        (col_map[k] for k in col_map if "débit" in k or "debit" in k), None
+    )
+    credit_idx = next(
+        (col_map[k] for k in col_map if "crédit" in k or "credit" in k), None
+    )
     montant_idx = (
         next((col_map[k] for k in col_map if "montant" in k), None)
         if debit_idx is None and credit_idx is None
@@ -722,7 +798,9 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
         ),
         None,
     )
-    solde_idx = next((col_map[k] for k in col_map if "solde" in k or "balance" in k), None)
+    solde_idx = next(
+        (col_map[k] for k in col_map if "solde" in k or "balance" in k), None
+    )
 
     row_num = 0
     for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
@@ -731,7 +809,9 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
             continue
 
         entry_date = (
-            _parse_date(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
+            _parse_date(row[date_idx])
+            if date_idx is not None and date_idx < len(row)
+            else None
         )
         if entry_date is None:
             continue
@@ -790,11 +870,16 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
         await db.rollback()
 
 
-async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
+async def _import_entries_sheet(
+    db: AsyncSession, ws: Any, result: ImportResult
+) -> None:
     """Import accounting entries from a comptabilité sheet."""
     from sqlalchemy import func, select  # noqa: PLC0415
 
-    from backend.models.accounting_entry import AccountingEntry, EntrySourceType  # noqa: PLC0415
+    from backend.models.accounting_entry import (
+        AccountingEntry,
+        EntrySourceType,
+    )  # noqa: PLC0415
 
     header_info = _detect_header_row(ws, ["compte", "débit"])
     if header_info is None:
@@ -807,9 +892,15 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
 
     date_idx = next((col_map[k] for k in col_map if "date" in k), None)
     compte_idx = next((col_map[k] for k in col_map if "compte" in k), None)
-    libelle_idx = next((col_map[k] for k in col_map if "libel" in k or "label" in k), None)
-    debit_idx = next((col_map[k] for k in col_map if "débit" in k or "debit" in k), None)
-    credit_idx = next((col_map[k] for k in col_map if "crédit" in k or "credit" in k), None)
+    libelle_idx = next(
+        (col_map[k] for k in col_map if "libel" in k or "label" in k), None
+    )
+    debit_idx = next(
+        (col_map[k] for k in col_map if "débit" in k or "debit" in k), None
+    )
+    credit_idx = next(
+        (col_map[k] for k in col_map if "crédit" in k or "credit" in k), None
+    )
 
     if compte_idx is None or (debit_idx is None and credit_idx is None):
         result.skipped += 1
@@ -826,24 +917,38 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
             continue
 
         entry_date = (
-            _parse_date(row[date_idx]) if date_idx is not None and date_idx < len(row) else None
+            _parse_date(row[date_idx])
+            if date_idx is not None and date_idx < len(row)
+            else None
         )
         if entry_date is None:
             entry_date = date.today()
 
-        compte = _parse_str(row[compte_idx] if compte_idx < len(row) else None, max_len=20)
+        compte = _parse_str(
+            row[compte_idx] if compte_idx < len(row) else None, max_len=20
+        )
         if not compte:
             continue
 
-        raw_debit = row[debit_idx] if debit_idx is not None and debit_idx < len(row) else None
+        raw_debit = (
+            row[debit_idx] if debit_idx is not None and debit_idx < len(row) else None
+        )
         debit = _parse_decimal(raw_debit) or Decimal("0")
-        raw_credit = row[credit_idx] if credit_idx is not None and credit_idx < len(row) else None
+        raw_credit = (
+            row[credit_idx]
+            if credit_idx is not None and credit_idx < len(row)
+            else None
+        )
         credit = _parse_decimal(raw_credit) or Decimal("0")
 
         if debit == 0 and credit == 0:
             continue
 
-        raw_label = row[libelle_idx] if libelle_idx is not None and libelle_idx < len(row) else None
+        raw_label = (
+            row[libelle_idx]
+            if libelle_idx is not None and libelle_idx < len(row)
+            else None
+        )
         label = _parse_str(raw_label, max_len=500) or "Import Excel"
 
         local_offset += 1
@@ -914,7 +1019,9 @@ def _preview_sheet_gestion(ws: Any, sheet_name: str, preview: PreviewResult) -> 
     is_contact = any(k in sheet_lower for k in ("contact", "fourniss"))
     is_payment = any(k in sheet_lower for k in ("paie", "règl", "encaiss"))
 
-    montant_idx = next((col_map[k] for k in col_map if "montant" in k or "total" in k), None)
+    montant_idx = next(
+        (col_map[k] for k in col_map if "montant" in k or "total" in k), None
+    )
     nom_idx = next((col_map[k] for k in col_map if "nom" in k), None)
 
     for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
@@ -945,7 +1052,9 @@ def _preview_sheet_gestion(ws: Any, sheet_name: str, preview: PreviewResult) -> 
         preview.estimated_invoices += count
 
 
-def _preview_sheet_comptabilite(ws: Any, sheet_name: str, preview: PreviewResult) -> None:
+def _preview_sheet_comptabilite(
+    ws: Any, sheet_name: str, preview: PreviewResult
+) -> None:
     """Count parseable accounting entry rows."""
     header_info = _detect_header_row(ws, ["compte", "débit"])
     if header_info is None:
@@ -956,15 +1065,21 @@ def _preview_sheet_comptabilite(ws: Any, sheet_name: str, preview: PreviewResult
 
     header_row, col_map = header_info
     compte_idx = next((col_map[k] for k in col_map if "compte" in k), None)
-    debit_idx = next((col_map[k] for k in col_map if "débit" in k or "debit" in k), None)
-    credit_idx = next((col_map[k] for k in col_map if "crédit" in k or "credit" in k), None)
+    debit_idx = next(
+        (col_map[k] for k in col_map if "débit" in k or "debit" in k), None
+    )
+    credit_idx = next(
+        (col_map[k] for k in col_map if "crédit" in k or "credit" in k), None
+    )
 
     count = 0
     for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
         if all(c is None for c in row):
             continue
         compte = _parse_str(
-            row[compte_idx] if compte_idx is not None and compte_idx < len(row) else None
+            row[compte_idx]
+            if compte_idx is not None and compte_idx < len(row)
+            else None
         )
         if not compte:
             continue
@@ -972,13 +1087,18 @@ def _preview_sheet_comptabilite(ws: Any, sheet_name: str, preview: PreviewResult
             row[debit_idx] if debit_idx is not None and debit_idx < len(row) else None
         ) or Decimal("0")
         c = _parse_decimal(
-            row[credit_idx] if credit_idx is not None and credit_idx < len(row) else None
+            row[credit_idx]
+            if credit_idx is not None and credit_idx < len(row)
+            else None
         ) or Decimal("0")
         if d != 0 or c != 0:
             count += 1
             if len(preview.sample_rows) < 5:
                 preview.sample_rows.append(
-                    {k: _parse_str(row[v] if v < len(row) else None) for k, v in col_map.items()}
+                    {
+                        k: _parse_str(row[v] if v < len(row) else None)
+                        for k, v in col_map.items()
+                    }
                 )
 
     preview.sheets.append({"name": sheet_name, "rows": count})

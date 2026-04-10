@@ -171,7 +171,7 @@ async function handleLogout(): Promise<void> {
   display: flex;
   align-items: center;
   padding: 0.75rem 1rem;
-  border-top: 1px solid v-bind(borderSubtle);
+  border-top: 1px solid v-bind(borderColor);
   gap: 0.5rem;
 }
 
@@ -198,7 +198,7 @@ async function handleLogout(): Promise<void> {
 /* Main content */
 .main-content {
   flex: 1;
-  padding: 1.5rem;
+  padding: var(--app-page-padding);
   overflow-y: auto;
   background: v-bind(mainBg);
   min-height: calc(100vh - 53px);

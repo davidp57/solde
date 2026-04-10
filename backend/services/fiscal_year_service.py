@@ -69,7 +69,9 @@ async def pre_close_checks(db: AsyncSession, fy: FiscalYear) -> list[str]:
     warnings: list[str] = []
 
     if fy.status != FiscalYearStatus.OPEN:
-        warnings.append(f"L'exercice '{fy.name}' n'est pas ouvert (statut : {fy.status}).")
+        warnings.append(
+            f"L'exercice '{fy.name}' n'est pas ouvert (statut : {fy.status})."
+        )
         return warnings  # no further checks possible
 
     # Check 1: total debits == total credits for this FY
@@ -172,7 +174,10 @@ async def open_new_fiscal_year(
     await db.flush()
 
     # Compute balance of actif/passif accounts for the closed FY
-    from backend.models.accounting_account import AccountingAccount, AccountType  # noqa: PLC0415
+    from backend.models.accounting_account import (
+        AccountingAccount,
+        AccountType,
+    )  # noqa: PLC0415
     from backend.services.accounting_engine import _next_entry_number  # noqa: PLC0415
 
     entries_result = await db.execute(

@@ -55,14 +55,18 @@ class TestListAccounts:
         await seed_default_accounts(db_session)
         accounts = await list_accounts(db_session)
         account = accounts[0]
-        await update_account(db_session, account, AccountingAccountUpdate(is_active=False))
+        await update_account(
+            db_session, account, AccountingAccountUpdate(is_active=False)
+        )
         active = await list_accounts(db_session)
         assert len(active) == 23
 
     async def test_includes_inactive_when_requested(self, db_session: AsyncSession):
         await seed_default_accounts(db_session)
         accounts = await list_accounts(db_session)
-        await update_account(db_session, accounts[0], AccountingAccountUpdate(is_active=False))
+        await update_account(
+            db_session, accounts[0], AccountingAccountUpdate(is_active=False)
+        )
         all_accounts = await list_accounts(db_session, active_only=False)
         assert len(all_accounts) == 24
 
@@ -97,7 +101,9 @@ class TestCreateAccount:
         assert account.number == "999999"
 
     async def test_is_active_by_default(self, db_session: AsyncSession):
-        payload = AccountingAccountCreate(number="888888", label="Test", type=AccountType.PRODUIT)
+        payload = AccountingAccountCreate(
+            number="888888", label="Test", type=AccountType.PRODUIT
+        )
         account = await create_account(db_session, payload)
         assert account.is_active is True
 

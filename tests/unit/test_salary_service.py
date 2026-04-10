@@ -9,7 +9,9 @@ from backend.models.contact import Contact, ContactType
 from backend.schemas.salary import SalaryCreate
 
 
-async def _make_employee(db: AsyncSession, nom: str = "Dupont", prenom: str = "Jean") -> Contact:
+async def _make_employee(
+    db: AsyncSession, nom: str = "Dupont", prenom: str = "Jean"
+) -> Contact:
     c = Contact(type=ContactType.CLIENT, nom=nom, prenom=prenom)
     db.add(c)
     await db.flush()

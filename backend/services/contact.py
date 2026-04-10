@@ -62,7 +62,9 @@ async def list_contacts(
     return list(result.scalars().all())
 
 
-async def update_contact(db: AsyncSession, contact: Contact, payload: ContactUpdate) -> Contact:
+async def update_contact(
+    db: AsyncSession, contact: Contact, payload: ContactUpdate
+) -> Contact:
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(contact, field, value)
     await db.commit()
@@ -76,7 +78,9 @@ async def delete_contact(db: AsyncSession, contact: Contact) -> None:
     await db.commit()
 
 
-async def get_contact_history(db: AsyncSession, contact_id: int) -> ContactHistory | None:
+async def get_contact_history(
+    db: AsyncSession, contact_id: int
+) -> ContactHistory | None:
     """Return the full history of a contact: invoices, payments, and balance."""
     contact = await get_contact(db, contact_id)
     if contact is None:
@@ -84,7 +88,9 @@ async def get_contact_history(db: AsyncSession, contact_id: int) -> ContactHisto
 
     # Fetch invoices
     inv_result = await db.execute(
-        select(Invoice).where(Invoice.contact_id == contact_id).order_by(Invoice.date.desc())
+        select(Invoice)
+        .where(Invoice.contact_id == contact_id)
+        .order_by(Invoice.date.desc())
     )
     invoices_raw = list(inv_result.scalars().all())
 
@@ -123,8 +129,12 @@ async def get_contact_history(db: AsyncSession, contact_id: int) -> ContactHisto
         for row in payments_raw
     ]
 
-    total_invoiced = sum((Decimal(str(inv.total_amount)) for inv in invoices_raw), Decimal("0"))
-    total_paid_inv = sum((Decimal(str(inv.paid_amount)) for inv in invoices_raw), Decimal("0"))
+    total_invoiced = sum(
+        (Decimal(str(inv.total_amount)) for inv in invoices_raw), Decimal("0")
+    )
+    total_paid_inv = sum(
+        (Decimal(str(inv.paid_amount)) for inv in invoices_raw), Decimal("0")
+    )
 
     contact_read = ContactRead.model_validate(contact)
 
@@ -153,7 +163,9 @@ async def mark_creance_douteuse(
 
     # Sum balance due across all open invoices for this contact
     balance_result = await db.execute(
-        select(func.coalesce(func.sum(Invoice.total_amount - Invoice.paid_amount), 0)).where(
+        select(
+            func.coalesce(func.sum(Invoice.total_amount - Invoice.paid_amount), 0)
+        ).where(
             Invoice.contact_id == contact_id,
             Invoice.status.in_([InvoiceStatus.SENT, InvoiceStatus.PARTIAL]),
         )

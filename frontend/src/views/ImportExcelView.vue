@@ -1,20 +1,22 @@
 <template>
-  <div class="import-excel-view p-4">
-    <h2 class="text-2xl font-semibold mb-2">{{ t('import.title') }}</h2>
-    <p class="text-gray-500 mb-6">{{ t('import.subtitle') }}</p>
+  <AppPage>
+    <AppPageHeader
+      :eyebrow="t('ui.page.collection_eyebrow')"
+      :title="t('import.title')"
+      :subtitle="t('import.subtitle')"
+    />
 
-    <Card class="max-w-xl">
-      <template #content>
-        <div class="flex flex-col gap-5">
+    <AppPanel :title="t('import.type_label')" :subtitle="t('import.preview_subtitle')">
+      <div class="import-form">
           <!-- File type selection -->
-          <div class="flex flex-col gap-1">
-            <label class="font-medium text-sm">{{ t('import.type_label') }}</label>
-            <div class="flex gap-4 mt-1">
-              <div class="flex items-center gap-2">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('import.type_label') }}</label>
+            <div class="import-type-row">
+              <div class="import-radio-item">
                 <RadioButton v-model="importType" input-id="type-gestion" value="gestion" />
                 <label for="type-gestion">{{ t('import.type_gestion') }}</label>
               </div>
-              <div class="flex items-center gap-2">
+              <div class="import-radio-item">
                 <RadioButton v-model="importType" input-id="type-compta" value="comptabilite" />
                 <label for="type-compta">{{ t('import.type_comptabilite') }}</label>
               </div>
@@ -22,8 +24,8 @@
           </div>
 
           <!-- File picker -->
-          <div class="flex flex-col gap-1">
-            <label class="font-medium text-sm">{{ t('import.file_label') }}</label>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('import.file_label') }}</label>
             <input
               ref="fileInput"
               type="file"
@@ -31,7 +33,7 @@
               class="hidden"
               @change="onFileChange"
             />
-            <div class="flex items-center gap-3">
+            <div class="import-file-row">
               <Button
                 :label="t('import.choose_file')"
                 icon="pi pi-upload"
@@ -39,13 +41,13 @@
                 outlined
                 @click="fileInput?.click()"
               />
-              <span v-if="selectedFile" class="text-sm text-gray-600">{{ selectedFile.name }}</span>
-              <span v-else class="text-sm text-gray-400">—</span>
+              <span v-if="selectedFile" class="import-file-name">{{ selectedFile.name }}</span>
+              <span v-else class="import-file-name import-file-name--empty">—</span>
             </div>
           </div>
 
           <!-- Submit / Preview buttons -->
-          <div class="flex gap-3">
+          <div class="app-form-actions">
             <Button
               :label="t('import.preview')"
               icon="pi pi-eye"
@@ -63,39 +65,35 @@
               @click="doImport"
             />
           </div>
-        </div>
-      </template>
-    </Card>
+      </div>
+    </AppPanel>
 
     <!-- Preview -->
-    <Card v-if="preview" class="max-w-xl mt-6">
-      <template #title>{{ t('import.preview_title') }}</template>
-      <template #content>
-        <p class="text-sm text-gray-500 mb-3">{{ t('import.preview_subtitle') }}</p>
-        <div class="grid grid-cols-2 gap-2 text-sm">
-          <div class="flex justify-between border-b border-surface-200 pb-1 col-span-2 md:col-span-1">
+    <AppPanel v-if="preview" :title="t('import.preview_title')" dense>
+      <div class="import-summary-grid">
+          <div class="import-summary-row">
             <span>{{ t('import.estimated_contacts') }}</span>
             <span class="font-medium">{{ preview.estimated_contacts }}</span>
           </div>
-          <div class="flex justify-between border-b border-surface-200 pb-1 col-span-2 md:col-span-1">
+          <div class="import-summary-row">
             <span>{{ t('import.estimated_invoices') }}</span>
             <span class="font-medium">{{ preview.estimated_invoices }}</span>
           </div>
-          <div class="flex justify-between border-b border-surface-200 pb-1 col-span-2 md:col-span-1">
+          <div class="import-summary-row">
             <span>{{ t('import.estimated_payments') }}</span>
             <span class="font-medium">{{ preview.estimated_payments }}</span>
           </div>
-          <div class="flex justify-between border-b border-surface-200 pb-1 col-span-2 md:col-span-1">
+          <div class="import-summary-row">
             <span>{{ t('import.estimated_entries') }}</span>
             <span class="font-medium">{{ preview.estimated_entries }}</span>
           </div>
         </div>
-        <div v-if="preview.errors.length" class="mt-3">
-          <ul class="list-disc list-inside text-sm text-red-600 space-y-1">
+        <div v-if="preview.errors.length" class="import-errors">
+          <ul>
             <li v-for="(err, idx) in preview.errors" :key="idx">{{ err }}</li>
           </ul>
         </div>
-        <div class="mt-4">
+        <div class="app-form-actions import-confirm">
           <Button
             :label="t('import.confirm_import')"
             icon="pi pi-check"
@@ -103,69 +101,67 @@
             @click="doImport"
           />
         </div>
-      </template>
-    </Card>
+    </AppPanel>
 
     <!-- Result -->
-    <Card v-if="result" class="max-w-xl mt-6">
-      <template #title>{{ t('import.result_title') }}</template>
-      <template #content>
-        <div class="flex flex-col gap-2">
-          <div class="flex justify-between border-b border-surface-200 pb-1">
+    <AppPanel v-if="result" :title="t('import.result_title')" dense>
+        <div class="import-result-list">
+          <div class="import-summary-row">
             <span>{{ t('import.contacts_created') }}</span>
             <span class="font-medium">{{ result.contacts_created }}</span>
           </div>
-          <div class="flex justify-between border-b border-surface-200 pb-1">
+          <div class="import-summary-row">
             <span>{{ t('import.invoices_created') }}</span>
             <span class="font-medium">{{ result.invoices_created }}</span>
           </div>
-          <div class="flex justify-between border-b border-surface-200 pb-1">
+          <div class="import-summary-row">
             <span>{{ t('import.payments_created') }}</span>
             <span class="font-medium">{{ result.payments_created }}</span>
           </div>
-          <div class="flex justify-between border-b border-surface-200 pb-1">
+          <div class="import-summary-row">
             <span>{{ t('import.entries_created') }}</span>
             <span class="font-medium">{{ result.entries_created }}</span>
           </div>
-          <div class="flex justify-between border-b border-surface-200 pb-1">
+          <div class="import-summary-row">
             <span>{{ t('import.cash_created') }}</span>
             <span class="font-medium">{{ result.cash_created }}</span>
           </div>
-          <div class="flex justify-between border-b border-surface-200 pb-1">
+          <div class="import-summary-row">
             <span>{{ t('import.bank_created') }}</span>
             <span class="font-medium">{{ result.bank_created }}</span>
           </div>
-          <div class="flex justify-between border-b border-surface-200 pb-1">
+          <div class="import-summary-row">
             <span>{{ t('import.skipped') }}</span>
             <span class="font-medium">{{ result.skipped }}</span>
           </div>
 
           <!-- Errors -->
-          <div class="mt-2">
-            <span class="font-medium text-sm">{{ t('import.errors') }}</span>
-            <div v-if="result.errors.length === 0" class="text-gray-400 text-sm mt-1">
+          <div class="import-errors-block">
+            <span class="app-field__label">{{ t('import.errors') }}</span>
+            <div v-if="result.errors.length === 0" class="app-empty-state import-empty-inline">
               {{ t('import.no_errors') }}
             </div>
-            <ul v-else class="mt-1 list-disc list-inside text-sm text-red-600 space-y-1">
+            <ul v-else class="import-errors">
               <li v-for="(err, idx) in result.errors" :key="idx">{{ err }}</li>
             </ul>
           </div>
         </div>
-      </template>
-    </Card>
+    </AppPanel>
 
     <Toast />
-  </div>
+  </AppPage>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
-import Card from 'primevue/card'
 import RadioButton from 'primevue/radiobutton'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
+import AppPage from '../components/ui/AppPage.vue'
+import AppPageHeader from '../components/ui/AppPageHeader.vue'
+import AppPanel from '../components/ui/AppPanel.vue'
 import {
   importGestionFileApi,
   importComptabiliteFileApi,
@@ -233,3 +229,72 @@ async function doImport() {
   }
 }
 </script>
+
+<style scoped>
+.import-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-5);
+}
+
+.import-type-row {
+  display: flex;
+  gap: var(--app-space-4);
+  flex-wrap: wrap;
+}
+
+.import-radio-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.import-file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  flex-wrap: wrap;
+}
+
+.import-file-name {
+  color: var(--p-text-color);
+  font-size: 0.95rem;
+}
+
+.import-file-name--empty {
+  color: var(--p-text-muted-color);
+}
+
+.import-summary-grid,
+.import-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.import-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  padding-bottom: var(--app-space-2);
+  border-bottom: 1px solid var(--app-surface-border);
+}
+
+.import-errors,
+.import-errors ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--p-red-500);
+  font-size: 0.92rem;
+}
+
+.import-confirm,
+.import-errors-block {
+  margin-top: var(--app-space-4);
+}
+
+.import-empty-inline {
+  padding: var(--app-space-3) 0 0;
+  text-align: left;
+}
+</style>
