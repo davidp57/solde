@@ -24,11 +24,12 @@
         :use-grouping="false"
         @blur="loadInvoices"
       />
+      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
     </div>
 
     <!-- Table -->
     <DataTable
-      :value="invoices"
+      :value="filteredInvoices"
       :loading="loading"
       striped-rows
       paginator
@@ -62,6 +63,14 @@
       <Column :header="t('common.actions')" style="width: 10rem">
         <template #body="{ data }">
           <div class="flex gap-1">
+            <Button
+              icon="pi pi-eye"
+              size="small"
+              severity="secondary"
+              text
+              :title="t('invoices.history')"
+              @click="openHistory(data)"
+            />
             <Button
               icon="pi pi-pencil"
               size="small"
@@ -121,6 +130,50 @@
     </Dialog>
 
     <ConfirmDialog />
+
+    <!-- History Dialog -->
+    <Dialog
+      v-model:visible="historyVisible"
+      :header="historyInvoice ? t('invoices.history_title', { number: historyInvoice.number }) : ''"
+      modal
+      :style="{ width: '600px' }"
+    >
+      <div v-if="historyInvoice" class="flex flex-col gap-4">
+        <!-- Invoice summary -->
+        <div class="grid grid-cols-3 gap-3 text-sm border-b border-surface-200 pb-3">
+          <div>
+            <div class="text-gray-500">{{ t('invoices.total') }}</div>
+            <div class="font-semibold">{{ formatAmount(historyInvoice.total_amount) }} €</div>
+          </div>
+          <div>
+            <div class="text-gray-500">{{ t('invoices.paid') }}</div>
+            <div class="font-semibold text-green-600">{{ formatAmount(historyInvoice.paid_amount) }} €</div>
+          </div>
+          <div>
+            <div class="text-gray-500">{{ t('invoices.remaining') }}</div>
+            <div class="font-semibold" :class="remaining > 0 ? 'text-orange-600' : 'text-green-600'">
+              {{ remaining.toFixed(2) }} €
+            </div>
+          </div>
+        </div>
+
+        <!-- Payments list -->
+        <div v-if="historyLoading" class="text-center py-4"><ProgressSpinner style="width:32px;height:32px"/></div>
+        <div v-else-if="historyPayments.length === 0" class="text-gray-400 text-sm text-center py-2">
+          {{ t('invoices.no_payments') }}
+        </div>
+        <DataTable v-else :value="historyPayments" size="small">
+          <Column field="date" :header="t('payments.date')" />
+          <Column field="amount" :header="t('payments.amount')">
+            <template #body="{ data }">{{ parseFloat(data.amount).toFixed(2) }} €</template>
+          </Column>
+          <Column field="method" :header="t('payments.method')">
+            <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
+          </Column>
+          <Column field="cheque_number" :header="t('payments.cheque_number')" />
+        </DataTable>
+      </div>
+    </Dialog>
   </div>
 </template>
 
@@ -131,11 +184,13 @@ import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
+import InputText from 'primevue/inputtext'
+import ProgressSpinner from 'primevue/progressspinner'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { listContactsApi, type Contact } from '../api/contacts'
@@ -148,19 +203,32 @@ import {
   type Invoice,
   type InvoiceStatus,
 } from '../api/invoices'
+import { listPayments, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
+import { useTableFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 const confirm = useConfirm()
 const toast = useToast()
 
 const invoices = ref<Invoice[]>([])
+const { filterText, filtered: filteredInvoices } = useTableFilter(invoices)
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const editingInvoice = ref<Invoice | null>(null)
 const statusFilter = ref<InvoiceStatus | null>(null)
 const yearFilter = ref<number | null>(new Date().getFullYear())
+
+// History dialog
+const historyVisible = ref(false)
+const historyInvoice = ref<Invoice | null>(null)
+const historyPayments = ref<Payment[]>([])
+const historyLoading = ref(false)
+const remaining = computed(() => {
+  if (!historyInvoice.value) return 0
+  return parseFloat(historyInvoice.value.total_amount) - parseFloat(historyInvoice.value.paid_amount)
+})
 
 const statusOptions = [
   { label: t('invoices.statuses.draft'), value: 'draft' },
@@ -245,6 +313,18 @@ async function duplicate(invoice: Invoice) {
     await loadInvoices()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  }
+}
+
+async function openHistory(invoice: Invoice) {
+  historyInvoice.value = invoice
+  historyVisible.value = true
+  historyLoading.value = true
+  historyPayments.value = []
+  try {
+    historyPayments.value = await listPayments({ invoice_id: invoice.id })
+  } finally {
+    historyLoading.value = false
   }
 }
 

@@ -14,9 +14,9 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref<string | null>(null)
 
   const isAuthenticated = computed(() => accessToken.value !== null)
-  const isAdmin = computed(() => user.value?.role === 'ADMIN')
+  const isAdmin = computed(() => user.value?.role === 'admin')
   const isTresorier = computed(
-    () => user.value?.role === 'ADMIN' || user.value?.role === 'TRESORIER',
+    () => user.value?.role === 'admin' || user.value?.role === 'tresorier',
   )
 
   function saveTokens(access: string, refresh: string): void {

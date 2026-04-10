@@ -23,11 +23,12 @@
         class="w-36"
         @change="loadSalaries"
       />
+      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
     </div>
 
     <!-- Table -->
     <DataTable
-      :value="salaries"
+      :value="filteredSalaries"
       :loading="loading"
       striped-rows
       paginator
@@ -73,7 +74,7 @@
     <!-- Monthly summary -->
     <div class="mt-8">
       <h3 class="text-lg font-medium mb-3">{{ t('salary.summary_title') }}</h3>
-      <DataTable :value="summary" :loading="summaryLoading" striped-rows data-key="month">
+      <DataTable :value="filteredSummary" :loading="summaryLoading" striped-rows data-key="month">
         <Column field="month" :header="t('salary.month')" sortable />
         <Column field="count" header="#" />
         <Column :header="t('salary.gross')">
@@ -158,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -182,6 +183,7 @@ import {
   type SalarySummaryRow,
 } from '../api/accounting'
 import apiClient from '../api/client'
+import { useTableFilter, applyFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 const confirm = useConfirm()
@@ -191,6 +193,8 @@ interface EmployeeOption { label: string; value: number }
 
 const salaries = ref<SalaryRead[]>([])
 const summary = ref<SalarySummaryRow[]>([])
+const { filterText, filtered: filteredSalaries } = useTableFilter(salaries)
+const filteredSummary = computed(() => applyFilter(summary.value, filterText.value))
 const employees = ref<EmployeeOption[]>([])
 const loading = ref(false)
 const summaryLoading = ref(false)

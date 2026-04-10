@@ -28,9 +28,10 @@
         size="small"
         @click="typeFilter = opt.value; void loadAccounts()"
       />
+      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
     </div>
 
-    <DataTable :value="accounts" :loading="loading" striped-rows data-key="id">
+    <DataTable :value="filtered" :loading="loading" striped-rows data-key="id">
       <Column field="number" :header="t('accounting.accounts.number')" sortable style="width:8rem" />
       <Column field="label" :header="t('accounting.accounts.label')" sortable />
       <Column field="type" :header="t('accounting.accounts.type')" style="width:7rem">
@@ -79,6 +80,7 @@ import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
+import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
@@ -91,11 +93,13 @@ import {
   type AccountType,
 } from '@/api/accounting'
 import AccountForm from '@/components/AccountForm.vue'
+import { useTableFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 const toast = useToast()
 
 const accounts = ref<AccountingAccount[]>([])
+const { filterText, filtered } = useTableFilter(accounts)
 const loading = ref(false)
 const seeding = ref(false)
 const typeFilter = ref<AccountType | undefined>(undefined)

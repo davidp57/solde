@@ -16,6 +16,8 @@ export default {
       },
     },
     logout: 'Se déconnecter',
+    dark_mode: 'Mode sombre',
+    light_mode: 'Mode clair',
     me: 'Mon compte',
   },
   nav: {
@@ -57,6 +59,7 @@ export default {
     confirm: 'Confirmer',
     all: 'Tous',
     actions: 'Actions',
+    filter_placeholder: 'Rechercher…',
     error: {
       unknown: 'Une erreur est survenue.',
       forbidden: 'Accès refusé.',
@@ -122,8 +125,11 @@ export default {
     upload_file: 'Joindre un fichier',
     choose_file: 'Choisir un fichier',
     file_uploaded: 'Fichier joint avec succès.',
-    file: 'Fichier',
-    statuses: {
+    file: 'Fichier',    history: 'Historique',
+    history_title: 'Historique de la facture {number}',
+    paid: 'Réglé',
+    remaining: 'Restant dû',
+    no_payments: 'Aucun paiement enregistré.',    statuses: {
       draft: 'Brouillon',
       sent: 'Émise',
       paid: 'Payée',
@@ -425,6 +431,8 @@ export default {
     invoices_created: 'Factures créées',
     payments_created: 'Paiements créés',
     entries_created: 'Écritures créées',
+    cash_created: 'Opérations caisse créées',
+    bank_created: 'Opérations banque créées',
     skipped: 'Lignes ignorées',
     errors: 'Erreurs',
     no_errors: 'Aucune erreur.',

@@ -128,6 +128,14 @@
             <span class="font-medium">{{ result.entries_created }}</span>
           </div>
           <div class="flex justify-between border-b border-surface-200 pb-1">
+            <span>{{ t('import.cash_created') }}</span>
+            <span class="font-medium">{{ result.cash_created }}</span>
+          </div>
+          <div class="flex justify-between border-b border-surface-200 pb-1">
+            <span>{{ t('import.bank_created') }}</span>
+            <span class="font-medium">{{ result.bank_created }}</span>
+          </div>
+          <div class="flex justify-between border-b border-surface-200 pb-1">
             <span>{{ t('import.skipped') }}</span>
             <span class="font-medium">{{ result.skipped }}</span>
           </div>

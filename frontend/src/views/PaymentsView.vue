@@ -12,11 +12,12 @@
         :off-label="t('payments.filter_undeposited')"
         @change="loadPayments"
       />
+      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
     </div>
 
     <!-- Table -->
     <DataTable
-      :value="payments"
+      :value="filtered"
       :loading="loading"
       striped-rows
       paginator
@@ -62,6 +63,7 @@ import Button from 'primevue/button'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
+import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import ToggleButton from 'primevue/togglebutton'
 import { useConfirm } from 'primevue/useconfirm'
@@ -69,12 +71,14 @@ import { useToast } from 'primevue/usetoast'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { deletePayment, listPayments, type Payment } from '@/api/payments'
+import { useTableFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 const confirm = useConfirm()
 const toast = useToast()
 
 const payments = ref<Payment[]>([])
+const { filterText, filtered } = useTableFilter(payments)
 const loading = ref(false)
 const undepositedOnly = ref(false)
 

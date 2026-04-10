@@ -9,7 +9,11 @@
       />
     </div>
 
-    <DataTable :value="fiscalYears" :loading="loading" striped-rows>
+    <div class="mb-4">
+      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
+    </div>
+
+    <DataTable :value="filtered" :loading="loading" striped-rows>
       <Column field="name" :header="t('accounting.fiscalYear.name')" />
       <Column field="start_date" :header="t('accounting.fiscalYear.start_date')" />
       <Column field="end_date" :header="t('accounting.fiscalYear.end_date')" />
@@ -87,12 +91,14 @@ import {
   type FiscalYearRead,
   type FiscalYearStatus,
 } from '../api/accounting'
+import { useTableFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 const toast = useToast()
 const confirm = useConfirm()
 
 const fiscalYears = ref<FiscalYearRead[]>([])
+const { filterText, filtered } = useTableFilter(fiscalYears)
 const loading = ref(false)
 const saving = ref(false)
 const showDialog = ref(false)

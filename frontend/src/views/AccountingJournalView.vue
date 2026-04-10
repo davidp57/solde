@@ -41,6 +41,7 @@
         />
       </div>
       <Button :label="t('common.save')" icon="pi pi-search" @click="load" />
+      <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" class="w-64" />
     </div>
 
     <!-- Manual entry button -->
@@ -61,7 +62,7 @@
 
     <!-- Table -->
     <DataTable
-      :value="entries"
+      :value="filtered"
       :loading="loading"
       paginator
       :rows="50"
@@ -141,11 +142,13 @@ import {
   type FiscalYearRead,
   type ManualEntryCreate,
 } from '../api/accounting'
+import { useTableFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 const toast = useToast()
 
 const entries = ref<AccountingEntryRead[]>([])
+const { filterText, filtered } = useTableFilter(entries)
 const fiscalYears = ref<FiscalYearRead[]>([])
 const loading = ref(false)
 const saving = ref(false)
