@@ -532,6 +532,7 @@ export default {
     current_fy: 'Exercice en cours',
     resultat: 'Résultat',
     chart_title: 'Charges / Produits par mois',
+    chart_month: 'Mois',
     chart_charges: 'Charges',
     chart_produits: 'Produits',
     alerts_title: 'Alertes',

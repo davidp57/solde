@@ -35,7 +35,7 @@
             <table class="dashboard-table">
               <thead>
                 <tr>
-                  <th>Mois</th>
+                  <th>{{ t('dashboard.chart_month') }}</th>
                   <th>{{ t('dashboard.chart_charges') }}</th>
                   <th>{{ t('dashboard.chart_produits') }}</th>
                 </tr>
