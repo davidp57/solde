@@ -568,14 +568,31 @@ export async function previewRuleApi(
 // Import Excel — preview mode
 // -----------------------------------------------------------------------
 
+export type PreviewSheetStatus = 'recognized' | 'ignored' | 'unsupported' | 'empty'
+
+export interface PreviewSheetResult {
+  name: string
+  kind: string
+  status: PreviewSheetStatus
+  header_row: number | null
+  rows: number
+  detected_columns: string[]
+  missing_columns: string[]
+  sample_rows: Record<string, string>[]
+  warnings: string[]
+  errors: string[]
+}
+
 export interface PreviewResult {
-  sheets: string[]
+  sheets: PreviewSheetResult[]
   estimated_contacts: number
   estimated_invoices: number
   estimated_payments: number
   estimated_entries: number
   errors: string[]
-  sample_rows: Record<string, unknown[][]>
+  warnings: string[]
+  can_import: boolean
+  sample_rows: Record<string, unknown>[]
 }
 
 export async function previewGestionFileApi(file: File): Promise<PreviewResult> {
