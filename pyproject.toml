@@ -53,6 +53,21 @@ ignore_missing_imports = true
 module = "backend.services.*"
 strict = true
 
+[[tool.mypy.overrides]]
+module = "tests.*"
+disable_error_code = [
+    "arg-type",
+    "attr-defined",
+    "comparison-overlap",
+    "misc",
+    "no-any-return",
+    "no-untyped-def",
+    "type-arg",
+    "type-var",
+    "union-attr",
+    "unused-ignore",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

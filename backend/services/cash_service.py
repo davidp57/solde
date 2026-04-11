@@ -31,15 +31,11 @@ _DENOMINATIONS: dict[str, Decimal] = {
 async def _current_balance(db: AsyncSession) -> Decimal:
     """Return the current cash register balance (sum of IN - sum of OUT)."""
     result = await db.execute(
-        select(func.sum(CashRegister.amount)).where(
-            CashRegister.type == CashMovementType.IN
-        )
+        select(func.sum(CashRegister.amount)).where(CashRegister.type == CashMovementType.IN)
     )
     total_in = result.scalar_one_or_none() or Decimal("0")
     result2 = await db.execute(
-        select(func.sum(CashRegister.amount)).where(
-            CashRegister.type == CashMovementType.OUT
-        )
+        select(func.sum(CashRegister.amount)).where(CashRegister.type == CashMovementType.OUT)
     )
     total_out = result2.scalar_one_or_none() or Decimal("0")
     return Decimal(str(total_in)) - Decimal(str(total_out))
@@ -86,9 +82,7 @@ async def list_cash_entries(
 
 async def create_cash_count(db: AsyncSession, payload: CashCountCreate) -> CashCount:
     """Record a physical cash count and compute the difference vs expected balance."""
-    total_counted = sum(
-        getattr(payload, field) * value for field, value in _DENOMINATIONS.items()
-    )
+    total_counted = sum(getattr(payload, field) * value for field, value in _DENOMINATIONS.items())
     balance_expected = await _current_balance(db)
     difference = total_counted - balance_expected
 

@@ -419,7 +419,34 @@ export interface ImportResult {
   cash_created: number
   bank_created: number
   skipped: number
+  ignored_rows: number
+  blocked_rows: number
   errors: string[]
+  warnings: string[]
+  error_details: ImportIssueDetail[]
+  warning_details: ImportIssueDetail[]
+  sheets: ImportSheetResult[]
+}
+
+export interface ImportIssueDetail {
+  severity: 'warning' | 'error'
+  sheet_name: string | null
+  kind: string | null
+  row_number: number | null
+  message: string
+  display_message: string
+}
+
+export interface ImportSheetResult {
+  name: string
+  kind: string
+  imported_rows: number
+  ignored_rows: number
+  blocked_rows: number
+  warnings: string[]
+  errors: string[]
+  warning_details: ImportIssueDetail[]
+  error_details: ImportIssueDetail[]
 }
 
 export async function importGestionFileApi(file: File): Promise<ImportResult> {
@@ -568,14 +595,37 @@ export async function previewRuleApi(
 // Import Excel — preview mode
 // -----------------------------------------------------------------------
 
+export type PreviewSheetStatus = 'recognized' | 'ignored' | 'unsupported' | 'empty'
+
+export interface PreviewSheetResult {
+  name: string
+  kind: string
+  status: PreviewSheetStatus
+  header_row: number | null
+  rows: number
+  detected_columns: string[]
+  missing_columns: string[]
+  ignored_rows: number
+  blocked_rows: number
+  sample_rows: Record<string, string>[]
+  warnings: string[]
+  errors: string[]
+  warning_details: ImportIssueDetail[]
+  error_details: ImportIssueDetail[]
+}
+
 export interface PreviewResult {
-  sheets: string[]
+  sheets: PreviewSheetResult[]
   estimated_contacts: number
   estimated_invoices: number
   estimated_payments: number
   estimated_entries: number
   errors: string[]
-  sample_rows: Record<string, unknown[][]>
+  warnings: string[]
+  error_details: ImportIssueDetail[]
+  warning_details: ImportIssueDetail[]
+  can_import: boolean
+  sample_rows: Record<string, unknown>[]
 }
 
 export async function previewGestionFileApi(file: File): Promise<PreviewResult> {

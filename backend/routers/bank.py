@@ -1,6 +1,8 @@
 """Bank API router — transactions, CSV import, deposit slips and reconciliation."""
 
-from typing import Annotated
+from datetime import date
+from decimal import Decimal
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,7 +60,7 @@ async def list_transactions(
     txs = await bank_service.list_transactions(
         db, unreconciled_only=unreconciled_only, skip=skip, limit=limit
     )
-    return txs  # type: ignore[return-value]
+    return cast(list[BankTransactionRead], txs)
 
 
 @router.post(
@@ -72,7 +74,7 @@ async def add_transaction(
     _current_user: _WriteAccess,
 ) -> BankTransactionRead:
     tx = await bank_service.add_transaction(db, payload)
-    return tx  # type: ignore[return-value]
+    return cast(BankTransactionRead, tx)
 
 
 @router.put("/transactions/{tx_id}", response_model=BankTransactionRead)
@@ -84,11 +86,9 @@ async def update_transaction(
 ) -> BankTransactionRead:
     tx = await bank_service.get_transaction(db, tx_id)
     if tx is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     updated = await bank_service.update_transaction(db, tx, payload)
-    return updated  # type: ignore[return-value]
+    return cast(BankTransactionRead, updated)
 
 
 # ---------------------------------------------------------------------------
@@ -132,15 +132,15 @@ async def import_csv(
     created: list[BankTransactionRead] = []
     for row in rows:
         tx_payload = BankTransactionCreate(
-            date=row["date"],  # type: ignore[arg-type]
-            amount=row["amount"],  # type: ignore[arg-type]
-            balance_after=row["balance_after"],  # type: ignore[arg-type]
+            date=cast(date, row["date"]),
+            amount=cast(Decimal, row["amount"]),
+            balance_after=cast(Decimal, row["balance_after"]),
             description=str(row.get("description", "")),
-            reference=row.get("reference"),  # type: ignore[arg-type]
-            source="import",  # type: ignore[arg-type]
+            reference=cast(str | None, row.get("reference")),
+            source="import",
         )
         tx = await bank_service.add_transaction(db, tx_payload)
-        created.append(tx)  # type: ignore[arg-type]
+        created.append(cast(BankTransactionRead, tx))
     return created
 
 
@@ -152,15 +152,15 @@ async def _import_rows(
     created: list[BankTransactionRead] = []
     for row in rows:
         tx_payload = BankTransactionCreate(
-            date=row["date"],  # type: ignore[arg-type]
-            amount=row["amount"],  # type: ignore[arg-type]
-            balance_after=row["balance_after"],  # type: ignore[arg-type]
+            date=cast(date, row["date"]),
+            amount=cast(Decimal, row["amount"]),
+            balance_after=cast(Decimal, row["balance_after"]),
             description=str(row.get("description", "")),
-            reference=row.get("reference"),  # type: ignore[arg-type]
-            source="import",  # type: ignore[arg-type]
+            reference=cast(str | None, row.get("reference")),
+            source="import",
         )
         tx = await bank_service.add_transaction(db, tx_payload)
-        created.append(tx)  # type: ignore[arg-type]
+        created.append(cast(BankTransactionRead, tx))
     return created
 
 
@@ -242,9 +242,7 @@ async def list_deposits(
     return result
 
 
-@router.post(
-    "/deposits", response_model=DepositRead, status_code=status.HTTP_201_CREATED
-)
+@router.post("/deposits", response_model=DepositRead, status_code=status.HTTP_201_CREATED)
 async def create_deposit(
     payload: DepositCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -276,9 +274,7 @@ async def get_deposit(
 ) -> DepositRead:
     deposit = await bank_service.get_deposit(db, deposit_id)
     if deposit is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Deposit not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Deposit not found")
     pids = await bank_service.get_deposit_payment_ids(db, deposit_id)
     return DepositRead(
         id=deposit.id,

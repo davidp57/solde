@@ -255,9 +255,7 @@ class TestGetBalance:
         assert acct_411.solde == Decimal("300")
 
     @pytest.mark.asyncio
-    async def test_uses_account_label_if_available(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_uses_account_label_if_available(self, db_session: AsyncSession) -> None:
         await _add_account(db_session, "411100", "Clients", AccountType.ACTIF)
         await _add_entry(
             db_session,
@@ -270,9 +268,7 @@ class TestGetBalance:
         assert result[0].account_label == "Clients"
 
     @pytest.mark.asyncio
-    async def test_falls_back_to_number_when_no_account(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_falls_back_to_number_when_no_account(self, db_session: AsyncSession) -> None:
         await _add_entry(
             db_session,
             entry_number="000001",
@@ -319,9 +315,7 @@ class TestGetLedger:
         assert result.closing_balance == Decimal("60")
 
     @pytest.mark.asyncio
-    async def test_only_returns_matching_account(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_only_returns_matching_account(self, db_session: AsyncSession) -> None:
         await _add_entry(
             db_session,
             entry_number="000001",
@@ -367,13 +361,9 @@ class TestGetResultat:
         assert result.resultat == Decimal("0")
 
     @pytest.mark.asyncio
-    async def test_charges_and_produits_aggregated(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_charges_and_produits_aggregated(self, db_session: AsyncSession) -> None:
         await _add_account(db_session, "611100", "Sous-traitance", AccountType.CHARGE)
-        await _add_account(
-            db_session, "706110", "Cours de soutien", AccountType.PRODUIT
-        )
+        await _add_account(db_session, "706110", "Cours de soutien", AccountType.PRODUIT)
         await _add_entry(
             db_session,
             entry_number="000001",
@@ -396,9 +386,7 @@ class TestGetResultat:
     @pytest.mark.asyncio
     async def test_deficit_is_negative(self, db_session: AsyncSession) -> None:
         await _add_account(db_session, "611100", "Sous-traitance", AccountType.CHARGE)
-        await _add_account(
-            db_session, "706110", "Cours de soutien", AccountType.PRODUIT
-        )
+        await _add_account(db_session, "706110", "Cours de soutien", AccountType.PRODUIT)
         await _add_entry(
             db_session,
             entry_number="000001",

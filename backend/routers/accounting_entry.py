@@ -1,7 +1,7 @@
 """Accounting entries API — journal, balance, grand livre, compte de résultat, saisie manuelle."""
 
 from datetime import date
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import Response
@@ -92,9 +92,7 @@ async def get_resultat(
     _: _ReadAccess,
     fiscal_year_id: int | None = Query(default=None),
 ) -> ResultatRead:
-    return await accounting_entry_service.get_resultat(
-        db, fiscal_year_id=fiscal_year_id
-    )
+    return await accounting_entry_service.get_resultat(db, fiscal_year_id=fiscal_year_id)
 
 
 @router.post(
@@ -108,7 +106,7 @@ async def create_manual_entry(
     _: _WriteAccess,
 ) -> list[AccountingEntryRead]:
     debit, credit = await accounting_entry_service.create_manual_entry(db, payload)
-    return [debit, credit]  # type: ignore[return-value]
+    return cast(list[AccountingEntryRead], [debit, credit])
 
 
 @router.get("/bilan", response_model=BilanRead)
@@ -176,9 +174,7 @@ async def export_resultat_csv(
     fiscal_year_id: int | None = Query(default=None),
 ) -> Response:
     """Download compte de résultat as CSV."""
-    content = await export_service.export_resultat_csv(
-        db, fiscal_year_id=fiscal_year_id
-    )
+    content = await export_service.export_resultat_csv(db, fiscal_year_id=fiscal_year_id)
     return Response(
         content=content,
         media_type="text/csv; charset=utf-8",

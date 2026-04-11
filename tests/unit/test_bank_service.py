@@ -109,9 +109,7 @@ async def test_list_transactions_unreconciled_only(db_session: AsyncSession) -> 
     t1.reconciled = True
     await db_session.commit()
 
-    unreconciled = await bank_service.list_transactions(
-        db_session, unreconciled_only=True
-    )
+    unreconciled = await bank_service.list_transactions(db_session, unreconciled_only=True)
     assert all(not t.reconciled for t in unreconciled)
     assert len(unreconciled) == 1
 
@@ -216,15 +214,11 @@ async def test_list_deposits(db_session: AsyncSession) -> None:
 
     await bank_service.create_deposit(
         db_session,
-        DepositCreate(
-            date=date(2024, 3, 1), type=DepositType.CHEQUES, payment_ids=[p1.id]
-        ),
+        DepositCreate(date=date(2024, 3, 1), type=DepositType.CHEQUES, payment_ids=[p1.id]),
     )
     await bank_service.create_deposit(
         db_session,
-        DepositCreate(
-            date=date(2024, 3, 2), type=DepositType.ESPECES, payment_ids=[p2.id]
-        ),
+        DepositCreate(date=date(2024, 3, 2), type=DepositType.ESPECES, payment_ids=[p2.id]),
     )
 
     deposits = await bank_service.list_deposits(db_session)

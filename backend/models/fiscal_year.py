@@ -25,9 +25,7 @@ class FiscalYear(Base):
     __tablename__ = "fiscal_years"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(
-        String(50), unique=True, nullable=False, index=True
-    )
+    name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     start_date: Mapped[_Date] = mapped_column(Date, nullable=False)
     end_date: Mapped[_Date] = mapped_column(Date, nullable=False)
     status: Mapped[FiscalYearStatus] = mapped_column(

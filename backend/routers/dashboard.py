@@ -1,6 +1,7 @@
 """Dashboard API — KPIs and monthly chart data."""
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -20,7 +21,7 @@ _ReadAccess = Annotated[User, Depends(get_current_user)]
 async def get_dashboard(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _ReadAccess,
-) -> dict:
+) -> dict[str, object]:
     return await dashboard_service.get_dashboard(db)
 
 
@@ -29,5 +30,5 @@ async def get_monthly_chart(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _ReadAccess,
     year: int = Query(default=datetime.now().year),
-) -> list[dict]:
+) -> list[dict[str, Decimal | str]]:
     return await dashboard_service.get_monthly_chart(db, year)

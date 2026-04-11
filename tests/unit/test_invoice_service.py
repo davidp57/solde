@@ -67,9 +67,7 @@ class TestGenerateInvoiceNumber:
         )
         assert invoice.number == "2025-F-0001"  # type: ignore[union-attr]
 
-    async def test_client_and_supplier_have_independent_sequences(
-        self, db_session: AsyncSession
-    ):
+    async def test_client_and_supplier_have_independent_sequences(self, db_session: AsyncSession):
         await _make_invoice(db_session)
         supplier = await _make_invoice(
             db_session,
@@ -85,9 +83,7 @@ class TestGenerateInvoiceNumber:
 
 
 class TestCreateInvoice:
-    async def test_creates_with_lines_and_computes_total(
-        self, db_session: AsyncSession
-    ):
+    async def test_creates_with_lines_and_computes_total(self, db_session: AsyncSession):
         contact = await _make_contact(db_session)
         lines = [
             InvoiceLineCreate(
@@ -112,9 +108,7 @@ class TestCreateInvoice:
         assert len(invoice.lines) == 2
         assert invoice.status == InvoiceStatus.DRAFT
 
-    async def test_creates_supplier_invoice_with_total_amount(
-        self, db_session: AsyncSession
-    ):
+    async def test_creates_supplier_invoice_with_total_amount(self, db_session: AsyncSession):
         contact = await _make_contact(db_session)
         payload = InvoiceCreate(
             type=InvoiceType.FOURNISSEUR,
@@ -200,12 +194,8 @@ class TestListInvoices:
     async def test_filter_by_contact_id(self, db_session: AsyncSession):
         contact1 = await _make_contact(db_session, "Alpha")
         contact2 = await _make_contact(db_session, "Beta")
-        p1 = InvoiceCreate(
-            type=InvoiceType.CLIENT, contact_id=contact1.id, date=date(2025, 9, 1)
-        )
-        p2 = InvoiceCreate(
-            type=InvoiceType.CLIENT, contact_id=contact2.id, date=date(2025, 9, 1)
-        )
+        p1 = InvoiceCreate(type=InvoiceType.CLIENT, contact_id=contact1.id, date=date(2025, 9, 1))
+        p2 = InvoiceCreate(type=InvoiceType.CLIENT, contact_id=contact2.id, date=date(2025, 9, 1))
         await create_invoice(db_session, p1)
         await create_invoice(db_session, p2)
         results = await list_invoices(db_session, contact_id=contact1.id)

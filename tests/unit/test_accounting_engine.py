@@ -168,9 +168,7 @@ class TestGenerateEntriesForInvoice:
 
     @pytest.mark.asyncio
     async def test_client_cs_label(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110"
-        )
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
         inv = await _make_invoice(db_session, label=InvoiceLabel.CS)
         entries = await generate_entries_for_invoice(db_session, inv)
         assert len(entries) == 2
@@ -183,9 +181,7 @@ class TestGenerateEntriesForInvoice:
 
     @pytest.mark.asyncio
     async def test_client_adhesion_label(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.INVOICE_CLIENT_A, "411100", "756000"
-        )
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_A, "411100", "756000")
         inv = await _make_invoice(db_session, label=InvoiceLabel.ADHESION)
         entries = await generate_entries_for_invoice(db_session, inv)
         assert len(entries) == 2
@@ -193,38 +189,28 @@ class TestGenerateEntriesForInvoice:
 
     @pytest.mark.asyncio
     async def test_client_cs_a_label(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110"
-        )
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
         inv = await _make_invoice(db_session, label=InvoiceLabel.CS_ADHESION)
         entries = await generate_entries_for_invoice(db_session, inv)
         assert len(entries) == 2
 
     @pytest.mark.asyncio
     async def test_client_general_label(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.INVOICE_CLIENT_GENERAL, "411100", "758000"
-        )
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_GENERAL, "411100", "758000")
         inv = await _make_invoice(db_session, label=InvoiceLabel.GENERAL)
         entries = await generate_entries_for_invoice(db_session, inv)
         assert len(entries) == 2
         assert any(e.account_number == "758000" for e in entries)
 
     @pytest.mark.asyncio
-    async def test_client_no_label_falls_back_to_general(
-        self, db_session: AsyncSession
-    ) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.INVOICE_CLIENT_GENERAL, "411100", "758000"
-        )
+    async def test_client_no_label_falls_back_to_general(self, db_session: AsyncSession) -> None:
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_GENERAL, "411100", "758000")
         inv = await _make_invoice(db_session, label=None)
         entries = await generate_entries_for_invoice(db_session, inv)
         assert len(entries) == 2
 
     @pytest.mark.asyncio
-    async def test_fournisseur_cs_triggers_subcontracting(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_fournisseur_cs_triggers_subcontracting(self, db_session: AsyncSession) -> None:
         await _seed_one_rule(
             db_session,
             TriggerType.INVOICE_FOURNISSEUR_SUBCONTRACTING,
@@ -252,9 +238,7 @@ class TestGenerateEntriesForInvoice:
 
     @pytest.mark.asyncio
     async def test_source_type_is_invoice(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110"
-        )
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
         inv = await _make_invoice(db_session)
         entries = await generate_entries_for_invoice(db_session, inv)
         for e in entries:
@@ -263,9 +247,7 @@ class TestGenerateEntriesForInvoice:
 
     @pytest.mark.asyncio
     async def test_entry_numbers_are_unique(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110"
-        )
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
         inv = await _make_invoice(db_session)
         entries = await generate_entries_for_invoice(db_session, inv)
         nums = [e.entry_number for e in entries]
@@ -287,78 +269,46 @@ class TestGenerateEntriesForPayment:
 
     @pytest.mark.asyncio
     async def test_payment_received_cheque(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.PAYMENT_RECEIVED_CHEQUE, "511200", "411100"
-        )
+        await _seed_one_rule(db_session, TriggerType.PAYMENT_RECEIVED_CHEQUE, "511200", "411100")
         inv = await _make_invoice(db_session)
-        pay = await _make_payment(
-            db_session, method=PaymentMethod.CHEQUE, invoice_id=inv.id
-        )
-        entries = await generate_entries_for_payment(
-            db_session, pay, InvoiceType.CLIENT
-        )
+        pay = await _make_payment(db_session, method=PaymentMethod.CHEQUE, invoice_id=inv.id)
+        entries = await generate_entries_for_payment(db_session, pay, InvoiceType.CLIENT)
         assert len(entries) == 2
         assert any(e.account_number == "511200" for e in entries)
 
     @pytest.mark.asyncio
     async def test_payment_received_especes(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.PAYMENT_RECEIVED_ESPECES, "531000", "411100"
-        )
+        await _seed_one_rule(db_session, TriggerType.PAYMENT_RECEIVED_ESPECES, "531000", "411100")
         inv = await _make_invoice(db_session)
-        pay = await _make_payment(
-            db_session, method=PaymentMethod.ESPECES, invoice_id=inv.id
-        )
-        entries = await generate_entries_for_payment(
-            db_session, pay, InvoiceType.CLIENT
-        )
+        pay = await _make_payment(db_session, method=PaymentMethod.ESPECES, invoice_id=inv.id)
+        entries = await generate_entries_for_payment(db_session, pay, InvoiceType.CLIENT)
         assert len(entries) == 2
         assert any(e.account_number == "531000" for e in entries)
 
     @pytest.mark.asyncio
     async def test_payment_received_virement(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.PAYMENT_RECEIVED_VIREMENT, "512100", "411100"
-        )
+        await _seed_one_rule(db_session, TriggerType.PAYMENT_RECEIVED_VIREMENT, "512100", "411100")
         inv = await _make_invoice(db_session)
-        pay = await _make_payment(
-            db_session, method=PaymentMethod.VIREMENT, invoice_id=inv.id
-        )
-        entries = await generate_entries_for_payment(
-            db_session, pay, InvoiceType.CLIENT
-        )
+        pay = await _make_payment(db_session, method=PaymentMethod.VIREMENT, invoice_id=inv.id)
+        entries = await generate_entries_for_payment(db_session, pay, InvoiceType.CLIENT)
         assert len(entries) == 2
         assert any(e.account_number == "512100" for e in entries)
 
     @pytest.mark.asyncio
-    async def test_payment_sent_virement_fournisseur(
-        self, db_session: AsyncSession
-    ) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.PAYMENT_SENT_VIREMENT, "401000", "512100"
-        )
+    async def test_payment_sent_virement_fournisseur(self, db_session: AsyncSession) -> None:
+        await _seed_one_rule(db_session, TriggerType.PAYMENT_SENT_VIREMENT, "401000", "512100")
         inv = await _make_invoice(db_session, inv_type=InvoiceType.FOURNISSEUR)
-        pay = await _make_payment(
-            db_session, method=PaymentMethod.VIREMENT, invoice_id=inv.id
-        )
-        entries = await generate_entries_for_payment(
-            db_session, pay, InvoiceType.FOURNISSEUR
-        )
+        pay = await _make_payment(db_session, method=PaymentMethod.VIREMENT, invoice_id=inv.id)
+        entries = await generate_entries_for_payment(db_session, pay, InvoiceType.FOURNISSEUR)
         assert len(entries) == 2
         assert any(e.account_number == "401000" for e in entries)
 
     @pytest.mark.asyncio
     async def test_source_type_is_payment(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.PAYMENT_RECEIVED_CHEQUE, "511200", "411100"
-        )
+        await _seed_one_rule(db_session, TriggerType.PAYMENT_RECEIVED_CHEQUE, "511200", "411100")
         inv = await _make_invoice(db_session)
-        pay = await _make_payment(
-            db_session, method=PaymentMethod.CHEQUE, invoice_id=inv.id
-        )
-        entries = await generate_entries_for_payment(
-            db_session, pay, InvoiceType.CLIENT
-        )
+        pay = await _make_payment(db_session, method=PaymentMethod.CHEQUE, invoice_id=inv.id)
+        entries = await generate_entries_for_payment(db_session, pay, InvoiceType.CLIENT)
         for e in entries:
             assert e.source_type == EntrySourceType.PAYMENT
             assert e.source_id == pay.id
@@ -378,9 +328,7 @@ class TestGenerateEntriesForDeposit:
 
     @pytest.mark.asyncio
     async def test_deposit_cheques(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.DEPOSIT_CHEQUES, "512100", "511200"
-        )
+        await _seed_one_rule(db_session, TriggerType.DEPOSIT_CHEQUES, "512100", "511200")
         dep = await _make_deposit(db_session, dep_type=DepositType.CHEQUES)
         entries = await generate_entries_for_deposit(db_session, dep)
         assert len(entries) == 2
@@ -389,9 +337,7 @@ class TestGenerateEntriesForDeposit:
 
     @pytest.mark.asyncio
     async def test_deposit_especes(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.DEPOSIT_ESPECES, "512100", "531000"
-        )
+        await _seed_one_rule(db_session, TriggerType.DEPOSIT_ESPECES, "512100", "531000")
         dep = await _make_deposit(db_session, dep_type=DepositType.ESPECES)
         entries = await generate_entries_for_deposit(db_session, dep)
         assert len(entries) == 2
@@ -399,9 +345,7 @@ class TestGenerateEntriesForDeposit:
 
     @pytest.mark.asyncio
     async def test_source_type_is_deposit(self, db_session: AsyncSession) -> None:
-        await _seed_one_rule(
-            db_session, TriggerType.DEPOSIT_CHEQUES, "512100", "511200"
-        )
+        await _seed_one_rule(db_session, TriggerType.DEPOSIT_CHEQUES, "512100", "511200")
         dep = await _make_deposit(db_session)
         entries = await generate_entries_for_deposit(db_session, dep)
         for e in entries:
