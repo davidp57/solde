@@ -1,9 +1,12 @@
 """Unit tests for the settings service."""
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.models.contact import Contact, ContactType
+from backend.models.import_log import ImportLog, ImportLogStatus, ImportLogType
 from backend.schemas.settings import AppSettingsUpdate
-from backend.services.settings import get_settings, update_settings
+from backend.services.settings import get_settings, reset_data, update_settings
 
 
 class TestGetSettings:
@@ -78,3 +81,33 @@ class TestUpdateSettings:
         payload = AppSettingsUpdate(association_name="Nouvelle Asso")
         settings = await update_settings(db_session, payload)
         assert settings.id == 1
+
+
+class TestResetData:
+    async def test_reset_data_deletes_import_logs_and_preserves_settings(
+        self, db_session: AsyncSession
+    ) -> None:
+        settings = await get_settings(db_session)
+        settings.association_name = "Asso conservée"
+
+        db_session.add(Contact(nom="Dupont", type=ContactType.CLIENT))
+        db_session.add(
+            ImportLog(
+                import_type=ImportLogType.GESTION,
+                status=ImportLogStatus.SUCCESS,
+                file_hash="hash-1",
+                file_name="Gestion 2025.xlsx",
+                summary="{}",
+            )
+        )
+        await db_session.commit()
+
+        deleted = await reset_data(db_session)
+
+        assert deleted["contacts"] == 1
+        assert deleted["import_logs"] == 1
+        assert (await db_session.execute(select(Contact))).scalars().all() == []
+        assert (await db_session.execute(select(ImportLog))).scalars().all() == []
+
+        reloaded_settings = await get_settings(db_session)
+        assert reloaded_settings.association_name == "Asso conservée"

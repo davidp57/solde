@@ -343,7 +343,7 @@ export default {
     danger_zone: 'Zone de danger',
     reset_db: 'Réinitialiser les données',
     reset_db_desc:
-      'Supprime tous les contacts, factures, paiements, opérations banque/caisse, écritures et salaires. ' +
+      "Supprime tous les contacts, factures, paiements, opérations banque/caisse, écritures, salaires et l'historique d'import. " +
       'Les utilisateurs, les paramètres, le plan comptable et les règles sont conservés.',
     reset_db_confirm:
       'Cette action est irréversible. Toutes les données transactionnelles seront supprimées définitivement. Confirmer ?',

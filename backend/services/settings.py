@@ -12,6 +12,7 @@ from backend.models.app_settings import AppSettings
 from backend.models.bank import BankTransaction, Deposit
 from backend.models.cash import CashCount, CashRegister
 from backend.models.contact import Contact
+from backend.models.import_log import ImportLog
 from backend.models.invoice import Invoice, InvoiceLine
 from backend.models.payment import Payment
 from backend.models.salary import Salary
@@ -51,6 +52,7 @@ async def update_settings(db: AsyncSession, payload: AppSettingsUpdate) -> AppSe
 # Tables cleared in FK-safe order; users, app_settings, accounting_accounts,
 # accounting_rules and fiscal_years are intentionally preserved.
 _RESET_ORDER: list[type] = [
+    ImportLog,
     Payment,
     InvoiceLine,
     Invoice,

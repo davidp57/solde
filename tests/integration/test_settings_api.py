@@ -1,6 +1,7 @@
 """Integration tests for GET/PUT /api/settings."""
 
 from httpx import AsyncClient
+from sqlalchemy import select
 
 
 class TestGetSettings:
@@ -130,3 +131,31 @@ class TestNonAdminAccess:
         headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
         response = await client.get("/api/settings/", headers=headers)
         assert response.status_code == 403
+
+
+class TestResetDatabase:
+    async def test_reset_db_deletes_import_logs(
+        self, client: AsyncClient, auth_headers: dict, db_session
+    ) -> None:
+        from backend.models.contact import Contact, ContactType
+        from backend.models.import_log import ImportLog, ImportLogStatus, ImportLogType
+
+        db_session.add(Contact(nom="Dupont", type=ContactType.CLIENT))
+        db_session.add(
+            ImportLog(
+                import_type=ImportLogType.GESTION,
+                status=ImportLogStatus.SUCCESS,
+                file_hash="hash-1",
+                file_name="Gestion 2025.xlsx",
+                summary="{}",
+            )
+        )
+        await db_session.commit()
+
+        response = await client.post("/api/settings/reset-db", headers=auth_headers)
+
+        assert response.status_code == 200
+        assert response.json()["contacts"] == 1
+        assert response.json()["import_logs"] == 1
+        assert (await db_session.execute(select(Contact))).scalars().all() == []
+        assert (await db_session.execute(select(ImportLog))).scalars().all() == []
