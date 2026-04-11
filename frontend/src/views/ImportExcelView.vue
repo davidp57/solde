@@ -33,6 +33,9 @@
               class="hidden"
               @change="onFileChange"
             />
+            <p class="import-preview-state" :class="previewStateClass">
+              {{ previewStateMessage }}
+            </p>
             <div class="import-file-row">
               <Button
                 :label="t('import.choose_file')"
@@ -49,6 +52,7 @@
           <!-- Submit / Preview buttons -->
           <div class="app-form-actions">
             <Button
+              data-testid="preview-button"
               :label="t('import.preview')"
               icon="pi pi-eye"
               severity="secondary"
@@ -58,13 +62,15 @@
               @click="doPreview"
             />
             <Button
+              data-testid="primary-import-button"
               :label="t('import.submit')"
               icon="pi pi-check"
               :loading="importing"
-              :disabled="!selectedFile"
+              :disabled="!canConfirmImport"
               @click="doImport"
             />
           </div>
+          <p class="import-action-hint">{{ importActionHint }}</p>
       </div>
     </AppPanel>
 
@@ -97,6 +103,17 @@
             <li v-for="(warning, idx) in preview.warnings" :key="`warning-${idx}`">{{ warning }}</li>
           </ul>
         </div>
+        <div v-if="hasPreviewWarnings && preview.can_import" class="import-confirmation-guard">
+          <label class="import-confirmation-guard__checkbox">
+            <Checkbox
+              v-model="warningsAcknowledged"
+              binary
+              data-testid="warning-ack-checkbox"
+            />
+            <span>{{ t('import.warning_ack_label') }}</span>
+          </label>
+          <p class="import-confirmation-guard__help">{{ t('import.warning_ack_help') }}</p>
+        </div>
         <div v-if="preview.errors.length" class="import-errors">
           <span class="app-field__label">{{ t('import.errors') }}</span>
           <ul>
@@ -113,7 +130,15 @@
                   {{ previewSheetKindLabel(sheet.kind) }} · {{ previewSheetStatusLabel(sheet.status) }}
                 </p>
               </div>
-              <strong class="import-sheet-card__rows">{{ t('import.sheet_rows', { count: sheet.rows }) }}</strong>
+              <div class="import-sheet-card__stats">
+                <strong class="import-sheet-card__rows">{{ t('import.sheet_rows', { count: sheet.rows }) }}</strong>
+                <span v-if="sheet.ignored_rows" class="import-sheet-card__stat import-sheet-card__stat--warning">
+                  {{ t('import.sheet_ignored_rows', { count: sheet.ignored_rows }) }}
+                </span>
+                <span v-if="sheet.blocked_rows" class="import-sheet-card__stat import-sheet-card__stat--danger">
+                  {{ t('import.sheet_blocked_rows', { count: sheet.blocked_rows }) }}
+                </span>
+              </div>
             </div>
 
             <div v-if="sheet.detected_columns.length" class="import-sheet-card__section">
@@ -140,6 +165,7 @@
         </div>
         <div class="app-form-actions import-confirm">
           <Button
+            data-testid="confirm-import-button"
             :label="t('import.confirm_import')"
             icon="pi pi-check"
             :loading="importing"
@@ -177,11 +203,21 @@
             <span class="font-medium">{{ result.bank_created }}</span>
           </div>
           <div class="import-summary-row">
-            <span>{{ t('import.skipped') }}</span>
-            <span class="font-medium">{{ result.skipped }}</span>
+            <span>{{ t('import.ignored_rows') }}</span>
+            <span class="font-medium">{{ result.ignored_rows }}</span>
+          </div>
+          <div class="import-summary-row">
+            <span>{{ t('import.blocked_rows') }}</span>
+            <span class="font-medium">{{ result.blocked_rows }}</span>
           </div>
 
-          <!-- Errors -->
+          <div v-if="result.warnings.length" class="import-warnings-block">
+            <span class="app-field__label">{{ t('import.warnings') }}</span>
+            <ul class="import-warnings">
+              <li v-for="(warning, idx) in result.warnings" :key="`result-warning-${idx}`">{{ warning }}</li>
+            </ul>
+          </div>
+
           <div class="import-errors-block">
             <span class="app-field__label">{{ t('import.errors') }}</span>
             <div v-if="result.errors.length === 0" class="app-empty-state import-empty-inline">
@@ -191,6 +227,36 @@
               <li v-for="(err, idx) in result.errors" :key="idx">{{ err }}</li>
             </ul>
           </div>
+
+          <div v-if="result.sheets.length" class="import-sheet-list">
+            <h3 class="import-sheet-list__title">{{ t('import.result_sheets_title') }}</h3>
+            <article v-for="sheet in result.sheets" :key="`result-${sheet.name}-${sheet.kind}`" class="import-sheet-card">
+              <div class="import-sheet-card__header">
+                <div>
+                  <h4 class="import-sheet-card__title">{{ sheet.name }}</h4>
+                  <p class="import-sheet-card__meta">{{ importSheetKindLabel(sheet.kind) }}</p>
+                </div>
+                <div class="import-sheet-card__stats">
+                  <span class="import-sheet-card__stat import-sheet-card__stat--success">
+                    {{ t('import.sheet_imported_rows', { count: sheet.imported_rows }) }}
+                  </span>
+                  <span v-if="sheet.ignored_rows" class="import-sheet-card__stat import-sheet-card__stat--warning">
+                    {{ t('import.sheet_ignored_rows', { count: sheet.ignored_rows }) }}
+                  </span>
+                  <span v-if="sheet.blocked_rows" class="import-sheet-card__stat import-sheet-card__stat--danger">
+                    {{ t('import.sheet_blocked_rows', { count: sheet.blocked_rows }) }}
+                  </span>
+                </div>
+              </div>
+
+              <ul v-if="sheet.warnings.length" class="import-warnings">
+                <li v-for="(warning, idx) in sheet.warnings" :key="`${sheet.name}-result-warning-${idx}`">{{ warning }}</li>
+              </ul>
+              <ul v-if="sheet.errors.length" class="import-errors">
+                <li v-for="(error, idx) in sheet.errors" :key="`${sheet.name}-result-error-${idx}`">{{ error }}</li>
+              </ul>
+            </article>
+          </div>
         </div>
     </AppPanel>
 
@@ -199,9 +265,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
 import RadioButton from 'primevue/radiobutton'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
@@ -228,7 +295,53 @@ const importing = ref(false)
 const previewing = ref(false)
 const result = ref<ImportResult | null>(null)
 const preview = ref<PreviewResult | null>(null)
-const canConfirmImport = computed(() => Boolean(selectedFile.value && preview.value?.can_import))
+const warningsAcknowledged = ref(false)
+const hasPreviewWarnings = computed(() => Boolean(
+  preview.value
+  && (
+    preview.value.warnings.length > 0
+    || preview.value.warning_details.length > 0
+    || preview.value.sheets.some((sheet) => sheet.warnings.length > 0 || sheet.warning_details.length > 0)
+  ),
+))
+const canConfirmImport = computed(() => Boolean(
+  selectedFile.value
+  && preview.value?.can_import
+  && (!hasPreviewWarnings.value || warningsAcknowledged.value),
+))
+const previewState = computed<'ready' | 'noop' | 'blocked'>(() => {
+  if (!preview.value) return 'blocked'
+  if (preview.value.can_import) return 'ready'
+  if (preview.value.errors.length === 0) return 'noop'
+  return 'blocked'
+})
+const previewStateClass = computed(() => {
+  if (previewState.value === 'ready') return 'import-preview-state--ready'
+  if (previewState.value === 'noop') return 'import-preview-state--noop'
+  return 'import-preview-state--blocked'
+})
+const previewStateMessage = computed(() => {
+  if (previewState.value === 'ready') return t('import.preview_ready')
+  if (previewState.value === 'noop') return t('import.preview_noop')
+  return t('import.preview_blocked')
+})
+const importActionHint = computed(() => {
+  if (!selectedFile.value) return t('import.file_required')
+  if (!preview.value) return t('import.preview_required')
+  if (hasPreviewWarnings.value && !warningsAcknowledged.value) return t('import.warning_ack_required')
+  if (!preview.value.can_import) return t('import.preview_blocked')
+  return t('import.import_ready')
+})
+
+function resetImportFlow() {
+  result.value = null
+  preview.value = null
+  warningsAcknowledged.value = false
+}
+
+watch(importType, () => {
+  resetImportFlow()
+})
 
 function previewSheetKindLabel(kind: PreviewSheetResult['kind']) {
   return t(`import.sheet_kind.${kind}`)
@@ -238,16 +351,20 @@ function previewSheetStatusLabel(status: PreviewSheetResult['status']) {
   return t(`import.sheet_status.${status}`)
 }
 
+function importSheetKindLabel(kind: string) {
+  return t(`import.sheet_kind.${kind}`)
+}
+
 function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   selectedFile.value = input.files?.[0] ?? null
-  result.value = null
-  preview.value = null
+  resetImportFlow()
 }
 
 async function doPreview() {
   if (!selectedFile.value) return
   previewing.value = true
+  warningsAcknowledged.value = false
   preview.value = null
   result.value = null
   try {
@@ -268,16 +385,32 @@ async function doImport() {
     toast.add({ severity: 'warn', summary: t('import.file_required'), life: 3000 })
     return
   }
+  if (!preview.value) {
+    toast.add({ severity: 'warn', summary: t('import.preview_required'), life: 3000 })
+    return
+  }
+  if (hasPreviewWarnings.value && !warningsAcknowledged.value) {
+    toast.add({ severity: 'warn', summary: t('import.warning_ack_required'), life: 3500 })
+    return
+  }
+  if (!preview.value.can_import) {
+    toast.add({ severity: 'warn', summary: t('import.preview_blocked'), life: 3500 })
+    return
+  }
   importing.value = true
   result.value = null
-  preview.value = null
   try {
     if (importType.value === 'gestion') {
       result.value = await importGestionFileApi(selectedFile.value)
     } else {
       result.value = await importComptabiliteFileApi(selectedFile.value)
     }
-    toast.add({ severity: 'success', summary: t('import.success'), life: 3000 })
+    const hasIssues = result.value.errors.length > 0 || result.value.warnings.length > 0
+    toast.add({
+      severity: hasIssues ? 'warn' : 'success',
+      summary: hasIssues ? t('import.completed_with_issues') : t('import.success'),
+      life: 3500,
+    })
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   } finally {
@@ -321,6 +454,12 @@ async function doImport() {
   color: var(--p-text-muted-color);
 }
 
+.import-action-hint {
+  margin: 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.95rem;
+}
+
 .import-summary-grid,
 .import-result-list {
   display: flex;
@@ -353,6 +492,11 @@ async function doImport() {
   color: color-mix(in srgb, var(--p-amber-700) 72%, var(--p-text-color) 28%);
 }
 
+.import-preview-state--noop {
+  background: color-mix(in srgb, var(--p-surface-400) 16%, var(--app-surface-bg) 84%);
+  color: color-mix(in srgb, var(--p-text-muted-color) 88%, var(--p-text-color) 12%);
+}
+
 .import-errors,
 .import-errors ul {
   margin: 0;
@@ -366,6 +510,28 @@ async function doImport() {
   padding-left: 1rem;
   color: var(--p-amber-700);
   font-size: 0.92rem;
+}
+
+.import-confirmation-guard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  padding: var(--app-space-3) var(--app-space-4);
+  border: 1px solid color-mix(in srgb, var(--p-amber-500) 35%, var(--app-surface-border) 65%);
+  border-radius: var(--app-radius-md);
+  background: color-mix(in srgb, var(--p-amber-500) 10%, var(--app-surface-bg) 90%);
+}
+
+.import-confirmation-guard__checkbox {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--app-space-3);
+}
+
+.import-confirmation-guard__help {
+  margin: 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.95rem;
 }
 
 .import-sheet-list {
@@ -410,6 +576,29 @@ async function doImport() {
 
 .import-sheet-card__rows {
   font-size: 0.92rem;
+}
+
+.import-sheet-card__stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--app-space-1);
+}
+
+.import-sheet-card__stat {
+  font-size: 0.84rem;
+}
+
+.import-sheet-card__stat--success {
+  color: color-mix(in srgb, var(--p-green-700) 74%, var(--p-text-color) 26%);
+}
+
+.import-sheet-card__stat--warning {
+  color: var(--p-amber-700);
+}
+
+.import-sheet-card__stat--danger {
+  color: var(--p-red-500);
 }
 
 .import-sheet-card__section {
@@ -458,6 +647,10 @@ async function doImport() {
 
 :global(html.dark-mode) .import-preview-state--blocked {
   color: var(--p-amber-100);
+}
+
+:global(html.dark-mode) .import-preview-state--noop {
+  color: color-mix(in srgb, var(--p-surface-100) 72%, white 28%);
 }
 
 :global(html.dark-mode) .import-warnings {

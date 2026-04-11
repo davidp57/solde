@@ -33,7 +33,7 @@ async def _read_limited(upload: UploadFile) -> bytes:
 def _check_excel_extension(filename: str | None) -> None:
     if not filename or not filename.lower().endswith((".xlsx", ".xls")):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Le fichier doit être au format Excel (.xlsx ou .xls)",
         )
 
@@ -47,7 +47,7 @@ async def import_gestion(
     """Import contacts, invoices and payments from a 'Gestion YYYY.xlsx' file."""
     _check_excel_extension(file.filename)
     content = await _read_limited(file)
-    result = await excel_import.import_gestion_file(db, content)
+    result = await excel_import.import_gestion_file(db, content, file.filename)
     return result.to_dict()
 
 
@@ -60,29 +60,31 @@ async def import_comptabilite(
     """Import accounting entries from a 'Comptabilité YYYY.xlsx' file."""
     _check_excel_extension(file.filename)
     content = await _read_limited(file)
-    result = await excel_import.import_comptabilite_file(db, content)
+    result = await excel_import.import_comptabilite_file(db, content, file.filename)
     return result.to_dict()
 
 
 @router.post("/excel/gestion/preview", status_code=status.HTTP_200_OK)
 async def preview_gestion(
     file: UploadFile,
+    db: Annotated[AsyncSession, Depends(get_db)],
     _: _WriteAccess,
 ) -> dict:
     """Dry-run parse of a Gestion file — returns estimated row counts without importing."""
     _check_excel_extension(file.filename)
     content = await _read_limited(file)
-    result = excel_import.preview_gestion_file(content)
+    result = await excel_import.preview_gestion_file(db, content)
     return result.to_dict()
 
 
 @router.post("/excel/comptabilite/preview", status_code=status.HTTP_200_OK)
 async def preview_comptabilite(
     file: UploadFile,
+    db: Annotated[AsyncSession, Depends(get_db)],
     _: _WriteAccess,
 ) -> dict:
     """Dry-run parse of a Comptabilité file — returns estimated row counts without importing."""
     _check_excel_extension(file.filename)
     content = await _read_limited(file)
-    result = excel_import.preview_comptabilite_file(content)
+    result = await excel_import.preview_comptabilite_file(db, content)
     return result.to_dict()
