@@ -64,19 +64,13 @@ class TestGetContact:
 
 class TestListContacts:
     async def test_returns_all_active_contacts(self, db_session: AsyncSession):
-        await create_contact(
-            db_session, ContactCreate(type=ContactType.CLIENT, nom="A")
-        )
-        await create_contact(
-            db_session, ContactCreate(type=ContactType.FOURNISSEUR, nom="B")
-        )
+        await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="A"))
+        await create_contact(db_session, ContactCreate(type=ContactType.FOURNISSEUR, nom="B"))
         contacts = await list_contacts(db_session)
         assert len(contacts) == 2
 
     async def test_filter_by_type(self, db_session: AsyncSession):
-        await create_contact(
-            db_session, ContactCreate(type=ContactType.CLIENT, nom="Client A")
-        )
+        await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Client A"))
         await create_contact(
             db_session, ContactCreate(type=ContactType.FOURNISSEUR, nom="Fournisseur B")
         )
@@ -85,12 +79,8 @@ class TestListContacts:
         assert clients[0].nom == "Client A"
 
     async def test_search_by_nom(self, db_session: AsyncSession):
-        await create_contact(
-            db_session, ContactCreate(type=ContactType.CLIENT, nom="Dupont")
-        )
-        await create_contact(
-            db_session, ContactCreate(type=ContactType.CLIENT, nom="Martin")
-        )
+        await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Dupont"))
+        await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Martin"))
         results = await list_contacts(db_session, search="dup")
         assert len(results) == 1
         assert results[0].nom == "Dupont"
@@ -98,28 +88,20 @@ class TestListContacts:
     async def test_search_by_email(self, db_session: AsyncSession):
         await create_contact(
             db_session,
-            ContactCreate(
-                type=ContactType.CLIENT, nom="Durand", email="durand@example.com"
-            ),
+            ContactCreate(type=ContactType.CLIENT, nom="Durand", email="durand@example.com"),
         )
-        await create_contact(
-            db_session, ContactCreate(type=ContactType.CLIENT, nom="Martin")
-        )
+        await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Martin"))
         results = await list_contacts(db_session, search="durand@")
         assert len(results) == 1
 
     async def test_excludes_inactive_by_default(self, db_session: AsyncSession):
-        c = await create_contact(
-            db_session, ContactCreate(type=ContactType.CLIENT, nom="Inactif")
-        )
+        c = await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Inactif"))
         await delete_contact(db_session, c)
         contacts = await list_contacts(db_session)
         assert len(contacts) == 0
 
     async def test_includes_inactive_when_requested(self, db_session: AsyncSession):
-        c = await create_contact(
-            db_session, ContactCreate(type=ContactType.CLIENT, nom="Inactif")
-        )
+        c = await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Inactif"))
         await delete_contact(db_session, c)
         contacts = await list_contacts(db_session, active_only=False)
         assert len(contacts) == 1
@@ -139,9 +121,7 @@ class TestUpdateContact:
         contact = await create_contact(
             db_session, ContactCreate(type=ContactType.CLIENT, nom="Ancien")
         )
-        updated = await update_contact(
-            db_session, contact, ContactUpdate(nom="Nouveau")
-        )
+        updated = await update_contact(db_session, contact, ContactUpdate(nom="Nouveau"))
         assert updated.nom == "Nouveau"
         assert updated.type == ContactType.CLIENT  # unchanged
 
@@ -149,18 +129,14 @@ class TestUpdateContact:
         contact = await create_contact(
             db_session, ContactCreate(type=ContactType.CLIENT, nom="Test")
         )
-        updated = await update_contact(
-            db_session, contact, ContactUpdate(email="new@example.com")
-        )
+        updated = await update_contact(db_session, contact, ContactUpdate(email="new@example.com"))
         assert updated.email == "new@example.com"
 
     async def test_deactivate_contact(self, db_session: AsyncSession):
         contact = await create_contact(
             db_session, ContactCreate(type=ContactType.CLIENT, nom="Test")
         )
-        updated = await update_contact(
-            db_session, contact, ContactUpdate(is_active=False)
-        )
+        updated = await update_contact(db_session, contact, ContactUpdate(is_active=False))
         assert updated.is_active is False
 
 

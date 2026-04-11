@@ -15,7 +15,7 @@ from backend.models.invoice import Invoice, InvoiceStatus
 from backend.models.payment import Payment
 
 
-async def get_dashboard(db: AsyncSession) -> dict:
+async def get_dashboard(db: AsyncSession) -> dict[str, object]:
     """Return dashboard KPIs and alerts."""
     today = date.today()
 
@@ -52,25 +52,21 @@ async def get_dashboard(db: AsyncSession) -> dict:
     unpaid_invoices = unpaid_result.scalars().all()
     unpaid_count = len(unpaid_invoices)
     unpaid_total = sum(
-        Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount))
-        for inv in unpaid_invoices
+        Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount)) for inv in unpaid_invoices
     )
 
     # --- Overdue invoices (sent/partial/overdue with due_date < today) ---
     overdue_result = await db.execute(
         select(Invoice).where(
             Invoice.type == "client",
-            Invoice.status.in_(
-                [InvoiceStatus.SENT, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE]
-            ),
+            Invoice.status.in_([InvoiceStatus.SENT, InvoiceStatus.PARTIAL, InvoiceStatus.OVERDUE]),
             Invoice.due_date < today,
         )
     )
     overdue_invoices = overdue_result.scalars().all()
     overdue_count = len(overdue_invoices)
     overdue_total = sum(
-        Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount))
-        for inv in overdue_invoices
+        Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount)) for inv in overdue_invoices
     )
 
     # --- Undeposited payments (chèques/espèces not yet deposited) ---
@@ -101,7 +97,7 @@ async def get_dashboard(db: AsyncSession) -> dict:
         current_resultat = produits - charges
 
     # --- Alerts ---
-    alerts: list[dict] = []
+    alerts: list[dict[str, str]] = []
 
     if overdue_count > 0:
         alerts.append(
@@ -132,7 +128,7 @@ async def get_dashboard(db: AsyncSession) -> dict:
     }
 
 
-async def get_monthly_chart(db: AsyncSession, year: int) -> list[dict]:
+async def get_monthly_chart(db: AsyncSession, year: int) -> list[dict[str, Decimal | str]]:
     """Return monthly income/expense data for a given year (for charts)."""
     from backend.models.accounting_account import (
         AccountingAccount,
@@ -149,9 +145,7 @@ async def get_monthly_chart(db: AsyncSession, year: int) -> list[dict]:
 
     # Get all entries for the year
     entries_result = await db.execute(
-        select(AccountingEntry).where(
-            func.strftime("%Y", AccountingEntry.date) == str(year)
-        )
+        select(AccountingEntry).where(func.strftime("%Y", AccountingEntry.date) == str(year))
     )
     entries = entries_result.scalars().all()
 
@@ -169,13 +163,9 @@ async def get_monthly_chart(db: AsyncSession, year: int) -> list[dict]:
         if month_key not in months:
             continue
         if acct.type == AccountType.CHARGE:
-            months[month_key]["charges"] += Decimal(str(e.debit)) - Decimal(
-                str(e.credit)
-            )
+            months[month_key]["charges"] += Decimal(str(e.debit)) - Decimal(str(e.credit))
         elif acct.type == AccountType.PRODUIT:
-            months[month_key]["produits"] += Decimal(str(e.credit)) - Decimal(
-                str(e.debit)
-            )
+            months[month_key]["produits"] += Decimal(str(e.credit)) - Decimal(str(e.debit))
 
     return [
         {

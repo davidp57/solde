@@ -41,13 +41,9 @@ class Invoice(Base):
     __tablename__ = "invoices"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    number: Mapped[str] = mapped_column(
-        String(20), unique=True, nullable=False, index=True
-    )
+    number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
     type: Mapped[InvoiceType] = mapped_column(String(20), nullable=False, index=True)
-    contact_id: Mapped[int] = mapped_column(
-        ForeignKey("contacts.id"), nullable=False, index=True
-    )
+    contact_id: Mapped[int] = mapped_column(ForeignKey("contacts.id"), nullable=False, index=True)
     date: Mapped[_Date] = mapped_column(Date, nullable=False, index=True)
     due_date: Mapped[_Date | None] = mapped_column(Date, nullable=True)
     label: Mapped[InvoiceLabel | None] = mapped_column(String(10), nullable=True)
@@ -80,18 +76,12 @@ class InvoiceLine(Base):
     __tablename__ = "invoice_lines"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    invoice_id: Mapped[int] = mapped_column(
-        ForeignKey("invoices.id"), nullable=False, index=True
-    )
+    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), nullable=False, index=True)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
-    quantity: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 3), nullable=False, default=Decimal("1")
-    )
+    quantity: Mapped[_Decimal] = mapped_column(Numeric(10, 3), nullable=False, default=Decimal("1"))
     unit_price: Mapped[_Decimal] = mapped_column(
         Numeric(10, 2), nullable=False, default=Decimal("0")
     )
-    amount: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False, default=Decimal("0")
-    )
+    amount: Mapped[_Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0"))
 
     invoice: Mapped[Invoice] = relationship("Invoice", back_populates="lines")

@@ -19,9 +19,7 @@ class AccountingAccount(Base):
     __tablename__ = "accounting_accounts"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    number: Mapped[str] = mapped_column(
-        String(20), unique=True, nullable=False, index=True
-    )
+    number: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
     label: Mapped[str] = mapped_column(String(200), nullable=False)
     type: Mapped[AccountType] = mapped_column(String(20), nullable=False, index=True)
     parent_number: Mapped[str | None] = mapped_column(String(20), nullable=True)

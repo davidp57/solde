@@ -25,17 +25,13 @@ class Salary(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
     # Employee — linked to a contact of type fournisseur or client
-    employee_id: Mapped[int] = mapped_column(
-        ForeignKey("contacts.id"), nullable=False, index=True
-    )
+    employee_id: Mapped[int] = mapped_column(ForeignKey("contacts.id"), nullable=False, index=True)
 
     # Period in YYYY-MM format (e.g. "2024-09")
     month: Mapped[str] = mapped_column(String(7), nullable=False, index=True)
 
     # Hours worked this month
-    hours: Mapped[_Decimal] = mapped_column(
-        Numeric(8, 2), nullable=False, default=Decimal("0")
-    )
+    hours: Mapped[_Decimal] = mapped_column(Numeric(8, 2), nullable=False, default=Decimal("0"))
 
     # Gross salary (salaire brut)
     gross: Mapped[_Decimal] = mapped_column(Numeric(10, 2), nullable=False)
@@ -51,9 +47,7 @@ class Salary(Base):
     )
 
     # Income tax withheld at source (prélèvement à la source)
-    tax: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False, default=Decimal("0")
-    )
+    tax: Mapped[_Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0"))
 
     # Net salary paid to employee
     net_pay: Mapped[_Decimal] = mapped_column(Numeric(10, 2), nullable=False)

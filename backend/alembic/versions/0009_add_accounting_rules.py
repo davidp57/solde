@@ -19,9 +19,7 @@ def upgrade() -> None:
         sa.Column("priority", sa.Integer(), nullable=False, server_default="10"),
         sa.Column("description", sa.Text(), nullable=True),
     )
-    op.create_index(
-        "ix_accounting_rules_trigger_type", "accounting_rules", ["trigger_type"]
-    )
+    op.create_index("ix_accounting_rules_trigger_type", "accounting_rules", ["trigger_type"])
 
     op.create_table(
         "accounting_rule_entries",
@@ -41,9 +39,7 @@ def upgrade() -> None:
             server_default="{{label}}",
         ),
     )
-    op.create_index(
-        "ix_accounting_rule_entries_rule_id", "accounting_rule_entries", ["rule_id"]
-    )
+    op.create_index("ix_accounting_rule_entries_rule_id", "accounting_rule_entries", ["rule_id"])
 
 
 def downgrade() -> None:

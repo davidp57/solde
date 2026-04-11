@@ -44,18 +44,14 @@ async def _make_payment(db_session: AsyncSession) -> int:
 
 
 @pytest.mark.asyncio
-async def test_get_balance_empty(
-    client: AsyncClient, admin_user: User, auth_headers: dict
-) -> None:
+async def test_get_balance_empty(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     response = await client.get("/api/bank/balance", headers=auth_headers)
     assert response.status_code == 200
     assert response.json()["balance"] == "0"
 
 
 @pytest.mark.asyncio
-async def test_add_transaction(
-    client: AsyncClient, admin_user: User, auth_headers: dict
-) -> None:
+async def test_add_transaction(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     response = await client.post(
         "/api/bank/transactions",
         json={
@@ -73,9 +69,7 @@ async def test_add_transaction(
 
 
 @pytest.mark.asyncio
-async def test_list_transactions(
-    client: AsyncClient, admin_user: User, auth_headers: dict
-) -> None:
+async def test_list_transactions(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     for i in range(3):
         await client.post(
             "/api/bank/transactions",
@@ -152,9 +146,7 @@ async def test_get_deposit_not_found(
 
 
 @pytest.mark.asyncio
-async def test_import_csv(
-    client: AsyncClient, admin_user: User, auth_headers: dict
-) -> None:
+async def test_import_csv(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     csv_content = (
         "Date;Valeur;Montant;Libellé;Solde\n"
         "01/03/2024;01/03/2024;150,00;VIR DUPONT;1650,00\n"

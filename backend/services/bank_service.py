@@ -23,9 +23,7 @@ async def _current_bank_balance(db: AsyncSession) -> Decimal:
     return Decimal(str(total))
 
 
-async def add_transaction(
-    db: AsyncSession, payload: BankTransactionCreate
-) -> BankTransaction:
+async def add_transaction(db: AsyncSession, payload: BankTransactionCreate) -> BankTransaction:
     tx = BankTransaction(**payload.model_dump())
     db.add(tx)
     await db.commit()
@@ -34,9 +32,7 @@ async def add_transaction(
 
 
 async def get_transaction(db: AsyncSession, tx_id: int) -> BankTransaction | None:
-    result = await db.execute(
-        select(BankTransaction).where(BankTransaction.id == tx_id)
-    )
+    result = await db.execute(select(BankTransaction).where(BankTransaction.id == tx_id))
     return result.scalar_one_or_none()
 
 
@@ -78,9 +74,7 @@ async def get_bank_balance(db: AsyncSession) -> Decimal:
 async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
     """Create a deposit slip and mark its payments as deposited."""
     # Load payments and verify they exist
-    result = await db.execute(
-        select(Payment).where(Payment.id.in_(payload.payment_ids))
-    )
+    result = await db.execute(select(Payment).where(Payment.id.in_(payload.payment_ids)))
     payments = list(result.scalars().all())
     if len(payments) != len(payload.payment_ids):
         raise ValueError("one or more payment_ids not found")
@@ -132,18 +126,13 @@ async def list_deposits(
     limit: int = 100,
 ) -> list[Deposit]:
     result = await db.execute(
-        select(Deposit)
-        .order_by(Deposit.date.desc(), Deposit.id.desc())
-        .offset(skip)
-        .limit(limit)
+        select(Deposit).order_by(Deposit.date.desc(), Deposit.id.desc()).offset(skip).limit(limit)
     )
     return list(result.scalars().all())
 
 
 async def get_deposit_payment_ids(db: AsyncSession, deposit_id: int) -> list[int]:
     result = await db.execute(
-        select(deposit_payments.c.payment_id).where(
-            deposit_payments.c.deposit_id == deposit_id
-        )
+        select(deposit_payments.c.payment_id).where(deposit_payments.c.deposit_id == deposit_id)
     )
     return [row[0] for row in result.all()]

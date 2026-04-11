@@ -52,7 +52,7 @@ export interface SalaryCreate {
   notes?: string | null
 }
 
-export interface SalaryUpdate extends Partial<SalaryCreate> {}
+export type SalaryUpdate = Partial<SalaryCreate>
 
 export interface SalarySummaryRow {
   month: string
@@ -100,8 +100,37 @@ export interface ImportResult {
   invoices_created: number
   payments_created: number
   entries_created: number
+  cash_created: number
+  bank_created: number
   skipped: number
+  ignored_rows: number
+  blocked_rows: number
   errors: string[]
+  warnings: string[]
+  error_details: ImportIssueDetail[]
+  warning_details: ImportIssueDetail[]
+  sheets: ImportSheetResult[]
+}
+
+export interface ImportIssueDetail {
+  severity: 'warning' | 'error'
+  sheet_name: string | null
+  kind: string | null
+  row_number: number | null
+  message: string
+  display_message: string
+}
+
+export interface ImportSheetResult {
+  name: string
+  kind: string
+  imported_rows: number
+  ignored_rows: number
+  blocked_rows: number
+  warnings: string[]
+  errors: string[]
+  warning_details: ImportIssueDetail[]
+  error_details: ImportIssueDetail[]
 }
 
 // ---------------------------------------------------------------------------

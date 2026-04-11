@@ -89,9 +89,7 @@ async def export_balance_csv(
     return _write_csv(headers, rows)
 
 
-async def export_resultat_csv(
-    db: AsyncSession, fiscal_year_id: int | None = None
-) -> bytes:
+async def export_resultat_csv(db: AsyncSession, fiscal_year_id: int | None = None) -> bytes:
     """Export compte de résultat to CSV."""
     from backend.services.accounting_entry_service import get_resultat  # noqa: PLC0415
 
@@ -108,9 +106,7 @@ async def export_resultat_csv(
                 f"{r.solde:.2f}".replace(".", ","),
             ]
         )
-    rows.append(
-        ["TOTAL CHARGES", "", "", f"{data.total_charges:.2f}".replace(".", ",")]
-    )
+    rows.append(["TOTAL CHARGES", "", "", f"{data.total_charges:.2f}".replace(".", ",")])
     for r in data.produits:
         rows.append(
             [
@@ -120,16 +116,12 @@ async def export_resultat_csv(
                 f"{r.solde:.2f}".replace(".", ","),
             ]
         )
-    rows.append(
-        ["TOTAL PRODUITS", "", "", f"{data.total_produits:.2f}".replace(".", ",")]
-    )
+    rows.append(["TOTAL PRODUITS", "", "", f"{data.total_produits:.2f}".replace(".", ",")])
     rows.append(["RÉSULTAT", "", "", f"{data.resultat:.2f}".replace(".", ",")])
     return _write_csv(headers, rows)
 
 
-async def export_bilan_csv(
-    db: AsyncSession, fiscal_year_id: int | None = None
-) -> bytes:
+async def export_bilan_csv(db: AsyncSession, fiscal_year_id: int | None = None) -> bytes:
     """Export simplified bilan to CSV."""
     from backend.services.accounting_entry_service import get_bilan  # noqa: PLC0415
 
@@ -156,8 +148,6 @@ async def export_bilan_csv(
                 f"{r.solde:.2f}".replace(".", ","),
             ]
         )
-    rows.append(
-        ["Résultat de l'exercice", "", "", f"{data.resultat:.2f}".replace(".", ",")]
-    )
+    rows.append(["Résultat de l'exercice", "", "", f"{data.resultat:.2f}".replace(".", ",")])
     rows.append(["TOTAL PASSIF", "", "", f"{data.total_passif:.2f}".replace(".", ",")])
     return _write_csv(headers, rows)

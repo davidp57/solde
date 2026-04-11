@@ -47,9 +47,7 @@ async def test_import_ofx_success(client: AsyncClient, auth_headers: dict) -> No
 
 
 @pytest.mark.asyncio
-async def test_import_ofx_invalid_content(
-    client: AsyncClient, auth_headers: dict
-) -> None:
+async def test_import_ofx_invalid_content(client: AsyncClient, auth_headers: dict) -> None:
     response = await client.post(
         "/api/bank/transactions/import-ofx",
         json={"content": "<OFX></OFX>"},
@@ -73,9 +71,7 @@ async def test_import_qif_success(client: AsyncClient, auth_headers: dict) -> No
 
 
 @pytest.mark.asyncio
-async def test_import_qif_invalid_content(
-    client: AsyncClient, auth_headers: dict
-) -> None:
+async def test_import_qif_invalid_content(client: AsyncClient, auth_headers: dict) -> None:
     response = await client.post(
         "/api/bank/transactions/import-qif",
         json={"content": "!Type:Bank\n"},

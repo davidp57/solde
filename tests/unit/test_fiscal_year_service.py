@@ -118,26 +118,20 @@ class TestCloseFiscalYear:
         assert closed.status == FiscalYearStatus.CLOSED
 
     @pytest.mark.asyncio
-    async def test_close_already_closed_raises_error(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_close_already_closed_raises_error(self, db_session: AsyncSession) -> None:
         fy = await _create_fy(db_session, status=FiscalYearStatus.CLOSED)
         with pytest.raises(FiscalYearError):
             await close_fiscal_year(db_session, fy)
 
     @pytest.mark.asyncio
-    async def test_close_with_zero_result_no_cloture_entry(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_close_with_zero_result_no_cloture_entry(self, db_session: AsyncSession) -> None:
         """If charges == produits == 0, no CLOTURE entry should be created."""
         fy = await _create_fy(db_session)
         from sqlalchemy import select
 
         await close_fiscal_year(db_session, fy)
         result = await db_session.execute(
-            select(AccountingEntry).where(
-                AccountingEntry.source_type == EntrySourceType.CLOTURE
-            )
+            select(AccountingEntry).where(AccountingEntry.source_type == EntrySourceType.CLOTURE)
         )
         entries = result.scalars().all()
         assert entries == []
@@ -179,9 +173,7 @@ class TestCloseFiscalYear:
 
         await close_fiscal_year(db_session, fy)
         result = await db_session.execute(
-            select(AccountingEntry).where(
-                AccountingEntry.source_type == EntrySourceType.CLOTURE
-            )
+            select(AccountingEntry).where(AccountingEntry.source_type == EntrySourceType.CLOTURE)
         )
         cloture_entries = result.scalars().all()
         assert len(cloture_entries) >= 1

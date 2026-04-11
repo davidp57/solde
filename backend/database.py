@@ -57,6 +57,7 @@ async def init_db() -> None:
             cash,
             contact,
             fiscal_year,
+            import_log,
             invoice,
             payment,
             salary,

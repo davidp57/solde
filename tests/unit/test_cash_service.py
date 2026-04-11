@@ -139,9 +139,7 @@ async def test_create_cash_count_difference(db_session: AsyncSession) -> None:
     """Difference = total_counted - balance_expected."""
     await cash_service.add_cash_entry(
         db_session,
-        CashEntryCreate(
-            date=date(2024, 3, 1), amount=Decimal("100.00"), type=CashMovementType.IN
-        ),
+        CashEntryCreate(date=date(2024, 3, 1), amount=Decimal("100.00"), type=CashMovementType.IN),
     )
 
     payload = CashCountCreate(date=date(2024, 3, 2), count_100=1)  # 100.00 counted
@@ -156,9 +154,7 @@ async def test_create_cash_count_negative_difference(db_session: AsyncSession) -
     """Negative difference when counted amount is less than expected."""
     await cash_service.add_cash_entry(
         db_session,
-        CashEntryCreate(
-            date=date(2024, 3, 1), amount=Decimal("100.00"), type=CashMovementType.IN
-        ),
+        CashEntryCreate(date=date(2024, 3, 1), amount=Decimal("100.00"), type=CashMovementType.IN),
     )
 
     payload = CashCountCreate(date=date(2024, 3, 2), count_50=1)  # only 50.00 counted

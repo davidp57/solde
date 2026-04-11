@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
 
@@ -60,10 +61,10 @@ async def update_rule(
     return rule
 
 
-def _render_template(template: str, context: dict) -> str:
+def _render_template(template: str, context: Mapping[str, object]) -> str:
     """Replace {{key}} placeholders in a template string with context values."""
 
-    def replace(m: re.Match) -> str:  # type: ignore[type-arg]
+    def replace(m: re.Match[str]) -> str:
         key = m.group(1).strip()
         return str(context.get(key, m.group(0)))
 

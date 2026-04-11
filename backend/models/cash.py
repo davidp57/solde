@@ -28,9 +28,7 @@ class CashRegister(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     date: Mapped[_Date] = mapped_column(Date, nullable=False, index=True)
     amount: Mapped[_Decimal] = mapped_column(Numeric(10, 2), nullable=False)
-    type: Mapped[CashMovementType] = mapped_column(
-        String(5), nullable=False, index=True
-    )
+    type: Mapped[CashMovementType] = mapped_column(String(5), nullable=False, index=True)
     contact_id: Mapped[int | None] = mapped_column(
         ForeignKey("contacts.id"), nullable=True, index=True
     )

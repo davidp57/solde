@@ -1,6 +1,7 @@
 """Pydantic schemas for contacts."""
 
-from datetime import date, datetime
+from datetime import date as date_value
+from datetime import datetime
 from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, field_validator
@@ -62,8 +63,8 @@ class ContactInvoiceSummary(BaseModel):
     id: int
     number: str
     type: str
-    date: date
-    due_date: date | None
+    date: date_value
+    due_date: date_value | None
     status: str
     total_amount: Decimal
     paid_amount: Decimal
@@ -74,7 +75,7 @@ class ContactInvoiceSummary(BaseModel):
 
 class ContactPaymentSummary(BaseModel):
     id: int
-    date: date
+    date: date_value
     amount: Decimal
     method: str
     invoice_number: str | None
