@@ -327,6 +327,7 @@ async def import_comptabilite_file(
     )
     return result
 
+
 def _is_cash_pending_deposit_forecast(
     row: tuple[Any, ...],
     *,
@@ -402,9 +403,7 @@ def _parse_entries_sheet(
     return _parse_entries_sheet_impl(ws)
 
 
-async def _import_contacts_sheet(
-    db: AsyncSession, ws: Any, result: ImportResult
-) -> None:
+async def _import_contacts_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
     """Import contacts from a sheet."""
     from sqlalchemy import select  # noqa: PLC0415
 
@@ -473,9 +472,7 @@ async def _import_contacts_sheet(
         raise _ImportSheetFailure from exc
 
 
-async def _import_invoices_sheet(
-    db: AsyncSession, ws: Any, result: ImportResult
-) -> None:
+async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
     """Import invoices from a sheet with flexible column detection."""
     from sqlalchemy import select  # noqa: PLC0415
 
@@ -560,9 +557,7 @@ async def _import_invoices_sheet(
             number_raw = f"IMP-{invoice_date.year}-{generated_number_index:04d}"
 
         # Idempotency: skip if already in DB
-        existing_inv = await db.execute(
-            select(Invoice).where(Invoice.number == number_raw)
-        )
+        existing_inv = await db.execute(select(Invoice).where(Invoice.number == number_raw))
         if existing_inv.scalar_one_or_none() is not None:
             ignored_issue = make_existing_invoice_issue(invoice_row.source_row_number)
             logger.debug(
@@ -629,9 +624,7 @@ async def _import_invoices_sheet(
                 entries = await generate_entries_for_invoice(db, inv_obj)
                 result.entries_created += len(entries)
             except Exception as e:
-                logger.warning(
-                    "Accounting entries skipped for invoice '%s': %s", inv_obj.number, e
-                )
+                logger.warning("Accounting entries skipped for invoice '%s': %s", inv_obj.number, e)
                 result.add_warning(
                     ws.title,
                     "invoices",
@@ -650,9 +643,7 @@ async def _import_invoices_sheet(
         raise _ImportSheetFailure from exc
 
 
-async def _import_payments_sheet(
-    db: AsyncSession, ws: Any, result: ImportResult
-) -> None:
+async def _import_payments_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
     """Import payments from a sheet."""
     from backend.models.invoice import InvoiceType  # noqa: PLC0415
     from backend.models.payment import Payment  # noqa: PLC0415
@@ -686,9 +677,12 @@ async def _import_payments_sheet(
         if blocking_issue is not None:
             raise ValueError(format_row_issue(blocking_issue))
 
-        invoice_id = resolution.candidate.invoice_id
-        contact_id = resolution.candidate.contact_id
-        inv_type = resolution.candidate.invoice_type or InvoiceType.CLIENT
+        candidate = resolution.candidate
+        assert candidate is not None
+        assert candidate.invoice_id is not None
+        invoice_id = candidate.invoice_id
+        contact_id = candidate.contact_id
+        inv_type = candidate.invoice_type or InvoiceType.CLIENT
 
         payment = Payment(
             invoice_id=invoice_id,
@@ -885,9 +879,7 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
         raise _ImportSheetFailure from exc
 
 
-async def _import_entries_sheet(
-    db: AsyncSession, ws: Any, result: ImportResult
-) -> None:
+async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
     """Import accounting entries from a comptabilité sheet."""
     from sqlalchemy import func, select  # noqa: PLC0415
 
@@ -1098,10 +1090,7 @@ def _collect_sample_rows(
         if all(cell is None for cell in row):
             continue
         samples.append(
-            {
-                key: _parse_str(row[idx] if idx < len(row) else None)
-                for key, idx in col_map.items()
-            }
+            {key: _parse_str(row[idx] if idx < len(row) else None) for key, idx in col_map.items()}
         )
         if len(samples) >= limit:
             break
@@ -1251,6 +1240,8 @@ def _preview_sheet_gestion(ws: Any, sheet_name: str, preview: PreviewResult) -> 
         ignored_rows = len(ignored_issues)
         _append_ignored_issues(warnings, ignored_issues)
 
+    assert parsed_sheet is not None
+    col_map = parsed_sheet.col_map
     _append_finalized_sheet_preview(
         preview,
         sheet_name=sheet_name,
@@ -1260,15 +1251,13 @@ def _preview_sheet_gestion(ws: Any, sheet_name: str, preview: PreviewResult) -> 
         detected_columns=detected_columns,
         missing_columns=missing_columns,
         ignored_rows=ignored_rows,
-        sample_rows=_collect_sample_rows(ws, header_row, parsed_sheet.col_map),
+        sample_rows=_collect_sample_rows(ws, header_row, col_map),
         warnings=warnings,
         errors=errors,
     )
 
 
-def _preview_sheet_comptabilite(
-    ws: Any, sheet_name: str, preview: PreviewResult
-) -> None:
+def _preview_sheet_comptabilite(ws: Any, sheet_name: str, preview: PreviewResult) -> None:
     """Count parseable accounting entry rows and report diagnostics."""
     kind, reason = _classify_comptabilite_sheet(sheet_name)
     if kind is None:

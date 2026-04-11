@@ -657,6 +657,66 @@ async def test_import_gestion_blocks_rows_with_missing_required_invoice_data(
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_import_gestion_blocks_invoices_with_missing_or_invalid_date(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [
+                    [None, "2025-0142", "Christine LOPES", 55],
+                    ["invalid-date", "2025-0143", "Thi BE NGUYEN", 42],
+                ],
+            ),
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    assert preview_data["can_import"] is False
+    assert preview_data["error_details"] == [
+        {
+            "category": "invoice-invalid-date",
+            "severity": "error",
+            "sheet_name": "Factures",
+            "kind": "invoices",
+            "row_number": 2,
+            "message": "date manquante ou invalide",
+            "display_message": "Factures — Ligne 2 : date manquante ou invalide",
+        },
+        {
+            "category": "invoice-invalid-date",
+            "severity": "error",
+            "sheet_name": "Factures",
+            "kind": "invoices",
+            "row_number": 3,
+            "message": "date manquante ou invalide",
+            "display_message": "Factures — Ligne 3 : date manquante ou invalide",
+        },
+    ]
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    import_data = import_response.json()
+    assert import_data["invoices_created"] == 0
+    assert import_data["contacts_created"] == 0
+    assert import_data["error_details"] == preview_data["error_details"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
 async def test_preview_and_import_gestion_block_invoice_with_ambiguous_existing_contact(
     client: AsyncClient,
     auth_headers: dict,
@@ -704,8 +764,7 @@ async def test_preview_and_import_gestion_block_invoice_with_ambiguous_existing_
             "row_number": 2,
             "message": "client ambigu : plusieurs contacts correspondent",
             "display_message": (
-                "Factures — Ligne 2 : client ambigu : plusieurs contacts "
-                "correspondent"
+                "Factures — Ligne 2 : client ambigu : plusieurs contacts correspondent"
             ),
         }
     ]
@@ -730,8 +789,7 @@ async def test_preview_and_import_gestion_block_invoice_with_ambiguous_existing_
             "row_number": 2,
             "message": "client ambigu : plusieurs contacts correspondent",
             "display_message": (
-                "Factures — Ligne 2 : client ambigu : plusieurs contacts "
-                "correspondent"
+                "Factures — Ligne 2 : client ambigu : plusieurs contacts correspondent"
             ),
         }
     ]
@@ -1009,8 +1067,7 @@ async def test_import_gestion_blocks_partial_import_when_a_recognized_sheet_is_i
             "row_number": None,
             "message": "Colonnes requises manquantes: référence facture ou contact",
             "display_message": (
-                "Paiements — Colonnes requises manquantes: "
-                "référence facture ou contact"
+                "Paiements — Colonnes requises manquantes: référence facture ou contact"
             ),
         }
     ]
@@ -1036,8 +1093,7 @@ async def test_import_gestion_blocks_partial_import_when_a_recognized_sheet_is_i
             "row_number": None,
             "message": "Colonnes requises manquantes: référence facture ou contact",
             "display_message": (
-                "Paiements — Colonnes requises manquantes: "
-                "référence facture ou contact"
+                "Paiements — Colonnes requises manquantes: référence facture ou contact"
             ),
         }
     ]

@@ -17,18 +17,20 @@ def find_col_idx(col_map: dict[str, int], *fragments: str) -> int | None:
     return None
 
 
-def find_invoice_number_idx(
-    col_map: dict[str, int], *, exclude_idx: int | None
-) -> int | None:
+def find_invoice_number_idx(col_map: dict[str, int], *, exclude_idx: int | None) -> int | None:
     """Find the invoice number/reference column while avoiding false positives."""
     for key, idx in col_map.items():
         if exclude_idx is not None and idx == exclude_idx:
             continue
         normalized_key = normalize_text(key)
-        if any(
-            fragment in normalized_key
-            for fragment in ("ref facture", "reference", "facture", "numero", "num")
-        ) and "etat" not in normalized_key and "montant" not in normalized_key:
+        if (
+            any(
+                fragment in normalized_key
+                for fragment in ("ref facture", "reference", "facture", "numero", "num")
+            )
+            and "etat" not in normalized_key
+            and "montant" not in normalized_key
+        ):
             return idx
     return None
 

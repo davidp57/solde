@@ -128,9 +128,7 @@ def test_preview_result_to_dict_exposes_structured_issue_details() -> None:
 
 def test_preview_result_to_dict_uses_kind_specific_missing_columns_category() -> None:
     preview = PreviewResult()
-    preview.errors.append(
-        "Paiements — Colonnes requises manquantes: référence facture ou contact"
-    )
+    preview.errors.append("Paiements — Colonnes requises manquantes: référence facture ou contact")
     preview.sheets.append(
         {
             "name": "Paiements",
@@ -159,8 +157,7 @@ def test_preview_result_to_dict_uses_kind_specific_missing_columns_category() ->
             "row_number": None,
             "message": "Colonnes requises manquantes: référence facture ou contact",
             "display_message": (
-                "Paiements — Colonnes requises manquantes: "
-                "référence facture ou contact"
+                "Paiements — Colonnes requises manquantes: référence facture ou contact"
             ),
         }
     ]

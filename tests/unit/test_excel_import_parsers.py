@@ -20,6 +20,7 @@ from backend.services.excel_import_policy import (
     BANK_BALANCE_DESCRIPTION_MESSAGE,
     CASH_INITIAL_BALANCE_MESSAGE,
     CASH_PENDING_DEPOSIT_MESSAGE,
+    INVOICE_INVALID_DATE_MESSAGE,
     INVOICE_TOTAL_MESSAGE,
     ZERO_JOURNAL_ENTRY_MESSAGE,
 )
@@ -57,6 +58,28 @@ def test_parse_invoice_sheet_reports_blocked_and_ignored_rows() -> None:
     assert issues[0].message == "client manquant"
     assert ignored_issues[0].source_row_number == 4
     assert ignored_issues[0].message == INVOICE_TOTAL_MESSAGE
+
+
+def test_parse_invoice_sheet_blocks_missing_or_invalid_invoice_date() -> None:
+    sheet = _make_sheet(
+        "Factures",
+        [
+            ["Date facture", "Réf facture", "Client", "Montant"],
+            [None, "2025-0142", "Christine LOPES", 55],
+            ["not-a-date", "2025-0143", "Christine LOPES", 42],
+        ],
+    )
+
+    parsed_sheet, rows, issues, ignored_issues = parse_invoice_sheet(sheet)
+
+    assert parsed_sheet is not None
+    assert rows == []
+    assert ignored_issues == []
+    assert [issue.source_row_number for issue in issues] == [2, 3]
+    assert [issue.message for issue in issues] == [
+        INVOICE_INVALID_DATE_MESSAGE,
+        INVOICE_INVALID_DATE_MESSAGE,
+    ]
 
 
 def test_parse_payment_sheet_normalizes_payment_fields() -> None:

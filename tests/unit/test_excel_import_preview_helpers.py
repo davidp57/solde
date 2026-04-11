@@ -160,9 +160,7 @@ def test_append_reasoned_ignored_sheet_preview_marks_ignored_with_warning() -> N
 
     assert preview.sheets[0]["status"] == "ignored"
     assert preview.sheets[0]["warnings"] == ["Feuille auxiliaire ignoree par la preview"]
-    assert preview.warnings == [
-        "Aide - Factures — Feuille auxiliaire ignoree par la preview"
-    ]
+    assert preview.warnings == ["Aide - Factures — Feuille auxiliaire ignoree par la preview"]
 
 
 def test_append_reasoned_ignored_sheet_preview_marks_empty_without_warning() -> None:

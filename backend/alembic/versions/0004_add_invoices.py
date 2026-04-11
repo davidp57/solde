@@ -34,12 +34,8 @@ def upgrade() -> None:
         sa.Column("status", sa.String(20), nullable=False),
         sa.Column("pdf_path", sa.String(500), nullable=True),
         sa.Column("file_path", sa.String(500), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(), server_default=sa.func.now(), nullable=False
-        ),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(["contact_id"], ["contacts.id"]),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -62,9 +58,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_invoice_lines_id", "invoice_lines", ["id"], unique=False)
-    op.create_index(
-        "ix_invoice_lines_invoice_id", "invoice_lines", ["invoice_id"], unique=False
-    )
+    op.create_index("ix_invoice_lines_invoice_id", "invoice_lines", ["invoice_id"], unique=False)
 
 
 def downgrade() -> None:

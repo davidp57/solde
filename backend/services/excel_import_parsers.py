@@ -30,6 +30,7 @@ from backend.services.excel_import_policy import (
     ENTRY_INVALID_DEBIT_MESSAGE,
     ENTRY_MISSING_ACCOUNT_MESSAGE,
     INVOICE_INVALID_AMOUNT_MESSAGE,
+    INVOICE_INVALID_DATE_MESSAGE,
     INVOICE_REQUIRED_CONTACT_MESSAGE,
     INVOICE_TOTAL_MESSAGE,
     PAYMENT_INVALID_AMOUNT_MESSAGE,
@@ -100,9 +101,7 @@ def parse_invoice_sheet(
     list[RowIgnoredIssue],
 ]:
     """Parse invoice rows into a shared normalized structure."""
-    header_info = detect_header_row(ws, ["montant", "date"])
-    if header_info is None:
-        header_info = detect_header_row(ws, ["montant", "client"])
+    header_info = detect_header_row(ws, ["date", "montant", "client"])
     if header_info is None:
         return None, [], [], []
 
@@ -114,6 +113,7 @@ def parse_invoice_sheet(
     label_idx = find_col_idx(col_map, "motif", "libellé", "libelle", "type")
 
     missing_columns = invoice_missing_columns(
+        date_idx=date_idx,
         montant_idx=montant_idx,
         nom_idx=nom_idx,
     )
@@ -152,16 +152,19 @@ def parse_invoice_sheet(
             continue
 
         row_errors: list[str] = []
+        invoice_date = parse_date(get_row_value(row, date_idx))
         if amount is None or amount <= 0:
             row_errors.append(INVOICE_INVALID_AMOUNT_MESSAGE)
+        if invoice_date is None:
+            row_errors.append(INVOICE_INVALID_DATE_MESSAGE)
         if not contact_name:
             row_errors.append(INVOICE_REQUIRED_CONTACT_MESSAGE)
         if row_errors:
             issues.append(make_validation_issue(source_row_number, row_errors))
             continue
 
-        invoice_date = parse_date(get_row_value(row, date_idx)) or date.today()
         assert amount is not None
+        assert invoice_date is not None
         raw_number = get_row_value(row, numero_idx)
         invoice_number: str | None = None
         if not isinstance(raw_number, (date, datetime)):

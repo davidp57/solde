@@ -14,9 +14,7 @@ router = APIRouter(prefix="/import", tags=["import"])
 
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB hard limit
 
-_WriteAccess = Annotated[
-    User, Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN))
-]
+_WriteAccess = Annotated[User, Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN))]
 
 
 async def _read_limited(upload: UploadFile) -> bytes:
@@ -43,7 +41,7 @@ async def import_gestion(
     file: UploadFile,
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _WriteAccess,
-) -> dict:
+) -> dict[str, object]:
     """Import contacts, invoices and payments from a 'Gestion YYYY.xlsx' file."""
     _check_excel_extension(file.filename)
     content = await _read_limited(file)
@@ -56,7 +54,7 @@ async def import_comptabilite(
     file: UploadFile,
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _WriteAccess,
-) -> dict:
+) -> dict[str, object]:
     """Import accounting entries from a 'Comptabilité YYYY.xlsx' file."""
     _check_excel_extension(file.filename)
     content = await _read_limited(file)
@@ -69,7 +67,7 @@ async def preview_gestion(
     file: UploadFile,
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _WriteAccess,
-) -> dict:
+) -> dict[str, object]:
     """Dry-run parse of a Gestion file — returns estimated row counts without importing."""
     _check_excel_extension(file.filename)
     content = await _read_limited(file)
@@ -82,7 +80,7 @@ async def preview_comptabilite(
     file: UploadFile,
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _WriteAccess,
-) -> dict:
+) -> dict[str, object]:
     """Dry-run parse of a Comptabilité file — returns estimated row counts without importing."""
     _check_excel_extension(file.filename)
     content = await _read_limited(file)

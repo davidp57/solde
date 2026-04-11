@@ -123,9 +123,7 @@ def create_app() -> FastAPI:
     # Serve Vue.js frontend static files (built output)
     frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
     if frontend_dist.exists():
-        app.mount(
-            "/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend"
-        )
+        app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
 
     return app
 

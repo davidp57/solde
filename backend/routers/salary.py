@@ -21,13 +21,11 @@ if TYPE_CHECKING:
 
 router = APIRouter(prefix="/salaries", tags=["salaries"])
 
-_WriteAccess = Annotated[
-    User, Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN))
-]
+_WriteAccess = Annotated[User, Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN))]
 _ReadAccess = Annotated[User, Depends(get_current_user)]
 
 
-def _to_read(salary: "Salary") -> SalaryRead:  # type: ignore[name-defined]
+def _to_read(salary: "Salary") -> SalaryRead:
     from backend.services.salary_service import _employee_display_name  # noqa: PLC0415
 
     return SalaryRead(
@@ -88,9 +86,7 @@ async def get_salary(
 ) -> SalaryRead:
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
     return _to_read(salary)
 
 
@@ -103,9 +99,7 @@ async def update_salary(
 ) -> SalaryRead:
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
     updated = await salary_service.update_salary(db, salary, payload)
     return _to_read(updated)
 
@@ -118,7 +112,5 @@ async def delete_salary(
 ) -> None:
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
     await salary_service.delete_salary(db, salary)

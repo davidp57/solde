@@ -59,9 +59,7 @@ async def get_payment(
 ) -> PaymentRead:
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
     return payment  # type: ignore[return-value]
 
 
@@ -74,9 +72,7 @@ async def update_payment(
 ) -> PaymentRead:
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
     updated = await payment_service.update_payment(db, payment, payload)
     return updated  # type: ignore[return-value]
 
@@ -89,7 +85,5 @@ async def delete_payment(
 ) -> None:
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
     await payment_service.delete_payment(db, payment)

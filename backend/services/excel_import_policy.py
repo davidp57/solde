@@ -46,7 +46,8 @@ GESTION_AUXILIARY_SHEET_MESSAGE = "Feuille auxiliaire ignoree par la preview"
 GESTION_UNKNOWN_STRUCTURE_MESSAGE = "Structure non reconnue, feuille ignoree par la preview"
 INVOICE_AMBIGUOUS_CONTACT_MESSAGE = "client ambigu : plusieurs contacts correspondent"
 INVOICE_INVALID_AMOUNT_MESSAGE = "montant manquant ou invalide"
-INVOICE_REQUIRED_COLUMNS = ("montant", "client")
+INVOICE_INVALID_DATE_MESSAGE = "date manquante ou invalide"
+INVOICE_REQUIRED_COLUMNS = ("date", "montant", "client")
 INVOICE_REQUIRED_CONTACT_MESSAGE = "client manquant"
 INVOICE_TOTAL_MESSAGE = "ligne de total ignoree"
 MISSING_REQUIRED_COLUMNS_MESSAGE_PREFIX = "Colonnes requises manquantes"
@@ -113,6 +114,7 @@ _ISSUE_CATEGORY_BY_KIND_AND_MESSAGE = {
     "invoices": {
         INVOICE_AMBIGUOUS_CONTACT_MESSAGE: "invoice-ambiguous-contact",
         INVOICE_INVALID_AMOUNT_MESSAGE: "invoice-invalid-amount",
+        INVOICE_INVALID_DATE_MESSAGE: "invoice-invalid-date",
         INVOICE_REQUIRED_CONTACT_MESSAGE: "invoice-missing-contact",
     },
     "payments": {
@@ -221,13 +223,20 @@ def should_ignore_zero_journal_entry(*, debit: Decimal, credit: Decimal) -> bool
     return debit == 0 and credit == 0
 
 
-def invoice_missing_columns(*, montant_idx: int | None, nom_idx: int | None) -> list[str]:
+def invoice_missing_columns(
+    *,
+    date_idx: int | None,
+    montant_idx: int | None,
+    nom_idx: int | None,
+) -> list[str]:
     """Return the missing required invoice columns for the current sheet."""
     missing_columns: list[str] = []
-    if montant_idx is None:
+    if date_idx is None:
         missing_columns.append(INVOICE_REQUIRED_COLUMNS[0])
-    if nom_idx is None:
+    if montant_idx is None:
         missing_columns.append(INVOICE_REQUIRED_COLUMNS[1])
+    if nom_idx is None:
+        missing_columns.append(INVOICE_REQUIRED_COLUMNS[2])
     return missing_columns
 
 

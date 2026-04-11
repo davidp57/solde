@@ -8,9 +8,10 @@ received, deposit created, etc.).
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,10 +47,10 @@ async def _current_fiscal_year_id(db: AsyncSession) -> int | None:
     return result.scalar_one_or_none()
 
 
-def _render_template(template: str, context: dict) -> str:
+def _render_template(template: str, context: Mapping[str, object]) -> str:
     """Replace {{key}} placeholders in a template string with context values."""
 
-    def replace(m: re.Match) -> str:  # type: ignore[type-arg]
+    def replace(m: re.Match[str]) -> str:
         key = m.group(1).strip()
         return str(context.get(key, m.group(0)))
 
@@ -61,7 +62,7 @@ async def _apply_rule(
     rule: AccountingRule,
     amount: Decimal,
     entry_date: date,
-    context: dict,
+    context: Mapping[str, object],
     source_type: EntrySourceType | None,
     source_id: int | None,
     fiscal_year_id: int | None,
@@ -357,7 +358,7 @@ async def seed_default_rules(db: AsyncSession) -> int:
 
     count = 0
     for rule_data in DEFAULT_RULES:
-        entries_data = rule_data.pop("entries", [])
+        entries_data = cast(list[dict[str, object]], rule_data.pop("entries", []))
         rule = AccountingRule(**rule_data)
         db.add(rule)
         await db.flush()

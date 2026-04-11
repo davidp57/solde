@@ -132,6 +132,16 @@ describe('ImportExcelView', () => {
     expect((wrapper.get('[data-testid="confirm-import-button"]').element as HTMLButtonElement).disabled).toBe(false)
   })
 
+  it('hides the preview state until a preview exists', async () => {
+    const wrapper = mountView()
+
+    expect(wrapper.find('.import-preview-state').exists()).toBe(false)
+
+    await selectFile(wrapper)
+
+    expect(wrapper.find('.import-preview-state').exists()).toBe(false)
+  })
+
   it('requires explicit warning acknowledgment before import', async () => {
     mockPreviewGestionFileApi.mockResolvedValueOnce(buildPreviewResult({
       warnings: ['warning'],

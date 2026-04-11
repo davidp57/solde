@@ -33,6 +33,7 @@ from backend.services.excel_import_policy import (
     GESTION_AUXILIARY_SHEET_MESSAGE,
     GESTION_UNKNOWN_STRUCTURE_MESSAGE,
     INVOICE_INVALID_AMOUNT_MESSAGE,
+    INVOICE_INVALID_DATE_MESSAGE,
     INVOICE_REQUIRED_COLUMNS,
     INVOICE_REQUIRED_CONTACT_MESSAGE,
     INVOICE_TOTAL_MESSAGE,
@@ -456,7 +457,9 @@ def test_issue_category_for_message_uses_global_prefixes() -> None:
 
 
 def test_missing_columns_helpers_define_stable_sheet_contracts() -> None:
-    assert invoice_missing_columns(montant_idx=None, nom_idx=None) == list(INVOICE_REQUIRED_COLUMNS)
+    assert invoice_missing_columns(date_idx=None, montant_idx=None, nom_idx=None) == list(
+        INVOICE_REQUIRED_COLUMNS
+    )
     assert payment_missing_columns(montant_idx=None, invoice_idx=None, nom_idx=None) == list(
         PAYMENT_REQUIRED_COLUMNS
     )
@@ -583,6 +586,15 @@ def test_issue_category_for_message_returns_expected_stable_categories() -> None
             severity="error",
         )
         == "invoice-missing-contact"
+    )
+    assert (
+        issue_category_for_message(
+            INVOICE_INVALID_DATE_MESSAGE,
+            kind="invoices",
+            row_number=3,
+            severity="error",
+        )
+        == "invoice-invalid-date"
     )
     assert (
         issue_category_for_message(

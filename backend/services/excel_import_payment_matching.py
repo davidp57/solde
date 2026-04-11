@@ -58,8 +58,7 @@ def resolve_candidates_by_invoice_ref(
     exact_matches = [
         candidate
         for candidate in candidates
-        if candidate.invoice_number
-        and normalize_text(candidate.invoice_number) == normalized_ref
+        if candidate.invoice_number and normalize_text(candidate.invoice_number) == normalized_ref
     ]
     if exact_matches:
         return dedupe_payment_candidates(exact_matches)
@@ -67,8 +66,7 @@ def resolve_candidates_by_invoice_ref(
     partial_matches = [
         candidate
         for candidate in candidates
-        if candidate.invoice_number
-        and normalized_ref in normalize_text(candidate.invoice_number)
+        if candidate.invoice_number and normalized_ref in normalize_text(candidate.invoice_number)
     ]
     return dedupe_payment_candidates(partial_matches)
 

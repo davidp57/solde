@@ -69,9 +69,7 @@ async def pre_close_checks(db: AsyncSession, fy: FiscalYear) -> list[str]:
     warnings: list[str] = []
 
     if fy.status != FiscalYearStatus.OPEN:
-        warnings.append(
-            f"L'exercice '{fy.name}' n'est pas ouvert (statut : {fy.status})."
-        )
+        warnings.append(f"L'exercice '{fy.name}' n'est pas ouvert (statut : {fy.status}).")
         return warnings  # no further checks possible
 
     # Check 1: total debits == total credits for this FY

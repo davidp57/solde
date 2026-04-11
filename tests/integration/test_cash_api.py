@@ -9,18 +9,14 @@ from backend.models.user import User
 
 
 @pytest.mark.asyncio
-async def test_get_balance_empty(
-    client: AsyncClient, admin_user: User, auth_headers: dict
-) -> None:
+async def test_get_balance_empty(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     response = await client.get("/api/cash/balance", headers=auth_headers)
     assert response.status_code == 200
     assert response.json()["balance"] == "0"
 
 
 @pytest.mark.asyncio
-async def test_add_entry_in(
-    client: AsyncClient, admin_user: User, auth_headers: dict
-) -> None:
+async def test_add_entry_in(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     response = await client.post(
         "/api/cash/entries",
         json={
@@ -47,9 +43,7 @@ async def test_add_entry_unauthenticated(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_list_entries(
-    client: AsyncClient, admin_user: User, auth_headers: dict
-) -> None:
+async def test_list_entries(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     for amount in ["100.00", "50.00"]:
         await client.post(
             "/api/cash/entries",
@@ -81,9 +75,7 @@ async def test_balance_after_in_and_out(
 
 
 @pytest.mark.asyncio
-async def test_create_cash_count(
-    client: AsyncClient, admin_user: User, auth_headers: dict
-) -> None:
+async def test_create_cash_count(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     response = await client.post(
         "/api/cash/counts",
         json={
@@ -102,9 +94,7 @@ async def test_create_cash_count(
 
 
 @pytest.mark.asyncio
-async def test_list_cash_counts(
-    client: AsyncClient, admin_user: User, auth_headers: dict
-) -> None:
+async def test_list_cash_counts(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     await client.post(
         "/api/cash/counts",
         json={"date": "2024-03-01"},

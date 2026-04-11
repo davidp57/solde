@@ -129,9 +129,7 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
 async def get_invoice(db: AsyncSession, invoice_id: int) -> Invoice | None:
     """Get an invoice by ID, with lines eagerly loaded."""
     result = await db.execute(
-        select(Invoice)
-        .where(Invoice.id == invoice_id)
-        .options(selectinload(Invoice.lines))
+        select(Invoice).where(Invoice.id == invoice_id).options(selectinload(Invoice.lines))
     )
     return result.scalar_one_or_none()
 
@@ -156,16 +154,12 @@ async def list_invoices(
         query = query.where(Invoice.contact_id == contact_id)
     if year is not None:
         query = query.where(extract("year", Invoice.date) == year)
-    query = (
-        query.order_by(Invoice.date.desc(), Invoice.id.desc()).offset(skip).limit(limit)
-    )
+    query = query.order_by(Invoice.date.desc(), Invoice.id.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 
 
-async def update_invoice(
-    db: AsyncSession, invoice: Invoice, payload: InvoiceUpdate
-) -> Invoice:
+async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpdate) -> Invoice:
     """Update invoice fields. Recalculates total if lines are provided."""
     for field in (
         "contact_id",
@@ -212,9 +206,7 @@ async def update_invoice_status(
     """Change the status of an invoice, enforcing valid transitions."""
     allowed = _VALID_TRANSITIONS.get(invoice.status, set())
     if new_status not in allowed:
-        raise InvoiceStatusError(
-            f"Cannot transition from '{invoice.status}' to '{new_status}'"
-        )
+        raise InvoiceStatusError(f"Cannot transition from '{invoice.status}' to '{new_status}'")
     invoice.status = new_status
     invoice.updated_at = datetime.now(UTC)
     if new_status == InvoiceStatus.SENT:
