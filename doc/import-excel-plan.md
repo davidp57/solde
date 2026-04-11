@@ -1,6 +1,6 @@
 # Plan de fiabilisation de l'import Excel historique
 
-> Document de travail en cours, volontairement non commité à ce stade.
+> Document de travail de suivi du chantier, maintenu dans le dépôt.
 >
 > Dernière mise à jour : 2026-04-11
 >
@@ -151,6 +151,7 @@ Ce fichier doit être mis à jour après chaque tranche significative de travail
 - [x] IMP-05 est désormais fermé : les erreurs de flush attrapées localement dans les imports de feuilles provoquent aussi l'abandon de l'import global, le reset des compteurs et un log `failed`.
 - [x] IMP-04 est désormais fermé : les ambiguïtés restantes connues sont maintenant bloquées explicitement avant persistance, y compris la résolution `facture -> contact` quand plusieurs contacts existants correspondent exactement.
 - [x] IMP-01 est désormais fermé : les décisions métier stables et leurs diagnostics structurés sont maintenant centralisés, y compris la résolution stricte `facture -> contact` et les catégories globales résiduelles.
+- [x] Relecture PR 4 absorbée : les factures sans date valide sont désormais bloquées explicitement, le bandeau d'état preview n'apparaît qu'après une vraie prévisualisation, et l'entête du document ne prétend plus être "non commité".
 
 ### Validations vertes connues
 

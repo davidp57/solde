@@ -31,9 +31,7 @@ def upgrade() -> None:
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("deposited", sa.Boolean(), nullable=False),
         sa.Column("deposit_date", sa.Date(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False
-        ),
+        sa.Column("created_at", sa.DateTime(), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(["contact_id"], ["contacts.id"]),
         sa.ForeignKeyConstraint(["invoice_id"], ["invoices.id"]),
         sa.PrimaryKeyConstraint("id"),

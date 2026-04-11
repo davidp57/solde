@@ -5,9 +5,7 @@ from datetime import date
 from httpx import AsyncClient
 
 
-async def _create_contact(
-    client: AsyncClient, headers: dict, nom: str = "Dupont"
-) -> int:
+async def _create_contact(client: AsyncClient, headers: dict, nom: str = "Dupont") -> int:
     r = await client.post(
         "/api/contacts/",
         json={"type": "client", "nom": nom},
@@ -62,9 +60,7 @@ class TestListInvoices:
 
 
 class TestCreateInvoice:
-    async def test_create_client_invoice_with_lines(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_create_client_invoice_with_lines(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
         lines = [
             {"description": "Cours maths", "quantity": "2", "unit_price": "30.00"},
@@ -76,9 +72,7 @@ class TestCreateInvoice:
         assert invoice["status"] == "draft"
         assert len(invoice["lines"]) == 2
 
-    async def test_create_supplier_invoice(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_create_supplier_invoice(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
         invoice = await _create_invoice(
             client, auth_headers, cid, invoice_type="fournisseur", total_amount=250.0
@@ -93,9 +87,7 @@ class TestCreateInvoice:
         )
         assert r.status_code == 401
 
-    async def test_invoice_number_increments(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_invoice_number_increments(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
         inv1 = await _create_invoice(client, auth_headers, cid)
         inv2 = await _create_invoice(client, auth_headers, cid)
@@ -111,9 +103,7 @@ class TestGetInvoice:
         assert r.status_code == 200
         assert r.json()["id"] == created["id"]
 
-    async def test_get_unknown_returns_404(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_get_unknown_returns_404(self, client: AsyncClient, auth_headers: dict):
         r = await client.get("/api/invoices/99999", headers=auth_headers)
         assert r.status_code == 404
 
@@ -143,9 +133,7 @@ class TestStatusChange:
         assert r.status_code == 200
         assert r.json()["status"] == "sent"
 
-    async def test_invalid_transition_returns_409(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_invalid_transition_returns_409(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
         created = await _create_invoice(client, auth_headers, cid)
         await client.patch(
@@ -162,14 +150,10 @@ class TestStatusChange:
 
 
 class TestDuplicate:
-    async def test_duplicate_creates_new_draft(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_duplicate_creates_new_draft(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
         original = await _create_invoice(client, auth_headers, cid)
-        r = await client.post(
-            f"/api/invoices/{original['id']}/duplicate", headers=auth_headers
-        )
+        r = await client.post(f"/api/invoices/{original['id']}/duplicate", headers=auth_headers)
         assert r.status_code == 201
         copy = r.json()
         assert copy["status"] == "draft"
@@ -186,9 +170,7 @@ class TestDeleteInvoice:
         r2 = await client.get(f"/api/invoices/{created['id']}", headers=auth_headers)
         assert r2.status_code == 404
 
-    async def test_cannot_delete_sent_invoice(
-        self, client: AsyncClient, auth_headers: dict
-    ):
+    async def test_cannot_delete_sent_invoice(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
         created = await _create_invoice(client, auth_headers, cid)
         await client.patch(

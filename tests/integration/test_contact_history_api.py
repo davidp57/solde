@@ -24,9 +24,7 @@ async def test_get_history_empty(
     await db_session.commit()
     await db_session.refresh(contact)
 
-    response = await client.get(
-        f"/api/contacts/{contact.id}/history", headers=auth_headers
-    )
+    response = await client.get(f"/api/contacts/{contact.id}/history", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["invoices"] == []
@@ -50,9 +48,7 @@ async def test_mark_douteux_no_balance(
     await db_session.commit()
     await db_session.refresh(contact)
 
-    response = await client.post(
-        f"/api/contacts/{contact.id}/mark-douteux", headers=auth_headers
-    )
+    response = await client.post(f"/api/contacts/{contact.id}/mark-douteux", headers=auth_headers)
     assert response.status_code == 404
 
 
@@ -89,9 +85,7 @@ async def test_mark_douteux_creates_entries(
     db_session.add(invoice)
     await db_session.commit()
 
-    response = await client.post(
-        f"/api/contacts/{contact.id}/mark-douteux", headers=auth_headers
-    )
+    response = await client.post(f"/api/contacts/{contact.id}/mark-douteux", headers=auth_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["amount"] == "500.00"

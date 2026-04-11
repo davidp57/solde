@@ -17,9 +17,7 @@ def upgrade() -> None:
         sa.Column("start_date", sa.Date(), nullable=False),
         sa.Column("end_date", sa.Date(), nullable=False),
         sa.Column("status", sa.String(10), nullable=False, server_default="open"),
-        sa.Column(
-            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
     )
     op.create_index("ix_fiscal_years_name", "fiscal_years", ["name"])
     op.create_index("ix_fiscal_years_status", "fiscal_years", ["status"])

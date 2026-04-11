@@ -33,7 +33,7 @@
               class="hidden"
               @change="onFileChange"
             />
-            <p class="import-preview-state" :class="previewStateClass">
+            <p v-if="selectedFile && preview" class="import-preview-state" :class="previewStateClass">
               {{ previewStateMessage }}
             </p>
             <div class="import-file-row">

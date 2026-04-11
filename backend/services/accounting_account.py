@@ -49,24 +49,16 @@ async def list_accounts(
 
 
 async def get_account(db: AsyncSession, account_id: int) -> AccountingAccount | None:
-    result = await db.execute(
-        select(AccountingAccount).where(AccountingAccount.id == account_id)
-    )
+    result = await db.execute(select(AccountingAccount).where(AccountingAccount.id == account_id))
     return result.scalar_one_or_none()
 
 
-async def get_account_by_number(
-    db: AsyncSession, number: str
-) -> AccountingAccount | None:
-    result = await db.execute(
-        select(AccountingAccount).where(AccountingAccount.number == number)
-    )
+async def get_account_by_number(db: AsyncSession, number: str) -> AccountingAccount | None:
+    result = await db.execute(select(AccountingAccount).where(AccountingAccount.number == number))
     return result.scalar_one_or_none()
 
 
-async def create_account(
-    db: AsyncSession, payload: AccountingAccountCreate
-) -> AccountingAccount:
+async def create_account(db: AsyncSession, payload: AccountingAccountCreate) -> AccountingAccount:
     account = AccountingAccount(**payload.model_dump(), is_default=False)
     db.add(account)
     await db.commit()

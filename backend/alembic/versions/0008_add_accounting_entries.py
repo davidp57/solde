@@ -27,13 +27,9 @@ def upgrade() -> None:
         ),
         sa.Column("source_type", sa.String(20), nullable=True),
         sa.Column("source_id", sa.Integer(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
     )
-    op.create_index(
-        "ix_accounting_entries_entry_number", "accounting_entries", ["entry_number"]
-    )
+    op.create_index("ix_accounting_entries_entry_number", "accounting_entries", ["entry_number"])
     op.create_index("ix_accounting_entries_date", "accounting_entries", ["date"])
     op.create_index(
         "ix_accounting_entries_account_number", "accounting_entries", ["account_number"]
@@ -41,12 +37,8 @@ def upgrade() -> None:
     op.create_index(
         "ix_accounting_entries_fiscal_year_id", "accounting_entries", ["fiscal_year_id"]
     )
-    op.create_index(
-        "ix_accounting_entries_source_type", "accounting_entries", ["source_type"]
-    )
-    op.create_index(
-        "ix_accounting_entries_source_id", "accounting_entries", ["source_id"]
-    )
+    op.create_index("ix_accounting_entries_source_type", "accounting_entries", ["source_type"])
+    op.create_index("ix_accounting_entries_source_id", "accounting_entries", ["source_id"])
 
 
 def downgrade() -> None:

@@ -52,24 +52,15 @@ def parse_credit_mutuel_csv(content: str) -> list[dict[str, object]]:
         # Parse amount (French locale: "1 234,56" or "-1 234,56")
         raw_amount = record.get("montant", "")
         try:
-            normalised = (
-                str(raw_amount).replace("\u202f", "").replace(" ", "").replace(",", ".")
-            )
+            normalised = str(raw_amount).replace("\u202f", "").replace(" ", "").replace(",", ".")
             amount = Decimal(normalised)
         except InvalidOperation as exc:
-            raise BankImportError(
-                f"line {line_no}: invalid amount '{raw_amount}'"
-            ) from exc
+            raise BankImportError(f"line {line_no}: invalid amount '{raw_amount}'") from exc
 
         # Parse balance (may be absent)
         raw_balance = record.get("solde", "0")
         try:
-            norm_bal = (
-                str(raw_balance)
-                .replace("\u202f", "")
-                .replace(" ", "")
-                .replace(",", ".")
-            )
+            norm_bal = str(raw_balance).replace("\u202f", "").replace(" ", "").replace(",", ".")
             balance_after = Decimal(norm_bal) if norm_bal else Decimal("0")
         except InvalidOperation:
             balance_after = Decimal("0")
@@ -111,9 +102,7 @@ def parse_ofx(content: str) -> list[dict[str, object]]:
         # SGML OFX without closing tags: split on <STMTTRN>
         raw_blocks = re.split(r"<STMTTRN>", content, flags=re.IGNORECASE)[1:]
         # Each block ends at <BANKTRANLIST end> or next <STMTTRN> or </BANKTRANLIST>
-        blocks = [
-            re.split(r"</BANKTRANLIST>|<STMTTRN>", b, maxsplit=1)[0] for b in raw_blocks
-        ]
+        blocks = [re.split(r"</BANKTRANLIST>|<STMTTRN>", b, maxsplit=1)[0] for b in raw_blocks]
 
     for idx, block in enumerate(blocks, start=1):
 
@@ -133,17 +122,13 @@ def parse_ofx(content: str) -> list[dict[str, object]]:
         try:
             tx_date = date(int(date_str[:4]), int(date_str[4:6]), int(date_str[6:8]))
         except ValueError as exc:
-            raise BankImportError(
-                f"OFX record {idx}: invalid date '{dtposted}'"
-            ) from exc
+            raise BankImportError(f"OFX record {idx}: invalid date '{dtposted}'") from exc
 
         # Parse amount (always dot-separated in OFX standard)
         try:
             amount = Decimal(trnamt.replace(",", "."))
         except InvalidOperation as exc:
-            raise BankImportError(
-                f"OFX record {idx}: invalid amount '{trnamt}'"
-            ) from exc
+            raise BankImportError(f"OFX record {idx}: invalid amount '{trnamt}'") from exc
 
         name = _get("NAME") or ""
         memo = _get("MEMO") or ""
@@ -213,9 +198,7 @@ def _parse_qif_amount(raw: str, record_no: int) -> Decimal:
     try:
         return Decimal(raw)
     except InvalidOperation as exc:
-        raise BankImportError(
-            f"QIF record {record_no}: invalid amount '{raw}'"
-        ) from exc
+        raise BankImportError(f"QIF record {record_no}: invalid amount '{raw}'") from exc
 
 
 def parse_qif(content: str) -> list[dict[str, object]]:

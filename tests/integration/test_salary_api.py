@@ -8,9 +8,7 @@ from backend.models.contact import Contact, ContactType
 from backend.models.user import User
 
 
-async def _create_employee(
-    db: AsyncSession, nom: str = "Doe", prenom: str = "John"
-) -> Contact:
+async def _create_employee(db: AsyncSession, nom: str = "Doe", prenom: str = "John") -> Contact:
     c = Contact(type=ContactType.CLIENT, nom=nom, prenom=prenom)
     db.add(c)
     await db.flush()
@@ -99,9 +97,7 @@ async def test_delete_salary(
         "tax": 60.0,
         "net_pay": 972.0,
     }
-    create_resp = await client.post(
-        "/api/salaries/", json=payload, headers=auth_headers
-    )
+    create_resp = await client.post("/api/salaries/", json=payload, headers=auth_headers)
     salary_id = create_resp.json()["id"]
 
     del_resp = await client.delete(f"/api/salaries/{salary_id}", headers=auth_headers)

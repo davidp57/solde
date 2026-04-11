@@ -45,11 +45,7 @@ async def load_existing_contact_preview_keys(db: AsyncSession) -> set[str]:
     from backend.models.contact import Contact  # noqa: PLC0415
 
     result = await db.execute(select(Contact.nom, Contact.prenom))
-    return {
-        contact_preview_key(nom or "", prenom)
-        for nom, prenom in result.all()
-        if nom
-    }
+    return {contact_preview_key(nom or "", prenom) for nom, prenom in result.all() if nom}
 
 
 async def load_existing_contacts_by_preview_key(db: AsyncSession) -> dict[str, list[Any]]:
@@ -99,9 +95,7 @@ async def count_generated_accounting_entries(db: AsyncSession) -> int:
     return int(result.scalar_one() or 0)
 
 
-async def add_comptabilite_coexistence_validation(
-    db: AsyncSession, preview: PreviewResult
-) -> None:
+async def add_comptabilite_coexistence_validation(db: AsyncSession, preview: PreviewResult) -> None:
     generated_entries_count = await count_generated_accounting_entries(db)
     if generated_entries_count <= 0:
         return
