@@ -3,301 +3,157 @@
 from __future__ import annotations
 
 import logging
-import re
-import unicodedata
-from dataclasses import dataclass
-from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.services.excel_import_classification import (
+    classify_comptabilite_sheet as _classify_comptabilite_sheet,
+)
+from backend.services.excel_import_classification import (
+    classify_gestion_sheet as _classify_gestion_sheet,
+)
+from backend.services.excel_import_classification import (
+    sheet_has_content as _sheet_has_content,
+)
+from backend.services.excel_import_parsers import (
+    parse_bank_sheet as _parse_bank_sheet_impl,
+)
+from backend.services.excel_import_parsers import (
+    parse_cash_sheet as _parse_cash_sheet_impl,
+)
+from backend.services.excel_import_parsers import (
+    parse_contact_sheet as _parse_contact_sheet_impl,
+)
+from backend.services.excel_import_parsers import (
+    parse_entries_sheet as _parse_entries_sheet_impl,
+)
+from backend.services.excel_import_parsers import (
+    parse_invoice_sheet as _parse_invoice_sheet_impl,
+)
+from backend.services.excel_import_parsers import (
+    parse_payment_sheet as _parse_payment_sheet_impl,
+)
+from backend.services.excel_import_parsing import (
+    normalize_text as _normalize_text,
+)
+from backend.services.excel_import_parsing import (
+    parse_str as _parse_str,
+)
+from backend.services.excel_import_payment_matching import (
+    PaymentMatchCandidate,
+)
+from backend.services.excel_import_payment_matching import (
+    make_workbook_invoice_candidate as _make_workbook_invoice_candidate,
+)
+from backend.services.excel_import_payment_matching import (
+    resolve_payment_match_with_database as _resolve_payment_match,
+)
+from backend.services.excel_import_policy import (
+    COMPTABILITE_UNKNOWN_STRUCTURE_MESSAGE,
+    GESTION_UNKNOWN_STRUCTURE_MESSAGE,
+    detect_gestion_preview_header,
+    filter_duplicate_contact_rows,
+    filter_duplicate_invoice_rows,
+    find_ambiguous_invoice_contact_issues,
+    find_existing_contact_issues,
+    find_existing_invoice_issues,
+    format_row_issue,
+    make_existing_contact_issue,
+    make_existing_invoice_issue,
+    make_payment_resolution_issue,
+    preview_warning_for_comptabilite_reason,
+    preview_warning_for_gestion_reason,
+    resolve_invoice_contact_match,
+    should_ignore_cash_pending_deposit_forecast,
+)
+from backend.services.excel_import_preview_helpers import (
+    append_finalized_sheet_preview as _append_finalized_sheet_preview,
+)
+from backend.services.excel_import_preview_helpers import (
+    append_ignored_issues as _append_ignored_issues,
+)
+from backend.services.excel_import_preview_helpers import (
+    append_preview_blocked_issue as _append_preview_blocked_issue,
+)
+from backend.services.excel_import_preview_helpers import (
+    append_preview_ignored_issue as _append_preview_ignored_issue,
+)
+from backend.services.excel_import_preview_helpers import (
+    append_preview_open_error as _append_preview_open_error,
+)
+from backend.services.excel_import_preview_helpers import (
+    append_reasoned_ignored_sheet_preview as _append_reasoned_ignored_sheet_preview,
+)
+from backend.services.excel_import_preview_helpers import (
+    append_row_issues as _append_row_issues,
+)
+from backend.services.excel_import_preview_helpers import (
+    append_unknown_structure_sheet_preview as _append_unknown_structure_sheet_preview,
+)
+from backend.services.excel_import_preview_helpers import (
+    contact_preview_key as _contact_preview_key,
+)
+from backend.services.excel_import_preview_helpers import (
+    finalize_preview_can_import as _finalize_preview_can_import,
+)
+from backend.services.excel_import_preview_helpers import (
+    find_sheet_preview as _find_sheet_preview,
+)
+from backend.services.excel_import_preview_helpers import (
+    recompute_preview_can_import as _recompute_preview_can_import,
+)
+from backend.services.excel_import_preview_helpers import (
+    register_preview_contact as _register_preview_contact,
+)
+from backend.services.excel_import_results import ImportResult, PreviewResult
+from backend.services.excel_import_sheet_helpers import (
+    detect_header_row as _detect_header_row,
+)
+from backend.services.excel_import_sheet_helpers import (
+    get_row_value as _get_row_value,
+)
+from backend.services.excel_import_state import (
+    add_comptabilite_coexistence_validation as _add_comptabilite_coexistence_validation,
+)
+from backend.services.excel_import_state import (
+    compute_file_hash as _compute_file_hash,
+)
+from backend.services.excel_import_state import (
+    find_successful_import_log as _find_successful_import_log,
+)
+from backend.services.excel_import_state import (
+    load_existing_contacts_by_preview_key as _load_existing_contacts_by_preview_key,
+)
+from backend.services.excel_import_state import (
+    load_existing_invoice_numbers as _load_existing_invoice_numbers,
+)
+from backend.services.excel_import_state import (
+    mark_preview_as_already_imported as _mark_preview_as_already_imported,
+)
+from backend.services.excel_import_state import (
+    record_import_log as _record_import_log,
+)
+from backend.services.excel_import_types import (
+    NormalizedBankRow,
+    NormalizedCashRow,
+    NormalizedContactRow,
+    NormalizedEntryRow,
+    NormalizedInvoiceRow,
+    NormalizedPaymentRow,
+    ParsedSheet,
+    RowIgnoredIssue,
+    RowValidationIssue,
+)
+
 logger = logging.getLogger(__name__)
 
-_DATE_LIKE_TEXT_RE = re.compile(
-    r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$|^\d{2}/\d{2}/\d{4}$|^\d{2}-\d{2}-\d{4}$"
-)
 _GESTION_IMPORT_ORDER = ("contacts", "invoices", "payments", "cash", "bank")
 
-# ---------------------------------------------------------------------------
-# Types
-# ---------------------------------------------------------------------------
 
-
-class ImportResult:
-    """Summary of an import operation."""
-
-    def __init__(self) -> None:
-        self.contacts_created: int = 0
-        self.invoices_created: int = 0
-        self.payments_created: int = 0
-        self.entries_created: int = 0
-        self.cash_created: int = 0
-        self.bank_created: int = 0
-        self.skipped: int = 0
-        self.errors: list[str] = []
-
-    def to_dict(self) -> dict:
-        return {
-            "contacts_created": self.contacts_created,
-            "invoices_created": self.invoices_created,
-            "payments_created": self.payments_created,
-            "entries_created": self.entries_created,
-            "cash_created": self.cash_created,
-            "bank_created": self.bank_created,
-            "skipped": self.skipped,
-            "errors": self.errors,
-        }
-
-    def reset_persisted_counts(self) -> None:
-        """Reset counters when a global rollback cancels all pending writes."""
-        self.contacts_created = 0
-        self.invoices_created = 0
-        self.payments_created = 0
-        self.entries_created = 0
-        self.cash_created = 0
-        self.bank_created = 0
-        self.skipped = 0
-
-
-@dataclass(slots=True)
-class ParsedSheet:
-    """Normalized header-level view of a worksheet."""
-
-    header_row: int
-    col_map: dict[str, int]
-    missing_columns: list[str]
-
-
-@dataclass(slots=True)
-class NormalizedInvoiceRow:
-    """Validated invoice row ready for preview or persistence."""
-
-    source_row_number: int
-    invoice_date: date
-    amount: Decimal
-    contact_name: str
-    invoice_number: str | None
-    label: str
-
-
-@dataclass(slots=True)
-class NormalizedPaymentRow:
-    """Validated payment row ready for preview or persistence."""
-
-    source_row_number: int
-    payment_date: date
-    amount: Decimal
-    method: str
-    invoice_ref: str
-    contact_name: str
-    cheque_number: str | None
-    deposited: bool
-    deposit_date: date | None
-
-
-@dataclass(slots=True)
-class NormalizedContactRow:
-    """Validated contact row ready for preview or persistence."""
-
-    source_row_number: int
-    nom: str
-    prenom: str | None
-    email: str | None
-
-
-@dataclass(slots=True)
-class NormalizedCashRow:
-    """Validated cash movement row ready for preview or persistence."""
-
-    source_row_number: int
-    entry_date: date
-    amount: Decimal
-    movement_type: str
-    description: str
-
-
-@dataclass(slots=True)
-class NormalizedBankRow:
-    """Validated bank transaction row ready for preview or persistence."""
-
-    source_row_number: int
-    entry_date: date
-    amount: Decimal
-    description: str
-    balance_after: Decimal
-
-
-# ---------------------------------------------------------------------------
-# Excel parsing helpers
-# ---------------------------------------------------------------------------
-
-
-def _parse_decimal(value: Any) -> Decimal | None:
-    """Parse a cell value into Decimal, returning None if not valid."""
-    if value is None or value == "":
-        return None
-    try:
-        # Handle French locale: "1 234,56" → "1234.56"
-        cleaned = (
-            str(value).strip().replace("\xa0", "").replace(" ", "").replace(",", ".")
-        )
-        return Decimal(cleaned)
-    except InvalidOperation:
-        return None
-
-
-def _parse_date(value: Any) -> date | None:
-    """Parse a cell value into date."""
-    if value is None or value == "":
-        return None
-    if isinstance(value, (date, datetime)):
-        return value.date() if isinstance(value, datetime) else value
-    s = str(value).strip()
-    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%y"):
-        try:
-            return datetime.strptime(s, fmt).date()
-        except ValueError:
-            continue
-    return None
-
-
-def _parse_str(value: Any, max_len: int | None = None) -> str:
-    """Parse a cell value into str, optionally truncated."""
-    if value is None:
-        return ""
-    s = str(value).strip()
-    if max_len:
-        s = s[:max_len]
-    return s
-
-
-def _normalize_payment_method(value: Any) -> str:
-    """Map French payment method labels to system values."""
-    s = _parse_str(value).lower()
-    if "vir" in s:
-        return "virement"
-    if "chq" in s or "chèq" in s or "che" in s:
-        return "cheque"
-    if "esp" in s or "cash" in s:
-        return "especes"
-    return "virement"
-
-
-def _normalize_text(value: str) -> str:
-    """Normalize text for accent-insensitive matching."""
-    normalized = unicodedata.normalize("NFKD", value.lower())
-    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
-
-
-def _find_col_idx(col_map: dict[str, int], *fragments: str) -> int | None:
-    """Find the first column whose normalized label contains one fragment."""
-    normalized_fragments = [_normalize_text(fragment) for fragment in fragments]
-    for key, idx in col_map.items():
-        normalized_key = _normalize_text(key)
-        if any(fragment in normalized_key for fragment in normalized_fragments):
-            return idx
-    return None
-
-
-def _sheet_has_content(ws: Any) -> bool:
-    """Return True if the worksheet contains any non-empty cell."""
-    for row in ws.iter_rows(values_only=True):
-        if any(cell not in (None, "") for cell in row):
-            return True
-    return False
-
-
-def _classify_gestion_sheet(sheet_name: str) -> tuple[str | None, str | None]:
-    """Classify a gestion worksheet into a supported import kind or ignore reason."""
-    key = _normalize_text(sheet_name)
-    ignored_markers = (
-        "aide",
-        "todo",
-        "depot",
-        "montant total",
-        "verification",
-        "prevision",
-        "bilan financier",
-        "cdd",
-        "salaire",
-    )
-    if any(marker in key for marker in ignored_markers):
-        return None, "auxiliary-sheet"
-    if any(marker in key for marker in ("fact", "client", "adh")):
-        return "invoices", None
-    if any(marker in key for marker in ("paie", "regl", "encaiss")):
-        return "payments", None
-    if any(marker in key for marker in ("contact", "fourniss")):
-        return "contacts", None
-    if any(marker in key for marker in ("caisse", "cash")):
-        return "cash", None
-    if any(marker in key for marker in ("banque", "bank", "relev")):
-        return "bank", None
-    return None, "unmapped-sheet"
-
-
-def _classify_comptabilite_sheet(sheet_name: str) -> tuple[str | None, str | None]:
-    """Classify a comptabilité worksheet into a supported import kind or ignore reason."""
-    key = _normalize_text(sheet_name)
-    if "saisie" in key:
-        return None, "entry-helper-sheet"
-    ignored_markers = (
-        "donnees generales",
-        "cle de repartition",
-        "nomenclature",
-        "grand livre",
-        "balance",
-        "etat factures",
-        "extrait",
-        "analytique",
-        "bilan",
-        "compte de resultat",
-    )
-    if any(marker in key for marker in ignored_markers):
-        return None, "report-sheet"
-    if key == "journal":
-        return "entries", None
-    if any(marker in key for marker in ("journal", "ecrit", "compta")):
-        return "entries", None
-    return None, "unmapped-sheet"
-
-
-def _register_preview_contact(preview: PreviewResult, value: Any) -> None:
-    """Register a candidate contact name discovered during preview."""
-    name = _normalize_text(_parse_str(value))
-    if name:
-        preview._candidate_contacts.add(name)
-        preview.estimated_contacts = len(preview._candidate_contacts)
-
-
-def _find_invoice_number_idx(col_map: dict[str, int], *, exclude_idx: int | None) -> int | None:
-    """Find the invoice number/reference column while avoiding false positives."""
-    for key, idx in col_map.items():
-        if exclude_idx is not None and idx == exclude_idx:
-            continue
-        normalized_key = _normalize_text(key)
-        if any(fragment in normalized_key for fragment in ("ref facture", "reference", "facture", "numero", "num")):
-            if "etat" not in normalized_key and "montant" not in normalized_key:
-                return idx
-    return None
-
-
-def _normalize_invoice_label(value: Any) -> str:
-    """Map workbook labels to invoice labels used by the domain model."""
-    raw = _normalize_text(_parse_str(value))
-    if raw in ("cs", "cours", "cours scolaires"):
-        return "cs"
-    if raw in ("a", "adhesion", "adhesion annuelle"):
-        return "a"
-    if raw in ("cs+a", "cours+adhesion", "cours adhesion"):
-        return "cs+a"
-    return "general"
-
-
-def _is_truthy_yes(value: Any) -> bool:
-    """Return True for French/English truthy yes values."""
-    return _normalize_text(_parse_str(value)) in {"oui", "yes", "true", "1", "ok"}
+class _ImportSheetFailure(RuntimeError):
+    """Internal marker used to abort the global import after a sheet-local failure."""
 
 
 # ---------------------------------------------------------------------------
@@ -305,22 +161,33 @@ def _is_truthy_yes(value: Any) -> bool:
 # ---------------------------------------------------------------------------
 
 
-async def import_gestion_file(db: AsyncSession, file_bytes: bytes) -> ImportResult:
+async def import_gestion_file(
+    db: AsyncSession, file_bytes: bytes, file_name: str | None = None
+) -> ImportResult:
     """Import contacts, invoices and payments from a 'Gestion YYYY.xlsx' file.
 
     Expected sheets:
     - 'Factures' or 'Clients' : contact, date, montant, type, statut
     - 'Paiements' : date, contact, montant, mode, N° chèque
 
-    The parser is lenient — unknown columns are ignored, missing values are skipped.
+    The parser blocks recognized sheets containing invalid rows or unresolved payments.
     """
     import openpyxl  # noqa: PLC0415
 
     result = ImportResult()
 
-    preview = preview_gestion_file(file_bytes)
+    file_hash = _compute_file_hash(file_bytes)
+    preview = await preview_gestion_file(db, file_bytes)
     if preview.errors:
-        result.errors.extend(preview.errors)
+        result.absorb_preview(preview)
+        await _record_import_log(
+            db,
+            import_type="gestion",
+            status="blocked",
+            file_hash=file_hash,
+            file_name=file_name,
+            result=result,
+        )
         return result
 
     try:
@@ -328,7 +195,15 @@ async def import_gestion_file(db: AsyncSession, file_bytes: bytes) -> ImportResu
 
         wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
     except Exception as exc:
-        result.errors.append(f"Impossible d'ouvrir le fichier : {exc}")
+        result.add_open_file_error(exc)
+        await _record_import_log(
+            db,
+            import_type="gestion",
+            status="failed",
+            file_hash=file_hash,
+            file_name=file_name,
+            result=result,
+        )
         return result
 
     sheets_by_kind: dict[str, list[Any]] = {kind: [] for kind in _GESTION_IMPORT_ORDER}
@@ -355,13 +230,32 @@ async def import_gestion_file(db: AsyncSession, file_bytes: bytes) -> ImportResu
             logger.error("Gestion import aborted during %s: %s", kind, exc, exc_info=True)
             await db.rollback()
             result.reset_persisted_counts()
-            result.errors.append(f"Erreur import gestion : {exc}")
+            if not isinstance(exc, _ImportSheetFailure):
+                result.add_import_error("gestion", exc)
+            await _record_import_log(
+                db,
+                import_type="gestion",
+                status="failed",
+                file_hash=file_hash,
+                file_name=file_name,
+                result=result,
+            )
             return result
 
+    await _record_import_log(
+        db,
+        import_type="gestion",
+        status="success",
+        file_hash=file_hash,
+        file_name=file_name,
+        result=result,
+    )
     return result
 
 
-async def import_comptabilite_file(db: AsyncSession, file_bytes: bytes) -> ImportResult:
+async def import_comptabilite_file(
+    db: AsyncSession, file_bytes: bytes, file_name: str | None = None
+) -> ImportResult:
     """Import accounting entries from a 'Comptabilité YYYY.xlsx' file.
 
     Expected sheet columns (flexible column detection):
@@ -371,9 +265,18 @@ async def import_comptabilite_file(db: AsyncSession, file_bytes: bytes) -> Impor
 
     result = ImportResult()
 
-    preview = preview_comptabilite_file(file_bytes)
+    file_hash = _compute_file_hash(file_bytes)
+    preview = await preview_comptabilite_file(db, file_bytes)
     if preview.errors:
-        result.errors.extend(preview.errors)
+        result.absorb_preview(preview)
+        await _record_import_log(
+            db,
+            import_type="comptabilite",
+            status="blocked",
+            file_hash=file_hash,
+            file_name=file_name,
+            result=result,
+        )
         return result
 
     try:
@@ -381,7 +284,15 @@ async def import_comptabilite_file(db: AsyncSession, file_bytes: bytes) -> Impor
 
         wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
     except Exception as exc:
-        result.errors.append(f"Impossible d'ouvrir le fichier : {exc}")
+        result.add_open_file_error(exc)
+        await _record_import_log(
+            db,
+            import_type="comptabilite",
+            status="failed",
+            file_hash=file_hash,
+            file_name=file_name,
+            result=result,
+        )
         return result
 
     try:
@@ -394,409 +305,101 @@ async def import_comptabilite_file(db: AsyncSession, file_bytes: bytes) -> Impor
         logger.error("Comptabilite import aborted: %s", exc, exc_info=True)
         await db.rollback()
         result.reset_persisted_counts()
-        result.errors.append(f"Erreur import comptabilite : {exc}")
+        if not isinstance(exc, _ImportSheetFailure):
+            result.add_import_error("comptabilite", exc)
+        await _record_import_log(
+            db,
+            import_type="comptabilite",
+            status="failed",
+            file_hash=file_hash,
+            file_name=file_name,
+            result=result,
+        )
         return result
 
+    await _record_import_log(
+        db,
+        import_type="comptabilite",
+        status="success",
+        file_hash=file_hash,
+        file_name=file_name,
+        result=result,
+    )
     return result
 
-
-# ---------------------------------------------------------------------------
-# Sheet-level parsers
-# ---------------------------------------------------------------------------
-
-
-def _detect_header_row(
-    ws: Any, keywords: list[str]
-) -> tuple[int, dict[str, int]] | None:
-    """Find the header row and return (row_index, {col_name: col_index})."""
-    normalized_keywords = [_normalize_text(keyword) for keyword in keywords]
-    for row_idx, row in enumerate(ws.iter_rows(max_row=20, values_only=True), start=1):
-        row_lower = [_normalize_text(_parse_str(c)) for c in row]
-        matched = sum(
-            1 for keyword in normalized_keywords if any(keyword in cell for cell in row_lower)
-        )
-        if matched >= 2:
-            col_map: dict[str, int] = {}
-            for col_idx, cell in enumerate(row_lower):
-                col_map[cell] = col_idx
-            return row_idx, col_map
-    return None
-
-
-def _get_row_value(row: tuple[Any, ...], idx: int | None) -> Any:
-    """Safely read a row value by column index."""
-    if idx is None or idx >= len(row):
-        return None
-    return row[idx]
+def _is_cash_pending_deposit_forecast(
+    row: tuple[Any, ...],
+    *,
+    tiers_idx: int | None,
+    libelle_idx: int | None,
+    raw_amount: Decimal | None,
+) -> bool:
+    """Recognize a cash-to-bank forecast row that should be ignored until dated."""
+    return should_ignore_cash_pending_deposit_forecast(
+        row,
+        tiers_idx=tiers_idx,
+        libelle_idx=libelle_idx,
+        raw_amount=raw_amount,
+        get_row_value=_get_row_value,
+        parse_str=_parse_str,
+        normalize_text=_normalize_text,
+    )
 
 
 def _parse_invoice_sheet(
     ws: Any,
-) -> tuple[ParsedSheet | None, list[NormalizedInvoiceRow]]:
-    """Parse invoice rows into a shared normalized structure."""
-    header_info = _detect_header_row(ws, ["montant", "date"])
-    if header_info is None:
-        header_info = _detect_header_row(ws, ["montant", "client"])
-    if header_info is None:
-        return None, []
-
-    header_row, col_map = header_info
-    date_idx = _find_col_idx(col_map, "date")
-    montant_idx = _find_col_idx(col_map, "montant", "total")
-    nom_idx = _find_col_idx(col_map, "nom", "client", "adhérent", "adherent")
-    numero_idx = _find_invoice_number_idx(col_map, exclude_idx=date_idx)
-    label_idx = _find_col_idx(col_map, "motif", "libellé", "libelle", "type")
-
-    missing_columns: list[str] = []
-    if montant_idx is None:
-        missing_columns.append("montant")
-    if nom_idx is None:
-        missing_columns.append("client")
-
-    parsed_sheet = ParsedSheet(
-        header_row=header_row,
-        col_map=col_map,
-        missing_columns=missing_columns,
-    )
-    if missing_columns:
-        return parsed_sheet, []
-
-    rows: list[NormalizedInvoiceRow] = []
-    for source_row_number, row in enumerate(
-        ws.iter_rows(min_row=header_row + 1, values_only=True),
-        start=header_row + 1,
-    ):
-        if all(cell is None for cell in row):
-            continue
-
-        amount = _parse_decimal(_get_row_value(row, montant_idx))
-        contact_name = _parse_str(_get_row_value(row, nom_idx))
-        if amount is None or amount <= 0 or not contact_name:
-            continue
-
-        invoice_date = _parse_date(_get_row_value(row, date_idx)) or date.today()
-        raw_number = _get_row_value(row, numero_idx)
-        invoice_number: str | None = None
-        if not isinstance(raw_number, (date, datetime)):
-            candidate = _parse_str(raw_number)
-            if candidate and not _DATE_LIKE_TEXT_RE.match(candidate):
-                invoice_number = candidate
-
-        rows.append(
-            NormalizedInvoiceRow(
-                source_row_number=source_row_number,
-                invoice_date=invoice_date,
-                amount=amount,
-                contact_name=contact_name,
-                invoice_number=invoice_number,
-                label=_normalize_invoice_label(_get_row_value(row, label_idx)),
-            )
-        )
-
-    return parsed_sheet, rows
+) -> tuple[
+    ParsedSheet | None,
+    list[NormalizedInvoiceRow],
+    list[RowValidationIssue],
+    list[RowIgnoredIssue],
+]:
+    return _parse_invoice_sheet_impl(ws)
 
 
 def _parse_payment_sheet(
     ws: Any,
-) -> tuple[ParsedSheet | None, list[NormalizedPaymentRow]]:
-    """Parse payment rows into a shared normalized structure."""
-    header_info = _detect_header_row(ws, ["montant", "date"])
-    if header_info is None:
-        header_info = _detect_header_row(ws, ["montant", "facture"])
-    if header_info is None:
-        return None, []
-
-    header_row, col_map = header_info
-    date_idx = _find_col_idx(col_map, "date paiement", "date")
-    montant_idx = _find_col_idx(col_map, "montant")
-    mode_idx = _find_col_idx(
-        col_map,
-        "mode",
-        "règl",
-        "regl",
-        "réf paiement",
-        "ref paiement",
-    )
-    invoice_idx = _find_invoice_number_idx(col_map, exclude_idx=date_idx)
-    nom_idx = _find_col_idx(col_map, "nom", "client", "adhérent", "adherent")
-    cheque_idx = _find_col_idx(
-        col_map,
-        "numéro du chèque",
-        "numero du cheque",
-        "chèque",
-        "cheque",
-    )
-    deposited_idx = _find_col_idx(col_map, "encaissé", "encaisse")
-    deposit_date_idx = _find_col_idx(col_map, "date encaissement")
-
-    missing_columns: list[str] = []
-    if montant_idx is None:
-        missing_columns.append("montant")
-    if invoice_idx is None and nom_idx is None:
-        missing_columns.append("référence facture ou contact")
-
-    parsed_sheet = ParsedSheet(
-        header_row=header_row,
-        col_map=col_map,
-        missing_columns=missing_columns,
-    )
-    if missing_columns:
-        return parsed_sheet, []
-
-    rows: list[NormalizedPaymentRow] = []
-    for source_row_number, row in enumerate(
-        ws.iter_rows(min_row=header_row + 1, values_only=True),
-        start=header_row + 1,
-    ):
-        if all(cell is None for cell in row):
-            continue
-
-        amount = _parse_decimal(_get_row_value(row, montant_idx))
-        if amount is None or amount <= 0:
-            continue
-
-        invoice_ref = _parse_str(_get_row_value(row, invoice_idx))
-        contact_name = _parse_str(_get_row_value(row, nom_idx))
-        if not invoice_ref and not contact_name:
-            continue
-
-        rows.append(
-            NormalizedPaymentRow(
-                source_row_number=source_row_number,
-                payment_date=_parse_date(_get_row_value(row, date_idx)) or date.today(),
-                amount=amount,
-                method=_normalize_payment_method(_get_row_value(row, mode_idx)),
-                invoice_ref=invoice_ref,
-                contact_name=contact_name,
-                cheque_number=_parse_str(_get_row_value(row, cheque_idx)) or None,
-                deposited=_is_truthy_yes(_get_row_value(row, deposited_idx)),
-                deposit_date=_parse_date(_get_row_value(row, deposit_date_idx)),
-            )
-        )
-
-    return parsed_sheet, rows
+) -> tuple[ParsedSheet | None, list[NormalizedPaymentRow], list[RowValidationIssue]]:
+    return _parse_payment_sheet_impl(ws)
 
 
 def _parse_contact_sheet(
     ws: Any,
-) -> tuple[ParsedSheet | None, list[NormalizedContactRow]]:
-    """Parse contact rows into a shared normalized structure."""
-    header_info = _detect_header_row(ws, ["nom", "prenom"])
-    if header_info is None:
-        header_info = _detect_header_row(ws, ["nom", "email"])
-    if header_info is None:
-        header_info = _detect_header_row(ws, ["nom", "mail"])
-    if header_info is None:
-        return None, []
-
-    header_row, col_map = header_info
-    nom_idx = _find_col_idx(col_map, "nom")
-    prenom_idx = _find_col_idx(col_map, "prenom", "prénom")
-    email_idx = _find_col_idx(col_map, "email", "mail")
-
-    missing_columns: list[str] = []
-    if nom_idx is None:
-        missing_columns.append("nom")
-
-    parsed_sheet = ParsedSheet(
-        header_row=header_row,
-        col_map=col_map,
-        missing_columns=missing_columns,
-    )
-    if missing_columns:
-        return parsed_sheet, []
-
-    rows: list[NormalizedContactRow] = []
-    for source_row_number, row in enumerate(
-        ws.iter_rows(min_row=header_row + 1, values_only=True),
-        start=header_row + 1,
-    ):
-        if all(cell is None for cell in row):
-            continue
-
-        nom = _parse_str(_get_row_value(row, nom_idx))
-        if not nom:
-            continue
-
-        prenom = _parse_str(_get_row_value(row, prenom_idx)) or None
-        email = _parse_str(_get_row_value(row, email_idx)) or None
-        rows.append(
-            NormalizedContactRow(
-                source_row_number=source_row_number,
-                nom=nom,
-                prenom=prenom,
-                email=email,
-            )
-        )
-
-    return parsed_sheet, rows
+) -> tuple[ParsedSheet | None, list[NormalizedContactRow], list[RowValidationIssue]]:
+    return _parse_contact_sheet_impl(ws)
 
 
 def _parse_cash_sheet(
     ws: Any,
-) -> tuple[ParsedSheet | None, list[NormalizedCashRow]]:
-    """Parse cash rows into a shared normalized structure."""
-    header_info = _detect_header_row(ws, ["date", "entree"])
-    if header_info is None:
-        header_info = _detect_header_row(ws, ["date", "sortie"])
-    if header_info is None:
-        header_info = _detect_header_row(ws, ["date", "montant"])
-    if header_info is None:
-        return None, []
-
-    header_row, col_map = header_info
-    date_idx = _find_col_idx(col_map, "date")
-    entree_idx = _find_col_idx(col_map, "entree", "entrée", "recette", "credit", "crédit")
-    sortie_idx = _find_col_idx(col_map, "sortie", "depense", "dépense", "debit", "débit")
-    montant_idx = (
-        _find_col_idx(col_map, "montant", "total")
-        if entree_idx is None and sortie_idx is None
-        else None
-    )
-    type_idx = (
-        _find_col_idx(col_map, "type", "sens") if montant_idx is not None else None
-    )
-    libelle_idx = _find_col_idx(col_map, "libel", "descr", "label", "objet")
-
-    missing_columns: list[str] = []
-    if date_idx is None:
-        missing_columns.append("date")
-    if entree_idx is None and sortie_idx is None and montant_idx is None:
-        missing_columns.append("entrée/sortie ou montant")
-
-    parsed_sheet = ParsedSheet(
-        header_row=header_row,
-        col_map=col_map,
-        missing_columns=missing_columns,
-    )
-    if missing_columns:
-        return parsed_sheet, []
-
-    rows: list[NormalizedCashRow] = []
-    for source_row_number, row in enumerate(
-        ws.iter_rows(min_row=header_row + 1, values_only=True),
-        start=header_row + 1,
-    ):
-        if all(cell is None for cell in row):
-            continue
-
-        entry_date = _parse_date(_get_row_value(row, date_idx))
-        if entry_date is None:
-            continue
-
-        amount: Decimal | None = None
-        movement_type: str | None = None
-        if entree_idx is not None or sortie_idx is not None:
-            entree = _parse_decimal(_get_row_value(row, entree_idx))
-            sortie = _parse_decimal(_get_row_value(row, sortie_idx))
-            if entree is not None and entree > 0:
-                amount = entree
-                movement_type = "in"
-            elif sortie is not None and sortie > 0:
-                amount = sortie
-                movement_type = "out"
-        elif montant_idx is not None:
-            amount = _parse_decimal(_get_row_value(row, montant_idx))
-            raw_type = _normalize_text(_parse_str(_get_row_value(row, type_idx)))
-            if raw_type in ("e", "in", "entree", "recette", "credit"):
-                movement_type = "in"
-            else:
-                movement_type = "out"
-
-        if amount is None or amount <= 0 or movement_type is None:
-            continue
-
-        rows.append(
-            NormalizedCashRow(
-                source_row_number=source_row_number,
-                entry_date=entry_date,
-                amount=amount,
-                movement_type=movement_type,
-                description=_parse_str(_get_row_value(row, libelle_idx), max_len=500)
-                or "Import Excel",
-            )
-        )
-
-    return parsed_sheet, rows
+) -> tuple[
+    ParsedSheet | None,
+    list[NormalizedCashRow],
+    list[RowValidationIssue],
+    list[RowIgnoredIssue],
+]:
+    return _parse_cash_sheet_impl(ws)
 
 
 def _parse_bank_sheet(
     ws: Any,
-) -> tuple[ParsedSheet | None, list[NormalizedBankRow]]:
-    """Parse bank rows into a shared normalized structure."""
-    header_info = _detect_header_row(ws, ["date", "debit"])
-    if header_info is None:
-        header_info = _detect_header_row(ws, ["date", "credit"])
-    if header_info is None:
-        header_info = _detect_header_row(ws, ["date", "montant"])
-    if header_info is None:
-        return None, []
+) -> tuple[
+    ParsedSheet | None,
+    list[NormalizedBankRow],
+    list[RowValidationIssue],
+    list[RowIgnoredIssue],
+]:
+    return _parse_bank_sheet_impl(ws)
 
-    header_row, col_map = header_info
-    date_idx = _find_col_idx(col_map, "date")
-    debit_idx = _find_col_idx(col_map, "débit", "debit")
-    credit_idx = _find_col_idx(col_map, "crédit", "credit")
-    montant_idx = (
-        _find_col_idx(col_map, "montant")
-        if debit_idx is None and credit_idx is None
-        else None
-    )
-    libelle_idx = _find_col_idx(col_map, "libel", "descr", "label", "intitul")
-    solde_idx = _find_col_idx(col_map, "solde", "balance")
 
-    missing_columns: list[str] = []
-    if date_idx is None:
-        missing_columns.append("date")
-    if debit_idx is None and credit_idx is None and montant_idx is None:
-        missing_columns.append("débit/crédit ou montant")
-
-    parsed_sheet = ParsedSheet(
-        header_row=header_row,
-        col_map=col_map,
-        missing_columns=missing_columns,
-    )
-    if missing_columns:
-        return parsed_sheet, []
-
-    rows: list[NormalizedBankRow] = []
-    for source_row_number, row in enumerate(
-        ws.iter_rows(min_row=header_row + 1, values_only=True),
-        start=header_row + 1,
-    ):
-        if all(cell is None for cell in row):
-            continue
-
-        entry_date = _parse_date(_get_row_value(row, date_idx))
-        if entry_date is None:
-            continue
-
-        amount: Decimal | None = None
-        if debit_idx is not None or credit_idx is not None:
-            debit = _parse_decimal(_get_row_value(row, debit_idx)) or Decimal("0")
-            credit = _parse_decimal(_get_row_value(row, credit_idx)) or Decimal("0")
-            if credit > 0:
-                amount = credit
-            elif debit > 0:
-                amount = -debit
-        elif montant_idx is not None:
-            amount = _parse_decimal(_get_row_value(row, montant_idx))
-
-        if amount is None or amount == 0:
-            continue
-
-        rows.append(
-            NormalizedBankRow(
-                source_row_number=source_row_number,
-                entry_date=entry_date,
-                amount=amount,
-                description=_parse_str(_get_row_value(row, libelle_idx), max_len=500)
-                or "Import Excel",
-                balance_after=_parse_decimal(_get_row_value(row, solde_idx))
-                or Decimal("0"),
-            )
-        )
-
-    return parsed_sheet, rows
+def _parse_entries_sheet(
+    ws: Any,
+) -> tuple[
+    ParsedSheet | None,
+    list[NormalizedEntryRow],
+    list[RowValidationIssue],
+    list[RowIgnoredIssue],
+]:
+    return _parse_entries_sheet_impl(ws)
 
 
 async def _import_contacts_sheet(
@@ -807,10 +410,22 @@ async def _import_contacts_sheet(
 
     from backend.models.contact import Contact, ContactType  # noqa: PLC0415
 
-    parsed_sheet, normalized_rows = _parse_contact_sheet(ws)
+    parsed_sheet, normalized_rows, _ = _parse_contact_sheet(ws)
     if parsed_sheet is None or parsed_sheet.missing_columns:
         result.skipped += 1
         return
+
+    created_contacts: list[Contact] = []
+    normalized_rows, ignored_issues = filter_duplicate_contact_rows(
+        normalized_rows,
+        normalize_text=_normalize_text,
+    )
+    for ignored_issue in ignored_issues:
+        result.add_ignored_row(
+            ws.title,
+            "contacts",
+            format_row_issue(ignored_issue),
+        )
 
     for contact_row in normalized_rows:
         # Idempotency: skip if contact with same nom+prenom exists
@@ -821,7 +436,12 @@ async def _import_contacts_sheet(
             )
         )
         if existing.scalars().first() is not None:
-            result.skipped += 1
+            ignored_issue = make_existing_contact_issue(contact_row.source_row_number)
+            result.add_ignored_row(
+                ws.title,
+                "contacts",
+                format_row_issue(ignored_issue),
+            )
             continue
 
         contact = Contact(
@@ -831,15 +451,26 @@ async def _import_contacts_sheet(
             type=ContactType.CLIENT,
         )
         db.add(contact)
+        created_contacts.append(contact)
         result.contacts_created += 1
+        result.add_imported_row(ws.title, "contacts")
 
     try:
         await db.flush()
+        for contact in created_contacts:
+            result.record_created_object(
+                sheet_name=ws.title,
+                kind="contacts",
+                object_type="contact",
+                object_id=contact.id,
+                reference=f"{contact.nom} {contact.prenom or ''}".strip(),
+            )
         logger.info("Contacts import done — created=%d", result.contacts_created)
     except Exception as exc:
         logger.error("Contacts flush failed: %s", exc, exc_info=True)
-        result.errors.append(f"Erreur import contacts : {exc}")
+        result.add_import_error("contacts", exc)
         await db.rollback()
+        raise _ImportSheetFailure from exc
 
 
 async def _import_invoices_sheet(
@@ -856,7 +487,7 @@ async def _import_invoices_sheet(
         InvoiceType,
     )
 
-    parsed_sheet, normalized_rows = _parse_invoice_sheet(ws)
+    parsed_sheet, normalized_rows, _, ignored_issues = _parse_invoice_sheet(ws)
     if parsed_sheet is None or parsed_sheet.missing_columns:
         result.skipped += 1
         return
@@ -867,8 +498,27 @@ async def _import_invoices_sheet(
         parsed_sheet.missing_columns,
     )
 
-    seen_numbers: set[str] = set()  # deduplicate within the current batch
+    for ignored_issue in ignored_issues:
+        result.add_ignored_row(
+            ws.title,
+            "invoices",
+            format_row_issue(ignored_issue),
+        )
+
+    normalized_rows, ignored_issues = filter_duplicate_invoice_rows(
+        normalized_rows,
+        normalize_text=_normalize_text,
+    )
+    for ignored_issue in ignored_issues:
+        result.add_ignored_row(
+            ws.title,
+            "invoices",
+            format_row_issue(ignored_issue),
+        )
+
     created_invoices: list[Invoice] = []
+    created_contacts: list[Contact] = []
+    existing_contacts_by_preview_key = await _load_existing_contacts_by_preview_key(db)
     generated_number_index = 0
     for invoice_row in normalized_rows:
         invoice_date = invoice_row.invoice_date
@@ -876,17 +526,23 @@ async def _import_invoices_sheet(
 
         # Find or create contact
         contact_id: int | None = None
-        existing = await db.execute(
-            select(Contact).where(Contact.nom.ilike(f"%{invoice_row.contact_name}%"))
+        contact_key = _normalize_text(invoice_row.contact_name)
+        matched_contact, contact_issue = resolve_invoice_contact_match(
+            invoice_row,
+            existing_contacts_by_preview_key,
+            normalize_text=_normalize_text,
         )
-        contact = existing.scalars().first()
-        if contact:
-            contact_id = contact.id
+        if contact_issue is not None:
+            raise ValueError(format_row_issue(contact_issue))
+        if matched_contact is not None:
+            contact_id = matched_contact.id
         else:
             new_contact = Contact(nom=invoice_row.contact_name, type=ContactType.CLIENT)
             db.add(new_contact)
             await db.flush()
+            created_contacts.append(new_contact)
             contact_id = new_contact.id
+            existing_contacts_by_preview_key.setdefault(contact_key, []).append(new_contact)
             result.contacts_created += 1
             logger.debug(
                 "Row %d — created contact '%s' (id=%s)",
@@ -903,30 +559,23 @@ async def _import_invoices_sheet(
             generated_number_index += 1
             number_raw = f"IMP-{invoice_date.year}-{generated_number_index:04d}"
 
-        # Deduplicate within the current batch (avoid UNIQUE constraint in same flush)
-        if number_raw in seen_numbers:
-            logger.debug(
-                "Row %d — duplicate number '%s' in batch, skipping",
-                invoice_row.source_row_number,
-                number_raw,
-            )
-            result.skipped += 1
-            continue
-
         # Idempotency: skip if already in DB
         existing_inv = await db.execute(
             select(Invoice).where(Invoice.number == number_raw)
         )
         if existing_inv.scalar_one_or_none() is not None:
+            ignored_issue = make_existing_invoice_issue(invoice_row.source_row_number)
             logger.debug(
                 "Row %d — invoice '%s' already exists, skipping",
                 invoice_row.source_row_number,
                 number_raw,
             )
-            result.skipped += 1
+            result.add_ignored_row(
+                ws.title,
+                "invoices",
+                format_row_issue(ignored_issue),
+            )
             continue
-
-        seen_numbers.add(number_raw)
 
         invoice = Invoice(
             number=number_raw,
@@ -948,9 +597,28 @@ async def _import_invoices_sheet(
             total,
         )
         result.invoices_created += 1
+        result.add_imported_row(ws.title, "invoices")
 
     try:
         await db.flush()
+        for contact in created_contacts:
+            result.record_created_object(
+                sheet_name=ws.title,
+                kind="contacts",
+                object_type="contact",
+                object_id=contact.id,
+                reference=contact.nom,
+                details={"created_from": "invoice_sheet"},
+            )
+        for inv_obj in created_invoices:
+            result.record_created_object(
+                sheet_name=ws.title,
+                kind="invoices",
+                object_type="invoice",
+                object_id=inv_obj.id,
+                reference=inv_obj.number,
+                details={"contact_id": inv_obj.contact_id},
+            )
         # Generate accounting entries for each new invoice (no-op if no rules configured)
         from backend.services.accounting_engine import (
             generate_entries_for_invoice,
@@ -964,6 +632,11 @@ async def _import_invoices_sheet(
                 logger.warning(
                     "Accounting entries skipped for invoice '%s': %s", inv_obj.number, e
                 )
+                result.add_warning(
+                    ws.title,
+                    "invoices",
+                    f"Ecritures comptables non generees pour la facture {inv_obj.number} : {e}",
+                )
         logger.info(
             "Invoices import done — created=%d skipped=%d entries=%d",
             result.invoices_created,
@@ -972,21 +645,19 @@ async def _import_invoices_sheet(
         )
     except Exception as exc:
         logger.error("Invoices flush failed: %s", exc, exc_info=True)
-        result.errors.append(f"Erreur import factures : {exc}")
+        result.add_import_error("factures", exc)
         await db.rollback()
+        raise _ImportSheetFailure from exc
 
 
 async def _import_payments_sheet(
     db: AsyncSession, ws: Any, result: ImportResult
 ) -> None:
     """Import payments from a sheet."""
-    from sqlalchemy import select  # noqa: PLC0415
-
-    from backend.models.contact import Contact  # noqa: PLC0415
-    from backend.models.invoice import Invoice, InvoiceType  # noqa: PLC0415
+    from backend.models.invoice import InvoiceType  # noqa: PLC0415
     from backend.models.payment import Payment  # noqa: PLC0415
 
-    parsed_sheet, normalized_rows = _parse_payment_sheet(ws)
+    parsed_sheet, normalized_rows, _ = _parse_payment_sheet(ws)
     if parsed_sheet is None or parsed_sheet.missing_columns:
         result.skipped += 1
         return
@@ -1004,49 +675,20 @@ async def _import_payments_sheet(
         amount = payment_row.amount
         method = payment_row.method
 
-        # Try to find matching invoice
-        invoice_ref = payment_row.invoice_ref
-        invoice_id: int | None = None
-        contact_id: int | None = None
-        inv_type: InvoiceType = InvoiceType.CLIENT
+        resolution = await _resolve_payment_match(db, payment_row)
+        blocking_issue = make_payment_resolution_issue(
+            source_row_number=payment_row.source_row_number,
+            status=resolution.status,
+            candidate=resolution.candidate,
+            message=resolution.message,
+            require_persistable_candidate=True,
+        )
+        if blocking_issue is not None:
+            raise ValueError(format_row_issue(blocking_issue))
 
-        if invoice_ref:
-            inv_result = await db.execute(
-                select(Invoice).where(Invoice.number.ilike(f"%{invoice_ref}%"))
-            )
-            inv = inv_result.scalars().first()
-            if inv:
-                invoice_id = inv.id
-                contact_id = inv.contact_id
-                inv_type = inv.type
-
-        # Fallback: find contact by name and pick their latest invoice
-        if invoice_id is None and payment_row.contact_name:
-            c_result = await db.execute(
-                select(Contact).where(Contact.nom.ilike(f"%{payment_row.contact_name}%"))
-            )
-            c = c_result.scalars().first()
-            if c:
-                contact_id = c.id
-                inv_result2 = await db.execute(
-                    select(Invoice)
-                    .where(Invoice.contact_id == c.id)
-                    .order_by(Invoice.date.desc())
-                    .limit(1)
-                )
-                inv2 = inv_result2.scalars().first()
-                if inv2:
-                    invoice_id = inv2.id
-                    inv_type = inv2.type
-
-        if invoice_id is None or contact_id is None:
-            logger.debug(
-                "Row %d — payment skipped: no matching invoice/contact ref='%s'",
-                payment_row.source_row_number,
-                invoice_ref,
-            )
-            result.skipped += 1
-            continue
+        invoice_id = resolution.candidate.invoice_id
+        contact_id = resolution.candidate.contact_id
+        inv_type = resolution.candidate.invoice_type or InvoiceType.CLIENT
 
         payment = Payment(
             invoice_id=invoice_id,
@@ -1069,9 +711,24 @@ async def _import_payments_sheet(
             amount,
         )
         result.payments_created += 1
+        result.add_imported_row(ws.title, "payments")
 
     try:
         await db.flush()
+        for payment, _ in created_payments:
+            result.record_created_object(
+                sheet_name=ws.title,
+                kind="payments",
+                object_type="payment",
+                object_id=payment.id,
+                reference=str(payment.id) if payment.id is not None else None,
+                details={
+                    "invoice_id": payment.invoice_id,
+                    "contact_id": payment.contact_id,
+                    "amount": str(payment.amount),
+                    "date": payment.date.isoformat(),
+                },
+            )
         # Refresh invoice statuses and generate accounting entries
         from backend.services.accounting_engine import (
             generate_entries_for_payment,
@@ -1086,6 +743,11 @@ async def _import_payments_sheet(
                 result.entries_created += len(entries)
             except Exception as e:
                 logger.warning("Accounting entries skipped for payment: %s", e)
+                result.add_warning(
+                    ws.title,
+                    "payments",
+                    f"Ecritures comptables non generees pour un paiement importe : {e}",
+                )
         await db.flush()
         logger.info(
             "Payments import done — created=%d skipped=%d entries=%d",
@@ -1095,8 +757,9 @@ async def _import_payments_sheet(
         )
     except Exception as exc:
         logger.error("Payments flush failed: %s", exc, exc_info=True)
-        result.errors.append(f"Erreur import paiements : {exc}")
+        result.add_import_error("paiements", exc)
         await db.rollback()
+        raise _ImportSheetFailure from exc
 
 
 async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
@@ -1107,7 +770,7 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
     """
     from backend.models.cash import CashMovementType, CashRegister  # noqa: PLC0415
 
-    parsed_sheet, normalized_rows = _parse_cash_sheet(ws)
+    parsed_sheet, normalized_rows, _, ignored_issues = _parse_cash_sheet(ws)
     if parsed_sheet is None or parsed_sheet.missing_columns:
         logger.info(
             "Cash sheet skipped — header not detected or missing columns=%s",
@@ -1115,6 +778,14 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
         )
         return
 
+    for ignored_issue in ignored_issues:
+        result.add_ignored_row(
+            ws.title,
+            "cash",
+            format_row_issue(ignored_issue),
+        )
+
+    created_cash_entries: list[CashRegister] = []
     for cash_row in normalized_rows:
         entry = CashRegister(
             date=cash_row.entry_date,
@@ -1124,15 +795,31 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
             balance_after=Decimal("0"),
         )
         db.add(entry)
+        created_cash_entries.append(entry)
         result.cash_created += 1
+        result.add_imported_row(ws.title, "cash")
 
     try:
         await db.flush()
+        for entry in created_cash_entries:
+            result.record_created_object(
+                sheet_name=ws.title,
+                kind="cash",
+                object_type="cash_register",
+                object_id=entry.id,
+                reference=entry.date.isoformat(),
+                details={
+                    "amount": str(entry.amount),
+                    "type": str(entry.type),
+                    "description": entry.description,
+                },
+            )
         logger.info("Cash import done — created=%d", result.cash_created)
     except Exception as exc:
         logger.error("Cash flush failed: %s", exc, exc_info=True)
-        result.errors.append(f"Erreur import caisse : {exc}")
+        result.add_import_error("caisse", exc)
         await db.rollback()
+        raise _ImportSheetFailure from exc
 
 
 async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
@@ -1146,7 +833,7 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
         BankTransactionSource,
     )  # noqa: PLC0415
 
-    parsed_sheet, normalized_rows = _parse_bank_sheet(ws)
+    parsed_sheet, normalized_rows, _, ignored_issues = _parse_bank_sheet(ws)
     if parsed_sheet is None or parsed_sheet.missing_columns:
         logger.info(
             "Bank sheet skipped — header not detected or missing columns=%s",
@@ -1154,6 +841,14 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
         )
         return
 
+    for ignored_issue in ignored_issues:
+        result.add_ignored_row(
+            ws.title,
+            "bank",
+            format_row_issue(ignored_issue),
+        )
+
+    created_bank_entries: list[BankTransaction] = []
     for bank_row in normalized_rows:
         entry = BankTransaction(
             date=bank_row.entry_date,
@@ -1163,15 +858,31 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
             source=BankTransactionSource.IMPORT,
         )
         db.add(entry)
+        created_bank_entries.append(entry)
         result.bank_created += 1
+        result.add_imported_row(ws.title, "bank")
 
     try:
         await db.flush()
+        for entry in created_bank_entries:
+            result.record_created_object(
+                sheet_name=ws.title,
+                kind="bank",
+                object_type="bank_transaction",
+                object_id=entry.id,
+                reference=entry.date.isoformat(),
+                details={
+                    "amount": str(entry.amount),
+                    "description": entry.description,
+                    "balance_after": str(entry.balance_after),
+                },
+            )
         logger.info("Bank import done — created=%d", result.bank_created)
     except Exception as exc:
         logger.error("Bank flush failed: %s", exc, exc_info=True)
-        result.errors.append(f"Erreur import banque : {exc}")
+        result.add_import_error("banque", exc)
         await db.rollback()
+        raise _ImportSheetFailure from exc
 
 
 async def _import_entries_sheet(
@@ -1185,173 +896,198 @@ async def _import_entries_sheet(
         EntrySourceType,
     )  # noqa: PLC0415
 
-    header_info = _detect_header_row(ws, ["compte", "débit"])
-    if header_info is None:
-        header_info = _detect_header_row(ws, ["compte", "credit"])
-    if header_info is None:
+    parsed_sheet, normalized_rows, _, ignored_issues = _parse_entries_sheet(ws)
+    if parsed_sheet is None or parsed_sheet.missing_columns:
         result.skipped += 1
         return
 
-    header_row, col_map = header_info
-
-    date_idx = next((col_map[k] for k in col_map if "date" in k), None)
-    compte_idx = next((col_map[k] for k in col_map if "compte" in k), None)
-    libelle_idx = next(
-        (col_map[k] for k in col_map if "libel" in k or "label" in k), None
-    )
-    debit_idx = next(
-        (col_map[k] for k in col_map if "débit" in k or "debit" in k), None
-    )
-    credit_idx = next(
-        (col_map[k] for k in col_map if "crédit" in k or "credit" in k), None
-    )
-
-    if compte_idx is None or (debit_idx is None and credit_idx is None):
-        result.skipped += 1
-        return
+    for ignored_issue in ignored_issues:
+        result.add_ignored_row(
+            ws.title,
+            "entries",
+            format_row_issue(ignored_issue),
+        )
 
     # Pre-compute next entry number offset to avoid per-row DB queries
     count_result = await db.execute(select(func.count(AccountingEntry.id)))
     base_count = count_result.scalar_one_or_none() or 0
-    local_offset = 0
-
     entries_to_add: list[AccountingEntry] = []
-    for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
-        if all(c is None for c in row):
-            continue
-
-        entry_date = (
-            _parse_date(row[date_idx])
-            if date_idx is not None and date_idx < len(row)
-            else None
-        )
-        if entry_date is None:
-            entry_date = date.today()
-
-        compte = _parse_str(
-            row[compte_idx] if compte_idx < len(row) else None, max_len=20
-        )
-        if not compte:
-            continue
-
-        raw_debit = (
-            row[debit_idx] if debit_idx is not None and debit_idx < len(row) else None
-        )
-        debit = _parse_decimal(raw_debit) or Decimal("0")
-        raw_credit = (
-            row[credit_idx]
-            if credit_idx is not None and credit_idx < len(row)
-            else None
-        )
-        credit = _parse_decimal(raw_credit) or Decimal("0")
-
-        if debit == 0 and credit == 0:
-            continue
-
-        raw_label = (
-            row[libelle_idx]
-            if libelle_idx is not None and libelle_idx < len(row)
-            else None
-        )
-        label = _parse_str(raw_label, max_len=500) or "Import Excel"
-
-        local_offset += 1
+    for local_offset, entry_row in enumerate(normalized_rows, start=1):
         entry = AccountingEntry(
             entry_number=f"{base_count + local_offset:06d}",
-            date=entry_date,
-            account_number=compte,
-            label=label,
-            debit=debit,
-            credit=credit,
+            date=entry_row.entry_date,
+            account_number=entry_row.account_number,
+            label=entry_row.label,
+            debit=entry_row.debit,
+            credit=entry_row.credit,
             source_type=EntrySourceType.MANUAL,
         )
         entries_to_add.append(entry)
+        result.add_imported_row(ws.title, "entries")
 
     try:
         for entry in entries_to_add:
             db.add(entry)
         await db.flush()
+        for entry in entries_to_add:
+            result.record_created_object(
+                sheet_name=ws.title,
+                kind="entries",
+                object_type="accounting_entry",
+                object_id=entry.id,
+                reference=entry.entry_number,
+                details={
+                    "account_number": entry.account_number,
+                    "date": entry.date.isoformat(),
+                },
+            )
         result.entries_created += len(entries_to_add)
         logger.info("Entries import done — created=%d", result.entries_created)
     except Exception as exc:
         logger.error("Entries flush failed: %s", exc, exc_info=True)
-        result.errors.append(f"Erreur import écritures : {exc}")
+        result.add_import_error("écritures", exc)
         await db.rollback()
+        raise _ImportSheetFailure from exc
 
 
-# ---------------------------------------------------------------------------
-# Preview (dry-run — no DB writes)
-# ---------------------------------------------------------------------------
+async def _add_gestion_existing_rows_preview(
+    db: AsyncSession, file_bytes: bytes, preview: PreviewResult
+) -> None:
+    from io import BytesIO  # noqa: PLC0415
+
+    import openpyxl  # noqa: PLC0415
+
+    existing_contacts_by_preview_key = await _load_existing_contacts_by_preview_key(db)
+    existing_contact_keys = set(existing_contacts_by_preview_key)
+    existing_invoice_numbers = await _load_existing_invoice_numbers(db)
+
+    wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        kind, _ = _classify_gestion_sheet(sheet_name)
+        sheet_preview = _find_sheet_preview(preview, sheet_name)
+        if kind is None or sheet_preview is None or sheet_preview["status"] != "recognized":
+            continue
+
+        if kind == "contacts":
+            parsed_sheet, contact_rows, _ = _parse_contact_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            contact_rows, _ = filter_duplicate_contact_rows(
+                contact_rows,
+                normalize_text=_normalize_text,
+            )
+            ignored_issues = find_existing_contact_issues(
+                contact_rows,
+                existing_contact_keys,
+                contact_preview_key=_contact_preview_key,
+            )
+            for ignored_issue in ignored_issues:
+                _append_preview_ignored_issue(
+                    preview,
+                    sheet_preview,
+                    ignored_issue,
+                )
+            ignored_count = len(ignored_issues)
+            if ignored_count:
+                sheet_preview["rows"] = max(0, sheet_preview["rows"] - ignored_count)
+
+        elif kind == "invoices":
+            parsed_sheet, invoice_rows, _, _ = _parse_invoice_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            invoice_rows, _ = filter_duplicate_invoice_rows(
+                invoice_rows,
+                normalize_text=_normalize_text,
+            )
+            ignored_issues = find_existing_invoice_issues(
+                invoice_rows,
+                existing_invoice_numbers,
+                normalize_text=_normalize_text,
+            )
+            blocked_issues = find_ambiguous_invoice_contact_issues(
+                invoice_rows,
+                existing_contacts_by_preview_key,
+                normalize_text=_normalize_text,
+            )
+            for ignored_issue in ignored_issues:
+                _append_preview_ignored_issue(
+                    preview,
+                    sheet_preview,
+                    ignored_issue,
+                )
+            for blocked_issue in blocked_issues:
+                _append_preview_blocked_issue(
+                    preview,
+                    sheet_preview,
+                    blocked_issue,
+                )
+            ignored_count = len(ignored_issues)
+            blocked_count = len(blocked_issues)
+            if ignored_count:
+                sheet_preview["rows"] = max(0, sheet_preview["rows"] - ignored_count)
+                preview.estimated_invoices = max(0, preview.estimated_invoices - ignored_count)
+            if blocked_count:
+                sheet_preview["rows"] = max(0, sheet_preview["rows"] - blocked_count)
+                preview.estimated_invoices = max(0, preview.estimated_invoices - blocked_count)
+
+    preview._candidate_contacts.difference_update(existing_contact_keys)
+    preview.estimated_contacts = len(preview._candidate_contacts)
+    _recompute_preview_can_import(preview)
 
 
-class PreviewResult:
-    """Dry-run parse summary with detailed sheet diagnostics."""
+async def _add_gestion_payment_validation(
+    db: AsyncSession, file_bytes: bytes, preview: PreviewResult
+) -> None:
+    from io import BytesIO  # noqa: PLC0415
 
-    def __init__(self) -> None:
-        self.sheets: list[dict[str, Any]] = []
-        self.estimated_contacts: int = 0
-        self.estimated_invoices: int = 0
-        self.estimated_payments: int = 0
-        self.estimated_entries: int = 0
-        self.errors: list[str] = []
-        self.warnings: list[str] = []
-        self.sample_rows: list[dict[str, Any]] = []
-        self.can_import: bool = False
-        self._candidate_contacts: set[str] = set()
+    import openpyxl  # noqa: PLC0415
 
-    def to_dict(self) -> dict:
-        return {
-            "sheets": self.sheets,
-            "estimated_contacts": self.estimated_contacts,
-            "estimated_invoices": self.estimated_invoices,
-            "estimated_payments": self.estimated_payments,
-            "estimated_entries": self.estimated_entries,
-            "sample_rows": self.sample_rows,
-            "errors": self.errors,
-            "warnings": self.warnings,
-            "can_import": self.can_import,
-        }
+    workbook_candidates: list[PaymentMatchCandidate] = []
+    payment_rows_by_sheet: dict[str, list[NormalizedPaymentRow]] = {}
 
+    wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        kind, _ = _classify_gestion_sheet(sheet_name)
+        if kind == "invoices":
+            parsed_sheet, invoice_rows, _, _ = _parse_invoice_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            workbook_candidates.extend(
+                _make_workbook_invoice_candidate(invoice_row) for invoice_row in invoice_rows
+            )
+        elif kind == "payments":
+            parsed_sheet, payment_rows, _ = _parse_payment_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            payment_rows_by_sheet[sheet_name] = payment_rows
 
-def _make_sheet_preview(
-    *,
-    sheet_name: str,
-    kind: str,
-    status: str,
-    header_row: int | None = None,
-    rows: int = 0,
-    detected_columns: list[str] | None = None,
-    missing_columns: list[str] | None = None,
-    sample_rows: list[dict[str, str]] | None = None,
-    warnings: list[str] | None = None,
-    errors: list[str] | None = None,
-) -> dict[str, Any]:
-    return {
-        "name": sheet_name,
-        "kind": kind,
-        "status": status,
-        "header_row": header_row,
-        "rows": rows,
-        "detected_columns": detected_columns or [],
-        "missing_columns": missing_columns or [],
-        "sample_rows": sample_rows or [],
-        "warnings": warnings or [],
-        "errors": errors or [],
-    }
+    for sheet_name, payment_rows in payment_rows_by_sheet.items():
+        sheet_preview = _find_sheet_preview(preview, sheet_name)
+        if sheet_preview is None:
+            continue
 
+        payment_errors: list[str] = []
+        for payment_row in payment_rows:
+            resolution = await _resolve_payment_match(
+                db,
+                payment_row,
+                workbook_candidates,
+            )
+            blocking_issue = make_payment_resolution_issue(
+                source_row_number=payment_row.source_row_number,
+                status=resolution.status,
+                candidate=resolution.candidate,
+                message=resolution.message,
+                require_persistable_candidate=False,
+            )
+            if blocking_issue is not None:
+                payment_errors.append(format_row_issue(blocking_issue))
 
-def _append_sheet_preview(preview: PreviewResult, sheet: dict[str, Any]) -> None:
-    preview.sheets.append(sheet)
-    preview.errors.extend(f"{sheet['name']} — {error}" for error in sheet["errors"])
-    preview.warnings.extend(
-        f"{sheet['name']} — {warning}" for warning in sheet["warnings"]
-    )
-    if sheet["status"] == "recognized" and sheet["rows"] > 0:
-        preview.can_import = True
-        for row in sheet["sample_rows"]:
-            if len(preview.sample_rows) >= 5:
-                break
-            preview.sample_rows.append({"sheet": sheet["name"], **row})
+        if payment_errors:
+            sheet_preview["errors"].extend(payment_errors)
+            preview.errors.extend(f"{sheet_name} — {error}" for error in payment_errors)
 
 
 def _collect_sample_rows(
@@ -1376,54 +1112,26 @@ def _preview_sheet_gestion(ws: Any, sheet_name: str, preview: PreviewResult) -> 
     """Count parseable rows and report diagnostics for gestion files."""
     kind, reason = _classify_gestion_sheet(sheet_name)
     if kind is None:
-        status = "ignored" if _sheet_has_content(ws) else "empty"
-        warnings = []
-        if status == "ignored":
-            if reason == "auxiliary-sheet":
-                warnings.append("Feuille auxiliaire ignoree par la preview")
-            elif reason == "unmapped-sheet":
-                warnings.append("Feuille non reconnue et ignoree")
-        _append_sheet_preview(
+        _append_reasoned_ignored_sheet_preview(
             preview,
-            _make_sheet_preview(
-                sheet_name=sheet_name,
-                kind="ignored",
-                status=status,
-                warnings=warnings,
-            ),
+            sheet_name=sheet_name,
+            has_content=_sheet_has_content(ws),
+            warning=preview_warning_for_gestion_reason(reason),
         )
         return
 
-    if kind == "contacts":
-        header_info = _detect_header_row(ws, ["nom", "prenom"]) or _detect_header_row(
-            ws, ["nom", "email"]
-        )
-    elif kind == "payments":
-        header_info = _detect_header_row(ws, ["montant", "date"]) or _detect_header_row(
-            ws, ["montant", "facture"]
-        )
-    elif kind == "bank":
-        header_info = _detect_header_row(ws, ["date", "montant"]) or _detect_header_row(
-            ws, ["date", "debit"]
-        )
-    elif kind == "cash":
-        header_info = _detect_header_row(ws, ["date", "entree"]) or _detect_header_row(
-            ws, ["date", "montant"]
-        )
-    else:
-        header_info = _detect_header_row(ws, ["montant", "date"]) or _detect_header_row(
-            ws, ["montant", "client"]
-        )
+    header_info = detect_gestion_preview_header(
+        ws,
+        kind,
+        detect_header_row=_detect_header_row,
+    )
 
     if header_info is None:
-        _append_sheet_preview(
+        _append_unknown_structure_sheet_preview(
             preview,
-            _make_sheet_preview(
-                sheet_name=sheet_name,
-                kind=kind,
-                status="ignored",
-                warnings=["Structure non reconnue, feuille ignoree par la preview"],
-            ),
+            sheet_name=sheet_name,
+            kind=kind,
+            warning=GESTION_UNKNOWN_STRUCTURE_MESSAGE,
         )
         return
 
@@ -1431,24 +1139,31 @@ def _preview_sheet_gestion(ws: Any, sheet_name: str, preview: PreviewResult) -> 
     detected_columns = list(col_map.keys())
     count = 0
     missing_columns: list[str] = []
+    ignored_rows = 0
+    errors: list[str] = []
+    warnings: list[str] = []
 
     if kind == "contacts":
-        parsed_sheet, contact_rows = _parse_contact_sheet(ws)
+        parsed_sheet, contact_rows, row_issues = _parse_contact_sheet(ws)
         if parsed_sheet is None:
-            _append_sheet_preview(
+            _append_unknown_structure_sheet_preview(
                 preview,
-                _make_sheet_preview(
-                    sheet_name=sheet_name,
-                    kind=kind,
-                    status="ignored",
-                    warnings=["Structure non reconnue, feuille ignoree par la preview"],
-                ),
+                sheet_name=sheet_name,
+                kind=kind,
+                warning=GESTION_UNKNOWN_STRUCTURE_MESSAGE,
             )
             return
         header_row = parsed_sheet.header_row
         detected_columns = list(parsed_sheet.col_map.keys())
         missing_columns = parsed_sheet.missing_columns
+        contact_rows, ignored_issues = filter_duplicate_contact_rows(
+            contact_rows,
+            normalize_text=_normalize_text,
+        )
+        ignored_rows = len(ignored_issues)
         count = len(contact_rows)
+        _append_row_issues(errors, row_issues)
+        _append_ignored_issues(warnings, ignored_issues)
         if not missing_columns:
             for contact_row in contact_rows:
                 _register_preview_contact(
@@ -1456,104 +1171,98 @@ def _preview_sheet_gestion(ws: Any, sheet_name: str, preview: PreviewResult) -> 
                     f"{contact_row.nom} {contact_row.prenom or ''}".strip(),
                 )
     elif kind == "invoices":
-        parsed_sheet, invoice_rows = _parse_invoice_sheet(ws)
+        parsed_sheet, invoice_rows, row_issues, ignored_issues = _parse_invoice_sheet(ws)
         if parsed_sheet is None:
-            _append_sheet_preview(
+            _append_unknown_structure_sheet_preview(
                 preview,
-                _make_sheet_preview(
-                    sheet_name=sheet_name,
-                    kind=kind,
-                    status="ignored",
-                    warnings=["Structure non reconnue, feuille ignoree par la preview"],
-                ),
+                sheet_name=sheet_name,
+                kind=kind,
+                warning=GESTION_UNKNOWN_STRUCTURE_MESSAGE,
             )
             return
         header_row = parsed_sheet.header_row
         detected_columns = list(parsed_sheet.col_map.keys())
         missing_columns = parsed_sheet.missing_columns
+        invoice_rows, duplicate_ignored_issues = filter_duplicate_invoice_rows(
+            invoice_rows,
+            normalize_text=_normalize_text,
+        )
+        ignored_rows = len(ignored_issues) + len(duplicate_ignored_issues)
         count = len(invoice_rows)
+        _append_row_issues(errors, row_issues)
+        _append_ignored_issues(warnings, ignored_issues)
+        _append_ignored_issues(warnings, duplicate_ignored_issues)
         if not missing_columns:
             for invoice_row in invoice_rows:
                 _register_preview_contact(preview, invoice_row.contact_name)
             preview.estimated_invoices += count
     elif kind == "payments":
-        parsed_sheet, payment_rows = _parse_payment_sheet(ws)
+        parsed_sheet, payment_rows, row_issues = _parse_payment_sheet(ws)
         if parsed_sheet is None:
-            _append_sheet_preview(
+            _append_unknown_structure_sheet_preview(
                 preview,
-                _make_sheet_preview(
-                    sheet_name=sheet_name,
-                    kind=kind,
-                    status="ignored",
-                    warnings=["Structure non reconnue, feuille ignoree par la preview"],
-                ),
+                sheet_name=sheet_name,
+                kind=kind,
+                warning=GESTION_UNKNOWN_STRUCTURE_MESSAGE,
             )
             return
         header_row = parsed_sheet.header_row
         detected_columns = list(parsed_sheet.col_map.keys())
         missing_columns = parsed_sheet.missing_columns
         count = len(payment_rows)
+        _append_row_issues(errors, row_issues)
         if not missing_columns:
             for payment_row in payment_rows:
                 if payment_row.contact_name:
                     _register_preview_contact(preview, payment_row.contact_name)
             preview.estimated_payments += count
     elif kind == "bank":
-        parsed_sheet, bank_rows = _parse_bank_sheet(ws)
+        parsed_sheet, bank_rows, row_issues, ignored_issues = _parse_bank_sheet(ws)
         if parsed_sheet is None:
-            _append_sheet_preview(
+            _append_unknown_structure_sheet_preview(
                 preview,
-                _make_sheet_preview(
-                    sheet_name=sheet_name,
-                    kind=kind,
-                    status="ignored",
-                    warnings=["Structure non reconnue, feuille ignoree par la preview"],
-                ),
+                sheet_name=sheet_name,
+                kind=kind,
+                warning=GESTION_UNKNOWN_STRUCTURE_MESSAGE,
             )
             return
         header_row = parsed_sheet.header_row
         detected_columns = list(parsed_sheet.col_map.keys())
         missing_columns = parsed_sheet.missing_columns
         count = len(bank_rows)
+        _append_row_issues(errors, row_issues)
+        ignored_rows = len(ignored_issues)
+        _append_ignored_issues(warnings, ignored_issues)
     elif kind == "cash":
-        parsed_sheet, cash_rows = _parse_cash_sheet(ws)
+        parsed_sheet, cash_rows, row_issues, ignored_issues = _parse_cash_sheet(ws)
         if parsed_sheet is None:
-            _append_sheet_preview(
+            _append_unknown_structure_sheet_preview(
                 preview,
-                _make_sheet_preview(
-                    sheet_name=sheet_name,
-                    kind=kind,
-                    status="ignored",
-                    warnings=["Structure non reconnue, feuille ignoree par la preview"],
-                ),
+                sheet_name=sheet_name,
+                kind=kind,
+                warning=GESTION_UNKNOWN_STRUCTURE_MESSAGE,
             )
             return
         header_row = parsed_sheet.header_row
         detected_columns = list(parsed_sheet.col_map.keys())
         missing_columns = parsed_sheet.missing_columns
         count = len(cash_rows)
+        _append_row_issues(errors, row_issues)
+        ignored_rows = len(ignored_issues)
+        _append_ignored_issues(warnings, ignored_issues)
 
-    errors = []
-    status = "recognized"
-    if missing_columns:
-        status = "unsupported"
-        errors.append(
-            f"Colonnes requises manquantes: {', '.join(missing_columns)}"
-        )
-
-    _append_sheet_preview(
+    _append_finalized_sheet_preview(
         preview,
-        _make_sheet_preview(
-            sheet_name=sheet_name,
-            kind=kind,
-            status=status,
-            header_row=header_row,
-            rows=count,
-            detected_columns=detected_columns,
-            missing_columns=missing_columns,
-            sample_rows=_collect_sample_rows(ws, header_row, col_map),
-            errors=errors,
-        ),
+        sheet_name=sheet_name,
+        kind=kind,
+        header_row=header_row,
+        rows=count,
+        detected_columns=detected_columns,
+        missing_columns=missing_columns,
+        ignored_rows=ignored_rows,
+        sample_rows=_collect_sample_rows(ws, header_row, parsed_sheet.col_map),
+        warnings=warnings,
+        errors=errors,
     )
 
 
@@ -1563,97 +1272,52 @@ def _preview_sheet_comptabilite(
     """Count parseable accounting entry rows and report diagnostics."""
     kind, reason = _classify_comptabilite_sheet(sheet_name)
     if kind is None:
-        status = "ignored" if _sheet_has_content(ws) else "empty"
-        warnings = []
-        if status == "ignored":
-            if reason == "report-sheet":
-                warnings.append("Feuille de reporting ignoree par la preview")
-            elif reason == "entry-helper-sheet":
-                warnings.append("Feuille d'aide a la saisie ignoree par la preview")
-            elif reason == "unmapped-sheet":
-                warnings.append("Feuille non reconnue et ignoree")
-        _append_sheet_preview(
+        _append_reasoned_ignored_sheet_preview(
             preview,
-            _make_sheet_preview(
-                sheet_name=sheet_name,
-                kind="ignored",
-                status=status,
-                warnings=warnings,
-            ),
+            sheet_name=sheet_name,
+            has_content=_sheet_has_content(ws),
+            warning=preview_warning_for_comptabilite_reason(reason),
         )
         return
 
-    header_info = _detect_header_row(ws, ["compte", "débit"])
-    if header_info is None:
-        header_info = _detect_header_row(ws, ["compte", "credit"])
-    if header_info is None:
-        _append_sheet_preview(
+    parsed_sheet, normalized_rows, row_issues, ignored_issues = _parse_entries_sheet(ws)
+    if parsed_sheet is None:
+        _append_unknown_structure_sheet_preview(
             preview,
-            _make_sheet_preview(
-                sheet_name=sheet_name,
-                kind=kind,
-                status="ignored",
-                warnings=["Structure de journal non reconnue, feuille ignoree par la preview"],
-            ),
-        )
-        return
-
-    header_row, col_map = header_info
-    detected_columns = list(col_map.keys())
-    compte_idx = _find_col_idx(col_map, "compte")
-    debit_idx = _find_col_idx(col_map, "débit", "debit")
-    credit_idx = _find_col_idx(col_map, "crédit", "credit")
-
-    missing_columns: list[str] = []
-    if compte_idx is None:
-        missing_columns.append("compte")
-    if debit_idx is None and credit_idx is None:
-        missing_columns.append("débit/crédit")
-
-    count = 0
-    if not missing_columns:
-        for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
-            if all(cell is None for cell in row):
-                continue
-            compte = _parse_str(
-                row[compte_idx] if compte_idx is not None and compte_idx < len(row) else None
-            )
-            debit = _parse_decimal(
-                row[debit_idx] if debit_idx is not None and debit_idx < len(row) else None
-            ) or Decimal("0")
-            credit = _parse_decimal(
-                row[credit_idx] if credit_idx is not None and credit_idx < len(row) else None
-            ) or Decimal("0")
-            if compte and (debit != 0 or credit != 0):
-                count += 1
-        preview.estimated_entries += count
-
-    errors = []
-    status = "recognized"
-    if missing_columns:
-        status = "unsupported"
-        errors.append(
-            f"Colonnes requises manquantes: {', '.join(missing_columns)}"
-        )
-
-    _append_sheet_preview(
-        preview,
-        _make_sheet_preview(
             sheet_name=sheet_name,
             kind=kind,
-            status=status,
-            header_row=header_row,
-            rows=count,
-            detected_columns=detected_columns,
-            missing_columns=missing_columns,
-            sample_rows=_collect_sample_rows(ws, header_row, col_map),
-            errors=errors,
-        ),
+            warning=COMPTABILITE_UNKNOWN_STRUCTURE_MESSAGE,
+        )
+        return
+
+    header_row = parsed_sheet.header_row
+    detected_columns = list(parsed_sheet.col_map.keys())
+    missing_columns = parsed_sheet.missing_columns
+    count = len(normalized_rows)
+    warnings: list[str] = []
+    errors: list[str] = []
+    _append_row_issues(errors, row_issues)
+    _append_ignored_issues(warnings, ignored_issues)
+    if not missing_columns:
+        preview.estimated_entries += count
+
+    _append_finalized_sheet_preview(
+        preview,
+        sheet_name=sheet_name,
+        kind=kind,
+        header_row=header_row,
+        rows=count,
+        detected_columns=detected_columns,
+        missing_columns=missing_columns,
+        ignored_rows=len(ignored_issues),
+        sample_rows=_collect_sample_rows(ws, header_row, parsed_sheet.col_map),
+        warnings=warnings,
+        errors=errors,
     )
 
 
-def preview_gestion_file(file_bytes: bytes) -> PreviewResult:
-    """Dry-run parse of a Gestion file — no DB writes."""
+def _preview_gestion_file(file_bytes: bytes) -> PreviewResult:
+    """Dry-run parse of a Gestion file using file-only validation."""
     from io import BytesIO  # noqa: PLC0415
 
     import openpyxl  # noqa: PLC0415
@@ -1662,19 +1326,36 @@ def preview_gestion_file(file_bytes: bytes) -> PreviewResult:
     try:
         wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
     except Exception as exc:
-        preview.errors.append(f"Impossible d'ouvrir le fichier : {exc}")
+        _append_preview_open_error(preview, exc)
         return preview
 
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
         _preview_sheet_gestion(ws, sheet_name, preview)
 
-    preview.can_import = preview.can_import and not preview.errors
-
     return preview
 
 
-def preview_comptabilite_file(file_bytes: bytes) -> PreviewResult:
+async def preview_gestion_file(db: AsyncSession, file_bytes: bytes) -> PreviewResult:
+    """Dry-run parse of a Gestion file with shared business validation."""
+    preview = _preview_gestion_file(file_bytes)
+    if preview.errors:
+        preview.can_import = False
+        return preview
+
+    await _add_gestion_existing_rows_preview(db, file_bytes, preview)
+
+    import_log = await _find_successful_import_log(db, "gestion", _compute_file_hash(file_bytes))
+    if import_log is not None:
+        _mark_preview_as_already_imported(preview, "gestion", import_log)
+        return preview
+
+    await _add_gestion_payment_validation(db, file_bytes, preview)
+    _finalize_preview_can_import(preview)
+    return preview
+
+
+async def preview_comptabilite_file(db: AsyncSession, file_bytes: bytes) -> PreviewResult:
     """Dry-run parse of a Comptabilité file — no DB writes."""
     from io import BytesIO  # noqa: PLC0415
 
@@ -1684,13 +1365,25 @@ def preview_comptabilite_file(file_bytes: bytes) -> PreviewResult:
     try:
         wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
     except Exception as exc:
-        preview.errors.append(f"Impossible d'ouvrir le fichier : {exc}")
+        _append_preview_open_error(preview, exc)
         return preview
 
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
         _preview_sheet_comptabilite(ws, sheet_name, preview)
 
-    preview.can_import = preview.can_import and not preview.errors
+    await _add_comptabilite_coexistence_validation(db, preview)
+    if preview.errors:
+        preview.can_import = False
+        return preview
+
+    import_log = await _find_successful_import_log(
+        db, "comptabilite", _compute_file_hash(file_bytes)
+    )
+    if import_log is not None:
+        _mark_preview_as_already_imported(preview, "comptabilite", import_log)
+        return preview
+
+    _finalize_preview_can_import(preview)
 
     return preview

@@ -42,8 +42,8 @@ async def get_current_user(
         raise credentials_exception
 
     result = await db.execute(
-        select(User).where(User.username == username, User.is_active == True)
-    )  # noqa: E712
+        select(User).where(User.username == username, User.is_active)
+    )
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
@@ -71,9 +71,7 @@ async def login(
 ) -> TokenResponse:
     """Authenticate with username + password, return JWT tokens."""
     result = await db.execute(
-        select(User).where(
-            User.username == form_data.username, User.is_active == True
-        )  # noqa: E712
+        select(User).where(User.username == form_data.username, User.is_active)
     )
     user = result.scalar_one_or_none()
     if user is None or not verify_password(form_data.password, user.password_hash):
@@ -102,8 +100,8 @@ async def refresh_token(
         )
     username: str = payload["sub"]
     result = await db.execute(
-        select(User).where(User.username == username, User.is_active == True)
-    )  # noqa: E712
+        select(User).where(User.username == username, User.is_active)
+    )
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(
