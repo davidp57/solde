@@ -17,13 +17,17 @@ from backend.models.accounting_rule import (
     TriggerType,
 )
 from backend.models.bank import Deposit, DepositType
+from backend.models.contact import Contact, ContactType
+from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.invoice import Invoice, InvoiceLabel, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
+from backend.models.salary import Salary
 from backend.services.accounting_engine import (
     _render_template,
     generate_entries_for_deposit,
     generate_entries_for_invoice,
     generate_entries_for_payment,
+    generate_entries_for_salary,
     seed_default_rules,
 )
 
@@ -126,6 +130,50 @@ async def _make_deposit(
     return dep
 
 
+async def _create_fiscal_year(
+    db: AsyncSession,
+    *,
+    name: str,
+    start: date,
+    end: date,
+) -> FiscalYear:
+    fiscal_year = FiscalYear(
+        name=name,
+        start_date=start,
+        end_date=end,
+        status=FiscalYearStatus.OPEN,
+    )
+    db.add(fiscal_year)
+    await db.commit()
+    await db.refresh(fiscal_year)
+    return fiscal_year
+
+
+async def _make_employee(db: AsyncSession) -> Contact:
+    employee = Contact(type=ContactType.FOURNISSEUR, nom="Martin", prenom="Alice")
+    db.add(employee)
+    await db.commit()
+    await db.refresh(employee)
+    return employee
+
+
+async def _make_salary(db: AsyncSession, employee_id: int) -> Salary:
+    salary = Salary(
+        employee_id=employee_id,
+        month="2024-01",
+        hours=Decimal("35.00"),
+        gross=Decimal("1000.00"),
+        employee_charges=Decimal("220.00"),
+        employer_charges=Decimal("420.00"),
+        tax=Decimal("80.00"),
+        net_pay=Decimal("700.00"),
+    )
+    db.add(salary)
+    await db.commit()
+    await db.refresh(salary)
+    return salary
+
+
 # ---------------------------------------------------------------------------
 # _render_template
 # ---------------------------------------------------------------------------
@@ -178,6 +226,22 @@ class TestGenerateEntriesForInvoice:
         assert credit.account_number == "706110"
         assert debit.debit == Decimal("100.00")
         assert credit.credit == Decimal("100.00")
+
+    @pytest.mark.asyncio
+    async def test_assigns_fiscal_year_from_invoice_date(self, db_session: AsyncSession) -> None:
+        fiscal_year = await _create_fiscal_year(
+            db_session,
+            name="2024",
+            start=date(2024, 1, 1),
+            end=date(2024, 12, 31),
+        )
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        inv = await _make_invoice(db_session, label=InvoiceLabel.CS)
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 2
+        assert {entry.fiscal_year_id for entry in entries} == {fiscal_year.id}
 
     @pytest.mark.asyncio
     async def test_client_adhesion_label(self, db_session: AsyncSession) -> None:
@@ -304,6 +368,16 @@ class TestGenerateEntriesForPayment:
         assert any(e.account_number == "401000" for e in entries)
 
     @pytest.mark.asyncio
+    async def test_payment_sent_especes_fournisseur(self, db_session: AsyncSession) -> None:
+        await _seed_one_rule(db_session, TriggerType.PAYMENT_SENT_ESPECES, "401000", "531000")
+        inv = await _make_invoice(db_session, inv_type=InvoiceType.FOURNISSEUR)
+        pay = await _make_payment(db_session, method=PaymentMethod.ESPECES, invoice_id=inv.id)
+        entries = await generate_entries_for_payment(db_session, pay, InvoiceType.FOURNISSEUR)
+        assert len(entries) == 2
+        assert any(e.account_number == "401000" for e in entries)
+        assert any(e.account_number == "531000" for e in entries)
+
+    @pytest.mark.asyncio
     async def test_source_type_is_payment(self, db_session: AsyncSession) -> None:
         await _seed_one_rule(db_session, TriggerType.PAYMENT_RECEIVED_CHEQUE, "511200", "411100")
         inv = await _make_invoice(db_session)
@@ -354,6 +428,54 @@ class TestGenerateEntriesForDeposit:
 
 
 # ---------------------------------------------------------------------------
+# generate_entries_for_salary
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateEntriesForSalary:
+    @pytest.mark.asyncio
+    async def test_salary_entries_share_one_group_key(self, db_session: AsyncSession) -> None:
+        employee = await _make_employee(db_session)
+        salary = await _make_salary(db_session, employee.id)
+        await _create_fiscal_year(
+            db_session,
+            name="2024",
+            start=date(2024, 1, 1),
+            end=date(2024, 12, 31),
+        )
+        await _seed_one_rule(db_session, TriggerType.SALARY_GROSS, "641000", "421000")
+        await _seed_one_rule(
+            db_session,
+            TriggerType.SALARY_EMPLOYER_CHARGES,
+            "645100",
+            "431100",
+        )
+        await _seed_one_rule(db_session, TriggerType.SALARY_PAYMENT, "421000", "512100")
+
+        entries = await generate_entries_for_salary(db_session, salary)
+
+        assert len(entries) == 10
+        assert {entry.source_type for entry in entries} == {EntrySourceType.SALARY}
+        assert {entry.source_id for entry in entries} == {salary.id}
+        assert len({entry.group_key for entry in entries}) == 1
+        assert entries[0].group_key is not None
+        assert (
+            len(
+                [entry for entry in entries if entry.account_number == "421000" and entry.debit > 0]
+            )
+            == 3
+        )
+        assert any(
+            entry.account_number == "431100" and entry.credit == Decimal("220.00")
+            for entry in entries
+        )
+        assert any(
+            entry.account_number == "443000" and entry.credit == Decimal("80.00")
+            for entry in entries
+        )
+
+
+# ---------------------------------------------------------------------------
 # seed_default_rules
 # ---------------------------------------------------------------------------
 
@@ -369,6 +491,14 @@ class TestSeedDefaultRules:
         await seed_default_rules(db_session)
         count2 = await seed_default_rules(db_session)
         assert count2 == 0
+
+    @pytest.mark.asyncio
+    async def test_backfills_missing_default_rules(self, db_session: AsyncSession) -> None:
+        await _seed_one_rule(db_session, TriggerType.SALARY_GROSS, "641000", "421000")
+
+        count = await seed_default_rules(db_session)
+
+        assert count == len(DEFAULT_RULES) - 1
 
     @pytest.mark.asyncio
     async def test_seeded_rules_have_entries(self, db_session: AsyncSession) -> None:

@@ -39,8 +39,10 @@
           <AppStatCard :label="t('accounting.journal.title')" :value="ledger.entries.length" />
         </section>
 
-        <DataTable :value="ledger.entries" :loading="loading" class="app-data-table" striped-rows size="small" row-hover>
-        <Column field="date" :header="t('accounting.journal.date')" sortable />
+        <DataTable :value="ledger.entries" :loading="loading" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small" row-hover>
+        <Column field="date" :header="t('accounting.journal.date')" sortable>
+          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+        </Column>
         <Column field="entry_number" :header="t('accounting.journal.entry_number')" />
         <Column field="label" :header="t('accounting.journal.label')" />
         <Column field="debit" :header="t('accounting.journal.debit')" class="app-money">
@@ -61,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -73,8 +75,11 @@ import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import { getLedgerApi, listAccountsApi, type LedgerRead } from '../api/accounting'
+import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
+const fiscalYearStore = useFiscalYearStore()
 
 const ledger = ref<LedgerRead | null>(null)
 const accounts = ref<Array<{ number: string; displayLabel: string }>>([])
@@ -90,13 +95,23 @@ async function load() {
     ledger.value = await getLedgerApi(accountNumber.value, {
       from_date: fromDate.value || undefined,
       to_date: toDate.value || undefined,
+      fiscal_year_id: fiscalYearStore.selectedFiscalYearId,
     })
   } finally {
     loading.value = false
   }
 }
 
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId || !accountNumber.value) return
+    void load()
+  },
+)
+
 onMounted(async () => {
+  await fiscalYearStore.initialize()
   const accts = await listAccountsApi(undefined, false)
   accounts.value = accts.map((a) => ({
     number: a.number,

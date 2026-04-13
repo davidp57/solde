@@ -8,13 +8,17 @@ from decimal import Decimal
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import backend.services.fiscal_year_service as fiscal_year_service_module
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.schemas.fiscal_year import FiscalYearCreate
 from backend.services.fiscal_year_service import (
     FiscalYearError,
+    administrative_close_fiscal_year,
     close_fiscal_year,
     create_fiscal_year,
+    find_fiscal_year_for_date,
+    find_fiscal_year_id_for_date,
     get_current_fiscal_year,
     get_fiscal_year,
     list_fiscal_years,
@@ -103,11 +107,83 @@ class TestGetCurrentFiscalYear:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_returns_open_year(self, db_session: AsyncSession) -> None:
-        fy = await _create_fy(db_session, status=FiscalYearStatus.OPEN)
+    async def test_returns_open_year_covering_today(
+        self, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        class _FakeDate(date):
+            @classmethod
+            def today(cls) -> _FakeDate:
+                return cls(2026, 4, 12)
+
+        monkeypatch.setattr(fiscal_year_service_module, "date", _FakeDate)
+        await _create_fy(
+            db_session,
+            "2024",
+            date(2024, 8, 1),
+            date(2025, 7, 31),
+            FiscalYearStatus.OPEN,
+        )
+        fy = await _create_fy(
+            db_session,
+            "2025",
+            date(2025, 8, 1),
+            date(2026, 7, 31),
+            FiscalYearStatus.OPEN,
+        )
         result = await get_current_fiscal_year(db_session)
         assert result is not None
         assert result.id == fy.id
+
+    @pytest.mark.asyncio
+    async def test_returns_latest_open_when_none_covers_today(
+        self, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        class _FakeDate(date):
+            @classmethod
+            def today(cls) -> _FakeDate:
+                return cls(2026, 4, 12)
+
+        monkeypatch.setattr(fiscal_year_service_module, "date", _FakeDate)
+        await _create_fy(
+            db_session,
+            "2023",
+            date(2023, 8, 1),
+            date(2024, 7, 31),
+            FiscalYearStatus.OPEN,
+        )
+        latest_open = await _create_fy(
+            db_session,
+            "2024",
+            date(2024, 8, 1),
+            date(2025, 7, 31),
+            FiscalYearStatus.OPEN,
+        )
+
+        result = await get_current_fiscal_year(db_session)
+
+        assert result is not None
+        assert result.id == latest_open.id
+
+
+class TestFindFiscalYearForDate:
+    @pytest.mark.asyncio
+    async def test_returns_covering_fiscal_year(self, db_session: AsyncSession) -> None:
+        fy = await _create_fy(db_session, "2025", date(2025, 1, 1), date(2025, 12, 31))
+
+        result = await find_fiscal_year_for_date(db_session, date(2025, 8, 15))
+
+        assert result is not None
+        assert result.id == fy.id
+        assert await find_fiscal_year_id_for_date(db_session, date(2025, 8, 15)) == fy.id
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_no_fiscal_year_covers_date(
+        self, db_session: AsyncSession
+    ) -> None:
+        await _create_fy(db_session, "2024", date(2024, 1, 1), date(2024, 12, 31))
+
+        assert await find_fiscal_year_for_date(db_session, date(2025, 1, 1)) is None
+        assert await find_fiscal_year_id_for_date(db_session, date(2025, 1, 1)) is None
 
 
 class TestCloseFiscalYear:
@@ -178,3 +254,29 @@ class TestCloseFiscalYear:
         cloture_entries = result.scalars().all()
         assert len(cloture_entries) >= 1
         assert cloture_entries[0].fiscal_year_id == fy.id
+
+
+class TestAdministrativeCloseFiscalYear:
+    @pytest.mark.asyncio
+    async def test_marks_closed_without_creating_cloture_entries(
+        self, db_session: AsyncSession
+    ) -> None:
+        fy = await _create_fy(db_session)
+
+        closed = await administrative_close_fiscal_year(db_session, fy)
+
+        assert closed.status == FiscalYearStatus.CLOSED
+
+        from sqlalchemy import select
+
+        result = await db_session.execute(
+            select(AccountingEntry).where(AccountingEntry.source_type == EntrySourceType.CLOTURE)
+        )
+        assert result.scalars().all() == []
+
+    @pytest.mark.asyncio
+    async def test_already_closed_raises_error(self, db_session: AsyncSession) -> None:
+        fy = await _create_fy(db_session, status=FiscalYearStatus.CLOSED)
+
+        with pytest.raises(FiscalYearError):
+            await administrative_close_fiscal_year(db_session, fy)

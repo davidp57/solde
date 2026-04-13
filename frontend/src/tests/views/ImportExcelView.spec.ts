@@ -19,15 +19,23 @@ vi.mock('primevue/usetoast', () => ({
 vi.mock('../../api/accounting', () => ({
   importGestionFileApi: vi.fn(),
   importComptabiliteFileApi: vi.fn(),
+  importTestShortcutApi: vi.fn(),
+  listTestImportShortcutsApi: vi.fn(),
   previewGestionFileApi: vi.fn(),
   previewComptabiliteFileApi: vi.fn(),
 }))
 
 import ImportExcelView from '../../views/ImportExcelView.vue'
 import {
+  importGestionFileApi,
+  importTestShortcutApi,
+  listTestImportShortcutsApi,
   previewGestionFileApi,
 } from '../../api/accounting'
 
+const mockImportGestionFileApi = vi.mocked(importGestionFileApi)
+const mockImportTestShortcutApi = vi.mocked(importTestShortcutApi)
+const mockListTestImportShortcutsApi = vi.mocked(listTestImportShortcutsApi)
 const mockPreviewGestionFileApi = vi.mocked(previewGestionFileApi)
 
 const ButtonStub = defineComponent({
@@ -68,6 +76,7 @@ function buildPreviewResult(overrides: Record<string, unknown> = {}) {
     estimated_contacts: 1,
     estimated_invoices: 2,
     estimated_payments: 3,
+    estimated_salaries: 0,
     estimated_entries: 0,
     errors: [],
     warnings: [],
@@ -75,6 +84,27 @@ function buildPreviewResult(overrides: Record<string, unknown> = {}) {
     warning_details: [],
     can_import: true,
     sample_rows: [],
+    ...overrides,
+  }
+}
+
+function buildImportResult(overrides: Record<string, unknown> = {}) {
+  return {
+    contacts_created: 1,
+    invoices_created: 2,
+    payments_created: 3,
+    salaries_created: 0,
+    entries_created: 4,
+    cash_created: 0,
+    bank_created: 1,
+    skipped: 0,
+    ignored_rows: 2,
+    blocked_rows: 1,
+    warnings: [],
+    errors: [],
+    error_details: [],
+    warning_details: [],
+    sheets: [],
     ...overrides,
   }
 }
@@ -114,6 +144,7 @@ async function selectFile(wrapper: ReturnType<typeof mountView>, name = 'histori
 describe('ImportExcelView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockListTestImportShortcutsApi.mockResolvedValue([])
   })
 
   it('keeps import disabled until preview succeeds', async () => {
@@ -187,5 +218,44 @@ describe('ImportExcelView', () => {
 
     expect((wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled).toBe(true)
     expect(wrapper.find('[data-testid="confirm-import-button"]').exists()).toBe(false)
+  })
+
+  it('shows a persistent result banner after import completes', async () => {
+    mockPreviewGestionFileApi.mockResolvedValueOnce(buildPreviewResult())
+    mockImportGestionFileApi.mockResolvedValueOnce(buildImportResult())
+
+    const wrapper = mountView()
+    await selectFile(wrapper)
+    await wrapper.get('[data-testid="preview-button"]').trigger('click')
+    await flushView()
+    await wrapper.get('[data-testid="primary-import-button"]').trigger('click')
+    await flushView()
+
+    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('import.success')
+    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('import.result_persistent_hint')
+  })
+
+  it('runs a temporary shortcut import without preview', async () => {
+    mockListTestImportShortcutsApi.mockResolvedValueOnce([
+      {
+        alias: 'gestion-2024',
+        label: 'Gestion 2024',
+        import_type: 'gestion',
+        order: 1,
+        available: true,
+        file_name: 'Gestion 2024.xlsx',
+        message: null,
+      },
+    ])
+    mockImportTestShortcutApi.mockResolvedValueOnce(buildImportResult())
+
+    const wrapper = mountView()
+    await flushView()
+
+    await wrapper.get('[data-testid="quick-import-gestion-2024"]').trigger('click')
+    await flushView()
+
+    expect(mockImportTestShortcutApi).toHaveBeenCalledWith('gestion-2024')
+    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('import.success')
   })
 })

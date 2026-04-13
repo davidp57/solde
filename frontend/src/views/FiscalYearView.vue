@@ -20,10 +20,14 @@
         </div>
       </div>
 
-      <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows size="small" row-hover>
+      <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small" row-hover>
       <Column field="name" :header="t('accounting.fiscalYear.name')" />
-      <Column field="start_date" :header="t('accounting.fiscalYear.start_date')" />
-      <Column field="end_date" :header="t('accounting.fiscalYear.end_date')" />
+      <Column field="start_date" :header="t('accounting.fiscalYear.start_date')">
+        <template #body="{ data }">{{ formatDisplayDate(data.start_date) }}</template>
+      </Column>
+      <Column field="end_date" :header="t('accounting.fiscalYear.end_date')">
+        <template #body="{ data }">{{ formatDisplayDate(data.end_date) }}</template>
+      </Column>
       <Column field="status" :header="t('accounting.fiscalYear.status')">
         <template #body="{ data }">
           <Tag
@@ -34,6 +38,14 @@
       </Column>
       <Column :header="t('common.actions')">
         <template #body="{ data }">
+          <Button
+            v-if="data.status === 'open'"
+            :label="t('accounting.fiscalYear.close_administrative')"
+            icon="pi pi-box"
+            severity="warn"
+            text
+            @click="confirmAdministrativeClose(data)"
+          />
           <Button
             v-if="data.status === 'open'"
             :label="t('accounting.fiscalYear.close')"
@@ -111,10 +123,12 @@ import {
   listFiscalYearsApi,
   createFiscalYearApi,
   closeFiscalYearApi,
+  closeFiscalYearAdministrativeApi,
   type FiscalYearRead,
   type FiscalYearStatus,
 } from '../api/accounting'
 import { useTableFilter } from '../composables/useTableFilter'
+import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -168,6 +182,29 @@ function confirmClose(fy: FiscalYearRead) {
       try {
         await closeFiscalYearApi(fy.id)
         toast.add({ severity: 'success', summary: t('accounting.fiscalYear.closed_ok', { name: fy.name }), life: 3000 })
+        await load()
+      } catch {
+        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+      }
+    },
+  })
+}
+
+function confirmAdministrativeClose(fy: FiscalYearRead) {
+  confirm.require({
+    message: t('accounting.fiscalYear.close_administrative_confirm', { name: fy.name }),
+    header: t('accounting.fiscalYear.close_administrative'),
+    icon: 'pi pi-exclamation-triangle',
+    rejectProps: { label: t('common.cancel'), severity: 'secondary', text: true },
+    acceptProps: { label: t('common.confirm'), severity: 'warn' },
+    accept: async () => {
+      try {
+        await closeFiscalYearAdministrativeApi(fy.id)
+        toast.add({
+          severity: 'success',
+          summary: t('accounting.fiscalYear.closed_administrative_ok', { name: fy.name }),
+          life: 3000,
+        })
         await load()
       } catch {
         toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })

@@ -82,6 +82,31 @@ async def test_list_transactions(client: AsyncClient, admin_user: User, auth_hea
 
 
 @pytest.mark.asyncio
+async def test_list_transactions_filter_by_date_range(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    await client.post(
+        "/api/bank/transactions",
+        json={"date": "2024-07-31", "amount": "100.00"},
+        headers=auth_headers,
+    )
+    kept = await client.post(
+        "/api/bank/transactions",
+        json={"date": "2024-08-01", "amount": "200.00"},
+        headers=auth_headers,
+    )
+
+    response = await client.get(
+        "/api/bank/transactions?from_date=2024-08-01&to_date=2025-07-31",
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["id"] == kept.json()["id"]
+
+
+@pytest.mark.asyncio
 async def test_update_transaction_reconcile(
     client: AsyncClient, admin_user: User, auth_headers: dict
 ) -> None:

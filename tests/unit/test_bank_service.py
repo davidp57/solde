@@ -96,6 +96,27 @@ async def test_list_transactions(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_transactions_filter_by_date_range(db_session: AsyncSession) -> None:
+    await bank_service.add_transaction(
+        db_session,
+        BankTransactionCreate(date=date(2024, 7, 31), amount=Decimal("50.00")),
+    )
+    kept = await bank_service.add_transaction(
+        db_session,
+        BankTransactionCreate(date=date(2024, 8, 1), amount=Decimal("100.00")),
+    )
+
+    txs = await bank_service.list_transactions(
+        db_session,
+        from_date=date(2024, 8, 1),
+        to_date=date(2025, 7, 31),
+        limit=None,
+    )
+
+    assert [tx.id for tx in txs] == [kept.id]
+
+
+@pytest.mark.asyncio
 async def test_list_transactions_unreconciled_only(db_session: AsyncSession) -> None:
     t1 = await bank_service.add_transaction(
         db_session,
@@ -223,3 +244,40 @@ async def test_list_deposits(db_session: AsyncSession) -> None:
 
     deposits = await bank_service.list_deposits(db_session)
     assert len(deposits) == 2
+
+
+@pytest.mark.asyncio
+async def test_list_deposits_filter_by_date_range(db_session: AsyncSession) -> None:
+    p1 = await _make_payment(db_session)
+    await bank_service.create_deposit(
+        db_session,
+        DepositCreate(date=date(2024, 7, 31), type=DepositType.CHEQUES, payment_ids=[p1.id]),
+    )
+
+    contact = await db_session.get(Contact, p1.contact_id)
+    assert contact is not None
+    inv = await db_session.get(Invoice, p1.invoice_id)
+    assert inv is not None
+    p2 = Payment(
+        invoice_id=inv.id,
+        contact_id=contact.id,
+        amount=Decimal("80.00"),
+        date=date(2024, 8, 2),
+        method=PaymentMethod.CHEQUE,
+        deposited=False,
+    )
+    db_session.add(p2)
+    await db_session.flush()
+    kept = await bank_service.create_deposit(
+        db_session,
+        DepositCreate(date=date(2024, 8, 3), type=DepositType.CHEQUES, payment_ids=[p2.id]),
+    )
+
+    deposits = await bank_service.list_deposits(
+        db_session,
+        from_date=date(2024, 8, 1),
+        to_date=date(2025, 7, 31),
+        limit=None,
+    )
+
+    assert [deposit.id for deposit in deposits] == [kept.id]

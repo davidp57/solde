@@ -1,10 +1,13 @@
 import apiClient from './client'
 
 export type PaymentMethod = 'especes' | 'cheque' | 'virement'
+export type PaymentInvoiceType = 'client' | 'fournisseur'
 
 export interface Payment {
   id: number
   invoice_id: number
+  invoice_number?: string | null
+  invoice_type?: PaymentInvoiceType | null
   contact_id: number
   amount: string
   date: string
@@ -39,7 +42,10 @@ export interface PaymentUpdate {
 
 export interface PaymentListParams {
   invoice_id?: number
+  invoice_type?: PaymentInvoiceType
   contact_id?: number
+  from_date?: string
+  to_date?: string
   undeposited_only?: boolean
   skip?: number
   limit?: number

@@ -21,7 +21,6 @@
               option-label="name"
               option-value="id"
               :placeholder="t('common.all')"
-              show-clear
             />
           </div>
           <div class="app-field app-field--span-2">
@@ -35,7 +34,7 @@
         </div>
       </div>
 
-      <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows size="small" row-hover>
+      <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small" row-hover>
       <Column field="account_number" :header="t('accounting.balance.account_number')" sortable />
       <Column field="account_label" :header="t('accounting.balance.account_label')" />
       <Column field="account_type" :header="t('accounting.balance.account_type')">
@@ -53,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -63,18 +62,23 @@ import Select from 'primevue/select'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
-import { getBalanceApi, listFiscalYearsApi, type BalanceRow, type FiscalYearRead } from '../api/accounting'
+import { getBalanceApi, type BalanceRow } from '../api/accounting'
 import { useTableFilter } from '../composables/useTableFilter'
+import { useFiscalYearStore } from '../stores/fiscalYear'
 
 const { t } = useI18n()
+const fiscalYearStore = useFiscalYearStore()
 
 const rows = ref<BalanceRow[]>([])
 const { filterText, filtered } = useTableFilter(rows)
-const fiscalYears = ref<FiscalYearRead[]>([])
+const fiscalYears = computed(() => fiscalYearStore.fiscalYears)
+const fiscalYearId = computed({
+  get: () => fiscalYearStore.selectedFiscalYearId,
+  set: (value: number | undefined) => fiscalYearStore.setSelectedFiscalYear(value),
+})
 const loading = ref(false)
 const fromDate = ref('')
 const toDate = ref('')
-const fiscalYearId = ref<number | undefined>()
 
 async function load() {
   loading.value = true
@@ -89,8 +93,16 @@ async function load() {
   }
 }
 
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId) return
+    void load()
+  },
+)
+
 onMounted(async () => {
-  fiscalYears.value = await listFiscalYearsApi()
+  await fiscalYearStore.initialize()
   await load()
 })
 </script>

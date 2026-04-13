@@ -64,3 +64,12 @@ def test_app_name() -> None:
 
     settings = Settings(jwt_secret_key=_VALID_SECRET)
     assert settings.app_name == "Solde"
+
+
+def test_test_import_shortcuts_disabled_by_default() -> None:
+    """Temporary import shortcuts stay disabled unless explicitly enabled."""
+    from backend.config import Settings
+
+    settings = Settings(jwt_secret_key=_VALID_SECRET)
+    assert settings.enable_test_import_shortcuts is False
+    assert settings.test_import_gestion_2024_path is None

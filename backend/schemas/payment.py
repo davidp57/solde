@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, field_validator
 
+from backend.models.invoice import InvoiceType
 from backend.models.payment import PaymentMethod
 
 
@@ -52,6 +53,8 @@ class PaymentUpdate(BaseModel):
 
 class PaymentRead(PaymentBase):
     id: int
+    invoice_number: str | None = None
+    invoice_type: InvoiceType | None = None
     deposited: bool
     deposit_date: datetime.date | None
     created_at: datetime.datetime

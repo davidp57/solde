@@ -1,6 +1,7 @@
 """Invoices API router — CRUD, status changes, PDF generation, file upload, email."""
 
 import uuid
+from datetime import date
 from pathlib import Path
 from typing import Annotated
 
@@ -50,21 +51,24 @@ async def list_invoices(
     invoice_type: InvoiceType | None = Query(default=None),
     invoice_status: InvoiceStatus | None = Query(default=None),
     contact_id: int | None = Query(default=None),
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
     year: int | None = Query(default=None, ge=2000, le=2100),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int | None = Query(default=None, ge=1),
 ) -> list[InvoiceRead]:
     """List invoices with optional filters."""
-    invoices = await invoice_service.list_invoices(
+    return await invoice_service.list_invoices(
         db,
         invoice_type=invoice_type,
         status=invoice_status,
         contact_id=contact_id,
+        from_date=from_date,
+        to_date=to_date,
         year=year,
         skip=skip,
         limit=limit,
-    )
-    return invoices  # type: ignore[return-value]
+    )  # type: ignore[return-value]
 
 
 @router.post("/", response_model=InvoiceRead, status_code=status.HTTP_201_CREATED)

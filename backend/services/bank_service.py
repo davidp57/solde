@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import func, insert, select
@@ -39,15 +40,23 @@ async def get_transaction(db: AsyncSession, tx_id: int) -> BankTransaction | Non
 async def list_transactions(
     db: AsyncSession,
     *,
+    from_date: date | None = None,
+    to_date: date | None = None,
     unreconciled_only: bool = False,
     skip: int = 0,
-    limit: int = 100,
+    limit: int | None = None,
 ) -> list[BankTransaction]:
     query = select(BankTransaction)
+    if from_date is not None:
+        query = query.where(BankTransaction.date >= from_date)
+    if to_date is not None:
+        query = query.where(BankTransaction.date <= to_date)
     if unreconciled_only:
         query = query.where(BankTransaction.reconciled == False)  # noqa: E712
     query = query.order_by(BankTransaction.date.desc(), BankTransaction.id.desc())
-    query = query.offset(skip).limit(limit)
+    query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -122,12 +131,20 @@ async def get_deposit(db: AsyncSession, deposit_id: int) -> Deposit | None:
 async def list_deposits(
     db: AsyncSession,
     *,
+    from_date: date | None = None,
+    to_date: date | None = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int | None = None,
 ) -> list[Deposit]:
-    result = await db.execute(
-        select(Deposit).order_by(Deposit.date.desc(), Deposit.id.desc()).offset(skip).limit(limit)
-    )
+    query = select(Deposit)
+    if from_date is not None:
+        query = query.where(Deposit.date >= from_date)
+    if to_date is not None:
+        query = query.where(Deposit.date <= to_date)
+    query = query.order_by(Deposit.date.desc(), Deposit.id.desc()).offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 

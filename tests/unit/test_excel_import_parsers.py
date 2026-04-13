@@ -137,11 +137,33 @@ def test_parse_contact_sheet_accepts_missing_prenom_but_blocks_missing_nom() -> 
 
     assert parsed_sheet is not None
     assert len(rows) == 1
-    assert rows[0].nom == "Christine LOPES"
-    assert rows[0].prenom is None
+    assert rows[0].nom == "LOPES"
+    assert rows[0].prenom == "Christine"
     assert rows[0].email == "christine@example.test"
     assert issues[0].source_row_number == 3
     assert issues[0].message == "nom manquant"
+
+
+def test_parse_contact_sheet_splits_full_name_when_prenom_is_embedded_in_nom() -> None:
+    sheet = _make_sheet(
+        "Contacts",
+        [
+            ["Nom", "Email"],
+            ["Christine LOPES", "christine@example.test"],
+            ["Thi BE NGUYEN", "thi@example.test"],
+            ["ASSOCIATION ABC", "asso@example.test"],
+        ],
+    )
+
+    parsed_sheet, rows, issues = parse_contact_sheet(sheet)
+
+    assert parsed_sheet is not None
+    assert issues == []
+    assert [(row.nom, row.prenom) for row in rows] == [
+        ("LOPES", "Christine"),
+        ("BE NGUYEN", "Thi"),
+        ("ASSOCIATION ABC", None),
+    ]
 
 
 def test_parse_cash_sheet_ignores_safe_rows_and_parses_signed_amount() -> None:
@@ -210,3 +232,22 @@ def test_parse_entries_sheet_ignores_zero_rows_and_reports_invalid_amounts() -> 
     assert ignored_issues[0].message == ZERO_JOURNAL_ENTRY_MESSAGE
     assert issues[0].source_row_number == 4
     assert issues[0].message == "montant debit invalide"
+
+
+def test_parse_entries_sheet_keeps_change_num_marker() -> None:
+    sheet = _make_sheet(
+        "Journal",
+        [
+            ["Date", "Compte", "Libellé", "Débit", "Crédit", "ChangeNum"],
+            ["2025-08-04", "411100", "Facture 2025-0142", 55, None, 0],
+            ["2025-08-04", "706000", "Facture 2025-0142", None, 55, 0],
+            ["2025-08-05", "512000", "Banque", 40, None, 1],
+        ],
+    )
+
+    parsed_sheet, rows, issues, ignored_issues = parse_entries_sheet(sheet)
+
+    assert parsed_sheet is not None
+    assert issues == []
+    assert ignored_issues == []
+    assert [row.change_marker for row in rows] == ["0", "0", "1"]

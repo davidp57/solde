@@ -36,15 +36,6 @@
               @change="loadInvoices"
             />
           </div>
-          <div class="app-field">
-            <label class="app-field__label">{{ t('invoices.filter_year') }}</label>
-            <InputNumber
-              v-model="yearFilter"
-              :placeholder="t('invoices.filter_year')"
-              :use-grouping="false"
-              @blur="loadInvoices"
-            />
-          </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
             <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
@@ -59,13 +50,15 @@
         striped-rows
         paginator
         :rows="20"
-        :rows-per-page-options="[10, 20, 50]"
+        :rows-per-page-options="[20, 50, 100, 500]"
         data-key="id"
         size="small"
         row-hover
       >
       <Column field="number" :header="t('invoices.number')" sortable />
-      <Column field="date" :header="t('invoices.date')" sortable />
+      <Column field="date" :header="t('invoices.date')" sortable>
+        <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+      </Column>
       <Column field="contact_id" :header="t('invoices.contact')">
         <template #body="{ data }">{{ contactName(data.contact_id) }}</template>
       </Column>
@@ -183,13 +176,13 @@ import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import FileUpload from 'primevue/fileupload'
-import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
@@ -206,10 +199,15 @@ import {
 } from '../api/invoices'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
 import { useTableFilter } from '../composables/useTableFilter'
+import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const confirm = useConfirm()
+const route = useRoute()
+const router = useRouter()
 const toast = useToast()
+const fiscalYearStore = useFiscalYearStore()
 
 const invoices = ref<Invoice[]>([])
 const { filterText, filtered } = useTableFilter(invoices)
@@ -222,7 +220,6 @@ const uploadTargetId = ref<number | null>(null)
 const selectedFile = ref<File | null>(null)
 const uploading = ref(false)
 const statusFilter = ref<InvoiceStatus | null>(null)
-const yearFilter = ref<number | null>(new Date().getFullYear())
 const totalAmount = computed(() => filtered.value.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0))
 const attachedFilesCount = computed(() => filtered.value.filter((invoice) => Boolean(invoice.file_path)).length)
 const overdueCount = computed(() => filtered.value.filter((invoice) => invoice.status === 'overdue').length)
@@ -263,12 +260,28 @@ async function loadInvoices() {
   loading.value = true
   try {
     const filters: Record<string, unknown> = { invoice_type: 'fournisseur' }
+    if (fiscalYearStore.selectedFiscalYear) {
+      filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
+      filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
+    }
     if (statusFilter.value) filters.invoice_status = statusFilter.value
-    if (yearFilter.value) filters.year = yearFilter.value
     invoices.value = await listInvoicesApi(filters)
+    openInvoiceFromQuery()
   } finally {
     loading.value = false
   }
+}
+
+function openInvoiceFromQuery() {
+  const rawInvoiceId = Array.isArray(route.query.invoiceId) ? route.query.invoiceId[0] : route.query.invoiceId
+  const invoiceId = Number(rawInvoiceId)
+  if (!invoiceId) return
+  const invoice = invoices.value.find((candidate) => candidate.id === invoiceId)
+  if (!invoice) return
+  openEditDialog(invoice)
+  const nextQuery = { ...route.query }
+  delete nextQuery.invoiceId
+  void router.replace({ name: 'invoices-supplier', query: nextQuery })
 }
 
 async function loadContacts() {
@@ -287,7 +300,7 @@ function openEditDialog(invoice: Invoice) {
 
 function onSaved() {
   dialogVisible.value = false
-  loadInvoices()
+  void loadInvoices()
 }
 
 function openUploadDialog(invoice: Invoice) {
@@ -334,9 +347,24 @@ function confirmDelete(invoice: Invoice) {
   })
 }
 
-onMounted(() => {
-  loadInvoices()
-  loadContacts()
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId) return
+    void loadInvoices()
+  },
+)
+
+watch(
+  () => route.query.invoiceId,
+  () => {
+    openInvoiceFromQuery()
+  },
+)
+
+onMounted(async () => {
+  await fiscalYearStore.initialize()
+  await Promise.all([loadInvoices(), loadContacts()])
 })
 </script>
 

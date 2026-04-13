@@ -18,19 +18,29 @@ from backend.services.accounting_account import (
 
 
 class TestSeedDefaultAccounts:
-    async def test_seeds_24_accounts(self, db_session: AsyncSession):
+    async def test_seeds_40_accounts(self, db_session: AsyncSession):
         inserted = await seed_default_accounts(db_session)
-        assert inserted == 24
+        assert inserted == 40
 
     async def test_idempotent_second_call(self, db_session: AsyncSession):
         await seed_default_accounts(db_session)
         inserted = await seed_default_accounts(db_session)
         assert inserted == 0
 
-    async def test_accounts_are_queryable_after_seed(self, db_session: AsyncSession):
+    async def test_active_accounts_are_queryable_after_seed(self, db_session: AsyncSession):
         await seed_default_accounts(db_session)
         accounts = await list_accounts(db_session)
-        assert len(accounts) == 24
+        assert len(accounts) == 36
+
+    async def test_historical_accounts_are_seeded_inactive(self, db_session: AsyncSession):
+        await seed_default_accounts(db_session)
+        accounts = await list_accounts(db_session, active_only=False)
+        indexed = {account.number: account for account in accounts}
+
+        assert indexed["401103"].is_active is False
+        assert indexed["401104"].is_active is False
+        assert indexed["416001"].is_active is False
+        assert indexed["416002"].is_active is False
 
 
 class TestListAccounts:
@@ -57,14 +67,14 @@ class TestListAccounts:
         account = accounts[0]
         await update_account(db_session, account, AccountingAccountUpdate(is_active=False))
         active = await list_accounts(db_session)
-        assert len(active) == 23
+        assert len(active) == 35
 
     async def test_includes_inactive_when_requested(self, db_session: AsyncSession):
         await seed_default_accounts(db_session)
         accounts = await list_accounts(db_session)
         await update_account(db_session, accounts[0], AccountingAccountUpdate(is_active=False))
         all_accounts = await list_accounts(db_session, active_only=False)
-        assert len(all_accounts) == 24
+        assert len(all_accounts) == 40
 
 
 class TestGetAccount:
