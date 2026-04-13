@@ -53,8 +53,10 @@
           <AppStatCard :label="t('accounting.journal.title')" :value="ledger.entries.length" />
         </section>
 
-        <DataTable :value="ledger.entries" :loading="loading" class="app-data-table" striped-rows size="small" row-hover>
-        <Column field="date" :header="t('accounting.journal.date')" sortable />
+        <DataTable :value="ledger.entries" :loading="loading" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small" row-hover>
+        <Column field="date" :header="t('accounting.journal.date')" sortable>
+          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+        </Column>
         <Column field="entry_number" :header="t('accounting.journal.entry_number')" />
         <Column field="label" :header="t('accounting.journal.label')" />
         <Column field="debit" :header="t('accounting.journal.debit')" class="app-money">
@@ -75,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -86,24 +88,20 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
-import {
-  getCurrentFiscalYearApi,
-  getLedgerApi,
-  listAccountsApi,
-  listFiscalYearsApi,
-  type FiscalYearRead,
-  type LedgerRead,
-} from '../api/accounting'
+import { getLedgerApi, listAccountsApi, type LedgerRead } from '../api/accounting'
+import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatDisplayDate } from '@/utils/format'
+import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
+const fiscalYearStore = useFiscalYearStore()
 
 const ledger = ref<LedgerRead | null>(null)
 const accounts = ref<Array<{ number: string; displayLabel: string }>>([])
-const fiscalYears = ref<FiscalYearRead[]>([])
 const accountNumber = ref('')
 const fromDate = ref('')
 const toDate = ref('')
-const fiscalYearId = ref<number | undefined>()
 const loading = ref(false)
 const initializing = ref(true)
 
@@ -111,42 +109,46 @@ const emptyStateMessage = computed(() => {
   if (initializing.value) {
     return t('common.loading')
   }
-  if (fiscalYears.value.length === 0) {
+  if (fiscalYearStore.fiscalYears.length === 0) {
     return t('accounting.ledger.no_fiscal_year')
   }
-  if (!fiscalYearId.value) {
+  if (!fiscalYearStore.selectedFiscalYearId) {
     return t('accounting.ledger.select_fiscal_year')
   }
   return t('accounting.ledger.select_account')
 })
 
 async function load() {
-  if (!accountNumber.value || !fiscalYearId.value) return
+  if (!accountNumber.value || !fiscalYearStore.selectedFiscalYearId) return
   loading.value = true
   try {
     ledger.value = await getLedgerApi(accountNumber.value, {
       from_date: fromDate.value || undefined,
       to_date: toDate.value || undefined,
-      fiscal_year_id: fiscalYearId.value,
+      fiscal_year_id: fiscalYearStore.selectedFiscalYearId,
+      fiscal_year_id: fiscalYearStore.selectedFiscalYearId,
     })
   } finally {
     loading.value = false
   }
 }
 
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId || !accountNumber.value) return
+    void load()
+  },
+)
+
 onMounted(async () => {
   try {
-    const [accts, fiscalYearList, currentFiscalYear] = await Promise.all([
-      listAccountsApi(undefined, false),
-      listFiscalYearsApi(),
-      getCurrentFiscalYearApi(),
-    ])
+    await fiscalYearStore.initialize()
+    const accts = await listAccountsApi(undefined, false)
     accounts.value = accts.map((a) => ({
       number: a.number,
       displayLabel: `${a.number} — ${a.label}`,
     }))
-    fiscalYears.value = fiscalYearList
-    fiscalYearId.value = currentFiscalYear?.id ?? fiscalYearList[0]?.id
   } finally {
     initializing.value = false
   }

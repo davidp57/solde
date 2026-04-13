@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.services.excel_import_parsing import normalize_text
+from backend.services.excel_import_parsing import format_contact_display_name, normalize_text
 from backend.services.excel_import_policy import (
     PAYMENT_AMBIGUOUS_CONTACT_MESSAGE,
     PAYMENT_AMBIGUOUS_REFERENCE_MESSAGE,
@@ -124,7 +124,7 @@ async def load_database_payment_candidates(db: AsyncSession) -> list[PaymentMatc
             contact_id=contact.id,
             invoice_type=invoice.type,
             invoice_number=invoice.number,
-            contact_name=contact.nom,
+            contact_name=format_contact_display_name(contact.nom, contact.prenom),
         )
         for invoice, contact in result.all()
     ]

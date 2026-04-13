@@ -13,7 +13,6 @@
               option-label="name"
               option-value="id"
               :placeholder="t('common.all')"
-              show-clear
             />
           </div>
           <div class="app-field">
@@ -26,7 +25,7 @@
       <div v-if="resultat" class="resultat-grid">
       <!-- Charges -->
       <AppPanel :title="t('accounting.resultat.charges')" dense>
-        <DataTable :value="resultat.charges" :loading="loading" class="app-data-table" size="small">
+        <DataTable :value="resultat.charges" :loading="loading" class="app-data-table" paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small">
           <Column field="account_number" :header="t('accounting.balance.account_number')" />
           <Column field="account_label" :header="t('accounting.balance.account_label')" />
           <Column field="solde" :header="t('accounting.resultat.total_charges')" class="app-money" />
@@ -39,7 +38,7 @@
 
       <!-- Produits -->
       <AppPanel :title="t('accounting.resultat.produits')" dense>
-        <DataTable :value="resultat.produits" :loading="loading" class="app-data-table" size="small">
+        <DataTable :value="resultat.produits" :loading="loading" class="app-data-table" paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small">
           <Column field="account_number" :header="t('accounting.balance.account_number')" />
           <Column field="account_label" :header="t('accounting.balance.account_label')" />
           <Column field="solde" :header="t('accounting.resultat.total_produits')" class="app-money" />
@@ -67,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -76,13 +75,18 @@ import Select from 'primevue/select'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
-import { getResultatApi, listFiscalYearsApi, type ResultatRead, type FiscalYearRead } from '../api/accounting'
+import { getResultatApi, type ResultatRead } from '../api/accounting'
+import { useFiscalYearStore } from '../stores/fiscalYear'
 
 const { t } = useI18n()
+const fiscalYearStore = useFiscalYearStore()
 
 const resultat = ref<ResultatRead | null>(null)
-const fiscalYears = ref<FiscalYearRead[]>([])
-const fiscalYearId = ref<number | undefined>()
+const fiscalYears = computed(() => fiscalYearStore.fiscalYears)
+const fiscalYearId = computed({
+  get: () => fiscalYearStore.selectedFiscalYearId,
+  set: (value: number | undefined) => fiscalYearStore.setSelectedFiscalYear(value),
+})
 const loading = ref(false)
 
 async function load() {
@@ -94,8 +98,16 @@ async function load() {
   }
 }
 
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId) return
+    void load()
+  },
+)
+
 onMounted(async () => {
-  fiscalYears.value = await listFiscalYearsApi()
+  await fiscalYearStore.initialize()
   await load()
 })
 </script>

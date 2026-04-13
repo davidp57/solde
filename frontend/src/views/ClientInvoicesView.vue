@@ -55,15 +55,6 @@
               @change="loadInvoices"
             />
           </div>
-          <div class="app-field">
-            <label class="app-field__label">{{ t('invoices.filter_year') }}</label>
-            <InputNumber
-              v-model="yearFilter"
-              :placeholder="t('invoices.filter_year')"
-              :use-grouping="false"
-              @blur="loadInvoices"
-            />
-          </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
             <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
@@ -78,13 +69,15 @@
         striped-rows
         paginator
         :rows="20"
-        :rows-per-page-options="[10, 20, 50]"
+        :rows-per-page-options="[20, 50, 100, 500]"
         data-key="id"
         size="small"
         row-hover
       >
         <Column field="number" :header="t('invoices.number')" sortable />
-        <Column field="date" :header="t('invoices.date')" sortable />
+        <Column field="date" :header="t('invoices.date')" sortable>
+          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+        </Column>
         <Column field="contact_id" :header="t('invoices.contact')">
           <template #body="{ data }">
             {{ contactName(data.contact_id) }}
@@ -212,8 +205,10 @@
         <div v-else-if="historyPayments.length === 0" class="app-empty-state">
           {{ t('invoices.no_payments') }}
         </div>
-        <DataTable v-else :value="historyPayments" class="app-data-table" size="small">
-          <Column field="date" :header="t('payments.date')" />
+        <DataTable v-else :value="historyPayments" class="app-data-table" paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small">
+          <Column field="date" :header="t('payments.date')">
+            <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+          </Column>
           <Column field="amount" :header="t('payments.amount')" class="app-money">
             <template #body="{ data }">{{ parseFloat(data.amount).toFixed(2) }} €</template>
           </Column>
@@ -233,14 +228,14 @@ import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
-import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import ProgressSpinner from 'primevue/progressspinner'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import { listContactsApi, type Contact } from '../api/contacts'
@@ -260,10 +255,15 @@ import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import { useTableFilter } from '../composables/useTableFilter'
+import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const confirm = useConfirm()
+const route = useRoute()
+const router = useRouter()
 const toast = useToast()
+const fiscalYearStore = useFiscalYearStore()
 
 const invoices = ref<Invoice[]>([])
 const { filterText, filtered: filteredInvoices } = useTableFilter(invoices)
@@ -272,17 +272,18 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const editingInvoice = ref<Invoice | null>(null)
 const statusFilter = ref<InvoiceStatus | null>(null)
-const yearFilter = ref<number | null>(new Date().getFullYear())
 
 // History dialog
 const historyVisible = ref(false)
 const historyInvoice = ref<Invoice | null>(null)
-const historyPayments = ref<Payment[]>([])
 const historyLoading = ref(false)
+const historyPayments = ref<Payment[]>([])
+
 const remaining = computed(() => {
   if (!historyInvoice.value) return 0
   return parseFloat(historyInvoice.value.total_amount) - parseFloat(historyInvoice.value.paid_amount)
 })
+
 const portfolioMetrics = computed(() => {
   const visible = filteredInvoices.value
   const totalAmount = visible.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0)
@@ -339,12 +340,28 @@ async function loadInvoices() {
   loading.value = true
   try {
     const filters: Record<string, unknown> = { invoice_type: 'client' }
+    if (fiscalYearStore.selectedFiscalYear) {
+      filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
+      filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
+    }
     if (statusFilter.value) filters.invoice_status = statusFilter.value
-    if (yearFilter.value) filters.year = yearFilter.value
     invoices.value = await listInvoicesApi(filters)
+    openInvoiceFromQuery()
   } finally {
     loading.value = false
   }
+}
+
+function openInvoiceFromQuery() {
+  const rawInvoiceId = Array.isArray(route.query.invoiceId) ? route.query.invoiceId[0] : route.query.invoiceId
+  const invoiceId = Number(rawInvoiceId)
+  if (!invoiceId) return
+  const invoice = invoices.value.find((candidate) => candidate.id === invoiceId)
+  if (!invoice) return
+  openEditDialog(invoice)
+  const nextQuery = { ...route.query }
+  delete nextQuery.invoiceId
+  void router.replace({ name: 'invoices-client', query: nextQuery })
 }
 
 async function loadContacts() {
@@ -363,7 +380,7 @@ function openEditDialog(invoice: Invoice) {
 
 function onSaved() {
   dialogVisible.value = false
-  loadInvoices()
+  void loadInvoices()
 }
 
 function openPdf(invoice: Invoice) {
@@ -421,9 +438,24 @@ function confirmDelete(invoice: Invoice) {
   })
 }
 
-onMounted(() => {
-  loadInvoices()
-  loadContacts()
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId) return
+    void loadInvoices()
+  },
+)
+
+watch(
+  () => route.query.invoiceId,
+  () => {
+    openInvoiceFromQuery()
+  },
+)
+
+onMounted(async () => {
+  await fiscalYearStore.initialize()
+  await Promise.all([loadInvoices(), loadContacts()])
 })
 </script>
 

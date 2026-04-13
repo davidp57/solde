@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -10,6 +11,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment
 from backend.schemas.payment import PaymentCreate, PaymentUpdate
+
+
+async def _attach_invoice_number(db: AsyncSession, payment: Payment) -> Payment:
+    """Populate transient invoice metadata used by API responses."""
+    result = await db.execute(
+        select(Invoice.number, Invoice.type).where(Invoice.id == payment.invoice_id)
+    )
+    invoice_number, invoice_type = result.one_or_none() or (None, None)
+    payment.invoice_number = invoice_number
+    payment.invoice_type = invoice_type
+    return payment
 
 
 async def create_payment(db: AsyncSession, payload: PaymentCreate) -> Payment:
@@ -28,33 +40,50 @@ async def create_payment(db: AsyncSession, payload: PaymentCreate) -> Payment:
         await generate_entries_for_payment(db, payment, invoice_type)
     await db.commit()
     await db.refresh(payment)
-    return payment
+    return await _attach_invoice_number(db, payment)
 
 
 async def get_payment(db: AsyncSession, payment_id: int) -> Payment | None:
     result = await db.execute(select(Payment).where(Payment.id == payment_id))
-    return result.scalar_one_or_none()
+    payment = result.scalar_one_or_none()
+    return None if payment is None else await _attach_invoice_number(db, payment)
 
 
 async def list_payments(
     db: AsyncSession,
     *,
     invoice_id: int | None = None,
+    invoice_type: InvoiceType | None = None,
     contact_id: int | None = None,
+    from_date: date | None = None,
+    to_date: date | None = None,
     undeposited_only: bool = False,
     skip: int = 0,
-    limit: int = 100,
+    limit: int | None = None,
 ) -> list[Payment]:
     query = select(Payment)
     if invoice_id is not None:
         query = query.where(Payment.invoice_id == invoice_id)
+    if invoice_type is not None:
+        query = query.join(Invoice, Payment.invoice_id == Invoice.id).where(
+            Invoice.type == invoice_type
+        )
     if contact_id is not None:
         query = query.where(Payment.contact_id == contact_id)
+    if from_date is not None:
+        query = query.where(Payment.date >= from_date)
+    if to_date is not None:
+        query = query.where(Payment.date <= to_date)
     if undeposited_only:
         query = query.where(Payment.deposited == False)  # noqa: E712
-    query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip).limit(limit)
+    query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
     result = await db.execute(query)
-    return list(result.scalars().all())
+    payments = list(result.scalars().all())
+    for payment in payments:
+        await _attach_invoice_number(db, payment)
+    return payments
 
 
 async def update_payment(db: AsyncSession, payment: Payment, payload: PaymentUpdate) -> Payment:
@@ -64,7 +93,7 @@ async def update_payment(db: AsyncSession, payment: Payment, payload: PaymentUpd
     await _refresh_invoice_status(db, payment.invoice_id)
     await db.commit()
     await db.refresh(payment)
-    return payment
+    return await _attach_invoice_number(db, payment)
 
 
 async def delete_payment(db: AsyncSession, payment: Payment) -> None:

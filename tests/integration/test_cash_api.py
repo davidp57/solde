@@ -56,6 +56,60 @@ async def test_list_entries(client: AsyncClient, admin_user: User, auth_headers:
 
 
 @pytest.mark.asyncio
+async def test_get_entry(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
+    created = await client.post(
+        "/api/cash/entries",
+        json={
+            "date": "2024-03-01",
+            "amount": "150.00",
+            "type": "in",
+            "reference": "CAISSE-001",
+            "description": "Cotisations reçues",
+        },
+        headers=auth_headers,
+    )
+
+    response = await client.get(
+        f"/api/cash/entries/{created.json()['id']}",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["reference"] == "CAISSE-001"
+
+
+@pytest.mark.asyncio
+async def test_update_entry(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
+    created = await client.post(
+        "/api/cash/entries",
+        json={
+            "date": "2024-03-01",
+            "amount": "150.00",
+            "type": "in",
+            "reference": "CAISSE-001",
+            "description": "Cotisations reçues",
+        },
+        headers=auth_headers,
+    )
+
+    response = await client.put(
+        f"/api/cash/entries/{created.json()['id']}",
+        json={
+            "amount": "175.00",
+            "reference": "CAISSE-001B",
+            "description": "Cotisations corrigées",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["amount"] == "175.00"
+    assert data["reference"] == "CAISSE-001B"
+    assert data["description"] == "Cotisations corrigées"
+
+
+@pytest.mark.asyncio
 async def test_balance_after_in_and_out(
     client: AsyncClient, admin_user: User, auth_headers: dict
 ) -> None:

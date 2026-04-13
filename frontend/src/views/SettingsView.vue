@@ -163,6 +163,16 @@
       <div class="settings-danger">
         <div>
           <Button
+            :label="t('settings.bootstrap_accounting')"
+            icon="pi pi-refresh"
+            severity="secondary"
+            outlined
+            :loading="bootstrapping"
+            @click="bootstrapAccounting"
+          />
+        </div>
+        <div>
+          <Button
             :label="t('settings.reset_db')"
             icon="pi pi-trash"
             severity="danger"
@@ -173,6 +183,9 @@
         </div>
         <Message v-if="resetMessage" severity="warn" class="mt-2" :closable="true">
           {{ resetMessage }}
+        </Message>
+        <Message v-if="bootstrapMessage" severity="info" class="mt-2" :closable="true">
+          {{ bootstrapMessage }}
         </Message>
       </div>
     </AppPanel>
@@ -194,14 +207,22 @@ import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
 import { useConfirm } from 'primevue/useconfirm'
-import { getSettingsApi, resetDbApi, updateSettingsApi, type AppSettingsUpdate } from '@/api/settings'
+import {
+  bootstrapAccountingApi,
+  getSettingsApi,
+  resetDbApi,
+  updateSettingsApi,
+  type AppSettingsUpdate,
+} from '@/api/settings'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
+import { useFiscalYearStore } from '@/stores/fiscalYear'
 import { useDarkMode } from '../composables/useDarkMode'
 
 const { t } = useI18n()
 const { isDark } = useDarkMode()
+const fiscalYearStore = useFiscalYearStore()
 
 const dangerHeaderBg = computed(() => isDark.value ? 'rgba(239,68,68,0.08)' : 'var(--p-red-50)')
 const dangerBorderColor = computed(() => isDark.value ? 'rgba(239,68,68,0.25)' : 'var(--p-red-200)')
@@ -237,9 +258,11 @@ const confirm = useConfirm()
 const form = ref<SettingsForm>(defaultForm())
 const loading = ref(false)
 const resetting = ref(false)
+const bootstrapping = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 const resetMessage = ref('')
+const bootstrapMessage = ref('')
 
 const MONTHS = [
   'Janvier',
@@ -333,6 +356,25 @@ async function doReset(): Promise<void> {
     resetMessage.value = t('settings.reset_db_error')
   } finally {
     resetting.value = false
+  }
+}
+
+async function bootstrapAccounting(): Promise<void> {
+  bootstrapping.value = true
+  bootstrapMessage.value = ''
+  errorMessage.value = ''
+  try {
+    const result = await bootstrapAccountingApi()
+    await fiscalYearStore.refresh()
+    bootstrapMessage.value = t('settings.bootstrap_accounting_done', {
+      accounts: result.accounts_inserted,
+      rules: result.rules_inserted,
+      fiscalYears: result.fiscal_years_created,
+    })
+  } catch {
+    errorMessage.value = t('settings.bootstrap_accounting_error')
+  } finally {
+    bootstrapping.value = false
   }
 }
 

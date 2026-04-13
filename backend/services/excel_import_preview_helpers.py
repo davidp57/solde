@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.services.excel_import_parsing import normalize_text, parse_str
+from backend.services.excel_import_parsing import (
+    format_contact_display_name,
+    normalize_text,
+    parse_str,
+)
 from backend.services.excel_import_policy import (
     format_missing_columns_issue,
     format_row_issue,
@@ -22,7 +26,7 @@ def register_preview_contact(preview: PreviewResult, value: Any) -> None:
 
 def contact_preview_key(nom: str, prenom: str | None = None) -> str:
     """Build the normalized preview key used for candidate contact counts."""
-    return normalize_text(f"{nom} {prenom or ''}".strip())
+    return normalize_text(format_contact_display_name(nom, prenom))
 
 
 def make_sheet_preview(

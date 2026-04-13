@@ -4,7 +4,7 @@
       <template #actions>
         <div class="app-page-header__actions">
         <Select
-          v-model="selectedFiscalYear"
+          v-model="fiscalYearId"
           :options="fiscalYears"
           option-label="name"
           option-value="id"
@@ -30,7 +30,7 @@
     <div v-else-if="bilan" class="bilan-grid">
       <!-- Actif -->
       <AppPanel :title="t('bilan.actif')" dense>
-          <DataTable :value="bilan.actif" class="app-data-table" striped-rows size="small" row-hover>
+          <DataTable :value="bilan.actif" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small" row-hover>
             <Column field="account_number" :header="t('accounting.accounts.number')" style="width:8rem" />
             <Column field="account_label" :header="t('accounting.accounts.label')" />
             <Column field="solde" :header="t('accounting.balance.solde')" style="width:9rem" class="app-money">
@@ -44,7 +44,7 @@
 
       <!-- Passif -->
       <AppPanel :title="t('bilan.passif')" dense>
-          <DataTable :value="bilan.passif" class="app-data-table" striped-rows size="small" row-hover>
+          <DataTable :value="bilan.passif" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small" row-hover>
             <Column field="account_number" :header="t('accounting.accounts.number')" style="width:8rem" />
             <Column field="account_label" :header="t('accounting.accounts.label')" />
             <Column field="solde" :header="t('accounting.balance.solde')" style="width:9rem" class="app-money">
@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -77,15 +77,20 @@ import Select from 'primevue/select'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
-import { getBilanApi, getExportCsvUrl, listFiscalYearsApi } from '../api/accounting'
-import type { BilanRead, FiscalYearRead } from '../api/accounting'
+import { getBilanApi, getExportCsvUrl } from '../api/accounting'
+import type { BilanRead } from '../api/accounting'
+import { useFiscalYearStore } from '../stores/fiscalYear'
 
 const { t } = useI18n()
+const fiscalYearStore = useFiscalYearStore()
 
 const bilan = ref<BilanRead | null>(null)
 const loading = ref(false)
-const fiscalYears = ref<FiscalYearRead[]>([])
-const selectedFiscalYear = ref<number | undefined>(undefined)
+const fiscalYears = computed(() => fiscalYearStore.fiscalYears)
+const fiscalYearId = computed({
+  get: () => fiscalYearStore.selectedFiscalYearId,
+  set: (value: number | undefined) => fiscalYearStore.setSelectedFiscalYear(value),
+})
 
 function formatAmount(val: string | number): string {
   return Number(val).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -94,7 +99,7 @@ function formatAmount(val: string | number): string {
 async function loadBilan() {
   loading.value = true
   try {
-    bilan.value = await getBilanApi(selectedFiscalYear.value)
+    bilan.value = await getBilanApi(fiscalYearId.value)
   } finally {
     loading.value = false
   }
@@ -102,13 +107,21 @@ async function loadBilan() {
 
 function downloadCsv() {
   const url = getExportCsvUrl('bilan', {
-    fiscal_year_id: selectedFiscalYear.value,
+    fiscal_year_id: fiscalYearId.value,
   })
   window.open(url, '_blank')
 }
 
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId) return
+    void loadBilan()
+  },
+)
+
 onMounted(async () => {
-  fiscalYears.value = await listFiscalYearsApi()
+  await fiscalYearStore.initialize()
   await loadBilan()
 })
 </script>

@@ -45,11 +45,16 @@
           :value="history.invoices"
           class="app-data-table"
           striped-rows
+          paginator
+          :rows="20"
+          :rows-per-page-options="[20, 50, 100, 500]"
           size="small"
           row-hover
         >
             <Column field="number" :header="t('invoices.number')" style="width:10rem" />
-            <Column field="date" :header="t('invoices.date')" style="width:8rem" />
+            <Column field="date" :header="t('invoices.date')" style="width:8rem">
+              <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+            </Column>
             <Column field="status" :header="t('invoices.status')">
               <template #body="{ data }">
                 <Tag :value="t(`invoices.statuses.${data.status}`)" :severity="statusSeverity(data.status)" />
@@ -75,10 +80,15 @@
           :value="history.payments"
           class="app-data-table"
           striped-rows
+          paginator
+          :rows="20"
+          :rows-per-page-options="[20, 50, 100, 500]"
           size="small"
           row-hover
         >
-            <Column field="date" :header="t('payments.date')" style="width:8rem" />
+            <Column field="date" :header="t('payments.date')" style="width:8rem">
+              <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+            </Column>
             <Column field="invoice_number" :header="t('payments.invoice')" style="width:10rem" />
             <Column field="method" :header="t('payments.method')">
               <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
@@ -119,6 +129,7 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import { getContactHistoryApi, markCreanceDouteuse } from '../api/accounting'
 import type { ContactHistory } from '../api/accounting'
+import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const route = useRoute()

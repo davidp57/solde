@@ -21,7 +21,7 @@
         </div>
       </div>
 
-      <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows size="small" row-hover>
+      <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small" row-hover>
       <Column field="trigger_type" :header="t('accounting.rules.trigger_type')" />
       <Column field="name" :header="t('accounting.rules.name')" />
       <Column field="is_active" :header="t('accounting.rules.active')">
