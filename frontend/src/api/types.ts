@@ -9,11 +9,13 @@ export interface TokenResponse {
   token_type: string
 }
 
+export type UserRole = 'readonly' | 'secretaire' | 'tresorier' | 'admin'
+
 export interface UserRead {
   id: number
   username: string
   email: string
-  role: 'readonly' | 'secretaire' | 'tresorier' | 'admin'
+  role: UserRole
   is_active: boolean
   created_at: string
 }

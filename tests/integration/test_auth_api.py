@@ -106,6 +106,12 @@ async def test_create_user_as_admin(
     assert data["username"] == "newuser"
     assert data["role"] == "tresorier"
 
+    login_response = await client.post(
+        "/api/auth/login",
+        data={"username": "newuser", "password": "securepassword123"},
+    )
+    assert login_response.status_code == 200
+
 
 @pytest.mark.asyncio
 async def test_create_user_duplicate(
@@ -123,3 +129,83 @@ async def test_create_user_duplicate(
         headers=auth_headers,
     )
     assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_list_users_as_admin(
+    client: AsyncClient,
+    admin_user: User,
+    readonly_user: User,
+    auth_headers: dict,
+) -> None:
+    """Admin can list existing user accounts."""
+    response = await client.get("/api/auth/users", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [item["username"] for item in data] == ["admin", "readonly"]
+
+
+@pytest.mark.asyncio
+async def test_list_users_requires_admin(
+    client: AsyncClient,
+    admin_user: User,
+    readonly_user: User,
+    readonly_auth_headers: dict,
+) -> None:
+    """Non-admin users cannot list accounts."""
+    response = await client.get("/api/auth/users", headers=readonly_auth_headers)
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_update_user_role_and_activation_as_admin(
+    client: AsyncClient,
+    admin_user: User,
+    readonly_user: User,
+    auth_headers: dict,
+) -> None:
+    """Admin can change a user's role and activation status."""
+    response = await client.patch(
+        f"/api/auth/users/{readonly_user.id}",
+        json={"role": "secretaire", "is_active": False},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["role"] == "secretaire"
+    assert data["is_active"] is False
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_deactivate_self(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    """Admin cannot deactivate their own account through admin UI endpoints."""
+    response = await client.patch(
+        f"/api/auth/users/{admin_user.id}",
+        json={"is_active": False},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_change_own_role(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    """Admin cannot remove their own admin role through admin UI endpoints."""
+    response = await client.patch(
+        f"/api/auth/users/{admin_user.id}",
+        json={"role": "tresorier"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 400
