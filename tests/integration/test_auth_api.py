@@ -255,7 +255,10 @@ async def test_last_active_admin_cannot_be_removed(
         )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "At least one active admin must remain"
+    assert response.json()["detail"] == {
+        "code": "last_admin",
+        "message": "At least one active admin must remain",
+    }
 
 
 @pytest.mark.asyncio
@@ -272,6 +275,10 @@ async def test_admin_cannot_deactivate_self(
     )
 
     assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "self_deactivate",
+        "message": "You cannot deactivate your own account",
+    }
 
 
 @pytest.mark.asyncio
@@ -288,3 +295,7 @@ async def test_admin_cannot_change_own_role(
     )
 
     assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "self_demote",
+        "message": "You cannot remove your own admin role",
+    }

@@ -206,6 +206,18 @@ interface EditUserForm {
   is_active: boolean
 }
 
+interface RoleDefinition {
+  value: UserRole
+  title: string
+  subtitle: string
+  description: string
+}
+
+interface ApiErrorDetail {
+  code?: string
+  message?: string
+}
+
 const { t } = useI18n()
 const toast = useToast()
 const auth = useAuthStore()
@@ -221,6 +233,14 @@ const createForm = ref<CreateUserForm>(defaultCreateForm())
 const editForm = ref<EditUserForm>(defaultEditForm())
 
 const userApiErrorMessages: Record<string, string> = {
+  self_deactivate: 'users.api_errors.self_deactivate',
+  self_demote: 'users.api_errors.self_demote',
+  last_admin: 'users.api_errors.last_admin',
+  no_changes: 'users.api_errors.no_changes',
+  user_not_found: 'users.api_errors.user_not_found',
+}
+
+const legacyUserApiErrorMessages: Record<string, string> = {
   'You cannot deactivate your own account': 'users.api_errors.self_deactivate',
   'You cannot remove your own admin role': 'users.api_errors.self_demote',
   'At least one active admin must remain': 'users.api_errors.last_admin',
@@ -244,14 +264,7 @@ function defaultEditForm(): EditUserForm {
   }
 }
 
-const roleOptions = computed(() => [
-  { value: 'readonly' as const, label: t('users.role_cards.readonly.title') },
-  { value: 'secretaire' as const, label: t('users.role_cards.secretaire.title') },
-  { value: 'tresorier' as const, label: t('users.role_cards.tresorier.title') },
-  { value: 'admin' as const, label: t('users.role_cards.admin.title') },
-])
-
-const roleCards = computed(() => [
+const roleDefinitions = computed<RoleDefinition[]>(() => [
   {
     value: 'readonly',
     title: t('users.role_cards.readonly.title'),
@@ -278,6 +291,10 @@ const roleCards = computed(() => [
   },
 ])
 
+const roleOptions = computed(() => roleDefinitions.value.map((role) => ({ value: role.value, label: role.title })))
+
+const roleCards = computed(() => roleDefinitions.value)
+
 const activeCount = computed(() => users.value.filter((user) => user.is_active).length)
 const adminCount = computed(() => users.value.filter((user) => user.role === 'admin').length)
 const isEditingSelf = computed(() => editingUser.value?.id === auth.user?.id)
@@ -299,7 +316,7 @@ const canEdit = computed(() => {
 })
 
 function roleLabel(role: UserRole): string {
-  return t(`users.role_cards.${role}.title`)
+  return roleDefinitions.value.find((item) => item.value === role)?.title ?? role
 }
 
 function roleSeverity(role: UserRole): 'info' | 'success' | 'warn' | 'contrast' {
@@ -318,19 +335,27 @@ function formatDate(value: string): string {
 
 function getApiErrorSummary(error: unknown): string {
   const status = (error as { response?: { status?: number } }).response?.status
-  const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+  const detail = (error as { response?: { data?: { detail?: string | ApiErrorDetail } } }).response?.data?.detail
+
+  if (typeof detail === 'object' && detail !== null && typeof detail.code === 'string') {
+    const translationKey = userApiErrorMessages[detail.code]
+    if (translationKey !== undefined) {
+      return t(translationKey)
+    }
+  }
+
+  if (typeof detail === 'string') {
+    const legacyTranslationKey = legacyUserApiErrorMessages[detail]
+    if (legacyTranslationKey !== undefined) {
+      return t(legacyTranslationKey)
+    }
+  }
 
   if (status === 403) {
     return t('common.error.forbidden')
   }
   if (status === 404) {
     return t('common.error.notFound')
-  }
-  if (typeof detail === 'string') {
-    const translationKey = userApiErrorMessages[detail]
-    if (translationKey !== undefined) {
-      return t(translationKey)
-    }
   }
 
   return t('common.error.unknown')
