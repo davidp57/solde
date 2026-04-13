@@ -239,6 +239,7 @@ const manualForm = ref<ManualEntryCreate>({
 })
 
 const sourceTypeOptions = [
+  { label: t('accounting.journal.sources.gestion'), value: 'gestion' },
   { label: t('accounting.journal.sources.invoice'), value: 'invoice' },
   { label: t('accounting.journal.sources.payment'), value: 'payment' },
   { label: t('accounting.journal.sources.deposit'), value: 'deposit' },

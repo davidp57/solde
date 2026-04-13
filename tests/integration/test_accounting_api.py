@@ -174,6 +174,35 @@ class TestJournalAPI:
         assert response.json() == []
 
     @pytest.mark.asyncio
+    async def test_returns_legacy_gestion_entries(
+        self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+    ) -> None:
+        fiscal_year = await _create_fy(db_session, "2025")
+        db_session.add(
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2025, 1, 15),
+                account_number="411100",
+                label="Historique gestion",
+                debit=Decimal("100"),
+                credit=Decimal("0"),
+                fiscal_year_id=fiscal_year.id,
+                source_type="gestion",
+            )
+        )
+        await db_session.commit()
+
+        response = await client.get(
+            f"/api/accounting/entries/journal?fiscal_year_id={fiscal_year.id}&limit=500",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["source_type"] == "gestion"
+
+    @pytest.mark.asyncio
     async def test_returns_entries(
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
     ) -> None:
