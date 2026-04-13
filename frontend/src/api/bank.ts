@@ -55,6 +55,8 @@ export async function getBankBalance(): Promise<{ balance: string }> {
 }
 
 export async function listTransactions(params?: {
+  from_date?: string
+  to_date?: string
   unreconciled_only?: boolean
   skip?: number
   limit?: number
@@ -84,6 +86,8 @@ export async function importCsv(content: string): Promise<BankTransaction[]> {
 }
 
 export async function listDeposits(params?: {
+  from_date?: string
+  to_date?: string
   skip?: number
   limit?: number
 }): Promise<Deposit[]> {

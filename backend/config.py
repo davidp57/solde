@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     admin_password: str = "changeme"
     admin_email: str = "admin@exemple.fr"
 
+    # Temporary dev helpers
+    enable_test_import_shortcuts: bool = False
+    test_import_gestion_2024_path: str | None = None
+    test_import_gestion_2025_path: str | None = None
+    test_import_comptabilite_2024_path: str | None = None
+    test_import_comptabilite_2025_path: str | None = None
+
     # SMTP (optional)
     smtp_host: str | None = None
     smtp_port: int = 587

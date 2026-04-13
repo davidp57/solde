@@ -51,11 +51,19 @@ async def list_salaries(
     _: _ReadAccess,
     employee_id: int | None = Query(default=None),
     month: str | None = Query(default=None),
+    from_month: str | None = Query(default=None),
+    to_month: str | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ) -> list[SalaryRead]:
     salaries = await salary_service.list_salaries(
-        db, employee_id=employee_id, month=month, skip=skip, limit=limit
+        db,
+        employee_id=employee_id,
+        month=month,
+        from_month=from_month,
+        to_month=to_month,
+        skip=skip,
+        limit=limit,
     )
     return [_to_read(s) for s in salaries]
 
@@ -64,8 +72,14 @@ async def list_salaries(
 async def get_monthly_summary(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _ReadAccess,
+    from_month: str | None = Query(default=None),
+    to_month: str | None = Query(default=None),
 ) -> list[SalarySummaryRow]:
-    return await salary_service.get_monthly_summary(db)
+    return await salary_service.get_monthly_summary(
+        db,
+        from_month=from_month,
+        to_month=to_month,
+    )
 
 
 @router.post("/", response_model=SalaryRead, status_code=status.HTTP_201_CREATED)

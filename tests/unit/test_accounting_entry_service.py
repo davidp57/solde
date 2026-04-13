@@ -6,18 +6,24 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_account import AccountingAccount, AccountType
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.models.contact import Contact, ContactType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
-from backend.schemas.accounting_entry import ManualEntryCreate
+from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+from backend.models.payment import Payment, PaymentMethod
+from backend.schemas.accounting_entry import ManualEntryCreate, ManualEntryUpdate
 from backend.services.accounting_entry_service import (
     create_manual_entry,
     get_balance,
+    get_grouped_journal,
     get_journal,
     get_ledger,
     get_resultat,
+    update_manual_entry,
 )
 
 # ---------------------------------------------------------------------------
@@ -36,6 +42,8 @@ async def _add_entry(
     credit: Decimal = Decimal("0"),
     fiscal_year_id: int | None = None,
     source_type: EntrySourceType = EntrySourceType.MANUAL,
+    source_id: int | None = None,
+    group_key: str | None = None,
 ) -> AccountingEntry:
     e = AccountingEntry(
         entry_number=entry_number,
@@ -46,7 +54,8 @@ async def _add_entry(
         credit=credit,
         fiscal_year_id=fiscal_year_id,
         source_type=source_type,
-        source_id=None,
+        source_id=source_id,
+        group_key=group_key,
     )
     db.add(e)
     await db.commit()
@@ -75,6 +84,14 @@ async def _create_fy(db: AsyncSession, name: str = "2024") -> FiscalYear:
     await db.commit()
     await db.refresh(fy)
     return fy
+
+
+async def _add_contact(db: AsyncSession, name: str = "Dupont") -> Contact:
+    contact = Contact(type=ContactType.CLIENT, nom=name)
+    db.add(contact)
+    await db.commit()
+    await db.refresh(contact)
+    return contact
 
 
 # ---------------------------------------------------------------------------
@@ -211,6 +228,212 @@ class TestGetJournal:
         )
         result = await get_journal(db_session)
         assert result[0].entry_number == "000001"
+
+    @pytest.mark.asyncio
+    async def test_enriches_account_and_invoice_metadata(self, db_session: AsyncSession) -> None:
+        await _add_account(db_session, "401000", "Fournisseurs", AccountType.PASSIF)
+        contact = await _add_contact(db_session, "Martin")
+        invoice = Invoice(
+            number="FF-2025-001",
+            type=InvoiceType.FOURNISSEUR,
+            contact_id=contact.id,
+            date=date(2025, 9, 1),
+            total_amount=Decimal("120.00"),
+            paid_amount=Decimal("0"),
+            status=InvoiceStatus.SENT,
+            reference="FF-2025-001",
+        )
+        db_session.add(invoice)
+        await db_session.commit()
+        await db_session.refresh(invoice)
+        await _add_entry(
+            db_session,
+            entry_number="000001",
+            entry_date=date(2025, 9, 1),
+            account_number="401000",
+            credit=Decimal("120.00"),
+            source_type=EntrySourceType.INVOICE,
+        )
+        result = await db_session.execute(
+            select(AccountingEntry).where(AccountingEntry.entry_number == "000001")
+        )
+        entry = result.scalar_one()
+        entry.source_id = invoice.id
+        await db_session.commit()
+
+        journal_entries = await get_journal(db_session)
+
+        assert journal_entries[0].account_label == "Fournisseurs"
+        assert journal_entries[0].source_reference == "FF-2025-001"
+        assert journal_entries[0].source_contact_name == "Martin"
+        assert journal_entries[0].source_invoice_id == invoice.id
+
+    @pytest.mark.asyncio
+    async def test_enriches_payment_with_linked_invoice_metadata(
+        self, db_session: AsyncSession
+    ) -> None:
+        await _add_account(db_session, "512100", "Banque", AccountType.ACTIF)
+        contact = await _add_contact(db_session, "Bernard")
+        invoice = Invoice(
+            number="2025-C-0001",
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 9, 1),
+            total_amount=Decimal("100.00"),
+            paid_amount=Decimal("0"),
+            status=InvoiceStatus.SENT,
+            reference="FAC-001",
+        )
+        db_session.add(invoice)
+        await db_session.flush()
+        payment = Payment(
+            invoice_id=invoice.id,
+            contact_id=contact.id,
+            amount=Decimal("100.00"),
+            date=date(2025, 9, 2),
+            method=PaymentMethod.VIREMENT,
+            reference="VIR-001",
+        )
+        db_session.add(payment)
+        await db_session.flush()
+        await _add_entry(
+            db_session,
+            entry_number="000002",
+            entry_date=date(2025, 9, 2),
+            account_number="512100",
+            debit=Decimal("100.00"),
+            source_type=EntrySourceType.PAYMENT,
+        )
+        result = await db_session.execute(
+            select(AccountingEntry).where(AccountingEntry.entry_number == "000002")
+        )
+        entry = result.scalar_one()
+        entry.source_id = payment.id
+        await db_session.commit()
+
+        journal_entries = await get_journal(db_session)
+
+        assert journal_entries[0].source_reference == "VIR-001"
+        assert journal_entries[0].source_contact_name == "Bernard"
+        assert journal_entries[0].source_invoice_id == invoice.id
+
+    @pytest.mark.asyncio
+    async def test_marks_manual_pair_as_editable(self, db_session: AsyncSession) -> None:
+        debit_entry, credit_entry = await create_manual_entry(
+            db_session,
+            ManualEntryCreate(
+                date=date(2025, 9, 1),
+                debit_account="411100",
+                credit_account="706110",
+                amount=Decimal("100.00"),
+                label="Regularisation",
+            ),
+        )
+
+        journal_entries = await get_journal(db_session)
+        editable_entries = {
+            entry.id: entry
+            for entry in journal_entries
+            if entry.id in {debit_entry.id, credit_entry.id}
+        }
+
+        assert editable_entries[debit_entry.id].editable is True
+        assert editable_entries[debit_entry.id].counterpart_entry_id == credit_entry.id
+
+
+class TestGetGroupedJournal:
+    @pytest.mark.asyncio
+    async def test_groups_imported_manual_entries_using_group_key(
+        self, db_session: AsyncSession
+    ) -> None:
+        await _add_account(db_session, "411100", "Clients", AccountType.ACTIF)
+        await _add_account(db_session, "706110", "Prestations", AccountType.PRODUIT)
+        await _add_entry(
+            db_session,
+            entry_number="000001",
+            entry_date=date(2025, 9, 1),
+            account_number="411100",
+            debit=Decimal("100.00"),
+            label="Facture 2025-0142",
+            group_key="import:group-1",
+        )
+        await _add_entry(
+            db_session,
+            entry_number="000002",
+            entry_date=date(2025, 9, 1),
+            account_number="706110",
+            credit=Decimal("100.00"),
+            label="Facture 2025-0142",
+            group_key="import:group-1",
+        )
+
+        journal_groups = await get_grouped_journal(db_session)
+
+        assert len(journal_groups) == 1
+        assert journal_groups[0].group_key == "import:group-1"
+        assert journal_groups[0].line_count == 2
+        assert journal_groups[0].account_numbers == ["411100", "706110"]
+        assert journal_groups[0].total_debit == Decimal("100.00")
+        assert journal_groups[0].total_credit == Decimal("100.00")
+
+    @pytest.mark.asyncio
+    async def test_filter_by_account_keeps_full_group(self, db_session: AsyncSession) -> None:
+        await _add_entry(
+            db_session,
+            entry_number="000003",
+            entry_date=date(2025, 9, 2),
+            account_number="512100",
+            debit=Decimal("55.00"),
+            label="Reglement facture 2025-0142",
+            group_key="manual:group-2",
+        )
+        await _add_entry(
+            db_session,
+            entry_number="000004",
+            entry_date=date(2025, 9, 2),
+            account_number="411100",
+            credit=Decimal("55.00"),
+            label="Reglement facture 2025-0142",
+            group_key="manual:group-2",
+        )
+
+        journal_groups = await get_grouped_journal(db_session, account_number="512100")
+
+        assert len(journal_groups) == 1
+        assert [line.account_number for line in journal_groups[0].lines] == ["512100", "411100"]
+
+
+class TestUpdateManualEntry:
+    @pytest.mark.asyncio
+    async def test_updates_both_lines_of_manual_pair(self, db_session: AsyncSession) -> None:
+        debit_entry, credit_entry = await create_manual_entry(
+            db_session,
+            ManualEntryCreate(
+                date=date(2025, 9, 1),
+                debit_account="411100",
+                credit_account="706110",
+                amount=Decimal("100.00"),
+                label="Regularisation",
+            ),
+        )
+
+        updated_debit_entry, updated_credit_entry = await update_manual_entry(
+            db_session,
+            debit_entry.id,
+            payload=ManualEntryUpdate(
+                date=date(2025, 9, 2),
+                debit_account="512100",
+                credit_account="411100",
+                amount=Decimal("80.00"),
+                label="Ajustement",
+                counterpart_entry_id=credit_entry.id,
+            ),
+        )
+
+        assert updated_debit_entry.account_number == "512100"
+        assert updated_debit_entry.debit == Decimal("80.00")
+        assert updated_credit_entry.account_number == "411100"
+        assert updated_credit_entry.credit == Decimal("80.00")
 
 
 # ---------------------------------------------------------------------------

@@ -12,6 +12,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserRead | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const devAutoLoginAttempted = ref(false)
 
   const isAuthenticated = computed(() => accessToken.value !== null)
   const isAdmin = computed(() => user.value?.role === 'admin')
@@ -31,6 +32,11 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken.value = null
     localStorage.removeItem(ACCESS_TOKEN_KEY)
     localStorage.removeItem(REFRESH_TOKEN_KEY)
+  }
+
+  function canUseDevAutoLogin(): boolean {
+    const isDevRuntime = import.meta.env.DEV || import.meta.env.MODE === 'test'
+    return isDevRuntime && import.meta.env.VITE_DEV_AUTO_LOGIN === 'true'
   }
 
   function initFromStorage(): void {
@@ -67,6 +73,19 @@ export const useAuthStore = defineStore('auth', () => {
     clearTokens()
     user.value = null
     error.value = null
+    devAutoLoginAttempted.value = false
+  }
+
+  async function maybeAutoLoginForDev(): Promise<boolean> {
+    if (accessToken.value || devAutoLoginAttempted.value || !canUseDevAutoLogin()) {
+      return isAuthenticated.value
+    }
+
+    devAutoLoginAttempted.value = true
+    const username = import.meta.env.VITE_DEV_AUTO_LOGIN_USERNAME || 'admin'
+    const password = import.meta.env.VITE_DEV_AUTO_LOGIN_PASSWORD || 'changeme'
+    await login(username, password)
+    return isAuthenticated.value
   }
 
   async function refreshAccessToken(): Promise<boolean> {
@@ -105,6 +124,7 @@ export const useAuthStore = defineStore('auth', () => {
     initFromStorage,
     login,
     logout,
+    maybeAutoLoginForDev,
     refreshAccessToken,
     fetchMe,
   }

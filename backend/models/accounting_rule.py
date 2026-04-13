@@ -20,12 +20,21 @@ class TriggerType(StrEnum):
     PAYMENT_RECEIVED_ESPECES = "payment_received_especes"
     PAYMENT_RECEIVED_CHEQUE = "payment_received_cheque"
     PAYMENT_RECEIVED_VIREMENT = "payment_received_virement"
+    PAYMENT_SENT_ESPECES = "payment_sent_especes"
     PAYMENT_SENT_VIREMENT = "payment_sent_virement"
     DEPOSIT_ESPECES = "deposit_especes"
     DEPOSIT_CHEQUES = "deposit_cheques"
     BANK_FEES = "bank_fees"
+    BANK_INSURANCE = "bank_insurance"
+    BANK_SAVINGS_INTEREST = "bank_savings_interest"
+    BANK_INTERNAL_TRANSFER_FROM_SAVINGS = "bank_internal_transfer_from_savings"
+    BANK_INTERNAL_TRANSFER_TO_SAVINGS = "bank_internal_transfer_to_savings"
+    BANK_SOCIAL_CHARGES = "bank_social_charges"
+    SUBSIDY_RECEIVED = "subsidy_received"
     SALARY_GROSS = "salary_gross"
+    SALARY_EMPLOYEE_CHARGES = "salary_employee_charges"
     SALARY_EMPLOYER_CHARGES = "salary_employer_charges"
+    SALARY_WITHHOLDING_TAX = "salary_withholding_tax"
     SALARY_PAYMENT = "salary_payment"
     MANUAL = "manual"
 
@@ -235,6 +244,23 @@ DEFAULT_RULES: list[dict[str, object]] = [
         ],
     },
     {
+        "name": "Paiement envoyé — espèces fournisseur",
+        "trigger_type": TriggerType.PAYMENT_SENT_ESPECES,
+        "description": "401000 D / 531000 C",
+        "entries": [
+            {
+                "account_number": "401000",
+                "side": EntrySide.DEBIT,
+                "description_template": "Règt. {{label}}",
+            },
+            {
+                "account_number": "531000",
+                "side": EntrySide.CREDIT,
+                "description_template": "Règt. {{label}}",
+            },
+        ],
+    },
+    {
         "name": "Paiement envoyé — virement fournisseur",
         "trigger_type": TriggerType.PAYMENT_SENT_VIREMENT,
         "description": "401000 D / 512100 C",
@@ -303,6 +329,108 @@ DEFAULT_RULES: list[dict[str, object]] = [
         ],
     },
     {
+        "name": "Assurance bancaire et multirisque",
+        "trigger_type": TriggerType.BANK_INSURANCE,
+        "description": "616100 D / 512100 C",
+        "entries": [
+            {
+                "account_number": "616100",
+                "side": EntrySide.DEBIT,
+                "description_template": "{{label}}",
+            },
+            {
+                "account_number": "512100",
+                "side": EntrySide.CREDIT,
+                "description_template": "{{label}}",
+            },
+        ],
+    },
+    {
+        "name": "Intérêts de compte d'épargne",
+        "trigger_type": TriggerType.BANK_SAVINGS_INTEREST,
+        "description": "512102 D / 768100 C",
+        "entries": [
+            {
+                "account_number": "512102",
+                "side": EntrySide.DEBIT,
+                "description_template": "{{label}}",
+            },
+            {
+                "account_number": "768100",
+                "side": EntrySide.CREDIT,
+                "description_template": "{{label}}",
+            },
+        ],
+    },
+    {
+        "name": "Virement interne depuis l'épargne",
+        "trigger_type": TriggerType.BANK_INTERNAL_TRANSFER_FROM_SAVINGS,
+        "description": "512100 D / 512102 C",
+        "entries": [
+            {
+                "account_number": "512100",
+                "side": EntrySide.DEBIT,
+                "description_template": "{{label}}",
+            },
+            {
+                "account_number": "512102",
+                "side": EntrySide.CREDIT,
+                "description_template": "{{label}}",
+            },
+        ],
+    },
+    {
+        "name": "Virement interne vers l'épargne",
+        "trigger_type": TriggerType.BANK_INTERNAL_TRANSFER_TO_SAVINGS,
+        "description": "512102 D / 512100 C",
+        "entries": [
+            {
+                "account_number": "512102",
+                "side": EntrySide.DEBIT,
+                "description_template": "{{label}}",
+            },
+            {
+                "account_number": "512100",
+                "side": EntrySide.CREDIT,
+                "description_template": "{{label}}",
+            },
+        ],
+    },
+    {
+        "name": "Paiement cotisations sociales",
+        "trigger_type": TriggerType.BANK_SOCIAL_CHARGES,
+        "description": "431100 D / 512100 C",
+        "entries": [
+            {
+                "account_number": "431100",
+                "side": EntrySide.DEBIT,
+                "description_template": "{{label}}",
+            },
+            {
+                "account_number": "512100",
+                "side": EntrySide.CREDIT,
+                "description_template": "{{label}}",
+            },
+        ],
+    },
+    {
+        "name": "Encaissement subvention",
+        "trigger_type": TriggerType.SUBSIDY_RECEIVED,
+        "description": "512100 D / 740000 C",
+        "entries": [
+            {
+                "account_number": "512100",
+                "side": EntrySide.DEBIT,
+                "description_template": "{{label}}",
+            },
+            {
+                "account_number": "740000",
+                "side": EntrySide.CREDIT,
+                "description_template": "{{label}}",
+            },
+        ],
+    },
+    {
         "name": "Salaire brut — charge",
         "trigger_type": TriggerType.SALARY_GROSS,
         "description": "641000 D / 421000 C",
@@ -333,6 +461,40 @@ DEFAULT_RULES: list[dict[str, object]] = [
                 "account_number": "431100",
                 "side": EntrySide.CREDIT,
                 "description_template": "Cotisations {{employee}} {{month}}",
+            },
+        ],
+    },
+    {
+        "name": "Cotisations salariales",
+        "trigger_type": TriggerType.SALARY_EMPLOYEE_CHARGES,
+        "description": "421000 D / 431100 C",
+        "entries": [
+            {
+                "account_number": "421000",
+                "side": EntrySide.DEBIT,
+                "description_template": "Cotisations salariales {{employee}} {{month}}",
+            },
+            {
+                "account_number": "431100",
+                "side": EntrySide.CREDIT,
+                "description_template": "Cotisations salariales {{employee}} {{month}}",
+            },
+        ],
+    },
+    {
+        "name": "Prélèvement à la source",
+        "trigger_type": TriggerType.SALARY_WITHHOLDING_TAX,
+        "description": "421000 D / 443000 C",
+        "entries": [
+            {
+                "account_number": "421000",
+                "side": EntrySide.DEBIT,
+                "description_template": "Impôt sur le revenu {{employee}} {{month}}",
+            },
+            {
+                "account_number": "443000",
+                "side": EntrySide.CREDIT,
+                "description_template": "Impôt sur le revenu {{employee}} {{month}}",
             },
         ],
     },

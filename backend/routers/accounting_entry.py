@@ -12,11 +12,13 @@ from backend.models.accounting_entry import EntrySourceType
 from backend.models.user import User, UserRole
 from backend.routers.auth import get_current_user, require_role
 from backend.schemas.accounting_entry import (
+    AccountingEntryGroupRead,
     AccountingEntryRead,
     BalanceRow,
     BilanRead,
     LedgerRead,
     ManualEntryCreate,
+    ManualEntryUpdate,
     ResultatRead,
 )
 from backend.services import accounting_entry_service, export_service
@@ -40,9 +42,9 @@ async def get_journal(
     source_type: EntrySourceType | None = Query(default=None),
     fiscal_year_id: int | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=200, ge=1, le=1000),
+    limit: int | None = Query(default=None, ge=1),
 ) -> list[AccountingEntryRead]:
-    entries = await accounting_entry_service.get_journal(
+    return await accounting_entry_service.get_journal(
         db,
         from_date=from_date,
         to_date=to_date,
@@ -52,7 +54,30 @@ async def get_journal(
         skip=skip,
         limit=limit,
     )
-    return entries  # type: ignore[return-value]
+
+
+@router.get("/journal-grouped", response_model=list[AccountingEntryGroupRead])
+async def get_grouped_journal(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
+    account_number: str | None = Query(default=None),
+    source_type: EntrySourceType | None = Query(default=None),
+    fiscal_year_id: int | None = Query(default=None),
+    skip: int = Query(default=0, ge=0),
+    limit: int | None = Query(default=None, ge=1),
+) -> list[AccountingEntryGroupRead]:
+    return await accounting_entry_service.get_grouped_journal(
+        db,
+        from_date=from_date,
+        to_date=to_date,
+        account_number=account_number,
+        source_type=source_type,
+        fiscal_year_id=fiscal_year_id,
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get("/balance", response_model=list[BalanceRow])
@@ -106,6 +131,17 @@ async def create_manual_entry(
     _: _WriteAccess,
 ) -> list[AccountingEntryRead]:
     debit, credit = await accounting_entry_service.create_manual_entry(db, payload)
+    return cast(list[AccountingEntryRead], [debit, credit])
+
+
+@router.put("/manual/{entry_id}", response_model=list[AccountingEntryRead])
+async def update_manual_entry(
+    entry_id: int,
+    payload: ManualEntryUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _WriteAccess,
+) -> list[AccountingEntryRead]:
+    debit, credit = await accounting_entry_service.update_manual_entry(db, entry_id, payload)
     return cast(list[AccountingEntryRead], [debit, credit])
 
 

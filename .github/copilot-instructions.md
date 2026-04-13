@@ -112,6 +112,16 @@ Keep the following documents up to date with every significant change:
 
 ---
 
+## Backlog management
+
+`doc/backlog.md` is the shared project backlog and the source of truth for tracked follow-up items outside the initial roadmap.
+
+- When the user mentions a point to track (bug, improvement, UX feedback, documentation need, technical debt, open question, process item), record it in `doc/backlog.md` with a short and concrete description.
+- Track each item with an explicit status and keep that status updated as the work progresses (`Bac d'entrée`, `Prêt`, `En cours`, `Fait`).
+- Prefer updating `doc/backlog.md` rather than leaving actionable follow-up items only in the chat conversation.
+
+---
+
 ## Release process
 
 When asked to create a release, follow these steps **in order**:

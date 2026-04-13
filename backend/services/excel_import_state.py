@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections import defaultdict
+from datetime import date
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,6 +75,132 @@ async def load_existing_invoice_numbers(db: AsyncSession) -> set[str]:
     return {normalize_text(number) for (number,) in result.all() if number}
 
 
+def accounting_entry_signature(
+    *,
+    entry_date: date,
+    account_number: str,
+    label: str,
+    debit: Decimal,
+    credit: Decimal,
+) -> str:
+    """Build a stable signature for an accounting row used for exact de-duplication."""
+    normalized_label = " ".join(label.split())
+
+    def normalize_decimal(value: Decimal) -> str:
+        return format(value.quantize(Decimal("0.01")).normalize(), "f")
+
+    return "|".join(
+        (
+            entry_date.isoformat(),
+            normalize_text(account_number.strip()),
+            normalize_text(normalized_label),
+            normalize_decimal(debit),
+            normalize_decimal(credit),
+        )
+    )
+
+
+def accounting_entry_line_signature(
+    *,
+    entry_date: date,
+    account_number: str,
+    debit: Decimal,
+    credit: Decimal,
+) -> str:
+    """Build a label-agnostic signature for one accounting line."""
+
+    def normalize_decimal(value: Decimal) -> str:
+        return format(value.quantize(Decimal("0.01")).normalize(), "f")
+
+    return "|".join(
+        (
+            entry_date.isoformat(),
+            normalize_text(account_number.strip()),
+            normalize_decimal(debit),
+            normalize_decimal(credit),
+        )
+    )
+
+
+def accounting_entry_group_signature(lines: list[str]) -> tuple[str, ...]:
+    """Build an order-independent signature for a full accounting operation."""
+    return tuple(sorted(lines))
+
+
+async def load_existing_accounting_entry_signatures(db: AsyncSession) -> set[str]:
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.accounting_entry import AccountingEntry  # noqa: PLC0415
+
+    result = await db.execute(
+        select(
+            AccountingEntry.date,
+            AccountingEntry.account_number,
+            AccountingEntry.label,
+            AccountingEntry.debit,
+            AccountingEntry.credit,
+        )
+    )
+    return {
+        accounting_entry_signature(
+            entry_date=entry_date,
+            account_number=account_number,
+            label=label,
+            debit=debit,
+            credit=credit,
+        )
+        for entry_date, account_number, label, debit, credit in result.all()
+    }
+
+
+async def load_existing_generated_accounting_group_signatures(
+    db: AsyncSession,
+) -> set[tuple[str, ...]]:
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.accounting_entry import AccountingEntry  # noqa: PLC0415
+
+    result = await db.execute(
+        select(
+            AccountingEntry.id,
+            AccountingEntry.date,
+            AccountingEntry.account_number,
+            AccountingEntry.debit,
+            AccountingEntry.credit,
+            AccountingEntry.source_type,
+            AccountingEntry.source_id,
+            AccountingEntry.group_key,
+        ).where(AccountingEntry.source_type != "manual")
+    )
+
+    grouped_lines: dict[str, list[str]] = defaultdict(list)
+    for (
+        entry_id,
+        entry_date,
+        account_number,
+        debit,
+        credit,
+        source_type,
+        source_id,
+        group_key,
+    ) in result.all():
+        runtime_group_key = group_key or (
+            f"{source_type}:{source_id}"
+            if source_type is not None and source_id is not None
+            else f"entry:{entry_id}"
+        )
+        grouped_lines[runtime_group_key].append(
+            accounting_entry_line_signature(
+                entry_date=entry_date,
+                account_number=account_number,
+                debit=debit,
+                credit=credit,
+            )
+        )
+
+    return {accounting_entry_group_signature(lines) for lines in grouped_lines.values()}
+
+
 async def count_generated_accounting_entries(db: AsyncSession) -> int:
     from sqlalchemy import func, select  # noqa: PLC0415
 
@@ -85,6 +214,7 @@ async def count_generated_accounting_entries(db: AsyncSession) -> int:
         EntrySourceType.PAYMENT,
         EntrySourceType.DEPOSIT,
         EntrySourceType.SALARY,
+        EntrySourceType.GESTION,
         EntrySourceType.CLOTURE,
     )
     result = await db.execute(
@@ -101,11 +231,12 @@ async def add_comptabilite_coexistence_validation(db: AsyncSession, preview: Pre
         return
 
     message = (
-        "Import comptabilite bloque : des ecritures auto-generees issues de la gestion "
-        f"existent deja en base ({generated_entries_count})."
+        "Import comptabilite : des ecritures auto-generees issues de la gestion "
+        f"existent deja en base ({generated_entries_count}). "
+        "Les doublons exacts du journal seront ignores et seules les ecritures "
+        "nouvelles seront importees."
     )
-    preview.errors.append(message)
-    preview.can_import = False
+    preview.warnings.append(message)
 
 
 async def record_import_log(

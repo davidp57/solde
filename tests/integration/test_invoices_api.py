@@ -23,11 +23,12 @@ async def _create_invoice(
     invoice_type: str = "client",
     lines: list | None = None,
     total_amount: float | None = None,
+    invoice_date: date = date(2025, 9, 1),
 ) -> dict:
     payload: dict = {
         "type": invoice_type,
         "contact_id": contact_id,
-        "date": str(date(2025, 9, 1)),
+        "date": str(invoice_date),
         "lines": lines or [],
     }
     if total_amount is not None:
@@ -57,6 +58,31 @@ class TestListInvoices:
         data = r.json()
         assert len(data) == 1
         assert data[0]["type"] == "client"
+
+    async def test_filter_by_date_range(self, client: AsyncClient, auth_headers: dict):
+        cid = await _create_contact(client, auth_headers)
+        await _create_invoice(
+            client,
+            auth_headers,
+            cid,
+            invoice_date=date(2024, 12, 31),
+        )
+        kept = await _create_invoice(
+            client,
+            auth_headers,
+            cid,
+            invoice_date=date(2025, 1, 15),
+        )
+
+        r = await client.get(
+            "/api/invoices/?from_date=2025-01-01&to_date=2025-12-31",
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) == 1
+        assert data[0]["id"] == kept["id"]
 
 
 class TestCreateInvoice:

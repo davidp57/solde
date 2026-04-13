@@ -23,6 +23,32 @@
             </div>
           </div>
 
+          <div class="import-guidance">
+            <article class="import-guidance-card">
+              <h3 class="import-guidance-card__title">{{ t('import.guidance_common_title') }}</h3>
+              <ul class="import-guidance-card__list">
+                <li>{{ t('import.guidance_common_exercise') }}</li>
+                <li>{{ t('import.guidance_common_seed_accounts') }}</li>
+                <li>{{ t('import.guidance_common_seed_rules') }}</li>
+              </ul>
+            </article>
+            <article class="import-guidance-card">
+              <h3 class="import-guidance-card__title">
+                {{ importType === 'gestion' ? t('import.type_gestion') : t('import.type_comptabilite') }}
+              </h3>
+              <ul v-if="importType === 'gestion'" class="import-guidance-card__list">
+                <li>{{ t('import.guidance_gestion_scope') }}</li>
+                <li>{{ t('import.guidance_gestion_fiscal_year') }}</li>
+                <li>{{ t('import.guidance_gestion_supplier') }}</li>
+              </ul>
+              <ul v-else class="import-guidance-card__list">
+                <li>{{ t('import.guidance_compta_scope') }}</li>
+                <li>{{ t('import.guidance_compta_coexistence') }}</li>
+                <li>{{ t('import.guidance_compta_chart') }}</li>
+              </ul>
+            </article>
+          </div>
+
           <!-- File picker -->
           <div class="app-field">
             <label class="app-field__label">{{ t('import.file_label') }}</label>
@@ -71,6 +97,45 @@
             />
           </div>
           <p class="import-action-hint">{{ importActionHint }}</p>
+          <div
+            v-if="result"
+            data-testid="import-result-banner"
+            class="import-result-banner"
+            :class="resultHasIssues ? 'import-result-banner--warning' : 'import-result-banner--success'"
+          >
+            <strong>{{ resultStateMessage }}</strong>
+            <p>{{ resultStateDetail }}</p>
+          </div>
+       </div>
+     </AppPanel>
+
+    <AppPanel
+      v-if="testShortcuts.length"
+      :title="t('import.test_shortcuts_title')"
+      :subtitle="t('import.test_shortcuts_subtitle')"
+      dense
+    >
+      <p class="import-action-hint">{{ t('import.test_shortcuts_hint') }}</p>
+      <div class="import-shortcuts-grid">
+        <article v-for="shortcut in testShortcuts" :key="shortcut.alias" class="import-shortcut-card">
+          <div class="import-shortcut-card__body">
+            <div>
+              <h3 class="import-shortcut-card__title">{{ shortcut.label }}</h3>
+              <p class="import-shortcut-card__meta">{{ shortcut.file_name ?? t('import.test_shortcuts_missing_file') }}</p>
+            </div>
+            <p v-if="shortcut.message" class="import-shortcut-card__message">{{ shortcut.message }}</p>
+          </div>
+          <Button
+            :data-testid="`quick-import-${shortcut.alias}`"
+            :label="t('import.test_shortcuts_run', { label: shortcut.label })"
+            icon="pi pi-bolt"
+            severity="contrast"
+            outlined
+            :disabled="!shortcut.available || importing"
+            :loading="runningShortcutAlias === shortcut.alias"
+            @click="runTestShortcut(shortcut.alias)"
+          />
+        </article>
       </div>
     </AppPanel>
 
@@ -88,6 +153,10 @@
           <div class="import-summary-row">
             <span>{{ t('import.estimated_payments') }}</span>
             <span class="font-medium">{{ preview.estimated_payments }}</span>
+          </div>
+          <div class="import-summary-row">
+            <span>{{ t('import.estimated_salaries') }}</span>
+            <span class="font-medium">{{ preview.estimated_salaries }}</span>
           </div>
           <div class="import-summary-row">
             <span>{{ t('import.estimated_entries') }}</span>
@@ -191,6 +260,10 @@
             <span class="font-medium">{{ result.payments_created }}</span>
           </div>
           <div class="import-summary-row">
+            <span>{{ t('import.salaries_created') }}</span>
+            <span class="font-medium">{{ result.salaries_created }}</span>
+          </div>
+          <div class="import-summary-row">
             <span>{{ t('import.entries_created') }}</span>
             <span class="font-medium">{{ result.entries_created }}</span>
           </div>
@@ -265,7 +338,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
@@ -277,12 +350,15 @@ import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import {
   importGestionFileApi,
+  importTestShortcutApi,
   importComptabiliteFileApi,
+  listTestImportShortcutsApi,
   previewGestionFileApi,
   previewComptabiliteFileApi,
   type ImportResult,
   type PreviewSheetResult,
   type PreviewResult,
+  type TestImportShortcut,
 } from '../api/accounting'
 
 const { t } = useI18n()
@@ -296,6 +372,35 @@ const previewing = ref(false)
 const result = ref<ImportResult | null>(null)
 const preview = ref<PreviewResult | null>(null)
 const warningsAcknowledged = ref(false)
+const testShortcuts = ref<TestImportShortcut[]>([])
+const runningShortcutAlias = ref<string | null>(null)
+const resultHasIssues = computed(() => Boolean(
+  result.value && (result.value.errors.length > 0 || result.value.warnings.length > 0),
+))
+const resultCreatedCount = computed(() => {
+  if (!result.value) return 0
+  return (
+    result.value.contacts_created
+    + result.value.invoices_created
+    + result.value.payments_created
+    + result.value.salaries_created
+    + result.value.entries_created
+    + result.value.cash_created
+    + result.value.bank_created
+  )
+})
+const resultStateMessage = computed(() => {
+  if (!result.value) return ''
+  return resultHasIssues.value ? t('import.completed_with_issues') : t('import.success')
+})
+const resultStateDetail = computed(() => {
+  if (!result.value) return ''
+  return t('import.result_persistent_hint', {
+    count: resultCreatedCount.value,
+    ignored: result.value.ignored_rows,
+    blocked: result.value.blocked_rows,
+  })
+})
 const hasPreviewWarnings = computed(() => Boolean(
   preview.value
   && (
@@ -343,6 +448,10 @@ watch(importType, () => {
   resetImportFlow()
 })
 
+onMounted(async () => {
+  await loadTestShortcuts()
+})
+
 function previewSheetKindLabel(kind: PreviewSheetResult['kind']) {
   return t(`import.sheet_kind.${kind}`)
 }
@@ -359,6 +468,18 @@ function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   selectedFile.value = input.files?.[0] ?? null
   resetImportFlow()
+}
+
+async function loadTestShortcuts() {
+  try {
+    testShortcuts.value = (await listTestImportShortcutsApi()).sort((left, right) => left.order - right.order)
+  } catch (error: unknown) {
+    const status = (error as { response?: { status?: number } }).response?.status
+    if (status !== 404) {
+      toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+    }
+    testShortcuts.value = []
+  }
 }
 
 async function doPreview() {
@@ -417,6 +538,38 @@ async function doImport() {
     importing.value = false
   }
 }
+
+async function runTestShortcut(alias: string) {
+  importing.value = true
+  runningShortcutAlias.value = alias
+  selectedFile.value = null
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+  preview.value = null
+  warningsAcknowledged.value = false
+  result.value = null
+  try {
+    const shortcut = testShortcuts.value.find((item) => item.alias === alias)
+    if (shortcut) {
+      importType.value = shortcut.import_type
+    }
+    result.value = await importTestShortcutApi(alias)
+    const hasIssues = result.value.errors.length > 0 || result.value.warnings.length > 0
+    toast.add({
+      severity: hasIssues ? 'warn' : 'success',
+      summary: hasIssues ? t('import.completed_with_issues') : t('import.success'),
+      life: 3500,
+    })
+    await loadTestShortcuts()
+  } catch (error: unknown) {
+    const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+    toast.add({ severity: 'error', summary: detail ?? t('common.error.unknown'), life: 4500 })
+  } finally {
+    importing.value = false
+    runningShortcutAlias.value = null
+  }
+}
 </script>
 
 <style scoped>
@@ -454,10 +607,92 @@ async function doImport() {
   color: var(--p-text-muted-color);
 }
 
+.import-guidance {
+  display: grid;
+  gap: var(--app-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.import-guidance-card {
+  padding: var(--app-space-4);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-radius-md);
+  background: linear-gradient(180deg, var(--app-surface-bg), var(--app-surface-muted));
+}
+
+.import-guidance-card__title {
+  margin: 0 0 var(--app-space-2);
+  font-size: 1rem;
+}
+
+.import-guidance-card__list {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--p-text-muted-color);
+  font-size: 0.95rem;
+}
+
+.import-shortcuts-grid {
+  display: grid;
+  gap: var(--app-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.import-shortcut-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-radius-md);
+  background: linear-gradient(180deg, var(--app-surface-bg), var(--app-surface-muted));
+}
+
+.import-shortcut-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.import-shortcut-card__title,
+.import-shortcut-card__meta,
+.import-shortcut-card__message {
+  margin: 0;
+}
+
+.import-shortcut-card__meta,
+.import-shortcut-card__message {
+  color: var(--p-text-muted-color);
+  font-size: 0.92rem;
+}
+
 .import-action-hint {
   margin: 0;
   color: var(--p-text-muted-color);
   font-size: 0.95rem;
+}
+
+.import-result-banner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  padding: var(--app-space-3) var(--app-space-4);
+  border-radius: var(--app-radius-md);
+}
+
+.import-result-banner strong,
+.import-result-banner p {
+  margin: 0;
+}
+
+.import-result-banner--success {
+  background: color-mix(in srgb, var(--p-green-500) 12%, var(--app-surface-bg) 88%);
+  color: color-mix(in srgb, var(--p-green-700) 78%, var(--p-text-color) 22%);
+}
+
+.import-result-banner--warning {
+  background: color-mix(in srgb, var(--p-amber-500) 12%, var(--app-surface-bg) 88%);
+  color: color-mix(in srgb, var(--p-amber-700) 78%, var(--p-text-color) 22%);
 }
 
 .import-summary-grid,

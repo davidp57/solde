@@ -134,6 +134,9 @@ router.beforeEach(async (to) => {
     if (auth.accessToken && !auth.user) {
       await auth.fetchMe()
     }
+    if (!auth.accessToken) {
+      await auth.maybeAutoLoginForDev()
+    }
   }
 
   if (to.meta.requiresAuth === false) {

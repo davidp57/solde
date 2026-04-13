@@ -10,6 +10,19 @@
         @click="sidebarVisible = true"
       />
       <span class="topbar-title">{{ t('app.name') }}</span>
+      <div class="topbar-context">
+        <span class="topbar-context__label">{{ t('app.active_fiscal_year') }}</span>
+        <Select
+          v-model="selectedFiscalYearOptionId"
+          :options="fiscalYearOptions"
+          option-label="name"
+          option-value="id"
+          :placeholder="t('app.active_fiscal_year')"
+          :loading="fiscalYearStore.loading"
+          :disabled="fiscalYearStore.fiscalYears.length === 0"
+          class="topbar-context__select"
+        />
+      </div>
       <div class="topbar-user">
         <span class="topbar-username">{{ auth.user?.username }}</span>
         <Button
@@ -73,21 +86,32 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Drawer from 'primevue/drawer'
+import Select from 'primevue/select'
 import { useAuthStore } from '../stores/auth'
+import { useFiscalYearStore } from '../stores/fiscalYear'
 import NavMenu from '../components/NavMenu.vue'
 import { useDarkMode } from '../composables/useDarkMode'
 
 const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
+const fiscalYearStore = useFiscalYearStore()
 const { isDark, toggle: toggleDark } = useDarkMode()
 
 const sidebarVisible = ref(false)
+const fiscalYearOptions = computed(() => [
+  { id: null, name: t('app.all_fiscal_years') },
+  ...fiscalYearStore.fiscalYears,
+])
+const selectedFiscalYearOptionId = computed<number | null>({
+  get: () => fiscalYearStore.selectedFiscalYearId ?? null,
+  set: (value: number | null) => fiscalYearStore.setSelectedFiscalYear(value ?? undefined),
+})
 
 // Reactive backgrounds for dark/light mode (v-bind in CSS)
 const panelBg = computed(() => isDark.value ? 'var(--p-surface-900)' : 'var(--p-surface-0)')
@@ -98,6 +122,10 @@ async function handleLogout(): Promise<void> {
   auth.logout()
   await router.push('/login')
 }
+
+onMounted(() => {
+  void fiscalYearStore.initialize()
+})
 </script>
 
 <style scoped>
@@ -128,6 +156,23 @@ async function handleLogout(): Promise<void> {
   font-weight: 700;
   font-size: 1.1rem;
   flex: 1;
+}
+
+.topbar-context {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.topbar-context__label {
+  font-size: 0.875rem;
+  color: var(--p-text-muted-color);
+  white-space: nowrap;
+}
+
+.topbar-context__select {
+  width: 11rem;
 }
 
 .topbar-user {
@@ -216,6 +261,16 @@ async function handleLogout(): Promise<void> {
 
   .sidebar {
     display: flex;
+  }
+}
+
+@media (max-width: 767px) {
+  .topbar-context__label {
+    display: none;
+  }
+
+  .topbar-context__select {
+    width: 8.5rem;
   }
 }
 </style>

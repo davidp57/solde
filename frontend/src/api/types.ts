@@ -99,6 +99,7 @@ export interface ImportResult {
   contacts_created: number
   invoices_created: number
   payments_created: number
+  salaries_created: number
   entries_created: number
   cash_created: number
   bank_created: number

@@ -53,12 +53,19 @@ async def get_balance(
 async def list_transactions(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
     unreconciled_only: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int | None = Query(default=None, ge=1),
 ) -> list[BankTransactionRead]:
     txs = await bank_service.list_transactions(
-        db, unreconciled_only=unreconciled_only, skip=skip, limit=limit
+        db,
+        from_date=from_date,
+        to_date=to_date,
+        unreconciled_only=unreconciled_only,
+        skip=skip,
+        limit=limit,
     )
     return cast(list[BankTransactionRead], txs)
 
@@ -221,10 +228,18 @@ async def import_qif(
 async def list_deposits(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int | None = Query(default=None, ge=1),
 ) -> list[DepositRead]:
-    deposits = await bank_service.list_deposits(db, skip=skip, limit=limit)
+    deposits = await bank_service.list_deposits(
+        db,
+        from_date=from_date,
+        to_date=to_date,
+        skip=skip,
+        limit=limit,
+    )
     result: list[DepositRead] = []
     for d in deposits:
         pids = await bank_service.get_deposit_payment_ids(db, d.id)

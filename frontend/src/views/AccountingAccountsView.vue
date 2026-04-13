@@ -40,7 +40,7 @@
         </div>
       </div>
 
-    <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows data-key="id" size="small" row-hover>
+    <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" data-key="id" size="small" row-hover>
       <Column field="number" :header="t('accounting.accounts.number')" sortable style="width:8rem" />
       <Column field="label" :header="t('accounting.accounts.label')" sortable />
       <Column field="type" :header="t('accounting.accounts.type')" style="width:7rem">

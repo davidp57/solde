@@ -40,8 +40,10 @@
               @change="loadTransactions"
             />
           </div>
-          <DataTable :value="filteredTransactions" :loading="loadingTx" class="app-data-table" striped-rows paginator :rows="20" data-key="id" size="small" row-hover>
-            <Column field="date" :header="t('bank.tx_date')" sortable />
+          <DataTable :value="filteredTransactions" :loading="loadingTx" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" data-key="id" size="small" row-hover>
+            <Column field="date" :header="t('bank.tx_date')" sortable>
+              <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+            </Column>
             <Column field="amount" :header="t('bank.tx_amount')" class="app-money">
               <template #body="{ data }">
                 <span :class="parseFloat(data.amount) >= 0 ? 'bank-positive' : 'bank-negative'">
@@ -84,8 +86,10 @@
         </TabPanel>
 
         <TabPanel value="deposits">
-          <DataTable :value="filteredDeposits" :loading="loadingDeposits" class="app-data-table" striped-rows paginator :rows="20" data-key="id" size="small" row-hover>
-            <Column field="date" :header="t('bank.deposit_date')" sortable />
+          <DataTable :value="filteredDeposits" :loading="loadingDeposits" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" data-key="id" size="small" row-hover>
+            <Column field="date" :header="t('bank.deposit_date')" sortable>
+              <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+            </Column>
             <Column field="type" :header="t('bank.deposit_type')">
               <template #body="{ data }">
                 <Tag :value="t(`bank.deposit_types.${data.type}`)" />
@@ -203,7 +207,7 @@
             <label v-for="p in undepositedPayments" :key="p.id" class="app-dialog-list__item bank-payment-option">
               <Checkbox v-model="depositForm.payment_ids" :value="p.id" />
               <span class="app-dialog-list__meta">
-                <span class="app-dialog-list__title">{{ p.date }} — {{ formatAmount(p.amount) }}</span>
+                <span class="app-dialog-list__title">{{ formatDisplayDate(p.date) }} — {{ formatAmount(p.amount) }}</span>
                 <span class="app-dialog-list__caption">{{ t(`payments.methods.${p.method}`) }}</span>
               </span>
             </label>
@@ -238,7 +242,7 @@ import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import ToggleButton from 'primevue/togglebutton'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
@@ -256,10 +260,13 @@ import {
   type Deposit,
 } from '@/api/bank'
 import { listPayments, type Payment } from '@/api/payments'
+import { useFiscalYearStore } from '@/stores/fiscalYear'
+import { formatDisplayDate } from '@/utils/format'
 import { useTableFilter, applyFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
 const toast = useToast()
+const fiscalYearStore = useFiscalYearStore()
 
 const balance = ref('0')
 const transactions = ref<BankTransaction[]>([])
@@ -297,7 +304,11 @@ function toIsoDate(d: Date | string): string {
 async function loadTransactions() {
   loadingTx.value = true
   try {
-    transactions.value = await listTransactions({ unreconciled_only: unreconciledOnly.value })
+    transactions.value = await listTransactions({
+      from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+      to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+      unreconciled_only: unreconciledOnly.value,
+    })
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -308,7 +319,10 @@ async function loadTransactions() {
 async function loadDeposits() {
   loadingDeposits.value = true
   try {
-    deposits.value = await listDeposits()
+    deposits.value = await listDeposits({
+      from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+      to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+    })
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -361,7 +375,12 @@ async function submitImport() {
 }
 
 async function openDepositDialog() {
-  undepositedPayments.value = await listPayments({ undeposited_only: true })
+  undepositedPayments.value = await listPayments({
+    invoice_type: 'client',
+    undeposited_only: true,
+    from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+    to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+  })
   depositForm.value.payment_ids = []
   depositDialogVisible.value = true
 }
@@ -384,7 +403,18 @@ async function submitDeposit() {
   }
 }
 
-onMounted(loadAll)
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId) return
+    void loadAll()
+  },
+)
+
+onMounted(async () => {
+  await fiscalYearStore.initialize()
+  await loadAll()
+})
 </script>
 
 <style scoped>
