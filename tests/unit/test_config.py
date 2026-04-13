@@ -34,12 +34,24 @@ def test_database_url_defaults_to_data_folder() -> None:
     assert settings.database_url.endswith(".db")
 
 
-def test_jwt_secret_key_required() -> None:
-    """JWT secret key must be set (no empty string)."""
+def test_jwt_secret_key_defaults_in_tests() -> None:
+    """JWT secret key falls back to a local-only value under pytest."""
     from backend.config import Settings
 
+    settings = Settings(jwt_secret_key="")
+    assert settings.jwt_secret_key != ""
+
+
+def test_jwt_secret_key_required_outside_debug_and_tests(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """JWT secret key stays mandatory outside explicit dev/test contexts."""
+    from backend import config as config_module
+
+    monkeypatch.delitem(config_module.sys.modules, "pytest", raising=False)
+
     with pytest.raises(ValidationError):
-        Settings(jwt_secret_key="")
+        config_module.Settings(jwt_secret_key="", debug=False)
 
 
 def test_jwt_secret_key_has_minimum_length() -> None:

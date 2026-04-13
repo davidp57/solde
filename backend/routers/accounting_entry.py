@@ -3,7 +3,7 @@
 from datetime import date
 from typing import Annotated, cast
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -141,7 +141,16 @@ async def update_manual_entry(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _WriteAccess,
 ) -> list[AccountingEntryRead]:
-    debit, credit = await accounting_entry_service.update_manual_entry(db, entry_id, payload)
+    try:
+        debit, credit = await accounting_entry_service.update_manual_entry(db, entry_id, payload)
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            status.HTTP_404_NOT_FOUND
+            if "not found" in detail
+            else status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
     return cast(list[AccountingEntryRead], [debit, credit])
 
 

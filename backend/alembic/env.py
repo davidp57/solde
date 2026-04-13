@@ -1,12 +1,15 @@
 """Alembic environment — async SQLAlchemy setup."""
 
 import asyncio
+from importlib import import_module
 from logging.config import fileConfig
 from typing import Any
 
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
+
+from backend.database import Base
 
 # Alembic Config object — gives access to alembic.ini values
 config = context.config
@@ -15,9 +18,22 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Import all models so their metadata is registered
-from backend.database import Base  # noqa: E402
-from backend.models import app_settings, user  # noqa: E402, F401
+for module_name in (
+    "backend.models.accounting_account",
+    "backend.models.accounting_entry",
+    "backend.models.accounting_rule",
+    "backend.models.app_settings",
+    "backend.models.bank",
+    "backend.models.cash",
+    "backend.models.contact",
+    "backend.models.fiscal_year",
+    "backend.models.import_log",
+    "backend.models.invoice",
+    "backend.models.payment",
+    "backend.models.salary",
+    "backend.models.user",
+):
+    import_module(module_name)
 
 target_metadata = Base.metadata
 
