@@ -6,7 +6,7 @@ Le manuel utilisateur est rédigé par lots pour rester aligné sur les écrans 
 
 ## Guides disponibles
 
-- [Manuel utilisateur - version texte lots 1 à 3](./manuel-utilisateur-lot-1.md)
+- [Manuel utilisateur](./manuel-utilisateur.md)
 - [Import Excel et réinitialisation](./import-excel-et-reinitialisation.md)
 
 ## Guides prévus ensuite
