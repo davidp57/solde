@@ -78,8 +78,15 @@ export default {
     updated: 'Compte utilisateur mis à jour.',
     duplicate_error: 'Cet identifiant ou cet e-mail existe déjà.',
     self_guard: 'Ce lot ne permet pas de modifier votre propre rôle ni de désactiver votre propre compte.',
+    api_errors: {
+      self_deactivate: 'Vous ne pouvez pas désactiver votre propre compte.',
+      self_demote: 'Vous ne pouvez pas retirer votre propre rôle administrateur.',
+      last_admin: 'Au moins un administrateur actif doit rester disponible.',
+      no_changes: 'Aucune modification n’a été demandée.',
+      user_not_found: 'Le compte demandé est introuvable.',
+    },
     stats: {
-      total: 'Comptes total',
+      total: 'Comptes totaux',
       active: 'Comptes actifs',
       admins: 'Administrateurs',
     },

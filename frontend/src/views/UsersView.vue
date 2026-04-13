@@ -13,7 +13,7 @@
     <section class="app-stat-grid">
       <AppStatCard :label="t('users.stats.total')" :value="users.length" :caption="t('users.results_label', { count: users.length })" />
       <AppStatCard :label="t('users.stats.active')" :value="activeCount" :caption="t('users.status_values.active')" tone="success" />
-      <AppStatCard :label="t('users.stats.admins')" :value="adminCount" :caption="t('user.role.admin')" tone="warn" />
+      <AppStatCard :label="t('users.stats.admins')" :value="adminCount" :caption="t('users.role_cards.admin.title')" tone="warn" />
     </section>
 
     <AppPanel :title="t('users.matrix_title')" :subtitle="t('users.matrix_subtitle')">
@@ -220,6 +220,14 @@ const editingUser = ref<UserRead | null>(null)
 const createForm = ref<CreateUserForm>(defaultCreateForm())
 const editForm = ref<EditUserForm>(defaultEditForm())
 
+const userApiErrorMessages: Record<string, string> = {
+  'You cannot deactivate your own account': 'users.api_errors.self_deactivate',
+  'You cannot remove your own admin role': 'users.api_errors.self_demote',
+  'At least one active admin must remain': 'users.api_errors.last_admin',
+  'No changes requested': 'users.api_errors.no_changes',
+  'User not found': 'users.api_errors.user_not_found',
+}
+
 function defaultCreateForm(): CreateUserForm {
   return {
     username: '',
@@ -308,12 +316,32 @@ function formatDate(value: string): string {
   }).format(new Date(value))
 }
 
+function getApiErrorSummary(error: unknown): string {
+  const status = (error as { response?: { status?: number } }).response?.status
+  const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
+
+  if (status === 403) {
+    return t('common.error.forbidden')
+  }
+  if (status === 404) {
+    return t('common.error.notFound')
+  }
+  if (typeof detail === 'string') {
+    const translationKey = userApiErrorMessages[detail]
+    if (translationKey !== undefined) {
+      return t(translationKey)
+    }
+  }
+
+  return t('common.error.unknown')
+}
+
 async function loadUsers(): Promise<void> {
   loading.value = true
   try {
     users.value = await listUsersApi()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (error: unknown) {
+    toast.add({ severity: 'error', summary: getApiErrorSummary(error), life: 3000 })
   } finally {
     loading.value = false
   }
@@ -357,7 +385,7 @@ async function submitCreate(): Promise<void> {
     const status = (error as { response?: { status?: number } }).response?.status
     toast.add({
       severity: 'error',
-      summary: status === 409 ? t('users.duplicate_error') : t('common.error.unknown'),
+      summary: status === 409 ? t('users.duplicate_error') : getApiErrorSummary(error),
       life: 3500,
     })
   } finally {
@@ -377,8 +405,8 @@ async function submitEdit(): Promise<void> {
     toast.add({ severity: 'success', summary: t('users.updated'), life: 3000 })
     closeEditDialog()
     await loadUsers()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3500 })
+  } catch (error: unknown) {
+    toast.add({ severity: 'error', summary: getApiErrorSummary(error), life: 3500 })
   } finally {
     savingEdit.value = false
   }

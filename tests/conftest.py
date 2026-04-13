@@ -143,6 +143,22 @@ async def readonly_user(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
+async def secondary_admin_user(db_session: AsyncSession) -> User:
+    """Create and persist a second test admin user."""
+    user = User(
+        username="admin2",
+        email="admin2@test.com",
+        password_hash=hash_password("adminpassword456"),
+        role=UserRole.ADMIN,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
 async def auth_headers(client: AsyncClient, admin_user: User) -> dict[str, str]:
     """Return Authorization headers for the admin user."""
     response = await client.post(
