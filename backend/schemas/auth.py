@@ -1,5 +1,7 @@
 """Pydantic schemas for authentication endpoints."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, field_validator
 
 from backend.models.user import UserRole
@@ -47,5 +49,13 @@ class UserRead(BaseModel):
     email: str
     role: UserRole
     is_active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class UserAdminUpdate(BaseModel):
+    role: UserRole | None = None
+    is_active: bool | None = None
 
     model_config = {"from_attributes": True}
