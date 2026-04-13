@@ -52,6 +52,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 **Backend**
 - `excel_import.py` : support des feuilles Caisse (`caisse`/`cash`) et Banque (`banque`/`bank`/`relev`) dans l'import Excel de gestion ; déduplication des numéros de factures dans le même batch ; création automatique du contact si absent (plutôt que saut de ligne silencieux)
+- sécurité et robustesse revues après commentaires de PR : secret JWT obligatoire hors dev/test, conversion propre des erreurs d'édition manuelle en réponses HTTP, metadata Alembic complétée pour l'autogénération
 
 **Frontend — bugfixes interface**
 - `index.html` : correction de `<\/script>` → `</script>` (artefact d'échappement introduit lors de la création du fichier)
@@ -59,6 +60,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `DashboardView.vue` : imports PrimeVue manquants (`Card`, `ProgressSpinner`, `Message`, `Select`) — la vue du tableau de bord était vide
 - `AccountingBilanView.vue` : imports PrimeVue manquants (`Button`, `Card`, `Column`, `DataTable`, `ProgressSpinner`, `Select`) — la vue était vide
 - `api/client.ts` : `baseURL` corrigé de `/api` à `''` — les appels API généraient des URLs en double (`/api/api/...`)
+- `api/client.ts` : la file d'attente de refresh JWT propage désormais aussi les échecs, évitant des requêtes pendantes infiniment en cas de refresh refusé
 - `api/bank.ts`, `api/cash.ts`, `api/payments.ts` : préfixe `/api/` ajouté aux chemins (cohérence avec le nouveau `baseURL`)
 - `i18n/fr.ts` : clés `user.role.*` corrigées en minuscules (`admin`, `tresorier`, `secretaire`, `readonly`) pour correspondre aux valeurs renvoyées par le backend
 
