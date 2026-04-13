@@ -6,13 +6,11 @@ Le manuel utilisateur est rédigé par lots pour rester aligné sur les écrans 
 
 ## Guides disponibles
 
-- [Manuel utilisateur - lot 1 : premiers pas, contacts, factures clients et suivi des paiements](./manuel-utilisateur-lot-1.md)
+- [Manuel utilisateur - version texte lots 1 à 3](./manuel-utilisateur-lot-1.md)
+- [Import Excel et réinitialisation](./import-excel-et-reinitialisation.md)
 
 ## Guides prévus ensuite
 
-- achats fournisseurs ;
-- caisse ;
-- banque et remises ;
-- import Excel ;
-- lecture des écrans comptables ;
-- FAQ et glossaire.
+- captures d'écran annotées ;
+- homogénéisation éditoriale du manuel complet ;
+- version imprimable si utile.
