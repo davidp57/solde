@@ -1,18 +1,65 @@
 # Roadmap — Solde ⚖️
 
-## Vue d'ensemble
+## État d'avancement
 
-```
-Phase 1          Phase 2        Phase 3          Phase 4              Phase 5           Phase 6
-Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &     ──►  Comptabilité ──►  Avancé
-                 de base                         Trésorerie
-├─ Docker        ├─ Contacts    ├─ Fact. clients  ├─ Paiements         ├─ Moteur règles   ├─ Clôture
-├─ FastAPI       └─ Plan        ├─ Fact. fourn.   ├─ Caisse            ├─ Journal         ├─ Salaires
-├─ SQLite          comptable    ├─ PDF            ├─ Comptage caisse   ├─ Balance         ├─ Import Excel
-├─ Auth JWT                     └─ Email          ├─ Banque            ├─ Grand livre     └─ Dashboard
-└─ Vue.js                                         ├─ Bordereaux        └─ Saisie manuelle
-                                                  ├─ Import CSV/OFX
-                                                  └─ Rapprochement
+> Dernière mise à jour : 2026-04-09 — branche active `develop`
+
+| Phase | Statut | Tâches complètes |
+|---|---|---|
+| **1. Fondations** | ✅ Terminé | 9/9 |
+| **2. Gestion de base** | ✅ Terminé | 7/7 |
+| **3. Facturation** | ✅ Terminé | 7/7 |
+| **4. Paiements & Trésorerie** | ✅ Terminé | 14/14 |
+| **5. Comptabilité** | ✅ Terminé | 16/16 |
+| **6. Avancé** | ✅ Terminé | 14/14 |
+| **7. Complétion plan** | ✅ Terminé | 9/9 |
+
+### ✅ Plan.md 100 % implémenté — application fonctionnelle complète
+
+Toutes les fonctionnalités du plan initial sont développées et testées.
+**357 tests backend (74 % couverture) + 11 tests Vitest frontend — 0 échec.**
+
+### Stack mise en place
+
+**Backend** (`backend/`)
+- `config.py` — Pydantic Settings (`JWT_SECRET_KEY`, `FISCAL_YEAR_START_MONTH=8`, SMTP optionnel)
+- `database.py` — SQLAlchemy 2 async + SQLite WAL + `get_db()` dependency
+- `models/user.py` — `User`, `UserRole` (READONLY/SECRETAIRE/TRESORIER/ADMIN)
+- `services/auth.py` — bcrypt direct (Python 3.13), JWT create/decode
+- `schemas/auth.py` — `LoginRequest`, `TokenResponse`, `UserCreate`, `UserRead`
+- `routers/auth.py` — `/api/auth/login`, `/refresh`, `/me`, `/users` (admin)
+- `main.py` — `create_app()`, lifespan, CORS, mount `frontend/dist/`
+- Tests : `tests/unit/test_config.py` (7), `tests/unit/test_auth_service.py` (8), `tests/integration/test_auth_api.py` (9) → **24 passing, 83% coverage**
+
+**Frontend** (`frontend/src/`)
+- `main.ts` — PrimeVue 4 (Aura theme), vue-i18n v11, Pinia, Vue Router
+- `i18n/fr.ts` — toutes les clés UI (auth, nav, settings, user.role)
+- `api/auth.ts` — `loginApi`, `refreshApi`, `getMeApi`
+- `api/settings.ts` — `getSettingsApi`, `updateSettingsApi`
+- `api/client.ts` — axios avec intercepteur JWT + auto-refresh 401
+- `api/types.ts` — `LoginRequest`, `TokenResponse`, `UserRead`
+- `stores/auth.ts` — login/logout/refresh, persistance localStorage, computed `isAdmin`/`isTresorier`
+- `views/LoginView.vue` — formulaire PrimeVue complet avec gestion d'erreurs i18n
+- `views/SettingsView.vue` — formulaire complet (infos asso + SMTP avec TLS toggle)
+- `layouts/AppLayout.vue` — sidebar desktop + Drawer mobile responsive
+- `components/NavMenu.vue` — menu dynamique selon le rôle
+- `views/DashboardView.vue` — placeholder
+- `router/index.ts` — guards `requiresAuth` et `requiresAdmin`, lazy-loading
+- Tests : `tests/stores/auth.spec.ts` (11) + setup localStorage mock → **11 passing**
+
+---
+
+```text
+Phase 1    Phase 2    Phase 3    Phase 4         Phase 5       Phase 6       Phase 7
+Fond.  ──► Gestion ──► Fact. ──► Paiements & ──► Comptab. ──► Avancé   ──►  Complétion
+                               Trésorerie
+├─ Docker  ├─Contacts ├─Clients  ├─Paiements     ├─Moteur      ├─Clôture     ├─Bilan
+├─FastAPI  └─Plan     ├─Fourn.   ├─Caisse        ├─Journal     ├─Salaires    ├─Créances
+├─SQLite   comptable  ├─PDF      ├─Comptage      ├─Balance     ├─Import XLS  │  douteuses
+├─Auth JWT            └─Email    ├─Banque        ├─GdLivre     └─Dashboard   ├─Export CSV
+└─Vue.js                         ├─Bordereaux    └─Saisie man.              ├─Preview XLS
+                                 ├─Import OFX                               ├─Preview règles
+                                 └─Rapprochement                            └─Import OFX/QIF
 ```
 
 ---
@@ -21,20 +68,28 @@ Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &  
 
 > **Objectif** : infrastructure fonctionnelle de bout en bout (Docker → login → page de config)
 
-| # | Tâche | Détails |
-|---|---|---|
-| 1.1 | Setup projet | Structure de dossiers, `.gitignore`, `pyproject.toml`, `.env.example` |
-| 1.2 | Docker | `Dockerfile` multi-stage (build Vue.js + Python runtime), `docker-compose.yml` (1 service, 1 volume `./data`) |
-| 1.3 | Backend FastAPI | `main.py`, `config.py` (Settings Pydantic), `database.py` (SQLite WAL, AsyncSession) |
-| 1.4 | Alembic | Init, première migration avec modèle `User` |
-| 1.5 | Auth JWT | Login/logout, refresh token, middleware de vérification, modèle User + rôles (admin, trésorier, secrétaire, readonly) |
-| 1.6 | Frontend scaffold | Vue.js 3 + Vite + PrimeVue + Pinia + Vue Router, layout responsive (sidebar + topbar), page de login |
-| 1.7 | Page de configuration | Infos asso (nom, SIRET, adresse, logo), année comptable (défaut août→juillet), paramètres SMTP |
-| 1.8 | Servir le frontend | FastAPI `StaticFiles` pour servir le build Vue.js |
+| # | Statut | Tâche | Détails |
+|---|---|---|---|
+| 1.1 | ✅ | Setup projet | Structure de dossiers, `.gitignore`, `pyproject.toml` |
+| 1.2 | ✅ | Docker | `Dockerfile` multi-stage (build Vue.js + Python runtime), `docker-compose.yml` (1 service, 1 volume `./data`) |
+| 1.3 | ✅ | Backend FastAPI | `main.py`, `config.py` (Settings Pydantic), `database.py` (SQLite WAL, AsyncSession) |
+| 1.4 | ✅ | Alembic | Init, `env.py` async, migration `0001` (users + app_settings) |
+| 1.5 | ✅ | Auth JWT | Login/logout, refresh token, middleware de vérification, modèle User + rôles (admin, trésorier, secrétaire, readonly) |
+| 1.6 | ✅ | Frontend scaffold | Vue.js 3 + Vite + PrimeVue 4 + Pinia + Vue Router, layout responsive (sidebar + drawer mobile), page de login |
+| 1.7 | ✅ | Page de configuration | Modèle `AppSettings`, API `GET/PUT /api/settings` (admin), `SettingsView.vue` complet (infos asso + SMTP) |
+| 1.8 | ✅ | Servir le frontend | FastAPI `StaticFiles` pour servir le build Vue.js (`frontend/dist/`) |
+| 1.9 | ✅ | `.env.example` + README | Variables d'environnement documentées, README installation dev |
 
-**Critère de validation** : `docker-compose up` → navigateur → login → page de configuration fonctionnelle
+**Critère de validation** : `docker-compose up` → navigateur → login → page de configuration fonctionnelle ✅
+
+**État final (branche `feature/phase1-foundations`)** :
+
+- Backend : FastAPI + SQLite WAL + Alembic + auth JWT bcrypt + settings API → **44 tests, 88% coverage**
+- Frontend : scaffold + login + layout + guards + store auth + SettingsView complet → **11 tests Vitest**
+- Infra : Dockerfile multi-stage, docker-compose.yml, .dockerignore, .env.example
 
 ### Dépendances
+
 - Aucune (point de départ)
 
 ---
@@ -43,19 +98,26 @@ Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &  
 
 > **Objectif** : pouvoir gérer les contacts et le plan comptable
 
-| # | Tâche | Détails |
-|---|---|---|
-| 2.1 | Modèle Contact | SQLAlchemy : type (client\|fournisseur\|les_deux), nom, prénom, email, téléphone, adresse, notes |
-| 2.2 | API Contacts | CRUD REST, recherche, filtres par type |
-| 2.3 | Vue Contacts | Liste (DataTable PrimeVue), création/édition (Dialog), fiche contact avec historique |
-| 2.4 | Modèle AccountingAccount | SQLAlchemy : numéro, label, type (actif\|passif\|charge\|produit), parent |
-| 2.5 | Plan comptable par défaut | Seed des 24 comptes identifiés dans les Excel |
-| 2.6 | API Plan comptable | CRUD REST, import du plan par défaut |
-| 2.7 | Vue Plan comptable | Liste arborescente, ajout/modification de comptes |
+| # | Statut | Tâche | Détails |
+|---|---|---|---|
+| 2.1 | ✅ | Modèle Contact | SQLAlchemy `Contact` + migration Alembic 0002 |
+| 2.2 | ✅ | API Contacts | CRUD REST, recherche (nom/prénom/email), filtres par type, soft-delete |
+| 2.3 | ✅ | Vue Contacts | DataTable PrimeVue, Dialog création/édition (`ContactForm.vue`), suppression confirmée |
+| 2.4 | ✅ | Modèle AccountingAccount | SQLAlchemy + migration Alembic 0003 |
+| 2.5 | ✅ | Plan comptable par défaut | 24 comptes pré-configurés, seed idempotent |
+| 2.6 | ✅ | API Plan comptable | CRUD REST + `POST /api/accounting/accounts/seed` |
+| 2.7 | ✅ | Vue Plan comptable | DataTable avec filtre par type, Dialog création/édition (`AccountForm.vue`) |
 
-**Critère de validation** : créer, modifier, rechercher, supprimer des contacts et des comptes comptables
+**Critère de validation** : créer, modifier, rechercher, supprimer des contacts et des comptes comptables ✅
+
+**État final (branche `feature/phase2-base`)** :
+
+- Backend : modèles Contact + AccountingAccount, services, schemas, routers → **103 tests, 89% coverage**
+- Frontend : ContactsView, ContactForm, AccountingAccountsView, AccountForm, routes, i18n
+- Alembic : migrations 0002 (contacts) + 0003 (accounting_accounts)
 
 ### Dépendances
+
 - Phase 1 (auth + DB)
 
 ---
@@ -64,17 +126,23 @@ Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &  
 
 > **Objectif** : créer des factures, générer des PDF, envoyer par email
 
-| # | Tâche | Détails |
-|---|---|---|
-| 3.1 | Modèle Invoice + InvoiceLine | Numéro YYYY-NNNN, type client/fournisseur, label (cs\|a\|cs+a\|general), lignes multi, statuts |
-| 3.2 | API Factures clients | CRUD, numérotation auto séquentielle, changement de statut, duplication |
-| 3.3 | Vue Factures clients | Liste filtrable (statut, date, contact), formulaire de création/édition avec lignes dynamiques |
-| 3.4 | API Factures fournisseurs | CRUD, upload fichier PDF/image |
-| 3.5 | Vue Factures fournisseurs | Liste, formulaire avec upload, prévisualisation du fichier |
-| 3.6 | Génération PDF | WeasyPrint + template Jinja2 : logo asso, coordonnées, détail lignes, mention « Loi 1901, non assujettie à la TVA » |
-| 3.7 | Envoi email | Configuration SMTP, envoi facture PDF en pièce jointe |
+| # | Statut | Tâche | Détails |
+|---|---|---|---|
+| 3.1 | ✅ | Modèle Invoice + InvoiceLine | Numéro YYYY-C/F-NNNN, type client/fournisseur, label (cs\|a\|cs+a\|general), lignes multi, statuts |
+| 3.2 | ✅ | API Factures clients | CRUD, numérotation auto séquentielle, changement de statut, duplication, migration 0004 |
+| 3.3 | ✅ | Vue Factures clients | `ClientInvoicesView.vue`, `ClientInvoiceForm.vue` avec lignes dynamiques, filtres statut/année |
+| 3.4 | ✅ | API Factures fournisseurs | CRUD, upload fichier PDF/image/WebP (10 MB max, UUID filename) |
+| 3.5 | ✅ | Vue Factures fournisseurs | `SupplierInvoicesView.vue`, `SupplierInvoiceForm.vue`, dialog upload |
+| 3.6 | ✅ | Génération PDF | WeasyPrint (import paresseux) + template Jinja2 `invoice.html` |
+| 3.7 | ✅ | Envoi email | smtplib + STARTTLS/SSL, facture PDF en pièce jointe, transition draft→sent automatique |
 
-**Critère de validation** : créer une facture client cs+a → générer le PDF → l'envoyer par email → la retrouver dans la liste ; enregistrer une facture fournisseur avec un fichier joint
+**Critère de validation** : créer une facture client cs+a → générer le PDF → l'envoyer par email → la retrouver dans la liste ; enregistrer une facture fournisseur avec un fichier joint ✅
+
+**État final (branche `feature/phase3-invoicing`)** :
+
+- Backend : modèles Invoice + InvoiceLine, service (numérotation, transitions, duplication), schemas, router, pdf_service, email_service → **145 tests, 79% coverage**
+- Frontend : ClientInvoicesView, SupplierInvoicesView, ClientInvoiceForm, SupplierInvoiceForm, routes, i18n
+- Alembic : migration 0004 (invoices + invoice_lines)
 
 ### Dépendances
 - Phase 2 (contacts pour `contact_id`)
@@ -177,6 +245,39 @@ Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &  
 
 ---
 
+## Phase 7 — Complétion du plan
+
+> **Objectif** : implémenter tous les modules identifiés dans `plan.md` mais non couverts par les phases 1-6
+
+| # | Statut | Tâche | Détails |
+|---|---|---|---|
+| 7.1 | ✅ | Fiche contact avec historique | `ContactHistory` schema + service + `GET /contacts/{id}/history` ; `ContactDetailView.vue` |
+| 7.2 | ✅ | Créances douteuses 416xxx | `mark_creance_douteuse()` : écritures 411xxx → 416xxx + `POST /contacts/{id}/mark-douteux` |
+| 7.3 | ✅ | Bilan simplifié actif/passif | `BilanRead` schema + `get_bilan()` + `GET /accounting/entries/bilan` ; `AccountingBilanView.vue` |
+| 7.4 | ✅ | Export CSV comptabilité | `export_service.py` : journal, balance, résultat, bilan (UTF-8 BOM, séparateur `;`) |
+| 7.5 | ✅ | Preview import Excel | `PreviewResult` + `preview_gestion_file/comptabilite_file` + 2 endpoints preview (dry-run) |
+| 7.6 | ✅ | Prévisualisation règles | `preview_rule()` service + `POST /accounting/rules/{id}/preview` (simulation sans commit) |
+| 7.7 | ✅ | Import OFX/QIF | `parse_ofx()` (SGML + XML) + `parse_qif()` (multi-format dates) + 2 endpoints |
+| 7.8 | ✅ | Dockerfile WeasyPrint | Ajout libs système : libpango, libcairo, libgdk-pixbuf2.0, shared-mime-info |
+| 7.9 | ✅ | Tests Phase 7 | 19 nouveaux tests (OFX/QIF unit + 4 fichiers intégration) → 357 tests au total |
+
+**Critère de validation** :
+1. `POST /contacts/{id}/mark-douteux` → 2 écritures 411xxx/416xxx créées ✅
+2. `GET /accounting/entries/bilan` → actif et passif équilibrés ✅
+3. `GET /accounting/entries/journal/export/csv` → téléchargement CSV UTF-8 ✅
+4. `POST /import/excel/gestion/preview` → estimation lignes sans import ✅
+5. `POST /bank/transactions/import-ofx` → transactions créées depuis un fichier OFX ✅
+
+**État final** :
+- Backend : 357 tests, 0 échec, 74 % couverture
+- Frontend : `AccountingBilanView.vue`, `ContactDetailView.vue`, export CSV journal, preview import, nouvelles routes, i18n complète
+- Ruff : 0 erreur
+
+### Dépendances
+- Phases 1-6 (toutes les couches précédentes)
+
+---
+
 ## Résumé des livrables par phase
 
 | Phase | Modules | Tâches |
@@ -187,7 +288,8 @@ Fondations  ──►  Gestion   ──►  Facturation ──►  Paiements &  
 | **4. Paiements & Trésorerie** | Paiements, Caisse, Banque, Bordereaux, Import bancaire, Rapprochement | 14 tâches |
 | **5. Comptabilité** | Moteur de règles, Journal, Balance, Grand livre, État factures | 16 tâches |
 | **6. Avancé** | Clôture, Salaires, Import Excel, Dashboard | 14 tâches |
-| **Total** | **13 modules** | **66 tâches** |
+| **7. Complétion plan** | Bilan, créances douteuses, exports CSV, preview import, OFX/QIF | 9 tâches |
+| **Total** | **14 modules** | **75 tâches** |
 
 ---
 
@@ -210,6 +312,9 @@ Phase 5 (Comptabilité + Moteur de règles)
     │
     ▼
 Phase 6 (Clôture + Salaires + Import + Dashboard)
+    │
+    ▼
+Phase 7 (Bilan, Créances douteuses, Export CSV, Preview, OFX/QIF)
 ```
 
 > Chaque phase dépend de la précédente. Au sein d'une phase, certaines tâches sont parallélisables (ex: 2.1-2.3 Contacts et 2.4-2.7 Plan comptable).
