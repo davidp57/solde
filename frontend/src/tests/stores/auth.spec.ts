@@ -1,19 +1,12 @@
+/// <reference types="vitest/globals" />
+
 import { setActivePinia, createPinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import * as authApi from '../../api/auth'
 import { useAuthStore } from '../../stores/auth'
 
-// Mock the api module
-vi.mock('../../api/auth', () => ({
-  loginApi: vi.fn(),
-  refreshApi: vi.fn(),
-  getMeApi: vi.fn(),
-}))
-
-import { loginApi, refreshApi, getMeApi } from '../../api/auth'
-
-const mockLoginApi = vi.mocked(loginApi)
-const mockRefreshApi = vi.mocked(refreshApi)
-const mockGetMeApi = vi.mocked(getMeApi)
+const mockLoginApi = vi.spyOn(authApi, 'loginApi')
+const mockRefreshApi = vi.spyOn(authApi, 'refreshApi')
+const mockGetMeApi = vi.spyOn(authApi, 'getMeApi')
 
 const mockUser = {
   id: 1,
@@ -35,7 +28,9 @@ describe('useAuthStore', () => {
     setActivePinia(createPinia())
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
-    vi.clearAllMocks()
+    mockLoginApi.mockReset()
+    mockRefreshApi.mockReset()
+    mockGetMeApi.mockReset()
   })
 
   it('has correct initial state when localStorage is empty', () => {
