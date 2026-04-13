@@ -58,7 +58,7 @@ Si les informations sont correctes, Solde ouvre le tableau de bord.
 ### En cas de problème
 
 - Si un message indique que l'identifiant ou le mot de passe est incorrect, vérifiez la saisie puis recommencez.
-- Si un message indique que le serveur est inaccessible, il s'agit plutôt d'un problème technique ou réseau.
+- Si un message indique que le serveur est inaccessible, il s'agit plutôt d'un problème technique ou de réseau.
 
 ## 2. Se repérer dans l'application
 
@@ -222,6 +222,8 @@ Dans l'interface actuellement disponible, l'écran `Paiements` sert surtout à c
 
 Autrement dit, le suivi des paiements est bien visible, mais la saisie manuelle directe d'un paiement dans l'interface principale n'est pas encore documentée ici car elle n'est pas exposée comme parcours utilisateur standard.
 
+En pratique, les paiements visibles dans Solde proviennent surtout des données déjà importées ou des paiements déjà rattachés aux factures existantes. L'écran `Paiements` sert donc aujourd'hui d'abord à contrôler et suivre ce qui est déjà enregistré.
+
 ### Consulter les paiements d'une facture
 
 1. Ouvrez `Factures clients`.
@@ -378,19 +380,19 @@ Suivre les transactions bancaires, importer un relevé simple, enregistrer des r
 
 L'écran comporte deux onglets :
 
-- `Transactions` pour les mouvements bancaires ;
-- `Remises` pour les dépôts de chèques ou d'espèces.
+- `Relevé de compte` pour les mouvements bancaires ;
+- `Bordereaux de remise` pour les dépôts de chèques ou d'espèces.
 
 Les actions principales disponibles en haut de page sont :
 
 - `Importer CSV` ;
-- `Nouvelle remise` ;
-- `Nouvelle transaction`.
+- `Nouveau bordereau` ;
+- `Nouvelle opération`.
 
 ### Ajouter une transaction bancaire manuelle
 
 1. Ouvrez `Banque`.
-2. Cliquez sur `Nouvelle transaction`.
+2. Cliquez sur `Nouvelle opération`.
 3. Saisissez la date, le montant, la description, la référence et le solde après opération.
 4. Cliquez sur `Enregistrer`.
 
@@ -401,13 +403,13 @@ Les actions principales disponibles en haut de page sont :
 3. Lancez l'import.
 4. Vérifiez ensuite la liste des transactions importées.
 
-### Marquer une transaction comme rapprochée
+### Lettrer une transaction bancaire
 
-Dans l'onglet `Transactions`, utilisez le bouton d'action de la ligne pour marquer une opération non rapprochée comme rapprochée.
+Dans l'onglet `Relevé de compte`, utilisez l'action `Lettrer` sur la ligne pour marquer une opération non lettrée comme lettrée.
 
 ### Créer une remise
 
-1. Cliquez sur `Nouvelle remise`.
+1. Cliquez sur `Nouveau bordereau`.
 2. Renseignez la date de remise.
 3. Choisissez le type de remise : chèques ou espèces.
 4. Renseignez si besoin la référence bancaire.
@@ -529,7 +531,7 @@ Utilisez `Plan comptable` pour :
 - filtrer par type ;
 - créer un compte ;
 - modifier un compte ;
-- lancer le chargement initial des comptes par défaut.
+- utiliser `Pré-remplir` pour charger les comptes par défaut.
 
 ### Exercices
 
