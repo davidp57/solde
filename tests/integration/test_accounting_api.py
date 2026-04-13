@@ -498,6 +498,26 @@ class TestManualEntryAPI:
         assert updated_credit["account_number"] == "706110"
         assert updated_debit["label"] == "Ajustement"
 
+    @pytest.mark.asyncio
+    async def test_update_manual_entry_returns_404_for_missing_pair(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        response = await client.put(
+            "/api/accounting/entries/manual/999999",
+            json={
+                "date": "2024-03-20",
+                "debit_account": "411100",
+                "credit_account": "706110",
+                "amount": "90.00",
+                "label": "Ajustement",
+                "counterpart_entry_id": 999998,
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "manual entry pair not found"
+
 
 # ---------------------------------------------------------------------------
 # Accounting Rules API
