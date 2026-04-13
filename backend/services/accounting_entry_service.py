@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_account import AccountingAccount, AccountType
@@ -128,6 +128,20 @@ async def get_ledger(
     fiscal_year_id: int | None = None,
 ) -> LedgerRead:
     """Return all entries for a single account with a running balance."""
+    opening = Decimal("0")
+    if from_date is not None:
+        opening_query = select(
+            func.coalesce(func.sum(AccountingEntry.debit), 0),
+            func.coalesce(func.sum(AccountingEntry.credit), 0),
+        )
+        opening_query = opening_query.where(AccountingEntry.account_number == account_number)
+        opening_query = opening_query.where(AccountingEntry.date <= from_date - timedelta(days=1))
+        if fiscal_year_id is not None:
+            opening_query = opening_query.where(AccountingEntry.fiscal_year_id == fiscal_year_id)
+        opening_result = await db.execute(opening_query)
+        total_debit, total_credit = opening_result.one()
+        opening = Decimal(str(total_debit)) - Decimal(str(total_credit))
+
     entries = await get_journal(
         db,
         account_number=account_number,
@@ -144,7 +158,7 @@ async def get_ledger(
     acct_obj = result.scalar_one_or_none()
     label = acct_obj.label if acct_obj else account_number
 
-    running = Decimal("0")
+    running = opening
     ledger_entries: list[LedgerEntry] = []
     for e in entries:
         running += Decimal(str(e.debit)) - Decimal(str(e.credit))
@@ -159,8 +173,6 @@ async def get_ledger(
                 running_balance=running,
             )
         )
-
-    opening = Decimal("0")
     closing = running
 
     return LedgerRead(
