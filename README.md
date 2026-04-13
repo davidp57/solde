@@ -153,6 +153,7 @@ solde/
 - [Architecture technique](doc/architecture.md)
 - [Plan complet du projet](doc/plan.md)
 - [Roadmap et état d'avancement](doc/roadmap.md)
+- [Documentation utilisateur](doc/user/README.md)
 - [Changelog](CHANGELOG.md)
 
 ---
