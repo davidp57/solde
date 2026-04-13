@@ -236,7 +236,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-021 — Manuel utilisateur illustré et pas à pas
 
-- **Dates** : `created=2026-04-13`, `started=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13`
 - **Pourquoi** : la documentation utilisateur est la plus critique pour l'adoption réelle de Solde, car les utilisateurs visés ne sont pas nécessairement informaticiens et ont besoin d'un guidage concret, rassurant et progressif.
 - **Résultat attendu** : un manuel utilisateur en français, très clair, illustré par des captures d'écran, couvrant pas à pas les actions principales comme saisir une facture client, enregistrer un paiement client, saisir un achat avec facture, gérer la caisse, consulter la banque, utiliser les imports et comprendre les principaux écrans comptables.
 - **Critère d'acceptation** : un utilisateur non technique doit pouvoir suivre le guide pour exécuter les scénarios métier essentiels sans aide orale complémentaire.
@@ -307,7 +307,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## En cours
 
-- **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Rédaction des lots 1 à 3 du manuel utilisateur en français, avant enrichissement visuel final et captures harmonisées.
+- Aucun sujet pour le moment.
 
 ## Fait
 
@@ -321,3 +321,4 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-012** — `created=2026-04-12`, `completed=2026-04-12` — La liste des paiements affiche la référence métier et permet l'édition directe.
 - **BL-013** — `created=2026-04-12`, `completed=2026-04-12` — Le journal de caisse propose désormais référence, détail et édition directe.
 - **BL-014** — `created=2026-04-12`, `completed=2026-04-12` — Le journal comptable est enrichi pour la lecture métier, le détail et la navigation vers les factures.
+- **BL-021** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13` — Le manuel utilisateur texte des lots 1 à 3 est livré dans `doc/user/`, avec un guide principal, un guide dédié import/reset et une base prête pour l'enrichissement visuel final.
