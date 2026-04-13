@@ -502,6 +502,8 @@ export default {
     ledger: {
       title: 'Grand livre',
       select_account: 'Sélectionner un compte',
+      select_fiscal_year: 'Sélectionner un exercice',
+      no_fiscal_year: "Aucun exercice disponible. Creez d'abord un exercice.",
       opening_balance: "Solde d'ouverture",
       closing_balance: 'Solde de clôture',
       empty: 'Aucune écriture pour ce compte.',
