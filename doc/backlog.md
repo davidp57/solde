@@ -272,7 +272,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-022 — Gestion des utilisateurs, rôles et sécurité de compte
 
-- **Dates** : `created=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-13`
 - **Pourquoi** : l'authentification existe déjà, mais la gestion des utilisateurs reste encore trop limitée pour un usage réel durable avec plusieurs profils, une administration claire des comptes et des attentes minimales de sécurité.
 - **Résultat attendu** : faire évoluer la gestion des comptes pour couvrir un vrai cycle de vie utilisateur : rôles métier lisibles, création et administration des comptes, autonomie minimale des utilisateurs sur leur propre profil et mécanismes de sécurité cohérents pour l'accès au compte.
 - **Périmètre fonctionnel visé** :
@@ -286,6 +286,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- quel mécanisme réaliste retenir pour le mot de passe perdu dans un contexte associatif auto-hébergé.
 - **Critère d'acceptation** : un administrateur doit pouvoir gérer les comptes et leurs rôles sans intervention technique, et un utilisateur doit pouvoir accéder à son compte, gérer son profil essentiel et récupérer ou faire réinitialiser son accès selon un processus clair et sûr.
 - **État de départ actuel** : l'application dispose déjà d'une authentification JWT, d'un utilisateur courant, d'une création de compte réservée à l'admin et de rôles techniques (`readonly`, `secretaire`, `tresorier`, `admin`), mais pas encore d'interface complète ni de cycle de vie cohérent du compte.
+- **Avancement actuel** : le lot 1 est documenté avec une matrice de rôles et de permissions lisible sans renommer immédiatement les valeurs techniques existantes ; le lot 2 est implémenté dans la branche avec l'administration des comptes côté API et interface (`liste`, `création`, activation/désactivation, changement de rôle) sur cette base clarifiée.
 - **Lotissement recommandé** :
 	- lot 1 : clarifier la cible produit des rôles et produire une matrice d'autorisations lisible ;
 	- lot 2 : ajouter l'administration des comptes (`liste`, `création`, `activation/désactivation`, changement de rôle) ;
@@ -308,6 +309,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 ## En cours
 
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
+- **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont implémentés dans la branche et en attente de revue : clarification documentée des rôles métier et administration des comptes réservée à l'admin.
 
 ## Fait
 
