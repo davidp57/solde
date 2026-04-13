@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_account import AccountingAccount, AccountType
@@ -130,15 +130,17 @@ async def get_ledger(
     """Return all entries for a single account with a running balance."""
     opening = Decimal("0")
     if from_date is not None:
-        opening_entries = await get_journal(
-            db,
-            account_number=account_number,
-            to_date=from_date - timedelta(days=1),
-            fiscal_year_id=fiscal_year_id,
-            limit=100_000,
+        opening_query = select(
+            func.coalesce(func.sum(AccountingEntry.debit), 0),
+            func.coalesce(func.sum(AccountingEntry.credit), 0),
         )
-        for entry in opening_entries:
-            opening += Decimal(str(entry.debit)) - Decimal(str(entry.credit))
+        opening_query = opening_query.where(AccountingEntry.account_number == account_number)
+        opening_query = opening_query.where(AccountingEntry.date <= from_date - timedelta(days=1))
+        if fiscal_year_id is not None:
+            opening_query = opening_query.where(AccountingEntry.fiscal_year_id == fiscal_year_id)
+        opening_result = await db.execute(opening_query)
+        total_debit, total_credit = opening_result.one()
+        opening = Decimal(str(total_debit)) - Decimal(str(total_credit))
 
     entries = await get_journal(
         db,

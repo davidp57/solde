@@ -105,8 +105,12 @@ const fromDate = ref('')
 const toDate = ref('')
 const fiscalYearId = ref<number | undefined>()
 const loading = ref(false)
+const initializing = ref(true)
 
 const emptyStateMessage = computed(() => {
+  if (initializing.value) {
+    return t('common.loading')
+  }
   if (fiscalYears.value.length === 0) {
     return t('accounting.ledger.no_fiscal_year')
   }
@@ -131,16 +135,20 @@ async function load() {
 }
 
 onMounted(async () => {
-  const [accts, fiscalYearList, currentFiscalYear] = await Promise.all([
-    listAccountsApi(undefined, false),
-    listFiscalYearsApi(),
-    getCurrentFiscalYearApi(),
-  ])
-  accounts.value = accts.map((a) => ({
-    number: a.number,
-    displayLabel: `${a.number} — ${a.label}`,
-  }))
-  fiscalYears.value = fiscalYearList
-  fiscalYearId.value = currentFiscalYear?.id ?? fiscalYearList[0]?.id
+  try {
+    const [accts, fiscalYearList, currentFiscalYear] = await Promise.all([
+      listAccountsApi(undefined, false),
+      listFiscalYearsApi(),
+      getCurrentFiscalYearApi(),
+    ])
+    accounts.value = accts.map((a) => ({
+      number: a.number,
+      displayLabel: `${a.number} — ${a.label}`,
+    }))
+    fiscalYears.value = fiscalYearList
+    fiscalYearId.value = currentFiscalYear?.id ?? fiscalYearList[0]?.id
+  } finally {
+    initializing.value = false
+  }
 })
 </script>
