@@ -48,9 +48,9 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## Priorités proposées pour la prochaine discussion
 
-1. **BL-021** — produire un manuel utilisateur illustré, pas à pas, pour des non-informaticiens.
-2. **BL-022** — faire évoluer la gestion des utilisateurs, des rôles et de la sécurité du compte.
-3. **BL-008** — faire de l'import Excel un contrôle de convergence régulier avec la comptabilité réelle.
+1. **BL-025** — corriger le report à nouveau et les soldes faux dans le grand livre multi-exercices.
+2. **BL-023** — revalider les droits réels par rôle et la visibilité des écrans comptables.
+3. **BL-024** — clarifier le workflow de saisie des paiements et corriger les remises en banque automatiques.
 
 ## Bac d'entrée
 
@@ -67,6 +67,9 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-022 | 2026-04-13 | Évolution | Utilisateurs / Sécurité | P1 | Renforcer la gestion des utilisateurs avec des rôles métier plus clairs, la création et l'administration des comptes, l'autonomie sur le profil et un socle de sécurité de compte plus complet |
+| BL-023 | 2026-04-13 | Correction | Permissions / Comptabilité | P1 | Revalider les droits réels des rôles `consultation` et `secrétaire`, restaurer la visibilité attendue des écrans comptables pour l'admin et rendre à nouveau visible le choix d'exercice |
+| BL-024 | 2026-04-13 | Correction | Paiements / Banque | P1 | Clarifier le workflow cible de saisie des paiements et corriger l'automatisme qui remet en banque les paiements `espèces` et `virement` dès leur encodage |
+| BL-025 | 2026-04-13 | Correction | Comptabilité / Exercices | P1 | Corriger le cumul des écritures d'ouverture entre exercices dans le grand livre pour retrouver des soldes justes comptablement |
 
 ## Détail des sujets
 
@@ -286,7 +289,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- quel mécanisme réaliste retenir pour le mot de passe perdu dans un contexte associatif auto-hébergé.
 - **Critère d'acceptation** : un administrateur doit pouvoir gérer les comptes et leurs rôles sans intervention technique, et un utilisateur doit pouvoir accéder à son compte, gérer son profil essentiel et récupérer ou faire réinitialiser son accès selon un processus clair et sûr.
 - **État de départ actuel** : l'application dispose déjà d'une authentification JWT, d'un utilisateur courant, d'une création de compte réservée à l'admin et de rôles techniques (`readonly`, `secretaire`, `tresorier`, `admin`), mais pas encore d'interface complète ni de cycle de vie cohérent du compte.
-- **Avancement actuel** : le lot 1 est documenté avec une matrice de rôles et de permissions lisible sans renommer immédiatement les valeurs techniques existantes ; le lot 2 est implémenté dans la branche avec l'administration des comptes côté API et interface (`liste`, `création`, activation/désactivation, changement de rôle) sur cette base clarifiée.
+- **Avancement actuel** : les lots 1 et 2 sont désormais intégrés dans `develop` avec la documentation des rôles et l'administration des comptes ; le retest métier laisse toutefois ouverte la question de la matrice d'autorisations réellement observée, capturée séparément dans `BL-023`.
 - **Lotissement recommandé** :
 	- lot 1 : clarifier la cible produit des rôles et produire une matrice d'autorisations lisible ;
 	- lot 2 : ajouter l'administration des comptes (`liste`, `création`, `activation/désactivation`, changement de rôle) ;
@@ -302,6 +305,42 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- les tests et la documentation associés.
 - **Point d'attention** : ce sujet touche à la sécurité et aux permissions ; toute simplification produit doit rester cohérente avec le modèle d'autorisation backend déjà en place.
 
+### BL-023 — Revalider les droits réels par rôle et la visibilité des écrans comptables
+
+- **Dates** : `created=2026-04-13`
+- **Pourquoi** : le retest métier après fusion de `BL-022` fait apparaître des incohérences entre les droits attendus et ceux réellement observés : un profil `secrétaire` semble voir la comptabilité alors que ce n'était pas l'intention perçue, l'admin ne voit plus les règles comptables, le journal paraît vide, et plus personne ne voit le choix d'exercice.
+- **Résultat attendu** : disposer d'une matrice d'autorisations vérifiée en conditions réelles, alignée avec la cible produit, et rétablir la visibilité attendue des écrans et du sélecteur d'exercice pour les bons profils.
+- **Questions à trancher** :
+	- qu'est-ce qu'un rôle `consultation` doit pouvoir voir exactement parmi journal, grand livre, balance, règles comptables et paramètres ;
+	- le rôle `secrétaire` doit-il seulement gérer les flux métier (`contacts`, `factures`, `paiements`) ou aussi consulter une partie des écrans comptables ;
+	- l'absence de règles comptables, de journal et de choix d'exercice vient-elle d'un problème d'autorisations, de navigation ou de filtrage par exercice courant.
+- **Critère d'acceptation** : chaque rôle dispose d'un périmètre lisible, testé et conforme à la décision produit, l'admin retrouve les écrans comptables attendus, et le sélecteur d'exercice redevient visible et exploitable là où il doit l'être.
+- **Point d'attention** : ce sujet dépend directement de `BL-022` mais mérite un ticket dédié car il combine arbitrage produit, contrôle des routes/menus et vérification des vues comptables.
+
+### BL-024 — Clarifier la saisie des paiements et corriger les remises en banque automatiques
+
+- **Dates** : `created=2026-04-13`
+- **Pourquoi** : en usage réel, il n'est pas clair comment un paiement doit être saisi dans l'application, et les paiements de type `espèces` ou `virement` semblent être remis en banque automatiquement dès leur encodage, ce qui pose une question de justesse métier et comptable.
+- **Résultat attendu** : définir un workflow cible simple pour la création, la consultation et l'éventuelle remise en banque des paiements, puis corriger l'application pour que chaque mode de paiement suive le bon traitement.
+- **Questions à trancher** :
+	- dans quel écran un utilisateur est-il censé encoder un paiement au quotidien ;
+	- quels types de paiement doivent générer une remise en banque automatique, une remise manuelle ultérieure ou aucune remise ;
+	- faut-il distinguer plus clairement `encaissement`, `dépôt bancaire`, `paiement fournisseur` et `mouvement de caisse` dans l'interface.
+- **Critère d'acceptation** : un utilisateur comprend où saisir un paiement, le fait sans détour, et les écritures ou remises générées correspondent au comportement métier attendu pour chaque mode de règlement.
+- **Point d'attention** : ce sujet touche à la fois l'UX des écrans `paiements`, la logique de banque/caisse et la génération des écritures comptables associées.
+
+### BL-025 — Corriger le report à nouveau et les soldes du grand livre multi-exercices
+
+- **Dates** : `created=2026-04-13`
+- **Pourquoi** : le grand livre du compte `512102` cumule au moins deux écritures d'ouverture d'exercice (`2024` et `2025`), ce qui fausse le solde affiché ; le problème est probablement plus large et remet en cause la justesse comptable des vues par compte.
+- **Résultat attendu** : rétablir un calcul juste des soldes et des écritures d'ouverture dans le grand livre, en respectant la logique comptable attendue d'un exercice à l'autre.
+- **Questions à trancher** :
+	- quelle écriture d'ouverture doit être visible selon l'exercice affiché dans le grand livre ;
+	- faut-il filtrer différemment les écritures d'ouverture, recalculer le report à nouveau ou corriger la stratégie de reprise historique ;
+	- le problème touche-t-il aussi le journal, la balance et d'autres comptes au-delà de `512102`.
+- **Critère d'acceptation** : pour un exercice donné, le grand livre, la balance et les autres vues comptables affichent un solde cohérent avec les reports à nouveau attendus, sans cumul indu entre ouvertures d'exercices successifs.
+- **Point d'attention** : c'est un sujet comptable critique à traiter avant de faire confiance aux états ; il faudra le recouper avec `BL-010` et les choix de clôture des exercices historiques.
+
 ## Prêt
 
 - Aucun sujet pour le moment.
@@ -309,7 +348,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 ## En cours
 
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
-- **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont implémentés dans la branche et en attente de revue : clarification documentée des rôles métier et administration des comptes réservée à l'admin.
+- **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels est suivi dans `BL-023`.
 
 ## Fait
 
