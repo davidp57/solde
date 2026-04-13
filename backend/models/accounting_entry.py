@@ -16,6 +16,7 @@ _Decimal = Decimal
 
 
 class EntrySourceType(StrEnum):
+    GESTION = "gestion"
     INVOICE = "invoice"
     PAYMENT = "payment"
     DEPOSIT = "deposit"

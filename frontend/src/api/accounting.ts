@@ -75,6 +75,7 @@ export async function updateAccountApi(
 // -----------------------------------------------------------------------
 
 export type EntrySourceType =
+  | 'gestion'
   | 'invoice'
   | 'payment'
   | 'deposit'

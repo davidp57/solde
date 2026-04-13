@@ -481,6 +481,7 @@ export default {
       filter_fiscal_year: 'Exercice',
       empty: 'Aucune écriture.',
       sources: {
+        gestion: 'Gestion',
         invoice: 'Facture',
         payment: 'Paiement',
         deposit: 'Remise banque',
