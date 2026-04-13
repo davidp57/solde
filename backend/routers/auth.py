@@ -5,12 +5,18 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from sqlalchemy import select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
 from backend.models.user import User, UserRole
-from backend.schemas.auth import RefreshRequest, TokenResponse, UserCreate, UserRead
+from backend.schemas.auth import (
+    RefreshRequest,
+    TokenResponse,
+    UserAdminUpdate,
+    UserCreate,
+    UserRead,
+)
 from backend.services.auth import (
     create_access_token,
     create_refresh_token,
@@ -60,6 +66,64 @@ def require_role(*roles: UserRole) -> Callable[..., Any]:
         return current_user
 
     return _check
+
+
+async def _count_active_admins(db: AsyncSession) -> int:
+    """Return the number of active administrator accounts."""
+    count = await db.scalar(
+        select(func.count()).select_from(User).where(User.role == UserRole.ADMIN, User.is_active)
+    )
+    return int(count or 0)
+
+
+def _admin_user_update_exception(
+    code: str,
+    message: str,
+    status_code: int = status.HTTP_400_BAD_REQUEST,
+) -> HTTPException:
+    """Build a stable error payload for admin-managed user updates."""
+    return HTTPException(status_code=status_code, detail={"code": code, "message": message})
+
+
+async def _acquire_admin_update_lock(db: AsyncSession) -> None:
+    """Serialize admin account updates on SQLite to preserve the last-admin invariant."""
+    bind = db.get_bind()
+    if bind is not None and bind.dialect.name == "sqlite":
+        await db.execute(text("BEGIN IMMEDIATE"))
+
+
+async def _validate_admin_user_update(
+    target_user: User,
+    body: UserAdminUpdate,
+    current_user: User,
+    db: AsyncSession,
+) -> None:
+    """Enforce admin account safety rules for role/status changes."""
+    if body.role is None and body.is_active is None:
+        raise _admin_user_update_exception("no_changes", "No changes requested")
+
+    role_change = body.role is not None and body.role != target_user.role
+    deactivation = body.is_active is False and target_user.is_active
+
+    if target_user.id == current_user.id:
+        if deactivation:
+            raise _admin_user_update_exception(
+                "self_deactivate",
+                "You cannot deactivate your own account",
+            )
+        if role_change and body.role != UserRole.ADMIN:
+            raise _admin_user_update_exception(
+                "self_demote",
+                "You cannot remove your own admin role",
+            )
+
+    if target_user.role == UserRole.ADMIN and target_user.is_active:
+        admin_would_be_removed = deactivation or (role_change and body.role != UserRole.ADMIN)
+        if admin_would_be_removed and await _count_active_admins(db) <= 1:
+            raise _admin_user_update_exception(
+                "last_admin",
+                "At least one active admin must remain",
+            )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -141,6 +205,54 @@ async def create_user(
         role=body.role,
     )
     db.add(user)
-    await db.flush()
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+@router.get(
+    "/users",
+    response_model=list[UserRead],
+    dependencies=[Depends(require_role(UserRole.ADMIN))],
+)
+async def list_users(
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[User]:
+    """List all user accounts for admin management."""
+    result = await db.execute(select(User).order_by(User.username.asc()))
+    return list(result.scalars().all())
+
+
+@router.patch(
+    "/users/{user_id}",
+    response_model=UserRead,
+    dependencies=[Depends(require_role(UserRole.ADMIN))],
+)
+async def update_user(
+    user_id: int,
+    body: UserAdminUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    """Update a user's admin-managed fields (role, activation)."""
+    await _acquire_admin_update_lock(db)
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise _admin_user_update_exception(
+            "user_not_found",
+            "User not found",
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    await _validate_admin_user_update(user, body, current_user, db)
+
+    if body.role is not None:
+        user.role = body.role
+    if body.is_active is not None:
+        user.is_active = body.is_active
+
+    await db.commit()
     await db.refresh(user)
     return user

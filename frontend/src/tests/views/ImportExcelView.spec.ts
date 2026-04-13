@@ -1,34 +1,13 @@
+/// <reference types="vitest/globals" />
+
 import { mount } from '@vue/test-utils'
 import { nextTick, defineComponent } from 'vue'
-import { describe, beforeEach, expect, it, vi } from 'vitest'
-
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    t: (key: string) => key,
-  }),
-}))
-
-const toastAdd = vi.fn()
-
-vi.mock('primevue/usetoast', () => ({
-  useToast: () => ({
-    add: toastAdd,
-  }),
-}))
-
-vi.mock('../../api/accounting', () => ({
-  importGestionFileApi: vi.fn(),
-  importComptabiliteFileApi: vi.fn(),
-  previewGestionFileApi: vi.fn(),
-  previewComptabiliteFileApi: vi.fn(),
-}))
-
+import ToastService from 'primevue/toastservice'
+import i18n from '../../i18n'
+import * as accountingApi from '../../api/accounting'
 import ImportExcelView from '../../views/ImportExcelView.vue'
-import {
-  previewGestionFileApi,
-} from '../../api/accounting'
 
-const mockPreviewGestionFileApi = vi.mocked(previewGestionFileApi)
+const mockPreviewGestionFileApi = vi.spyOn(accountingApi, 'previewGestionFileApi')
 
 const ButtonStub = defineComponent({
   props: {
@@ -87,6 +66,7 @@ async function flushView() {
 function mountView() {
   return mount(ImportExcelView, {
     global: {
+      plugins: [i18n, ToastService],
       stubs: {
         AppPage: ContainerStub,
         AppPageHeader: ContainerStub,
@@ -113,7 +93,7 @@ async function selectFile(wrapper: ReturnType<typeof mountView>, name = 'histori
 
 describe('ImportExcelView', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    mockPreviewGestionFileApi.mockReset()
   })
 
   it('keeps import disabled until preview succeeds', async () => {

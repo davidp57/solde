@@ -11,6 +11,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+**Gestion des utilisateurs**
+- Documentation de cadrage `doc/dev/gestion-utilisateurs-et-permissions.md` pour clarifier la cible produit des rôles et la matrice simplifiée des permissions
+- Administration des comptes réservée à l'administrateur avec liste, création, activation/désactivation et changement de rôle
+
 **Frontend — filtre générique**
 - Composable `useTableFilter` + `applyFilter` (`composables/useTableFilter.ts`) : filtre client-side fuzzy sur tous les champs d'un tableau
 - Champ de recherche générique ajouté dans les 11 écrans avec DataTable : Paiements, Exercices, Règles comptables, Plan comptable, Journal, Balance, Salaires, Factures clients, Factures fournisseurs, Banque (transactions + remises), Caisse (journal + comptages)
@@ -27,6 +31,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `main.css` : langage visuel partagé pour les mises en page, les métriques, les en-têtes de contenu et les dialogues de formulaire
 
 ### Modifié
+
+**Authentification et permissions**
+- Les rôles techniques existants restent inchangés côté API, mais leur présentation est clarifiée côté produit pour préparer l'administration des comptes sans casser les autorisations existantes
 
 **Outillage**
 - `dev.ps1` : remplacement de `Start-Process pwsh` (2 fenêtres séparées) par `Start-Job` — backend et frontend tournent dans la même session PowerShell, Ctrl+C arrête les deux proprement

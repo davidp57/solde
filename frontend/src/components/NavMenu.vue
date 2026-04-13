@@ -57,6 +57,7 @@ const menuItems = computed(() => {
   ]
 
   if (auth.isAdmin) {
+    items.push({ to: '/users', icon: 'pi-users', label: t('nav.users') })
     items.push({ to: '/settings', icon: 'pi-cog', label: t('nav.settings') })
   }
 
