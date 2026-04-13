@@ -2,7 +2,7 @@
 
 ## Objectif
 
-BL-022 lots 1 et 2 clarifie la cible produit des rôles sans renommer immédiatement les valeurs techniques déjà utilisées dans l'API et les autorisations backend.
+BL-022 lots 1 et 2 clarifient la cible produit des rôles sans renommer immédiatement les valeurs techniques déjà utilisées dans l'API et les autorisations backend.
 
 L'objectif est double :
 
