@@ -66,7 +66,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-018 | 2026-04-13 | Amélioration | Frontend / UX listes | P2 | Consolider les écrans de liste pour rendre tri, filtre, colonnes et états de vue plus clairs et cohérents |
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
-| BL-021 | 2026-04-13 | Documentation | Utilisateur | P1 | Produire un manuel utilisateur très clair, illustré et pas à pas, pour des non-informaticiens, couvrant les principales actions métier |
 | BL-022 | 2026-04-13 | Évolution | Utilisateurs / Sécurité | P1 | Renforcer la gestion des utilisateurs avec des rôles métier plus clairs, la création et l'administration des comptes, l'autonomie sur le profil et un socle de sécurité de compte plus complet |
 
 ## Détail des sujets
@@ -237,10 +236,11 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-021 — Manuel utilisateur illustré et pas à pas
 
-- **Dates** : `created=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-13`
 - **Pourquoi** : la documentation utilisateur est la plus critique pour l'adoption réelle de Solde, car les utilisateurs visés ne sont pas nécessairement informaticiens et ont besoin d'un guidage concret, rassurant et progressif.
 - **Résultat attendu** : un manuel utilisateur en français, très clair, illustré par des captures d'écran, couvrant pas à pas les actions principales comme saisir une facture client, enregistrer un paiement client, saisir un achat avec facture, gérer la caisse, consulter la banque, utiliser les imports et comprendre les principaux écrans comptables.
 - **Critère d'acceptation** : un utilisateur non technique doit pouvoir suivre le guide pour exécuter les scénarios métier essentiels sans aide orale complémentaire.
+- **Avancement actuel** : les lots 1 à 3 texte sont rédigés dans `doc/user/README.md` et `doc/user/manuel-utilisateur.md`, avec un périmètre volontairement calé sur les écrans réellement disponibles aujourd'hui et un renvoi complémentaire vers `doc/user/import-excel-et-reinitialisation.md` pour l'import Excel.
 - **Priorisation proposée** : chantier éditorial majeur et prioritaire côté valeur utilisateur ; il faut l'attaquer tôt, mais avec une stratégie incrémentale plutôt qu'un objectif “manuel complet” monolithique.
 - **Séquence recommandée** : commencer par un socle de parcours essentiels (`facture client`, `paiement client`, `achat fournisseur`, `caisse`, `banque`, `import Excel`), puis enrichir ensuite avec les écrans comptables avancés et les cas plus rares.
 - **Table des matières cible** :
@@ -307,7 +307,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## En cours
 
-- Aucun sujet pour le moment.
+- **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Rédaction des lots 1 à 3 du manuel utilisateur en français, avant enrichissement visuel final et captures harmonisées.
 
 ## Fait
 
