@@ -18,6 +18,15 @@
             />
           </div>
           <div class="app-field">
+            <label class="app-field__label">{{ t('accounting.journal.filter_fiscal_year') }}</label>
+            <Select
+              v-model="fiscalYearId"
+              :options="fiscalYears"
+              option-label="name"
+              option-value="id"
+            />
+          </div>
+          <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_from') }}</label>
             <InputText v-model="fromDate" type="date" />
           </div>
@@ -27,7 +36,12 @@
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('common.search') }}</label>
-            <Button :label="t('common.search')" icon="pi pi-search" @click="load" :disabled="!accountNumber" />
+            <Button
+              :label="t('common.search')"
+              icon="pi pi-search"
+              @click="load"
+              :disabled="!accountNumber || !fiscalYearId"
+            />
           </div>
         </div>
       </div>
@@ -55,13 +69,13 @@
           </template>
         </DataTable>
       </template>
-      <div v-else class="app-empty-state">{{ t('accounting.ledger.select_account') }}</div>
+      <div v-else class="app-empty-state">{{ emptyStateMessage }}</div>
     </AppPanel>
   </AppPage>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -72,24 +86,44 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
-import { getLedgerApi, listAccountsApi, type LedgerRead } from '../api/accounting'
+import {
+  getCurrentFiscalYearApi,
+  getLedgerApi,
+  listAccountsApi,
+  listFiscalYearsApi,
+  type FiscalYearRead,
+  type LedgerRead,
+} from '../api/accounting'
 
 const { t } = useI18n()
 
 const ledger = ref<LedgerRead | null>(null)
 const accounts = ref<Array<{ number: string; displayLabel: string }>>([])
+const fiscalYears = ref<FiscalYearRead[]>([])
 const accountNumber = ref('')
 const fromDate = ref('')
 const toDate = ref('')
+const fiscalYearId = ref<number | undefined>()
 const loading = ref(false)
 
+const emptyStateMessage = computed(() => {
+  if (fiscalYears.value.length === 0) {
+    return t('accounting.ledger.no_fiscal_year')
+  }
+  if (!fiscalYearId.value) {
+    return t('accounting.ledger.select_fiscal_year')
+  }
+  return t('accounting.ledger.select_account')
+})
+
 async function load() {
-  if (!accountNumber.value) return
+  if (!accountNumber.value || !fiscalYearId.value) return
   loading.value = true
   try {
     ledger.value = await getLedgerApi(accountNumber.value, {
       from_date: fromDate.value || undefined,
       to_date: toDate.value || undefined,
+      fiscal_year_id: fiscalYearId.value,
     })
   } finally {
     loading.value = false
@@ -97,10 +131,16 @@ async function load() {
 }
 
 onMounted(async () => {
-  const accts = await listAccountsApi(undefined, false)
+  const [accts, fiscalYearList, currentFiscalYear] = await Promise.all([
+    listAccountsApi(undefined, false),
+    listFiscalYearsApi(),
+    getCurrentFiscalYearApi(),
+  ])
   accounts.value = accts.map((a) => ({
     number: a.number,
     displayLabel: `${a.number} — ${a.label}`,
   }))
+  fiscalYears.value = fiscalYearList
+  fiscalYearId.value = currentFiscalYear?.id ?? fiscalYearList[0]?.id
 })
 </script>

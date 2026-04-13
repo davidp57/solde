@@ -75,7 +75,7 @@ async def get_ledger(
     _: _ReadAccess,
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
-    fiscal_year_id: int | None = Query(default=None),
+    fiscal_year_id: int = Query(...),
 ) -> LedgerRead:
     return await accounting_entry_service.get_ledger(
         db,

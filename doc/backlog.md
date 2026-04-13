@@ -331,14 +331,16 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-025 — Corriger le report à nouveau et les soldes du grand livre multi-exercices
 
-- **Dates** : `created=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13`
 - **Pourquoi** : le grand livre du compte `512102` cumule au moins deux écritures d'ouverture d'exercice (`2024` et `2025`), ce qui fausse le solde affiché ; le problème est probablement plus large et remet en cause la justesse comptable des vues par compte.
-- **Résultat attendu** : rétablir un calcul juste des soldes et des écritures d'ouverture dans le grand livre, en respectant la logique comptable attendue d'un exercice à l'autre.
+- **Résultat attendu** : rétablir un calcul juste des soldes et des écritures d'ouverture dans le grand livre, en respectant une lecture strictement bornée à l'exercice choisi, sans option `tous les exercices` sur cette vue.
 - **Questions à trancher** :
-	- quelle écriture d'ouverture doit être visible selon l'exercice affiché dans le grand livre ;
-	- faut-il filtrer différemment les écritures d'ouverture, recalculer le report à nouveau ou corriger la stratégie de reprise historique ;
-	- le problème touche-t-il aussi le journal, la balance et d'autres comptes au-delà de `512102`.
-- **Critère d'acceptation** : pour un exercice donné, le grand livre, la balance et les autres vues comptables affichent un solde cohérent avec les reports à nouveau attendus, sans cumul indu entre ouvertures d'exercices successifs.
+- **Décision produit actée** : le grand livre doit toujours afficher uniquement les transactions de l'exercice choisi ; il ne doit pas proposer `tous les exercices`, car cette agrégation rend ambigu le solde dès qu'un report à nouveau existe.
+- **Questions à trancher** :
+	- comment calculer le `solde d'ouverture` quand l'utilisateur borne en plus la vue avec une date de début à l'intérieur de l'exercice ;
+	- le problème touche-t-il aussi le journal, la balance et d'autres comptes au-delà de `512102` ;
+	- faut-il exposer séparément, plus tard, une vue d'historique brute multi-exercices distincte du grand livre.
+- **Critère d'acceptation** : pour un exercice donné, le grand livre n'affiche que les écritures rattachées à cet exercice, y compris son report à nouveau éventuel, et présente un solde cohérent sans cumul indu entre ouvertures d'exercices successifs.
 - **Point d'attention** : c'est un sujet comptable critique à traiter avant de faire confiance aux états ; il faudra le recouper avec `BL-010` et les choix de clôture des exercices historiques.
 
 ## Prêt
@@ -358,6 +360,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-007** — `created=2026-04-12`, `completed=2026-04-13` — La convention est arrêtée pour le mode de travail actuel : `doc/backlog.md` reste la source de vérité, sans synchronisation systématique avec des issues GitHub à ce stade.
 - **BL-009** — `created=2026-04-12`, `completed=2026-04-12` — Le plan comptable par défaut a été enrichi à partir des comptes réellement rencontrés dans les imports historiques.
 - **BL-010** — `created=2026-04-12`, `completed=2026-04-12` — Une stratégie sûre de clôture administrative des exercices historiques importés a été définie et livrée.
+- **BL-025** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13` — Le grand livre est maintenant borné à l'exercice choisi, sans option multi-exercices, avec un solde d'ouverture cohérent quand la période démarre en cours d'exercice.
 - **BL-011** — `created=2026-04-12`, `completed=2026-04-12` — L'exercice courant global et son sélecteur partagé ont été livrés sur les écrans comptables concernés.
 - **BL-012** — `created=2026-04-12`, `completed=2026-04-12` — La liste des paiements affiche la référence métier et permet l'édition directe.
 - **BL-013** — `created=2026-04-12`, `completed=2026-04-12` — Le journal de caisse propose désormais référence, détail et édition directe.
