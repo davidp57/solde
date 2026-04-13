@@ -109,9 +109,9 @@ Variables optionnelles (email) :
 |---|---|
 | `SMTP_HOST` | Serveur SMTP pour l'envoi des factures |
 | `SMTP_PORT` | Port SMTP (défaut : 587) |
-| `SMTP_USERNAME` | Identifiant SMTP |
+| `SMTP_USER` | Identifiant SMTP |
 | `SMTP_PASSWORD` | Mot de passe SMTP |
-| `SMTP_FROM` | Adresse expéditeur |
+| `SMTP_FROM_EMAIL` | Adresse expéditeur |
 
 ---
 
