@@ -5,9 +5,7 @@
 - **Code and comments**: English only
 - **Communication with the user**: French only
 - **UI labels, messages, and user-facing text**: French (i18n-ready — use translation keys, never hardcode strings directly in components)
-- **Documentation**:
-  - `README.md`, user documentation, release notes → primarily **French**
-  - Architecture, developer docs, changelog, roadmap, inline code comments → primarily **English**
+- **Documentation**: **French only** — all docs (README, CHANGELOG, architecture, roadmap, plan, user docs, release notes, dev docs) are written in French. Exception: inline code comments stay in English.
 
 ---
 
@@ -99,18 +97,28 @@ All checks must be green before opening a PR. Never bypass with `--no-verify` un
 
 Keep the following documents up to date with every significant change:
 
-| Document | Language | Location | Update trigger |
+| Document | Langue | Emplacement | Déclencheur |
 |---|---|---|---|
-| `README.md` | FR (+ EN summary) | root | Every release |
-| User documentation | FR | `doc/user/` | Feature added or changed |
-| Developer documentation | EN | `doc/dev/` | Architecture or API changed |
-| Architecture doc | EN | `doc/architecture.md` | Structural decisions |
-| `CHANGELOG.md` | EN | root | Every PR merged to `develop` |
-| Release notes | FR | `doc/releases/` | Every release |
-| `doc/roadmap.md` | EN | `doc/` | After each phase completion |
-| `doc/plan.md` | EN | `doc/` | Architecture decisions updated |
+| `README.md` | **FR** | root | Chaque release |
+| Documentation utilisateur | **FR** | `doc/user/` | Fonctionnalité ajoutée ou modifiée |
+| Documentation développeur | **FR** | `doc/dev/` | Architecture ou API modifiée |
+| `doc/architecture.md` | **FR** | `doc/` | Décisions d'architecture |
+| `CHANGELOG.md` | **FR** | root | Chaque PR mergée vers `develop` |
+| Notes de release | **FR** | `doc/releases/` | Chaque release |
+| `doc/roadmap.md` | **FR** | `doc/` | Après chaque fin de phase |
+| `doc/plan.md` | **FR** | `doc/` | Décisions d'architecture mises à jour |
 
-`CHANGELOG.md` follows **Keep a Changelog** format (Unreleased → version sections).
+`CHANGELOG.md` suit le format **Keep a Changelog** (sections Unreleased → version).
+
+---
+
+## Backlog management
+
+`doc/backlog.md` is the shared project backlog and the source of truth for tracked follow-up items outside the initial roadmap.
+
+- When the user mentions a point to track (bug, improvement, UX feedback, documentation need, technical debt, open question, process item), record it in `doc/backlog.md` with a short and concrete description.
+- Track each item with an explicit status and keep that status updated as the work progresses (`Bac d'entrée`, `Prêt`, `En cours`, `Fait`).
+- Prefer updating `doc/backlog.md` rather than leaving actionable follow-up items only in the chat conversation.
 
 ---
 

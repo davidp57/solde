@@ -1,0 +1,116 @@
+import apiClient from './client'
+
+export type CashMovementType = 'in' | 'out'
+
+export interface CashEntry {
+  id: number
+  date: string
+  amount: string
+  type: CashMovementType
+  contact_id: number | null
+  payment_id: number | null
+  reference: string | null
+  description: string
+  balance_after: string
+}
+
+export interface CashEntryCreate {
+  date: string
+  amount: string
+  type: CashMovementType
+  contact_id?: number | null
+  payment_id?: number | null
+  reference?: string | null
+  description?: string
+}
+
+export interface CashEntryUpdate {
+  date?: string
+  amount?: string
+  type?: CashMovementType
+  contact_id?: number | null
+  payment_id?: number | null
+  reference?: string | null
+  description?: string | null
+}
+
+export interface CashCount {
+  id: number
+  date: string
+  count_100: number
+  count_50: number
+  count_20: number
+  count_10: number
+  count_5: number
+  count_2: number
+  count_1: number
+  count_cents_50: number
+  count_cents_20: number
+  count_cents_10: number
+  count_cents_5: number
+  count_cents_2: number
+  count_cents_1: number
+  total_counted: string
+  balance_expected: string
+  difference: string
+  notes: string | null
+}
+
+export interface CashCountCreate {
+  date: string
+  count_100?: number
+  count_50?: number
+  count_20?: number
+  count_10?: number
+  count_5?: number
+  count_2?: number
+  count_1?: number
+  count_cents_50?: number
+  count_cents_20?: number
+  count_cents_10?: number
+  count_cents_5?: number
+  count_cents_2?: number
+  count_cents_1?: number
+  notes?: string | null
+}
+
+export async function getCashBalance(): Promise<{ balance: string }> {
+  const response = await apiClient.get<{ balance: string }>('/api/cash/balance')
+  return response.data
+}
+
+export async function listCashEntries(params?: {
+  skip?: number
+  limit?: number
+}): Promise<CashEntry[]> {
+  const response = await apiClient.get<CashEntry[]>('/api/cash/entries', { params })
+  return response.data
+}
+
+export async function addCashEntry(payload: CashEntryCreate): Promise<CashEntry> {
+  const response = await apiClient.post<CashEntry>('/api/cash/entries', payload)
+  return response.data
+}
+
+export async function getCashEntry(id: number): Promise<CashEntry> {
+  const response = await apiClient.get<CashEntry>(`/api/cash/entries/${id}`)
+  return response.data
+}
+
+export async function updateCashEntry(id: number, payload: CashEntryUpdate): Promise<CashEntry> {
+  const response = await apiClient.put<CashEntry>(`/api/cash/entries/${id}`, payload)
+  return response.data
+}
+
+export async function listCashCounts(params?: {
+  skip?: number
+  limit?: number
+}): Promise<CashCount[]> {
+  const response = await apiClient.get<CashCount[]>('/api/cash/counts', { params })
+  return response.data
+}
+
+export async function addCashCount(payload: CashCountCreate): Promise<CashCount> {
+  const response = await apiClient.post<CashCount>('/api/cash/counts', payload)
+  return response.data
+}
