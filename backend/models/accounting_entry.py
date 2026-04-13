@@ -21,8 +21,19 @@ class EntrySourceType(StrEnum):
     PAYMENT = "payment"
     DEPOSIT = "deposit"
     SALARY = "salary"
+    GESTION = "gestion"
     MANUAL = "manual"
     CLOTURE = "cloture"
+
+
+def build_entry_group_key(
+    source_type: EntrySourceType | str | None,
+    source_id: int | None,
+) -> str | None:
+    if source_type is None or source_id is None:
+        return None
+    source_value = source_type.value if isinstance(source_type, EntrySourceType) else source_type
+    return f"{source_value}:{source_id}"
 
 
 class AccountingEntry(Base):
@@ -45,6 +56,7 @@ class AccountingEntry(Base):
         String(20), nullable=True, index=True
     )
     source_id: Mapped[int | None] = mapped_column(nullable=True, index=True)
+    group_key: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )

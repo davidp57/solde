@@ -33,6 +33,10 @@ describe('useAuthStore', () => {
     mockGetMeApi.mockReset()
   })
 
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
   it('has correct initial state when localStorage is empty', () => {
     const store = useAuthStore()
     expect(store.accessToken).toBeNull()
@@ -151,5 +155,20 @@ describe('useAuthStore', () => {
 
     expect(result).toBe(false)
     expect(store.accessToken).toBeNull()
+  })
+
+  it('maybeAutoLoginForDev logs in with configured credentials when enabled', async () => {
+    vi.stubEnv('VITE_DEV_AUTO_LOGIN', 'true')
+    vi.stubEnv('VITE_DEV_AUTO_LOGIN_USERNAME', 'admin')
+    vi.stubEnv('VITE_DEV_AUTO_LOGIN_PASSWORD', 'changeme')
+    mockLoginApi.mockResolvedValueOnce(mockTokens)
+    mockGetMeApi.mockResolvedValueOnce(mockUser)
+
+    const store = useAuthStore()
+    const result = await store.maybeAutoLoginForDev()
+
+    expect(result).toBe(true)
+    expect(mockLoginApi).toHaveBeenCalledWith({ username: 'admin', password: 'changeme' })
+    expect(store.user).toEqual(mockUser)
   })
 })

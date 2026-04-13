@@ -27,6 +27,23 @@ class CashEntryCreate(BaseModel):
         return v
 
 
+class CashEntryUpdate(BaseModel):
+    date: _Date | None = None
+    amount: _Decimal | None = None
+    type: CashMovementType | None = None
+    contact_id: int | None = None
+    payment_id: int | None = None
+    reference: str | None = None
+    description: str | None = None
+
+    @field_validator("amount")
+    @classmethod
+    def amount_positive(cls, v: _Decimal | None) -> _Decimal | None:
+        if v is not None and v <= 0:
+            raise ValueError("amount must be positive")
+        return v
+
+
 class CashEntryRead(BaseModel):
     id: int
     date: _Date

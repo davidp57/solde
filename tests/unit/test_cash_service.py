@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.cash import CashMovementType
-from backend.schemas.cash import CashCountCreate, CashEntryCreate
+from backend.schemas.cash import CashCountCreate, CashEntryCreate, CashEntryUpdate
 from backend.services import cash_service
 
 # ---------------------------------------------------------------------------
@@ -112,6 +112,43 @@ async def test_list_cash_entries_pagination(db_session: AsyncSession) -> None:
 
     page = await cash_service.list_cash_entries(db_session, skip=2, limit=2)
     assert len(page) == 2
+
+
+@pytest.mark.asyncio
+async def test_update_cash_entry_recomputes_running_balances(db_session: AsyncSession) -> None:
+    first_entry = await cash_service.add_cash_entry(
+        db_session,
+        CashEntryCreate(
+            date=date(2024, 3, 1),
+            amount=Decimal("100.00"),
+            type=CashMovementType.IN,
+            reference="REF-A",
+            description="Recette",
+        ),
+    )
+    await cash_service.add_cash_entry(
+        db_session,
+        CashEntryCreate(
+            date=date(2024, 3, 2),
+            amount=Decimal("20.00"),
+            type=CashMovementType.OUT,
+            reference="REF-B",
+            description="Depense",
+        ),
+    )
+
+    updated_first_entry = await cash_service.update_cash_entry(
+        db_session,
+        first_entry,
+        CashEntryUpdate(amount=Decimal("150.00"), reference="REF-A2"),
+    )
+
+    entries = await cash_service.list_cash_entries(db_session, skip=0, limit=10)
+
+    assert updated_first_entry.amount == Decimal("150.00")
+    assert updated_first_entry.reference == "REF-A2"
+    assert entries[1].balance_after == Decimal("150.00")
+    assert entries[0].balance_after == Decimal("130.00")
 
 
 # ---------------------------------------------------------------------------

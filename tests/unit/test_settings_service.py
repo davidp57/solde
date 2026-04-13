@@ -1,12 +1,29 @@
 """Unit tests for the settings service."""
 
+from datetime import date
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.models.accounting_account import AccountingAccount, AccountType
+from backend.models.accounting_rule import (
+    AccountingRule,
+    AccountingRuleEntry,
+    EntrySide,
+    TriggerType,
+)
+from backend.models.app_settings import AppSettings
 from backend.models.contact import Contact, ContactType
+from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.import_log import ImportLog, ImportLogStatus, ImportLogType
+from backend.models.user import User, UserRole
 from backend.schemas.settings import AppSettingsUpdate
-from backend.services.settings import get_settings, reset_data, update_settings
+from backend.services.settings import (
+    bootstrap_accounting_setup,
+    get_settings,
+    reset_data,
+    update_settings,
+)
 
 
 class TestGetSettings:
@@ -84,11 +101,54 @@ class TestUpdateSettings:
 
 
 class TestResetData:
-    async def test_reset_data_deletes_import_logs_and_preserves_settings(
+    async def test_reset_data_deletes_everything_except_users(
         self, db_session: AsyncSession
     ) -> None:
         settings = await get_settings(db_session)
-        settings.association_name = "Asso conservée"
+        settings.association_name = "Asso supprimée"
+
+        db_session.add(
+            User(
+                username="admin",
+                email="admin@test.com",
+                password_hash="hashed-password",
+                role=UserRole.ADMIN,
+                is_active=True,
+            )
+        )
+        db_session.add(
+            AccountingAccount(
+                number="706110",
+                label="Cours de soutien",
+                type=AccountType.PRODUIT,
+                is_default=False,
+                is_active=True,
+            )
+        )
+        rule = AccountingRule(
+            name="Rule",
+            trigger_type=TriggerType.INVOICE_CLIENT_CS,
+            is_active=True,
+            priority=10,
+        )
+        db_session.add(rule)
+        await db_session.flush()
+        db_session.add(
+            AccountingRuleEntry(
+                rule_id=rule.id,
+                account_number="706110",
+                side=EntrySide.CREDIT,
+                description_template="{{label}}",
+            )
+        )
+        db_session.add(
+            FiscalYear(
+                name="2025",
+                start_date=date(2025, 1, 1),
+                end_date=date(2025, 12, 31),
+                status=FiscalYearStatus.OPEN,
+            )
+        )
 
         db_session.add(Contact(nom="Dupont", type=ContactType.CLIENT))
         db_session.add(
@@ -106,8 +166,58 @@ class TestResetData:
 
         assert deleted["contacts"] == 1
         assert deleted["import_logs"] == 1
+        assert deleted["app_settings"] == 1
+        assert deleted["accounting_accounts"] == 1
+        assert deleted["accounting_rules"] == 1
+        assert deleted["accounting_rule_entries"] == 1
+        assert deleted["fiscal_years"] == 1
         assert (await db_session.execute(select(Contact))).scalars().all() == []
         assert (await db_session.execute(select(ImportLog))).scalars().all() == []
+        assert (await db_session.execute(select(AppSettings))).scalars().all() == []
+        assert (await db_session.execute(select(AccountingAccount))).scalars().all() == []
+        assert (await db_session.execute(select(AccountingRule))).scalars().all() == []
+        assert (await db_session.execute(select(AccountingRuleEntry))).scalars().all() == []
+        assert (await db_session.execute(select(FiscalYear))).scalars().all() == []
+        users = (await db_session.execute(select(User))).scalars().all()
+        assert len(users) == 1
+        assert users[0].username == "admin"
 
         reloaded_settings = await get_settings(db_session)
-        assert reloaded_settings.association_name == "Asso conservée"
+        assert reloaded_settings.association_name == "Mon Association"
+
+
+class TestBootstrapAccountingSetup:
+    async def test_bootstrap_accounting_setup_seeds_reference_data(
+        self, db_session: AsyncSession
+    ) -> None:
+        summary = await bootstrap_accounting_setup(db_session)
+
+        accounts = (await db_session.execute(select(AccountingAccount))).scalars().all()
+        rules = (await db_session.execute(select(AccountingRule))).scalars().all()
+        fiscal_years = (
+            (await db_session.execute(select(FiscalYear).order_by(FiscalYear.start_date.asc())))
+            .scalars()
+            .all()
+        )
+
+        assert summary["accounts_inserted"] > 0
+        assert summary["rules_inserted"] > 0
+        assert summary["fiscal_years_created"] == 3
+        assert len(accounts) >= 1
+        assert len(rules) >= 1
+        assert [(fy.name, fy.start_date, fy.end_date) for fy in fiscal_years] == [
+            ("2023", date(2023, 8, 1), date(2024, 7, 31)),
+            ("2024", date(2024, 8, 1), date(2025, 7, 31)),
+            ("2025", date(2025, 8, 1), date(2026, 7, 31)),
+        ]
+
+    async def test_bootstrap_accounting_setup_is_idempotent(self, db_session: AsyncSession) -> None:
+        await bootstrap_accounting_setup(db_session)
+
+        summary = await bootstrap_accounting_setup(db_session)
+
+        assert summary == {
+            "accounts_inserted": 0,
+            "rules_inserted": 0,
+            "fiscal_years_created": 0,
+        }

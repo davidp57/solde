@@ -60,6 +60,21 @@ class NormalizedPaymentRow:
 
 
 @dataclass(slots=True)
+class NormalizedSalaryRow:
+    """Validated salary row ready for preview or persistence."""
+
+    source_row_number: int
+    month: str
+    employee_name: str
+    hours: Decimal
+    gross: Decimal
+    employee_charges: Decimal
+    employer_charges: Decimal
+    tax: Decimal
+    net_pay: Decimal
+
+
+@dataclass(slots=True)
 class NormalizedContactRow:
     """Validated contact row ready for preview or persistence."""
 
@@ -77,6 +92,8 @@ class NormalizedCashRow:
     entry_date: date
     amount: Decimal
     movement_type: str
+    reference: str | None
+    contact_name: str | None
     description: str
 
 
@@ -87,6 +104,7 @@ class NormalizedBankRow:
     source_row_number: int
     entry_date: date
     amount: Decimal
+    reference: str | None
     description: str
     balance_after: Decimal
 
@@ -101,3 +119,4 @@ class NormalizedEntryRow:
     label: str
     debit: Decimal
     credit: Decimal
+    change_marker: str | None = None

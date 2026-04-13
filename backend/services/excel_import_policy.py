@@ -17,17 +17,18 @@ BANK_BALANCE_DESCRIPTION_MESSAGE = "ligne descriptive de solde ignoree"
 ALREADY_IMPORTED_MESSAGE_PREFIX = "Fichier deja importe"
 BANK_INVALID_AMOUNT_MESSAGE = "montant manquant ou nul"
 BANK_INVALID_DATE_MESSAGE = "date manquante ou invalide"
+BANK_SUSPICIOUS_DATE_MESSAGE = "date incoherente avec les lignes voisines"
 BANK_REQUIRED_DATE_OR_AMOUNT_COLUMNS = ("date", "débit/crédit ou montant")
 CASH_INITIAL_BALANCE_MESSAGE = "ligne de solde initial ignoree"
 CASH_PENDING_DEPOSIT_MESSAGE = "prevision de remise d'especes sans date, ligne ignoree"
 CASH_INVALID_DATE_MESSAGE = "date manquante ou invalide"
+CASH_SUSPICIOUS_DATE_MESSAGE = "date incoherente avec les lignes voisines"
 CASH_INVALID_MOVEMENT_MESSAGE = "mouvement ou montant manquant/invalide"
 CASH_REQUIRED_DATE_OR_AMOUNT_COLUMNS = ("date", "entrée/sortie ou montant")
 CONTACT_REQUIRED_NAME_MESSAGE = "nom"
 COMPTABILITE_ENTRY_HELPER_SHEET_MESSAGE = "Feuille d'aide a la saisie ignoree par la preview"
 COMPTABILITE_COEXISTENCE_BLOCKED_MESSAGE_PREFIX = (
-    "Import comptabilite bloque : des ecritures auto-generees "
-    "issues de la gestion existent deja en base"
+    "Import comptabilite : des ecritures auto-generees issues de la gestion existent deja en base"
 )
 COMPTABILITE_REPORT_SHEET_MESSAGE = "Feuille de reporting ignoree par la preview"
 COMPTABILITE_UNKNOWN_STRUCTURE_MESSAGE = (
@@ -38,10 +39,13 @@ DUPLICATE_INVOICE_MESSAGE = "facture dupliquee dans le fichier, ligne ignoree"
 ENTRY_INVALID_CREDIT_MESSAGE = "montant credit invalide"
 ENTRY_INVALID_DATE_MESSAGE = "date invalide"
 ENTRY_INVALID_DEBIT_MESSAGE = "montant debit invalide"
+ENTRY_EXISTING_MESSAGE = "ecriture deja existante, ligne ignoree"
 ENTRY_MISSING_ACCOUNT_MESSAGE = "compte manquant"
+ENTRY_SUSPICIOUS_DATE_MESSAGE = "date incoherente avec les lignes voisines"
 ENTRY_REQUIRED_ACCOUNT_OR_AMOUNT_COLUMNS = ("compte", "débit/crédit")
 EXISTING_CONTACT_MESSAGE = "contact deja existant, ligne ignoree"
 EXISTING_INVOICE_MESSAGE = "facture deja existante, ligne ignoree"
+EXISTING_SALARY_MESSAGE = "salaire deja existant, ligne ignoree"
 GESTION_AUXILIARY_SHEET_MESSAGE = "Feuille auxiliaire ignoree par la preview"
 GESTION_UNKNOWN_STRUCTURE_MESSAGE = "Structure non reconnue, feuille ignoree par la preview"
 INVOICE_AMBIGUOUS_CONTACT_MESSAGE = "client ambigu : plusieurs contacts correspondent"
@@ -56,6 +60,7 @@ PAYMENT_AMBIGUOUS_CONTACT_MESSAGE = (
 )
 PAYMENT_AMBIGUOUS_REFERENCE_MESSAGE = "reference facture ambigue : plusieurs factures correspondent"
 PAYMENT_INVALID_AMOUNT_MESSAGE = "montant manquant ou invalide"
+PAYMENT_SUSPICIOUS_DATE_MESSAGE = "date incoherente avec les lignes voisines"
 PAYMENT_MATCH_INVALID_MESSAGE = "paiement rapproche sans identifiant exploitable"
 PAYMENT_MISSING_MATCH_MESSAGE = (
     "paiement impossible a rapprocher a une facture existante ou importee"
@@ -63,6 +68,9 @@ PAYMENT_MISSING_MATCH_MESSAGE = (
 PAYMENT_UNMATCHABLE_MESSAGE = "paiement non rapprochable"
 PAYMENT_REQUIRED_COLUMNS = ("montant", "référence facture ou contact")
 PAYMENT_REQUIRED_REFERENCE_OR_CONTACT_MESSAGE = "reference facture ou contact manquant"
+SALARY_INVALID_AMOUNT_MESSAGE = "montants salariaux manquants ou invalides"
+SALARY_INVALID_MONTH_MESSAGE = "mois salaire invalide"
+SALARY_REQUIRED_EMPLOYEE_MESSAGE = "salarie manquant"
 IMPORT_ERROR_MESSAGE_PREFIX = "Erreur import "
 UNMAPPED_SHEET_MESSAGE = "Feuille non reconnue et ignoree"
 ZERO_JOURNAL_ENTRY_MESSAGE = "ecriture a debit/credit nuls ignoree"
@@ -78,8 +86,10 @@ _UNAMBIGUOUS_ISSUE_CATEGORY_BY_MESSAGE = {
     COMPTABILITE_UNKNOWN_STRUCTURE_MESSAGE: "comptabilite-unknown-structure",
     DUPLICATE_CONTACT_MESSAGE: "duplicate-contact",
     DUPLICATE_INVOICE_MESSAGE: "duplicate-invoice",
+    ENTRY_EXISTING_MESSAGE: "entry-existing",
     EXISTING_CONTACT_MESSAGE: "existing-contact",
     EXISTING_INVOICE_MESSAGE: "existing-invoice",
+    EXISTING_SALARY_MESSAGE: "existing-salary",
     GESTION_AUXILIARY_SHEET_MESSAGE: "gestion-auxiliary-sheet",
     GESTION_UNKNOWN_STRUCTURE_MESSAGE: "gestion-unknown-structure",
     INVOICE_AMBIGUOUS_CONTACT_MESSAGE: "invoice-ambiguous-contact",
@@ -97,10 +107,12 @@ _ISSUE_CATEGORY_BY_KIND_AND_MESSAGE = {
     "bank": {
         BANK_INVALID_AMOUNT_MESSAGE: "bank-invalid-amount",
         BANK_INVALID_DATE_MESSAGE: "bank-invalid-date",
+        BANK_SUSPICIOUS_DATE_MESSAGE: "bank-suspicious-date",
     },
     "cash": {
         CASH_INVALID_DATE_MESSAGE: "cash-invalid-date",
         CASH_INVALID_MOVEMENT_MESSAGE: "cash-invalid-movement",
+        CASH_SUSPICIOUS_DATE_MESSAGE: "cash-suspicious-date",
     },
     "contacts": {
         f"{CONTACT_REQUIRED_NAME_MESSAGE} manquant": "contact-missing-name",
@@ -110,6 +122,7 @@ _ISSUE_CATEGORY_BY_KIND_AND_MESSAGE = {
         ENTRY_INVALID_DATE_MESSAGE: "entry-invalid-date",
         ENTRY_INVALID_DEBIT_MESSAGE: "entry-invalid-debit",
         ENTRY_MISSING_ACCOUNT_MESSAGE: "entry-missing-account",
+        ENTRY_SUSPICIOUS_DATE_MESSAGE: "entry-suspicious-date",
     },
     "invoices": {
         INVOICE_AMBIGUOUS_CONTACT_MESSAGE: "invoice-ambiguous-contact",
@@ -122,7 +135,14 @@ _ISSUE_CATEGORY_BY_KIND_AND_MESSAGE = {
         PAYMENT_MATCH_INVALID_MESSAGE: "payment-invalid-match",
         PAYMENT_MISSING_MATCH_MESSAGE: "payment-unmatched",
         PAYMENT_REQUIRED_REFERENCE_OR_CONTACT_MESSAGE: "payment-missing-reference-or-contact",
+        PAYMENT_SUSPICIOUS_DATE_MESSAGE: "payment-suspicious-date",
         PAYMENT_UNMATCHABLE_MESSAGE: "payment-unmatched",
+    },
+    "salaries": {
+        EXISTING_SALARY_MESSAGE: "salary-existing",
+        SALARY_INVALID_AMOUNT_MESSAGE: "salary-invalid-amount",
+        SALARY_INVALID_MONTH_MESSAGE: "salary-invalid-month",
+        SALARY_REQUIRED_EMPLOYEE_MESSAGE: "salary-missing-employee",
     },
 }
 
@@ -133,6 +153,7 @@ _ISSUE_KIND_PREFIXES = {
     "entries": "entry",
     "invoices": "invoice",
     "payments": "payment",
+    "salaries": "salary",
 }
 
 _GESTION_PREVIEW_HEADER_MARKERS = {
@@ -141,6 +162,7 @@ _GESTION_PREVIEW_HEADER_MARKERS = {
     "bank": (("date", "montant"), ("date", "debit")),
     "cash": (("date", "entree"), ("date", "montant")),
     "invoices": (("montant", "date"), ("montant", "client")),
+    "salaries": (("heures", "brut", "net"),),
 }
 
 
@@ -379,7 +401,7 @@ def issue_category_for_message(
     if message.startswith(ALREADY_IMPORTED_MESSAGE_PREFIX):
         return "already-imported"
     if message.startswith(COMPTABILITE_COEXISTENCE_BLOCKED_MESSAGE_PREFIX):
-        return "comptabilite-coexistence-blocked"
+        return "comptabilite-coexistence"
     if message.startswith(IMPORT_ERROR_MESSAGE_PREFIX):
         return "import-error"
     if kind is not None and message.startswith(f"{MISSING_REQUIRED_COLUMNS_MESSAGE_PREFIX}:"):

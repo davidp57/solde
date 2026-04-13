@@ -50,6 +50,7 @@
         striped-rows
         paginator
         :rows="20"
+        :rows-per-page-options="[20, 50, 100, 500]"
         data-key="id"
         size="small"
         row-hover
@@ -93,7 +94,18 @@
     </AppPanel>
 
     <AppPanel :title="t('salary.summary_title')" dense>
-      <DataTable :value="filteredSummary" :loading="summaryLoading" class="app-data-table" striped-rows data-key="month" size="small" row-hover>
+      <DataTable
+        :value="filteredSummary"
+        :loading="summaryLoading"
+        class="app-data-table"
+        striped-rows
+        paginator
+        :rows="20"
+        :rows-per-page-options="[20, 50, 100, 500]"
+        data-key="month"
+        size="small"
+        row-hover
+      >
         <Column field="month" :header="t('salary.month')" sortable />
         <Column field="count" header="#" />
         <Column :header="t('salary.gross')" class="app-money">
@@ -199,7 +211,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -228,10 +240,12 @@ import {
 } from '../api/accounting'
 import apiClient from '../api/client'
 import { useTableFilter, applyFilter } from '../composables/useTableFilter'
+import { useFiscalYearStore } from '../stores/fiscalYear'
 
 const { t } = useI18n()
 const confirm = useConfirm()
 const toast = useToast()
+const fiscalYearStore = useFiscalYearStore()
 
 interface EmployeeOption { label: string; value: number }
 
@@ -239,12 +253,23 @@ const salaries = ref<SalaryRead[]>([])
 const summary = ref<SalarySummaryRow[]>([])
 const { filterText, filtered: filteredSalaries } = useTableFilter(salaries)
 const filteredSummary = computed(() => applyFilter(summary.value, filterText.value))
+function toSalaryNumber(value: number | string | null | undefined): number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0
+  }
+  if (typeof value === 'string') {
+    const parsedValue = Number.parseFloat(value)
+    return Number.isFinite(parsedValue) ? parsedValue : 0
+  }
+  return 0
+}
+
 const salaryMetrics = computed(() =>
   filteredSalaries.value.reduce(
     (accumulator, salary) => {
-      accumulator.gross += salary.gross
-      accumulator.netPay += salary.net_pay
-      accumulator.totalCost += salary.total_cost
+      accumulator.gross += toSalaryNumber(salary.gross)
+      accumulator.netPay += toSalaryNumber(salary.net_pay)
+      accumulator.totalCost += toSalaryNumber(salary.total_cost)
       return accumulator
     },
     { gross: 0, netPay: 0, totalCost: 0 },
@@ -255,6 +280,10 @@ const loading = ref(false)
 const summaryLoading = ref(false)
 const filterEmployee = ref<number | undefined>(undefined)
 const filterMonth = ref('')
+const salaryMonthRange = computed(() => ({
+  from_month: fiscalYearStore.selectedFiscalYear?.start_date.slice(0, 7),
+  to_month: fiscalYearStore.selectedFiscalYear?.end_date.slice(0, 7),
+}))
 
 const dialogVisible = ref(false)
 const editing = ref<SalaryRead | null>(null)
@@ -289,8 +318,10 @@ function blankForm(): SalaryForm {
 
 const form = ref<SalaryForm>(blankForm())
 
-function formatAmount(v: number): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v)
+function formatAmount(v: number | string | null | undefined): string {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
+    toSalaryNumber(v),
+  )
 }
 
 async function loadEmployees() {
@@ -309,6 +340,8 @@ async function loadSalaries() {
     salaries.value = await listSalariesApi({
       employee_id: filterEmployee.value,
       month: filterMonth.value || undefined,
+      from_month: salaryMonthRange.value.from_month,
+      to_month: salaryMonthRange.value.to_month,
     })
   } finally {
     loading.value = false
@@ -318,7 +351,10 @@ async function loadSalaries() {
 async function loadSummary() {
   summaryLoading.value = true
   try {
-    summary.value = await getSalarySummaryApi()
+    summary.value = await getSalarySummaryApi({
+      from_month: salaryMonthRange.value.from_month,
+      to_month: salaryMonthRange.value.to_month,
+    })
   } finally {
     summaryLoading.value = false
   }
@@ -335,12 +371,12 @@ function openEditDialog(salary: SalaryRead) {
   form.value = {
     employee_id: salary.employee_id,
     month: salary.month,
-    hours: salary.hours,
-    gross: salary.gross,
-    employee_charges: salary.employee_charges,
-    employer_charges: salary.employer_charges,
-    tax: salary.tax,
-    net_pay: salary.net_pay,
+    hours: toSalaryNumber(salary.hours),
+    gross: toSalaryNumber(salary.gross),
+    employee_charges: toSalaryNumber(salary.employee_charges),
+    employer_charges: toSalaryNumber(salary.employer_charges),
+    tax: toSalaryNumber(salary.tax),
+    net_pay: toSalaryNumber(salary.net_pay),
     notes: salary.notes ?? '',
   }
   dialogVisible.value = true
@@ -392,7 +428,16 @@ function confirmDelete(salary: SalaryRead) {
   })
 }
 
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId) return
+    void Promise.all([loadSalaries(), loadSummary()])
+  },
+)
+
 onMounted(async () => {
+  await fiscalYearStore.initialize()
   await Promise.all([loadEmployees(), loadSalaries(), loadSummary()])
 })
 </script>

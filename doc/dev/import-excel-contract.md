@@ -103,17 +103,18 @@ Ambigu :
 
 Accepté :
 - feuille `Journal` reconnue avec compte et débit/crédit exploitables ;
-- import autorisé seulement si aucune écriture auto-générée issue de la gestion n'existe déjà en base.
+- coexistence autorisée avec des écritures déjà générées depuis la gestion ;
+- rattachement automatique à l'exercice couvrant la date de l'écriture quand cet exercice existe.
 
 Ignoré :
 - feuilles de reporting (`Grand Livre`, `Balance`, etc.) ;
-- `Journal (saisie)`.
+- `Journal (saisie)` ;
+- ligne `Journal` dont le débit et le crédit sont tous deux nuls ;
+- doublon exact d'une écriture déjà présente en base sur la signature `(date, compte, libellé normalisé, débit, crédit)`.
 
 Bloquant :
 - compte manquant ;
 - montants non interprétables ;
-- débit et crédit simultanément nuls ;
-- import comptable alors que des écritures auto-générées issues de la gestion existent déjà en base ;
 - réimport exact d'un fichier déjà importé avec succès.
 
 Ambigu :
@@ -131,8 +132,8 @@ Ignoré :
 Bloquant :
 - toute erreur détectée sur une feuille reconnue empêche l'import complet ;
 - tout réimport exact d'un fichier déjà importé avec succès est refusé ;
-- toute tentative d'import comptable en présence d'écritures générées par la gestion est refusée ;
-- la coexistence avec des écritures comptables `MANUAL` déjà présentes reste autorisée : seules les écritures auto-générées bloquent l'import comptable global.
+- les exercices comptables, le plan comptable et les règles comptables ne sont jamais créés automatiquement par l'import ;
+- la coexistence avec des écritures déjà présentes reste autorisée : en comptabilité, seuls les doublons exacts sont ignorés ligne à ligne.
 
 Ambigu :
 - tout rapprochement métier donnant plusieurs candidats doit être bloqué, jamais résolu arbitrairement.

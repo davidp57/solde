@@ -106,6 +106,7 @@ class ImportResult:
         self.contacts_created: int = 0
         self.invoices_created: int = 0
         self.payments_created: int = 0
+        self.salaries_created: int = 0
         self.entries_created: int = 0
         self.cash_created: int = 0
         self.bank_created: int = 0
@@ -129,6 +130,7 @@ class ImportResult:
             "contacts_created": self.contacts_created,
             "invoices_created": self.invoices_created,
             "payments_created": self.payments_created,
+            "salaries_created": self.salaries_created,
             "entries_created": self.entries_created,
             "cash_created": self.cash_created,
             "bank_created": self.bank_created,
@@ -239,6 +241,7 @@ class ImportResult:
         self.contacts_created = 0
         self.invoices_created = 0
         self.payments_created = 0
+        self.salaries_created = 0
         self.entries_created = 0
         self.cash_created = 0
         self.bank_created = 0
@@ -255,6 +258,7 @@ class PreviewResult:
         self.estimated_contacts: int = 0
         self.estimated_invoices: int = 0
         self.estimated_payments: int = 0
+        self.estimated_salaries: int = 0
         self.estimated_entries: int = 0
         self.errors: list[str] = []
         self.warnings: list[str] = []
@@ -274,6 +278,7 @@ class PreviewResult:
             "estimated_contacts": self.estimated_contacts,
             "estimated_invoices": self.estimated_invoices,
             "estimated_payments": self.estimated_payments,
+            "estimated_salaries": self.estimated_salaries,
             "estimated_entries": self.estimated_entries,
             "sample_rows": self.sample_rows,
             "errors": self.errors,

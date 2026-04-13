@@ -40,8 +40,17 @@ async def reset_db(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _AdminRequired,
 ) -> dict[str, int]:
-    """Delete all transactional data (contacts, invoices, payments, bank, cash, entries,
-    salaries) while preserving users, settings, chart of accounts and accounting rules.
-    Admin only. Intended for demos and user-acceptance testing.
+    """Delete all application data except users. Admin only.
+
+    Intended for demos and user-acceptance testing.
     """
     return await settings_service.reset_data(db)
+
+
+@router.post("/bootstrap-accounting", response_model=dict[str, int])
+async def bootstrap_accounting(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _AdminRequired,
+) -> dict[str, int]:
+    """Recreate the default accounting setup used during replay/testing."""
+    return await settings_service.bootstrap_accounting_setup(db)

@@ -18,6 +18,8 @@ def sheet_has_content(ws: Any) -> bool:
 def classify_gestion_sheet(sheet_name: str) -> tuple[str | None, str | None]:
     """Classify a gestion worksheet into a supported import kind or ignore reason."""
     key = normalize_text(sheet_name)
+    if "aide salaire" in key:
+        return "salaries", None
     ignored_markers = (
         "aide",
         "todo",
@@ -27,7 +29,6 @@ def classify_gestion_sheet(sheet_name: str) -> tuple[str | None, str | None]:
         "prevision",
         "bilan financier",
         "cdd",
-        "salaire",
     )
     if any(marker in key for marker in ignored_markers):
         return None, "auxiliary-sheet"
