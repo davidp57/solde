@@ -13,13 +13,28 @@
     </AppPageHeader>
 
     <section class="app-stat-grid">
-      <AppStatCard :label="t('cash.balance')" :value="formatAmount(balance)" />
+      <AppStatCard
+        :label="t('cash.current_balance')"
+        :value="formatAmount(balance)"
+        :caption="t('cash.metrics.current_balance_caption')"
+      />
+      <AppStatCard
+        :label="t('cash.period_variation')"
+        :value="formatSignedAmount(periodVariation)"
+        :caption="t('cash.metrics.period_variation_caption', { period: selectedPeriodLabel })"
+        :tone="periodVariationTone"
+      />
       <AppStatCard
         :label="t('cash.journal')"
         :value="displayedEntries.length"
-        :caption="`${entries.length} total`"
+        :caption="t('cash.metrics.entries_total', { count: entries.length })"
       />
-      <AppStatCard :label="t('cash.counts_title')" :value="displayedCounts.length" tone="warn" />
+      <AppStatCard
+        :label="t('cash.counts_title')"
+        :value="displayedCounts.length"
+        :caption="t('cash.metrics.counts_total', { count: counts.length })"
+        tone="warn"
+      />
     </section>
 
     <AppPanel :title="t('cash.title')" dense>
@@ -195,7 +210,7 @@
                 </template>
               </Column>
               <template #empty>
-                <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
+                <div class="app-empty-state">{{ t('cash.journal_empty') }}</div>
               </template>
             </DataTable>
           </TabPanel>
@@ -305,7 +320,7 @@
                 </template>
               </Column>
               <template #empty>
-                <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
+                <div class="app-empty-state">{{ t('cash.counts_empty') }}</div>
               </template>
             </DataTable>
           </TabPanel>
@@ -487,7 +502,7 @@ import Tabs from 'primevue/tabs'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
@@ -496,6 +511,7 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
+import { useFiscalYearStore } from '../stores/fiscalYear'
 import {
   addCashCount,
   addCashEntry,
@@ -519,6 +535,7 @@ import {
 
 const { t } = useI18n()
 const toast = useToast()
+const fiscalYearStore = useFiscalYearStore()
 
 const balance = ref('0')
 const entries = ref<CashEntry[]>([])
@@ -555,6 +572,23 @@ const countRows = computed(() =>
     difference_value: parseFloat(count.difference),
   })),
 )
+
+const periodVariation = computed(() =>
+  entries.value.reduce((total, entry) => {
+    const amount = parseFloat(entry.amount)
+    return total + (entry.type === 'out' ? -amount : amount)
+  }, 0),
+)
+
+const selectedPeriodLabel = computed(
+  () => fiscalYearStore.selectedFiscalYear?.name ?? t('app.all_fiscal_years'),
+)
+
+const periodVariationTone = computed(() => {
+  if (periodVariation.value > 0) return 'success'
+  if (periodVariation.value < 0) return 'danger'
+  return 'warn'
+})
 
 const {
   filters: entryTableFilters,
@@ -685,6 +719,13 @@ function formatAmount(value: string | number): string {
   return `${parseFloat(String(value)).toFixed(2)} €`
 }
 
+function formatSignedAmount(value: number): string {
+  if (value > 0) {
+    return `+${formatAmount(value)}`
+  }
+  return formatAmount(value)
+}
+
 function toIsoDate(d: Date | string): string {
   if (typeof d === 'string') return d
   const year = d.getFullYear()
@@ -740,7 +781,15 @@ async function loadAll() {
   loadingEntries.value = true
   loadingCounts.value = true
   try {
-    const [b, e, c] = await Promise.all([getCashBalance(), listCashEntries(), listCashCounts()])
+    const dateRange = {
+      from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+      to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+    }
+    const [b, e, c] = await Promise.all([
+      getCashBalance(),
+      listCashEntries(dateRange),
+      listCashCounts(dateRange),
+    ])
     balance.value = b.balance
     entries.value = e
     counts.value = c
@@ -803,7 +852,18 @@ async function submitCount() {
   }
 }
 
-onMounted(loadAll)
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId) return
+    void loadAll()
+  },
+)
+
+onMounted(async () => {
+  await fiscalYearStore.initialize()
+  await loadAll()
+})
 </script>
 
 <style scoped>

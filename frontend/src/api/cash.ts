@@ -80,6 +80,8 @@ export async function getCashBalance(): Promise<{ balance: string }> {
 }
 
 export async function listCashEntries(params?: {
+  from_date?: string
+  to_date?: string
   skip?: number
   limit?: number
 }): Promise<CashEntry[]> {
@@ -103,6 +105,8 @@ export async function updateCashEntry(id: number, payload: CashEntryUpdate): Pro
 }
 
 export async function listCashCounts(params?: {
+  from_date?: string
+  to_date?: string
   skip?: number
   limit?: number
 }): Promise<CashCount[]> {

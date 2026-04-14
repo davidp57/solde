@@ -573,6 +573,7 @@ async def test_preview_and_import_gestion_create_supplier_invoice_and_payment_fr
     assert cash_entry.reference == "FF-2025080412.00.00"
     assert cash_entry.contact_id == contact.id
     assert cash_entry.payment_id == payment.id
+    assert cash_entry.balance_after == Decimal("-20")
 
 
 @pytest.mark.asyncio

@@ -105,7 +105,8 @@ const SelectStub = defineComponent({
     optionValue: { type: String, default: undefined },
   },
   emits: ['update:modelValue', 'change'],
-  template: '<select @change="$emit(\'change\')"></select>',
+  template:
+    '<select @change="$emit(\'change\')"><option v-for="option in options" :key="option[optionValue] ?? option" :value="option[optionValue] ?? option">{{ option[optionLabel] ?? option }}</option></select>',
 })
 
 const InputTextStub = defineComponent({
@@ -241,5 +242,15 @@ describe('SalaryView', () => {
       from_month: '2024-08',
       to_month: '2025-07',
     })
+  })
+
+  it('exposes employee filter options from loaded salary rows when contacts are unavailable', async () => {
+    mockApiClientGet.mockResolvedValue({ data: [] })
+
+    const wrapper = mountView()
+    await flushView()
+
+    const options = wrapper.findAll('option').map((option) => option.text())
+    expect(options).toContain('Alice Martin')
   })
 })
