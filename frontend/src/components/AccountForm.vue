@@ -3,7 +3,13 @@
     <section class="account-form__intro">
       <p class="account-form__eyebrow">{{ t('accounting.accounts.title') }}</p>
       <p class="account-form__intro-copy">
-        {{ t(isEditing ? 'accounting.accounts.form_intro_edit' : 'accounting.accounts.form_intro_create') }}
+        {{
+          t(
+            isEditing
+              ? 'accounting.accounts.form_intro_edit'
+              : 'accounting.accounts.form_intro_create',
+          )
+        }}
       </p>
     </section>
 
@@ -82,12 +88,7 @@
         :disabled="saving"
         @click="$emit('cancel')"
       />
-      <Button
-        type="submit"
-        :label="t('common.save')"
-        :loading="saving"
-        icon="pi pi-check"
-      />
+      <Button type="submit" :label="t('common.save')" :loading="saving" icon="pi pi-check" />
     </div>
   </form>
 </template>

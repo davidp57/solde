@@ -1,11 +1,13 @@
 """Payments API router — CRUD and deposit filtering."""
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.models.invoice import InvoiceType
 from backend.models.user import User, UserRole
 from backend.routers.auth import get_current_user, require_role
 from backend.schemas.payment import PaymentCreate, PaymentRead, PaymentUpdate
@@ -25,15 +27,21 @@ async def list_payments(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     invoice_id: int | None = Query(default=None),
+    invoice_type: InvoiceType | None = Query(default=None),
     contact_id: int | None = Query(default=None),
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
     undeposited_only: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int | None = Query(default=None, ge=1),
 ) -> list[PaymentRead]:
     payments = await payment_service.list_payments(
         db,
         invoice_id=invoice_id,
+        invoice_type=invoice_type,
         contact_id=contact_id,
+        from_date=from_date,
+        to_date=to_date,
         undeposited_only=undeposited_only,
         skip=skip,
         limit=limit,

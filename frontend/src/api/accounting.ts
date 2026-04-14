@@ -36,26 +36,19 @@ export async function listAccountsApi(
   const params = new URLSearchParams()
   if (type) params.set('type', type)
   params.set('active_only', String(activeOnly))
-  const response = await apiClient.get<AccountingAccount[]>(
-    `/api/accounting/accounts/?${params}`,
-  )
+  const response = await apiClient.get<AccountingAccount[]>(`/api/accounting/accounts/?${params}`)
   return response.data
 }
 
 export async function seedAccountsApi(): Promise<{ inserted: number }> {
-  const response = await apiClient.post<{ inserted: number }>(
-    '/api/accounting/accounts/seed',
-  )
+  const response = await apiClient.post<{ inserted: number }>('/api/accounting/accounts/seed')
   return response.data
 }
 
 export async function createAccountApi(
   payload: AccountingAccountCreate,
 ): Promise<AccountingAccount> {
-  const response = await apiClient.post<AccountingAccount>(
-    '/api/accounting/accounts/',
-    payload,
-  )
+  const response = await apiClient.post<AccountingAccount>('/api/accounting/accounts/', payload)
   return response.data
 }
 
@@ -63,10 +56,7 @@ export async function updateAccountApi(
   id: number,
   payload: AccountingAccountUpdate,
 ): Promise<AccountingAccount> {
-  const response = await apiClient.put<AccountingAccount>(
-    `/api/accounting/accounts/${id}`,
-    payload,
-  )
+  const response = await apiClient.put<AccountingAccount>(`/api/accounting/accounts/${id}`, payload)
   return response.data
 }
 
@@ -80,21 +70,53 @@ export type EntrySourceType =
   | 'payment'
   | 'deposit'
   | 'salary'
+  | 'gestion'
   | 'manual'
   | 'cloture'
 
 export interface AccountingEntryRead {
   id: number
   entry_number: string
+  group_key: string
   date: string
   account_number: string
+  account_label: string | null
   label: string
   debit: string
   credit: string
   fiscal_year_id: number | null
   source_type: EntrySourceType | null
   source_id: number | null
+  source_reference: string | null
+  source_contact_name: string | null
+  source_invoice_id: number | null
+  source_invoice_type: string | null
+  source_invoice_number: string | null
+  editable: boolean
+  counterpart_entry_id: number | null
+  counterpart_account_number: string | null
+  counterpart_account_label: string | null
   created_at: string
+}
+
+export interface AccountingEntryGroupRead {
+  group_key: string
+  date: string
+  label: string
+  fiscal_year_id: number | null
+  source_type: EntrySourceType | null
+  source_id: number | null
+  source_reference: string | null
+  source_contact_name: string | null
+  source_invoice_id: number | null
+  source_invoice_type: string | null
+  source_invoice_number: string | null
+  line_count: number
+  total_debit: string
+  total_credit: string
+  account_numbers: string[]
+  editable: boolean
+  lines: AccountingEntryRead[]
 }
 
 export interface BalanceRow {
@@ -141,6 +163,10 @@ export interface ManualEntryCreate {
   fiscal_year_id?: number | null
 }
 
+export interface ManualEntryUpdate extends ManualEntryCreate {
+  counterpart_entry_id: number
+}
+
 export interface JournalFilters {
   from_date?: string
   to_date?: string
@@ -166,11 +192,30 @@ export async function getJournalApi(filters: JournalFilters = {}): Promise<Accou
   return response.data
 }
 
-export async function getBalanceApi(filters: {
-  from_date?: string
-  to_date?: string
-  fiscal_year_id?: number
-} = {}): Promise<BalanceRow[]> {
+export async function getJournalGroupsApi(
+  filters: JournalFilters = {},
+): Promise<AccountingEntryGroupRead[]> {
+  const params = new URLSearchParams()
+  if (filters.from_date) params.set('from_date', filters.from_date)
+  if (filters.to_date) params.set('to_date', filters.to_date)
+  if (filters.account_number) params.set('account_number', filters.account_number)
+  if (filters.source_type) params.set('source_type', filters.source_type)
+  if (filters.fiscal_year_id) params.set('fiscal_year_id', String(filters.fiscal_year_id))
+  if (filters.skip != null) params.set('skip', String(filters.skip))
+  if (filters.limit != null) params.set('limit', String(filters.limit))
+  const response = await apiClient.get<AccountingEntryGroupRead[]>(
+    `/api/accounting/entries/journal-grouped?${params}`,
+  )
+  return response.data
+}
+
+export async function getBalanceApi(
+  filters: {
+    from_date?: string
+    to_date?: string
+    fiscal_year_id?: number
+  } = {},
+): Promise<BalanceRow[]> {
   const params = new URLSearchParams()
   if (filters.from_date) params.set('from_date', filters.from_date)
   if (filters.to_date) params.set('to_date', filters.to_date)
@@ -209,6 +254,17 @@ export async function createManualEntryApi(
   return response.data
 }
 
+export async function updateManualEntryApi(
+  entryId: number,
+  payload: ManualEntryUpdate,
+): Promise<AccountingEntryRead[]> {
+  const response = await apiClient.put<AccountingEntryRead[]>(
+    `/api/accounting/entries/manual/${entryId}`,
+    payload,
+  )
+  return response.data
+}
+
 // -----------------------------------------------------------------------
 // Fiscal year types & API
 // -----------------------------------------------------------------------
@@ -236,7 +292,9 @@ export async function listFiscalYearsApi(): Promise<FiscalYearRead[]> {
 }
 
 export async function getCurrentFiscalYearApi(): Promise<FiscalYearRead | null> {
-  const response = await apiClient.get<FiscalYearRead | null>('/api/accounting/fiscal-years/current')
+  const response = await apiClient.get<FiscalYearRead | null>(
+    '/api/accounting/fiscal-years/current',
+  )
   return response.data
 }
 
@@ -247,6 +305,13 @@ export async function createFiscalYearApi(payload: FiscalYearCreate): Promise<Fi
 
 export async function closeFiscalYearApi(id: number): Promise<FiscalYearRead> {
   const response = await apiClient.post<FiscalYearRead>(`/api/accounting/fiscal-years/${id}/close`)
+  return response.data
+}
+
+export async function closeFiscalYearAdministrativeApi(id: number): Promise<FiscalYearRead> {
+  const response = await apiClient.post<FiscalYearRead>(
+    `/api/accounting/fiscal-years/${id}/close-administrative`,
+  )
   return response.data
 }
 
@@ -339,29 +404,68 @@ export interface SalarySummaryRow {
   total_cost: number
 }
 
+function parseSalaryNumericValue(value: unknown): number {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0
+  }
+  if (typeof value === 'string') {
+    const parsedValue = Number.parseFloat(value)
+    return Number.isFinite(parsedValue) ? parsedValue : 0
+  }
+  return 0
+}
+
+function normalizeSalaryRead(salary: SalaryRead): SalaryRead {
+  return {
+    ...salary,
+    hours: parseSalaryNumericValue(salary.hours),
+    gross: parseSalaryNumericValue(salary.gross),
+    employee_charges: parseSalaryNumericValue(salary.employee_charges),
+    employer_charges: parseSalaryNumericValue(salary.employer_charges),
+    tax: parseSalaryNumericValue(salary.tax),
+    net_pay: parseSalaryNumericValue(salary.net_pay),
+    total_cost: parseSalaryNumericValue(salary.total_cost),
+  }
+}
+
+function normalizeSalarySummaryRow(row: SalarySummaryRow): SalarySummaryRow {
+  return {
+    ...row,
+    total_gross: parseSalaryNumericValue(row.total_gross),
+    total_employer_charges: parseSalaryNumericValue(row.total_employer_charges),
+    total_net_pay: parseSalaryNumericValue(row.total_net_pay),
+    total_cost: parseSalaryNumericValue(row.total_cost),
+  }
+}
+
 export async function listSalariesApi(params?: {
   employee_id?: number
   month?: string
+  from_month?: string
+  to_month?: string
   skip?: number
   limit?: number
 }): Promise<SalaryRead[]> {
   const response = await apiClient.get<SalaryRead[]>('/api/salaries/', { params })
-  return response.data
+  return response.data.map(normalizeSalaryRead)
 }
 
-export async function getSalarySummaryApi(): Promise<SalarySummaryRow[]> {
-  const response = await apiClient.get<SalarySummaryRow[]>('/api/salaries/summary')
-  return response.data
+export async function getSalarySummaryApi(params?: {
+  from_month?: string
+  to_month?: string
+}): Promise<SalarySummaryRow[]> {
+  const response = await apiClient.get<SalarySummaryRow[]>('/api/salaries/summary', { params })
+  return response.data.map(normalizeSalarySummaryRow)
 }
 
 export async function createSalaryApi(payload: SalaryCreate): Promise<SalaryRead> {
   const response = await apiClient.post<SalaryRead>('/api/salaries/', payload)
-  return response.data
+  return normalizeSalaryRead(response.data)
 }
 
 export async function updateSalaryApi(id: number, payload: SalaryUpdate): Promise<SalaryRead> {
   const response = await apiClient.put<SalaryRead>(`/api/salaries/${id}`, payload)
-  return response.data
+  return normalizeSalaryRead(response.data)
 }
 
 export async function deleteSalaryApi(id: number): Promise<void> {
@@ -416,6 +520,7 @@ export interface ImportResult {
   contacts_created: number
   invoices_created: number
   payments_created: number
+  salaries_created: number
   entries_created: number
   cash_created: number
   bank_created: number
@@ -450,6 +555,16 @@ export interface ImportSheetResult {
   error_details: ImportIssueDetail[]
 }
 
+export interface TestImportShortcut {
+  alias: string
+  label: string
+  import_type: 'gestion' | 'comptabilite'
+  order: number
+  available: boolean
+  file_name: string | null
+  message: string | null
+}
+
 export async function importGestionFileApi(file: File): Promise<ImportResult> {
   const form = new FormData()
   form.append('file', file)
@@ -464,12 +579,24 @@ export async function importComptabiliteFileApi(file: File): Promise<ImportResul
   return response.data
 }
 
+export async function listTestImportShortcutsApi(): Promise<TestImportShortcut[]> {
+  const response = await apiClient.get<TestImportShortcut[]>('/api/import/excel/test-shortcuts')
+  return response.data
+}
+
+export async function importTestShortcutApi(alias: string): Promise<ImportResult> {
+  const response = await apiClient.post<ImportResult>(`/api/import/excel/test-shortcuts/${alias}`)
+  return response.data
+}
+
 // -----------------------------------------------------------------------
 // Fiscal year — pre-close checks & open-next
 // -----------------------------------------------------------------------
 
 export async function getFiscalYearPreCloseChecksApi(id: number): Promise<string[]> {
-  const response = await apiClient.get<string[]>(`/api/accounting/fiscal-years/${id}/pre-close-checks`)
+  const response = await apiClient.get<string[]>(
+    `/api/accounting/fiscal-years/${id}/pre-close-checks`,
+  )
   return response.data
 }
 
@@ -620,6 +747,7 @@ export interface PreviewResult {
   estimated_contacts: number
   estimated_invoices: number
   estimated_payments: number
+  estimated_salaries: number
   estimated_entries: number
   errors: string[]
   warnings: string[]
@@ -639,7 +767,10 @@ export async function previewGestionFileApi(file: File): Promise<PreviewResult> 
 export async function previewComptabiliteFileApi(file: File): Promise<PreviewResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<PreviewResult>('/api/import/excel/comptabilite/preview', form)
+  const response = await apiClient.post<PreviewResult>(
+    '/api/import/excel/comptabilite/preview',
+    form,
+  )
   return response.data
 }
 

@@ -11,16 +11,32 @@
     </AppPageHeader>
 
     <section class="app-stat-grid">
-      <AppStatCard :label="t('contacts.metrics.total')" :value="contacts.length" :caption="t('contacts.metrics.clients', { count: clientCount })" />
-      <AppStatCard :label="t('contacts.metrics.suppliers')" :value="supplierCount" :caption="t('contacts.metrics.mixed', { count: mixedCount })" tone="success" />
-      <AppStatCard :label="t('contacts.metrics.with_email')" :value="emailCount" :caption="t('contacts.metrics.with_phone', { count: phoneCount })" tone="warn" />
+      <AppStatCard
+        :label="t('contacts.metrics.total')"
+        :value="contacts.length"
+        :caption="t('contacts.metrics.clients', { count: clientCount })"
+      />
+      <AppStatCard
+        :label="t('contacts.metrics.suppliers')"
+        :value="supplierCount"
+        :caption="t('contacts.metrics.mixed', { count: mixedCount })"
+        tone="success"
+      />
+      <AppStatCard
+        :label="t('contacts.metrics.with_email')"
+        :value="emailCount"
+        :caption="t('contacts.metrics.with_phone', { count: phoneCount })"
+        tone="warn"
+      />
     </section>
 
     <AppPanel :title="t('contacts.workspace_title')" :subtitle="t('contacts.workspace_subtitle')">
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('contacts.filters_hint') }}</p>
-          <span class="app-chip">{{ t('contacts.results_label', { count: contacts.length }) }}</span>
+          <span class="app-chip">{{
+            t('contacts.results_label', { count: contacts.length })
+          }}</span>
         </div>
 
         <div class="app-filter-grid">
@@ -54,48 +70,48 @@
         striped-rows
         paginator
         :rows="20"
-        :rows-per-page-options="[10, 20, 50]"
+        :rows-per-page-options="[20, 50, 100, 500]"
         data-key="id"
         size="small"
         row-hover
       >
-      <Column field="nom" :header="t('contacts.nom')" sortable />
-      <Column field="prenom" :header="t('contacts.prenom')" sortable />
-      <Column field="type" :header="t('contacts.type')">
-        <template #body="{ data }">
-          <Tag :value="t(`contacts.types.${data.type}`)" :severity="typeSeverity(data.type)" />
-        </template>
-      </Column>
-      <Column field="email" :header="t('contacts.email')" />
-      <Column field="telephone" :header="t('contacts.telephone')" />
-      <Column :header="t('common.actions')" class="contacts-table__actions">
-        <template #body="{ data }">
-          <div class="app-inline-actions">
-            <Button
-              icon="pi pi-history"
-              size="small"
-              severity="info"
-              text
-              :title="t('contact_history.title')"
-              @click="$router.push(`/contacts/${data.id}/history`)"
-            />
-            <Button
-              icon="pi pi-pencil"
-              size="small"
-              severity="secondary"
-              text
-              @click="openEditDialog(data)"
-            />
-            <Button
-              icon="pi pi-trash"
-              size="small"
-              severity="danger"
-              text
-              @click="confirmDelete(data)"
-            />
-          </div>
-        </template>
-      </Column>
+        <Column field="nom" :header="t('contacts.nom')" sortable />
+        <Column field="prenom" :header="t('contacts.prenom')" sortable />
+        <Column field="type" :header="t('contacts.type')">
+          <template #body="{ data }">
+            <Tag :value="t(`contacts.types.${data.type}`)" :severity="typeSeverity(data.type)" />
+          </template>
+        </Column>
+        <Column field="email" :header="t('contacts.email')" />
+        <Column field="telephone" :header="t('contacts.telephone')" />
+        <Column :header="t('common.actions')" class="contacts-table__actions">
+          <template #body="{ data }">
+            <div class="app-inline-actions">
+              <Button
+                icon="pi pi-history"
+                size="small"
+                severity="info"
+                text
+                :title="t('contact_history.title')"
+                @click="$router.push(`/contacts/${data.id}/history`)"
+              />
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                @click="openEditDialog(data)"
+              />
+              <Button
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                text
+                @click="confirmDelete(data)"
+              />
+            </div>
+          </template>
+        </Column>
         <template #empty>
           <div class="app-empty-state">{{ t('contacts.empty') }}</div>
         </template>
@@ -108,11 +124,7 @@
       modal
       class="app-dialog app-dialog--medium"
     >
-      <ContactForm
-        :contact="editingContact"
-        @saved="onSaved"
-        @cancel="dialogVisible = false"
-      />
+      <ContactForm :contact="editingContact" @saved="onSaved" @cancel="dialogVisible = false" />
     </Dialog>
 
     <ConfirmDialog />
@@ -136,11 +148,7 @@ import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
-import {
-  deleteContactApi,
-  listContactsApi,
-  type Contact,
-} from '@/api/contacts'
+import { deleteContactApi, listContactsApi, type Contact } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'
 
@@ -154,11 +162,19 @@ const search = ref('')
 const typeFilter = ref<ContactType | undefined>(undefined)
 const dialogVisible = ref(false)
 const editingContact = ref<Contact | null>(null)
-const clientCount = computed(() => contacts.value.filter((contact) => contact.type === 'client').length)
-const supplierCount = computed(() => contacts.value.filter((contact) => contact.type === 'fournisseur').length)
-const mixedCount = computed(() => contacts.value.filter((contact) => contact.type === 'les_deux').length)
+const clientCount = computed(
+  () => contacts.value.filter((contact) => contact.type === 'client').length,
+)
+const supplierCount = computed(
+  () => contacts.value.filter((contact) => contact.type === 'fournisseur').length,
+)
+const mixedCount = computed(
+  () => contacts.value.filter((contact) => contact.type === 'les_deux').length,
+)
 const emailCount = computed(() => contacts.value.filter((contact) => Boolean(contact.email)).length)
-const phoneCount = computed(() => contacts.value.filter((contact) => Boolean(contact.telephone)).length)
+const phoneCount = computed(
+  () => contacts.value.filter((contact) => Boolean(contact.telephone)).length,
+)
 
 const typeOptions = [
   { label: t('contacts.types.client'), value: 'client' as ContactType },

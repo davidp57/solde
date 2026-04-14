@@ -35,7 +35,7 @@
       <AppStatCard
         :label="t('accounting.journal.summary_credit')"
         :value="formatAmount(summary.totalCredit) + ' €'"
-        :caption="t('accounting.journal.summary_search', { count: filtered.length })"
+        :caption="t('accounting.journal.summary_search', { count: filteredGroups.length })"
         tone="success"
       />
       <AppStatCard
@@ -46,11 +46,16 @@
       />
     </section>
 
-    <AppPanel :title="t('accounting.journal.workspace_title')" :subtitle="t('accounting.journal.workspace_subtitle')">
+    <AppPanel
+      :title="t('accounting.journal.workspace_title')"
+      :subtitle="t('accounting.journal.workspace_subtitle')"
+    >
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('accounting.journal.filters_hint') }}</p>
-          <span class="app-chip">{{ t('accounting.journal.summary_search', { count: filtered.length }) }}</span>
+          <span class="app-chip">{{
+            t('accounting.journal.summary_search', { count: filteredGroups.length })
+          }}</span>
         </div>
 
         <div class="app-filter-grid journal-filters">
@@ -64,7 +69,10 @@
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_account') }}</label>
-            <InputText v-model="filters.account_number" :placeholder="t('accounting.accounts.number_placeholder')" />
+            <InputText
+              v-model="filters.account_number"
+              :placeholder="t('accounting.accounts.number_placeholder')"
+            />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_source') }}</label>
@@ -80,12 +88,11 @@
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_fiscal_year') }}</label>
             <Select
-              v-model="filters.fiscal_year_id"
+              v-model="selectedFiscalYearId"
               :options="fiscalYears"
               option-label="name"
               option-value="id"
               :placeholder="t('common.all')"
-              show-clear
             />
           </div>
           <div class="app-field app-field--span-2">
@@ -100,28 +107,90 @@
       </div>
 
       <DataTable
-        :value="filtered"
+        :value="filteredGroups"
         :loading="loading"
         class="app-data-table journal-table"
         paginator
-        :rows="50"
+        :rows="20"
+        :rows-per-page-options="[20, 50, 100, 500]"
         striped-rows
         size="small"
         row-hover
       >
-        <Column field="date" :header="t('accounting.journal.date')" sortable />
-        <Column field="entry_number" :header="t('accounting.journal.entry_number')" />
-        <Column field="account_number" :header="t('accounting.journal.account')" />
-        <Column field="label" :header="t('accounting.journal.label')" />
-        <Column field="debit" :header="t('accounting.journal.debit')" class="app-money">
-          <template #body="{ data }">{{ data.debit !== '0.00' ? data.debit : '' }}</template>
+        <Column field="date" :header="t('accounting.journal.date')" sortable>
+          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
         </Column>
-        <Column field="credit" :header="t('accounting.journal.credit')" class="app-money">
-          <template #body="{ data }">{{ data.credit !== '0.00' ? data.credit : '' }}</template>
-        </Column>
-        <Column field="source_type" :header="t('accounting.journal.source')">
+        <Column :header="t('accounting.journal.source')" class="journal-table__source-column">
           <template #body="{ data }">
-            {{ data.source_type ? t(`accounting.journal.sources.${data.source_type}`) : '' }}
+            <Tag
+              v-if="data.source_type"
+              :value="t(`accounting.journal.sources.${data.source_type}`)"
+              :severity="sourceSeverity(data.source_type)"
+            />
+            <span v-else>{{ t('accounting.journal.sources.manual') }}</span>
+          </template>
+        </Column>
+        <Column :header="t('accounting.journal.reference')" class="journal-table__reference-column">
+          <template #body="{ data }">
+            <div class="journal-reference-cell">
+              <Button
+                v-if="canOpenInvoice(data)"
+                data-testid="journal-open-invoice-button"
+                :label="entryReference(data)"
+                link
+                class="journal-reference-cell__link"
+                @click="openInvoice(data)"
+              />
+              <span v-else>{{ entryReference(data) }}</span>
+              <small v-if="showInvoiceNumber(data)" class="journal-reference-cell__invoice-number">
+                {{ data.source_invoice_number }}
+              </small>
+            </div>
+          </template>
+        </Column>
+        <Column :header="t('accounting.journal.contact')">
+          <template #body="{ data }">
+            {{ data.source_contact_name || t('accounting.journal.no_contact') }}
+          </template>
+        </Column>
+        <Column field="label" :header="t('accounting.journal.label')" />
+        <Column :header="t('accounting.journal.accounts')">
+          <template #body="{ data }">
+            <div class="journal-account-list">{{ accountsSummary(data) }}</div>
+          </template>
+        </Column>
+        <Column
+          field="line_count"
+          :header="t('accounting.journal.lines_count')"
+          class="journal-table__count-column"
+        />
+        <Column field="total_debit" :header="t('accounting.journal.debit')" class="app-money">
+          <template #body="{ data }">{{ formatEntryAmount(data.total_debit) }}</template>
+        </Column>
+        <Column field="total_credit" :header="t('accounting.journal.credit')" class="app-money">
+          <template #body="{ data }">{{ formatEntryAmount(data.total_credit) }}</template>
+        </Column>
+        <Column :header="t('common.actions')" class="journal-table__actions-column">
+          <template #body="{ data }">
+            <div class="app-inline-actions">
+              <Button
+                data-testid="journal-detail-button"
+                icon="pi pi-eye"
+                size="small"
+                severity="secondary"
+                text
+                @click="openDetailDialog(data)"
+              />
+              <Button
+                v-if="data.editable"
+                data-testid="journal-edit-button"
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                @click="openEditDialog(data)"
+              />
+            </div>
           </template>
         </Column>
         <template #empty>
@@ -132,7 +201,11 @@
 
     <Dialog
       v-model:visible="showManualDialog"
-      :header="t('accounting.journal.sources.manual')"
+      :header="
+        editingEntry
+          ? t('accounting.journal.edit_manual_entry')
+          : t('accounting.journal.new_manual_entry')
+      "
       modal
       class="app-dialog app-dialog--medium"
     >
@@ -143,51 +216,191 @@
         </section>
         <section class="app-dialog-section">
           <div class="app-dialog-section__header">
-            <h3 class="app-dialog-section__title">{{ t('accounting.journal.manual_main_title') }}</h3>
-            <p class="app-dialog-section__copy">{{ t('accounting.journal.manual_main_subtitle') }}</p>
+            <h3 class="app-dialog-section__title">
+              {{ t('accounting.journal.manual_main_title') }}
+            </h3>
+            <p class="app-dialog-section__copy">
+              {{ t('accounting.journal.manual_main_subtitle') }}
+            </p>
           </div>
           <div class="app-form-grid">
             <div class="app-field">
               <label class="app-field__label">{{ t('accounting.journal.date') }}</label>
-              <InputText v-model="manualForm.date" type="date" />
+              <InputText v-model="manualForm.date" data-testid="journal-date-input" type="date" />
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('accounting.journal.label') }}</label>
-              <InputText v-model="manualForm.label" />
+              <InputText v-model="manualForm.label" data-testid="journal-label-input" />
             </div>
             <div class="app-field app-field--full">
               <label class="app-field__label">{{ t('invoices.total') }}</label>
-              <InputText v-model="manualForm.amount" type="number" step="0.01" min="0" />
+              <InputText
+                v-model="manualForm.amount"
+                data-testid="journal-amount-input"
+                type="number"
+                step="0.01"
+                min="0"
+              />
             </div>
           </div>
         </section>
         <section class="app-dialog-section">
           <div class="app-dialog-section__header">
-            <h3 class="app-dialog-section__title">{{ t('accounting.journal.manual_accounts_title') }}</h3>
-            <p class="app-dialog-section__copy">{{ t('accounting.journal.manual_accounts_subtitle') }}</p>
+            <h3 class="app-dialog-section__title">
+              {{ t('accounting.journal.manual_accounts_title') }}
+            </h3>
+            <p class="app-dialog-section__copy">
+              {{ t('accounting.journal.manual_accounts_subtitle') }}
+            </p>
           </div>
           <div class="app-form-grid">
             <div class="app-field app-field--full">
-              <label class="app-field__label">{{ t('accounting.journal.debit') }} — {{ t('accounting.journal.account') }}</label>
-              <InputText v-model="manualForm.debit_account" :placeholder="t('accounting.accounts.number_placeholder')" />
+              <label class="app-field__label"
+                >{{ t('accounting.journal.debit') }} — {{ t('accounting.journal.account') }}</label
+              >
+              <InputText
+                v-model="manualForm.debit_account"
+                data-testid="journal-debit-account-input"
+                :placeholder="t('accounting.accounts.number_placeholder')"
+              />
             </div>
             <div class="app-field app-field--full">
-              <label class="app-field__label">{{ t('accounting.journal.credit') }} — {{ t('accounting.journal.account') }}</label>
-              <InputText v-model="manualForm.credit_account" :placeholder="t('accounting.accounts.number_placeholder')" />
+              <label class="app-field__label"
+                >{{ t('accounting.journal.credit') }} — {{ t('accounting.journal.account') }}</label
+              >
+              <InputText
+                v-model="manualForm.credit_account"
+                data-testid="journal-credit-account-input"
+                :placeholder="t('accounting.accounts.number_placeholder')"
+              />
             </div>
           </div>
         </section>
       </div>
       <template #footer>
-        <Button :label="t('common.cancel')" text @click="showManualDialog = false" />
-        <Button :label="t('common.save')" icon="pi pi-check" :loading="saving" @click="saveManualEntry" />
+        <Button :label="t('common.cancel')" text @click="closeManualDialog" />
+        <Button
+          :label="t('common.save')"
+          icon="pi pi-check"
+          :loading="saving"
+          @click="saveManualEntry"
+        />
+      </template>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="showDetailDialog"
+      :header="t('accounting.journal.entry_details')"
+      modal
+      class="app-dialog app-dialog--large"
+    >
+      <div v-if="selectedGroup" class="app-dialog-form">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ t('accounting.journal.source_details') }}</p>
+          <p class="app-dialog-intro__text">{{ selectedGroup.label }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <div class="journal-detail-grid">
+            <div>
+              <span class="journal-detail-grid__label">{{ t('accounting.journal.date') }}</span>
+              <strong>{{ formatDisplayDate(selectedGroup.date) }}</strong>
+            </div>
+            <div>
+              <span class="journal-detail-grid__label">{{ t('accounting.journal.source') }}</span>
+              <strong>{{
+                selectedGroup.source_type
+                  ? t(`accounting.journal.sources.${selectedGroup.source_type}`)
+                  : t('accounting.journal.sources.manual')
+              }}</strong>
+            </div>
+            <div>
+              <span class="journal-detail-grid__label">{{
+                t('accounting.journal.reference')
+              }}</span>
+              <strong>{{ entryReference(selectedGroup) }}</strong>
+            </div>
+            <div>
+              <span class="journal-detail-grid__label">{{ t('accounting.journal.contact') }}</span>
+              <strong>{{
+                selectedGroup.source_contact_name || t('accounting.journal.no_contact')
+              }}</strong>
+            </div>
+            <div>
+              <span class="journal-detail-grid__label">{{
+                t('accounting.journal.lines_count')
+              }}</span>
+              <strong>{{ selectedGroup.line_count }}</strong>
+            </div>
+            <div>
+              <span class="journal-detail-grid__label"
+                >{{ t('accounting.journal.debit') }} / {{ t('accounting.journal.credit') }}</span
+              >
+              <strong
+                >{{ formatEntryAmount(selectedGroup.total_debit) || '0,00' }} /
+                {{ formatEntryAmount(selectedGroup.total_credit) || '0,00' }}</strong
+              >
+            </div>
+          </div>
+        </section>
+        <section class="app-dialog-section">
+          <div class="app-dialog-section__header">
+            <h3 class="app-dialog-section__title">{{ t('accounting.journal.entry_lines') }}</h3>
+            <p class="app-dialog-section__copy">{{ accountsSummary(selectedGroup) }}</p>
+          </div>
+          <DataTable
+            :value="selectedGroup.lines"
+            class="app-data-table journal-lines-table"
+            paginator
+            :rows="20"
+            :rows-per-page-options="[20, 50, 100, 500]"
+            size="small"
+            striped-rows
+          >
+            <Column field="entry_number" :header="t('accounting.journal.entry_number')" />
+            <Column field="account_number" :header="t('accounting.journal.account')">
+              <template #body="{ data }">
+                <div class="journal-account-cell">
+                  <strong>{{ data.account_number }}</strong>
+                  <span>{{ data.account_label || data.account_number }}</span>
+                </div>
+              </template>
+            </Column>
+            <Column field="label" :header="t('accounting.journal.label')" />
+            <Column field="debit" :header="t('accounting.journal.debit')" class="app-money">
+              <template #body="{ data }">{{ formatEntryAmount(data.debit) }}</template>
+            </Column>
+            <Column field="credit" :header="t('accounting.journal.credit')" class="app-money">
+              <template #body="{ data }">{{ formatEntryAmount(data.credit) }}</template>
+            </Column>
+          </DataTable>
+        </section>
+      </div>
+      <template #footer>
+        <Button :label="t('common.cancel')" text @click="showDetailDialog = false" />
+        <Button
+          v-if="selectedGroup && selectedGroup.editable"
+          :label="t('accounting.journal.edit_manual_entry')"
+          icon="pi pi-pencil"
+          severity="secondary"
+          outlined
+          @click="openEditDialog(selectedGroup)"
+        />
+        <Button
+          v-if="selectedGroup && canOpenInvoice(selectedGroup)"
+          :label="t('accounting.journal.open_invoice')"
+          icon="pi pi-external-link"
+          severity="secondary"
+          outlined
+          @click="openInvoice(selectedGroup)"
+        />
       </template>
     </Dialog>
   </AppPage>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -195,47 +408,68 @@ import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
+import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 import {
-  getJournalApi,
   createManualEntryApi,
   getExportCsvUrl,
-  listFiscalYearsApi,
+  getJournalGroupsApi,
+  type AccountingEntryGroupRead,
   type AccountingEntryRead,
   type EntrySourceType,
-  type FiscalYearRead,
   type ManualEntryCreate,
+  type ManualEntryUpdate,
+  updateManualEntryApi,
 } from '../api/accounting'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
-import { useTableFilter } from '../composables/useTableFilter'
+import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatDisplayDate } from '@/utils/format'
+
+type JournalSourceInfo = Pick<
+  AccountingEntryGroupRead,
+  | 'source_reference'
+  | 'source_invoice_number'
+  | 'source_invoice_id'
+  | 'source_invoice_type'
+  | 'source_contact_name'
+>
 
 const { t } = useI18n()
 const toast = useToast()
+const router = useRouter()
+const fiscalYearStore = useFiscalYearStore()
 
-const entries = ref<AccountingEntryRead[]>([])
-const { filterText, filtered } = useTableFilter(entries)
-const fiscalYears = ref<FiscalYearRead[]>([])
+const groups = ref<AccountingEntryGroupRead[]>([])
+const filterText = ref('')
+const fiscalYears = computed(() => fiscalYearStore.fiscalYears)
+const selectedFiscalYearId = computed({
+  get: () => fiscalYearStore.selectedFiscalYearId,
+  set: (value: number | undefined) => fiscalYearStore.setSelectedFiscalYear(value),
+})
 const loading = ref(false)
 const saving = ref(false)
 const showManualDialog = ref(false)
+const showDetailDialog = ref(false)
+const selectedGroup = ref<AccountingEntryGroupRead | null>(null)
+const editingEntry = ref<AccountingEntryRead | null>(null)
 
 const filters = ref({
   from_date: '',
   to_date: '',
   account_number: '',
   source_type: undefined as EntrySourceType | undefined,
-  fiscal_year_id: undefined as number | undefined,
 })
 
-const manualForm = ref<ManualEntryCreate>({
+const manualForm = ref<ManualEntryUpdate>({
   date: new Date().toISOString().substring(0, 10),
   debit_account: '',
   credit_account: '',
   amount: '',
   label: '',
+  counterpart_entry_id: 0,
 })
 
 const sourceTypeOptions = [
@@ -244,21 +478,29 @@ const sourceTypeOptions = [
   { label: t('accounting.journal.sources.payment'), value: 'payment' },
   { label: t('accounting.journal.sources.deposit'), value: 'deposit' },
   { label: t('accounting.journal.sources.salary'), value: 'salary' },
+  { label: t('accounting.journal.sources.gestion'), value: 'gestion' },
   { label: t('accounting.journal.sources.manual'), value: 'manual' },
   { label: t('accounting.journal.sources.cloture'), value: 'cloture' },
 ]
 
+const filteredGroups = computed(() => {
+  const query = filterText.value.trim().toLowerCase()
+  if (!query) return groups.value
+  return groups.value.filter((group) => searchableGroup(group).includes(query))
+})
+
 const summary = computed(() => {
-  const visibleEntries = filtered.value
-  const totalDebit = visibleEntries.reduce((sum, entry) => sum + parseFloat(entry.debit), 0)
-  const totalCredit = visibleEntries.reduce((sum, entry) => sum + parseFloat(entry.credit), 0)
-  const sources = new Set(visibleEntries.map((entry) => entry.source_type).filter(Boolean))
-  const periodCaption = filters.value.from_date || filters.value.to_date
-    ? `${filters.value.from_date || '...'} -> ${filters.value.to_date || '...'}`
-    : t('accounting.journal.summary_period_all')
+  const visibleGroups = filteredGroups.value
+  const totalDebit = visibleGroups.reduce((sum, group) => sum + parseFloat(group.total_debit), 0)
+  const totalCredit = visibleGroups.reduce((sum, group) => sum + parseFloat(group.total_credit), 0)
+  const sources = new Set(visibleGroups.map((group) => group.source_type).filter(Boolean))
+  const periodCaption =
+    filters.value.from_date || filters.value.to_date
+      ? `${filters.value.from_date || '...'} -> ${filters.value.to_date || '...'}`
+      : t('accounting.journal.summary_period_all')
 
   return {
-    entryCount: visibleEntries.length,
+    entryCount: visibleGroups.length,
     totalDebit,
     totalCredit,
     sourceCount: sources.size,
@@ -266,20 +508,142 @@ const summary = computed(() => {
   }
 })
 
+function searchableGroup(group: AccountingEntryGroupRead): string {
+  return [
+    group.date,
+    group.label,
+    group.source_reference,
+    group.source_invoice_number,
+    group.source_contact_name,
+    group.account_numbers.join(' '),
+    ...group.lines.flatMap((line) => [line.account_number, line.account_label || '', line.label]),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+}
+
 function formatAmount(value: number): string {
-  return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
+  return new Intl.NumberFormat('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+function formatEntryAmount(value: string): string {
+  const numericValue = Number.parseFloat(value)
+  return numericValue === 0 ? '' : formatAmount(numericValue)
+}
+
+function sourceSeverity(
+  sourceType: EntrySourceType,
+): 'info' | 'success' | 'warn' | 'contrast' | 'secondary' {
+  const map: Record<EntrySourceType, 'info' | 'success' | 'warn' | 'contrast' | 'secondary'> = {
+    invoice: 'info',
+    payment: 'success',
+    deposit: 'warn',
+    salary: 'secondary',
+    gestion: 'info',
+    manual: 'contrast',
+    cloture: 'warn',
+  }
+  return map[sourceType]
+}
+
+function entryReference(entry: JournalSourceInfo): string {
+  return (
+    entry.source_reference || entry.source_invoice_number || t('accounting.journal.no_reference')
+  )
+}
+
+function showInvoiceNumber(entry: JournalSourceInfo): boolean {
+  return Boolean(
+    entry.source_invoice_number && entry.source_invoice_number !== entry.source_reference,
+  )
+}
+
+function canOpenInvoice(entry: JournalSourceInfo): boolean {
+  return Boolean(
+    entry.source_invoice_id &&
+    (entry.source_invoice_type === 'client' || entry.source_invoice_type === 'fournisseur'),
+  )
+}
+
+function openInvoice(entry: JournalSourceInfo) {
+  if (!canOpenInvoice(entry) || !entry.source_invoice_id) return
+  void router.push({
+    name: entry.source_invoice_type === 'client' ? 'invoices-client' : 'invoices-supplier',
+    query: { invoiceId: String(entry.source_invoice_id) },
+  })
+}
+
+function accountsSummary(group: AccountingEntryGroupRead): string {
+  if (group.account_numbers.length <= 3) {
+    return group.account_numbers.join(', ')
+  }
+  return `${group.account_numbers.slice(0, 3).join(', ')} +${group.account_numbers.length - 3}`
+}
+
+function findEditableEntry(group: AccountingEntryGroupRead): AccountingEntryRead | null {
+  return (
+    group.lines.find((line) => line.editable && Number.parseFloat(line.debit) > 0) ||
+    group.lines.find((line) => line.editable) ||
+    null
+  )
+}
+
+function resetManualForm() {
+  manualForm.value = {
+    date: new Date().toISOString().substring(0, 10),
+    debit_account: '',
+    credit_account: '',
+    amount: '',
+    label: '',
+    counterpart_entry_id: 0,
+  }
+}
+
+function closeManualDialog() {
+  showManualDialog.value = false
+  editingEntry.value = null
+  resetManualForm()
+}
+
+function openDetailDialog(group: AccountingEntryGroupRead) {
+  selectedGroup.value = group
+  showDetailDialog.value = true
+}
+
+function openEditDialog(group: AccountingEntryGroupRead) {
+  const entry = findEditableEntry(group)
+  if (!entry || !entry.counterpart_entry_id || !entry.counterpart_account_number) return
+  const debitAccount =
+    Number.parseFloat(entry.debit) > 0 ? entry.account_number : entry.counterpart_account_number
+  const creditAccount =
+    Number.parseFloat(entry.credit) > 0 ? entry.account_number : entry.counterpart_account_number
+  editingEntry.value = entry
+  manualForm.value = {
+    date: entry.date,
+    debit_account: debitAccount,
+    credit_account: creditAccount,
+    amount: Number.parseFloat(entry.debit || '0') > 0 ? entry.debit : entry.credit,
+    label: entry.label,
+    fiscal_year_id: entry.fiscal_year_id,
+    counterpart_entry_id: entry.counterpart_entry_id,
+  }
+  showDetailDialog.value = false
+  showManualDialog.value = true
 }
 
 async function load() {
   loading.value = true
   try {
-    entries.value = await getJournalApi({
+    groups.value = await getJournalGroupsApi({
       from_date: filters.value.from_date || undefined,
       to_date: filters.value.to_date || undefined,
       account_number: filters.value.account_number || undefined,
       source_type: filters.value.source_type,
-      fiscal_year_id: filters.value.fiscal_year_id,
-      limit: 500,
+      fiscal_year_id: selectedFiscalYearId.value,
     })
   } finally {
     loading.value = false
@@ -289,11 +653,27 @@ async function load() {
 async function saveManualEntry() {
   saving.value = true
   try {
-    await createManualEntryApi(manualForm.value)
-    showManualDialog.value = false
-    manualForm.value = { date: new Date().toISOString().substring(0, 10), debit_account: '', credit_account: '', amount: '', label: '' }
+    if (editingEntry.value) {
+      await updateManualEntryApi(editingEntry.value.id, manualForm.value)
+      toast.add({
+        severity: 'success',
+        summary: t('accounting.journal.manual_updated'),
+        life: 3000,
+      })
+    } else {
+      const createPayload: ManualEntryCreate = {
+        date: manualForm.value.date,
+        debit_account: manualForm.value.debit_account,
+        credit_account: manualForm.value.credit_account,
+        amount: manualForm.value.amount,
+        label: manualForm.value.label,
+        fiscal_year_id: manualForm.value.fiscal_year_id,
+      }
+      await createManualEntryApi(createPayload)
+      toast.add({ severity: 'success', summary: t('common.save'), life: 3000 })
+    }
+    closeManualDialog()
     await load()
-    toast.add({ severity: 'success', summary: t('common.save'), life: 3000 })
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -306,13 +686,21 @@ function downloadCsv() {
     from_date: filters.value.from_date || undefined,
     to_date: filters.value.to_date || undefined,
     account_number: filters.value.account_number || undefined,
-    fiscal_year_id: filters.value.fiscal_year_id,
+    fiscal_year_id: selectedFiscalYearId.value,
   })
   window.open(url, '_blank')
 }
 
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId) return
+    void load()
+  },
+)
+
 onMounted(async () => {
-  fiscalYears.value = await listFiscalYearsApi()
+  await fiscalYearStore.initialize()
   await load()
 })
 </script>
@@ -328,5 +716,72 @@ onMounted(async () => {
 
 .journal-table :deep(.p-column-title) {
   white-space: nowrap;
+}
+
+.journal-table__actions-column {
+  width: 6rem;
+}
+
+.journal-table__source-column {
+  width: 8rem;
+}
+
+.journal-table__reference-column {
+  min-width: 12rem;
+}
+
+.journal-table__count-column {
+  width: 5rem;
+}
+
+.journal-account-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.journal-account-list {
+  line-height: 1.5;
+}
+
+.journal-reference-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.journal-reference-cell__link {
+  padding: 0;
+}
+
+.journal-reference-cell__invoice-number {
+  color: var(--p-text-muted-color);
+}
+
+.journal-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--app-space-4);
+}
+
+.journal-detail-grid__label {
+  display: block;
+  margin-bottom: var(--app-space-1);
+  color: var(--p-text-muted-color);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.journal-lines-table {
+  margin-top: var(--app-space-4);
+}
+
+@media (max-width: 767px) {
+  .journal-detail-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

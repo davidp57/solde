@@ -2,14 +2,23 @@
   <AppPage width="wide">
     <AppPageHeader :eyebrow="t('ui.page.collection_eyebrow')" :title="t('cash.title')">
       <template #actions>
-        <Button :label="t('cash.new_count')" icon="pi pi-calculator" severity="secondary" @click="countDialogVisible = true" />
-        <Button :label="t('cash.new_entry')" icon="pi pi-plus" @click="entryDialogVisible = true" />
+        <Button
+          :label="t('cash.new_count')"
+          icon="pi pi-calculator"
+          severity="secondary"
+          @click="countDialogVisible = true"
+        />
+        <Button :label="t('cash.new_entry')" icon="pi pi-plus" @click="openCreateEntryDialog" />
       </template>
     </AppPageHeader>
 
     <section class="app-stat-grid">
       <AppStatCard :label="t('cash.balance')" :value="formatAmount(balance)" />
-      <AppStatCard :label="t('cash.journal')" :value="filteredEntries.length" :caption="`${entries.length} total`" />
+      <AppStatCard
+        :label="t('cash.journal')"
+        :value="filteredEntries.length"
+        :caption="`${entries.length} total`"
+      />
       <AppStatCard :label="t('cash.counts_title')" :value="filteredCounts.length" tone="warn" />
     </section>
 
@@ -24,70 +33,166 @@
       </div>
 
       <Tabs v-model:value="activeTab">
-      <TabList>
-        <Tab value="journal">{{ t('cash.journal') }}</Tab>
-        <Tab value="counts">{{ t('cash.counts_title') }}</Tab>
-      </TabList>
+        <TabList>
+          <Tab value="journal">{{ t('cash.journal') }}</Tab>
+          <Tab value="counts">{{ t('cash.counts_title') }}</Tab>
+        </TabList>
 
-      <TabPanels>
-        <TabPanel value="journal">
-          <DataTable :value="filteredEntries" :loading="loadingEntries" class="app-data-table" striped-rows paginator :rows="20" data-key="id" size="small" row-hover>
-            <Column field="date" :header="t('cash.entry_date')" sortable />
-            <Column field="type" :header="t('cash.entry_type')">
-              <template #body="{ data }">
-                <Tag
-                  :value="t(`cash.movements.${data.type}`)"
-                  :severity="data.type === 'in' ? 'success' : 'danger'"
-                />
+        <TabPanels>
+          <TabPanel value="journal">
+            <DataTable
+              :value="filteredEntries"
+              :loading="loadingEntries"
+              class="app-data-table"
+              striped-rows
+              paginator
+              :rows="20"
+              :rows-per-page-options="[20, 50, 100, 500]"
+              data-key="id"
+              size="small"
+              row-hover
+            >
+              <Column field="date" :header="t('cash.entry_date')" sortable>
+                <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+              </Column>
+              <Column field="type" :header="t('cash.entry_type')">
+                <template #body="{ data }">
+                  <Tag
+                    :value="t(`cash.movements.${data.type}`)"
+                    :severity="data.type === 'in' ? 'success' : 'danger'"
+                  />
+                </template>
+              </Column>
+              <Column field="amount" :header="t('cash.entry_amount')" class="app-money">
+                <template #body="{ data }">
+                  <span :class="data.type === 'out' ? 'cash-negative' : 'cash-positive'">
+                    {{ data.type === 'out' ? '-' : '+' }}{{ formatAmount(data.amount) }}
+                  </span>
+                </template>
+              </Column>
+              <Column field="reference" :header="t('cash.entry_reference')" />
+              <Column field="description" :header="t('cash.entry_description')" />
+              <Column field="balance_after" :header="t('cash.balance_after')">
+                <template #body="{ data }">
+                  {{ formatAmount(data.balance_after) }}
+                </template>
+              </Column>
+              <Column :header="t('common.actions')" class="cash-journal__actions">
+                <template #body="{ data }">
+                  <div class="app-inline-actions">
+                    <Button
+                      data-testid="cash-detail-button"
+                      icon="pi pi-eye"
+                      size="small"
+                      severity="secondary"
+                      text
+                      @click="openDetailDialog(data)"
+                    />
+                    <Button
+                      data-testid="cash-edit-button"
+                      icon="pi pi-pencil"
+                      size="small"
+                      severity="secondary"
+                      text
+                      @click="openEditDialog(data)"
+                    />
+                  </div>
+                </template>
+              </Column>
+              <template #empty>
+                <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
               </template>
-            </Column>
-            <Column field="amount" :header="t('cash.entry_amount')" class="app-money">
-              <template #body="{ data }">
-                <span :class="data.type === 'out' ? 'cash-negative' : 'cash-positive'">
-                  {{ data.type === 'out' ? '-' : '+' }}{{ formatAmount(data.amount) }}
-                </span>
-              </template>
-            </Column>
-            <Column field="description" :header="t('cash.entry_description')" />
-            <Column field="balance_after" :header="t('cash.balance_after')">
-              <template #body="{ data }">
-                {{ formatAmount(data.balance_after) }}
-              </template>
-            </Column>
-            <template #empty>
-              <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
-            </template>
-          </DataTable>
-        </TabPanel>
+            </DataTable>
+          </TabPanel>
 
-        <TabPanel value="counts">
-          <DataTable :value="filteredCounts" :loading="loadingCounts" class="app-data-table" striped-rows paginator :rows="10" data-key="id" size="small" row-hover>
-            <Column field="date" :header="t('cash.count_date')" sortable />
-            <Column field="total_counted" :header="t('cash.count_total')" class="app-money">
-              <template #body="{ data }">{{ formatAmount(data.total_counted) }}</template>
-            </Column>
-            <Column field="balance_expected" :header="t('cash.count_expected')" class="app-money">
-              <template #body="{ data }">{{ formatAmount(data.balance_expected) }}</template>
-            </Column>
-            <Column field="difference" :header="t('cash.count_diff')" class="app-money">
-              <template #body="{ data }">
-                <span :class="parseFloat(data.difference) < 0 ? 'cash-negative cash-emphasis' : parseFloat(data.difference) > 0 ? 'cash-warn' : 'cash-positive'">
-                  {{ formatAmount(data.difference) }}
-                </span>
+          <TabPanel value="counts">
+            <DataTable
+              :value="filteredCounts"
+              :loading="loadingCounts"
+              class="app-data-table"
+              striped-rows
+              paginator
+              :rows="20"
+              :rows-per-page-options="[20, 50, 100, 500]"
+              data-key="id"
+              size="small"
+              row-hover
+            >
+              <Column field="date" :header="t('cash.count_date')" sortable>
+                <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+              </Column>
+              <Column field="total_counted" :header="t('cash.count_total')" class="app-money">
+                <template #body="{ data }">{{ formatAmount(data.total_counted) }}</template>
+              </Column>
+              <Column field="balance_expected" :header="t('cash.count_expected')" class="app-money">
+                <template #body="{ data }">{{ formatAmount(data.balance_expected) }}</template>
+              </Column>
+              <Column field="difference" :header="t('cash.count_diff')" class="app-money">
+                <template #body="{ data }">
+                  <span
+                    :class="
+                      parseFloat(data.difference) < 0
+                        ? 'cash-negative cash-emphasis'
+                        : parseFloat(data.difference) > 0
+                          ? 'cash-warn'
+                          : 'cash-positive'
+                    "
+                  >
+                    {{ formatAmount(data.difference) }}
+                  </span>
+                </template>
+              </Column>
+              <Column field="notes" :header="t('cash.count_notes')" />
+              <template #empty>
+                <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
               </template>
-            </Column>
-            <Column field="notes" :header="t('cash.count_notes')" />
-            <template #empty>
-              <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
-            </template>
-          </DataTable>
-        </TabPanel>
-      </TabPanels>
-    </Tabs>
+            </DataTable>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
     </AppPanel>
 
+    <Dialog
+      v-model:visible="detailDialogVisible"
+      :header="t('cash.entry_details')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <div v-if="selectedEntry" class="app-dialog-form cash-detail">
+        <div class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.entry_date') }}</span>
+          <span>{{ formatDisplayDate(selectedEntry.date) }}</span>
+        </div>
+        <div class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.entry_type') }}</span>
+          <span>{{ t(`cash.movements.${selectedEntry.type}`) }}</span>
+        </div>
+        <div class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.entry_amount') }}</span>
+          <span>{{ formatAmount(selectedEntry.amount) }}</span>
+        </div>
+        <div class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.entry_reference') }}</span>
+          <span>{{ selectedEntry.reference || '—' }}</span>
+        </div>
+        <div class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.entry_description') }}</span>
+          <span>{{ selectedEntry.description || '—' }}</span>
+        </div>
+        <div class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.balance_after') }}</span>
+          <span>{{ formatAmount(selectedEntry.balance_after) }}</span>
+        </div>
+      </div>
+    </Dialog>
+
     <!-- New entry dialog -->
-    <Dialog v-model:visible="entryDialogVisible" :header="t('cash.new_entry')" modal class="app-dialog app-dialog--medium">
+    <Dialog
+      v-model:visible="entryDialogVisible"
+      :header="editingEntry ? t('cash.edit_entry') : t('cash.new_entry')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
       <form class="app-dialog-form cash-form" @submit.prevent="submitEntry">
         <section class="app-dialog-intro">
           <p class="app-dialog-intro__eyebrow">{{ t('cash.journal') }}</p>
@@ -105,11 +210,26 @@
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('cash.entry_type') }}</label>
-              <Select v-model="entryForm.type" :options="movementTypes" option-label="label" option-value="value" />
+              <Select
+                v-model="entryForm.type"
+                :options="movementTypes"
+                option-label="label"
+                option-value="value"
+              />
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('cash.entry_amount') }}</label>
-              <InputNumber v-model="entryForm.amount" mode="decimal" :min-fraction-digits="2" :max-fraction-digits="2" :min="0.01" />
+              <InputNumber
+                v-model="entryForm.amount"
+                mode="decimal"
+                :min-fraction-digits="2"
+                :max-fraction-digits="2"
+                :min="0.01"
+              />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('cash.entry_reference') }}</label>
+              <InputText v-model="entryForm.reference" data-testid="cash-reference-input" />
             </div>
             <div class="app-field app-field--span-2">
               <label class="app-field__label">{{ t('cash.entry_description') }}</label>
@@ -118,14 +238,30 @@
           </div>
         </section>
         <div class="app-form-actions">
-          <Button :label="t('common.cancel')" severity="secondary" text @click="entryDialogVisible = false" />
-          <Button type="submit" :label="t('common.save')" :loading="saving" />
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            @click="entryDialogVisible = false"
+          />
+          <Button
+            data-testid="cash-save-button"
+            type="button"
+            :label="t('common.save')"
+            :loading="saving"
+            @click="submitEntry"
+          />
         </div>
       </form>
     </Dialog>
 
     <!-- New count dialog -->
-    <Dialog v-model:visible="countDialogVisible" :header="t('cash.new_count')" modal class="app-dialog app-dialog--medium">
+    <Dialog
+      v-model:visible="countDialogVisible"
+      :header="t('cash.new_count')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
       <form class="app-dialog-form cash-form" @submit.prevent="submitCount">
         <section class="app-dialog-intro">
           <p class="app-dialog-intro__eyebrow">{{ t('cash.counts_title') }}</p>
@@ -144,7 +280,10 @@
             <template v-for="denom in denominations" :key="denom.field">
               <div class="app-field">
                 <label class="app-field__label">{{ denom.label }}</label>
-                <InputNumber v-model="(countForm as unknown as Record<string, number>)[denom.field]" :min="0" />
+                <InputNumber
+                  v-model="(countForm as unknown as Record<string, number>)[denom.field]"
+                  :min="0"
+                />
               </div>
             </template>
           </div>
@@ -157,7 +296,12 @@
           </div>
         </section>
         <div class="app-form-actions">
-          <Button :label="t('common.cancel')" severity="secondary" text @click="countDialogVisible = false" />
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            @click="countDialogVisible = false"
+          />
           <Button type="submit" :label="t('common.save')" :loading="saving" />
         </div>
       </form>
@@ -191,13 +335,16 @@ import AppStatCard from '../components/ui/AppStatCard.vue'
 import {
   addCashCount,
   addCashEntry,
+  getCashEntry,
   getCashBalance,
   listCashCounts,
   listCashEntries,
   type CashCount,
   type CashCountCreate,
   type CashEntry,
+  updateCashEntry,
 } from '@/api/cash'
+import { formatDisplayDate } from '@/utils/format'
 import { useTableFilter, applyFilter } from '../composables/useTableFilter'
 
 const { t } = useI18n()
@@ -213,7 +360,10 @@ const loadingCounts = ref(false)
 const activeTab = ref('journal')
 const entryDialogVisible = ref(false)
 const countDialogVisible = ref(false)
+const detailDialogVisible = ref(false)
 const saving = ref(false)
+const editingEntry = ref<CashEntry | null>(null)
+const selectedEntry = ref<CashEntry | null>(null)
 
 const movementTypes = [
   { label: t('cash.movements.in'), value: 'in' },
@@ -236,10 +386,19 @@ const denominations = [
   { field: 'count_cents_1', label: '0,01 €' },
 ]
 
-const entryForm = ref({
+interface CashEntryFormState {
+  date: Date
+  type: 'in' | 'out'
+  amount: number
+  reference: string
+  description: string
+}
+
+const entryForm = ref<CashEntryFormState>({
   date: new Date(),
-  type: 'in' as 'in' | 'out',
+  type: 'in',
   amount: 0,
+  reference: '',
   description: '',
 })
 
@@ -263,9 +422,19 @@ interface CashCountFormState extends Omit<CashCountCreate, 'date'> {
 
 const countForm = ref<CashCountFormState>({
   date: new Date(),
-  count_100: 0, count_50: 0, count_20: 0, count_10: 0, count_5: 0,
-  count_2: 0, count_1: 0, count_cents_50: 0, count_cents_20: 0,
-  count_cents_10: 0, count_cents_5: 0, count_cents_2: 0, count_cents_1: 0,
+  count_100: 0,
+  count_50: 0,
+  count_20: 0,
+  count_10: 0,
+  count_5: 0,
+  count_2: 0,
+  count_1: 0,
+  count_cents_50: 0,
+  count_cents_20: 0,
+  count_cents_10: 0,
+  count_cents_5: 0,
+  count_cents_2: 0,
+  count_cents_1: 0,
   notes: '',
 })
 
@@ -275,7 +444,53 @@ function formatAmount(value: string | number): string {
 
 function toIsoDate(d: Date | string): string {
   if (typeof d === 'string') return d
-  return d.toISOString().slice(0, 10)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function fromIsoDate(value: string): Date {
+  const [year = 1970, month = 1, day = 1] = value.split('-').map(Number)
+  return new Date(year, month - 1, day, 12)
+}
+
+function normalizeOptionalField(value: string): string | null {
+  const trimmedValue = value.trim()
+  return trimmedValue.length > 0 ? trimmedValue : null
+}
+
+function resetEntryForm() {
+  entryForm.value = {
+    date: new Date(),
+    type: 'in',
+    amount: 0,
+    reference: '',
+    description: '',
+  }
+}
+
+function openCreateEntryDialog() {
+  editingEntry.value = null
+  resetEntryForm()
+  entryDialogVisible.value = true
+}
+
+async function openDetailDialog(entry: CashEntry) {
+  selectedEntry.value = await getCashEntry(entry.id)
+  detailDialogVisible.value = true
+}
+
+function openEditDialog(entry: CashEntry) {
+  editingEntry.value = entry
+  entryForm.value = {
+    date: fromIsoDate(entry.date),
+    type: entry.type,
+    amount: parseFloat(entry.amount),
+    reference: entry.reference ?? '',
+    description: entry.description,
+  }
+  entryDialogVisible.value = true
 }
 
 async function loadAll() {
@@ -297,13 +512,27 @@ async function loadAll() {
 async function submitEntry() {
   saving.value = true
   try {
-    await addCashEntry({
-      date: toIsoDate(entryForm.value.date as unknown as Date),
-      type: entryForm.value.type,
-      amount: String(entryForm.value.amount),
-      description: entryForm.value.description,
-    })
+    if (editingEntry.value) {
+      await updateCashEntry(editingEntry.value.id, {
+        date: toIsoDate(entryForm.value.date as unknown as Date),
+        type: entryForm.value.type,
+        amount: String(entryForm.value.amount),
+        reference: normalizeOptionalField(entryForm.value.reference),
+        description: entryForm.value.description,
+      })
+      toast.add({ severity: 'success', summary: t('cash.entry_updated'), life: 3000 })
+    } else {
+      await addCashEntry({
+        date: toIsoDate(entryForm.value.date as unknown as Date),
+        type: entryForm.value.type,
+        amount: String(entryForm.value.amount),
+        reference: normalizeOptionalField(entryForm.value.reference),
+        description: entryForm.value.description,
+      })
+    }
     entryDialogVisible.value = false
+    editingEntry.value = null
+    resetEntryForm()
     await loadAll()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
@@ -335,10 +564,30 @@ onMounted(loadAll)
 </script>
 
 <style scoped>
+.cash-journal__actions {
+  width: 8rem;
+}
+
 .cash-form {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
+}
+
+.cash-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.cash-detail__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+}
+
+.cash-detail__label {
+  font-weight: 700;
 }
 
 .cash-denominations-grid {

@@ -38,7 +38,8 @@ def test_register_preview_contact_deduplicates_candidates() -> None:
     register_preview_contact(preview, "christine lopes")
 
     assert preview.estimated_contacts == 1
-    assert contact_preview_key("Christine", "LOPES") == "christine lopes"
+    assert contact_preview_key("LOPES", "Christine") == "christine lopes"
+    assert contact_preview_key("Christine LOPES") == "christine lopes"
 
 
 def test_make_and_append_sheet_preview_updates_global_lists() -> None:

@@ -1,54 +1,72 @@
-# frontend
+# Frontend Solde
 
-This template should help get you started developing with Vue 3 in Vite.
+Frontend Vue 3 de Solde, construit avec Vite, Pinia, Vue Router, PrimeVue et `vue-i18n`.
 
-## Recommended IDE Setup
+## Rôle du frontend
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- consommer l'API FastAPI exposée sous `/api`
+- afficher les workflows métier de l'association en français
+- centraliser l'état applicatif côté client avec Pinia
+- fournir une interface cohérente pour la comptabilité, la trésorerie et l'import Excel
 
-## Recommended Browser Setup
+## Stack
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+- Vue 3 + TypeScript
+- Vite
+- Pinia
+- Vue Router
+- PrimeVue + PrimeIcons
+- `vue-i18n`
+- Axios
+- Vitest + Vue Test Utils
 
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## Installation
 
 ```sh
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+## Développement local
 
 ```sh
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
+Le serveur Vite tourne par défaut sur `http://localhost:5173`.
+
+## Scripts disponibles
 
 ```sh
+npm run dev
 npm run build
-```
-
-### Run Unit Tests with [Vitest](https://vitest.dev/)
-
-```sh
+npm run preview
+npm run type-check
 npm run test:unit
+npm run lint
+npm run format
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+## Conventions du projet
+
+- les libellés visibles par l'utilisateur passent par les clés i18n
+- les vues vivent dans `src/views/`
+- les appels HTTP sont centralisés dans `src/api/`
+- l'état global vit dans `src/stores/`
+- les composants d'interface réutilisables vivent dans `src/components/`
+
+## Variables d'environnement de développement
+
+Certaines variables Vite sont utilisées pour accélérer les tests locaux.
+
+- `VITE_DEV_AUTO_LOGIN`
+- `VITE_DEV_AUTO_LOGIN_USERNAME`
+- `VITE_DEV_AUTO_LOGIN_PASSWORD`
+
+## Validation recommandée
 
 ```sh
-npm run lint
+npx vue-tsc --noEmit -p tsconfig.app.json
+npx vue-tsc --noEmit
+npx eslint src/
+npx vitest run
 ```
