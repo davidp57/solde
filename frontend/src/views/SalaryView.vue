@@ -28,7 +28,7 @@
             <label class="app-field__label">{{ t('salary.filter_employee') }}</label>
             <Select
               v-model="filterEmployee"
-              :options="employees"
+              :options="employeeFilterOptions"
               option-label="label"
               option-value="value"
               :placeholder="t('salary.filter_employee')"
@@ -531,6 +531,26 @@ const loading = ref(false)
 const summaryLoading = ref(false)
 const filterEmployee = ref<number | undefined>(undefined)
 const filterMonth = ref('')
+const employeeFilterOptions = computed(() => {
+  const optionsById = new Map<number, EmployeeOption>()
+
+  for (const employee of employees.value) {
+    optionsById.set(employee.value, employee)
+  }
+
+  for (const salary of salaries.value) {
+    if (!optionsById.has(salary.employee_id)) {
+      optionsById.set(salary.employee_id, {
+        label: salary.employee_name,
+        value: salary.employee_id,
+      })
+    }
+  }
+
+  return Array.from(optionsById.values()).sort((left, right) =>
+    left.label.localeCompare(right.label),
+  )
+})
 const salaryEmployeeOptions = computed(() =>
   Array.from(new Set(salaries.value.map((salary) => salary.employee_name))).sort(),
 )
@@ -716,5 +736,9 @@ onMounted(async () => {
 .salary-actions {
   display: flex;
   gap: var(--app-space-1);
+}
+
+.salary-actions :deep(.p-button) {
+  flex: 0 0 auto;
 }
 </style>

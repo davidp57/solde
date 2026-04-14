@@ -71,11 +71,11 @@
         <div class="app-filter-grid journal-filters">
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_from') }}</label>
-            <InputText v-model="filters.from_date" type="date" />
+            <AppDateInput v-model="filters.from_date" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_to') }}</label>
-            <InputText v-model="filters.to_date" type="date" />
+            <AppDateInput v-model="filters.to_date" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_account') }}</label>
@@ -622,6 +622,7 @@ import {
   updateManualEntryApi,
 } from '../api/accounting'
 import AppPage from '../components/ui/AppPage.vue'
+import AppDateInput from '../components/ui/AppDateInput.vue'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
