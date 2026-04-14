@@ -1982,6 +1982,7 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
         generate_entries_for_invoice,
         generate_entries_for_payment,
     )
+    from backend.services.cash_service import recompute_cash_balances  # noqa: PLC0415
     from backend.services.payment import _refresh_invoice_status  # noqa: PLC0415
 
     parsed_sheet, normalized_rows, _, ignored_issues = _parse_cash_sheet(ws)
@@ -2042,6 +2043,8 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
 
     try:
         await db.flush()
+        if created_cash_entries:
+            await recompute_cash_balances(db)
         for entry in created_cash_entries:
             result.record_created_object(
                 sheet_name=ws.title,

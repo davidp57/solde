@@ -23,7 +23,17 @@
     </AppPageHeader>
 
     <section class="app-stat-grid">
-      <AppStatCard :label="t('bank.balance')" :value="formatAmount(balance)" />
+      <AppStatCard
+        :label="t('bank.current_balance')"
+        :value="formatAmount(balance)"
+        :caption="t('bank.metrics.current_balance_caption')"
+      />
+      <AppStatCard
+        :label="t('bank.period_variation')"
+        :value="formatSignedAmount(periodVariation)"
+        :caption="t('bank.metrics.period_variation_caption', { period: selectedPeriodLabel })"
+        :tone="periodVariationTone"
+      />
       <AppStatCard
         :label="t('bank.transactions_title')"
         :value="displayedTransactions.length"
@@ -132,6 +142,7 @@
               <Column
                 field="description"
                 :header="t('bank.tx_description')"
+                class="bank-table__description"
                 sortable
                 :show-filter-match-modes="false"
                 :show-add-button="false"
@@ -168,6 +179,7 @@
               <Column
                 field="reconciled_label"
                 :header="t('bank.tx_reconciled')"
+                class="bank-table__reconciled"
                 sortable
                 filter-field="reconciled"
                 :show-filter-match-modes="false"
@@ -197,6 +209,7 @@
               <Column
                 field="source_label"
                 :header="t('bank.tx_source')"
+                class="bank-table__source"
                 sortable
                 filter-field="source"
                 :show-filter-match-modes="false"
@@ -217,7 +230,7 @@
                   />
                 </template>
               </Column>
-              <Column :header="t('common.actions')" style="width: 6rem">
+              <Column :header="t('common.actions')" style="width: 4.5rem">
                 <template #body="{ data }">
                   <Button
                     v-if="!data.reconciled"
@@ -631,6 +644,20 @@ const depositRows = computed(() =>
   })),
 )
 
+const periodVariation = computed(() =>
+  transactions.value.reduce((total, transaction) => total + parseFloat(transaction.amount), 0),
+)
+
+const selectedPeriodLabel = computed(
+  () => fiscalYearStore.selectedFiscalYear?.name ?? t('app.all_fiscal_years'),
+)
+
+const periodVariationTone = computed(() => {
+  if (periodVariation.value > 0) return 'success'
+  if (periodVariation.value < 0) return 'danger'
+  return 'warn'
+})
+
 const {
   filters: transactionTableFilters,
   globalFilter: transactionGlobalFilter,
@@ -708,6 +735,13 @@ const depositForm = ref({
 
 function formatAmount(value: string | number): string {
   return `${parseFloat(String(value)).toFixed(2)} €`
+}
+
+function formatSignedAmount(value: number): string {
+  if (value > 0) {
+    return `+${formatAmount(value)}`
+  }
+  return formatAmount(value)
 }
 
 function toIsoDate(d: Date | string): string {
@@ -844,6 +878,18 @@ onMounted(async () => {
 <style scoped>
 .bank-panel-toolbar {
   margin-bottom: var(--app-space-4);
+}
+
+:deep(.bank-table__description) {
+  min-width: 18rem;
+}
+
+:deep(.bank-table__reconciled) {
+  width: 7rem;
+}
+
+:deep(.bank-table__source) {
+  width: 6.5rem;
 }
 
 .bank-form {

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { defineComponent, h, inject, nextTick, provide } from 'vue'
+import { defineComponent, h, inject, nextTick, provide, reactive } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('vue-i18n', () => ({
@@ -14,6 +14,22 @@ vi.mock('primevue/usetoast', () => ({
   useToast: () => ({
     add: toastAdd,
   }),
+}))
+
+const fiscalYearStoreMock = reactive({
+  selectedFiscalYearId: 2 as number | undefined,
+  selectedFiscalYear: {
+    id: 2,
+    name: 'Exercice 2025',
+    start_date: '2025-01-01',
+    end_date: '2025-12-31',
+  } as { id: number; name: string; start_date: string; end_date: string } | undefined,
+  initialized: true,
+  initialize: vi.fn().mockResolvedValue(undefined),
+})
+
+vi.mock('../../stores/fiscalYear', () => ({
+  useFiscalYearStore: () => fiscalYearStoreMock,
 }))
 
 vi.mock('../../api/cash', () => ({
@@ -48,6 +64,16 @@ const cashEntryFixture = {
 
 const ContainerStub = defineComponent({
   template: '<div><slot /></div>',
+})
+
+const AppStatCardStub = defineComponent({
+  props: {
+    label: { type: String, default: '' },
+    value: { type: [String, Number], default: '' },
+    caption: { type: String, default: '' },
+    tone: { type: String, default: '' },
+  },
+  template: '<div>{{ label }} {{ value }} {{ caption }} {{ tone }}</div>',
 })
 
 const ButtonStub = defineComponent({
@@ -234,6 +260,7 @@ const ColumnStub = defineComponent({
 
 async function flushView() {
   await Promise.resolve()
+  await Promise.resolve()
   await nextTick()
 }
 
@@ -244,7 +271,7 @@ function mountView() {
         AppPage: ContainerStub,
         AppPageHeader: ContainerStub,
         AppPanel: ContainerStub,
-        AppStatCard: ContainerStub,
+        AppStatCard: AppStatCardStub,
         Button: ButtonStub,
         Column: ColumnStub,
         DataTable: DataTableStub,
@@ -268,10 +295,45 @@ function mountView() {
 describe('CashView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    fiscalYearStoreMock.selectedFiscalYearId = 2
+    fiscalYearStoreMock.selectedFiscalYear = {
+      id: 2,
+      name: 'Exercice 2025',
+      start_date: '2025-01-01',
+      end_date: '2025-12-31',
+    }
+    fiscalYearStoreMock.initialized = true
     mockGetCashBalance.mockResolvedValue({ balance: '145.00' })
     mockListCashEntries.mockResolvedValue([cashEntryFixture])
     mockListCashCounts.mockResolvedValue([])
     mockUpdateCashEntry.mockResolvedValue({ ...cashEntryFixture, reference: 'CAISSE-2025-002' })
+  })
+
+  it('loads journal and counts using the selected fiscal year dates', async () => {
+    mountView()
+    await flushView()
+
+    expect(fiscalYearStoreMock.initialize).toHaveBeenCalled()
+    expect(mockListCashEntries).toHaveBeenCalledWith({
+      from_date: '2025-01-01',
+      to_date: '2025-12-31',
+    })
+    expect(mockListCashCounts).toHaveBeenCalledWith({
+      from_date: '2025-01-01',
+      to_date: '2025-12-31',
+    })
+  })
+
+  it('displays a global current balance and the selected fiscal year variation', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    expect(wrapper.text()).toContain('cash.current_balance')
+    expect(wrapper.text()).toContain('145.00 €')
+    expect(wrapper.text()).toContain('cash.metrics.current_balance_caption')
+    expect(wrapper.text()).toContain('cash.period_variation')
+    expect(wrapper.text()).toContain('+45.00 €')
+    expect(wrapper.text()).toContain('cash.metrics.period_variation_caption')
   })
 
   it('displays the cash entry reference in the journal', async () => {
