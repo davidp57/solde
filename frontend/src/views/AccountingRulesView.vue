@@ -5,6 +5,7 @@
         <Button
           :label="t('accounting.rules.seed')"
           icon="pi pi-download"
+          severity="secondary"
           :loading="seeding"
           @click="seedRules"
         />
@@ -15,13 +16,12 @@
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <AppListState
-            :displayed-count="filtered.length"
+            :displayed-count="displayedRules.length"
             :total-count="rules.length"
             :loading="loading"
             :search-text="filterText"
           />
         </div>
-
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
@@ -31,19 +31,57 @@
       </div>
 
       <DataTable
-        :value="filtered"
+        v-model:filters="tableFilters"
+        :value="ruleRows"
         :loading="loading"
         class="app-data-table"
+        filter-display="menu"
         striped-rows
         paginator
         :rows="20"
         :rows-per-page-options="[20, 50, 100, 500]"
         size="small"
         row-hover
+        :global-filter-fields="['trigger_type', 'name', 'is_active', 'priority']"
+        removable-sort
+        @value-change="syncDisplayedRules"
       >
-        <Column field="trigger_type" :header="t('accounting.rules.trigger_type')" sortable />
-        <Column field="name" :header="t('accounting.rules.name')" sortable />
-        <Column field="is_active" :header="t('accounting.rules.active')" sortable>
+        <Column
+          field="trigger_type"
+          :header="t('accounting.rules.trigger_type')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="triggerTypeOptions"
+              :placeholder="t('common.all')"
+              display="chip"
+              show-clear
+            />
+          </template>
+        </Column>
+        <Column
+          field="name"
+          :header="t('accounting.rules.name')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('accounting.rules.name')" />
+          </template>
+        </Column>
+        <Column
+          field="is_active_label"
+          :header="t('accounting.rules.active')"
+          sortable
+          filter-field="is_active"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag
               :value="
@@ -52,8 +90,30 @@
               :severity="data.is_active ? 'success' : 'secondary'"
             />
           </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="yesNoOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              display="chip"
+              show-clear
+            />
+          </template>
         </Column>
-        <Column field="priority" :header="t('accounting.rules.priority')" sortable />
+        <Column
+          field="priority"
+          :header="t('accounting.rules.priority')"
+          sortable
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
+        </Column>
         <Column :header="t('common.actions')">
           <template #body="{ data }">
             <Button
@@ -85,7 +145,9 @@ import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
+import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
 import AppListState from '../components/ui/AppListState.vue'
+import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
@@ -95,20 +157,49 @@ import {
   seedRulesApi,
   type AccountingRuleRead,
 } from '../api/accounting'
-import { useTableFilter } from '../composables/useTableFilter'
+import {
+  inFilter,
+  numericRangeFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
 const toast = useToast()
 
 const rules = ref<AccountingRuleRead[]>([])
-const { filterText, filtered } = useTableFilter(rules)
 const loading = ref(false)
 const seeding = ref(false)
+const ruleRows = ref<Array<AccountingRuleRead & { is_active_label: string }>>([])
+const triggerTypeOptions = ref<Array<{ label: string; value: string }>>([])
+const yesNoOptions = [
+  { label: t('common.yes'), value: true },
+  { label: t('common.no'), value: false },
+]
+const {
+  filters: tableFilters,
+  globalFilter: filterText,
+  displayedRows: displayedRules,
+  syncDisplayedRows: syncDisplayedRules,
+} = useDataTableFilters(ruleRows, {
+  global: textFilter(''),
+  trigger_type: inFilter(),
+  name: textFilter(),
+  is_active: inFilter(),
+  priority: numericRangeFilter(),
+})
 
 async function load() {
   loading.value = true
   try {
     rules.value = await listRulesApi()
+    ruleRows.value = rules.value.map((rule) => ({
+      ...rule,
+      is_active_label: rule.is_active ? t('common.yes') : t('common.no'),
+    }))
+    triggerTypeOptions.value = Array.from(
+      new Set(rules.value.map((rule) => rule.trigger_type)),
+    ).map((value) => ({ label: value, value }))
   } finally {
     loading.value = false
   }

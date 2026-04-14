@@ -13,7 +13,7 @@
     <section class="app-stat-grid">
       <AppStatCard
         :label="t('invoices.supplier.metrics.visible_count')"
-        :value="filtered.length"
+        :value="displayedInvoices.length"
         :caption="t('invoices.supplier.metrics.total_count', { count: invoices.length })"
       />
       <AppStatCard
@@ -36,18 +36,28 @@
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('invoices.supplier.filters_hint') }}</p>
-          <AppListState
-            :displayed-count="filtered.length"
-            :total-count="invoices.length"
-            :loading="loading"
-            :search-text="filterText"
-            :active-filters="activeFilterLabels"
-          />
+          <div class="app-toolbar__meta-actions">
+            <AppListState
+              :displayed-count="displayedInvoices.length"
+              :total-count="invoices.length"
+              :loading="loading"
+              :search-text="globalFilter"
+              :active-filters="activeFilterLabels"
+            />
+            <Button
+              v-if="hasActiveFilters"
+              icon="pi pi-filter-slash"
+              severity="secondary"
+              text
+              :title="t('common.reset_filters')"
+              @click="resetFilters"
+            />
+          </div>
         </div>
 
         <div class="app-filter-grid">
           <div class="app-field">
-            <label class="app-field__label">{{ t('invoices.filter_status') }}</label>
+            <label class="app-field__label">{{ t('invoices.status') }}</label>
             <Select
               v-model="statusFilter"
               :options="statusOptions"
@@ -60,45 +70,137 @@
           </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+            <InputText v-model="globalFilter" :placeholder="t('common.filter_placeholder')" />
           </div>
         </div>
       </div>
 
       <DataTable
-        :value="filtered"
+        v-model:filters="tableFilters"
+        :value="invoiceRows"
         :loading="loading"
         class="app-data-table supplier-invoices-table"
+        filter-display="menu"
         striped-rows
         paginator
         :rows="20"
         :rows-per-page-options="[20, 50, 100, 500]"
+        :global-filter-fields="[
+          'number',
+          'date',
+          'contact_name',
+          'reference',
+          'total_amount',
+          'status_label',
+          'file_label',
+        ]"
         data-key="id"
         size="small"
         row-hover
+        removable-sort
+        @value-change="syncDisplayedInvoices"
       >
-        <Column field="number" :header="t('invoices.number')" sortable />
-        <Column field="date" :header="t('invoices.date')" sortable>
+        <Column field="number" :header="t('invoices.number')" sortable>
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('invoices.number')" />
+          </template>
+        </Column>
+        <Column
+          field="date"
+          :header="t('invoices.date')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+          <template #filter="{ filterModel }">
+            <AppDateRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column field="contact_id" :header="t('invoices.contact')">
+        <Column
+          field="contact_name"
+          :header="t('invoices.contact')"
+          sortable
+          filter-field="contact_name"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ contactName(data.contact_id) }}</template>
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('invoices.contact')" />
+          </template>
         </Column>
-        <Column field="reference" :header="t('invoices.reference')" sortable />
-        <Column field="total_amount" :header="t('invoices.total')" class="app-money" sortable>
+        <Column
+          field="reference"
+          :header="t('invoices.reference')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('invoices.reference')" />
+          </template>
+        </Column>
+        <Column
+          field="total_amount_value"
+          :header="t('invoices.total')"
+          class="app-money"
+          sortable
+          filter-field="total_amount_value"
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatAmount(data.total_amount) }} €</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column field="status" :header="t('invoices.status')" sortable>
+        <Column
+          field="status_label"
+          :header="t('invoices.status')"
+          sortable
+          filter-field="status"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag
               :value="t(`invoices.statuses.${data.status}`)"
               :severity="statusSeverity(data.status)"
             />
           </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="statusOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              show-clear
+            />
+          </template>
         </Column>
-        <Column field="file_path" :header="t('invoices.file')">
+        <Column
+          field="file_label"
+          :header="t('invoices.file')"
+          sortable
+          filter-field="has_file"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <i v-if="data.file_path" class="pi pi-paperclip text-primary" />
+          </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="fileFilterOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              show-clear
+            />
           </template>
         </Column>
         <Column :header="t('common.actions')" class="supplier-invoices-table__actions">
@@ -206,7 +308,10 @@ import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
+import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
 import AppListState from '../components/ui/AppListState.vue'
+import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
@@ -221,7 +326,13 @@ import {
   type InvoiceStatus,
 } from '../api/invoices'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
-import { useTableFilter } from '../composables/useTableFilter'
+import {
+  dateRangeFilter,
+  inFilter,
+  numericRangeFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
 
@@ -233,7 +344,6 @@ const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
 const invoices = ref<Invoice[]>([])
-const { filterText, filtered } = useTableFilter(invoices)
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -243,25 +353,65 @@ const uploadTargetId = ref<number | null>(null)
 const selectedFile = ref<File | null>(null)
 const uploading = ref(false)
 const statusFilter = ref<InvoiceStatus | null>(null)
+
+const invoiceRows = computed(() =>
+  invoices.value.map((invoice) => ({
+    ...invoice,
+    contact_name: contactName(invoice.contact_id),
+    total_amount_value: parseFloat(invoice.total_amount),
+    status_label: t(`invoices.statuses.${invoice.status}`),
+    has_file: Boolean(invoice.file_path),
+    file_label: invoice.file_path ? t('common.yes') : t('common.no'),
+  })),
+)
+
+const {
+  filters: tableFilters,
+  globalFilter,
+  displayedRows: displayedInvoices,
+  activeColumnFilterCount,
+  hasActiveFilters,
+  resetFilters,
+  syncDisplayedRows: syncDisplayedInvoices,
+} = useDataTableFilters(invoiceRows, {
+  global: textFilter(''),
+  number: textFilter(),
+  date: dateRangeFilter(),
+  contact_name: textFilter(),
+  reference: textFilter(),
+  total_amount_value: numericRangeFilter(),
+  status: inFilter(),
+  has_file: inFilter(),
+})
+
 const totalAmount = computed(() =>
-  filtered.value.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0),
+  displayedInvoices.value.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0),
 )
 const attachedFilesCount = computed(
-  () => filtered.value.filter((invoice) => Boolean(invoice.file_path)).length,
+  () => displayedInvoices.value.filter((invoice) => Boolean(invoice.file_path)).length,
 )
 const overdueCount = computed(
-  () => filtered.value.filter((invoice) => invoice.status === 'overdue').length,
+  () => displayedInvoices.value.filter((invoice) => invoice.status === 'overdue').length,
 )
 const pendingCount = computed(
   () =>
-    filtered.value.filter((invoice) => invoice.status === 'sent' || invoice.status === 'partial')
-      .length,
+    displayedInvoices.value.filter(
+      (invoice) => invoice.status === 'sent' || invoice.status === 'partial',
+    ).length,
 )
 const activeFilterLabels = computed(() => {
-  if (!statusFilter.value) return []
+  const labels: string[] = []
 
   const selectedOption = statusOptions.find((option) => option.value === statusFilter.value)
-  return selectedOption ? [selectedOption.label] : [String(statusFilter.value)]
+  if (selectedOption) {
+    labels.push(selectedOption.label)
+  }
+
+  if (activeColumnFilterCount.value > 0) {
+    labels.push(t('common.list.column_filters_chip', { count: activeColumnFilterCount.value }))
+  }
+
+  return labels
 })
 
 const statusOptions = [
@@ -271,6 +421,11 @@ const statusOptions = [
   { label: t('invoices.statuses.partial'), value: 'partial' },
   { label: t('invoices.statuses.overdue'), value: 'overdue' },
   { label: t('invoices.statuses.disputed'), value: 'disputed' },
+]
+
+const fileFilterOptions = [
+  { label: t('common.yes'), value: true },
+  { label: t('common.no'), value: false },
 ]
 
 function formatAmount(val: string | number) {

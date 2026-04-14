@@ -56,35 +56,106 @@
       <AppPanel :title="t('contact_history.invoices_section')" dense>
         <DataTable
           v-if="history.invoices.length"
-          :value="history.invoices"
+          v-model:filters="invoiceTableFilters"
+          :value="invoiceRows"
           class="app-data-table"
+          filter-display="menu"
           striped-rows
           paginator
           :rows="20"
           :rows-per-page-options="[20, 50, 100, 500]"
           size="small"
           row-hover
+          :global-filter-fields="[
+            'number',
+            'date',
+            'status',
+            'total_amount_value',
+            'balance_due_value',
+          ]"
+          removable-sort
         >
-          <Column field="number" :header="t('invoices.number')" style="width: 10rem" />
-          <Column field="date" :header="t('invoices.date')" style="width: 8rem">
-            <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+          <Column
+            field="number"
+            :header="t('invoices.number')"
+            style="width: 10rem"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
+            <template #filter="{ filterModel }">
+              <InputText v-model="filterModel.value" :placeholder="t('invoices.number')" />
+            </template>
           </Column>
-          <Column field="status" :header="t('invoices.status')">
+          <Column
+            field="date"
+            :header="t('invoices.date')"
+            style="width: 8rem"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
+            <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+            <template #filter="{ filterModel }">
+              <AppDateRangeFilter v-model="filterModel.value" />
+            </template>
+          </Column>
+          <Column
+            field="status_label"
+            :header="t('invoices.status')"
+            filter-field="status"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">
               <Tag
                 :value="t(`invoices.statuses.${data.status}`)"
                 :severity="statusSeverity(data.status)"
               />
             </template>
+            <template #filter="{ filterModel }">
+              <AppFilterMultiSelect
+                v-model="filterModel.value"
+                :options="invoiceStatusOptions"
+                option-label="label"
+                option-value="value"
+                :placeholder="t('common.all')"
+                display="chip"
+                show-clear
+              />
+            </template>
           </Column>
-          <Column field="total_amount" :header="t('invoices.total')" class="app-money">
+          <Column
+            field="total_amount_value"
+            :header="t('invoices.total')"
+            class="app-money"
+            sortable
+            data-type="numeric"
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">{{ fmt(data.total_amount) }} €</template>
+            <template #filter="{ filterModel }">
+              <AppNumberRangeFilter v-model="filterModel.value" />
+            </template>
           </Column>
-          <Column field="balance_due" :header="t('contact_history.total_due')" class="app-money">
+          <Column
+            field="balance_due_value"
+            :header="t('contact_history.total_due')"
+            class="app-money"
+            sortable
+            data-type="numeric"
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">
               <span :class="Number(data.balance_due) > 0 ? 'contact-detail-due' : ''">
                 {{ fmt(data.balance_due) }} €
               </span>
+            </template>
+            <template #filter="{ filterModel }">
+              <AppNumberRangeFilter v-model="filterModel.value" />
             </template>
           </Column>
         </DataTable>
@@ -94,24 +165,78 @@
       <AppPanel :title="t('contact_history.payments_section')" dense>
         <DataTable
           v-if="history.payments.length"
-          :value="history.payments"
+          v-model:filters="paymentTableFilters"
+          :value="paymentRows"
           class="app-data-table"
+          filter-display="menu"
           striped-rows
           paginator
           :rows="20"
           :rows-per-page-options="[20, 50, 100, 500]"
           size="small"
           row-hover
+          :global-filter-fields="['date', 'invoice_number', 'method', 'amount_value']"
+          removable-sort
         >
-          <Column field="date" :header="t('payments.date')" style="width: 8rem">
+          <Column
+            field="date"
+            :header="t('payments.date')"
+            style="width: 8rem"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+            <template #filter="{ filterModel }">
+              <AppDateRangeFilter v-model="filterModel.value" />
+            </template>
           </Column>
-          <Column field="invoice_number" :header="t('payments.invoice')" style="width: 10rem" />
-          <Column field="method" :header="t('payments.method')">
+          <Column
+            field="invoice_number"
+            :header="t('payments.invoice')"
+            style="width: 10rem"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
+            <template #filter="{ filterModel }">
+              <InputText v-model="filterModel.value" :placeholder="t('payments.invoice')" />
+            </template>
+          </Column>
+          <Column
+            field="method_label"
+            :header="t('payments.method')"
+            filter-field="method"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
+            <template #filter="{ filterModel }">
+              <AppFilterMultiSelect
+                v-model="filterModel.value"
+                :options="paymentMethodOptions"
+                option-label="label"
+                option-value="value"
+                :placeholder="t('common.all')"
+                display="chip"
+                show-clear
+              />
+            </template>
           </Column>
-          <Column field="amount" :header="t('payments.amount')" class="app-money">
+          <Column
+            field="amount_value"
+            :header="t('payments.amount')"
+            class="app-money"
+            sortable
+            data-type="numeric"
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">{{ fmt(data.amount) }} €</template>
+            <template #filter="{ filterModel }">
+              <AppNumberRangeFilter v-model="filterModel.value" />
+            </template>
           </Column>
         </DataTable>
         <div v-else class="app-empty-state">{{ t('contact_history.no_payments') }}</div>
@@ -128,24 +253,35 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
+import InputText from 'primevue/inputtext'
 import ProgressSpinner from 'primevue/progressspinner'
 import Tag from 'primevue/tag'
 import Toast from 'primevue/toast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
+import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
+import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import { getContactHistoryApi, markCreanceDouteuse } from '../api/accounting'
 import type { ContactHistory } from '../api/accounting'
+import {
+  dateRangeFilter,
+  inFilter,
+  numericRangeFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
 import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
@@ -155,6 +291,52 @@ const toast = useToast()
 
 const history = ref<ContactHistory | null>(null)
 const loading = ref(false)
+const invoiceRows = computed(() =>
+  (history.value?.invoices ?? []).map((invoice) => ({
+    ...invoice,
+    status_label: t(`invoices.statuses.${invoice.status}`),
+    total_amount_value: Number(invoice.total_amount),
+    balance_due_value: Number(invoice.balance_due),
+  })),
+)
+const paymentRows = computed(() =>
+  (history.value?.payments ?? []).map((payment) => ({
+    ...payment,
+    method_label: t(`payments.methods.${payment.method}`),
+    amount_value: Number(payment.amount),
+  })),
+)
+const invoiceStatusOptions = computed(() =>
+  Array.from(new Set((history.value?.invoices ?? []).map((invoice) => invoice.status))).map(
+    (status) => ({
+      label: t(`invoices.statuses.${status}`),
+      value: status,
+    }),
+  ),
+)
+const paymentMethodOptions = computed(() =>
+  Array.from(new Set((history.value?.payments ?? []).map((payment) => payment.method))).map(
+    (method) => ({
+      label: t(`payments.methods.${method}`),
+      value: method,
+    }),
+  ),
+)
+const { filters: invoiceTableFilters } = useDataTableFilters(invoiceRows, {
+  global: textFilter(''),
+  number: textFilter(),
+  date: dateRangeFilter(),
+  status: inFilter(),
+  total_amount_value: numericRangeFilter(),
+  balance_due_value: numericRangeFilter(),
+})
+const { filters: paymentTableFilters } = useDataTableFilters(paymentRows, {
+  global: textFilter(''),
+  date: dateRangeFilter(),
+  invoice_number: textFilter(),
+  method: inFilter(),
+  amount_value: numericRangeFilter(),
+})
 
 function fmt(val: string | number): string {
   return Number(val).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
