@@ -71,6 +71,12 @@ class TestListContacts:
         assert response.status_code == 200
         assert len(response.json()) == 101
 
+    async def test_readonly_user_cannot_list_contacts(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ):
+        response = await client.get("/api/contacts/", headers=readonly_auth_headers)
+        assert response.status_code == 403
+
 
 class TestCreateContact:
     async def test_creates_contact(self, client: AsyncClient, auth_headers: dict):

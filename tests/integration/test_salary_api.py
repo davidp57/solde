@@ -27,6 +27,22 @@ async def test_list_salaries_empty(client: AsyncClient, auth_headers: dict) -> N
 
 
 @pytest.mark.asyncio
+async def test_secretaire_cannot_list_salaries(
+    client: AsyncClient, secretaire_auth_headers: dict
+) -> None:
+    response = await client.get("/api/salaries/", headers=secretaire_auth_headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_readonly_cannot_list_salaries(
+    client: AsyncClient, readonly_auth_headers: dict
+) -> None:
+    response = await client.get("/api/salaries/", headers=readonly_auth_headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_list_salaries_returns_all_rows_when_limit_is_omitted(
     client: AsyncClient,
     auth_headers: dict,
@@ -171,6 +187,22 @@ async def test_salary_summary(
     assert march is not None
     assert march["count"] == 2
     assert float(march["total_gross"]) == pytest.approx(2000.0)
+
+
+@pytest.mark.asyncio
+async def test_secretaire_cannot_access_salary_summary(
+    client: AsyncClient, secretaire_auth_headers: dict
+) -> None:
+    response = await client.get("/api/salaries/summary", headers=secretaire_auth_headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_readonly_cannot_access_salary_summary(
+    client: AsyncClient, readonly_auth_headers: dict
+) -> None:
+    response = await client.get("/api/salaries/summary", headers=readonly_auth_headers)
+    assert response.status_code == 403
 
 
 @pytest.mark.asyncio

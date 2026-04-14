@@ -67,7 +67,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-022 | 2026-04-13 | Évolution | Utilisateurs / Sécurité | P1 | Renforcer la gestion des utilisateurs avec des rôles métier plus clairs, la création et l'administration des comptes, l'autonomie sur le profil et un socle de sécurité de compte plus complet |
-| BL-023 | 2026-04-13 | Correction | Permissions / Comptabilité | P1 | Clarifier d'abord la cible produit des rôles, puis corriger les droits réels et les incohérences de visibilité du shell comptable (écrans, sélecteur d'exercice, zone utilisateur) |
 | BL-024 | 2026-04-13 | Correction | Paiements / Banque | P1 | Clarifier le workflow cible de saisie des paiements et corriger l'automatisme qui remet en banque les paiements `espèces` et `virement` dès leur encodage |
 
 ## Détail des sujets
@@ -306,17 +305,13 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-023 — Revalider les droits réels par rôle et la visibilité des écrans comptables
 
-- **Dates** : `created=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14`
 - **Pourquoi** : le retest métier après fusion de `BL-022` montre d'abord un problème de définition cible des rôles, puis des incohérences concrètes entre le comportement attendu et le comportement observé. Avant d'implémenter un changement de permissions, il faut clarifier le périmètre produit réel de chaque rôle. Côté symptômes observés, le rôle `secrétaire` semble voir une partie de la comptabilité, la visibilité de certains écrans comptables reste ambiguë selon le profil, et la zone utilisateur du shell (nom d'utilisateur et bouton de déconnexion en bas à gauche) disparaît parfois.
 - **Résultat attendu** : disposer d'une matrice d'autorisations explicitement validée côté produit, puis d'un comportement vérifié en conditions réelles pour chaque rôle, avec une visibilité cohérente des écrans comptables, du sélecteur d'exercice et de la zone utilisateur du shell.
 - **Précondition** : ne pas corriger les permissions au fil de l'eau sans arbitrage préalable sur la cible produit des rôles ; la discussion de cadrage fait partie du ticket.
-- **Questions à trancher** :
-	- qu'est-ce qu'un rôle `consultation` doit pouvoir voir exactement parmi journal, grand livre, balance, règles comptables et paramètres ;
-	- le rôle `secrétaire` doit-il seulement gérer les flux métier (`contacts`, `factures`, `paiements`) ou aussi consulter une partie des écrans comptables ;
-	- faut-il revoir plus largement les rôles actuels (`readonly`, `secretaire`, `tresorier`, `admin`) parce qu'ils ne correspondent pas clairement aux usages métier attendus ;
-	- les incohérences observées relèvent-elles d'un problème d'autorisations backend, de menus frontend, de filtrage par exercice courant, ou d'un défaut d'affichage/rendu de la zone utilisateur dans le shell.
-- **Critère d'acceptation** : chaque rôle dispose d'un périmètre lisible, testé et conforme à la décision produit, les écrans comptables et le sélecteur d'exercice sont visibles uniquement pour les bons profils, et le nom d'utilisateur ainsi que le bouton de déconnexion restent affichés de façon stable quand la zone utilisateur doit être présente.
-- **Point d'attention** : ce sujet dépend directement de `BL-022` mais mérite un ticket dédié car il combine arbitrage produit, contrôle des routes/menus, vérification des vues comptables et correction d'un symptôme intermittent de shell lié à l'utilisateur courant.
+- **Avancement actuel** : le cadrage initial a été formalisé dans `doc/dev/bl-023-cadrage-roles-et-matrice-acces.md`, puis la cible produit a été validée et implémentée : séparation visible `Gestion` / `Comptabilité` dans la navigation, nouveaux guards frontend par domaine, renommage métier `Gestionnaire` / `Comptable`, masquage du rôle `readonly` dans les options usuelles d'administration, alignement des permissions backend sur la matrice cible et ajout de tests ciblés sur les rôles.
+- **Résultat livré** : la matrice produit validée est maintenant appliquée dans le code. La partie `Gestion` est accessible à `Gestionnaire`, `Comptable` et `Administrateur`, la partie `Comptabilité` est réservée à `Comptable` et `Administrateur`, la navigation est séparée visuellement par section, le sélecteur d'exercice reste disponible pour les profils métier qui consultent des écrans filtrés par exercice, et la zone utilisateur du shell reste visible avec un libellé stable sans être repoussée en bas par la hauteur des vues.
+- **Point d'attention** : le rôle technique `readonly` reste présent pour compatibilité, mais n'est plus proposé comme rôle produit normal dans l'interface d'administration. Une éventuelle suppression complète ou migration explicite reste un sujet distinct.
 
 ### BL-024 — Clarifier la saisie des paiements et corriger les remises en banque automatiques
 
@@ -362,6 +357,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-010** — `created=2026-04-12`, `completed=2026-04-12` — Une stratégie sûre de clôture administrative des exercices historiques importés a été définie et livrée.
 - **BL-025** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13` — Le grand livre est maintenant borné à l'exercice choisi, sans option multi-exercices, avec un solde d'ouverture cohérent quand la période démarre en cours d'exercice.
 - **BL-011** — `created=2026-04-12`, `completed=2026-04-12` — L'exercice courant global et son sélecteur partagé ont été livrés sur les écrans comptables concernés.
+- **BL-023** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les rôles métier `Gestionnaire` / `Comptable` / `Administrateur` sont maintenant alignés entre docs, navigation, guards frontend et permissions backend, avec séparation visible `Gestion` / `Comptabilité` et couverture de test ciblée.
 - **BL-012** — `created=2026-04-12`, `completed=2026-04-12` — La liste des paiements affiche la référence métier et permet l'édition directe.
 - **BL-013** — `created=2026-04-12`, `completed=2026-04-12` — Le journal de caisse propose désormais référence, détail et édition directe.
 - **BL-014** — `created=2026-04-12`, `completed=2026-04-12` — Le journal comptable est enrichi pour la lecture métier, le détail et la navigation vers les factures.

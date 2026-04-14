@@ -143,6 +143,38 @@ async def readonly_user(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
+async def secretaire_user(db_session: AsyncSession) -> User:
+    """Create and persist a test secretaire user."""
+    user = User(
+        username="secretaire",
+        email="secretaire@test.com",
+        password_hash=hash_password("secretairepassword123"),
+        role=UserRole.SECRETAIRE,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def tresorier_user(db_session: AsyncSession) -> User:
+    """Create and persist a test tresorier user."""
+    user = User(
+        username="tresorier",
+        email="tresorier@test.com",
+        password_hash=hash_password("tresorierpassword123"),
+        role=UserRole.TRESORIER,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
 async def secondary_admin_user(db_session: AsyncSession) -> User:
     """Create and persist a second test admin user."""
     user = User(
@@ -175,6 +207,28 @@ async def readonly_auth_headers(client: AsyncClient, readonly_user: User) -> dic
     response = await client.post(
         "/api/auth/login",
         data={"username": "readonly", "password": "readonlypassword123"},
+    )
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def secretaire_auth_headers(client: AsyncClient, secretaire_user: User) -> dict[str, str]:
+    """Return Authorization headers for the secretaire user."""
+    response = await client.post(
+        "/api/auth/login",
+        data={"username": "secretaire", "password": "secretairepassword123"},
+    )
+    token = response.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def tresorier_auth_headers(client: AsyncClient, tresorier_user: User) -> dict[str, str]:
+    """Return Authorization headers for the tresorier user."""
+    response = await client.post(
+        "/api/auth/login",
+        data={"username": "tresorier", "password": "tresorierpassword123"},
     )
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}

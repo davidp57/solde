@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import get_db
 from backend.models.accounting_entry import EntrySourceType
 from backend.models.user import User, UserRole
-from backend.routers.auth import get_current_user, require_role
+from backend.routers.auth import require_role
 from backend.schemas.accounting_entry import (
     AccountingEntryGroupRead,
     AccountingEntryRead,
@@ -29,7 +29,10 @@ _WriteAccess = Annotated[
     User,
     Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
 ]
-_ReadAccess = Annotated[User, Depends(get_current_user)]
+_ReadAccess = Annotated[
+    User,
+    Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
+]
 
 
 @router.get("/journal", response_model=list[AccountingEntryRead])
