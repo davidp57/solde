@@ -2,7 +2,9 @@
   <form class="app-dialog-form" @submit.prevent="submit">
     <section class="app-dialog-intro">
       <p class="app-dialog-intro__eyebrow">{{ t('contacts.title') }}</p>
-      <p class="app-dialog-intro__text">{{ t(isEditing ? 'contacts.form_intro_edit' : 'contacts.form_intro_create') }}</p>
+      <p class="app-dialog-intro__text">
+        {{ t(isEditing ? 'contacts.form_intro_edit' : 'contacts.form_intro_create') }}
+      </p>
     </section>
 
     <section class="app-dialog-section">
@@ -99,23 +101,18 @@
       </div>
     </section>
 
-      <Message v-if="errorMessage" severity="error">{{ errorMessage }}</Message>
+    <Message v-if="errorMessage" severity="error">{{ errorMessage }}</Message>
 
-      <div class="app-form-actions">
-        <Button
-          type="button"
-          :label="t('common.cancel')"
-          severity="secondary"
-          :disabled="saving"
-          @click="$emit('cancel')"
-        />
-        <Button
-          type="submit"
-          :label="t('common.save')"
-          :loading="saving"
-          icon="pi pi-check"
-        />
-      </div>
+    <div class="app-form-actions">
+      <Button
+        type="button"
+        :label="t('common.cancel')"
+        severity="secondary"
+        :disabled="saving"
+        @click="$emit('cancel')"
+      />
+      <Button type="submit" :label="t('common.save')" :loading="saving" icon="pi pi-check" />
+    </div>
   </form>
 </template>
 

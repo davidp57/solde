@@ -24,6 +24,16 @@ export interface CashEntryCreate {
   description?: string
 }
 
+export interface CashEntryUpdate {
+  date?: string
+  amount?: string
+  type?: CashMovementType
+  contact_id?: number | null
+  payment_id?: number | null
+  reference?: string | null
+  description?: string | null
+}
+
 export interface CashCount {
   id: number
   date: string
@@ -79,6 +89,16 @@ export async function listCashEntries(params?: {
 
 export async function addCashEntry(payload: CashEntryCreate): Promise<CashEntry> {
   const response = await apiClient.post<CashEntry>('/api/cash/entries', payload)
+  return response.data
+}
+
+export async function getCashEntry(id: number): Promise<CashEntry> {
+  const response = await apiClient.get<CashEntry>(`/api/cash/entries/${id}`)
+  return response.data
+}
+
+export async function updateCashEntry(id: number, payload: CashEntryUpdate): Promise<CashEntry> {
+  const response = await apiClient.put<CashEntry>(`/api/cash/entries/${id}`, payload)
   return response.data
 }
 

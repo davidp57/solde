@@ -1,10 +1,13 @@
 """Integration tests for salaries API."""
 
+from decimal import Decimal
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.contact import Contact, ContactType
+from backend.models.salary import Salary
 from backend.models.user import User
 
 
@@ -21,6 +24,36 @@ async def test_list_salaries_empty(client: AsyncClient, auth_headers: dict) -> N
     response = await client.get("/api/salaries/", headers=auth_headers)
     assert response.status_code == 200
     assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_list_salaries_returns_all_rows_when_limit_is_omitted(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session: AsyncSession,
+) -> None:
+    employee = await _create_employee(db_session)
+    db_session.add_all(
+        [
+            Salary(
+                employee_id=employee.id,
+                month=f"2025-{(index % 12) + 1:02d}",
+                hours=Decimal("151.67"),
+                gross=Decimal("1800.00"),
+                employee_charges=Decimal("252.00"),
+                employer_charges=Decimal("756.00"),
+                tax=Decimal("90.00"),
+                net_pay=Decimal("1458.00"),
+            )
+            for index in range(101)
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/salaries/", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 101
 
 
 @pytest.mark.asyncio
@@ -138,6 +171,47 @@ async def test_salary_summary(
     assert march is not None
     assert march["count"] == 2
     assert float(march["total_gross"]) == pytest.approx(2000.0)
+
+
+@pytest.mark.asyncio
+async def test_salary_endpoints_filter_by_month_range(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session: AsyncSession,
+    admin_user: User,
+) -> None:
+    """Salary list and summary can be scoped to the current fiscal year month range."""
+    employee = await _create_employee(db_session, "Bernard", "Luc")
+    await db_session.commit()
+
+    for month in ["2024-07", "2024-08", "2025-07", "2025-08"]:
+        payload = {
+            "employee_id": employee.id,
+            "month": month,
+            "hours": 50.0,
+            "gross": 1000.0,
+            "employee_charges": 140.0,
+            "employer_charges": 420.0,
+            "tax": 10.0,
+            "net_pay": 850.0,
+        }
+        await client.post("/api/salaries/", json=payload, headers=auth_headers)
+
+    list_response = await client.get(
+        "/api/salaries/?from_month=2024-08&to_month=2025-07",
+        headers=auth_headers,
+    )
+
+    assert list_response.status_code == 200
+    assert [row["month"] for row in list_response.json()] == ["2025-07", "2024-08"]
+
+    summary_response = await client.get(
+        "/api/salaries/summary?from_month=2024-08&to_month=2025-07",
+        headers=auth_headers,
+    )
+
+    assert summary_response.status_code == 200
+    assert [row["month"] for row in summary_response.json()] == ["2025-07", "2024-08"]
 
 
 @pytest.mark.asyncio

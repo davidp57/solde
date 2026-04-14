@@ -302,11 +302,11 @@ def test_make_existing_row_issues_use_stable_messages() -> None:
 
 def test_find_existing_contact_issues_uses_preview_key_matching() -> None:
     def _preview_key(nom: str | None, prenom: str | None = None) -> str:
-        return _normalize_text(f"{nom} {prenom or ''}".strip())
+        return _normalize_text(f"{prenom or ''} {nom}".strip())
 
     rows = [
-        NormalizedContactRow(source_row_number=2, nom="Christine LOPES", prenom=None, email=None),
-        NormalizedContactRow(source_row_number=3, nom="Thi BE NGUYEN", prenom="An", email=None),
+        NormalizedContactRow(source_row_number=2, nom="LOPES", prenom="Christine", email=None),
+        NormalizedContactRow(source_row_number=3, nom="BE NGUYEN", prenom="Thi", email=None),
     ]
 
     ignored_issues = find_existing_contact_issues(
@@ -448,10 +448,10 @@ def test_issue_category_for_message_uses_global_prefixes() -> None:
     )
     assert (
         issue_category_for_message(
-            "Import comptabilite bloque : des ecritures auto-generees "
+            "Import comptabilite : des ecritures auto-generees "
             "issues de la gestion existent deja en base (2)."
         )
-        == "comptabilite-coexistence-blocked"
+        == "comptabilite-coexistence"
     )
     assert issue_category_for_message("Erreur import gestion : boom") == "import-error"
 

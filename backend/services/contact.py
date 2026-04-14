@@ -41,7 +41,7 @@ async def list_contacts(
     search: str | None = None,
     active_only: bool = True,
     skip: int = 0,
-    limit: int = 100,
+    limit: int | None = None,
 ) -> list[Contact]:
     query = select(Contact)
     if active_only:
@@ -57,7 +57,9 @@ async def list_contacts(
                 Contact.email.ilike(term),
             )
         )
-    query = query.order_by(Contact.nom, Contact.prenom).offset(skip).limit(limit)
+    query = query.order_by(Contact.nom, Contact.prenom).offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 

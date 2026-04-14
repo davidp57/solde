@@ -180,12 +180,16 @@ def test_import_result_add_import_error_uses_given_scope() -> None:
     assert result.errors == ["Erreur import gestion : panic"]
 
 
-def test_preview_result_to_dict_categorizes_global_errors() -> None:
+def test_preview_result_to_dict_categorizes_global_errors_and_warnings() -> None:
     preview = PreviewResult()
     preview.errors = [
         "Fichier deja importe (gestion) le 2026-04-11 12:34:56",
-        "Import comptabilite bloque : des ecritures auto-generees "
-        "issues de la gestion existent deja en base (2).",
+    ]
+    preview.warnings = [
+        "Import comptabilite : des ecritures auto-generees "
+        "issues de la gestion existent deja en base (2). "
+        "Les doublons exacts du journal seront ignores et seules les ecritures "
+        "nouvelles seront importees."
     ]
 
     payload = preview.to_dict()
@@ -200,19 +204,25 @@ def test_preview_result_to_dict_categorizes_global_errors() -> None:
             "message": "Fichier deja importe (gestion) le 2026-04-11 12:34:56",
             "display_message": "Fichier deja importe (gestion) le 2026-04-11 12:34:56",
         },
+    ]
+    assert payload["warning_details"] == [
         {
-            "category": "comptabilite-coexistence-blocked",
-            "severity": "error",
+            "category": "comptabilite-coexistence",
+            "severity": "warning",
             "sheet_name": None,
             "kind": None,
             "row_number": None,
             "message": (
-                "Import comptabilite bloque : des ecritures auto-generees "
-                "issues de la gestion existent deja en base (2)."
+                "Import comptabilite : des ecritures auto-generees "
+                "issues de la gestion existent deja en base (2). "
+                "Les doublons exacts du journal seront ignores et seules les "
+                "ecritures nouvelles seront importees."
             ),
             "display_message": (
-                "Import comptabilite bloque : des ecritures auto-generees "
-                "issues de la gestion existent deja en base (2)."
+                "Import comptabilite : des ecritures auto-generees "
+                "issues de la gestion existent deja en base (2). "
+                "Les doublons exacts du journal seront ignores et seules les "
+                "ecritures nouvelles seront importees."
             ),
         },
     ]

@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.models.accounting_entry import (
+    AccountingEntry,
+    EntrySourceType,
+    build_entry_group_key,
+)
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.schemas.fiscal_year import FiscalYearCreate
 
@@ -32,14 +37,46 @@ async def get_fiscal_year(db: AsyncSession, fy_id: int) -> FiscalYear | None:
 
 
 async def get_current_fiscal_year(db: AsyncSession) -> FiscalYear | None:
-    """Return the first open fiscal year (the active one)."""
+    """Return the open fiscal year covering today, else the latest open one."""
+    today = date.today()
     result = await db.execute(
         select(FiscalYear)
+        .where(
+            FiscalYear.status == FiscalYearStatus.OPEN,
+            FiscalYear.start_date <= today,
+            FiscalYear.end_date >= today,
+        )
+        .order_by(FiscalYear.start_date.desc())
+        .limit(1)
+    )
+    current_fiscal_year = result.scalar_one_or_none()
+    if current_fiscal_year is not None:
+        return current_fiscal_year
+
+    fallback_result = await db.execute(
+        select(FiscalYear)
         .where(FiscalYear.status == FiscalYearStatus.OPEN)
-        .order_by(FiscalYear.start_date.asc())
+        .order_by(FiscalYear.start_date.desc())
+        .limit(1)
+    )
+    return fallback_result.scalar_one_or_none()
+
+
+async def find_fiscal_year_for_date(db: AsyncSession, target_date: date) -> FiscalYear | None:
+    """Return the fiscal year covering a given date, if any."""
+    result = await db.execute(
+        select(FiscalYear)
+        .where(FiscalYear.start_date <= target_date, FiscalYear.end_date >= target_date)
+        .order_by(FiscalYear.start_date.desc())
         .limit(1)
     )
     return result.scalar_one_or_none()
+
+
+async def find_fiscal_year_id_for_date(db: AsyncSession, target_date: date) -> int | None:
+    """Return the ID of the fiscal year covering a given date, if any."""
+    fiscal_year = await find_fiscal_year_for_date(db, target_date)
+    return fiscal_year.id if fiscal_year is not None else None
 
 
 async def create_fiscal_year(db: AsyncSession, payload: FiscalYearCreate) -> FiscalYear:
@@ -136,8 +173,24 @@ async def close_fiscal_year(db: AsyncSession, fy: FiscalYear) -> FiscalYear:
                 fiscal_year_id=fy.id,
                 source_type=EntrySourceType.CLOTURE,
                 source_id=fy.id,
+                group_key=build_entry_group_key(EntrySourceType.CLOTURE, fy.id),
             )
         )
+
+    fy.status = FiscalYearStatus.CLOSED
+    await db.commit()
+    await db.refresh(fy)
+    return fy
+
+
+async def administrative_close_fiscal_year(db: AsyncSession, fy: FiscalYear) -> FiscalYear:
+    """Close a fiscal year without generating any closing entries.
+
+    This mode is intended for historical periods imported from Excel where
+    closing and carry-forward entries already exist in the imported journal.
+    """
+    if fy.status != FiscalYearStatus.OPEN:
+        raise FiscalYearError("Only OPEN fiscal years can be administratively closed")
 
     fy.status = FiscalYearStatus.CLOSED
     await db.commit()
@@ -218,10 +271,11 @@ async def open_new_fiscal_year(
                 account_number=account_number,
                 label=f"RAN {closed_fy.name} — {acct.label}",
                 debit=abs_solde if is_debit else Decimal("0"),
-                credit=abs_solde if not is_debit else Decimal("0"),
+                credit=Decimal("0") if is_debit else abs_solde,
                 fiscal_year_id=new_fy.id,
                 source_type=EntrySourceType.CLOTURE,
                 source_id=closed_fy.id,
+                group_key=build_entry_group_key(EntrySourceType.CLOTURE, closed_fy.id),
             )
         )
 

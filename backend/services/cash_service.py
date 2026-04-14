@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.cash import CashCount, CashMovementType, CashRegister
-from backend.schemas.cash import CashCountCreate, CashEntryCreate
+from backend.schemas.cash import CashCountCreate, CashEntryCreate, CashEntryUpdate
 
 # Denomination values in euros
 _DENOMINATIONS: dict[str, Decimal] = {
@@ -41,14 +41,21 @@ async def _current_balance(db: AsyncSession) -> Decimal:
     return Decimal(str(total_in)) - Decimal(str(total_out))
 
 
-async def add_cash_entry(db: AsyncSession, payload: CashEntryCreate) -> CashRegister:
-    """Add a cash register entry and compute the running balance."""
-    balance_before = await _current_balance(db)
-    if payload.type == CashMovementType.IN:
-        balance_after = balance_before + payload.amount
-    else:
-        balance_after = balance_before - payload.amount
+async def _recompute_balances(db: AsyncSession) -> None:
+    result = await db.execute(
+        select(CashRegister).order_by(CashRegister.date.asc(), CashRegister.id.asc())
+    )
+    running_balance = Decimal("0")
+    for entry in result.scalars().all():
+        if entry.type == CashMovementType.IN:
+            running_balance += Decimal(str(entry.amount))
+        else:
+            running_balance -= Decimal(str(entry.amount))
+        entry.balance_after = running_balance
 
+
+async def add_cash_entry(db: AsyncSession, payload: CashEntryCreate) -> CashRegister:
+    """Add a cash register entry and recompute running balances in journal order."""
     entry = CashRegister(
         date=payload.date,
         amount=payload.amount,
@@ -57,9 +64,30 @@ async def add_cash_entry(db: AsyncSession, payload: CashEntryCreate) -> CashRegi
         payment_id=payload.payment_id,
         reference=payload.reference,
         description=payload.description,
-        balance_after=balance_after,
+        balance_after=Decimal("0"),
     )
     db.add(entry)
+    await db.flush()
+    await _recompute_balances(db)
+    await db.commit()
+    await db.refresh(entry)
+    return entry
+
+
+async def get_cash_entry(db: AsyncSession, entry_id: int) -> CashRegister | None:
+    result = await db.execute(select(CashRegister).where(CashRegister.id == entry_id))
+    return result.scalar_one_or_none()
+
+
+async def update_cash_entry(
+    db: AsyncSession,
+    entry: CashRegister,
+    payload: CashEntryUpdate,
+) -> CashRegister:
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(entry, field, value)
+    await db.flush()
+    await _recompute_balances(db)
     await db.commit()
     await db.refresh(entry)
     return entry
@@ -69,14 +97,13 @@ async def list_cash_entries(
     db: AsyncSession,
     *,
     skip: int = 0,
-    limit: int = 100,
+    limit: int | None = None,
 ) -> list[CashRegister]:
-    result = await db.execute(
-        select(CashRegister)
-        .order_by(CashRegister.date.desc(), CashRegister.id.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    query = select(CashRegister).order_by(CashRegister.date.desc(), CashRegister.id.desc())
+    query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 
@@ -104,14 +131,13 @@ async def list_cash_counts(
     db: AsyncSession,
     *,
     skip: int = 0,
-    limit: int = 50,
+    limit: int | None = None,
 ) -> list[CashCount]:
-    result = await db.execute(
-        select(CashCount)
-        .order_by(CashCount.date.desc(), CashCount.id.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    query = select(CashCount).order_by(CashCount.date.desc(), CashCount.id.desc())
+    query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 

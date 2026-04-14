@@ -11,7 +11,10 @@
     </div>
 
     <template v-else-if="history">
-      <AppPanel :title="contactFullName(history.contact)" :subtitle="contactSubtitle(history.contact)">
+      <AppPanel
+        :title="contactFullName(history.contact)"
+        :subtitle="contactSubtitle(history.contact)"
+      >
         <template #actions>
           <div class="contact-detail-actions">
             <Tag :value="t(`contacts.types.${history.contact.type}`)" />
@@ -33,9 +36,20 @@
         </div>
 
         <section class="app-stat-grid">
-          <AppStatCard :label="t('contact_history.total_invoiced')" :value="`${fmt(history.total_invoiced)} €`" />
-          <AppStatCard :label="t('contact_history.total_paid')" :value="`${fmt(history.total_paid)} €`" tone="success" />
-          <AppStatCard :label="t('contact_history.total_due')" :value="`${fmt(history.total_due)} €`" :tone="Number(history.total_due) > 0 ? 'danger' : 'default'" />
+          <AppStatCard
+            :label="t('contact_history.total_invoiced')"
+            :value="`${fmt(history.total_invoiced)} €`"
+          />
+          <AppStatCard
+            :label="t('contact_history.total_paid')"
+            :value="`${fmt(history.total_paid)} €`"
+            tone="success"
+          />
+          <AppStatCard
+            :label="t('contact_history.total_due')"
+            :value="`${fmt(history.total_due)} €`"
+            :tone="Number(history.total_due) > 0 ? 'danger' : 'default'"
+          />
         </section>
       </AppPanel>
 
@@ -45,27 +59,35 @@
           :value="history.invoices"
           class="app-data-table"
           striped-rows
+          paginator
+          :rows="20"
+          :rows-per-page-options="[20, 50, 100, 500]"
           size="small"
           row-hover
         >
-            <Column field="number" :header="t('invoices.number')" style="width:10rem" />
-            <Column field="date" :header="t('invoices.date')" style="width:8rem" />
-            <Column field="status" :header="t('invoices.status')">
-              <template #body="{ data }">
-                <Tag :value="t(`invoices.statuses.${data.status}`)" :severity="statusSeverity(data.status)" />
-              </template>
-            </Column>
-            <Column field="total_amount" :header="t('invoices.total')" class="app-money">
-              <template #body="{ data }">{{ fmt(data.total_amount) }} €</template>
-            </Column>
-            <Column field="balance_due" :header="t('contact_history.total_due')" class="app-money">
-              <template #body="{ data }">
-                <span :class="Number(data.balance_due) > 0 ? 'contact-detail-due' : ''">
-                  {{ fmt(data.balance_due) }} €
-                </span>
-              </template>
-            </Column>
-          </DataTable>
+          <Column field="number" :header="t('invoices.number')" style="width: 10rem" />
+          <Column field="date" :header="t('invoices.date')" style="width: 8rem">
+            <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+          </Column>
+          <Column field="status" :header="t('invoices.status')">
+            <template #body="{ data }">
+              <Tag
+                :value="t(`invoices.statuses.${data.status}`)"
+                :severity="statusSeverity(data.status)"
+              />
+            </template>
+          </Column>
+          <Column field="total_amount" :header="t('invoices.total')" class="app-money">
+            <template #body="{ data }">{{ fmt(data.total_amount) }} €</template>
+          </Column>
+          <Column field="balance_due" :header="t('contact_history.total_due')" class="app-money">
+            <template #body="{ data }">
+              <span :class="Number(data.balance_due) > 0 ? 'contact-detail-due' : ''">
+                {{ fmt(data.balance_due) }} €
+              </span>
+            </template>
+          </Column>
+        </DataTable>
         <div v-else class="app-empty-state">{{ t('contact_history.no_invoices') }}</div>
       </AppPanel>
 
@@ -75,18 +97,23 @@
           :value="history.payments"
           class="app-data-table"
           striped-rows
+          paginator
+          :rows="20"
+          :rows-per-page-options="[20, 50, 100, 500]"
           size="small"
           row-hover
         >
-            <Column field="date" :header="t('payments.date')" style="width:8rem" />
-            <Column field="invoice_number" :header="t('payments.invoice')" style="width:10rem" />
-            <Column field="method" :header="t('payments.method')">
-              <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
-            </Column>
-            <Column field="amount" :header="t('payments.amount')" class="app-money">
-              <template #body="{ data }">{{ fmt(data.amount) }} €</template>
-            </Column>
-          </DataTable>
+          <Column field="date" :header="t('payments.date')" style="width: 8rem">
+            <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+          </Column>
+          <Column field="invoice_number" :header="t('payments.invoice')" style="width: 10rem" />
+          <Column field="method" :header="t('payments.method')">
+            <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
+          </Column>
+          <Column field="amount" :header="t('payments.amount')" class="app-money">
+            <template #body="{ data }">{{ fmt(data.amount) }} €</template>
+          </Column>
+        </DataTable>
         <div v-else class="app-empty-state">{{ t('contact_history.no_payments') }}</div>
       </AppPanel>
     </template>
@@ -119,6 +146,7 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import { getContactHistoryApi, markCreanceDouteuse } from '../api/accounting'
 import type { ContactHistory } from '../api/accounting'
+import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -145,7 +173,9 @@ function statusSeverity(status: string): string {
 }
 
 function contactFullName(contact: ContactHistory['contact']): string {
-  return [contact.nom, contact.prenom].filter((value): value is string => typeof value === 'string' && value.length > 0).join(' ')
+  return [contact.nom, contact.prenom]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .join(' ')
 }
 
 function contactSubtitle(contact: ContactHistory['contact']): string {

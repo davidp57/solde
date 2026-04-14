@@ -97,6 +97,31 @@ async def test_list_salaries_filter_by_employee(db_session: AsyncSession) -> Non
 
 
 @pytest.mark.asyncio
+async def test_list_salaries_filter_by_month_range(db_session: AsyncSession) -> None:
+    """list_salaries can filter salaries to a fiscal-year month range."""
+    from backend.services.salary_service import create_salary, list_salaries
+
+    employee = await _make_employee(db_session, "Dupont", "Paul")
+
+    for month in ["2024-07", "2024-08", "2025-07", "2025-08"]:
+        payload = SalaryCreate(
+            employee_id=employee.id,
+            month=month,
+            hours=Decimal("151.67"),
+            gross=Decimal("1500.00"),
+            employee_charges=Decimal("200.00"),
+            employer_charges=Decimal("600.00"),
+            tax=Decimal("0.00"),
+            net_pay=Decimal("1300.00"),
+        )
+        await create_salary(db_session, payload)
+
+    result = await list_salaries(db_session, from_month="2024-08", to_month="2025-07")
+
+    assert [salary.month for salary in result] == ["2025-07", "2024-08"]
+
+
+@pytest.mark.asyncio
 async def test_delete_salary(db_session: AsyncSession) -> None:
     """Deleting a salary removes it from the DB."""
     from backend.services.salary_service import create_salary, delete_salary, get_salary
@@ -145,6 +170,30 @@ async def test_monthly_summary(db_session: AsyncSession) -> None:
     assert may_row is not None
     assert may_row.count == 3
     assert Decimal(str(may_row.total_gross)) == Decimal("3000.00")
+
+
+@pytest.mark.asyncio
+async def test_monthly_summary_filter_by_month_range(db_session: AsyncSession) -> None:
+    """get_monthly_summary can be limited to a fiscal-year month range."""
+    from backend.services.salary_service import create_salary, get_monthly_summary
+
+    employee = await _make_employee(db_session)
+    for month in ["2024-07", "2024-08", "2025-07", "2025-08"]:
+        payload = SalaryCreate(
+            employee_id=employee.id,
+            month=month,
+            hours=Decimal("50.00"),
+            gross=Decimal("1000.00"),
+            employee_charges=Decimal("100.00"),
+            employer_charges=Decimal("300.00"),
+            tax=Decimal("10.00"),
+            net_pay=Decimal("890.00"),
+        )
+        await create_salary(db_session, payload)
+
+    rows = await get_monthly_summary(db_session, from_month="2024-08", to_month="2025-07")
+
+    assert [row.month for row in rows] == ["2025-07", "2024-08"]
 
 
 @pytest.mark.asyncio

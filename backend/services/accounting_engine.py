@@ -17,12 +17,16 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.models.accounting_entry import (
+    AccountingEntry,
+    EntrySourceType,
+    build_entry_group_key,
+)
 from backend.models.accounting_rule import AccountingRule, TriggerType
 from backend.models.bank import Deposit, DepositType
-from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.invoice import Invoice, InvoiceLabel, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
+from backend.services.fiscal_year_service import find_fiscal_year_id_for_date
 
 if TYPE_CHECKING:
     from backend.models.salary import Salary
@@ -37,14 +41,6 @@ async def _next_entry_number(db: AsyncSession) -> str:
     result = await db.execute(select(func.count(AccountingEntry.id)))
     count = result.scalar_one_or_none() or 0
     return f"{count + 1:06d}"
-
-
-async def _current_fiscal_year_id(db: AsyncSession) -> int | None:
-    """Return the ID of the currently open fiscal year, or None."""
-    result = await db.execute(
-        select(FiscalYear.id).where(FiscalYear.status == FiscalYearStatus.OPEN).limit(1)
-    )
-    return result.scalar_one_or_none()
 
 
 def _render_template(template: str, context: Mapping[str, object]) -> str:
@@ -66,9 +62,11 @@ async def _apply_rule(
     source_type: EntrySourceType | None,
     source_id: int | None,
     fiscal_year_id: int | None,
+    group_key: str | None = None,
 ) -> list[AccountingEntry]:
     """Create accounting entries for all rule_entries of a rule."""
     created: list[AccountingEntry] = []
+    resolved_group_key = group_key or build_entry_group_key(source_type, source_id)
     for rule_entry in rule.entries:
         entry_number = await _next_entry_number(db)
         label = _render_template(rule_entry.description_template, context)
@@ -86,9 +84,52 @@ async def _apply_rule(
             fiscal_year_id=fiscal_year_id,
             source_type=source_type,
             source_id=source_id,
+            group_key=resolved_group_key,
         )
         db.add(entry)
         await db.flush()  # ensure COUNT is accurate for the next entry in the loop
+        created.append(entry)
+
+    return created
+
+
+async def _apply_double_entry(
+    db: AsyncSession,
+    *,
+    amount: Decimal,
+    entry_date: date,
+    label: str,
+    debit_account: str,
+    credit_account: str,
+    source_type: EntrySourceType | None,
+    source_id: int | None,
+    fiscal_year_id: int | None,
+    group_key: str | None = None,
+) -> list[AccountingEntry]:
+    """Create a basic debit/credit pair without relying on a persisted rule."""
+    if amount <= 0:
+        return []
+
+    created: list[AccountingEntry] = []
+    resolved_group_key = group_key or build_entry_group_key(source_type, source_id)
+    for account_number, debit, credit in [
+        (debit_account, amount, Decimal("0")),
+        (credit_account, Decimal("0"), amount),
+    ]:
+        entry = AccountingEntry(
+            entry_number=await _next_entry_number(db),
+            date=entry_date,
+            account_number=account_number,
+            label=label,
+            debit=debit,
+            credit=credit,
+            fiscal_year_id=fiscal_year_id,
+            source_type=source_type,
+            source_id=source_id,
+            group_key=resolved_group_key,
+        )
+        db.add(entry)
+        await db.flush()
         created.append(entry)
 
     return created
@@ -140,7 +181,7 @@ async def generate_entries_for_invoice(
     if rule is None:
         return []
 
-    fiscal_year_id = await _current_fiscal_year_id(db)
+    fiscal_year_id = await find_fiscal_year_id_for_date(db, invoice.date)
     context = {
         "number": invoice.number,
         "contact": str(invoice.contact_id),
@@ -180,14 +221,18 @@ async def generate_entries_for_payment(
         }
         trigger = method_map.get(payment.method, TriggerType.PAYMENT_RECEIVED_VIREMENT)
     else:
-        # Fournisseur payments are always virements
-        trigger = TriggerType.PAYMENT_SENT_VIREMENT
+        method_map = {
+            PaymentMethod.ESPECES: TriggerType.PAYMENT_SENT_ESPECES,
+            PaymentMethod.CHEQUE: TriggerType.PAYMENT_SENT_VIREMENT,
+            PaymentMethod.VIREMENT: TriggerType.PAYMENT_SENT_VIREMENT,
+        }
+        trigger = method_map.get(payment.method, TriggerType.PAYMENT_SENT_VIREMENT)
 
     rule = await _get_rule(db, trigger)
     if rule is None:
         return []
 
-    fiscal_year_id = await _current_fiscal_year_id(db)
+    fiscal_year_id = await find_fiscal_year_id_for_date(db, payment.date)
     context = {
         "label": f"Règlement facture #{payment.invoice_id}",
         "amount": str(payment.amount),
@@ -229,7 +274,7 @@ async def generate_entries_for_deposit(
     if rule is None:
         return []
 
-    fiscal_year_id = await _current_fiscal_year_id(db)
+    fiscal_year_id = await find_fiscal_year_id_for_date(db, deposit.date)
     context = {
         "label": f"Bordereau #{deposit.id} — {deposit.type}",
         "amount": str(deposit.total_amount),
@@ -254,22 +299,23 @@ async def generate_entries_for_salary(
     db: AsyncSession,
     salary: Salary,
 ) -> list[AccountingEntry]:
-    """Generate three sets of entries for a salary record:
+    """Generate the accounting entries for a salary record:
 
     1. SALARY_GROSS   : 641000 D / 421000 C (gross amount)
-    2. SALARY_EMPLOYER_CHARGES : 645100 D / 431100 C (employer charges)
-    3. SALARY_PAYMENT : 421000 D / 512100 C (net pay disbursed)
+    2. SALARY_EMPLOYEE_CHARGES : 421000 D / 431100 C (employee charges)
+    3. SALARY_EMPLOYER_CHARGES : 645100 D / 431100 C (employer charges)
+    4. SALARY_WITHHOLDING_TAX : 421000 D / 443000 C (withholding tax)
+    5. SALARY_PAYMENT : 421000 D / 512100 C (net pay disbursed)
 
     Returns all generated entries (empty if no rules seeded).
     """
-
-    fiscal_year_id = await _current_fiscal_year_id(db)
 
     # Derive a display date from the month (last day of month heuristic: use day 1 for simplicity)
     from datetime import date as _date  # noqa: PLC0415
 
     year_str, month_str = salary.month.split("-")
     entry_date = _date(int(year_str), int(month_str), 1)
+    fiscal_year_id = await find_fiscal_year_id_for_date(db, entry_date)
 
     employee_name = ""
     if salary.employee:
@@ -285,6 +331,7 @@ async def generate_entries_for_salary(
         "month": salary.month,
         "date": str(entry_date),
     }
+    group_key = build_entry_group_key(EntrySourceType.SALARY, salary.id)
 
     all_entries: list[AccountingEntry] = []
 
@@ -300,25 +347,99 @@ async def generate_entries_for_salary(
             EntrySourceType.SALARY,
             salary.id,
             fiscal_year_id,
+            group_key=group_key,
         )
         all_entries.extend(entries)
 
-    # 2. Employer charges
-    rule_charges = await _get_rule(db, TriggerType.SALARY_EMPLOYER_CHARGES)
-    if rule_charges and Decimal(str(salary.employer_charges)) > 0:
+    legacy_salary_rules_present = any(
+        rule is not None
+        for rule in (
+            rule_gross,
+            await _get_rule(db, TriggerType.SALARY_EMPLOYER_CHARGES),
+            await _get_rule(db, TriggerType.SALARY_PAYMENT),
+        )
+    )
+
+    # 2. Employee charges
+    employee_charges_amount = Decimal(str(salary.employee_charges))
+    rule_employee_charges = await _get_rule(db, TriggerType.SALARY_EMPLOYEE_CHARGES)
+    if rule_employee_charges and employee_charges_amount > 0:
         entries = await _apply_rule(
             db,
-            rule_charges,
-            Decimal(str(salary.employer_charges)),
+            rule_employee_charges,
+            employee_charges_amount,
             entry_date,
             context,
             EntrySourceType.SALARY,
             salary.id,
             fiscal_year_id,
+            group_key=group_key,
+        )
+        all_entries.extend(entries)
+    elif legacy_salary_rules_present and employee_charges_amount > 0:
+        entries = await _apply_double_entry(
+            db,
+            amount=employee_charges_amount,
+            entry_date=entry_date,
+            label=_render_template("Cotisations salariales {{employee}} {{month}}", context),
+            debit_account="421000",
+            credit_account="431100",
+            source_type=EntrySourceType.SALARY,
+            source_id=salary.id,
+            fiscal_year_id=fiscal_year_id,
+            group_key=group_key,
         )
         all_entries.extend(entries)
 
-    # 3. Net payment
+    # 3. Employer charges
+    employer_charges_amount = Decimal(str(salary.employer_charges))
+    rule_employer_charges = await _get_rule(db, TriggerType.SALARY_EMPLOYER_CHARGES)
+    if rule_employer_charges and employer_charges_amount > 0:
+        entries = await _apply_rule(
+            db,
+            rule_employer_charges,
+            employer_charges_amount,
+            entry_date,
+            context,
+            EntrySourceType.SALARY,
+            salary.id,
+            fiscal_year_id,
+            group_key=group_key,
+        )
+        all_entries.extend(entries)
+
+    # 4. Withholding tax
+    withholding_tax_amount = Decimal(str(salary.tax))
+    rule_withholding_tax = await _get_rule(db, TriggerType.SALARY_WITHHOLDING_TAX)
+    if rule_withholding_tax and withholding_tax_amount > 0:
+        entries = await _apply_rule(
+            db,
+            rule_withholding_tax,
+            withholding_tax_amount,
+            entry_date,
+            context,
+            EntrySourceType.SALARY,
+            salary.id,
+            fiscal_year_id,
+            group_key=group_key,
+        )
+        all_entries.extend(entries)
+    elif legacy_salary_rules_present and withholding_tax_amount > 0:
+        entries = await _apply_double_entry(
+            db,
+            amount=withholding_tax_amount,
+            entry_date=entry_date,
+            label=_render_template("Impôt sur le revenu {{employee}} {{month}}", context),
+            debit_account="421000",
+            credit_account="443000",
+            source_type=EntrySourceType.SALARY,
+            source_id=salary.id,
+            fiscal_year_id=fiscal_year_id,
+            group_key=group_key,
+        )
+        all_entries.extend(entries)
+
+    # 5. Net payment
     rule_payment = await _get_rule(db, TriggerType.SALARY_PAYMENT)
     if rule_payment and Decimal(str(salary.net_pay)) > 0:
         entries = await _apply_rule(
@@ -330,11 +451,47 @@ async def generate_entries_for_salary(
             EntrySourceType.SALARY,
             salary.id,
             fiscal_year_id,
+            group_key=group_key,
         )
         all_entries.extend(entries)
 
     await db.flush()
     return all_entries
+
+
+async def generate_entries_for_trigger(
+    db: AsyncSession,
+    trigger: TriggerType,
+    amount: Decimal,
+    entry_date: date,
+    context: Mapping[str, object],
+    *,
+    source_type: EntrySourceType | None = None,
+    source_id: int | None = None,
+    group_key: str | None = None,
+) -> list[AccountingEntry]:
+    """Generate entries directly from a trigger when no dedicated domain object exists."""
+    if amount <= 0:
+        return []
+
+    rule = await _get_rule(db, trigger)
+    if rule is None:
+        return []
+
+    fiscal_year_id = await find_fiscal_year_id_for_date(db, entry_date)
+    entries = await _apply_rule(
+        db,
+        rule,
+        amount,
+        entry_date,
+        context,
+        source_type,
+        source_id,
+        fiscal_year_id,
+        group_key=group_key,
+    )
+    await db.flush()
+    return entries
 
 
 # ---------------------------------------------------------------------------
@@ -343,21 +500,25 @@ async def generate_entries_for_salary(
 
 
 async def seed_default_rules(db: AsyncSession) -> int:
-    """Insert default accounting rules if the table is empty.
+    """Insert any missing default accounting rules.
 
-    Returns the number of rules inserted (0 if already seeded).
+    Returns the number of rules inserted (0 if already complete).
     """
     from backend.models.accounting_rule import (  # noqa: PLC0415
         DEFAULT_RULES,
         AccountingRuleEntry,
     )
 
-    existing = await db.execute(select(func.count(AccountingRule.id)))
-    if (existing.scalar_one_or_none() or 0) > 0:
-        return 0
+    existing_rules = await db.execute(select(AccountingRule.trigger_type))
+    existing_triggers: set[TriggerType] = {
+        TriggerType(str(trigger_type)) for (trigger_type,) in existing_rules.all()
+    }
 
     count = 0
     for rule_data in DEFAULT_RULES:
+        trigger_type = cast(TriggerType, rule_data["trigger_type"])
+        if trigger_type in existing_triggers:
+            continue
         entries_data = cast(list[dict[str, object]], rule_data.pop("entries", []))
         rule = AccountingRule(**rule_data)
         db.add(rule)
@@ -369,6 +530,7 @@ async def seed_default_rules(db: AsyncSession) -> int:
 
         rule_data["entries"] = entries_data  # restore for idempotency
         count += 1
+        existing_triggers.add(trigger_type)
 
     await db.commit()
     return count

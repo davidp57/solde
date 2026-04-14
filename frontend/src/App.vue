@@ -7,4 +7,3 @@ import Toast from 'primevue/toast'
   <RouterView />
   <Toast />
 </template>
-

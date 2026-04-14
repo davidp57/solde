@@ -11,16 +11,34 @@
     </AppPageHeader>
 
     <section class="app-stat-grid">
-      <AppStatCard :label="t('invoices.supplier.metrics.visible_count')" :value="filtered.length" :caption="t('invoices.supplier.metrics.total_count', { count: invoices.length })" />
-      <AppStatCard :label="t('invoices.supplier.metrics.total_amount')" :value="formatAmount(totalAmount) + ' €'" :caption="t('invoices.supplier.metrics.files_attached', { count: attachedFilesCount })" />
-      <AppStatCard :label="t('invoices.supplier.metrics.overdue_count')" :value="overdueCount" :caption="t('invoices.supplier.metrics.pending_count', { count: pendingCount })" tone="warn" />
+      <AppStatCard
+        :label="t('invoices.supplier.metrics.visible_count')"
+        :value="filtered.length"
+        :caption="t('invoices.supplier.metrics.total_count', { count: invoices.length })"
+      />
+      <AppStatCard
+        :label="t('invoices.supplier.metrics.total_amount')"
+        :value="formatAmount(totalAmount) + ' €'"
+        :caption="t('invoices.supplier.metrics.files_attached', { count: attachedFilesCount })"
+      />
+      <AppStatCard
+        :label="t('invoices.supplier.metrics.overdue_count')"
+        :value="overdueCount"
+        :caption="t('invoices.supplier.metrics.pending_count', { count: pendingCount })"
+        tone="warn"
+      />
     </section>
 
-    <AppPanel :title="t('invoices.supplier.workspace_title')" :subtitle="t('invoices.supplier.workspace_subtitle')">
+    <AppPanel
+      :title="t('invoices.supplier.workspace_title')"
+      :subtitle="t('invoices.supplier.workspace_subtitle')"
+    >
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('invoices.supplier.filters_hint') }}</p>
-          <span class="app-chip">{{ t('invoices.supplier.results_label', { count: filtered.length }) }}</span>
+          <span class="app-chip">{{
+            t('invoices.supplier.results_label', { count: filtered.length })
+          }}</span>
         </div>
 
         <div class="app-filter-grid">
@@ -34,15 +52,6 @@
               :placeholder="t('common.all')"
               show-clear
               @change="loadInvoices"
-            />
-          </div>
-          <div class="app-field">
-            <label class="app-field__label">{{ t('invoices.filter_year') }}</label>
-            <InputNumber
-              v-model="yearFilter"
-              :placeholder="t('invoices.filter_year')"
-              :use-grouping="false"
-              @blur="loadInvoices"
             />
           </div>
           <div class="app-field app-field--span-2">
@@ -59,61 +68,63 @@
         striped-rows
         paginator
         :rows="20"
-        :rows-per-page-options="[10, 20, 50]"
+        :rows-per-page-options="[20, 50, 100, 500]"
         data-key="id"
         size="small"
         row-hover
       >
-      <Column field="number" :header="t('invoices.number')" sortable />
-      <Column field="date" :header="t('invoices.date')" sortable />
-      <Column field="contact_id" :header="t('invoices.contact')">
-        <template #body="{ data }">{{ contactName(data.contact_id) }}</template>
-      </Column>
-      <Column field="reference" :header="t('invoices.reference')" />
-      <Column field="total_amount" :header="t('invoices.total')" class="app-money">
-        <template #body="{ data }">{{ formatAmount(data.total_amount) }} €</template>
-      </Column>
-      <Column field="status" :header="t('invoices.status')">
-        <template #body="{ data }">
-          <Tag
-            :value="t(`invoices.statuses.${data.status}`)"
-            :severity="statusSeverity(data.status)"
-          />
-        </template>
-      </Column>
-      <Column field="file_path" :header="t('invoices.file')">
-        <template #body="{ data }">
-          <i v-if="data.file_path" class="pi pi-paperclip text-primary" />
-        </template>
-      </Column>
-      <Column :header="t('common.actions')" class="supplier-invoices-table__actions">
-        <template #body="{ data }">
-          <div class="app-inline-actions">
-            <Button
-              icon="pi pi-pencil"
-              size="small"
-              severity="secondary"
-              text
-              @click="openEditDialog(data)"
+        <Column field="number" :header="t('invoices.number')" sortable />
+        <Column field="date" :header="t('invoices.date')" sortable>
+          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+        </Column>
+        <Column field="contact_id" :header="t('invoices.contact')">
+          <template #body="{ data }">{{ contactName(data.contact_id) }}</template>
+        </Column>
+        <Column field="reference" :header="t('invoices.reference')" />
+        <Column field="total_amount" :header="t('invoices.total')" class="app-money">
+          <template #body="{ data }">{{ formatAmount(data.total_amount) }} €</template>
+        </Column>
+        <Column field="status" :header="t('invoices.status')">
+          <template #body="{ data }">
+            <Tag
+              :value="t(`invoices.statuses.${data.status}`)"
+              :severity="statusSeverity(data.status)"
             />
-            <Button
-              icon="pi pi-upload"
-              size="small"
-              severity="secondary"
-              text
-              :title="t('invoices.upload_file')"
-              @click="openUploadDialog(data)"
-            />
-            <Button
-              icon="pi pi-trash"
-              size="small"
-              severity="danger"
-              text
-              @click="confirmDelete(data)"
-            />
-          </div>
-        </template>
-      </Column>
+          </template>
+        </Column>
+        <Column field="file_path" :header="t('invoices.file')">
+          <template #body="{ data }">
+            <i v-if="data.file_path" class="pi pi-paperclip text-primary" />
+          </template>
+        </Column>
+        <Column :header="t('common.actions')" class="supplier-invoices-table__actions">
+          <template #body="{ data }">
+            <div class="app-inline-actions">
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                @click="openEditDialog(data)"
+              />
+              <Button
+                icon="pi pi-upload"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.upload_file')"
+                @click="openUploadDialog(data)"
+              />
+              <Button
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                text
+                @click="confirmDelete(data)"
+              />
+            </div>
+          </template>
+        </Column>
         <template #empty>
           <div class="app-empty-state">{{ t('invoices.supplier.empty') }}</div>
         </template>
@@ -183,13 +194,13 @@ import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import FileUpload from 'primevue/fileupload'
-import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
@@ -206,10 +217,15 @@ import {
 } from '../api/invoices'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
 import { useTableFilter } from '../composables/useTableFilter'
+import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const confirm = useConfirm()
+const route = useRoute()
+const router = useRouter()
 const toast = useToast()
+const fiscalYearStore = useFiscalYearStore()
 
 const invoices = ref<Invoice[]>([])
 const { filterText, filtered } = useTableFilter(invoices)
@@ -222,11 +238,20 @@ const uploadTargetId = ref<number | null>(null)
 const selectedFile = ref<File | null>(null)
 const uploading = ref(false)
 const statusFilter = ref<InvoiceStatus | null>(null)
-const yearFilter = ref<number | null>(new Date().getFullYear())
-const totalAmount = computed(() => filtered.value.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0))
-const attachedFilesCount = computed(() => filtered.value.filter((invoice) => Boolean(invoice.file_path)).length)
-const overdueCount = computed(() => filtered.value.filter((invoice) => invoice.status === 'overdue').length)
-const pendingCount = computed(() => filtered.value.filter((invoice) => invoice.status === 'sent' || invoice.status === 'partial').length)
+const totalAmount = computed(() =>
+  filtered.value.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0),
+)
+const attachedFilesCount = computed(
+  () => filtered.value.filter((invoice) => Boolean(invoice.file_path)).length,
+)
+const overdueCount = computed(
+  () => filtered.value.filter((invoice) => invoice.status === 'overdue').length,
+)
+const pendingCount = computed(
+  () =>
+    filtered.value.filter((invoice) => invoice.status === 'sent' || invoice.status === 'partial')
+      .length,
+)
 
 const statusOptions = [
   { label: t('invoices.statuses.draft'), value: 'draft' },
@@ -263,16 +288,34 @@ async function loadInvoices() {
   loading.value = true
   try {
     const filters: Record<string, unknown> = { invoice_type: 'fournisseur' }
+    if (fiscalYearStore.selectedFiscalYear) {
+      filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
+      filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
+    }
     if (statusFilter.value) filters.invoice_status = statusFilter.value
-    if (yearFilter.value) filters.year = yearFilter.value
     invoices.value = await listInvoicesApi(filters)
+    openInvoiceFromQuery()
   } finally {
     loading.value = false
   }
 }
 
+function openInvoiceFromQuery() {
+  const rawInvoiceId = Array.isArray(route.query.invoiceId)
+    ? route.query.invoiceId[0]
+    : route.query.invoiceId
+  const invoiceId = Number(rawInvoiceId)
+  if (!invoiceId) return
+  const invoice = invoices.value.find((candidate) => candidate.id === invoiceId)
+  if (!invoice) return
+  openEditDialog(invoice)
+  const nextQuery = { ...route.query }
+  delete nextQuery.invoiceId
+  void router.replace({ name: 'invoices-supplier', query: nextQuery })
+}
+
 async function loadContacts() {
-  contacts.value = await listContactsApi({ limit: 500 })
+  contacts.value = await listContactsApi()
 }
 
 function openCreateDialog() {
@@ -287,7 +330,7 @@ function openEditDialog(invoice: Invoice) {
 
 function onSaved() {
   dialogVisible.value = false
-  loadInvoices()
+  void loadInvoices()
 }
 
 function openUploadDialog(invoice: Invoice) {
@@ -334,9 +377,24 @@ function confirmDelete(invoice: Invoice) {
   })
 }
 
-onMounted(() => {
-  loadInvoices()
-  loadContacts()
+watch(
+  () => fiscalYearStore.selectedFiscalYearId,
+  (newId, oldId) => {
+    if (!fiscalYearStore.initialized || newId === oldId) return
+    void loadInvoices()
+  },
+)
+
+watch(
+  () => route.query.invoiceId,
+  () => {
+    openInvoiceFromQuery()
+  },
+)
+
+onMounted(async () => {
+  await fiscalYearStore.initialize()
+  await Promise.all([loadInvoices(), loadContacts()])
 })
 </script>
 

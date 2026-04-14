@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
@@ -14,6 +14,7 @@ from backend.schemas.cash import (
     CashCountRead,
     CashEntryCreate,
     CashEntryRead,
+    CashEntryUpdate,
 )
 from backend.services import cash_service
 
@@ -40,10 +41,9 @@ async def list_entries(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int | None = Query(default=None, ge=1),
 ) -> list[CashEntryRead]:
-    entries = await cash_service.list_cash_entries(db, skip=skip, limit=limit)
-    return entries  # type: ignore[return-value]
+    return await cash_service.list_cash_entries(db, skip=skip, limit=limit)  # type: ignore[return-value]
 
 
 @router.post("/entries", response_model=CashEntryRead, status_code=status.HTTP_201_CREATED)
@@ -52,8 +52,32 @@ async def add_entry(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _WriteAccess,
 ) -> CashEntryRead:
-    entry = await cash_service.add_cash_entry(db, payload)
+    return await cash_service.add_cash_entry(db, payload)  # type: ignore[return-value]
+
+
+@router.get("/entries/{entry_id}", response_model=CashEntryRead)
+async def get_entry(
+    entry_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _ReadAccess,
+) -> CashEntryRead:
+    entry = await cash_service.get_cash_entry(db, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cash entry not found")
     return entry  # type: ignore[return-value]
+
+
+@router.put("/entries/{entry_id}", response_model=CashEntryRead)
+async def update_entry(
+    entry_id: int,
+    payload: CashEntryUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _WriteAccess,
+) -> CashEntryRead:
+    entry = await cash_service.get_cash_entry(db, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cash entry not found")
+    return await cash_service.update_cash_entry(db, entry, payload)  # type: ignore[return-value]
 
 
 @router.get("/counts", response_model=list[CashCountRead])
@@ -61,10 +85,9 @@ async def list_counts(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int | None = Query(default=None, ge=1),
 ) -> list[CashCountRead]:
-    counts = await cash_service.list_cash_counts(db, skip=skip, limit=limit)
-    return counts  # type: ignore[return-value]
+    return await cash_service.list_cash_counts(db, skip=skip, limit=limit)  # type: ignore[return-value]
 
 
 @router.post("/counts", response_model=CashCountRead, status_code=status.HTTP_201_CREATED)
@@ -73,5 +96,4 @@ async def add_count(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _WriteAccess,
 ) -> CashCountRead:
-    count = await cash_service.create_cash_count(db, payload)
-    return count  # type: ignore[return-value]
+    return await cash_service.create_cash_count(db, payload)  # type: ignore[return-value]

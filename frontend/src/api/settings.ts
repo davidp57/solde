@@ -40,3 +40,16 @@ export async function resetDbApi(): Promise<Record<string, number>> {
   const response = await apiClient.post<Record<string, number>>('/api/settings/reset-db')
   return response.data
 }
+
+export async function bootstrapAccountingApi(): Promise<{
+  accounts_inserted: number
+  rules_inserted: number
+  fiscal_years_created: number
+}> {
+  const response = await apiClient.post<{
+    accounts_inserted: number
+    rules_inserted: number
+    fiscal_years_created: number
+  }>('/api/settings/bootstrap-accounting')
+  return response.data
+}

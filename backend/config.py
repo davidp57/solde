@@ -1,7 +1,11 @@
 """Application configuration — loaded from environment variables or .env file."""
 
+import sys
+
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEV_TEST_JWT_SECRET = "dev-secret-key-local-only-change-me-1234567890"
 
 
 class Settings(BaseSettings):
@@ -40,6 +44,13 @@ class Settings(BaseSettings):
     admin_password: str = "changeme"
     admin_email: str = "admin@exemple.fr"
 
+    # Temporary dev helpers
+    enable_test_import_shortcuts: bool = False
+    test_import_gestion_2024_path: str | None = None
+    test_import_gestion_2025_path: str | None = None
+    test_import_comptabilite_2024_path: str | None = None
+    test_import_comptabilite_2025_path: str | None = None
+
     # SMTP (optional)
     smtp_host: str | None = None
     smtp_port: int = 587
@@ -58,22 +69,29 @@ class Settings(BaseSettings):
     @field_validator("jwt_secret_key")
     @classmethod
     def validate_jwt_secret(cls, v: str) -> str:
-        if v == "":
-            raise ValueError("jwt_secret_key must not be empty")
-        if len(v) < 32:
+        if v != "" and len(v) < 32:
             raise ValueError("jwt_secret_key must be at least 32 characters long")
         return v
 
     @model_validator(mode="after")
-    def set_default_jwt_for_dev(self) -> "Settings":
-        """Allow running without JWT secret in test/dev by using a safe default."""
-        return self
+    def ensure_jwt_secret(self) -> "Settings":
+        """Require an explicit JWT secret outside explicit dev/test contexts."""
+        if self.jwt_secret_key != "":
+            return self
+
+        if self.debug or "pytest" in sys.modules:
+            self.jwt_secret_key = _DEV_TEST_JWT_SECRET
+            return self
+
+        raise ValueError("jwt_secret_key must be configured outside debug/test environments")
 
 
 def get_settings() -> Settings:
     """Return application settings singleton."""
+    global _settings
+    if _settings is None:
+        _settings = Settings()
     return _settings
 
 
-# Module-level singleton — overridden in tests via dependency injection
-_settings = Settings(jwt_secret_key="dev-secret-key-change-this-in-production-please")
+_settings: Settings | None = None

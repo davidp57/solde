@@ -14,6 +14,7 @@ from backend.models.import_log import ImportLog, ImportLogStatus, ImportLogType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.services.excel_import_results import ImportResult, PreviewResult
 from backend.services.excel_import_state import (
+    accounting_entry_signature,
     add_comptabilite_coexistence_validation,
     compute_file_hash,
     count_generated_accounting_entries,
@@ -32,9 +33,25 @@ def test_compute_file_hash_is_stable() -> None:
     assert compute_file_hash(payload) != compute_file_hash(b"other-payload")
 
 
+def test_accounting_entry_signature_normalizes_decimal_scale() -> None:
+    assert accounting_entry_signature(
+        entry_date=date(2025, 8, 1),
+        account_number="411100",
+        label="Facture 2025-0142",
+        debit=Decimal("55"),
+        credit=Decimal("0"),
+    ) == accounting_entry_signature(
+        entry_date=date(2025, 8, 1),
+        account_number="411100",
+        label="Facture 2025-0142",
+        debit=Decimal("55.00"),
+        credit=Decimal("0.00"),
+    )
+
+
 @pytest.mark.asyncio
 async def test_load_existing_preview_keys_and_invoice_numbers(db_session) -> None:
-    contact = Contact(nom="Christine", prenom="Lopes", type=ContactType.CLIENT)
+    contact = Contact(nom="Lopes", prenom="Christine", type=ContactType.CLIENT)
     db_session.add(contact)
     await db_session.flush()
 
@@ -85,7 +102,7 @@ async def test_count_generated_accounting_entries_excludes_manual(db_session) ->
 
 
 @pytest.mark.asyncio
-async def test_add_comptabilite_coexistence_validation_blocks_preview(db_session) -> None:
+async def test_add_comptabilite_coexistence_validation_adds_warning(db_session) -> None:
     db_session.add(
         AccountingEntry(
             entry_number="000001",
@@ -100,12 +117,16 @@ async def test_add_comptabilite_coexistence_validation_blocks_preview(db_session
     await db_session.commit()
 
     preview = PreviewResult()
+    preview.can_import = True
     await add_comptabilite_coexistence_validation(db_session, preview)
 
-    assert preview.can_import is False
-    assert preview.errors == [
-        "Import comptabilite bloque : des ecritures auto-generees "
-        "issues de la gestion existent deja en base (1)."
+    assert preview.can_import is True
+    assert preview.errors == []
+    assert preview.warnings == [
+        "Import comptabilite : des ecritures auto-generees "
+        "issues de la gestion existent deja en base (1). "
+        "Les doublons exacts du journal seront ignores et seules les ecritures "
+        "nouvelles seront importees."
     ]
 
 

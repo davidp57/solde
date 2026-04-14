@@ -51,6 +51,13 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
         "type": "actif",
         "is_default": True,
     },
+    {
+        "number": "512102",
+        "label": "Compte d'épargne",
+        "type": "actif",
+        "parent_number": "512100",
+        "is_default": True,
+    },
     {"number": "531000", "label": "Caisse", "type": "actif", "is_default": True},
     # Actif — Créances
     {"number": "411100", "label": "Adhérents", "type": "actif", "is_default": True},
@@ -60,8 +67,44 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
         "type": "actif",
         "is_default": True,
     },
+    {
+        "number": "416001",
+        "label": "Client litigieux : Riad ALIOUCHE",
+        "type": "actif",
+        "parent_number": "416000",
+        "description": "Sous-compte historique conservé pour les imports Excel.",
+        "is_default": True,
+        "is_active": False,
+    },
+    {
+        "number": "416002",
+        "label": "Client litigieux : Fatou NDOYE/AST",
+        "type": "actif",
+        "parent_number": "416000",
+        "description": "Sous-compte historique conservé pour les imports Excel.",
+        "is_default": True,
+        "is_active": False,
+    },
     # Passif — Dettes fournisseurs
     {"number": "401000", "label": "Fournisseurs", "type": "passif", "is_default": True},
+    {
+        "number": "401103",
+        "label": "PayPal",
+        "type": "passif",
+        "parent_number": "401000",
+        "description": "Sous-compte historique conservé pour les imports Excel.",
+        "is_default": True,
+        "is_active": False,
+    },
+    {
+        "number": "401104",
+        "label": "Google",
+        "type": "passif",
+        "parent_number": "401000",
+        "description": "Sous-compte historique conservé pour les imports Excel.",
+        "is_default": True,
+        "is_active": False,
+    },
     # Passif — Dettes sociales
     {
         "number": "421000",
@@ -74,6 +117,12 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
     {
         "number": "110000",
         "label": "Report à nouveau",
+        "type": "passif",
+        "is_default": True,
+    },
+    {
+        "number": "106800",
+        "label": "Autres réserves (dont réserves pour projet associatif)",
         "type": "passif",
         "is_default": True,
     },
@@ -102,11 +151,57 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
         "type": "charge",
         "is_default": True,
     },
+    {
+        "number": "613200",
+        "label": "Locations immobilières",
+        "type": "charge",
+        "is_default": True,
+    },
     {"number": "616000", "label": "Assurances", "type": "charge", "is_default": True},
+    {
+        "number": "616100",
+        "label": "Multirisques",
+        "type": "charge",
+        "parent_number": "616000",
+        "is_default": True,
+    },
+    {
+        "number": "623000",
+        "label": "Publicité, publications, relations publiques",
+        "type": "charge",
+        "is_default": True,
+    },
+    {
+        "number": "623400",
+        "label": "Cadeaux",
+        "type": "charge",
+        "parent_number": "623000",
+        "is_default": True,
+    },
+    {
+        "number": "625000",
+        "label": "Déplacements, missions et réceptions",
+        "type": "charge",
+        "is_default": True,
+    },
+    {
+        "number": "625700",
+        "label": "Réceptions",
+        "type": "charge",
+        "parent_number": "625000",
+        "is_default": True,
+    },
     {
         "number": "626000",
         "label": "Frais postaux et télécom",
         "type": "charge",
+        "is_default": True,
+    },
+    {
+        "number": "626500",
+        "label": "Téléphone",
+        "type": "charge",
+        "parent_number": "626000",
         "is_default": True,
     },
     {
@@ -127,10 +222,25 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
         "type": "charge",
         "is_default": True,
     },
+    {
+        "number": "443000",
+        "label": (
+            "Opérations particulières avec l'Etat, les collectivités publiques, "
+            "les organismes internationaux"
+        ),
+        "type": "passif",
+        "is_default": True,
+    },
     # Produits
     {
         "number": "706110",
         "label": "Cours de soutien",
+        "type": "produit",
+        "is_default": True,
+    },
+    {
+        "number": "740000",
+        "label": "Subventions d'exploitation",
         "type": "produit",
         "is_default": True,
     },
@@ -144,6 +254,12 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
     {
         "number": "758000",
         "label": "Produits divers de gestion",
+        "type": "produit",
+        "is_default": True,
+    },
+    {
+        "number": "768100",
+        "label": "Intérêts des comptes financiers débiteurs",
         "type": "produit",
         "is_default": True,
     },

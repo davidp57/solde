@@ -16,10 +16,20 @@ apiClient.interceptors.request.use((config) => {
 })
 
 let isRefreshing = false
-let refreshQueue: Array<(token: string) => void> = []
+type RefreshQueueEntry = {
+  resolve: (token: string) => void
+  reject: (error: unknown) => void
+}
 
-function processQueue(token: string): void {
-  refreshQueue.forEach((resolve) => resolve(token))
+let refreshQueue: RefreshQueueEntry[] = []
+
+function processQueueSuccess(token: string): void {
+  refreshQueue.forEach(({ resolve }) => resolve(token))
+  refreshQueue = []
+}
+
+function processQueueError(error: unknown): void {
+  refreshQueue.forEach(({ reject }) => reject(error))
   refreshQueue = []
 }
 
@@ -29,7 +39,7 @@ apiClient.interceptors.response.use(
   async (error) => {
     const original = error.config
 
-    if (error.response?.status !== 401 || original._retry) {
+    if (error.response?.status !== 401 || !original || original._retry) {
       return Promise.reject(error)
     }
 
@@ -42,28 +52,38 @@ apiClient.interceptors.response.use(
 
     if (isRefreshing) {
       return new Promise((resolve, reject) => {
-        refreshQueue.push((token: string) => {
-          original.headers.Authorization = `Bearer ${token}`
-          resolve(apiClient(original))
+        refreshQueue.push({
+          resolve: (token: string) => {
+            original.headers = original.headers ?? {}
+            original.headers.Authorization = `Bearer ${token}`
+            resolve(apiClient(original))
+          },
+          reject,
         })
-        // Attach reject for cleanup (unused but prevents unhandled rejection)
-        void reject
       })
     }
 
     original._retry = true
     isRefreshing = true
 
-    const success = await auth.refreshAccessToken()
-    isRefreshing = false
+    try {
+      const success = await auth.refreshAccessToken()
 
-    if (!success || !auth.accessToken) {
-      return Promise.reject(error)
+      if (!success || !auth.accessToken) {
+        processQueueError(error)
+        return Promise.reject(error)
+      }
+
+      processQueueSuccess(auth.accessToken)
+      original.headers = original.headers ?? {}
+      original.headers.Authorization = `Bearer ${auth.accessToken}`
+      return apiClient(original)
+    } catch (refreshError) {
+      processQueueError(refreshError)
+      return Promise.reject(refreshError)
+    } finally {
+      isRefreshing = false
     }
-
-    processQueue(auth.accessToken)
-    original.headers.Authorization = `Bearer ${auth.accessToken}`
-    return apiClient(original)
   },
 )
 

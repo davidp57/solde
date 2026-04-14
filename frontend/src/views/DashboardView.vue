@@ -1,9 +1,6 @@
 <template>
   <AppPage width="wide">
-    <AppPageHeader
-      :eyebrow="t('ui.page.collection_eyebrow')"
-      :title="t('dashboard.title')"
-    />
+    <AppPageHeader :eyebrow="t('ui.page.collection_eyebrow')" :title="t('dashboard.title')" />
 
     <div v-if="loading" class="dashboard-loading">
       <ProgressSpinner />
@@ -11,13 +8,32 @@
 
     <template v-else>
       <section class="app-stat-grid">
-        <AppStatCard :label="t('dashboard.bank_balance')" :value="kpis ? formatAmount(kpis.bank_balance) : '—'" />
-        <AppStatCard :label="t('dashboard.cash_balance')" :value="kpis ? formatAmount(kpis.cash_balance) : '—'" />
-        <AppStatCard :label="t('dashboard.unpaid_invoices')" :value="kpis?.unpaid_count ?? 0" :caption="kpis ? formatAmount(kpis.unpaid_total) : '—'" />
-        <AppStatCard :label="t('dashboard.overdue_invoices')" :value="kpis?.overdue_count ?? 0" :caption="kpis ? formatAmount(kpis.overdue_total) : '—'" :tone="(kpis?.overdue_count ?? 0) > 0 ? 'danger' : 'warn'" />
+        <AppStatCard
+          :label="t('dashboard.bank_balance')"
+          :value="kpis ? formatAmount(kpis.bank_balance) : '—'"
+        />
+        <AppStatCard
+          :label="t('dashboard.cash_balance')"
+          :value="kpis ? formatAmount(kpis.cash_balance) : '—'"
+        />
+        <AppStatCard
+          :label="t('dashboard.unpaid_invoices')"
+          :value="kpis?.unpaid_count ?? 0"
+          :caption="kpis ? formatAmount(kpis.unpaid_total) : '—'"
+        />
+        <AppStatCard
+          :label="t('dashboard.overdue_invoices')"
+          :value="kpis?.overdue_count ?? 0"
+          :caption="kpis ? formatAmount(kpis.overdue_total) : '—'"
+          :tone="(kpis?.overdue_count ?? 0) > 0 ? 'danger' : 'warn'"
+        />
         <AppStatCard :label="t('dashboard.undeposited')" :value="kpis?.undeposited_count ?? 0" />
         <AppStatCard :label="t('dashboard.current_fy')" :value="kpis?.current_fy_name ?? '—'" />
-        <AppStatCard :label="t('dashboard.resultat')" :value="kpis?.current_resultat != null ? formatAmount(kpis.current_resultat) : '—'" :tone="(kpis?.current_resultat ?? 0) < 0 ? 'danger' : 'success'" />
+        <AppStatCard
+          :label="t('dashboard.resultat')"
+          :value="kpis?.current_resultat != null ? formatAmount(kpis.current_resultat) : '—'"
+          :tone="(kpis?.current_resultat ?? 0) < 0 ? 'danger' : 'success'"
+        />
       </section>
 
       <div class="dashboard-grid">
@@ -52,7 +68,9 @@
         </AppPanel>
 
         <AppPanel :title="t('dashboard.alerts_title')" dense>
-          <div v-if="!kpis || kpis.alerts.length === 0" class="app-empty-state">{{ t('dashboard.no_alerts') }}</div>
+          <div v-if="!kpis || kpis.alerts.length === 0" class="app-empty-state">
+            {{ t('dashboard.no_alerts') }}
+          </div>
           <div v-else class="dashboard-alerts">
             <Message
               v-for="(alert, idx) in kpis.alerts"
@@ -178,4 +196,3 @@ onMounted(async () => {
   }
 }
 </style>
-

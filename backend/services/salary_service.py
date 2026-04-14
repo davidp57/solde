@@ -22,8 +22,10 @@ async def list_salaries(
     *,
     employee_id: int | None = None,
     month: str | None = None,
+    from_month: str | None = None,
+    to_month: str | None = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int | None = None,
 ) -> list[Salary]:
     query = (
         select(Salary)
@@ -34,7 +36,13 @@ async def list_salaries(
         query = query.where(Salary.employee_id == employee_id)
     if month is not None:
         query = query.where(Salary.month == month)
-    query = query.offset(skip).limit(limit)
+    if from_month is not None:
+        query = query.where(Salary.month >= from_month)
+    if to_month is not None:
+        query = query.where(Salary.month <= to_month)
+    query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -77,9 +85,14 @@ async def delete_salary(db: AsyncSession, salary: Salary) -> None:
     await db.commit()
 
 
-async def get_monthly_summary(db: AsyncSession) -> list[SalarySummaryRow]:
+async def get_monthly_summary(
+    db: AsyncSession,
+    *,
+    from_month: str | None = None,
+    to_month: str | None = None,
+) -> list[SalarySummaryRow]:
     """Return aggregated salary data grouped by month."""
-    result = await db.execute(
+    query = (
         select(
             Salary.month,
             func.sum(Salary.gross).label("total_gross"),
@@ -92,6 +105,11 @@ async def get_monthly_summary(db: AsyncSession) -> list[SalarySummaryRow]:
         .group_by(Salary.month)
         .order_by(Salary.month.desc())
     )
+    if from_month is not None:
+        query = query.where(Salary.month >= from_month)
+    if to_month is not None:
+        query = query.where(Salary.month <= to_month)
+    result = await db.execute(query)
     rows = result.all()
     return [
         SalarySummaryRow(

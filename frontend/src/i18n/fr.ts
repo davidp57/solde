@@ -1,6 +1,8 @@
 export default {
   app: {
     name: 'Solde ⚖️',
+    active_fiscal_year: 'Exercice actif',
+    all_fiscal_years: 'Tous les exercices',
   },
   auth: {
     login: {
@@ -53,19 +55,22 @@ export default {
   },
   users: {
     title: 'Utilisateurs',
-    subtitle: 'Administration des comptes, des rôles et de l’activation sans intervention technique.',
+    subtitle:
+      'Administration des comptes, des rôles et de l’activation sans intervention technique.',
     new: 'Nouvel utilisateur',
     edit: 'Gérer le compte',
     workspace_title: 'Comptes applicatifs',
     workspace_subtitle: 'Liste, création et maintenance des comptes réservées à l’administrateur.',
     matrix_title: 'Matrice des rôles',
-    matrix_subtitle: 'Les rôles techniques restent inchangés dans l’API, mais sont présentés avec un vocabulaire métier plus lisible.',
+    matrix_subtitle:
+      'Les rôles techniques restent inchangés dans l’API, mais sont présentés avec un vocabulaire métier plus lisible.',
     results_label: '{count} compte(s) visibles',
     empty: 'Aucun compte utilisateur n’est disponible pour le moment.',
     username: 'Identifiant',
     email: 'E-mail',
     password: 'Mot de passe initial',
-    password_help: 'Minimum 8 caractères. Le changement de mot de passe utilisateur sera traité dans un lot suivant.',
+    password_help:
+      'Minimum 8 caractères. Le changement de mot de passe utilisateur sera traité dans un lot suivant.',
     role: 'Rôle',
     status: 'Statut',
     created_at: 'Créé le',
@@ -77,7 +82,8 @@ export default {
     created: 'Compte utilisateur créé.',
     updated: 'Compte utilisateur mis à jour.',
     duplicate_error: 'Cet identifiant ou cet e-mail existe déjà.',
-    self_guard: 'Ce lot ne permet pas de modifier votre propre rôle ni de désactiver votre propre compte.',
+    self_guard:
+      'Ce lot ne permet pas de modifier votre propre rôle ni de désactiver votre propre compte.',
     api_errors: {
       self_deactivate: 'Vous ne pouvez pas désactiver votre propre compte.',
       self_demote: 'Vous ne pouvez pas retirer votre propre rôle administrateur.',
@@ -135,10 +141,13 @@ export default {
   },
   contacts: {
     title: 'Contacts',
-    subtitle: 'Un carnet d\'adresses clarifie pour retrouver rapidement les bons interlocuteurs et leurs informations utiles.',
+    subtitle:
+      "Un carnet d'adresses clarifie pour retrouver rapidement les bons interlocuteurs et leurs informations utiles.",
     workspace_title: 'Base contacts',
-    workspace_subtitle: 'Recherche, filtrage et actions de maintenance regroupes dans une seule zone de travail.',
-    filters_hint: 'Filtrez par type ou recherchez par nom, e-mail et telephone sans casser le rythme de navigation.',
+    workspace_subtitle:
+      'Recherche, filtrage et actions de maintenance regroupes dans une seule zone de travail.',
+    filters_hint:
+      'Filtrez par type ou recherchez par nom, e-mail et telephone sans casser le rythme de navigation.',
     results_label: '{count} contact(s) visibles',
     empty: 'Aucun contact ne correspond aux filtres actuels.',
     new: 'Nouveau contact',
@@ -152,13 +161,18 @@ export default {
     telephone: 'Téléphone',
     adresse: 'Adresse',
     notes: 'Notes',
-    form_intro_create: 'Ajoutez un contact exploitable tout de suite pour la facturation, les paiements et le suivi relationnel.',
-    form_intro_edit: 'Mettez à jour les coordonnees et le role du contact sans perdre l’historique associe.',
+    form_intro_create:
+      'Ajoutez un contact exploitable tout de suite pour la facturation, les paiements et le suivi relationnel.',
+    form_intro_edit:
+      'Mettez à jour les coordonnees et le role du contact sans perdre l’historique associe.',
     identity_title: 'Identité',
-    identity_subtitle: 'Le type de contact, son nom et son prénom structurent toute la relation métier.',
+    identity_subtitle:
+      'Le type de contact, son nom et son prénom structurent toute la relation métier.',
     contact_title: 'Coordonnées',
-    contact_subtitle: 'Rassemblez ici les informations utiles pour joindre rapidement la bonne personne.',
-    notes_help: 'Ajoutez un contexte pratique pour les relances, la comptabilité ou l’organisation interne.',
+    contact_subtitle:
+      'Rassemblez ici les informations utiles pour joindre rapidement la bonne personne.',
+    notes_help:
+      'Ajoutez un contexte pratique pour les relances, la comptabilité ou l’organisation interne.',
     deleted: 'Contact supprimé.',
     confirm_delete: 'Supprimer le contact {nom} ?',
     metrics: {
@@ -178,10 +192,13 @@ export default {
   invoices: {
     client: {
       title: 'Factures clients',
-      subtitle: 'Un espace plus net pour suivre les emissions, les relances et l\'encaissement sans noyer les actions utiles.',
+      subtitle:
+        "Un espace plus net pour suivre les emissions, les relances et l'encaissement sans noyer les actions utiles.",
       portfolio_title: 'Portefeuille client',
-      portfolio_subtitle: 'Filtres, recherche transverse et actions rapides rassembles dans un meme espace de travail.',
-      filters_hint: 'Affinez la liste par statut, millesime ou recherche libre, puis pilotez les actions sans perdre le contexte.',
+      portfolio_subtitle:
+        'Filtres, recherche transverse et actions rapides rassembles dans un meme espace de travail.',
+      filters_hint:
+        'Affinez la liste par statut, millesime ou recherche libre, puis pilotez les actions sans perdre le contexte.',
       results_label: '{count} facture(s) visibles',
       empty: 'Aucune facture ne correspond aux filtres actuels.',
       metrics: {
@@ -194,20 +211,28 @@ export default {
         overdue_amount: 'Restant en retard',
         overdue_count: '{count} facture(s) en retard',
       },
-      form_intro_create: 'Préparez une facture client claire avec ses lignes, son échéance et le bon contact dès la première saisie.',
-      form_intro_edit: 'Ajustez la facture sans perdre la lisibilité des lignes et des montants déjà préparés.',
+      form_intro_create:
+        'Préparez une facture client claire avec ses lignes, son échéance et le bon contact dès la première saisie.',
+      form_intro_edit:
+        'Ajustez la facture sans perdre la lisibilité des lignes et des montants déjà préparés.',
       identity_title: 'Cadre de facturation',
-      identity_subtitle: 'Choisissez le contact, les dates et le type de facture avant de détailler les lignes.',
+      identity_subtitle:
+        'Choisissez le contact, les dates et le type de facture avant de détailler les lignes.',
       lines_title: 'Détail des lignes',
-      lines_subtitle: 'Chaque ligne doit rester lisible pour faciliter la relecture, l’envoi et le suivi du paiement.',
-      history_intro: 'Retrouvez rapidement le niveau d’encaissement et l’historique des règlements associés à cette facture.',
+      lines_subtitle:
+        'Chaque ligne doit rester lisible pour faciliter la relecture, l’envoi et le suivi du paiement.',
+      history_intro:
+        'Retrouvez rapidement le niveau d’encaissement et l’historique des règlements associés à cette facture.',
     },
     supplier: {
       title: 'Factures fournisseurs',
-      subtitle: 'Une vue plus lisible pour suivre les factures entrantes, leurs pieces jointes et les actions de controle.',
+      subtitle:
+        'Une vue plus lisible pour suivre les factures entrantes, leurs pieces jointes et les actions de controle.',
       workspace_title: 'Portefeuille fournisseurs',
-      workspace_subtitle: 'Meme logique de consultation que les factures clients, avec un focus sur les references et les justificatifs.',
-      filters_hint: 'Filtrez par statut, annee ou recherche transverse pour retrouver une facture et son fichier en quelques secondes.',
+      workspace_subtitle:
+        'Meme logique de consultation que les factures clients, avec un focus sur les references et les justificatifs.',
+      filters_hint:
+        'Filtrez par statut, annee ou recherche transverse pour retrouver une facture et son fichier en quelques secondes.',
       results_label: '{count} facture(s) visibles',
       empty: 'Aucune facture fournisseur ne correspond aux filtres actuels.',
       metrics: {
@@ -218,13 +243,18 @@ export default {
         overdue_count: 'En retard',
         pending_count: '{count} a surveiller',
       },
-      form_intro_create: 'Enregistrez une facture fournisseur avec sa référence, son montant et son échéance dans un format plus lisible.',
-      form_intro_edit: 'Mettez à jour la facture et sa description sans casser la cohérence du portefeuille fournisseur.',
+      form_intro_create:
+        'Enregistrez une facture fournisseur avec sa référence, son montant et son échéance dans un format plus lisible.',
+      form_intro_edit:
+        'Mettez à jour la facture et sa description sans casser la cohérence du portefeuille fournisseur.',
       identity_title: 'Cadre fournisseur',
-      identity_subtitle: 'Contact, dates et référence permettent d’identifier immédiatement la pièce.',
+      identity_subtitle:
+        'Contact, dates et référence permettent d’identifier immédiatement la pièce.',
       details_title: 'Montants et description',
-      details_subtitle: 'Conservez ici les informations utiles pour le contrôle et le rapprochement.',
-      upload_intro: 'Associez un justificatif pour retrouver rapidement la pièce depuis le portefeuille fournisseur.',
+      details_subtitle:
+        'Conservez ici les informations utiles pour le contrôle et le rapprochement.',
+      upload_intro:
+        'Associez un justificatif pour retrouver rapidement la pièce depuis le portefeuille fournisseur.',
     },
     new: 'Nouvelle facture',
     edit: 'Modifier la facture',
@@ -257,11 +287,13 @@ export default {
     upload_file: 'Joindre un fichier',
     choose_file: 'Choisir un fichier',
     file_uploaded: 'Fichier joint avec succès.',
-    file: 'Fichier',    history: 'Historique',
+    file: 'Fichier',
+    history: 'Historique',
     history_title: 'Historique de la facture {number}',
     paid: 'Réglé',
     remaining: 'Restant dû',
-    no_payments: 'Aucun paiement enregistré.',    statuses: {
+    no_payments: 'Aucun paiement enregistré.',
+    statuses: {
       draft: 'Brouillon',
       sent: 'Émise',
       paid: 'Payée',
@@ -278,10 +310,13 @@ export default {
   },
   payments: {
     title: 'Paiements',
-    subtitle: 'Une vue plus dense et plus claire pour suivre les encaissements et ce qui reste a remettre en banque.',
+    subtitle:
+      'Une vue plus dense et plus claire pour suivre les encaissements et ce qui reste a remettre en banque.',
     workspace_title: 'Flux de paiements',
-    workspace_subtitle: 'Le tableau met l\'accent sur les montants, les moyens de reglement et le statut de remise.',
-    filters_hint: 'Activez le focus sur les paiements non remis ou utilisez la recherche globale pour isoler rapidement une ligne.',
+    workspace_subtitle:
+      "Le tableau met l'accent sur les montants, les moyens de reglement et le statut de remise.",
+    filters_hint:
+      'Activez le focus sur les paiements non remis ou utilisez la recherche globale pour isoler rapidement une ligne.',
     results_label: '{count} paiement(s) visibles',
     empty: 'Aucun paiement ne correspond aux filtres actuels.',
     new: 'Nouveau paiement',
@@ -297,6 +332,7 @@ export default {
     deposited: 'Remis en banque',
     deposit_date: 'Date de remise',
     filter_undeposited: 'À remettre en banque',
+    updated: 'Paiement mis à jour.',
     deleted: 'Paiement supprimé.',
     confirm_delete: 'Supprimer ce paiement de {amount} € ?',
     metrics: {
@@ -318,15 +354,20 @@ export default {
     balance: 'Solde caisse',
     journal: 'Journal de caisse',
     new_entry: 'Nouvelle écriture',
+    edit_entry: "Modifier l'écriture",
+    entry_details: "Détail de l'écriture",
+    entry_updated: 'Écriture de caisse mise à jour.',
     counts_title: 'Comptages de caisse',
     new_count: 'Nouveau comptage',
-    entry_intro: 'Ajoutez un mouvement de caisse avec le bon sens, le montant et un libellé facile à relire.',
+    entry_intro:
+      'Ajoutez un mouvement de caisse avec le bon sens, le montant et un libellé facile à relire.',
     count_intro: 'Saisissez un comptage complet pour comparer l’espèce physique au solde attendu.',
     entry_section_title: 'Mouvement',
     entry_section_subtitle: 'Date, sens et montant du flux de caisse.',
     count_section_title: 'Comptage',
     count_section_subtitle: 'Renseignez les coupures pour reconstituer le total compté.',
-    count_notes_help: 'Utilisez cette zone pour expliquer un écart ou documenter le contexte du comptage.',
+    count_notes_help:
+      'Utilisez cette zone pour expliquer un écart ou documenter le contexte du comptage.',
     entry_date: 'Date',
     entry_amount: 'Montant',
     entry_type: 'Type',
@@ -352,11 +393,15 @@ export default {
     new_transaction: 'Nouvelle opération',
     new_deposit: 'Nouveau bordereau',
     import_csv: 'Importer CSV',
-    transaction_intro: 'Ajoutez une opération manuelle avec son solde après écriture pour garder un rapprochement lisible.',
-    import_intro: 'Collez le relevé CSV exporté par la banque pour importer rapidement plusieurs opérations.',
-    deposit_intro: 'Constituez un bordereau propre en regroupant les paiements encore en attente de remise.',
+    transaction_intro:
+      'Ajoutez une opération manuelle avec son solde après écriture pour garder un rapprochement lisible.',
+    import_intro:
+      'Collez le relevé CSV exporté par la banque pour importer rapidement plusieurs opérations.',
+    deposit_intro:
+      'Constituez un bordereau propre en regroupant les paiements encore en attente de remise.',
     deposit_selection_title: 'Paiements à inclure',
-    deposit_selection_subtitle: 'Sélectionnez les règlements à intégrer dans ce bordereau avant l’enregistrement.',
+    deposit_selection_subtitle:
+      'Sélectionnez les règlements à intégrer dans ce bordereau avant l’enregistrement.',
     deposit_empty: 'Aucun paiement en attente de remise en banque.',
     deposit_empty_hint: 'Dès que des règlements non remis existent, ils apparaissent ici.',
     tx_date: 'Date',
@@ -388,11 +433,13 @@ export default {
   },
   settings: {
     title: 'Paramètres',
-    subtitle: 'Un espace de configuration plus propre pour l\'association, la messagerie et les operations sensibles.',
+    subtitle:
+      "Un espace de configuration plus propre pour l'association, la messagerie et les operations sensibles.",
     section_asso: "Informations de l'association",
-    section_asso_subtitle: 'Identite administrative et informations qui structurent les documents emis.',
+    section_asso_subtitle:
+      'Identite administrative et informations qui structurent les documents emis.',
     section_smtp: 'Configuration e-mail (SMTP)',
-    section_smtp_subtitle: 'Parametres d\'envoi pour les e-mails automatiques et les relances.',
+    section_smtp_subtitle: "Parametres d'envoi pour les e-mails automatiques et les relances.",
     asso_name: "Nom de l'association",
     siret: 'N° SIRET',
     address: 'Adresse',
@@ -409,11 +456,15 @@ export default {
     danger_zone: 'Zone de danger',
     reset_db: 'Réinitialiser les données',
     reset_db_desc:
-      "Supprime tous les contacts, factures, paiements, opérations banque/caisse, écritures, salaires et l'historique d'import. " +
-      'Les utilisateurs, les paramètres, le plan comptable et les règles sont conservés.',
+      "Supprime toutes les données de l'application, y compris les paramètres, le plan comptable, les règles comptables, les exercices et l'historique d'import. " +
+      'Seuls les utilisateurs sont conservés.',
     reset_db_confirm:
-      'Cette action est irréversible. Toutes les données transactionnelles seront supprimées définitivement. Confirmer ?',
+      "Cette action est irréversible. Toutes les données de l'application seront supprimées définitivement, sauf les utilisateurs. Confirmer ?",
     reset_db_yes: 'Oui, tout supprimer',
+    bootstrap_accounting: 'Recréer le socle comptable',
+    bootstrap_accounting_done:
+      '{accounts} compte(s), {rules} règle(s) et {fiscalYears} exercice(s) créés.',
+    bootstrap_accounting_error: 'Erreur lors de la recréation du socle comptable.',
     reset_db_done: '{count} ligne(s) supprimée(s). La base est réinitialisée.',
     reset_db_error: 'Erreur lors de la réinitialisation.',
   },
@@ -428,8 +479,10 @@ export default {
       title: 'Plan comptable',
       new: 'Nouveau compte',
       edit: 'Modifier le compte',
-      form_intro_create: 'Ajoutez un compte avec un numero clair, un libelle lisible et un rattachement eventuel a un compte parent.',
-      form_intro_edit: 'Ajustez le type, le libelle ou le rattachement sans perdre la structure existante du plan comptable.',
+      form_intro_create:
+        'Ajoutez un compte avec un numero clair, un libelle lisible et un rattachement eventuel a un compte parent.',
+      form_intro_edit:
+        'Ajustez le type, le libelle ou le rattachement sans perdre la structure existante du plan comptable.',
       number: 'Numéro',
       number_placeholder: 'Ex : 411100',
       number_locked: 'Le numero reste fixe apres creation pour garder une structure stable.',
@@ -438,7 +491,8 @@ export default {
       type: 'Type',
       default: 'Défaut',
       parenting_title: 'Rattachement',
-      parenting_subtitle: 'Utilisez un compte parent pour garder une lecture hierarchique du plan comptable.',
+      parenting_subtitle:
+        'Utilisez un compte parent pour garder une lecture hierarchique du plan comptable.',
       parent_number: 'Compte parent',
       parent_number_placeholder: 'Ex : 411000',
       parent_number_help: 'Laissez vide si le compte doit rester a la racine du plan comptable.',
@@ -448,32 +502,51 @@ export default {
     },
     journal: {
       title: 'Journal comptable',
-      subtitle: 'Un poste de pilotage comptable plus lisible pour filtrer vite, reperer les ecarts et exporter sans friction.',
-      workspace_title: 'Journal des ecritures',
-      workspace_subtitle: 'Chaque filtre est regroupe par intention metier pour reduire le bruit visuel et accelerer la lecture.',
-      filters_hint: 'Choisissez une periode, ciblez un compte ou une source, puis utilisez la recherche plein texte pour affiner.',
+      subtitle:
+        'Un poste de pilotage comptable plus lisible pour filtrer vite, reperer les ecarts et exporter sans friction.',
+      workspace_title: 'Journal des operations',
+      workspace_subtitle:
+        'Une ligne par operation, puis le detail des ecritures au clic pour garder une lecture fiable et compacte.',
+      filters_hint:
+        'Choisissez une periode, ciblez un compte ou une source, puis utilisez la recherche plein texte pour affiner.',
       apply_filters: 'Appliquer',
       new_manual_entry: 'Nouvelle ecriture manuelle',
-      manual_intro: 'Saisissez une écriture manuelle équilibrée pour un ajustement exceptionnel ou une régularisation.',
+      manual_intro:
+        'Saisissez une écriture manuelle équilibrée pour un ajustement exceptionnel ou une régularisation.',
       manual_main_title: 'Écriture',
       manual_main_subtitle: 'Date, libellé et montant de l’opération.',
       manual_accounts_title: 'Imputation',
-      manual_accounts_subtitle: 'Renseignez les comptes de débit et de crédit utilisés par l’écriture.',
-      summary_entries: 'Ecritures affichees',
+      manual_accounts_subtitle:
+        'Renseignez les comptes de débit et de crédit utilisés par l’écriture.',
+      summary_entries: 'Operations affichees',
       summary_debit: 'Debit cumule',
       summary_credit: 'Credit cumule',
       summary_sources: 'Sources distinctes',
       summary_filtered: 'Apres application des filtres et de la recherche',
-      summary_balance_caption: 'Lecture instantanee de l\'activite affichee',
-      summary_search: '{count} ligne(s) dans le tableau',
+      summary_balance_caption: "Lecture instantanee de l'activite affichee",
+      summary_search: '{count} operation(s) dans le tableau',
       summary_period_all: 'Toutes periodes confondues',
       entry_number: 'N° pièce',
+      entry_details: "Détail de l'opération",
+      edit_manual_entry: "Modifier l'écriture manuelle",
       date: 'Date',
       account: 'Compte',
+      accounts: 'Comptes impliques',
+      counterpart_account: 'Contrepartie',
       label: 'Libellé',
       debit: 'Débit',
       credit: 'Crédit',
+      lines_count: 'Lignes',
+      entry_lines: 'Lignes comptables',
       source: 'Source',
+      source_details: 'Contexte comptable',
+      reference: 'Référence',
+      contact: 'Tiers',
+      open_invoice: 'Ouvrir la facture',
+      no_reference: 'Sans référence',
+      no_contact: 'Sans tiers',
+      no_counterpart: 'Non disponible',
+      manual_updated: 'Écriture manuelle mise à jour.',
       filter_from: 'Du',
       filter_to: 'Au',
       filter_account: 'Compte',
@@ -538,7 +611,8 @@ export default {
     fiscalYear: {
       title: 'Exercices comptables',
       new: 'Nouvel exercice',
-      form_intro: 'Créez un exercice avec une période nette pour simplifier la clôture, les exports et les reports.',
+      form_intro:
+        'Créez un exercice avec une période nette pour simplifier la clôture, les exports et les reports.',
       calendar_title: 'Période',
       calendar_subtitle: 'Le nom et les dates doivent correspondre à l’exercice comptable réel.',
       name: "Nom de l'exercice",
@@ -546,9 +620,14 @@ export default {
       start_date: 'Date de début',
       end_date: 'Date de fin',
       status: 'Statut',
+      close_administrative: 'Clôture administrative',
       close: "Clôturer l'exercice",
-      close_confirm: "Êtes-vous sûr de vouloir clôturer l'exercice {name} ? Cette action est irréversible.",
-      closed_ok: "Exercice {name} clôturé.",
+      close_administrative_confirm:
+        "Marquer l'exercice {name} comme clôturé sans générer de nouvelles écritures de clôture ou de report à nouveau ?",
+      close_confirm:
+        "Êtes-vous sûr de vouloir clôturer l'exercice {name} ? Cette action est irréversible.",
+      closed_administrative_ok: 'Exercice {name} clôturé administrativement.',
+      closed_ok: 'Exercice {name} clôturé.',
       current: 'En cours',
       statuses: {
         open: 'Ouvert',
@@ -566,12 +645,15 @@ export default {
     title: 'Salaires',
     new: 'Nouveau salaire',
     edit: 'Modifier le salaire',
-    form_intro_create: 'Saisissez une fiche de paie simplifiée pour conserver une trace claire des montants et des charges.',
-    form_intro_edit: 'Ajustez les montants du salaire sans perdre la cohérence du récapitulatif mensuel.',
+    form_intro_create:
+      'Saisissez une fiche de paie simplifiée pour conserver une trace claire des montants et des charges.',
+    form_intro_edit:
+      'Ajustez les montants du salaire sans perdre la cohérence du récapitulatif mensuel.',
     group_identity_title: 'Employé et période',
     group_identity_subtitle: 'Identifiez la personne concernée et le mois de rattachement.',
     group_amounts_title: 'Montants',
-    group_amounts_subtitle: 'Renseignez les heures, charges et net à payer pour reconstituer le coût complet.',
+    group_amounts_subtitle:
+      'Renseignez les heures, charges et net à payer pour reconstituer le coût complet.',
     notes_help: 'Ajoutez ici un contexte utile pour relire ou justifier la saisie plus tard.',
     employee: 'Employé',
     employee_placeholder: 'Sélectionner un employé',
@@ -613,8 +695,8 @@ export default {
     },
   },
   import: {
-    title: "Import Excel",
-    subtitle: "Importez vos données depuis un fichier Excel de gestion ou de comptabilité.",
+    title: 'Import Excel',
+    subtitle: 'Importez vos données depuis un fichier Excel de gestion ou de comptabilité.',
     file_label: 'Fichier Excel (.xlsx)',
     choose_file: 'Choisir un fichier',
     type_label: 'Type de fichier',
@@ -623,29 +705,61 @@ export default {
     submit: 'Importer',
     preview: 'Prévisualiser',
     preview_title: 'Aperçu du fichier',
-    preview_subtitle: 'Vérifiez les données avant de lancer l\'import',
+    preview_subtitle: "Vérifiez les données avant de lancer l'import",
     preview_ready: 'Le fichier contient au moins une feuille exploitable par l’import actuel.',
-    preview_noop: 'La prévisualisation n’a trouvé aucune nouvelle donnée importable dans l’état actuel de la base.',
-    preview_blocked: 'La prévisualisation n’a trouvé aucune feuille directement exploitable sans correction ou adaptation.',
+    preview_noop:
+      'La prévisualisation n’a trouvé aucune nouvelle donnée importable dans l’état actuel de la base.',
+    preview_blocked:
+      'La prévisualisation n’a trouvé aucune feuille directement exploitable sans correction ou adaptation.',
     preview_required: 'Prévisualisez le fichier avant de lancer l’import.',
+    guidance_common_title: 'Préparer l’environnement comptable',
+    guidance_common_exercise:
+      'L’import ne crée pas automatiquement les exercices comptables. Créez d’abord chaque exercice couvrant les dates à importer.',
+    guidance_common_seed_accounts:
+      'L’import ne crée pas automatiquement le plan comptable. Préparez vos comptes avant de contrôler le résultat.',
+    guidance_common_seed_rules:
+      'L’import ne crée pas automatiquement les règles comptables. Configurez-les séparément pour la génération d’écritures depuis la gestion courante.',
+    guidance_gestion_scope:
+      'Gestion importe les contacts, factures, paiements et mouvements de trésorerie du classeur historique.',
+    guidance_gestion_fiscal_year:
+      'Les écritures générées par la gestion sont rattachées à l’exercice couvrant leur date quand il existe ; sinon elles restent sans exercice.',
+    guidance_gestion_supplier:
+      'Les références FF-... détectées dans Banque et Caisse peuvent créer des factures fournisseurs historiques et leur règlement.',
+    guidance_compta_scope:
+      'Comptabilité importe la feuille Journal comme écritures manuelles supplémentaires.',
+    guidance_compta_coexistence:
+      'Si des écritures issues de la gestion existent déjà, les doublons exacts du journal sont ignorés et seules les écritures nouvelles sont ajoutées.',
+    guidance_compta_chart:
+      'Le plan comptable reste à préparer pour la lecture et le contrôle, même si l’import comptabilité ne génère pas ses lignes à partir des règles comptables.',
+    test_shortcuts_title: 'Raccourcis de test temporaires',
+    test_shortcuts_subtitle:
+      'Lancez directement les imports historiques configurés côté serveur, dans l’ordre recommandé, sans prévisualisation.',
+    test_shortcuts_hint:
+      'Ces boutons sont destinés aux tests locaux. Ils restent désactivés tant que les fichiers attendus ne sont pas trouvés.',
+    test_shortcuts_run: 'Importer {label}',
+    test_shortcuts_missing_file: 'Fichier non configuré',
     estimated_contacts: 'Contacts estimés',
     estimated_invoices: 'Factures estimées',
     estimated_payments: 'Paiements estimés',
+    estimated_salaries: 'Salaires estimés',
     estimated_entries: 'Écritures estimées',
     warnings: 'Avertissements',
     sheets_title: 'Diagnostic des feuilles',
     sheet_rows: '{count} ligne(s) exploitables',
     detected_columns: 'Colonnes détectées',
     missing_columns: 'Colonnes manquantes',
-    confirm_import: 'Confirmer l\'import',
+    confirm_import: "Confirmer l'import",
     import_ready: 'La prévisualisation est valide. Vous pouvez lancer l’import.',
-    warning_ack_label: 'J’ai vérifié les avertissements et je confirme que l’import peut continuer.',
-    warning_ack_help: 'Les avertissements signalent des lignes ignorées ou des adaptations automatiques. Une confirmation explicite est requise avant l’import.',
+    warning_ack_label:
+      'J’ai vérifié les avertissements et je confirme que l’import peut continuer.',
+    warning_ack_help:
+      'Les avertissements signalent des lignes ignorées ou des adaptations automatiques. Une confirmation explicite est requise avant l’import.',
     warning_ack_required: 'Confirmez explicitement les avertissements avant de lancer l’import.',
-    result_title: 'Résultat de l\'import',
+    result_title: "Résultat de l'import",
     contacts_created: 'Contacts créés',
     invoices_created: 'Factures créées',
     payments_created: 'Paiements créés',
+    salaries_created: 'Salaires créés',
     entries_created: 'Écritures créées',
     cash_created: 'Opérations caisse créées',
     bank_created: 'Opérations banque créées',
@@ -657,6 +771,8 @@ export default {
     no_warnings: 'Aucun avertissement.',
     success: 'Import terminé avec succès.',
     completed_with_issues: 'Import terminé avec remarques.',
+    result_persistent_hint:
+      '{count} élément(s) créé(s), {ignored} ligne(s) ignorée(s) et {blocked} ligne(s) bloquantes. Le détail complet reste affiché ci-dessous.',
     file_required: 'Veuillez sélectionner un fichier.',
     result_sheets_title: 'Détail par feuille',
     sheet_ignored_rows: '{count} ligne(s) ignorée(s)',
@@ -672,6 +788,7 @@ export default {
       invoices: 'Factures',
       payments: 'Paiements',
       contacts: 'Contacts',
+      salaries: 'Salaires',
       cash: 'Caisse',
       bank: 'Banque',
       entries: 'Écritures',
@@ -699,7 +816,7 @@ export default {
     passif: 'Passif',
     total_actif: 'Total actif',
     total_passif: 'Total passif',
-    resultat: 'Résultat de l\'exercice',
+    resultat: "Résultat de l'exercice",
     empty: 'Aucune donnée.',
     export_csv: 'Exporter CSV',
   },

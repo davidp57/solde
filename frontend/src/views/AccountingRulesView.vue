@@ -21,31 +21,47 @@
         </div>
       </div>
 
-      <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows size="small" row-hover>
-      <Column field="trigger_type" :header="t('accounting.rules.trigger_type')" />
-      <Column field="name" :header="t('accounting.rules.name')" />
-      <Column field="is_active" :header="t('accounting.rules.active')">
-        <template #body="{ data }">
-          <Tag
-            :value="data.is_active ? t('accounting.rules.active') : t('accounting.rules.inactive')"
-            :severity="data.is_active ? 'success' : 'secondary'"
-          />
-        </template>
-      </Column>
-      <Column field="priority" :header="t('accounting.rules.priority')" />
-      <Column :header="t('common.actions')">
-        <template #body="{ data }">
-          <Button
-            :icon="data.is_active ? 'pi pi-eye-slash' : 'pi pi-eye'"
-            :severity="data.is_active ? 'secondary' : 'success'"
-            text
-            rounded
-            :title="data.is_active ? t('accounting.rules.deactivate') : t('accounting.rules.activate')"
-            @click="toggleRule(data)"
-          />
-        </template>
-      </Column>
-        <template #empty><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template>
+      <DataTable
+        :value="filtered"
+        :loading="loading"
+        class="app-data-table"
+        striped-rows
+        paginator
+        :rows="20"
+        :rows-per-page-options="[20, 50, 100, 500]"
+        size="small"
+        row-hover
+      >
+        <Column field="trigger_type" :header="t('accounting.rules.trigger_type')" />
+        <Column field="name" :header="t('accounting.rules.name')" />
+        <Column field="is_active" :header="t('accounting.rules.active')">
+          <template #body="{ data }">
+            <Tag
+              :value="
+                data.is_active ? t('accounting.rules.active') : t('accounting.rules.inactive')
+              "
+              :severity="data.is_active ? 'success' : 'secondary'"
+            />
+          </template>
+        </Column>
+        <Column field="priority" :header="t('accounting.rules.priority')" />
+        <Column :header="t('common.actions')">
+          <template #body="{ data }">
+            <Button
+              :icon="data.is_active ? 'pi pi-eye-slash' : 'pi pi-eye'"
+              :severity="data.is_active ? 'secondary' : 'success'"
+              text
+              rounded
+              :title="
+                data.is_active ? t('accounting.rules.deactivate') : t('accounting.rules.activate')
+              "
+              @click="toggleRule(data)"
+            />
+          </template>
+        </Column>
+        <template #empty
+          ><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template
+        >
       </DataTable>
     </AppPanel>
   </AppPage>
@@ -103,7 +119,11 @@ async function seedRules() {
   try {
     const result = await seedRulesApi()
     if (result.inserted > 0) {
-      toast.add({ severity: 'success', summary: t('accounting.rules.seed_ok', { n: result.inserted }), life: 3000 })
+      toast.add({
+        severity: 'success',
+        summary: t('accounting.rules.seed_ok', { n: result.inserted }),
+        life: 3000,
+      })
     } else {
       toast.add({ severity: 'info', summary: t('accounting.rules.seed_already_done'), life: 3000 })
     }

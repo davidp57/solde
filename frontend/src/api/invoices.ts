@@ -66,6 +66,8 @@ export interface InvoiceFilters {
   invoice_type?: InvoiceType
   invoice_status?: InvoiceStatus
   contact_id?: number
+  from_date?: string
+  to_date?: string
   year?: number
   skip?: number
   limit?: number
@@ -76,6 +78,8 @@ export async function listInvoicesApi(filters: InvoiceFilters = {}): Promise<Inv
   if (filters.invoice_type) params.set('invoice_type', filters.invoice_type)
   if (filters.invoice_status) params.set('invoice_status', filters.invoice_status)
   if (filters.contact_id !== undefined) params.set('contact_id', String(filters.contact_id))
+  if (filters.from_date) params.set('from_date', filters.from_date)
+  if (filters.to_date) params.set('to_date', filters.to_date)
   if (filters.year !== undefined) params.set('year', String(filters.year))
   if (filters.skip !== undefined) params.set('skip', String(filters.skip))
   if (filters.limit !== undefined) params.set('limit', String(filters.limit))
@@ -98,10 +102,7 @@ export async function updateInvoiceApi(id: number, data: InvoiceUpdate): Promise
   return response.data
 }
 
-export async function updateInvoiceStatusApi(
-  id: number,
-  status: InvoiceStatus,
-): Promise<Invoice> {
+export async function updateInvoiceStatusApi(id: number, status: InvoiceStatus): Promise<Invoice> {
   const response = await apiClient.patch<Invoice>(`/api/invoices/${id}/status`, { status })
   return response.data
 }

@@ -71,7 +71,7 @@ const route = useRoute()
 const auth = useAuthStore()
 const { isDark } = useDarkMode()
 
-const wrapperBg = computed(() => isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-100)')
+const wrapperBg = computed(() => (isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-100)'))
 
 const username = ref('')
 const password = ref('')
