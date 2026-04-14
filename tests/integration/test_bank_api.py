@@ -69,6 +69,31 @@ async def test_add_transaction(client: AsyncClient, admin_user: User, auth_heade
 
 
 @pytest.mark.asyncio
+async def test_secretaire_can_add_transaction(
+    client: AsyncClient, secretaire_user: User, secretaire_auth_headers: dict
+) -> None:
+    response = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2024-03-01",
+            "amount": "500.00",
+            "description": "Virement association",
+            "balance_after": "1500.00",
+        },
+        headers=secretaire_auth_headers,
+    )
+    assert response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_readonly_cannot_access_bank_balance(
+    client: AsyncClient, readonly_user: User, readonly_auth_headers: dict
+) -> None:
+    response = await client.get("/api/bank/balance", headers=readonly_auth_headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_list_transactions(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     for i in range(3):
         await client.post(

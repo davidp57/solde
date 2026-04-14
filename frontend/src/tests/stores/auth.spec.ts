@@ -66,6 +66,30 @@ describe('useAuthStore', () => {
     expect(store.isAdmin).toBe(false)
   })
 
+  it('exposes access helpers that match the BL-023 matrix', () => {
+    const store = useAuthStore()
+
+    store.user = { ...mockUser, role: 'secretaire' }
+    expect(store.canAccessManagement).toBe(true)
+    expect(store.canAccessAccounting).toBe(false)
+    expect(store.canManageApplication).toBe(false)
+
+    store.user = { ...mockUser, role: 'tresorier' }
+    expect(store.canAccessManagement).toBe(true)
+    expect(store.canAccessAccounting).toBe(true)
+    expect(store.canManageApplication).toBe(false)
+
+    store.user = { ...mockUser, role: 'admin' }
+    expect(store.canAccessManagement).toBe(true)
+    expect(store.canAccessAccounting).toBe(true)
+    expect(store.canManageApplication).toBe(true)
+
+    store.user = { ...mockUser, role: 'readonly' }
+    expect(store.canAccessManagement).toBe(false)
+    expect(store.canAccessAccounting).toBe(false)
+    expect(store.canManageApplication).toBe(false)
+  })
+
   it('login success sets tokens and fetches user', async () => {
     mockLoginApi.mockResolvedValueOnce(mockTokens)
     mockGetMeApi.mockResolvedValueOnce(mockUser)

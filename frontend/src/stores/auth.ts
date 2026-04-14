@@ -17,9 +17,20 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = computed(() => accessToken.value !== null)
   const isAdmin = computed(() => user.value?.role === 'admin')
+  const isGestionnaire = computed(() => user.value?.role === 'secretaire')
   const isTresorier = computed(
     () => user.value?.role === 'admin' || user.value?.role === 'tresorier',
   )
+  const canAccessManagement = computed(
+    () =>
+      user.value?.role === 'secretaire' ||
+      user.value?.role === 'tresorier' ||
+      user.value?.role === 'admin',
+  )
+  const canAccessAccounting = computed(
+    () => user.value?.role === 'tresorier' || user.value?.role === 'admin',
+  )
+  const canManageApplication = computed(() => user.value?.role === 'admin')
 
   function saveTokens(access: string, refresh: string): void {
     accessToken.value = access
@@ -138,7 +149,11 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     isAuthenticated,
     isAdmin,
+    isGestionnaire,
     isTresorier,
+    canAccessManagement,
+    canAccessAccounting,
+    canManageApplication,
     initFromStorage,
     login,
     logout,

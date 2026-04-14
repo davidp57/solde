@@ -30,10 +30,7 @@
           :label="opt.label"
           :severity="typeFilter === opt.value ? 'primary' : 'secondary'"
           size="small"
-          @click="
-            typeFilter = opt.value
-            void loadAccounts()
-          "
+          @click="applyTypeFilter(opt.value)"
         />
       </div>
 
@@ -150,6 +147,11 @@ const typeOptions: Array<{ label: string; value: AccountType | undefined }> = [
   { label: t('accounting.account_types.charge'), value: 'charge' },
   { label: t('accounting.account_types.produit'), value: 'produit' },
 ]
+
+function applyTypeFilter(nextType: AccountType | undefined): void {
+  typeFilter.value = nextType
+  void loadAccounts()
+}
 
 function typeSeverity(type: AccountType): 'info' | 'success' | 'warn' | 'danger' {
   const map: Record<AccountType, 'info' | 'success' | 'warn' | 'danger'> = {

@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
 from backend.models.user import User, UserRole
-from backend.routers.auth import get_current_user, require_role
+from backend.routers.auth import require_role
 from backend.schemas.fiscal_year import FiscalYearCreate, FiscalYearRead
 from backend.services import fiscal_year_service
 from backend.services.fiscal_year_service import FiscalYearError
@@ -18,7 +18,10 @@ _AdminAccess = Annotated[
     User,
     Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
 ]
-_ReadAccess = Annotated[User, Depends(get_current_user)]
+_ReadAccess = Annotated[
+    User,
+    Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
+]
 
 
 @router.get("/", response_model=list[FiscalYearRead])

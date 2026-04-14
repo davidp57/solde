@@ -21,8 +21,13 @@ export default {
     dark_mode: 'Mode sombre',
     light_mode: 'Mode clair',
     me: 'Mon compte',
+    session_active: 'Session active',
   },
   nav: {
+    section_home: 'Accueil',
+    section_management: 'Gestion',
+    section_accounting: 'Comptabilité',
+    section_administration: 'Administration',
     dashboard: 'Tableau de bord',
     contacts: 'Contacts',
     invoices_client: 'Factures clients',
@@ -48,9 +53,9 @@ export default {
   user: {
     role: {
       admin: 'Administrateur',
-      tresorier: 'Trésorier',
-      secretaire: 'Secrétaire',
-      readonly: 'Lecture seule',
+      tresorier: 'Comptable',
+      secretaire: 'Gestionnaire',
+      readonly: 'Lecture seule (legacy)',
     },
   },
   users: {
@@ -102,24 +107,24 @@ export default {
     },
     role_cards: {
       readonly: {
-        title: 'Consultation',
+        title: 'Lecture seule (legacy)',
         subtitle: 'Valeur technique : readonly',
-        description: 'Lecture des données sans modification.',
+        description: 'Valeur legacy conservée pour compatibilité, hors cible produit active.',
       },
       secretaire: {
         title: 'Gestionnaire',
         subtitle: 'Valeur technique : secretaire',
-        description: 'Contacts, factures et paiements.',
+        description: 'Toute la partie gestion : contacts, factures, paiements, banque et caisse.',
       },
       tresorier: {
         title: 'Comptable',
         subtitle: 'Valeur technique : tresorier',
-        description: 'Trésorerie, comptabilité, imports et salaires.',
+        description: 'Toute la gestion plus la comptabilité, les imports et les salaires.',
       },
       admin: {
         title: 'Administrateur',
         subtitle: 'Valeur technique : admin',
-        description: 'Administration complète, comptes et paramètres.',
+        description: 'Administration complète de l’application, des comptes et des paramètres.',
       },
     },
   },
