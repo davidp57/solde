@@ -2,7 +2,7 @@
 
 ## Objectif
 
-BL-022 lots 1 et 2 clarifient la cible produit des rôles sans renommer immédiatement les valeurs techniques déjà utilisées dans l'API et les autorisations backend.
+BL-022 lots 1 et 2 ont introduit l'administration des comptes. BL-023 clarifie désormais la cible produit des rôles et la séparation visible entre `Gestion` et `Comptabilité`, sans renommer immédiatement les valeurs techniques déjà utilisées dans l'API et les autorisations backend.
 
 L'objectif est double :
 
@@ -18,26 +18,57 @@ Les valeurs techniques existantes restent inchangées dans ce lot :
 - `tresorier`
 - `admin`
 
-En revanche, elles sont interprétées côté produit avec des libellés métier plus lisibles.
+En revanche, elles sont interprétées côté produit avec des libellés métier plus lisibles. La cible produit active repose désormais surtout sur trois rôles métier : `Gestionnaire`, `Comptable`, `Administrateur`.
 
 ## Correspondance rôles techniques / rôles métier
 
 | Valeur technique | Libellé métier | Usage principal |
 |---|---|---|
-| `readonly` | Consultation | Lire les données sans modifier l'application |
-| `secretaire` | Gestionnaire | Gérer les contacts, factures et paiements |
-| `tresorier` | Comptable | Gérer la trésorerie, la comptabilité, les imports et les salaires |
+| `readonly` | Consultation | Rôle legacy ou transitoire, sans utilité produit claire à ce stade |
+| `secretaire` | Gestionnaire | Gérer toute la partie gestion |
+| `tresorier` | Comptable | Gérer la partie comptable et toute la partie gestion |
 | `admin` | Administrateur | Gérer les comptes, les paramètres et l'ensemble de l'application |
+
+## Sections UI cibles
+
+La navigation doit séparer visiblement au moins deux sections :
+
+### Gestion
+
+- Tableau de bord
+- Contacts
+- Factures clients
+- Factures fournisseurs
+- Paiements
+- Banque
+- Caisse
+
+### Comptabilité
+
+- Exercices
+- Plan comptable
+- Règles comptables
+- Bilan
+- Résultat
+- Journal
+- Balance
+- Grand livre
 
 ## Matrice simplifiée des permissions
 
-| Zone / action | Consultation | Gestionnaire | Comptable | Administrateur |
-|---|---|---|---|---|
-| Se connecter et consulter les écrans | Oui | Oui | Oui | Oui |
-| Modifier contacts, factures et paiements | Non | Oui | Oui | Oui |
-| Modifier caisse, banque, imports, salaires et comptabilité | Non | Non | Oui | Oui |
-| Gérer les paramètres de l'application | Non | Non | Non | Oui |
-| Gérer les comptes utilisateurs | Non | Non | Non | Oui |
+| Zone / action | Gestionnaire | Comptable | Administrateur |
+|---|---|---|---|
+| Partie gestion | Lecture + écriture | Lecture + écriture | Lecture + écriture |
+| Partie comptable | Non | Lecture + écriture ou lecture seule selon l'écran | Lecture + écriture ou lecture seule selon l'écran |
+| Utilisateurs | Non | Non | Lecture + écriture |
+| Paramètres de l'application | Non | Non | Lecture + écriture |
+
+En pratique :
+
+- `Gestionnaire` voit et édite toute la partie `Gestion` ;
+- `Comptable` voit et édite toute la partie `Gestion`, et voit ou édite la partie `Comptabilité` selon l'écran concerné ;
+- `Administrateur` voit tout, édite tout et gère l'application ;
+- `readonly` n'est plus un rôle cible à mettre en avant dans le produit.
 
 ## Portée du lot 2
 
@@ -53,7 +84,7 @@ Le lot 2 ne couvre pas encore :
 - l'espace `Mon profil` ;
 - le changement de mot de passe par l'utilisateur lui-même ;
 - le mot de passe oublié ou la récupération d'accès ;
-- une refonte complète du modèle de rôles côté backend.
+- l'alignement complet backend/frontend avec la nouvelle matrice BL-023.
 
 ## Garde-fous retenus
 
