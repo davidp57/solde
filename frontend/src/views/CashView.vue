@@ -16,10 +16,10 @@
       <AppStatCard :label="t('cash.balance')" :value="formatAmount(balance)" />
       <AppStatCard
         :label="t('cash.journal')"
-        :value="filteredEntries.length"
+        :value="displayedEntries.length"
         :caption="`${entries.length} total`"
       />
-      <AppStatCard :label="t('cash.counts_title')" :value="filteredCounts.length" tone="warn" />
+      <AppStatCard :label="t('cash.counts_title')" :value="displayedCounts.length" tone="warn" />
     </section>
 
     <AppPanel :title="t('cash.title')" dense>
@@ -27,7 +27,17 @@
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+            <InputText v-model="activeGlobalFilter" :placeholder="t('common.filter_placeholder')" />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('common.reset_filters') }}</label>
+            <Button
+              icon="pi pi-filter-slash"
+              severity="secondary"
+              outlined
+              :disabled="!activeHasFilters"
+              @click="resetActiveFilters"
+            />
           </div>
         </div>
       </div>
@@ -41,40 +51,125 @@
         <TabPanels>
           <TabPanel value="journal">
             <DataTable
-              :value="filteredEntries"
+              v-model:filters="entryTableFilters"
+              :value="entryRows"
               :loading="loadingEntries"
               class="app-data-table"
+              filter-display="menu"
               striped-rows
               paginator
               :rows="20"
               :rows-per-page-options="[20, 50, 100, 500]"
+              :global-filter-fields="[
+                'date',
+                'type_label',
+                'amount',
+                'reference',
+                'description',
+                'balance_after',
+              ]"
               data-key="id"
               size="small"
               row-hover
+              removable-sort
+              @value-change="syncDisplayedEntries"
             >
-              <Column field="date" :header="t('cash.entry_date')" sortable>
+              <Column
+                field="date"
+                :header="t('cash.entry_date')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppDateRangeFilter v-model="filterModel.value" />
+                </template>
               </Column>
-              <Column field="type" :header="t('cash.entry_type')">
+              <Column
+                field="type_label"
+                :header="t('cash.entry_type')"
+                sortable
+                filter-field="type"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">
                   <Tag
                     :value="t(`cash.movements.${data.type}`)"
                     :severity="data.type === 'in' ? 'success' : 'danger'"
                   />
                 </template>
+                <template #filter="{ filterModel }">
+                  <AppFilterMultiSelect
+                    v-model="filterModel.value"
+                    :options="movementTypes"
+                    option-label="label"
+                    option-value="value"
+                    :placeholder="t('common.all')"
+                    display="chip"
+                    show-clear
+                  />
+                </template>
               </Column>
-              <Column field="amount" :header="t('cash.entry_amount')" class="app-money">
+              <Column
+                field="amount_value"
+                :header="t('cash.entry_amount')"
+                class="app-money"
+                sortable
+                filter-field="amount_value"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">
                   <span :class="data.type === 'out' ? 'cash-negative' : 'cash-positive'">
                     {{ data.type === 'out' ? '-' : '+' }}{{ formatAmount(data.amount) }}
                   </span>
                 </template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
               </Column>
-              <Column field="reference" :header="t('cash.entry_reference')" />
-              <Column field="description" :header="t('cash.entry_description')" />
-              <Column field="balance_after" :header="t('cash.balance_after')">
+              <Column
+                field="reference"
+                :header="t('cash.entry_reference')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #filter="{ filterModel }">
+                  <InputText v-model="filterModel.value" :placeholder="t('cash.entry_reference')" />
+                </template>
+              </Column>
+              <Column
+                field="description"
+                :header="t('cash.entry_description')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #filter="{ filterModel }">
+                  <InputText
+                    v-model="filterModel.value"
+                    :placeholder="t('cash.entry_description')"
+                  />
+                </template>
+              </Column>
+              <Column
+                field="balance_after_value"
+                :header="t('cash.balance_after')"
+                sortable
+                filter-field="balance_after_value"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">
                   {{ formatAmount(data.balance_after) }}
+                </template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
                 </template>
               </Column>
               <Column :header="t('common.actions')" class="cash-journal__actions">
@@ -107,27 +202,80 @@
 
           <TabPanel value="counts">
             <DataTable
-              :value="filteredCounts"
+              v-model:filters="countTableFilters"
+              :value="countRows"
               :loading="loadingCounts"
               class="app-data-table"
+              filter-display="menu"
               striped-rows
               paginator
               :rows="20"
               :rows-per-page-options="[20, 50, 100, 500]"
+              :global-filter-fields="[
+                'date',
+                'total_counted',
+                'balance_expected',
+                'difference',
+                'notes',
+              ]"
               data-key="id"
               size="small"
               row-hover
+              removable-sort
+              @value-change="syncDisplayedCounts"
             >
-              <Column field="date" :header="t('cash.count_date')" sortable>
+              <Column
+                field="date"
+                :header="t('cash.count_date')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppDateRangeFilter v-model="filterModel.value" />
+                </template>
               </Column>
-              <Column field="total_counted" :header="t('cash.count_total')" class="app-money">
+              <Column
+                field="total_counted_value"
+                :header="t('cash.count_total')"
+                class="app-money"
+                sortable
+                filter-field="total_counted_value"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">{{ formatAmount(data.total_counted) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
               </Column>
-              <Column field="balance_expected" :header="t('cash.count_expected')" class="app-money">
+              <Column
+                field="balance_expected_value"
+                :header="t('cash.count_expected')"
+                class="app-money"
+                sortable
+                filter-field="balance_expected_value"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">{{ formatAmount(data.balance_expected) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
               </Column>
-              <Column field="difference" :header="t('cash.count_diff')" class="app-money">
+              <Column
+                field="difference_value"
+                :header="t('cash.count_diff')"
+                class="app-money"
+                sortable
+                filter-field="difference_value"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">
                   <span
                     :class="
@@ -141,8 +289,21 @@
                     {{ formatAmount(data.difference) }}
                   </span>
                 </template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
               </Column>
-              <Column field="notes" :header="t('cash.count_notes')" />
+              <Column
+                field="notes"
+                :header="t('cash.count_notes')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #filter="{ filterModel }">
+                  <InputText v-model="filterModel.value" :placeholder="t('cash.count_notes')" />
+                </template>
+              </Column>
               <template #empty>
                 <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
               </template>
@@ -328,6 +489,9 @@ import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
+import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
+import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
@@ -345,16 +509,20 @@ import {
   updateCashEntry,
 } from '@/api/cash'
 import { formatDisplayDate } from '@/utils/format'
-import { useTableFilter, applyFilter } from '../composables/useTableFilter'
+import {
+  dateRangeFilter,
+  inFilter,
+  numericRangeFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
 const toast = useToast()
 
 const balance = ref('0')
 const entries = ref<CashEntry[]>([])
-const { filterText, filtered: filteredEntries } = useTableFilter(entries)
 const counts = ref<CashCount[]>([])
-const filteredCounts = computed(() => applyFilter(counts.value, filterText.value))
 const loadingEntries = ref(false)
 const loadingCounts = ref(false)
 const activeTab = ref('journal')
@@ -369,6 +537,81 @@ const movementTypes = [
   { label: t('cash.movements.in'), value: 'in' },
   { label: t('cash.movements.out'), value: 'out' },
 ]
+
+const entryRows = computed(() =>
+  entries.value.map((entry) => ({
+    ...entry,
+    type_label: t(`cash.movements.${entry.type}`),
+    amount_value: parseFloat(entry.amount),
+    balance_after_value: parseFloat(entry.balance_after),
+  })),
+)
+
+const countRows = computed(() =>
+  counts.value.map((count) => ({
+    ...count,
+    total_counted_value: parseFloat(count.total_counted),
+    balance_expected_value: parseFloat(count.balance_expected),
+    difference_value: parseFloat(count.difference),
+  })),
+)
+
+const {
+  filters: entryTableFilters,
+  globalFilter: entryGlobalFilter,
+  displayedRows: displayedEntries,
+  hasActiveFilters: entryHasActiveFilters,
+  resetFilters: resetEntryFilters,
+  syncDisplayedRows: syncDisplayedEntries,
+} = useDataTableFilters(entryRows, {
+  global: textFilter(''),
+  date: dateRangeFilter(),
+  type: inFilter(),
+  amount_value: numericRangeFilter(),
+  reference: textFilter(),
+  description: textFilter(),
+  balance_after_value: numericRangeFilter(),
+})
+
+const {
+  filters: countTableFilters,
+  globalFilter: countGlobalFilter,
+  displayedRows: displayedCounts,
+  hasActiveFilters: countHasActiveFilters,
+  resetFilters: resetCountFilters,
+  syncDisplayedRows: syncDisplayedCounts,
+} = useDataTableFilters(countRows, {
+  global: textFilter(''),
+  date: dateRangeFilter(),
+  total_counted_value: numericRangeFilter(),
+  balance_expected_value: numericRangeFilter(),
+  difference_value: numericRangeFilter(),
+  notes: textFilter(),
+})
+
+const activeGlobalFilter = computed({
+  get: () => (activeTab.value === 'journal' ? entryGlobalFilter.value : countGlobalFilter.value),
+  set: (value: string) => {
+    if (activeTab.value === 'journal') {
+      entryGlobalFilter.value = value
+    } else {
+      countGlobalFilter.value = value
+    }
+  },
+})
+
+const activeHasFilters = computed(() =>
+  activeTab.value === 'journal' ? entryHasActiveFilters.value : countHasActiveFilters.value,
+)
+
+function resetActiveFilters() {
+  if (activeTab.value === 'journal') {
+    resetEntryFilters()
+    return
+  }
+
+  resetCountFilters()
+}
 
 const denominations = [
   { field: 'count_100', label: '100 €' },

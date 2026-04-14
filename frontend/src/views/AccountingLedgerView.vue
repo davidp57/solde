@@ -37,6 +37,20 @@
             <label class="app-field__label">{{ t('accounting.journal.filter_to') }}</label>
             <InputText v-model="toDate" type="date" />
           </div>
+          <div class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
+            <InputText v-model="globalFilter" :placeholder="t('common.filter_placeholder')" />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('common.reset_filters') }}</label>
+            <Button
+              icon="pi pi-filter-slash"
+              severity="secondary"
+              outlined
+              :disabled="!hasActiveFilters"
+              @click="resetFilters"
+            />
+          </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('common.search') }}</label>
             <Button
@@ -63,32 +77,108 @@
         </section>
 
         <DataTable
-          :value="ledger.entries"
+          v-model:filters="tableFilters"
+          :value="ledgerRows"
           :loading="loading"
           class="app-data-table"
+          filter-display="menu"
           striped-rows
           paginator
           :rows="20"
           :rows-per-page-options="[20, 50, 100, 500]"
+          :global-filter-fields="[
+            'date',
+            'entry_number',
+            'label',
+            'debit',
+            'credit',
+            'running_balance',
+          ]"
           size="small"
           row-hover
+          removable-sort
         >
-          <Column field="date" :header="t('accounting.journal.date')" sortable>
+          <Column
+            field="date"
+            :header="t('accounting.journal.date')"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
-          </Column>
-          <Column field="entry_number" :header="t('accounting.journal.entry_number')" />
-          <Column field="label" :header="t('accounting.journal.label')" />
-          <Column field="debit" :header="t('accounting.journal.debit')" class="app-money">
-            <template #body="{ data }">{{ data.debit !== '0.00' ? data.debit : '' }}</template>
-          </Column>
-          <Column field="credit" :header="t('accounting.journal.credit')" class="app-money">
-            <template #body="{ data }">{{ data.credit !== '0.00' ? data.credit : '' }}</template>
+            <template #filter="{ filterModel }">
+              <AppDateRangeFilter v-model="filterModel.value" />
+            </template>
           </Column>
           <Column
-            field="running_balance"
+            field="entry_number"
+            :header="t('accounting.journal.entry_number')"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
+            <template #filter="{ filterModel }">
+              <InputText
+                v-model="filterModel.value"
+                :placeholder="t('accounting.journal.entry_number')"
+              />
+            </template>
+          </Column>
+          <Column
+            field="label"
+            :header="t('accounting.journal.label')"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
+            <template #filter="{ filterModel }">
+              <InputText v-model="filterModel.value" :placeholder="t('accounting.journal.label')" />
+            </template>
+          </Column>
+          <Column
+            field="debit_value"
+            :header="t('accounting.journal.debit')"
+            class="app-money"
+            sortable
+            filter-field="debit_value"
+            data-type="numeric"
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
+            <template #body="{ data }">{{ data.debit !== '0.00' ? data.debit : '' }}</template>
+            <template #filter="{ filterModel }">
+              <AppNumberRangeFilter v-model="filterModel.value" />
+            </template>
+          </Column>
+          <Column
+            field="credit_value"
+            :header="t('accounting.journal.credit')"
+            class="app-money"
+            sortable
+            filter-field="credit_value"
+            data-type="numeric"
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
+            <template #body="{ data }">{{ data.credit !== '0.00' ? data.credit : '' }}</template>
+            <template #filter="{ filterModel }">
+              <AppNumberRangeFilter v-model="filterModel.value" />
+            </template>
+          </Column>
+          <Column
+            field="running_balance_value"
             :header="t('accounting.balance.solde')"
             class="app-money"
-          />
+            sortable
+            filter-field="running_balance_value"
+            data-type="numeric"
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
+            <template #filter="{ filterModel }">
+              <AppNumberRangeFilter v-model="filterModel.value" />
+            </template>
+          </Column>
           <template #empty>
             <div class="app-empty-state">{{ t('accounting.ledger.empty') }}</div>
           </template>
@@ -107,11 +197,19 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
+import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
+import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import { getLedgerApi, listAccountsApi, type LedgerRead } from '../api/accounting'
+import {
+  dateRangeFilter,
+  numericRangeFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
 
@@ -130,6 +228,30 @@ const fromDate = ref('')
 const toDate = ref('')
 const loading = ref(false)
 const initializing = ref(true)
+
+const ledgerRows = computed(() =>
+  (ledger.value?.entries ?? []).map((entry) => ({
+    ...entry,
+    debit_value: parseFloat(entry.debit),
+    credit_value: parseFloat(entry.credit),
+    running_balance_value: parseFloat(entry.running_balance),
+  })),
+)
+
+const {
+  filters: tableFilters,
+  globalFilter,
+  hasActiveFilters,
+  resetFilters,
+} = useDataTableFilters(ledgerRows, {
+  global: textFilter(''),
+  date: dateRangeFilter(),
+  entry_number: textFilter(),
+  label: textFilter(),
+  debit_value: numericRangeFilter(),
+  credit_value: numericRangeFilter(),
+  running_balance_value: numericRangeFilter(),
+})
 
 const emptyStateMessage = computed(() => {
   if (initializing.value) {

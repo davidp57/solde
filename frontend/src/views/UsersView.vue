@@ -45,14 +45,28 @@
     <AppPanel :title="t('users.workspace_title')" :subtitle="t('users.workspace_subtitle')">
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
-          <AppListState :displayed-count="users.length" :loading="loading" />
+          <AppListState
+            :displayed-count="displayedUsers.length"
+            :total-count="users.length"
+            :loading="loading"
+            :search-text="globalFilter"
+          />
+        </div>
+
+        <div class="app-filter-grid">
+          <div class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
+            <InputText v-model="globalFilter" :placeholder="t('common.filter_placeholder')" />
+          </div>
         </div>
       </div>
 
       <DataTable
-        :value="users"
+        v-model:filters="tableFilters"
+        :value="userRows"
         :loading="loading"
         class="app-data-table"
+        filter-display="menu"
         striped-rows
         paginator
         :rows="20"
@@ -60,15 +74,62 @@
         data-key="id"
         size="small"
         row-hover
+        :global-filter-fields="['username', 'email', 'role', 'is_active', 'created_date']"
+        removable-sort
+        @value-change="syncDisplayedUsers"
       >
-        <Column field="username" :header="t('users.username')" sortable />
-        <Column field="email" :header="t('users.email')" sortable />
-        <Column field="role" :header="t('users.role')" sortable>
+        <Column
+          field="username"
+          :header="t('users.username')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('users.username')" />
+          </template>
+        </Column>
+        <Column
+          field="email"
+          :header="t('users.email')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('users.email')" />
+          </template>
+        </Column>
+        <Column
+          field="role_label"
+          :header="t('users.role')"
+          sortable
+          filter-field="role"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag :value="roleLabel(data.role)" :severity="roleSeverity(data.role)" />
           </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="allRoleOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              show-clear
+            />
+          </template>
         </Column>
-        <Column field="is_active" :header="t('users.status')" sortable>
+        <Column
+          field="status_label"
+          :header="t('users.status')"
+          sortable
+          filter-field="is_active"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag
               :value="
@@ -77,10 +138,29 @@
               :severity="data.is_active ? 'success' : 'contrast'"
             />
           </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="yesNoOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              show-clear
+            />
+          </template>
         </Column>
-        <Column field="created_at" :header="t('users.created_at')" sortable>
+        <Column
+          field="created_date"
+          :header="t('users.created_at')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             {{ formatDate(data.created_at) }}
+          </template>
+          <template #filter="{ filterModel }">
+            <AppDateRangeFilter v-model="filterModel.value" />
           </template>
         </Column>
         <Column :header="t('common.actions')" class="users-actions">
@@ -237,6 +317,8 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import ToggleSwitch from 'primevue/toggleswitch'
 import { useToast } from 'primevue/usetoast'
+import AppDateRangeFilter from '@/components/ui/AppDateRangeFilter.vue'
+import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
@@ -245,6 +327,12 @@ import AppStatCard from '@/components/ui/AppStatCard.vue'
 import { createUserApi, listUsersApi, updateUserApi } from '@/api/users'
 import type { UserRead, UserRole } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
+import {
+  dateRangeFilter,
+  inFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
 
 interface CreateUserForm {
   username: string
@@ -275,6 +363,9 @@ const toast = useToast()
 const auth = useAuthStore()
 
 const users = ref<UserRead[]>([])
+const userRows = ref<
+  Array<UserRead & { role_label: string; status_label: string; created_date: string }>
+>([])
 const loading = ref(false)
 const savingCreate = ref(false)
 const savingEdit = ref(false)
@@ -283,6 +374,23 @@ const editDialogVisible = ref(false)
 const editingUser = ref<UserRead | null>(null)
 const createForm = ref<CreateUserForm>(defaultCreateForm())
 const editForm = ref<EditUserForm>(defaultEditForm())
+const yesNoOptions = [
+  { label: t('common.yes'), value: true },
+  { label: t('common.no'), value: false },
+]
+const {
+  filters: tableFilters,
+  globalFilter,
+  displayedRows: displayedUsers,
+  syncDisplayedRows: syncDisplayedUsers,
+} = useDataTableFilters(userRows, {
+  global: textFilter(''),
+  username: textFilter(),
+  email: textFilter(),
+  role: inFilter(),
+  is_active: inFilter(),
+  created_date: dateRangeFilter(),
+})
 
 const userApiErrorMessages: Record<string, string> = {
   self_deactivate: 'users.api_errors.self_deactivate',
@@ -362,6 +470,10 @@ const roleOptions = computed(() => {
 
   return options
 })
+const allRoleOptions = computed(() => [
+  { value: 'readonly' as UserRole, label: t('users.role_cards.readonly.title') },
+  ...roleDefinitions.value.map((role) => ({ value: role.value, label: role.title })),
+])
 
 const roleCards = computed(() => roleDefinitions.value)
 
@@ -436,6 +548,12 @@ async function loadUsers(): Promise<void> {
   loading.value = true
   try {
     users.value = await listUsersApi()
+    userRows.value = users.value.map((user) => ({
+      ...user,
+      role_label: roleLabel(user.role),
+      status_label: user.is_active ? t('common.yes') : t('common.no'),
+      created_date: user.created_at.slice(0, 10),
+    }))
   } catch (error: unknown) {
     toast.add({ severity: 'error', summary: getApiErrorSummary(error), life: 3000 })
   } finally {

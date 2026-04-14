@@ -251,6 +251,15 @@ html.dark-mode .app-stat-card--danger {
   flex-wrap: wrap;
 }
 
+.app-toolbar__meta-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: var(--app-space-3);
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
 .app-toolbar__hint {
   margin: 0;
   color: var(--p-text-muted-color);
@@ -355,6 +364,11 @@ html.dark-mode .app-chip {
 }
 
 @media (max-width: 768px) {
+  .app-toolbar__meta-actions {
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+
   .app-list-state__header,
   .app-list-state__chips {
     justify-content: flex-start;

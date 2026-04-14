@@ -35,7 +35,7 @@
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('contacts.filters_hint') }}</p>
           <AppListState
-            :displayed-count="contacts.length"
+            :displayed-count="displayedContacts.length"
             :loading="loading"
             :search-text="search"
             :active-filters="activeFilterLabels"
@@ -67,9 +67,11 @@
       </div>
 
       <DataTable
-        :value="contacts"
+        v-model:filters="tableFilters"
+        :value="contactRows"
         :loading="loading"
         class="app-data-table contacts-table"
+        filter-display="menu"
         striped-rows
         paginator
         :rows="20"
@@ -77,16 +79,77 @@
         data-key="id"
         size="small"
         row-hover
+        :global-filter-fields="['nom', 'prenom', 'type', 'email', 'telephone']"
+        removable-sort
+        @value-change="syncDisplayedContacts"
       >
-        <Column field="nom" :header="t('contacts.nom')" sortable />
-        <Column field="prenom" :header="t('contacts.prenom')" sortable />
-        <Column field="type" :header="t('contacts.type')" sortable>
+        <Column
+          field="nom"
+          :header="t('contacts.nom')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('contacts.nom')" />
+          </template>
+        </Column>
+        <Column
+          field="prenom"
+          :header="t('contacts.prenom')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('contacts.prenom')" />
+          </template>
+        </Column>
+        <Column
+          field="type_label"
+          :header="t('contacts.type')"
+          sortable
+          filter-field="type"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag :value="t(`contacts.types.${data.type}`)" :severity="typeSeverity(data.type)" />
           </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="typeOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              display="chip"
+              show-clear
+            />
+          </template>
         </Column>
-        <Column field="email" :header="t('contacts.email')" sortable />
-        <Column field="telephone" :header="t('contacts.telephone')" sortable />
+        <Column
+          field="email"
+          :header="t('contacts.email')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('contacts.email')" />
+          </template>
+        </Column>
+        <Column
+          field="telephone"
+          :header="t('contacts.telephone')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('contacts.telephone')" />
+          </template>
+        </Column>
         <Column :header="t('common.actions')" class="contacts-table__actions">
           <template #body="{ data }">
             <div class="app-inline-actions">
@@ -147,6 +210,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
@@ -155,6 +219,7 @@ import AppStatCard from '@/components/ui/AppStatCard.vue'
 import { deleteContactApi, listContactsApi, type Contact } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'
+import { inFilter, textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
 const confirm = useConfirm()
@@ -166,6 +231,24 @@ const search = ref('')
 const typeFilter = ref<ContactType | undefined>(undefined)
 const dialogVisible = ref(false)
 const editingContact = ref<Contact | null>(null)
+const contactRows = computed(() =>
+  contacts.value.map((contact) => ({
+    ...contact,
+    type_label: t(`contacts.types.${contact.type}`),
+  })),
+)
+const {
+  filters: tableFilters,
+  displayedRows: displayedContacts,
+  syncDisplayedRows: syncDisplayedContacts,
+} = useDataTableFilters(contactRows, {
+  global: textFilter(''),
+  nom: textFilter(),
+  prenom: textFilter(),
+  type: inFilter(),
+  email: textFilter(),
+  telephone: textFilter(),
+})
 const clientCount = computed(
   () => contacts.value.filter((contact) => contact.type === 'client').length,
 )

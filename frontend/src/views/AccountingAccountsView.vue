@@ -33,18 +33,16 @@
           @click="applyTypeFilter(opt.value)"
         />
       </div>
-
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <AppListState
-            :displayed-count="filtered.length"
+            :displayed-count="displayedAccounts.length"
             :total-count="accounts.length"
             :loading="loading"
             :search-text="filterText"
             :active-filters="activeFilterLabels"
           />
         </div>
-
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
@@ -52,11 +50,12 @@
           </div>
         </div>
       </div>
-
       <DataTable
-        :value="filtered"
+        v-model:filters="tableFilters"
+        :value="accountRows"
         :loading="loading"
         class="app-data-table"
+        filter-display="menu"
         striped-rows
         paginator
         :rows="20"
@@ -64,30 +63,82 @@
         data-key="id"
         size="small"
         row-hover
+        :global-filter-fields="['number', 'label', 'type', 'is_default']"
+        removable-sort
+        @value-change="syncDisplayedAccounts"
       >
         <Column
           field="number"
           :header="t('accounting.accounts.number')"
           sortable
           style="width: 8rem"
-        />
-        <Column field="label" :header="t('accounting.accounts.label')" sortable />
-        <Column field="type" :header="t('accounting.accounts.type')" style="width: 7rem" sortable>
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('accounting.accounts.number')" />
+          </template>
+        </Column>
+        <Column
+          field="label"
+          :header="t('accounting.accounts.label')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('accounting.accounts.label')" />
+          </template>
+        </Column>
+        <Column
+          field="type_label"
+          :header="t('accounting.accounts.type')"
+          style="width: 7rem"
+          sortable
+          filter-field="type"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag
               :value="t(`accounting.account_types.${data.type}`)"
               :severity="typeSeverity(data.type)"
             />
           </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="tableTypeOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              display="chip"
+              show-clear
+            />
+          </template>
         </Column>
         <Column
-          field="is_default"
+          field="is_default_label"
           :header="t('accounting.accounts.default')"
           style="width: 6rem"
           sortable
+          filter-field="is_default"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
         >
           <template #body="{ data }">
             <i v-if="data.is_default" class="pi pi-check text-green-500" />
+          </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="yesNoOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              display="chip"
+              show-clear
+            />
           </template>
         </Column>
         <Column :header="t('common.actions')" style="width: 6rem">
@@ -132,6 +183,7 @@ import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
@@ -143,18 +195,20 @@ import {
   type AccountType,
 } from '@/api/accounting'
 import AccountForm from '@/components/AccountForm.vue'
-import { useTableFilter } from '../composables/useTableFilter'
+import { inFilter, textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
 const toast = useToast()
 
 const accounts = ref<AccountingAccount[]>([])
-const { filterText, filtered } = useTableFilter(accounts)
 const loading = ref(false)
 const seeding = ref(false)
 const typeFilter = ref<AccountType | undefined>(undefined)
 const dialogVisible = ref(false)
 const editingAccount = ref<AccountingAccount | null>(null)
+const accountRows = ref<
+  Array<AccountingAccount & { type_label: string; is_default_label: string }>
+>([])
 
 const typeOptions: Array<{ label: string; value: AccountType | undefined }> = [
   { label: t('common.all'), value: undefined },
@@ -169,6 +223,25 @@ const activeFilterLabels = computed(() => {
 
   const selectedOption = typeOptions.find((option) => option.value === typeFilter.value)
   return selectedOption ? [selectedOption.label] : [String(typeFilter.value)]
+})
+const tableTypeOptions = typeOptions.filter(
+  (option): option is { label: string; value: AccountType } => option.value !== undefined,
+)
+const yesNoOptions = [
+  { label: t('common.yes'), value: true },
+  { label: t('common.no'), value: false },
+]
+const {
+  filters: tableFilters,
+  globalFilter: filterText,
+  displayedRows: displayedAccounts,
+  syncDisplayedRows: syncDisplayedAccounts,
+} = useDataTableFilters(accountRows, {
+  global: textFilter(''),
+  number: textFilter(),
+  label: textFilter(),
+  type: inFilter(),
+  is_default: inFilter(),
 })
 
 function applyTypeFilter(nextType: AccountType | undefined): void {
@@ -190,6 +263,11 @@ async function loadAccounts(): Promise<void> {
   loading.value = true
   try {
     accounts.value = await listAccountsApi(typeFilter.value)
+    accountRows.value = accounts.value.map((account) => ({
+      ...account,
+      type_label: t(`accounting.account_types.${account.type}`),
+      is_default_label: account.is_default ? t('common.yes') : t('common.no'),
+    }))
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
