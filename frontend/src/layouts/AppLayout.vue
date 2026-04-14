@@ -10,7 +10,7 @@
         @click="sidebarVisible = true"
       />
       <span class="topbar-title">{{ t('app.name') }}</span>
-      <div v-if="auth.canAccessAccounting" class="topbar-context">
+      <div v-if="auth.canAccessManagement" class="topbar-context">
         <span class="topbar-context__label">{{ t('app.active_fiscal_year') }}</span>
         <Select
           v-model="selectedFiscalYearOptionId"
@@ -128,7 +128,7 @@ async function handleLogout(): Promise<void> {
 }
 
 onMounted(() => {
-  if (auth.canAccessAccounting) {
+  if (auth.canAccessManagement) {
     void fiscalYearStore.initialize()
   }
 })
@@ -203,6 +203,7 @@ onMounted(() => {
 .layout-body {
   display: flex;
   flex: 1;
+  min-height: calc(100vh - 53px);
 }
 
 /* Desktop sidebar */
@@ -213,7 +214,8 @@ onMounted(() => {
   flex-shrink: 0;
   background: v-bind(panelBg);
   border-right: 1px solid v-bind(borderColor);
-  min-height: calc(100vh - 53px);
+  height: calc(100vh - 53px);
+  overflow: hidden;
 }
 
 .sidebar-footer {
@@ -223,6 +225,7 @@ onMounted(() => {
   padding: 0.75rem 1rem;
   border-top: 1px solid v-bind(borderColor);
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .sidebar-user {
@@ -252,6 +255,7 @@ onMounted(() => {
   overflow-y: auto;
   background: v-bind(mainBg);
   min-height: calc(100vh - 53px);
+  min-width: 0;
 }
 
 /* Desktop breakpoint */
@@ -266,6 +270,8 @@ onMounted(() => {
 
   .sidebar {
     display: flex;
+    position: sticky;
+    top: 53px;
   }
 }
 

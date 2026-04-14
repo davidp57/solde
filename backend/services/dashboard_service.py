@@ -76,18 +76,12 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
     undeposited_count = undeposited_result.scalar_one_or_none() or 0
 
     # --- Current fiscal year result ---
-    from backend.models.fiscal_year import FiscalYear, FiscalYearStatus  # noqa: PLC0415
     from backend.services.accounting_entry_service import (
         _compute_resultat,
     )  # noqa: PLC0415
+    from backend.services.fiscal_year_service import get_current_fiscal_year  # noqa: PLC0415
 
-    fy_result = await db.execute(
-        select(FiscalYear)
-        .where(FiscalYear.status == FiscalYearStatus.OPEN)
-        .order_by(FiscalYear.start_date.asc())
-        .limit(1)
-    )
-    current_fy = fy_result.scalar_one_or_none()
+    current_fy = await get_current_fiscal_year(db)
     current_fy_name: str | None = None
     current_resultat: Decimal = Decimal("0")
 

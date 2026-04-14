@@ -20,7 +20,7 @@ _AdminAccess = Annotated[
 ]
 _ReadAccess = Annotated[
     User,
-    Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
+    Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
 ]
 
 

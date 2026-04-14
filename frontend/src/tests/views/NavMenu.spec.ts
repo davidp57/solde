@@ -68,10 +68,30 @@ describe('NavMenu', () => {
 
     const wrapper = mountNavMenu()
     const text = wrapper.text()
+    const links = wrapper.findAll('a').map((link) => link.text())
 
     expect(text).toContain('nav.section_management')
     expect(text).toContain('nav.section_accounting')
     expect(text).toContain('nav.accounting_journal')
     expect(text).not.toContain('nav.section_administration')
+    expect(links).toEqual([
+      'nav.dashboard',
+      'nav.contacts',
+      'nav.invoices_client',
+      'nav.invoices_supplier',
+      'nav.payments',
+      'nav.bank',
+      'nav.cash',
+      'nav.accounting_balance',
+      'nav.accounting_journal',
+      'nav.accounting_ledger',
+      'nav.salaries',
+      'nav.accounting_bilan',
+      'nav.accounting_resultat',
+      'nav.accounting_fiscal_years',
+      'nav.accounting_accounts',
+      'nav.accounting_rules',
+      'nav.import_excel',
+    ])
   })
 })

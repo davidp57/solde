@@ -65,6 +65,12 @@ const accountingItems = computed<MenuItem[]>(() => {
   }
 
   return [
+    { to: '/accounting/balance', icon: 'pi-chart-bar', label: t('nav.accounting_balance') },
+    { to: '/accounting/journal', icon: 'pi-book', label: t('nav.accounting_journal') },
+    { to: '/accounting/ledger', icon: 'pi-list', label: t('nav.accounting_ledger') },
+    { to: '/salaries', icon: 'pi-id-card', label: t('nav.salaries') },
+    { to: '/accounting/bilan', icon: 'pi-chart-line', label: t('nav.accounting_bilan') },
+    { to: '/accounting/resultat', icon: 'pi-chart-pie', label: t('nav.accounting_resultat') },
     {
       to: '/accounting/fiscal-years',
       icon: 'pi-calendar',
@@ -72,12 +78,6 @@ const accountingItems = computed<MenuItem[]>(() => {
     },
     { to: '/accounting/accounts', icon: 'pi-database', label: t('nav.accounting_accounts') },
     { to: '/accounting/rules', icon: 'pi-sliders-h', label: t('nav.accounting_rules') },
-    { to: '/accounting/bilan', icon: 'pi-chart-line', label: t('nav.accounting_bilan') },
-    { to: '/accounting/resultat', icon: 'pi-chart-pie', label: t('nav.accounting_resultat') },
-    { to: '/accounting/journal', icon: 'pi-book', label: t('nav.accounting_journal') },
-    { to: '/accounting/balance', icon: 'pi-chart-bar', label: t('nav.accounting_balance') },
-    { to: '/accounting/ledger', icon: 'pi-list', label: t('nav.accounting_ledger') },
-    { to: '/salaries', icon: 'pi-id-card', label: t('nav.salaries') },
     { to: '/import/excel', icon: 'pi-file-excel', label: t('nav.import_excel') },
   ]
 })
@@ -123,6 +123,8 @@ const menuSections = computed(() => {
   padding: 0.5rem 0;
   flex: 1;
   gap: 0.75rem;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .nav-section {
