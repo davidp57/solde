@@ -46,13 +46,24 @@ describe('NavMenu', () => {
 
     const wrapper = mountNavMenu()
     const text = wrapper.text()
+    const links = wrapper.findAll('a').map((link) => link.text())
 
+    expect(text).toContain('nav.section_home')
     expect(text).toContain('nav.section_management')
     expect(text).toContain('nav.dashboard')
     expect(text).toContain('nav.bank')
     expect(text).not.toContain('nav.section_accounting')
     expect(text).not.toContain('nav.accounting_journal')
     expect(text).not.toContain('nav.section_administration')
+    expect(links).toEqual([
+      'nav.dashboard',
+      'nav.contacts',
+      'nav.invoices_client',
+      'nav.invoices_supplier',
+      'nav.payments',
+      'nav.bank',
+      'nav.cash',
+    ])
   })
 
   it('shows management and accounting sections for a comptable', () => {
@@ -70,6 +81,7 @@ describe('NavMenu', () => {
     const text = wrapper.text()
     const links = wrapper.findAll('a').map((link) => link.text())
 
+    expect(text).toContain('nav.section_home')
     expect(text).toContain('nav.section_management')
     expect(text).toContain('nav.section_accounting')
     expect(text).toContain('nav.accounting_journal')
@@ -93,5 +105,28 @@ describe('NavMenu', () => {
       'nav.accounting_rules',
       'nav.import_excel',
     ])
+  })
+
+  it('shows only the home section for a readonly user', () => {
+    const auth = useAuthStore()
+    auth.user = {
+      id: 3,
+      username: 'readonly',
+      email: 'readonly@example.com',
+      role: 'readonly',
+      is_active: true,
+      created_at: '2025-01-01T00:00:00',
+    }
+
+    const wrapper = mountNavMenu()
+    const text = wrapper.text()
+    const links = wrapper.findAll('a').map((link) => link.text())
+
+    expect(text).toContain('nav.section_home')
+    expect(text).toContain('nav.dashboard')
+    expect(text).not.toContain('nav.section_management')
+    expect(text).not.toContain('nav.section_accounting')
+    expect(text).not.toContain('nav.section_administration')
+    expect(links).toEqual(['nav.dashboard'])
   })
 })

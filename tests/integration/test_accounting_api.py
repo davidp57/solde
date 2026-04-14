@@ -257,6 +257,15 @@ class TestFiscalYearAPI:
 
 class TestJournalAPI:
     @pytest.mark.asyncio
+    async def test_requires_comptable_or_admin_for_read(
+        self, client: AsyncClient, secretaire_auth_headers: dict
+    ) -> None:
+        response = await client.get(
+            "/api/accounting/entries/journal", headers=secretaire_auth_headers
+        )
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
     async def test_empty_journal(self, client: AsyncClient, auth_headers: dict) -> None:
         response = await client.get("/api/accounting/entries/journal", headers=auth_headers)
         assert response.status_code == 200
