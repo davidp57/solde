@@ -10,6 +10,43 @@ Avant de modifier les permissions, il faut clarifier la cible produit des rôles
 
 Ce document sert de base de discussion pour décider la cible, puis encadrer une implémentation ultérieure sans corriger "au feeling" un symptôme à la fois.
 
+## Décisions produit validées le 2026-04-14
+
+Les arbitrages suivants sont désormais actés :
+
+- `admin` voit tout, édite tout et gère l'application, y compris `utilisateurs`, `paramètres` et les autres fonctions transverses ;
+- `tresorier` garde sa valeur technique actuelle mais doit être présenté comme `Comptable` dans le produit ;
+- `Comptable` voit et édite toute la partie `Gestion` et toute la partie `Comptabilité` ;
+- `secretaire` garde sa valeur technique actuelle mais doit être présenté comme `Gestionnaire` dans le produit ;
+- `Gestionnaire` voit et édite toute la partie `Gestion` ;
+- `readonly` n'a pas de vraie utilité produit à ce stade ; il peut rester comme valeur technique legacy ou transitoire, mais il n'entre plus dans la cible fonctionnelle active à mettre en avant dans l'interface et la matrice principale ;
+- l'interface doit séparer visiblement les zones `Gestion` et `Comptabilité`.
+
+## Structure UI validée
+
+La navigation cible doit être organisée au minimum en deux sections visuellement distinctes.
+
+### Partie Gestion
+
+- `Tableau de bord`
+- `Contacts`
+- `Factures clients`
+- `Factures fournisseurs`
+- `Paiements`
+- `Banque`
+- `Caisse`
+
+### Partie Comptabilité
+
+- `Exercices`
+- `Plan comptable`
+- `Règles comptables`
+- `Bilan`
+- `Résultat`
+- `Journal`
+- `Balance`
+- `Grand livre`
+
 ## État actuel vérifié
 
 ### Rôles techniques existants
@@ -75,47 +112,56 @@ Mais l'application actuelle ne traduit pas encore proprement cette cible :
 - la frontière exacte entre lecture comptable autorisée, lecture trésorerie autorisée et écriture métier n'est pas explicitement décidée ;
 - le shell global expose des éléments transverses `menu`, `sélecteur d'exercice`, `zone utilisateur` sans matrice de visibilité clairement définie.
 
-## Proposition de cible produit
+## Cible produit validée
 
-### Principe directeur recommandé
+### Principe directeur retenu
 
-La recommandation est de conserver les quatre rôles techniques existants dans un premier temps, mais d'expliciter une matrice produit stable par zone métier. Cela évite de cumuler deux chantiers en même temps :
+Le modèle cible s'appuie sur trois rôles produit actifs :
 
-- refonte des permissions ;
-- renommage ou changement structurel du modèle de rôles.
+- `Gestionnaire`
+- `Comptable`
+- `Administrateur`
 
-### Matrice cible proposée pour discussion
+Le rôle technique `readonly` n'est pas retenu comme rôle produit utile dans la cible actuelle. Il peut être conservé techniquement tant que nécessaire pour éviter une migration brutale, mais il ne doit plus structurer la conception fonctionnelle principale.
 
-| Zone / action | Consultation | Gestionnaire | Comptable | Administrateur |
-|---|---|---|---|---|
-| Tableau de bord | Lecture | Lecture | Lecture | Lecture |
-| Contacts | Lecture | Lecture + écriture | Lecture + écriture | Lecture + écriture |
-| Factures client / fournisseur | Lecture | Lecture + écriture | Lecture + écriture | Lecture + écriture |
-| Paiements | Lecture | Lecture + écriture | Lecture + écriture | Lecture + écriture |
-| Banque | Non | Lecture simple | Lecture + écriture | Lecture + écriture |
-| Caisse | Non | Lecture simple | Lecture + écriture | Lecture + écriture |
-| Journal / balance / grand livre / bilan / résultat | Non | Non | Lecture | Lecture |
-| Plan comptable / règles comptables / exercices | Non | Non | Lecture + écriture | Lecture + écriture |
-| Imports Excel | Non | Non | Lecture + écriture | Lecture + écriture |
-| Salaires | Non | Non | Lecture + écriture | Lecture + écriture |
-| Utilisateurs | Non | Non | Non | Lecture + écriture |
-| Paramètres | Non | Non | Non | Lecture + écriture |
+### Matrice cible validée
 
-### Pourquoi cette proposition
+| Zone / action | Gestionnaire | Comptable | Administrateur |
+|---|---|---|---|
+| Tableau de bord | Lecture + écriture métier associée | Lecture + écriture métier associée | Lecture + écriture métier associée |
+| Contacts | Lecture + écriture | Lecture + écriture | Lecture + écriture |
+| Factures client / fournisseur | Lecture + écriture | Lecture + écriture | Lecture + écriture |
+| Paiements | Lecture + écriture | Lecture + écriture | Lecture + écriture |
+| Banque | Lecture + écriture | Lecture + écriture | Lecture + écriture |
+| Caisse | Lecture + écriture | Lecture + écriture | Lecture + écriture |
+| Exercices | Non | Lecture + écriture | Lecture + écriture |
+| Plan comptable | Non | Lecture + écriture | Lecture + écriture |
+| Règles comptables | Non | Lecture + écriture | Lecture + écriture |
+| Bilan | Non | Lecture | Lecture |
+| Résultat | Non | Lecture | Lecture |
+| Journal | Non | Lecture | Lecture |
+| Balance | Non | Lecture | Lecture |
+| Grand livre | Non | Lecture | Lecture |
+| Imports Excel | Non | Lecture + écriture | Lecture + écriture |
+| Salaires | Non | Lecture + écriture | Lecture + écriture |
+| Utilisateurs | Non | Non | Lecture + écriture |
+| Paramètres | Non | Non | Lecture + écriture |
 
-- elle aligne `Gestionnaire` sur les flux métier quotidiens sans lui ouvrir toute la comptabilité ;
-- elle laisse à `Comptable` la responsabilité de la comptabilité, de la trésorerie, des imports et des salaires ;
-- elle conserve à `Administrateur` la capacité d'administration globale sans lui attribuer un rôle métier différent du `Comptable` sur les écrans fonctionnels ;
-- elle rend enfin explicite un cas aujourd'hui flou : la lecture simple de `banque` et `caisse` pour `Gestionnaire`, qui peut être utile si l'on veut permettre une visibilité opérationnelle sans écriture.
+### Conséquences explicites de cette décision
 
-## Points de décision à valider avec David
+- `Gestionnaire` couvre toute la partie `Gestion`, y compris `banque` et `caisse` ;
+- `Comptable` est un sur-ensemble fonctionnel du `Gestionnaire`, avec accès complet à la partie `Comptabilité` ;
+- `Administrateur` est un sur-ensemble du `Comptable` et porte en plus la gestion de l'application ;
+- la séparation UI `Gestion` / `Comptabilité` devient une exigence produit, pas seulement une préférence ergonomique ;
+- toute présence future de `readonly` devra être traitée comme un cas de compatibilité ou d'administration avancée, pas comme un rôle central de la cible métier.
 
-Les décisions produit qui restent ouvertes avant implémentation sont les suivantes :
+## Questions restantes avant implémentation
 
-1. `Consultation` doit-il voir uniquement les flux métier, ou aussi certains écrans comptables de synthèse comme la balance ou le résultat ?
-2. `Gestionnaire` peut-il consulter `banque` et `caisse` en lecture simple, ou doit-il rester strictement limité à `contacts`, `factures`, `paiements` ?
-3. `Administrateur` doit-il être un sur-ensemble complet du `Comptable`, ou seulement un rôle d'administration technique avec accès ponctuel aux écrans métier ?
-4. Le sélecteur global d'exercice doit-il être visible seulement sur les écrans qui l'utilisent réellement, ou globalement pour tous les rôles qui ont accès à au moins un écran comptable ?
+Les arbitrages produit principaux étant maintenant faits, les points restants sont surtout d'implémentation :
+
+1. faut-il masquer complètement `readonly` dans l'UI d'administration tant que son utilité produit n'est pas redéfinie ;
+2. comment structurer visuellement la navigation pour matérialiser `Gestion` et `Comptabilité` sans alourdir l'usage quotidien ;
+3. comment traiter exactement la zone utilisateur du shell et le sélecteur global d'exercice selon le rôle et la section courante.
 
 ## Principes d'implémentation à respecter ensuite
 
@@ -129,18 +175,14 @@ Quand la matrice sera validée, l'implémentation devra respecter ces règles :
 
 ## Découpage recommandé pour la suite
 
-### Étape 1 — arbitrage produit
-
-Valider la matrice cible par zone et trancher les quatre questions ouvertes ci-dessus.
-
-### Étape 2 — backend
+### Étape 1 — backend
 
 Aligner les dépendances `require_role(...)` et compléter les tests d'autorisation par domaine.
 
-### Étape 3 — frontend
+### Étape 2 — frontend
 
 Aligner le menu, les guards, les helpers d'autorisation, la visibilité du sélecteur d'exercice et le rendu stable de la zone utilisateur.
 
-### Étape 4 — documentation
+### Étape 3 — documentation
 
 Mettre à jour `doc/dev/gestion-utilisateurs-et-permissions.md` pour refléter la matrice finale effectivement implémentée.
