@@ -20,6 +20,7 @@ export default defineConfig({
     },
   },
   server: {
+    allowedHosts: ['.ngrok-free.dev'],
     proxy: {
       '/api': 'http://127.0.0.1:8000',
     },
