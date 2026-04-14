@@ -2,11 +2,13 @@
   <div class="app-list-state" :class="stateClass">
     <div class="app-list-state__header">
       <span class="app-chip">{{ countLabel }}</span>
-      <p class="app-list-state__text">{{ statusLabel }}</p>
+      <p class="app-list-state__text" aria-live="polite">{{ statusLabel }}</p>
     </div>
 
     <div v-if="chips.length > 0" class="app-list-state__chips">
-      <span v-for="chip in chips" :key="chip" class="app-list-state__chip">{{ chip }}</span>
+      <span v-for="(chip, index) in chips" :key="`${index}-${chip}`" class="app-list-state__chip">
+        {{ chip }}
+      </span>
     </div>
   </div>
 </template>

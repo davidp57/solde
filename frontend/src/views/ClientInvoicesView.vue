@@ -444,6 +444,10 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
+import {
+  collectActiveFilterLabels,
+  findSelectedFilterLabel,
+} from '../composables/activeFilterLabels'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
 
@@ -537,20 +541,14 @@ const portfolioMetrics = computed(() => {
   }
 })
 
-const activeFilterLabels = computed(() => {
-  const labels: string[] = []
-
-  const selectedOption = statusOptions.find((option) => option.value === statusFilter.value)
-  if (selectedOption) {
-    labels.push(selectedOption.label)
-  }
-
-  if (activeColumnFilterCount.value > 0) {
-    labels.push(t('common.list.column_filters_chip', { count: activeColumnFilterCount.value }))
-  }
-
-  return labels
-})
+const activeFilterLabels = computed(() =>
+  collectActiveFilterLabels(
+    findSelectedFilterLabel(statusOptions, statusFilter.value),
+    activeColumnFilterCount.value > 0
+      ? t('common.list.column_filters_chip', { count: activeColumnFilterCount.value })
+      : undefined,
+  ),
+)
 
 const statusOptions = [
   { label: t('invoices.statuses.draft'), value: 'draft' },
