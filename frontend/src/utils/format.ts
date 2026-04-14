@@ -29,6 +29,28 @@ function parseDateLike(value: string | Date | null | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
+function parseMonthLike(value: string | Date | null | undefined): Date | null {
+  if (!value) return null
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : new Date(value.getFullYear(), value.getMonth(), 1)
+  }
+
+  const trimmed = value.trim()
+  if (!trimmed) return null
+
+  const plainMonthMatch = trimmed.match(/^(\d{4})-(\d{2})$/)
+  if (plainMonthMatch) {
+    const [, year, month] = plainMonthMatch
+    const parsedMonth = Number(month)
+    if (parsedMonth < 1 || parsedMonth > 12) return null
+    return new Date(Number(year), parsedMonth - 1, 1)
+  }
+
+  const parsed = parseDateLike(trimmed)
+  return parsed ? new Date(parsed.getFullYear(), parsed.getMonth(), 1) : null
+}
+
 export function formatDisplayDate(value: string | Date | null | undefined): string {
   const parsed = parseDateLike(value)
   if (!parsed) return typeof value === 'string' ? value : ''
@@ -41,5 +63,14 @@ export function formatDisplayDateTime(value: string | Date | null | undefined): 
   return new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'short',
     timeStyle: 'medium',
+  }).format(parsed)
+}
+
+export function formatDisplayMonth(value: string | Date | null | undefined): string {
+  const parsed = parseMonthLike(value)
+  if (!parsed) return typeof value === 'string' ? value : ''
+  return new Intl.DateTimeFormat('fr-FR', {
+    month: 'long',
+    year: 'numeric',
   }).format(parsed)
 }

@@ -48,8 +48,8 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## Priorités proposées pour la prochaine discussion
 
-1. **BL-023** — revalider les droits réels par rôle et la visibilité des écrans comptables.
-2. **BL-024** — clarifier le workflow de saisie des paiements et corriger les remises en banque automatiques.
+1. **BL-024** — clarifier le workflow de saisie des paiements et corriger les remises en banque automatiques.
+2. **BL-022** — terminer les lots restants sur la gestion des utilisateurs, profils et sécurité de compte.
 3. **BL-008** — fiabiliser l'import Excel comme outil de validation itérative de convergence.
 
 ## Bac d'entrée
@@ -61,8 +61,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-006 | 2026-04-12 | Technique | API / Framework | P3 | Traiter les warnings de dépréciation `HTTP_422_UNPROCESSABLE_ENTITY` remontés par la suite de tests |
 | BL-008 | 2026-04-12 | Amélioration | Import Excel / Qualité | P1 | Faire évoluer l'import Excel pour qu'il serve d'abord à l'initialisation depuis les fichiers 2024/2025, puis à une validation itérative régulière entre Excel et Solde sans manque ni divergence |
 | BL-015 | 2026-04-13 | Amélioration | Import Excel / Outillage | P2 | Ajouter un reset sélectif orienté reprise pour rejouer proprement un import par filière ou période sans repartir systématiquement d'un effacement global |
-| BL-016 | 2026-04-13 | Amélioration | Frontend / i18n | P2 | Harmoniser les libellés UI, supprimer les textes en dur restants et rendre la microcopie plus cohérente d'un écran à l'autre |
-| BL-017 | 2026-04-13 | Amélioration | Frontend / Localisation | P2 | Uniformiser l'affichage des dates et périodes au format français dans toute l'interface sans changer les formats d'échange API |
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-022 | 2026-04-13 | Évolution | Utilisateurs / Sécurité | P1 | Renforcer la gestion des utilisateurs avec des rôles métier plus clairs, la création et l'administration des comptes, l'autonomie sur le profil et un socle de sécurité de compte plus complet |
@@ -197,16 +195,18 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-016 — Harmonisation i18n et microcopie UI
 
-- **Dates** : `created=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14`
 - **Pourquoi** : malgré la forte couverture i18n actuelle, il reste encore des libellés incohérents, des formulations hétérogènes et potentiellement quelques textes en dur qui dégradent la perception de qualité.
 - **Résultat attendu** : auditer puis corriger les libellés visibles pour que les écrans utilisent des clés i18n cohérentes, un vocabulaire homogène et une microcopie claire du login jusqu'aux vues métier.
+- **Livré parce que** : les écrans `Banque`, `Caisse` et `Salaires` utilisent maintenant des clés i18n cohérentes pour les compteurs, états vides et libellés visibles auparavant hétérogènes ou codés en dur.
 - **Point d'attention** : viser d'abord les incohérences utilisateur visibles ; éviter de renommer massivement des clés stables si le gain produit est faible.
 
 ### BL-017 — Formats de dates et périodes en français
 
-- **Dates** : `created=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14`
 - **Pourquoi** : certaines dates ou périodes restent affichées dans un format trop technique ou ambigu, parfois plus proche d'une lecture ISO ou américaine que d'un usage métier français.
 - **Résultat attendu** : uniformiser l'affichage des dates, mois et périodes au format français dans les tableaux, détails, dialogues et exports lisibles, tout en conservant les formats ISO pour les API et les échanges techniques.
+- **Livré parce que** : un helper partagé formate désormais les mois en français et il est appliqué sur `Salaires` et le tableau mensuel du `Dashboard`, tout en conservant les formats ISO pour les filtres techniques et les appels API.
 - **Point d'attention** : distinguer clairement stockage/échange et présentation UI pour éviter les régressions côté backend ou formulaires.
 
 ### BL-018 — Lisibilité des écrans de liste : tri, filtre et états de vue
@@ -345,7 +345,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 ## En cours
 
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
-- **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels est suivi dans `BL-023`.
+- **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels a été traité séparément dans `BL-023`, désormais terminé.
 
 ## Fait
 
@@ -357,6 +357,8 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-010** — `created=2026-04-12`, `completed=2026-04-12` — Une stratégie sûre de clôture administrative des exercices historiques importés a été définie et livrée.
 - **BL-025** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13` — Le grand livre est maintenant borné à l'exercice choisi, sans option multi-exercices, avec un solde d'ouverture cohérent quand la période démarre en cours d'exercice.
 - **BL-011** — `created=2026-04-12`, `completed=2026-04-12` — L'exercice courant global et son sélecteur partagé ont été livrés sur les écrans comptables concernés.
+- **BL-016** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les microcopies et états visibles les plus incohérents ont été harmonisés sur `Banque`, `Caisse` et `Salaires` via des clés i18n dédiées.
+- **BL-017** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — L'affichage des mois et périodes métier est maintenant uniformisé au format français sur `Salaires` et le `Dashboard` sans changer les formats d'échange ISO.
 - **BL-018** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les écrans de liste principaux partagent maintenant un socle commun de tri, filtres et compteurs d'état, avec filtres de date FR/ISO et exclusion explicite des tableaux fixes `bilan` / `résultat`.
 - **BL-023** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les rôles métier `Gestionnaire` / `Comptable` / `Administrateur` sont maintenant alignés entre docs, navigation, guards frontend et permissions backend, avec séparation visible `Gestion` / `Comptabilité` et couverture de test ciblée.
 - **BL-012** — `created=2026-04-12`, `completed=2026-04-12` — La liste des paiements affiche la référence métier et permet l'édition directe.

@@ -58,7 +58,7 @@
               </thead>
               <tbody>
                 <tr v-for="row in chartData" :key="row.month">
-                  <td>{{ row.month }}</td>
+                  <td>{{ formatDisplayMonth(row.month) }}</td>
                   <td>{{ formatAmount(row.charges) }}</td>
                   <td>{{ formatAmount(row.produits) }}</td>
                 </tr>
@@ -98,6 +98,7 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import { getDashboardApi, getMonthlyChartApi } from '../api/accounting'
 import type { DashboardKPIs, MonthlyChartRow } from '../api/accounting'
+import { formatDisplayMonth } from '../utils/format'
 
 const { t } = useI18n()
 

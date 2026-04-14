@@ -27,12 +27,12 @@
       <AppStatCard
         :label="t('bank.transactions_title')"
         :value="displayedTransactions.length"
-        :caption="`${transactions.length} total`"
+        :caption="t('bank.metrics.transactions_total', { count: transactions.length })"
       />
       <AppStatCard
         :label="t('bank.deposits_title')"
         :value="displayedDeposits.length"
-        :caption="`${undepositedPayments.length} paiements en attente`"
+        :caption="t('bank.metrics.pending_payments', { count: undepositedPayments.length })"
         tone="warn"
       />
     </section>
@@ -231,7 +231,7 @@
                 </template>
               </Column>
               <template #empty>
-                <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
+                <div class="app-empty-state">{{ t('bank.transactions_empty') }}</div>
               </template>
             </DataTable>
           </TabPanel>
@@ -334,14 +334,18 @@
                 :show-add-button="false"
               >
                 <template #body="{ data }">
-                  {{ data.payment_ids?.length || 0 }} paiements
+                  {{
+                    t('bank.metrics.deposit_payment_count', {
+                      count: data.payment_ids?.length || 0,
+                    })
+                  }}
                 </template>
                 <template #filter="{ filterModel }">
                   <AppNumberRangeFilter v-model="filterModel.value" />
                 </template>
               </Column>
               <template #empty>
-                <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
+                <div class="app-empty-state">{{ t('bank.deposits_empty') }}</div>
               </template>
             </DataTable>
           </TabPanel>
