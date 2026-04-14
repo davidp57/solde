@@ -15,6 +15,15 @@
 
     <AppPanel :title="t('accounting.fiscalYear.title')" dense>
       <div class="app-toolbar">
+        <div class="app-toolbar__meta">
+          <AppListState
+            :displayed-count="displayedFiscalYears.length"
+            :total-count="fiscalYears.length"
+            :loading="loading"
+            :search-text="filterText"
+          />
+        </div>
+
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
@@ -24,28 +33,79 @@
       </div>
 
       <DataTable
-        :value="filtered"
+        v-model:filters="tableFilters"
+        :value="fiscalYearRows"
         :loading="loading"
         class="app-data-table"
+        filter-display="menu"
         striped-rows
         paginator
         :rows="20"
         :rows-per-page-options="[20, 50, 100, 500]"
         size="small"
         row-hover
+        :global-filter-fields="['name', 'start_date', 'end_date', 'status']"
+        removable-sort
+        @value-change="syncDisplayedFiscalYears"
       >
-        <Column field="name" :header="t('accounting.fiscalYear.name')" />
-        <Column field="start_date" :header="t('accounting.fiscalYear.start_date')">
+        <Column
+          field="name"
+          :header="t('accounting.fiscalYear.name')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('accounting.fiscalYear.name')" />
+          </template>
+        </Column>
+        <Column
+          field="start_date"
+          :header="t('accounting.fiscalYear.start_date')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatDisplayDate(data.start_date) }}</template>
+          <template #filter="{ filterModel }">
+            <AppDateRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column field="end_date" :header="t('accounting.fiscalYear.end_date')">
+        <Column
+          field="end_date"
+          :header="t('accounting.fiscalYear.end_date')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatDisplayDate(data.end_date) }}</template>
+          <template #filter="{ filterModel }">
+            <AppDateRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column field="status" :header="t('accounting.fiscalYear.status')">
+        <Column
+          field="status_label"
+          :header="t('accounting.fiscalYear.status')"
+          sortable
+          filter-field="status"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag
               :value="t(`accounting.fiscalYear.statuses.${data.status}`)"
               :severity="statusSeverity(data.status)"
+            />
+          </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="statusOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              display="chip"
+              show-clear
             />
           </template>
         </Column>
@@ -138,6 +198,9 @@ import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import AppListState from '../components/ui/AppListState.vue'
+import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
+import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
@@ -149,7 +212,12 @@ import {
   type FiscalYearRead,
   type FiscalYearStatus,
 } from '../api/accounting'
-import { useTableFilter } from '../composables/useTableFilter'
+import {
+  dateRangeFilter,
+  inFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
 import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
@@ -157,10 +225,27 @@ const toast = useToast()
 const confirm = useConfirm()
 
 const fiscalYears = ref<FiscalYearRead[]>([])
-const { filterText, filtered } = useTableFilter(fiscalYears)
 const loading = ref(false)
 const saving = ref(false)
 const showDialog = ref(false)
+const fiscalYearRows = ref<Array<FiscalYearRead & { status_label: string }>>([])
+const statusOptions = [
+  { label: t('accounting.fiscalYear.statuses.open'), value: 'open' as FiscalYearStatus },
+  { label: t('accounting.fiscalYear.statuses.closing'), value: 'closing' as FiscalYearStatus },
+  { label: t('accounting.fiscalYear.statuses.closed'), value: 'closed' as FiscalYearStatus },
+]
+const {
+  filters: tableFilters,
+  globalFilter: filterText,
+  displayedRows: displayedFiscalYears,
+  syncDisplayedRows: syncDisplayedFiscalYears,
+} = useDataTableFilters(fiscalYearRows, {
+  global: textFilter(''),
+  name: textFilter(),
+  start_date: dateRangeFilter(),
+  end_date: dateRangeFilter(),
+  status: inFilter(),
+})
 
 const form = ref({ name: '', start_date: '', end_date: '' })
 
@@ -174,6 +259,10 @@ async function load() {
   loading.value = true
   try {
     fiscalYears.value = await listFiscalYearsApi()
+    fiscalYearRows.value = fiscalYears.value.map((fiscalYear) => ({
+      ...fiscalYear,
+      status_label: t(`accounting.fiscalYear.statuses.${fiscalYear.status}`),
+    }))
   } finally {
     loading.value = false
   }

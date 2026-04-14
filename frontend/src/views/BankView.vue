@@ -26,12 +26,12 @@
       <AppStatCard :label="t('bank.balance')" :value="formatAmount(balance)" />
       <AppStatCard
         :label="t('bank.transactions_title')"
-        :value="filteredTransactions.length"
+        :value="displayedTransactions.length"
         :caption="`${transactions.length} total`"
       />
       <AppStatCard
         :label="t('bank.deposits_title')"
-        :value="filteredDeposits.length"
+        :value="displayedDeposits.length"
         :caption="`${undepositedPayments.length} paiements en attente`"
         tone="warn"
       />
@@ -42,7 +42,17 @@
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+            <InputText v-model="activeGlobalFilter" :placeholder="t('common.filter_placeholder')" />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('common.reset_filters') }}</label>
+            <Button
+              icon="pi pi-filter-slash"
+              severity="secondary"
+              outlined
+              :disabled="!activeHasFilters"
+              @click="resetActiveFilters"
+            />
           </div>
         </div>
       </div>
@@ -64,33 +74,105 @@
               />
             </div>
             <DataTable
-              :value="filteredTransactions"
+              v-model:filters="transactionTableFilters"
+              :value="transactionRows"
               :loading="loadingTx"
               class="app-data-table"
+              filter-display="menu"
               striped-rows
               paginator
               :rows="20"
               :rows-per-page-options="[20, 50, 100, 500]"
+              :global-filter-fields="[
+                'date',
+                'amount',
+                'description',
+                'reference',
+                'balance_after',
+                'reconciled_label',
+                'source_label',
+              ]"
               data-key="id"
               size="small"
               row-hover
+              removable-sort
+              @value-change="syncDisplayedTransactions"
             >
-              <Column field="date" :header="t('bank.tx_date')" sortable>
+              <Column
+                field="date"
+                :header="t('bank.tx_date')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppDateRangeFilter v-model="filterModel.value" />
+                </template>
               </Column>
-              <Column field="amount" :header="t('bank.tx_amount')" class="app-money">
+              <Column
+                field="amount_value"
+                :header="t('bank.tx_amount')"
+                class="app-money"
+                sortable
+                filter-field="amount_value"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">
                   <span :class="parseFloat(data.amount) >= 0 ? 'bank-positive' : 'bank-negative'">
                     {{ formatAmount(data.amount) }}
                   </span>
                 </template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
               </Column>
-              <Column field="description" :header="t('bank.tx_description')" />
-              <Column field="reference" :header="t('bank.tx_reference')" />
-              <Column field="balance_after" :header="t('bank.tx_balance')">
+              <Column
+                field="description"
+                :header="t('bank.tx_description')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #filter="{ filterModel }">
+                  <InputText v-model="filterModel.value" :placeholder="t('bank.tx_description')" />
+                </template>
+              </Column>
+              <Column
+                field="reference"
+                :header="t('bank.tx_reference')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #filter="{ filterModel }">
+                  <InputText v-model="filterModel.value" :placeholder="t('bank.tx_reference')" />
+                </template>
+              </Column>
+              <Column
+                field="balance_after_value"
+                :header="t('bank.tx_balance')"
+                sortable
+                filter-field="balance_after_value"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">{{ formatAmount(data.balance_after) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
               </Column>
-              <Column field="reconciled" :header="t('bank.tx_reconciled')">
+              <Column
+                field="reconciled_label"
+                :header="t('bank.tx_reconciled')"
+                sortable
+                filter-field="reconciled"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">
                   <i
                     :class="
@@ -100,10 +182,39 @@
                     "
                   />
                 </template>
+                <template #filter="{ filterModel }">
+                  <AppFilterMultiSelect
+                    v-model="filterModel.value"
+                    :options="yesNoOptions"
+                    option-label="label"
+                    option-value="value"
+                    :placeholder="t('common.all')"
+                    display="chip"
+                    show-clear
+                  />
+                </template>
               </Column>
-              <Column field="source" :header="t('bank.tx_source')">
+              <Column
+                field="source_label"
+                :header="t('bank.tx_source')"
+                sortable
+                filter-field="source"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">
                   <Tag :value="t(`bank.sources.${data.source}`)" severity="secondary" />
+                </template>
+                <template #filter="{ filterModel }">
+                  <AppFilterMultiSelect
+                    v-model="filterModel.value"
+                    :options="sourceOptions"
+                    option-label="label"
+                    option-value="value"
+                    :placeholder="t('common.all')"
+                    display="chip"
+                    show-clear
+                  />
                 </template>
               </Column>
               <Column :header="t('common.actions')" style="width: 6rem">
@@ -127,32 +238,106 @@
 
           <TabPanel value="deposits">
             <DataTable
-              :value="filteredDeposits"
+              v-model:filters="depositTableFilters"
+              :value="depositRows"
               :loading="loadingDeposits"
               class="app-data-table"
+              filter-display="menu"
               striped-rows
               paginator
               :rows="20"
               :rows-per-page-options="[20, 50, 100, 500]"
+              :global-filter-fields="[
+                'date',
+                'type_label',
+                'total_amount',
+                'bank_reference',
+                'payment_count_label',
+              ]"
               data-key="id"
               size="small"
               row-hover
+              removable-sort
+              @value-change="syncDisplayedDeposits"
             >
-              <Column field="date" :header="t('bank.deposit_date')" sortable>
+              <Column
+                field="date"
+                :header="t('bank.deposit_date')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppDateRangeFilter v-model="filterModel.value" />
+                </template>
               </Column>
-              <Column field="type" :header="t('bank.deposit_type')">
+              <Column
+                field="type_label"
+                :header="t('bank.deposit_type')"
+                sortable
+                filter-field="type"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">
                   <Tag :value="t(`bank.deposit_types.${data.type}`)" />
                 </template>
+                <template #filter="{ filterModel }">
+                  <AppFilterMultiSelect
+                    v-model="filterModel.value"
+                    :options="depositTypeOptions"
+                    option-label="label"
+                    option-value="value"
+                    :placeholder="t('common.all')"
+                    display="chip"
+                    show-clear
+                  />
+                </template>
               </Column>
-              <Column field="total_amount" :header="t('bank.deposit_total')" class="app-money">
+              <Column
+                field="total_amount_value"
+                :header="t('bank.deposit_total')"
+                class="app-money"
+                sortable
+                filter-field="total_amount_value"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">{{ formatAmount(data.total_amount) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
               </Column>
-              <Column field="bank_reference" :header="t('bank.deposit_bank_ref')" />
-              <Column field="payment_ids" :header="t('bank.deposit_payments')">
+              <Column
+                field="bank_reference"
+                :header="t('bank.deposit_bank_ref')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #filter="{ filterModel }">
+                  <InputText
+                    v-model="filterModel.value"
+                    :placeholder="t('bank.deposit_bank_ref')"
+                  />
+                </template>
+              </Column>
+              <Column
+                field="payment_count"
+                :header="t('bank.deposit_payments')"
+                sortable
+                filter-field="payment_count"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
                 <template #body="{ data }">
                   {{ data.payment_ids?.length || 0 }} paiements
+                </template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
                 </template>
               </Column>
               <template #empty>
@@ -361,6 +546,9 @@ import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppPage from '../components/ui/AppPage.vue'
+import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
+import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
+import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
@@ -378,7 +566,13 @@ import {
 import { listPayments, type Payment } from '@/api/payments'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
-import { useTableFilter, applyFilter } from '../composables/useTableFilter'
+import {
+  dateRangeFilter,
+  inFilter,
+  numericRangeFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -386,9 +580,7 @@ const fiscalYearStore = useFiscalYearStore()
 
 const balance = ref('0')
 const transactions = ref<BankTransaction[]>([])
-const { filterText, filtered: filteredTransactions } = useTableFilter(transactions)
 const deposits = ref<Deposit[]>([])
-const filteredDeposits = computed(() => applyFilter(deposits.value, filterText.value))
 const undepositedPayments = ref<Payment[]>([])
 const loadingTx = ref(false)
 const loadingDeposits = ref(false)
@@ -404,6 +596,97 @@ const depositTypeOptions = [
   { label: t('bank.deposit_types.cheques'), value: 'cheques' },
   { label: t('bank.deposit_types.especes'), value: 'especes' },
 ]
+
+const sourceOptions = [
+  { label: t('bank.sources.manual'), value: 'manual' },
+  { label: t('bank.sources.import'), value: 'import' },
+]
+
+const yesNoOptions = [
+  { label: t('common.yes'), value: true },
+  { label: t('common.no'), value: false },
+]
+
+const transactionRows = computed(() =>
+  transactions.value.map((transaction) => ({
+    ...transaction,
+    amount_value: parseFloat(transaction.amount),
+    balance_after_value: parseFloat(transaction.balance_after),
+    reconciled_label: transaction.reconciled ? t('common.yes') : t('common.no'),
+    source_label: t(`bank.sources.${transaction.source}`),
+  })),
+)
+
+const depositRows = computed(() =>
+  deposits.value.map((deposit) => ({
+    ...deposit,
+    type_label: t(`bank.deposit_types.${deposit.type}`),
+    total_amount_value: parseFloat(deposit.total_amount),
+    payment_count: deposit.payment_ids?.length || 0,
+    payment_count_label: `${deposit.payment_ids?.length || 0}`,
+  })),
+)
+
+const {
+  filters: transactionTableFilters,
+  globalFilter: transactionGlobalFilter,
+  displayedRows: displayedTransactions,
+  hasActiveFilters: transactionHasActiveFilters,
+  resetFilters: resetTransactionFilters,
+  syncDisplayedRows: syncDisplayedTransactions,
+} = useDataTableFilters(transactionRows, {
+  global: textFilter(''),
+  date: dateRangeFilter(),
+  amount_value: numericRangeFilter(),
+  description: textFilter(),
+  reference: textFilter(),
+  balance_after_value: numericRangeFilter(),
+  reconciled: inFilter(),
+  source: inFilter(),
+})
+
+const {
+  filters: depositTableFilters,
+  globalFilter: depositGlobalFilter,
+  displayedRows: displayedDeposits,
+  hasActiveFilters: depositHasActiveFilters,
+  resetFilters: resetDepositFilters,
+  syncDisplayedRows: syncDisplayedDeposits,
+} = useDataTableFilters(depositRows, {
+  global: textFilter(''),
+  date: dateRangeFilter(),
+  type: inFilter(),
+  total_amount_value: numericRangeFilter(),
+  bank_reference: textFilter(),
+  payment_count: numericRangeFilter(),
+})
+
+const activeGlobalFilter = computed({
+  get: () =>
+    activeTab.value === 'transactions' ? transactionGlobalFilter.value : depositGlobalFilter.value,
+  set: (value: string) => {
+    if (activeTab.value === 'transactions') {
+      transactionGlobalFilter.value = value
+    } else {
+      depositGlobalFilter.value = value
+    }
+  },
+})
+
+const activeHasFilters = computed(() =>
+  activeTab.value === 'transactions'
+    ? transactionHasActiveFilters.value
+    : depositHasActiveFilters.value,
+)
+
+function resetActiveFilters() {
+  if (activeTab.value === 'transactions') {
+    resetTransactionFilters()
+    return
+  }
+
+  resetDepositFilters()
+}
 
 const txForm = ref({
   date: new Date(),

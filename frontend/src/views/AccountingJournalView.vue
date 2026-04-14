@@ -35,7 +35,7 @@
       <AppStatCard
         :label="t('accounting.journal.summary_credit')"
         :value="formatAmount(summary.totalCredit) + ' €'"
-        :caption="t('accounting.journal.summary_search', { count: filteredGroups.length })"
+        :caption="t('accounting.journal.summary_search', { count: displayedGroups.length })"
         tone="success"
       />
       <AppStatCard
@@ -53,9 +53,19 @@
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('accounting.journal.filters_hint') }}</p>
-          <span class="app-chip">{{
-            t('accounting.journal.summary_search', { count: filteredGroups.length })
-          }}</span>
+          <div class="app-toolbar__meta-actions">
+            <span class="app-chip">{{
+              t('accounting.journal.summary_search', { count: displayedGroups.length })
+            }}</span>
+            <Button
+              icon="pi pi-filter-slash"
+              severity="secondary"
+              text
+              :disabled="!hasActiveFilters"
+              :title="t('common.reset_filters')"
+              @click="resetFilters"
+            />
+          </div>
         </div>
 
         <div class="app-filter-grid journal-filters">
@@ -71,7 +81,7 @@
             <label class="app-field__label">{{ t('accounting.journal.filter_account') }}</label>
             <InputText
               v-model="filters.account_number"
-              :placeholder="t('accounting.accounts.number_placeholder')"
+              :placeholder="t('accounting.journal.account')"
             />
           </div>
           <div class="app-field">
@@ -97,7 +107,7 @@
           </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+            <InputText v-model="globalFilter" :placeholder="t('common.filter_placeholder')" />
           </div>
           <div class="app-field journal-filters__action">
             <label class="app-field__label">{{ t('accounting.journal.apply_filters') }}</label>
@@ -107,20 +117,52 @@
       </div>
 
       <DataTable
-        :value="filteredGroups"
+        v-model:filters="tableFilters"
+        :value="journalRows"
         :loading="loading"
         class="app-data-table journal-table"
+        filter-display="menu"
         paginator
         :rows="20"
         :rows-per-page-options="[20, 50, 100, 500]"
         striped-rows
         size="small"
         row-hover
+        :global-filter-fields="[
+          'date',
+          'source_label',
+          'reference_value',
+          'contact_display',
+          'label',
+          'accounts_summary',
+          'line_count',
+          'total_debit',
+          'total_credit',
+        ]"
+        removable-sort
+        @value-change="syncDisplayedGroups"
       >
-        <Column field="date" :header="t('accounting.journal.date')" sortable>
+        <Column
+          field="date"
+          :header="t('accounting.journal.date')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+          <template #filter="{ filterModel }">
+            <AppDateRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column :header="t('accounting.journal.source')" class="journal-table__source-column">
+        <Column
+          field="source_label"
+          :header="t('accounting.journal.source')"
+          class="journal-table__source-column"
+          sortable
+          filter-field="source_type"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag
               v-if="data.source_type"
@@ -129,46 +171,133 @@
             />
             <span v-else>{{ t('accounting.journal.sources.manual') }}</span>
           </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="sourceTypeOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              display="chip"
+              show-clear
+            />
+          </template>
         </Column>
-        <Column :header="t('accounting.journal.reference')" class="journal-table__reference-column">
+        <Column
+          field="reference_value"
+          :header="t('accounting.journal.reference')"
+          class="journal-table__reference-column"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <div class="journal-reference-cell">
               <Button
                 v-if="canOpenInvoice(data)"
                 data-testid="journal-open-invoice-button"
-                :label="entryReference(data)"
+                :label="data.reference_value"
                 link
                 class="journal-reference-cell__link"
                 @click="openInvoice(data)"
               />
-              <span v-else>{{ entryReference(data) }}</span>
+              <span v-else>{{ data.reference_value }}</span>
               <small v-if="showInvoiceNumber(data)" class="journal-reference-cell__invoice-number">
                 {{ data.source_invoice_number }}
               </small>
             </div>
           </template>
+          <template #filter="{ filterModel }">
+            <InputText
+              v-model="filterModel.value"
+              :placeholder="t('accounting.journal.reference')"
+            />
+          </template>
         </Column>
-        <Column :header="t('accounting.journal.contact')">
+        <Column
+          field="contact_display"
+          :header="t('accounting.journal.contact')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             {{ data.source_contact_name || t('accounting.journal.no_contact') }}
           </template>
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('accounting.journal.contact')" />
+          </template>
         </Column>
-        <Column field="label" :header="t('accounting.journal.label')" />
-        <Column :header="t('accounting.journal.accounts')">
+        <Column
+          field="label"
+          :header="t('accounting.journal.label')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('accounting.journal.label')" />
+          </template>
+        </Column>
+        <Column
+          field="accounts_summary"
+          :header="t('accounting.journal.accounts')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
-            <div class="journal-account-list">{{ accountsSummary(data) }}</div>
+            <div class="journal-account-list">{{ data.accounts_summary }}</div>
+          </template>
+          <template #filter="{ filterModel }">
+            <InputText
+              v-model="filterModel.value"
+              :placeholder="t('accounting.journal.accounts')"
+            />
           </template>
         </Column>
         <Column
           field="line_count"
           :header="t('accounting.journal.lines_count')"
           class="journal-table__count-column"
-        />
-        <Column field="total_debit" :header="t('accounting.journal.debit')" class="app-money">
-          <template #body="{ data }">{{ formatEntryAmount(data.total_debit) }}</template>
+          sortable
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column field="total_credit" :header="t('accounting.journal.credit')" class="app-money">
+        <Column
+          field="total_debit_value"
+          :header="t('accounting.journal.debit')"
+          class="app-money"
+          sortable
+          filter-field="total_debit_value"
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #body="{ data }">{{ formatEntryAmount(data.total_debit) }}</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
+        </Column>
+        <Column
+          field="total_credit_value"
+          :header="t('accounting.journal.credit')"
+          class="app-money"
+          sortable
+          filter-field="total_credit_value"
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatEntryAmount(data.total_credit) }}</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
         <Column :header="t('common.actions')" class="journal-table__actions-column">
           <template #body="{ data }">
@@ -348,29 +477,100 @@
             <p class="app-dialog-section__copy">{{ accountsSummary(selectedGroup) }}</p>
           </div>
           <DataTable
-            :value="selectedGroup.lines"
+            v-model:filters="lineTableFilters"
+            :value="lineRows"
             class="app-data-table journal-lines-table"
+            filter-display="menu"
             paginator
             :rows="20"
             :rows-per-page-options="[20, 50, 100, 500]"
             size="small"
             striped-rows
+            :global-filter-fields="[
+              'entry_number',
+              'account_number',
+              'account_label',
+              'label',
+              'debit_value',
+              'credit_value',
+            ]"
+            removable-sort
           >
-            <Column field="entry_number" :header="t('accounting.journal.entry_number')" />
-            <Column field="account_number" :header="t('accounting.journal.account')">
+            <Column
+              field="entry_number"
+              :header="t('accounting.journal.entry_number')"
+              sortable
+              :show-filter-match-modes="false"
+              :show-add-button="false"
+            >
+              <template #filter="{ filterModel }">
+                <InputText
+                  v-model="filterModel.value"
+                  :placeholder="t('accounting.journal.entry_number')"
+                />
+              </template>
+            </Column>
+            <Column
+              field="account_number"
+              :header="t('accounting.journal.account')"
+              sortable
+              :show-filter-match-modes="false"
+              :show-add-button="false"
+            >
               <template #body="{ data }">
                 <div class="journal-account-cell">
                   <strong>{{ data.account_number }}</strong>
                   <span>{{ data.account_label || data.account_number }}</span>
                 </div>
               </template>
+              <template #filter="{ filterModel }">
+                <InputText
+                  v-model="filterModel.value"
+                  :placeholder="t('accounting.journal.account')"
+                />
+              </template>
             </Column>
-            <Column field="label" :header="t('accounting.journal.label')" />
-            <Column field="debit" :header="t('accounting.journal.debit')" class="app-money">
+            <Column
+              field="label"
+              :header="t('accounting.journal.label')"
+              sortable
+              :show-filter-match-modes="false"
+              :show-add-button="false"
+            >
+              <template #filter="{ filterModel }">
+                <InputText
+                  v-model="filterModel.value"
+                  :placeholder="t('accounting.journal.label')"
+                />
+              </template>
+            </Column>
+            <Column
+              field="debit_value"
+              :header="t('accounting.journal.debit')"
+              class="app-money"
+              sortable
+              data-type="numeric"
+              :show-filter-match-modes="false"
+              :show-add-button="false"
+            >
               <template #body="{ data }">{{ formatEntryAmount(data.debit) }}</template>
+              <template #filter="{ filterModel }">
+                <AppNumberRangeFilter v-model="filterModel.value" />
+              </template>
             </Column>
-            <Column field="credit" :header="t('accounting.journal.credit')" class="app-money">
+            <Column
+              field="credit_value"
+              :header="t('accounting.journal.credit')"
+              class="app-money"
+              sortable
+              data-type="numeric"
+              :show-filter-match-modes="false"
+              :show-add-button="false"
+            >
               <template #body="{ data }">{{ formatEntryAmount(data.credit) }}</template>
+              <template #filter="{ filterModel }">
+                <AppNumberRangeFilter v-model="filterModel.value" />
+              </template>
             </Column>
           </DataTable>
         </section>
@@ -422,9 +622,19 @@ import {
   updateManualEntryApi,
 } from '../api/accounting'
 import AppPage from '../components/ui/AppPage.vue'
+import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
+import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
+import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
+import {
+  dateRangeFilter,
+  inFilter,
+  numericRangeFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
 
@@ -443,7 +653,6 @@ const router = useRouter()
 const fiscalYearStore = useFiscalYearStore()
 
 const groups = ref<AccountingEntryGroupRead[]>([])
-const filterText = ref('')
 const fiscalYears = computed(() => fiscalYearStore.fiscalYears)
 const selectedFiscalYearId = computed({
   get: () => fiscalYearStore.selectedFiscalYearId,
@@ -455,12 +664,61 @@ const showManualDialog = ref(false)
 const showDetailDialog = ref(false)
 const selectedGroup = ref<AccountingEntryGroupRead | null>(null)
 const editingEntry = ref<AccountingEntryRead | null>(null)
+const lineRows = computed(() =>
+  (selectedGroup.value?.lines ?? []).map((line) => ({
+    ...line,
+    debit_value: parseFloat(line.debit),
+    credit_value: parseFloat(line.credit),
+  })),
+)
 
 const filters = ref({
   from_date: '',
   to_date: '',
   account_number: '',
   source_type: undefined as EntrySourceType | undefined,
+})
+
+const journalRows = computed(() =>
+  groups.value.map((group) => ({
+    ...group,
+    source_label: group.source_type
+      ? t(`accounting.journal.sources.${group.source_type}`)
+      : t('accounting.journal.sources.manual'),
+    reference_value: entryReference(group),
+    contact_display: group.source_contact_name || t('accounting.journal.no_contact'),
+    accounts_summary: accountsSummary(group),
+    total_debit_value: parseFloat(group.total_debit),
+    total_credit_value: parseFloat(group.total_credit),
+  })),
+)
+
+const {
+  filters: tableFilters,
+  globalFilter,
+  displayedRows: displayedGroups,
+  hasActiveFilters,
+  resetFilters,
+  syncDisplayedRows: syncDisplayedGroups,
+} = useDataTableFilters(journalRows, {
+  global: textFilter(''),
+  date: dateRangeFilter(),
+  source_type: inFilter(),
+  reference_value: textFilter(),
+  contact_display: textFilter(),
+  label: textFilter(),
+  accounts_summary: textFilter(),
+  line_count: numericRangeFilter(),
+  total_debit_value: numericRangeFilter(),
+  total_credit_value: numericRangeFilter(),
+})
+const { filters: lineTableFilters } = useDataTableFilters(lineRows, {
+  global: textFilter(''),
+  entry_number: textFilter(),
+  account_number: textFilter(),
+  label: textFilter(),
+  debit_value: numericRangeFilter(),
+  credit_value: numericRangeFilter(),
 })
 
 const manualForm = ref<ManualEntryUpdate>({
@@ -483,14 +741,8 @@ const sourceTypeOptions = [
   { label: t('accounting.journal.sources.cloture'), value: 'cloture' },
 ]
 
-const filteredGroups = computed(() => {
-  const query = filterText.value.trim().toLowerCase()
-  if (!query) return groups.value
-  return groups.value.filter((group) => searchableGroup(group).includes(query))
-})
-
 const summary = computed(() => {
-  const visibleGroups = filteredGroups.value
+  const visibleGroups = displayedGroups.value
   const totalDebit = visibleGroups.reduce((sum, group) => sum + parseFloat(group.total_debit), 0)
   const totalCredit = visibleGroups.reduce((sum, group) => sum + parseFloat(group.total_credit), 0)
   const sources = new Set(visibleGroups.map((group) => group.source_type).filter(Boolean))
@@ -507,21 +759,6 @@ const summary = computed(() => {
     periodCaption,
   }
 })
-
-function searchableGroup(group: AccountingEntryGroupRead): string {
-  return [
-    group.date,
-    group.label,
-    group.source_reference,
-    group.source_invoice_number,
-    group.source_contact_name,
-    group.account_numbers.join(' '),
-    ...group.lines.flatMap((line) => [line.account_number, line.account_label || '', line.label]),
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase()
-}
 
 function formatAmount(value: number): string {
   return new Intl.NumberFormat('fr-FR', {
