@@ -510,7 +510,6 @@ export default {
         payment: 'Paiement',
         deposit: 'Remise banque',
         salary: 'Salaire',
-        gestion: 'Import gestion',
         manual: 'Manuel',
         cloture: 'Clôture',
       },

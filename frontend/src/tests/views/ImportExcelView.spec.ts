@@ -206,8 +206,8 @@ describe('ImportExcelView', () => {
     await wrapper.get('[data-testid="primary-import-button"]').trigger('click')
     await flushView()
 
-    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('import.success')
-    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('import.result_persistent_hint')
+    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('Import terminé avec succès')
+    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('Le détail complet reste affiché ci-dessous.')
   })
 
   it('runs a temporary shortcut import without preview', async () => {
@@ -231,6 +231,6 @@ describe('ImportExcelView', () => {
     await flushView()
 
     expect(mockImportTestShortcutApi).toHaveBeenCalledWith('gestion-2024')
-    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('import.success')
+    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('Import terminé avec succès')
   })
 })

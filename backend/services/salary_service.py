@@ -25,7 +25,7 @@ async def list_salaries(
     from_month: str | None = None,
     to_month: str | None = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int | None = None,
 ) -> list[Salary]:
     query = (
         select(Salary)
@@ -40,7 +40,9 @@ async def list_salaries(
         query = query.where(Salary.month >= from_month)
     if to_month is not None:
         query = query.where(Salary.month <= to_month)
-    query = query.offset(skip).limit(limit)
+    query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 

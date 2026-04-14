@@ -1,10 +1,13 @@
 """Integration tests for salaries API."""
 
+from decimal import Decimal
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.contact import Contact, ContactType
+from backend.models.salary import Salary
 from backend.models.user import User
 
 
@@ -21,6 +24,36 @@ async def test_list_salaries_empty(client: AsyncClient, auth_headers: dict) -> N
     response = await client.get("/api/salaries/", headers=auth_headers)
     assert response.status_code == 200
     assert response.json() == []
+
+
+@pytest.mark.asyncio
+async def test_list_salaries_returns_all_rows_when_limit_is_omitted(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session: AsyncSession,
+) -> None:
+    employee = await _create_employee(db_session)
+    db_session.add_all(
+        [
+            Salary(
+                employee_id=employee.id,
+                month=f"2025-{(index % 12) + 1:02d}",
+                hours=Decimal("151.67"),
+                gross=Decimal("1800.00"),
+                employee_charges=Decimal("252.00"),
+                employer_charges=Decimal("756.00"),
+                tax=Decimal("90.00"),
+                net_pay=Decimal("1458.00"),
+            )
+            for index in range(101)
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/salaries/", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 101
 
 
 @pytest.mark.asyncio

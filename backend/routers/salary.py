@@ -54,7 +54,7 @@ async def list_salaries(
     from_month: str | None = Query(default=None),
     to_month: str | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int | None = Query(default=None, ge=1),
 ) -> list[SalaryRead]:
     salaries = await salary_service.list_salaries(
         db,

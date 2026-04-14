@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.models.cash import CashCount, CashMovementType, CashRegister
 from backend.models.user import User
 
 
@@ -53,6 +58,33 @@ async def test_list_entries(client: AsyncClient, admin_user: User, auth_headers:
     response = await client.get("/api/cash/entries", headers=auth_headers)
     assert response.status_code == 200
     assert len(response.json()) == 2
+
+
+@pytest.mark.asyncio
+async def test_list_entries_returns_all_rows_when_limit_is_omitted(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+    db_session: AsyncSession,
+) -> None:
+    db_session.add_all(
+        [
+            CashRegister(
+                date=date(2024, 3, 1),
+                amount=Decimal("10.00"),
+                type=CashMovementType.IN,
+                description=f"Entry {index}",
+                balance_after=Decimal("10.00"),
+            )
+            for index in range(101)
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/cash/entries", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 101
 
 
 @pytest.mark.asyncio
@@ -157,3 +189,29 @@ async def test_list_cash_counts(client: AsyncClient, admin_user: User, auth_head
     response = await client.get("/api/cash/counts", headers=auth_headers)
     assert response.status_code == 200
     assert len(response.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_list_cash_counts_returns_all_rows_when_limit_is_omitted(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+    db_session: AsyncSession,
+) -> None:
+    db_session.add_all(
+        [
+            CashCount(
+                date=date(2024, 3, 1),
+                total_counted=Decimal("0.00"),
+                balance_expected=Decimal("0.00"),
+                difference=Decimal("0.00"),
+            )
+            for _ in range(51)
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/cash/counts", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 51
