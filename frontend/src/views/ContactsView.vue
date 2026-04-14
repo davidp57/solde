@@ -34,9 +34,12 @@
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('contacts.filters_hint') }}</p>
-          <span class="app-chip">{{
-            t('contacts.results_label', { count: contacts.length })
-          }}</span>
+          <AppListState
+            :displayed-count="contacts.length"
+            :loading="loading"
+            :search-text="search"
+            :active-filters="activeFilterLabels"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -77,13 +80,13 @@
       >
         <Column field="nom" :header="t('contacts.nom')" sortable />
         <Column field="prenom" :header="t('contacts.prenom')" sortable />
-        <Column field="type" :header="t('contacts.type')">
+        <Column field="type" :header="t('contacts.type')" sortable>
           <template #body="{ data }">
             <Tag :value="t(`contacts.types.${data.type}`)" :severity="typeSeverity(data.type)" />
           </template>
         </Column>
-        <Column field="email" :header="t('contacts.email')" />
-        <Column field="telephone" :header="t('contacts.telephone')" />
+        <Column field="email" :header="t('contacts.email')" sortable />
+        <Column field="telephone" :header="t('contacts.telephone')" sortable />
         <Column :header="t('common.actions')" class="contacts-table__actions">
           <template #body="{ data }">
             <div class="app-inline-actions">
@@ -144,6 +147,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppListState from '@/components/ui/AppListState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
@@ -175,6 +179,12 @@ const emailCount = computed(() => contacts.value.filter((contact) => Boolean(con
 const phoneCount = computed(
   () => contacts.value.filter((contact) => Boolean(contact.telephone)).length,
 )
+const activeFilterLabels = computed(() => {
+  if (!typeFilter.value) return []
+
+  const selectedOption = typeOptions.find((option) => option.value === typeFilter.value)
+  return selectedOption ? [selectedOption.label] : [String(typeFilter.value)]
+})
 
 const typeOptions = [
   { label: t('contacts.types.client'), value: 'client' as ContactType },

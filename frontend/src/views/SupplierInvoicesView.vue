@@ -36,9 +36,13 @@
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('invoices.supplier.filters_hint') }}</p>
-          <span class="app-chip">{{
-            t('invoices.supplier.results_label', { count: filtered.length })
-          }}</span>
+          <AppListState
+            :displayed-count="filtered.length"
+            :total-count="invoices.length"
+            :loading="loading"
+            :search-text="filterText"
+            :active-filters="activeFilterLabels"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -80,11 +84,11 @@
         <Column field="contact_id" :header="t('invoices.contact')">
           <template #body="{ data }">{{ contactName(data.contact_id) }}</template>
         </Column>
-        <Column field="reference" :header="t('invoices.reference')" />
-        <Column field="total_amount" :header="t('invoices.total')" class="app-money">
+        <Column field="reference" :header="t('invoices.reference')" sortable />
+        <Column field="total_amount" :header="t('invoices.total')" class="app-money" sortable>
           <template #body="{ data }">{{ formatAmount(data.total_amount) }} €</template>
         </Column>
-        <Column field="status" :header="t('invoices.status')">
+        <Column field="status" :header="t('invoices.status')" sortable>
           <template #body="{ data }">
             <Tag
               :value="t(`invoices.statuses.${data.status}`)"
@@ -202,6 +206,7 @@ import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import AppListState from '../components/ui/AppListState.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
@@ -252,6 +257,12 @@ const pendingCount = computed(
     filtered.value.filter((invoice) => invoice.status === 'sent' || invoice.status === 'partial')
       .length,
 )
+const activeFilterLabels = computed(() => {
+  if (!statusFilter.value) return []
+
+  const selectedOption = statusOptions.find((option) => option.value === statusFilter.value)
+  return selectedOption ? [selectedOption.label] : [String(statusFilter.value)]
+})
 
 const statusOptions = [
   { label: t('invoices.statuses.draft'), value: 'draft' },

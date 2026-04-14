@@ -45,7 +45,7 @@
     <AppPanel :title="t('users.workspace_title')" :subtitle="t('users.workspace_subtitle')">
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
-          <span class="app-chip">{{ t('users.results_label', { count: users.length }) }}</span>
+          <AppListState :displayed-count="users.length" :loading="loading" />
         </div>
       </div>
 
@@ -56,19 +56,19 @@
         striped-rows
         paginator
         :rows="20"
-        :rows-per-page-options="[10, 20, 50]"
+        :rows-per-page-options="[20, 50, 100, 500]"
         data-key="id"
         size="small"
         row-hover
       >
         <Column field="username" :header="t('users.username')" sortable />
         <Column field="email" :header="t('users.email')" sortable />
-        <Column field="role" :header="t('users.role')">
+        <Column field="role" :header="t('users.role')" sortable>
           <template #body="{ data }">
             <Tag :value="roleLabel(data.role)" :severity="roleSeverity(data.role)" />
           </template>
         </Column>
-        <Column field="is_active" :header="t('users.status')">
+        <Column field="is_active" :header="t('users.status')" sortable>
           <template #body="{ data }">
             <Tag
               :value="
@@ -237,6 +237,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import ToggleSwitch from 'primevue/toggleswitch'
 import { useToast } from 'primevue/usetoast'
+import AppListState from '@/components/ui/AppListState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'

@@ -15,6 +15,15 @@
 
     <AppPanel :title="t('accounting.fiscalYear.title')" dense>
       <div class="app-toolbar">
+        <div class="app-toolbar__meta">
+          <AppListState
+            :displayed-count="filtered.length"
+            :total-count="fiscalYears.length"
+            :loading="loading"
+            :search-text="filterText"
+          />
+        </div>
+
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
@@ -34,14 +43,14 @@
         size="small"
         row-hover
       >
-        <Column field="name" :header="t('accounting.fiscalYear.name')" />
-        <Column field="start_date" :header="t('accounting.fiscalYear.start_date')">
+        <Column field="name" :header="t('accounting.fiscalYear.name')" sortable />
+        <Column field="start_date" :header="t('accounting.fiscalYear.start_date')" sortable>
           <template #body="{ data }">{{ formatDisplayDate(data.start_date) }}</template>
         </Column>
-        <Column field="end_date" :header="t('accounting.fiscalYear.end_date')">
+        <Column field="end_date" :header="t('accounting.fiscalYear.end_date')" sortable>
           <template #body="{ data }">{{ formatDisplayDate(data.end_date) }}</template>
         </Column>
-        <Column field="status" :header="t('accounting.fiscalYear.status')">
+        <Column field="status" :header="t('accounting.fiscalYear.status')" sortable>
           <template #body="{ data }">
             <Tag
               :value="t(`accounting.fiscalYear.statuses.${data.status}`)"
@@ -138,6 +147,7 @@ import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import AppListState from '../components/ui/AppListState.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'

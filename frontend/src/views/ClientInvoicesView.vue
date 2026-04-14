@@ -50,9 +50,13 @@
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('invoices.client.filters_hint') }}</p>
-          <span class="app-chip">{{
-            t('invoices.client.results_label', { count: filteredInvoices.length })
-          }}</span>
+          <AppListState
+            :displayed-count="filteredInvoices.length"
+            :total-count="invoices.length"
+            :loading="loading"
+            :search-text="filterText"
+            :active-filters="activeFilterLabels"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -96,15 +100,15 @@
             {{ contactName(data.contact_id) }}
           </template>
         </Column>
-        <Column field="label" :header="t('invoices.label')">
+        <Column field="label" :header="t('invoices.label')" sortable>
           <template #body="{ data }">
             <Tag v-if="data.label" :value="t(`invoices.labels.${data.label}`)" severity="info" />
           </template>
         </Column>
-        <Column field="total_amount" :header="t('invoices.total')" class="app-money">
+        <Column field="total_amount" :header="t('invoices.total')" class="app-money" sortable>
           <template #body="{ data }">{{ formatAmount(data.total_amount) }} €</template>
         </Column>
-        <Column field="status" :header="t('invoices.status')">
+        <Column field="status" :header="t('invoices.status')" sortable>
           <template #body="{ data }">
             <Tag
               :value="t(`invoices.statuses.${data.status}`)"
@@ -282,6 +286,7 @@ import {
 } from '../api/invoices'
 import { listPayments, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
+import AppListState from '../components/ui/AppListState.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
@@ -337,6 +342,13 @@ const portfolioMetrics = computed(() => {
     partialCount,
     averageAmount: visible.length > 0 ? totalAmount / visible.length : 0,
   }
+})
+
+const activeFilterLabels = computed(() => {
+  if (!statusFilter.value) return []
+
+  const selectedOption = statusOptions.find((option) => option.value === statusFilter.value)
+  return selectedOption ? [selectedOption.label] : [String(statusFilter.value)]
 })
 
 const statusOptions = [

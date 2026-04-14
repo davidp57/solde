@@ -29,9 +29,13 @@
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('payments.filters_hint') }}</p>
-          <span class="app-chip">{{
-            t('payments.results_label', { count: filtered.length })
-          }}</span>
+          <AppListState
+            :displayed-count="filtered.length"
+            :total-count="payments.length"
+            :loading="loading"
+            :search-text="filterText"
+            :active-filters="activeFilterLabels"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -66,21 +70,21 @@
         <Column field="date" :header="t('payments.date')" sortable>
           <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
         </Column>
-        <Column field="amount" :header="t('payments.amount')" class="app-money">
+        <Column field="amount" :header="t('payments.amount')" class="app-money" sortable>
           <template #body="{ data }">
             {{ formatAmount(data.amount) }}
           </template>
         </Column>
-        <Column field="method" :header="t('payments.method')">
+        <Column field="method" :header="t('payments.method')" sortable>
           <template #body="{ data }">
             <Tag :value="t(`payments.methods.${data.method}`)" />
           </template>
         </Column>
-        <Column field="reference" :header="t('payments.reference')">
+        <Column field="reference" :header="t('payments.reference')" sortable>
           <template #body="{ data }">{{ paymentReference(data) }}</template>
         </Column>
-        <Column field="cheque_number" :header="t('payments.cheque_number')" />
-        <Column field="deposited" :header="t('payments.deposited')">
+        <Column field="cheque_number" :header="t('payments.cheque_number')" sortable />
+        <Column field="deposited" :header="t('payments.deposited')" sortable>
           <template #body="{ data }">
             <i
               :class="data.deposited ? 'pi pi-check text-green-500' : 'pi pi-times text-red-400'"
@@ -192,6 +196,7 @@ import {
   type PaymentMethod,
 } from '@/api/payments'
 import AppPage from '@/components/ui/AppPage.vue'
+import AppListState from '@/components/ui/AppListState.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
@@ -230,6 +235,9 @@ const undepositedCount = computed(
 )
 const chequeCount = computed(
   () => filtered.value.filter((payment) => payment.method === 'cheque').length,
+)
+const activeFilterLabels = computed(() =>
+  undepositedOnly.value ? [t('payments.filter_undeposited')] : [],
 )
 const methodOptions = computed(() => [
   { label: t('payments.methods.especes'), value: 'especes' },
