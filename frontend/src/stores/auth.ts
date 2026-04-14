@@ -5,6 +5,7 @@ import type { UserRead } from '../api/types'
 
 const ACCESS_TOKEN_KEY = 'access_token'
 const REFRESH_TOKEN_KEY = 'refresh_token'
+const DEV_AUTO_LOGIN_SUPPRESSED_KEY = 'dev_auto_login_suppressed'
 
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref<string | null>(null)
@@ -39,6 +40,14 @@ export const useAuthStore = defineStore('auth', () => {
     return isDevRuntime && import.meta.env.VITE_DEV_AUTO_LOGIN === 'true'
   }
 
+  function isDevAutoLoginSuppressed(): boolean {
+    return sessionStorage.getItem(DEV_AUTO_LOGIN_SUPPRESSED_KEY) === 'true'
+  }
+
+  function clearDevAutoLoginSuppression(): void {
+    sessionStorage.removeItem(DEV_AUTO_LOGIN_SUPPRESSED_KEY)
+  }
+
   function initFromStorage(): void {
     const access = localStorage.getItem(ACCESS_TOKEN_KEY)
     const refresh = localStorage.getItem(REFRESH_TOKEN_KEY)
@@ -51,6 +60,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     try {
       const tokens = await loginApi({ username, password })
+      clearDevAutoLoginSuppression()
       saveTokens(tokens.access_token, tokens.refresh_token)
       user.value = await getMeApi(tokens.access_token)
     } catch (err: unknown) {
@@ -69,7 +79,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout(): void {
+  function logout(options?: { preventDevAutoLogin?: boolean }): void {
+    if (options?.preventDevAutoLogin) {
+      sessionStorage.setItem(DEV_AUTO_LOGIN_SUPPRESSED_KEY, 'true')
+    }
     clearTokens()
     user.value = null
     error.value = null
@@ -77,7 +90,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function maybeAutoLoginForDev(): Promise<boolean> {
-    if (accessToken.value || devAutoLoginAttempted.value || !canUseDevAutoLogin()) {
+    if (
+      accessToken.value ||
+      devAutoLoginAttempted.value ||
+      !canUseDevAutoLogin() ||
+      isDevAutoLoginSuppressed()
+    ) {
       return isAuthenticated.value
     }
 

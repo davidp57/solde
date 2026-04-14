@@ -121,7 +121,7 @@ const mainBg = computed(() => (isDark.value ? 'var(--p-surface-950)' : 'var(--p-
 const borderColor = computed(() => (isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)'))
 
 async function handleLogout(): Promise<void> {
-  auth.logout()
+  auth.logout({ preventDevAutoLogin: true })
   await router.push('/login')
 }
 
