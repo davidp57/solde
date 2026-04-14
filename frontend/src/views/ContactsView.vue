@@ -219,6 +219,10 @@ import AppStatCard from '@/components/ui/AppStatCard.vue'
 import { deleteContactApi, listContactsApi, type Contact } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'
+import {
+  collectActiveFilterLabels,
+  findSelectedFilterLabel,
+} from '../composables/activeFilterLabels'
 import { inFilter, textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
@@ -262,12 +266,9 @@ const emailCount = computed(() => contacts.value.filter((contact) => Boolean(con
 const phoneCount = computed(
   () => contacts.value.filter((contact) => Boolean(contact.telephone)).length,
 )
-const activeFilterLabels = computed(() => {
-  if (!typeFilter.value) return []
-
-  const selectedOption = typeOptions.find((option) => option.value === typeFilter.value)
-  return selectedOption ? [selectedOption.label] : [String(typeFilter.value)]
-})
+const activeFilterLabels = computed(() =>
+  collectActiveFilterLabels(findSelectedFilterLabel(typeOptions, typeFilter.value)),
+)
 
 const typeOptions = [
   { label: t('contacts.types.client'), value: 'client' as ContactType },

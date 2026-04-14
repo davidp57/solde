@@ -195,6 +195,10 @@ import {
   type AccountType,
 } from '@/api/accounting'
 import AccountForm from '@/components/AccountForm.vue'
+import {
+  collectActiveFilterLabels,
+  findSelectedFilterLabel,
+} from '../composables/activeFilterLabels'
 import { inFilter, textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
@@ -218,12 +222,9 @@ const typeOptions: Array<{ label: string; value: AccountType | undefined }> = [
   { label: t('accounting.account_types.produit'), value: 'produit' },
 ]
 
-const activeFilterLabels = computed(() => {
-  if (!typeFilter.value) return []
-
-  const selectedOption = typeOptions.find((option) => option.value === typeFilter.value)
-  return selectedOption ? [selectedOption.label] : [String(typeFilter.value)]
-})
+const activeFilterLabels = computed(() =>
+  collectActiveFilterLabels(findSelectedFilterLabel(typeOptions, typeFilter.value)),
+)
 const tableTypeOptions = typeOptions.filter(
   (option): option is { label: string; value: AccountType } => option.value !== undefined,
 )

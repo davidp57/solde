@@ -291,6 +291,7 @@ import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
+import { collectActiveFilterLabels } from '../composables/activeFilterLabels'
 import {
   dateRangeFilter,
   inFilter,
@@ -354,7 +355,7 @@ const chequeCount = computed(
   () => filtered.value.filter((payment) => payment.method === 'cheque').length,
 )
 const activeFilterLabels = computed(() =>
-  undepositedOnly.value ? [t('payments.filter_undeposited')] : [],
+  collectActiveFilterLabels(undepositedOnly.value ? t('payments.filter_undeposited') : undefined),
 )
 const methodOptions = computed(() => [
   { label: t('payments.methods.especes'), value: 'especes' },

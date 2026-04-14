@@ -73,4 +73,14 @@ describe('AppListState', () => {
     expect(wrapper.text()).toContain('0 sur 8')
     expect(wrapper.text()).toContain('Aucun resultat')
   })
+
+  it('announces state changes politely for assistive technologies', () => {
+    const wrapper = mount(AppListState, {
+      props: {
+        displayedCount: 2,
+      },
+    })
+
+    expect(wrapper.get('.app-list-state__text').attributes('aria-live')).toBe('polite')
+  })
 })
