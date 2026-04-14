@@ -122,6 +122,24 @@ class TestFiscalYearAPI:
         assert len(data) == 2
 
     @pytest.mark.asyncio
+    async def test_gestionnaire_can_list_fiscal_years(
+        self, client: AsyncClient, secretaire_auth_headers: dict, db_session: AsyncSession
+    ) -> None:
+        await _create_fy(db_session, "2024")
+        response = await client.get(
+            "/api/accounting/fiscal-years/", headers=secretaire_auth_headers
+        )
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_readonly_cannot_list_fiscal_years(
+        self, client: AsyncClient, readonly_auth_headers: dict, db_session: AsyncSession
+    ) -> None:
+        await _create_fy(db_session, "2024")
+        response = await client.get("/api/accounting/fiscal-years/", headers=readonly_auth_headers)
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
     async def test_get_current_fiscal_year(
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
     ) -> None:

@@ -70,6 +70,12 @@ En pratique :
 - `Administrateur` voit tout, édite tout et gère l'application ;
 - `readonly` n'est plus un rôle cible à mettre en avant dans le produit.
 
+Précisions d'implémentation utiles :
+
+- le sélecteur global d'exercice reste visible pour les rôles métier actifs `Gestionnaire`, `Comptable` et `Administrateur`, car plusieurs écrans de gestion sont filtrés par exercice même hors section `Comptabilité` ;
+- l'écran de gestion des exercices reste réservé à `Comptable` et `Administrateur` ;
+- la carte `Exercice en cours` du tableau de bord suit la même logique que le sélecteur global : exercice ouvert couvrant la date du jour, sinon exercice ouvert le plus récent.
+
 ## Portée du lot 2
 
 Le lot 2 ajoute l'administration des comptes avec les capacités suivantes :
