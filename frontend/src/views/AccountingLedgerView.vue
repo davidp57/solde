@@ -91,14 +91,17 @@ import AppStatCard from '../components/ui/AppStatCard.vue'
 import { getLedgerApi, listAccountsApi, type LedgerRead } from '../api/accounting'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
-import { useFiscalYearStore } from '../stores/fiscalYear'
-import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const fiscalYearStore = useFiscalYearStore()
 
 const ledger = ref<LedgerRead | null>(null)
 const accounts = ref<Array<{ number: string; displayLabel: string }>>([])
+const fiscalYears = computed(() => fiscalYearStore.fiscalYears)
+const fiscalYearId = computed({
+  get: () => fiscalYearStore.selectedFiscalYearId,
+  set: (value: number | undefined) => fiscalYearStore.setSelectedFiscalYear(value),
+})
 const accountNumber = ref('')
 const fromDate = ref('')
 const toDate = ref('')
@@ -125,8 +128,7 @@ async function load() {
     ledger.value = await getLedgerApi(accountNumber.value, {
       from_date: fromDate.value || undefined,
       to_date: toDate.value || undefined,
-      fiscal_year_id: fiscalYearStore.selectedFiscalYearId,
-      fiscal_year_id: fiscalYearStore.selectedFiscalYearId,
+      fiscal_year_id: fiscalYearId.value,
     })
   } finally {
     loading.value = false

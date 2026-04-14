@@ -1,6 +1,9 @@
 """Integration tests for the contacts API."""
 
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.models.contact import Contact, ContactType
 
 
 class TestListContacts:
@@ -51,6 +54,22 @@ class TestListContacts:
         )
         response = await client.get("/api/contacts/?search=dup", headers=auth_headers)
         assert len(response.json()) == 1
+
+    async def test_returns_all_contacts_when_limit_is_omitted(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        db_session: AsyncSession,
+    ):
+        db_session.add_all(
+            [Contact(type=ContactType.CLIENT, nom=f"Client {index:03d}") for index in range(101)]
+        )
+        await db_session.commit()
+
+        response = await client.get("/api/contacts/", headers=auth_headers)
+
+        assert response.status_code == 200
+        assert len(response.json()) == 101
 
 
 class TestCreateContact:

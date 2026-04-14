@@ -97,14 +97,13 @@ async def list_cash_entries(
     db: AsyncSession,
     *,
     skip: int = 0,
-    limit: int = 100,
+    limit: int | None = None,
 ) -> list[CashRegister]:
-    result = await db.execute(
-        select(CashRegister)
-        .order_by(CashRegister.date.desc(), CashRegister.id.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    query = select(CashRegister).order_by(CashRegister.date.desc(), CashRegister.id.desc())
+    query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 
@@ -132,14 +131,13 @@ async def list_cash_counts(
     db: AsyncSession,
     *,
     skip: int = 0,
-    limit: int = 50,
+    limit: int | None = None,
 ) -> list[CashCount]:
-    result = await db.execute(
-        select(CashCount)
-        .order_by(CashCount.date.desc(), CashCount.id.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    query = select(CashCount).order_by(CashCount.date.desc(), CashCount.id.desc())
+    query = query.offset(skip)
+    if limit is not None:
+        query = query.limit(limit)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 

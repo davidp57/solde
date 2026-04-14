@@ -25,13 +25,15 @@ async def _create_fy(
     db: AsyncSession,
     name: str = "2024",
     status: FiscalYearStatus = FiscalYearStatus.OPEN,
+    start: date | None = None,
+    end: date | None = None,
     start_date: date = date(2024, 1, 1),
     end_date: date = date(2024, 12, 31),
 ) -> FiscalYear:
     fy = FiscalYear(
         name=name,
-        start_date=start_date,
-        end_date=end_date,
+        start_date=start or start_date,
+        end_date=end or end_date,
         status=status,
     )
     db.add(fy)

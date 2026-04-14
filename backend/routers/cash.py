@@ -41,7 +41,7 @@ async def list_entries(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int | None = Query(default=None, ge=1),
 ) -> list[CashEntryRead]:
     return await cash_service.list_cash_entries(db, skip=skip, limit=limit)  # type: ignore[return-value]
 
@@ -85,7 +85,7 @@ async def list_counts(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=200),
+    limit: int | None = Query(default=None, ge=1),
 ) -> list[CashCountRead]:
     return await cash_service.list_cash_counts(db, skip=skip, limit=limit)  # type: ignore[return-value]
 

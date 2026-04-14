@@ -365,7 +365,7 @@ function openInvoiceFromQuery() {
 }
 
 async function loadContacts() {
-  contacts.value = await listContactsApi({ limit: 500 })
+  contacts.value = await listContactsApi()
 }
 
 function openCreateDialog() {
