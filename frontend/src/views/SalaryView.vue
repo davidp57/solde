@@ -52,9 +52,11 @@
       </div>
 
       <DataTable
-        :value="filteredSalaries"
+        v-model:filters="salaryTableFilters"
+        :value="salaryRows"
         :loading="loading"
         class="app-data-table"
+        filter-display="menu"
         striped-rows
         paginator
         :rows="20"
@@ -62,20 +64,103 @@
         data-key="id"
         size="small"
         row-hover
+        :global-filter-fields="[
+          'employee_name',
+          'month',
+          'hours_value',
+          'gross_value',
+          'net_pay_value',
+          'total_cost_value',
+        ]"
+        removable-sort
+        @value-change="syncDisplayedSalaries"
       >
-        <Column field="employee_name" :header="t('salary.employee')" sortable />
-        <Column field="month" :header="t('salary.month')" sortable />
-        <Column :header="t('salary.hours')">
+        <Column
+          field="employee_name"
+          :header="t('salary.employee')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="salaryEmployeeOptions"
+              :placeholder="t('common.all')"
+              show-clear
+            />
+          </template>
+        </Column>
+        <Column
+          field="month"
+          :header="t('salary.month')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="salaryMonthOptions"
+              :placeholder="t('common.all')"
+              show-clear
+            />
+          </template>
+        </Column>
+        <Column
+          field="hours_value"
+          :header="t('salary.hours')"
+          sortable
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ data.hours }}</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column :header="t('salary.gross')" class="app-money">
+        <Column
+          field="gross_value"
+          :header="t('salary.gross')"
+          class="app-money"
+          sortable
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatAmount(data.gross) }}</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column :header="t('salary.net_pay')" class="app-money">
+        <Column
+          field="net_pay_value"
+          :header="t('salary.net_pay')"
+          class="app-money"
+          sortable
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatAmount(data.net_pay) }}</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column :header="t('salary.total_cost')" class="app-money">
+        <Column
+          field="total_cost_value"
+          :header="t('salary.total_cost')"
+          class="app-money"
+          sortable
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatAmount(data.total_cost) }}</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
         <Column :header="t('common.actions')" style="width: 8rem">
           <template #body="{ data }">
@@ -105,9 +190,11 @@
 
     <AppPanel :title="t('salary.summary_title')" dense>
       <DataTable
-        :value="filteredSummary"
+        v-model:filters="summaryTableFilters"
+        :value="summaryRows"
         :loading="summaryLoading"
         class="app-data-table"
+        filter-display="menu"
         striped-rows
         paginator
         :rows="20"
@@ -115,20 +202,100 @@
         data-key="month"
         size="small"
         row-hover
+        :global-filter-fields="[
+          'month',
+          'count',
+          'total_gross_value',
+          'total_employer_charges_value',
+          'total_net_pay_value',
+          'total_cost_value',
+        ]"
+        removable-sort
+        @value-change="syncDisplayedSummary"
       >
-        <Column field="month" :header="t('salary.month')" sortable />
-        <Column field="count" header="#" />
-        <Column :header="t('salary.gross')" class="app-money">
+        <Column
+          field="month"
+          :header="t('salary.month')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="summaryMonthOptions"
+              :placeholder="t('common.all')"
+              show-clear
+            />
+          </template>
+        </Column>
+        <Column
+          field="count"
+          header="#"
+          sortable
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
+        </Column>
+        <Column
+          field="total_gross_value"
+          :header="t('salary.gross')"
+          class="app-money"
+          sortable
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatAmount(data.total_gross) }}</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column :header="t('salary.employer_charges')" class="app-money">
+        <Column
+          field="total_employer_charges_value"
+          :header="t('salary.employer_charges')"
+          class="app-money"
+          sortable
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatAmount(data.total_employer_charges) }}</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column :header="t('salary.net_pay')" class="app-money">
+        <Column
+          field="total_net_pay_value"
+          :header="t('salary.net_pay')"
+          class="app-money"
+          sortable
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatAmount(data.total_net_pay) }}</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column :header="t('salary.total_cost')" class="app-money">
+        <Column
+          field="total_cost_value"
+          :header="t('salary.total_cost')"
+          class="app-money"
+          sortable
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatAmount(data.total_cost) }}</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
         <template #empty
           ><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template
@@ -242,6 +409,8 @@ import Textarea from 'primevue/textarea'
 import Toast from 'primevue/toast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
+import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
@@ -256,7 +425,12 @@ import {
   type SalarySummaryRow,
 } from '../api/accounting'
 import apiClient from '../api/client'
-import { useTableFilter, applyFilter } from '../composables/useTableFilter'
+import {
+  inFilter,
+  numericRangeFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 
 const { t } = useI18n()
@@ -271,8 +445,58 @@ interface EmployeeOption {
 
 const salaries = ref<SalaryRead[]>([])
 const summary = ref<SalarySummaryRow[]>([])
-const { filterText, filtered: filteredSalaries } = useTableFilter(salaries)
-const filteredSummary = computed(() => applyFilter(summary.value, filterText.value))
+const salaryRows = computed(() =>
+  salaries.value.map((salary) => ({
+    ...salary,
+    hours_value: toSalaryNumber(salary.hours),
+    gross_value: toSalaryNumber(salary.gross),
+    net_pay_value: toSalaryNumber(salary.net_pay),
+    total_cost_value: toSalaryNumber(salary.total_cost),
+  })),
+)
+const summaryRows = computed(() =>
+  summary.value.map((row) => ({
+    ...row,
+    total_gross_value: toSalaryNumber(row.total_gross),
+    total_employer_charges_value: toSalaryNumber(row.total_employer_charges),
+    total_net_pay_value: toSalaryNumber(row.total_net_pay),
+    total_cost_value: toSalaryNumber(row.total_cost),
+  })),
+)
+const {
+  filters: salaryTableFilters,
+  globalFilter: salaryGlobalFilter,
+  displayedRows: filteredSalaries,
+  syncDisplayedRows: syncDisplayedSalaries,
+} = useDataTableFilters(salaryRows, {
+  global: textFilter(''),
+  employee_name: inFilter(),
+  month: inFilter(),
+  hours_value: numericRangeFilter(),
+  gross_value: numericRangeFilter(),
+  net_pay_value: numericRangeFilter(),
+  total_cost_value: numericRangeFilter(),
+})
+const {
+  filters: summaryTableFilters,
+  globalFilter: summaryGlobalFilter,
+  syncDisplayedRows: syncDisplayedSummary,
+} = useDataTableFilters(summaryRows, {
+  global: textFilter(''),
+  month: inFilter(),
+  count: numericRangeFilter(),
+  total_gross_value: numericRangeFilter(),
+  total_employer_charges_value: numericRangeFilter(),
+  total_net_pay_value: numericRangeFilter(),
+  total_cost_value: numericRangeFilter(),
+})
+const filterText = computed({
+  get: () => salaryGlobalFilter.value,
+  set: (value: string) => {
+    salaryGlobalFilter.value = value
+    summaryGlobalFilter.value = value
+  },
+})
 function toSalaryNumber(value: number | string | null | undefined): number {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0
@@ -300,6 +524,15 @@ const loading = ref(false)
 const summaryLoading = ref(false)
 const filterEmployee = ref<number | undefined>(undefined)
 const filterMonth = ref('')
+const salaryEmployeeOptions = computed(() =>
+  Array.from(new Set(salaries.value.map((salary) => salary.employee_name))).sort(),
+)
+const salaryMonthOptions = computed(() =>
+  Array.from(new Set(salaries.value.map((salary) => salary.month))).sort(),
+)
+const summaryMonthOptions = computed(() =>
+  Array.from(new Set(summary.value.map((row) => row.month))).sort(),
+)
 const salaryMonthRange = computed(() => ({
   from_month: fiscalYearStore.selectedFiscalYear?.start_date.slice(0, 7),
   to_month: fiscalYearStore.selectedFiscalYear?.end_date.slice(0, 7),

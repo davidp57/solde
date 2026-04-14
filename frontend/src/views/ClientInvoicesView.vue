@@ -50,9 +50,23 @@
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('invoices.client.filters_hint') }}</p>
-          <span class="app-chip">{{
-            t('invoices.client.results_label', { count: filteredInvoices.length })
-          }}</span>
+          <div class="app-toolbar__meta-actions">
+            <AppListState
+              :displayed-count="displayedInvoices.length"
+              :total-count="invoices.length"
+              :loading="loading"
+              :search-text="globalFilter"
+              :active-filters="activeFilterLabels"
+            />
+            <Button
+              v-if="hasActiveFilters"
+              icon="pi pi-filter-slash"
+              severity="secondary"
+              text
+              :title="t('common.reset_filters')"
+              @click="resetFilters"
+            />
+          </div>
         </div>
 
         <div class="app-filter-grid">
@@ -70,45 +84,126 @@
           </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+            <InputText v-model="globalFilter" :placeholder="t('common.filter_placeholder')" />
           </div>
         </div>
       </div>
 
       <DataTable
-        :value="filteredInvoices"
+        v-model:filters="tableFilters"
+        :value="invoiceRows"
         :loading="loading"
         class="app-data-table invoices-table"
+        filter-display="menu"
         striped-rows
         paginator
         :rows="20"
         :rows-per-page-options="[20, 50, 100, 500]"
+        :global-filter-fields="[
+          'number',
+          'date',
+          'contact_name',
+          'label_label',
+          'total_amount',
+          'status_label',
+        ]"
         data-key="id"
         size="small"
         row-hover
+        removable-sort
+        @value-change="syncDisplayedInvoices"
       >
-        <Column field="number" :header="t('invoices.number')" sortable />
-        <Column field="date" :header="t('invoices.date')" sortable>
-          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+        <Column field="number" :header="t('invoices.number')" sortable>
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('invoices.number')" />
+          </template>
         </Column>
-        <Column field="contact_id" :header="t('invoices.contact')">
+        <Column
+          field="date"
+          :header="t('invoices.date')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+          <template #filter="{ filterModel }">
+            <AppDateRangeFilter v-model="filterModel.value" />
+          </template>
+        </Column>
+        <Column
+          field="contact_name"
+          :header="t('invoices.contact')"
+          sortable
+          filter-field="contact_name"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             {{ contactName(data.contact_id) }}
           </template>
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('invoices.contact')" />
+          </template>
         </Column>
-        <Column field="label" :header="t('invoices.label')">
+        <Column
+          field="label_label"
+          :header="t('invoices.label')"
+          sortable
+          filter-field="label"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag v-if="data.label" :value="t(`invoices.labels.${data.label}`)" severity="info" />
           </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="labelOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              show-clear
+            />
+          </template>
         </Column>
-        <Column field="total_amount" :header="t('invoices.total')" class="app-money">
+        <Column
+          field="total_amount_value"
+          :header="t('invoices.total')"
+          class="app-money"
+          sortable
+          filter-field="total_amount_value"
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatAmount(data.total_amount) }} €</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column field="status" :header="t('invoices.status')">
+        <Column
+          field="status_label"
+          :header="t('invoices.status')"
+          sortable
+          filter-field="status"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag
               :value="t(`invoices.statuses.${data.status}`)"
               :severity="statusSeverity(data.status)"
+            />
+          </template>
+          <template #filter="{ filterModel }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="statusOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              show-clear
             />
           </template>
         </Column>
@@ -231,23 +326,75 @@
         </div>
         <DataTable
           v-else
-          :value="historyPayments"
+          v-model:filters="historyTableFilters"
+          :value="historyPaymentRows"
           class="app-data-table"
+          filter-display="menu"
           paginator
           :rows="20"
           :rows-per-page-options="[20, 50, 100, 500]"
           size="small"
+          :global-filter-fields="['date', 'amount_value', 'method', 'cheque_number']"
+          removable-sort
         >
-          <Column field="date" :header="t('payments.date')">
+          <Column
+            field="date"
+            :header="t('payments.date')"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+            <template #filter="{ filterModel }">
+              <AppDateRangeFilter v-model="filterModel.value" />
+            </template>
           </Column>
-          <Column field="amount" :header="t('payments.amount')" class="app-money">
+          <Column
+            field="amount_value"
+            :header="t('payments.amount')"
+            class="app-money"
+            sortable
+            data-type="numeric"
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">{{ parseFloat(data.amount).toFixed(2) }} €</template>
+            <template #filter="{ filterModel }">
+              <AppNumberRangeFilter v-model="filterModel.value" />
+            </template>
           </Column>
-          <Column field="method" :header="t('payments.method')">
+          <Column
+            field="method_label"
+            :header="t('payments.method')"
+            filter-field="method"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
+            <template #filter="{ filterModel }">
+              <AppFilterMultiSelect
+                v-model="filterModel.value"
+                :options="paymentMethodOptions"
+                option-label="label"
+                option-value="value"
+                :placeholder="t('common.all')"
+                display="chip"
+                show-clear
+              />
+            </template>
           </Column>
-          <Column field="cheque_number" :header="t('payments.cheque_number')" />
+          <Column
+            field="cheque_number"
+            :header="t('payments.cheque_number')"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
+            <template #filter="{ filterModel }">
+              <InputText v-model="filterModel.value" :placeholder="t('payments.cheque_number')" />
+            </template>
+          </Column>
         </DataTable>
       </div>
     </Dialog>
@@ -282,11 +429,25 @@ import {
 } from '../api/invoices'
 import { listPayments, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
+import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
+import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
+import AppListState from '../components/ui/AppListState.vue'
+import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
-import { useTableFilter } from '../composables/useTableFilter'
+import {
+  dateRangeFilter,
+  inFilter,
+  numericRangeFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
+import {
+  collectActiveFilterLabels,
+  findSelectedFilterLabel,
+} from '../composables/activeFilterLabels'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
 
@@ -298,7 +459,6 @@ const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
 const invoices = ref<Invoice[]>([])
-const { filterText, filtered: filteredInvoices } = useTableFilter(invoices)
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -310,6 +470,48 @@ const historyVisible = ref(false)
 const historyInvoice = ref<Invoice | null>(null)
 const historyLoading = ref(false)
 const historyPayments = ref<Payment[]>([])
+const historyPaymentRows = computed(() =>
+  historyPayments.value.map((payment) => ({
+    ...payment,
+    amount_value: parseFloat(payment.amount),
+    method_label: t(`payments.methods.${payment.method}`),
+  })),
+)
+
+const invoiceRows = computed(() =>
+  invoices.value.map((invoice) => ({
+    ...invoice,
+    contact_name: contactName(invoice.contact_id),
+    label_label: invoice.label ? t(`invoices.labels.${invoice.label}`) : '',
+    total_amount_value: parseFloat(invoice.total_amount),
+    status_label: t(`invoices.statuses.${invoice.status}`),
+  })),
+)
+
+const {
+  filters: tableFilters,
+  globalFilter,
+  displayedRows: displayedInvoices,
+  activeColumnFilterCount,
+  hasActiveFilters,
+  resetFilters,
+  syncDisplayedRows: syncDisplayedInvoices,
+} = useDataTableFilters(invoiceRows, {
+  global: textFilter(''),
+  number: textFilter(),
+  date: dateRangeFilter(),
+  contact_name: textFilter(),
+  label: inFilter(),
+  total_amount_value: numericRangeFilter(),
+  status: inFilter(),
+})
+const { filters: historyTableFilters } = useDataTableFilters(historyPaymentRows, {
+  global: textFilter(''),
+  date: dateRangeFilter(),
+  amount_value: numericRangeFilter(),
+  method: inFilter(),
+  cheque_number: textFilter(),
+})
 
 const remaining = computed(() => {
   if (!historyInvoice.value) return 0
@@ -319,7 +521,7 @@ const remaining = computed(() => {
 })
 
 const portfolioMetrics = computed(() => {
-  const visible = filteredInvoices.value
+  const visible = displayedInvoices.value
   const totalAmount = visible.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0)
   const paidAmount = visible.reduce((sum, invoice) => sum + parseFloat(invoice.paid_amount), 0)
   const overdueInvoices = visible.filter((invoice) => invoice.status === 'overdue')
@@ -339,6 +541,15 @@ const portfolioMetrics = computed(() => {
   }
 })
 
+const activeFilterLabels = computed(() =>
+  collectActiveFilterLabels(
+    findSelectedFilterLabel(statusOptions, statusFilter.value),
+    activeColumnFilterCount.value > 0
+      ? t('common.list.column_filters_chip', { count: activeColumnFilterCount.value })
+      : undefined,
+  ),
+)
+
 const statusOptions = [
   { label: t('invoices.statuses.draft'), value: 'draft' },
   { label: t('invoices.statuses.sent'), value: 'sent' },
@@ -346,6 +557,19 @@ const statusOptions = [
   { label: t('invoices.statuses.partial'), value: 'partial' },
   { label: t('invoices.statuses.overdue'), value: 'overdue' },
   { label: t('invoices.statuses.disputed'), value: 'disputed' },
+]
+
+const paymentMethodOptions = [
+  { label: t('payments.methods.especes'), value: 'especes' },
+  { label: t('payments.methods.cheque'), value: 'cheque' },
+  { label: t('payments.methods.virement'), value: 'virement' },
+]
+
+const labelOptions = [
+  { label: t('invoices.labels.cs'), value: 'cs' },
+  { label: t('invoices.labels.a'), value: 'a' },
+  { label: t('invoices.labels.cs+a'), value: 'cs+a' },
+  { label: t('invoices.labels.general'), value: 'general' },
 ]
 
 function formatAmount(val: string | number) {
