@@ -28,6 +28,7 @@ describe('useAuthStore', () => {
     setActivePinia(createPinia())
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
+    sessionStorage.removeItem('dev_auto_login_suppressed')
     mockLoginApi.mockReset()
     mockRefreshApi.mockReset()
     mockGetMeApi.mockReset()
@@ -119,6 +120,20 @@ describe('useAuthStore', () => {
     expect(localStorage.getItem('refresh_token')).toBeNull()
   })
 
+  it('manual logout suppresses dev auto login for the current session', async () => {
+    vi.stubEnv('VITE_DEV_AUTO_LOGIN', 'true')
+    vi.stubEnv('VITE_DEV_AUTO_LOGIN_USERNAME', 'admin')
+    vi.stubEnv('VITE_DEV_AUTO_LOGIN_PASSWORD', 'changeme')
+
+    const store = useAuthStore()
+    store.logout({ preventDevAutoLogin: true })
+
+    const result = await store.maybeAutoLoginForDev()
+
+    expect(result).toBe(false)
+    expect(mockLoginApi).not.toHaveBeenCalled()
+  })
+
   it('initFromStorage restores tokens from localStorage', () => {
     localStorage.setItem('access_token', mockTokens.access_token)
     localStorage.setItem('refresh_token', mockTokens.refresh_token)
@@ -170,5 +185,16 @@ describe('useAuthStore', () => {
     expect(result).toBe(true)
     expect(mockLoginApi).toHaveBeenCalledWith({ username: 'admin', password: 'changeme' })
     expect(store.user).toEqual(mockUser)
+  })
+
+  it('successful manual login clears dev auto login suppression', async () => {
+    sessionStorage.setItem('dev_auto_login_suppressed', 'true')
+    mockLoginApi.mockResolvedValueOnce(mockTokens)
+    mockGetMeApi.mockResolvedValueOnce(mockUser)
+
+    const store = useAuthStore()
+    await store.login('readonly', 'password')
+
+    expect(sessionStorage.getItem('dev_auto_login_suppressed')).toBeNull()
   })
 })
