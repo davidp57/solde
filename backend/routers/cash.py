@@ -1,5 +1,6 @@
 """Cash register API router — journal entries, balance and cash counts."""
 
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -43,10 +44,18 @@ async def get_balance(
 async def list_entries(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int | None = Query(default=None, ge=1),
 ) -> list[CashEntryRead]:
-    return await cash_service.list_cash_entries(db, skip=skip, limit=limit)  # type: ignore[return-value]
+    return await cash_service.list_cash_entries(
+        db,
+        from_date=from_date,
+        to_date=to_date,
+        skip=skip,
+        limit=limit,
+    )  # type: ignore[return-value]
 
 
 @router.post("/entries", response_model=CashEntryRead, status_code=status.HTTP_201_CREATED)
@@ -87,10 +96,18 @@ async def update_entry(
 async def list_counts(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
+    from_date: date | None = Query(default=None),
+    to_date: date | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int | None = Query(default=None, ge=1),
 ) -> list[CashCountRead]:
-    return await cash_service.list_cash_counts(db, skip=skip, limit=limit)  # type: ignore[return-value]
+    return await cash_service.list_cash_counts(
+        db,
+        from_date=from_date,
+        to_date=to_date,
+        skip=skip,
+        limit=limit,
+    )  # type: ignore[return-value]
 
 
 @router.post("/counts", response_model=CashCountRead, status_code=status.HTTP_201_CREATED)

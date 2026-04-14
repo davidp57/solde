@@ -31,11 +31,11 @@
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_from') }}</label>
-            <InputText v-model="fromDate" type="date" />
+            <AppDateInput v-model="fromDate" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_to') }}</label>
-            <InputText v-model="toDate" type="date" />
+            <AppDateInput v-model="toDate" />
           </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
@@ -197,6 +197,7 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
+import AppDateInput from '../components/ui/AppDateInput.vue'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'

@@ -113,6 +113,51 @@ async def test_list_entries_returns_all_rows_when_limit_is_omitted(
 
 
 @pytest.mark.asyncio
+async def test_list_entries_filters_by_date_range(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+    db_session: AsyncSession,
+) -> None:
+    db_session.add_all(
+        [
+            CashRegister(
+                date=date(2024, 1, 15),
+                amount=Decimal("10.00"),
+                type=CashMovementType.IN,
+                description="Before range",
+                balance_after=Decimal("10.00"),
+            ),
+            CashRegister(
+                date=date(2024, 3, 15),
+                amount=Decimal("20.00"),
+                type=CashMovementType.IN,
+                description="Inside range",
+                balance_after=Decimal("30.00"),
+            ),
+            CashRegister(
+                date=date(2024, 5, 15),
+                amount=Decimal("30.00"),
+                type=CashMovementType.IN,
+                description="After range",
+                balance_after=Decimal("60.00"),
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/cash/entries?from_date=2024-02-01&to_date=2024-04-30",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["description"] == "Inside range"
+
+
+@pytest.mark.asyncio
 async def test_get_entry(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     created = await client.post(
         "/api/cash/entries",
@@ -240,3 +285,45 @@ async def test_list_cash_counts_returns_all_rows_when_limit_is_omitted(
 
     assert response.status_code == 200
     assert len(response.json()) == 51
+
+
+@pytest.mark.asyncio
+async def test_list_cash_counts_filters_by_date_range(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+    db_session: AsyncSession,
+) -> None:
+    db_session.add_all(
+        [
+            CashCount(
+                date=date(2024, 1, 31),
+                total_counted=Decimal("10.00"),
+                balance_expected=Decimal("10.00"),
+                difference=Decimal("0.00"),
+            ),
+            CashCount(
+                date=date(2024, 3, 31),
+                total_counted=Decimal("20.00"),
+                balance_expected=Decimal("20.00"),
+                difference=Decimal("0.00"),
+            ),
+            CashCount(
+                date=date(2024, 5, 31),
+                total_counted=Decimal("30.00"),
+                balance_expected=Decimal("30.00"),
+                difference=Decimal("0.00"),
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/cash/counts?from_date=2024-02-01&to_date=2024-04-30",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["total_counted"] == "20.00"

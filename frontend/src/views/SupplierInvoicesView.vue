@@ -1,5 +1,5 @@
 <template>
-  <AppPage>
+  <AppPage width="wide">
     <AppPageHeader
       :eyebrow="t('ui.page.collection_eyebrow')"
       :title="t('invoices.supplier.title')"
@@ -564,7 +564,20 @@ onMounted(async () => {
 
 <style scoped>
 .supplier-invoices-table__actions {
-  width: 9rem;
+  width: 11.5rem;
+  min-width: 11.5rem;
+}
+
+:deep(.supplier-invoices-table .supplier-invoices-table__actions) {
+  white-space: nowrap;
+  width: 11.5rem;
+  min-width: 11.5rem;
+}
+
+:deep(.supplier-invoices-table .app-inline-actions) {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  min-width: 10rem;
 }
 
 .upload-dialog {

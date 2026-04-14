@@ -2,8 +2,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --app-page-max-width: 1180px;
-  --app-page-wide-max-width: 1360px;
+  --app-page-max-width: 1320px;
+  --app-page-wide-max-width: 1640px;
   --app-page-padding: clamp(1rem, 1.2vw + 0.8rem, 1.75rem);
   --app-space-1: 0.25rem;
   --app-space-2: 0.5rem;
