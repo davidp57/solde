@@ -31,9 +31,7 @@ const activeItemBg = computed(() =>
 const activeItemColor = computed(() =>
   isDark.value ? 'var(--p-primary-300)' : 'var(--p-primary-color)',
 )
-const hoverBg = computed(() =>
-  isDark.value ? 'var(--p-surface-800)' : 'var(--p-surface-100)',
-)
+const hoverBg = computed(() => (isDark.value ? 'var(--p-surface-800)' : 'var(--p-surface-100)'))
 
 const menuItems = computed(() => {
   const items = [
@@ -51,7 +49,11 @@ const menuItems = computed(() => {
     { to: '/accounting/bilan', icon: 'pi-chart-line', label: t('nav.accounting_bilan') },
     { to: '/accounting/accounts', icon: 'pi-database', label: t('nav.accounting_accounts') },
     { to: '/accounting/rules', icon: 'pi-sliders-h', label: t('nav.accounting_rules') },
-    { to: '/accounting/fiscal-years', icon: 'pi-calendar', label: t('nav.accounting_fiscal_years') },
+    {
+      to: '/accounting/fiscal-years',
+      icon: 'pi-calendar',
+      label: t('nav.accounting_fiscal_years'),
+    },
     { to: '/salaries', icon: 'pi-id-card', label: t('nav.salaries') },
     { to: '/import/excel', icon: 'pi-file-excel', label: t('nav.import_excel') },
   ]

@@ -58,7 +58,9 @@
         <div class="sidebar-footer">
           <div class="sidebar-user">
             <span class="sidebar-username">{{ auth.user?.username }}</span>
-            <span class="sidebar-role">{{ auth.user?.role ? t(`user.role.${auth.user.role}`) : '' }}</span>
+            <span class="sidebar-role">{{
+              auth.user?.role ? t(`user.role.${auth.user.role}`) : ''
+            }}</span>
           </div>
           <Button
             :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
@@ -114,9 +116,9 @@ const selectedFiscalYearOptionId = computed<number | null>({
 })
 
 // Reactive backgrounds for dark/light mode (v-bind in CSS)
-const panelBg = computed(() => isDark.value ? 'var(--p-surface-900)' : 'var(--p-surface-0)')
-const mainBg = computed(() => isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-50)')
-const borderColor = computed(() => isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)')
+const panelBg = computed(() => (isDark.value ? 'var(--p-surface-900)' : 'var(--p-surface-0)'))
+const mainBg = computed(() => (isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-50)'))
+const borderColor = computed(() => (isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)'))
 
 async function handleLogout(): Promise<void> {
   auth.logout()
@@ -209,7 +211,6 @@ onMounted(() => {
   border-right: 1px solid v-bind(borderColor);
   min-height: calc(100vh - 53px);
 }
-
 
 .sidebar-footer {
   margin-top: auto;

@@ -3,22 +3,22 @@
     <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('bilan.title')">
       <template #actions>
         <div class="app-page-header__actions">
-        <Select
-          v-model="fiscalYearId"
-          :options="fiscalYears"
-          option-label="name"
-          option-value="id"
-          :placeholder="t('accounting.fiscalYear.name')"
-          class="w-48"
-          @change="loadBilan"
-        />
-        <Button
-          :label="t('bilan.export_csv')"
-          icon="pi pi-download"
-          severity="secondary"
-          outlined
-          @click="downloadCsv"
-        />
+          <Select
+            v-model="fiscalYearId"
+            :options="fiscalYears"
+            option-label="name"
+            option-value="id"
+            :placeholder="t('accounting.fiscalYear.name')"
+            class="w-48"
+            @change="loadBilan"
+          />
+          <Button
+            :label="t('bilan.export_csv')"
+            icon="pi pi-download"
+            severity="secondary"
+            outlined
+            @click="downloadCsv"
+          />
         </div>
       </template>
     </AppPageHeader>
@@ -30,35 +30,73 @@
     <div v-else-if="bilan" class="bilan-grid">
       <!-- Actif -->
       <AppPanel :title="t('bilan.actif')" dense>
-          <DataTable :value="bilan.actif" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small" row-hover>
-            <Column field="account_number" :header="t('accounting.accounts.number')" style="width:8rem" />
-            <Column field="account_label" :header="t('accounting.accounts.label')" />
-            <Column field="solde" :header="t('accounting.balance.solde')" style="width:9rem" class="app-money">
-              <template #body="{ data }">{{ formatAmount(data.solde) }}</template>
-            </Column>
-          </DataTable>
-          <div class="mt-3 flex justify-end font-semibold text-base border-t pt-2">
-            <span>{{ t('bilan.total_actif') }} : {{ formatAmount(bilan.total_actif) }} €</span>
-          </div>
+        <DataTable
+          :value="bilan.actif"
+          class="app-data-table"
+          striped-rows
+          paginator
+          :rows="20"
+          :rows-per-page-options="[20, 50, 100, 500]"
+          size="small"
+          row-hover
+        >
+          <Column
+            field="account_number"
+            :header="t('accounting.accounts.number')"
+            style="width: 8rem"
+          />
+          <Column field="account_label" :header="t('accounting.accounts.label')" />
+          <Column
+            field="solde"
+            :header="t('accounting.balance.solde')"
+            style="width: 9rem"
+            class="app-money"
+          >
+            <template #body="{ data }">{{ formatAmount(data.solde) }}</template>
+          </Column>
+        </DataTable>
+        <div class="mt-3 flex justify-end font-semibold text-base border-t pt-2">
+          <span>{{ t('bilan.total_actif') }} : {{ formatAmount(bilan.total_actif) }} €</span>
+        </div>
       </AppPanel>
 
       <!-- Passif -->
       <AppPanel :title="t('bilan.passif')" dense>
-          <DataTable :value="bilan.passif" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small" row-hover>
-            <Column field="account_number" :header="t('accounting.accounts.number')" style="width:8rem" />
-            <Column field="account_label" :header="t('accounting.accounts.label')" />
-            <Column field="solde" :header="t('accounting.balance.solde')" style="width:9rem" class="app-money">
-              <template #body="{ data }">{{ formatAmount(data.solde) }}</template>
-            </Column>
-          </DataTable>
-          <div class="mt-3 flex flex-col items-end gap-1 border-t pt-2">
-            <span class="font-semibold text-base">
-              {{ t('bilan.total_passif') }} : {{ formatAmount(bilan.total_passif) }} €
-            </span>
-            <span :class="['text-sm', Number(bilan.resultat) >= 0 ? 'text-green-600' : 'text-red-600']">
-              {{ t('bilan.resultat') }} : {{ formatAmount(bilan.resultat) }} €
-            </span>
-          </div>
+        <DataTable
+          :value="bilan.passif"
+          class="app-data-table"
+          striped-rows
+          paginator
+          :rows="20"
+          :rows-per-page-options="[20, 50, 100, 500]"
+          size="small"
+          row-hover
+        >
+          <Column
+            field="account_number"
+            :header="t('accounting.accounts.number')"
+            style="width: 8rem"
+          />
+          <Column field="account_label" :header="t('accounting.accounts.label')" />
+          <Column
+            field="solde"
+            :header="t('accounting.balance.solde')"
+            style="width: 9rem"
+            class="app-money"
+          >
+            <template #body="{ data }">{{ formatAmount(data.solde) }}</template>
+          </Column>
+        </DataTable>
+        <div class="mt-3 flex flex-col items-end gap-1 border-t pt-2">
+          <span class="font-semibold text-base">
+            {{ t('bilan.total_passif') }} : {{ formatAmount(bilan.total_passif) }} €
+          </span>
+          <span
+            :class="['text-sm', Number(bilan.resultat) >= 0 ? 'text-green-600' : 'text-red-600']"
+          >
+            {{ t('bilan.resultat') }} : {{ formatAmount(bilan.resultat) }} €
+          </span>
+        </div>
       </AppPanel>
     </div>
 

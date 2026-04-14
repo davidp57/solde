@@ -2,7 +2,11 @@
   <form class="app-dialog-form" @submit.prevent="submit">
     <section class="app-dialog-intro">
       <p class="app-dialog-intro__eyebrow">{{ t('invoices.supplier.title') }}</p>
-      <p class="app-dialog-intro__text">{{ t(isEditing ? 'invoices.supplier.form_intro_edit' : 'invoices.supplier.form_intro_create') }}</p>
+      <p class="app-dialog-intro__text">
+        {{
+          t(isEditing ? 'invoices.supplier.form_intro_edit' : 'invoices.supplier.form_intro_create')
+        }}
+      </p>
     </section>
 
     <section class="app-dialog-section">
@@ -70,16 +74,16 @@
       </div>
     </section>
 
-      <div class="app-form-actions">
-        <Button
-          :label="t('common.cancel')"
-          severity="secondary"
-          type="button"
-          outlined
-          @click="emit('cancel')"
-        />
-        <Button :label="t('common.save')" type="submit" :loading="saving" />
-      </div>
+    <div class="app-form-actions">
+      <Button
+        :label="t('common.cancel')"
+        severity="secondary"
+        type="button"
+        outlined
+        @click="emit('cancel')"
+      />
+      <Button :label="t('common.save')" type="submit" :loading="saving" />
+    </div>
   </form>
 </template>
 

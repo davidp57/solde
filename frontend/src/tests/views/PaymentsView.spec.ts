@@ -123,7 +123,8 @@ const InputTextStub = defineComponent({
         type: props.type,
         value: props.modelValue ?? '',
         disabled: props.disabled,
-        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+        onInput: (event: Event) =>
+          emit('update:modelValue', (event.target as HTMLInputElement).value),
         onBlur: () => emit('blur'),
       })
   },
@@ -153,7 +154,11 @@ const SelectStub = defineComponent({
         [
           h('option', { value: '' }, ''),
           ...(props.options as Array<Record<string, string>>).map((option) =>
-            h('option', { key: option[props.optionValue], value: option[props.optionValue] }, option[props.optionLabel]),
+            h(
+              'option',
+              { key: option[props.optionValue], value: option[props.optionValue] },
+              option[props.optionLabel],
+            ),
           ),
         ],
       )

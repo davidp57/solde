@@ -1,6 +1,9 @@
 <template>
   <AppPage width="wide">
-    <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('accounting.ledger.title')" />
+    <AppPageHeader
+      :eyebrow="t('ui.page.accounting_eyebrow')"
+      :title="t('accounting.ledger.title')"
+    />
 
     <AppPanel :title="t('accounting.ledger.title')" dense>
       <div class="app-toolbar">
@@ -48,24 +51,44 @@
 
       <template v-if="ledger">
         <section class="app-stat-grid ledger-summary-grid">
-          <AppStatCard :label="t('accounting.ledger.opening_balance')" :value="ledger.opening_balance" />
-          <AppStatCard :label="t('accounting.ledger.closing_balance')" :value="ledger.closing_balance" />
+          <AppStatCard
+            :label="t('accounting.ledger.opening_balance')"
+            :value="ledger.opening_balance"
+          />
+          <AppStatCard
+            :label="t('accounting.ledger.closing_balance')"
+            :value="ledger.closing_balance"
+          />
           <AppStatCard :label="t('accounting.journal.title')" :value="ledger.entries.length" />
         </section>
 
-        <DataTable :value="ledger.entries" :loading="loading" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small" row-hover>
-        <Column field="date" :header="t('accounting.journal.date')" sortable>
-          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
-        </Column>
-        <Column field="entry_number" :header="t('accounting.journal.entry_number')" />
-        <Column field="label" :header="t('accounting.journal.label')" />
-        <Column field="debit" :header="t('accounting.journal.debit')" class="app-money">
-          <template #body="{ data }">{{ data.debit !== '0.00' ? data.debit : '' }}</template>
-        </Column>
-        <Column field="credit" :header="t('accounting.journal.credit')" class="app-money">
-          <template #body="{ data }">{{ data.credit !== '0.00' ? data.credit : '' }}</template>
-        </Column>
-        <Column field="running_balance" :header="t('accounting.balance.solde')" class="app-money" />
+        <DataTable
+          :value="ledger.entries"
+          :loading="loading"
+          class="app-data-table"
+          striped-rows
+          paginator
+          :rows="20"
+          :rows-per-page-options="[20, 50, 100, 500]"
+          size="small"
+          row-hover
+        >
+          <Column field="date" :header="t('accounting.journal.date')" sortable>
+            <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+          </Column>
+          <Column field="entry_number" :header="t('accounting.journal.entry_number')" />
+          <Column field="label" :header="t('accounting.journal.label')" />
+          <Column field="debit" :header="t('accounting.journal.debit')" class="app-money">
+            <template #body="{ data }">{{ data.debit !== '0.00' ? data.debit : '' }}</template>
+          </Column>
+          <Column field="credit" :header="t('accounting.journal.credit')" class="app-money">
+            <template #body="{ data }">{{ data.credit !== '0.00' ? data.credit : '' }}</template>
+          </Column>
+          <Column
+            field="running_balance"
+            :header="t('accounting.balance.solde')"
+            class="app-money"
+          />
           <template #empty>
             <div class="app-empty-state">{{ t('accounting.ledger.empty') }}</div>
           </template>

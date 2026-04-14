@@ -102,10 +102,7 @@ export async function updateInvoiceApi(id: number, data: InvoiceUpdate): Promise
   return response.data
 }
 
-export async function updateInvoiceStatusApi(
-  id: number,
-  status: InvoiceStatus,
-): Promise<Invoice> {
+export async function updateInvoiceStatusApi(id: number, status: InvoiceStatus): Promise<Invoice> {
   const response = await apiClient.patch<Invoice>(`/api/invoices/${id}/status`, { status })
   return response.data
 }

@@ -178,6 +178,8 @@ describe('AccountingJournalView', () => {
     const wrapper = mountView()
     await flushView()
 
-    expect(wrapper.get('[data-testid="journal-source-tag"]').attributes('data-severity')).toBe('secondary')
+    expect(wrapper.get('[data-testid="journal-source-tag"]').attributes('data-severity')).toBe(
+      'secondary',
+    )
   })
 })

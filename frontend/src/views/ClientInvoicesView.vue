@@ -19,27 +19,40 @@
       <AppStatCard
         :label="t('invoices.client.metrics.total_amount')"
         :value="formatAmount(portfolioMetrics.totalAmount) + ' €'"
-        :caption="t('invoices.client.metrics.average_amount', { amount: formatAmount(portfolioMetrics.averageAmount) })"
+        :caption="
+          t('invoices.client.metrics.average_amount', {
+            amount: formatAmount(portfolioMetrics.averageAmount),
+          })
+        "
       />
       <AppStatCard
         :label="t('invoices.client.metrics.paid_amount')"
         :value="formatAmount(portfolioMetrics.paidAmount) + ' €'"
-        :caption="t('invoices.client.metrics.partial_count', { count: portfolioMetrics.partialCount })"
+        :caption="
+          t('invoices.client.metrics.partial_count', { count: portfolioMetrics.partialCount })
+        "
         tone="success"
       />
       <AppStatCard
         :label="t('invoices.client.metrics.overdue_amount')"
         :value="formatAmount(portfolioMetrics.overdueAmount) + ' €'"
-        :caption="t('invoices.client.metrics.overdue_count', { count: portfolioMetrics.overdueCount })"
+        :caption="
+          t('invoices.client.metrics.overdue_count', { count: portfolioMetrics.overdueCount })
+        "
         :tone="portfolioMetrics.overdueCount > 0 ? 'danger' : 'warn'"
       />
     </section>
 
-    <AppPanel :title="t('invoices.client.portfolio_title')" :subtitle="t('invoices.client.portfolio_subtitle')">
+    <AppPanel
+      :title="t('invoices.client.portfolio_title')"
+      :subtitle="t('invoices.client.portfolio_subtitle')"
+    >
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('invoices.client.filters_hint') }}</p>
-          <span class="app-chip">{{ t('invoices.client.results_label', { count: filteredInvoices.length }) }}</span>
+          <span class="app-chip">{{
+            t('invoices.client.results_label', { count: filteredInvoices.length })
+          }}</span>
         </div>
 
         <div class="app-filter-grid">
@@ -187,25 +200,44 @@
         <div class="history-dialog__summary">
           <div class="history-dialog__metric">
             <div class="history-dialog__label">{{ t('invoices.total') }}</div>
-            <div class="history-dialog__value">{{ formatAmount(historyInvoice.total_amount) }} €</div>
+            <div class="history-dialog__value">
+              {{ formatAmount(historyInvoice.total_amount) }} €
+            </div>
           </div>
           <div class="history-dialog__metric">
             <div class="history-dialog__label">{{ t('invoices.paid') }}</div>
-            <div class="history-dialog__value history-dialog__value--success">{{ formatAmount(historyInvoice.paid_amount) }} €</div>
+            <div class="history-dialog__value history-dialog__value--success">
+              {{ formatAmount(historyInvoice.paid_amount) }} €
+            </div>
           </div>
           <div class="history-dialog__metric">
             <div class="history-dialog__label">{{ t('invoices.remaining') }}</div>
-            <div class="history-dialog__value" :class="remaining > 0 ? 'history-dialog__value--warn' : 'history-dialog__value--success'">
+            <div
+              class="history-dialog__value"
+              :class="
+                remaining > 0 ? 'history-dialog__value--warn' : 'history-dialog__value--success'
+              "
+            >
               {{ remaining.toFixed(2) }} €
             </div>
           </div>
         </div>
 
-        <div v-if="historyLoading" class="history-dialog__loading"><ProgressSpinner style="width:32px;height:32px"/></div>
+        <div v-if="historyLoading" class="history-dialog__loading">
+          <ProgressSpinner style="width: 32px; height: 32px" />
+        </div>
         <div v-else-if="historyPayments.length === 0" class="app-empty-state">
           {{ t('invoices.no_payments') }}
         </div>
-        <DataTable v-else :value="historyPayments" class="app-data-table" paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small">
+        <DataTable
+          v-else
+          :value="historyPayments"
+          class="app-data-table"
+          paginator
+          :rows="20"
+          :rows-per-page-options="[20, 50, 100, 500]"
+          size="small"
+        >
           <Column field="date" :header="t('payments.date')">
             <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
           </Column>
@@ -281,7 +313,9 @@ const historyPayments = ref<Payment[]>([])
 
 const remaining = computed(() => {
   if (!historyInvoice.value) return 0
-  return parseFloat(historyInvoice.value.total_amount) - parseFloat(historyInvoice.value.paid_amount)
+  return (
+    parseFloat(historyInvoice.value.total_amount) - parseFloat(historyInvoice.value.paid_amount)
+  )
 })
 
 const portfolioMetrics = computed(() => {
@@ -353,7 +387,9 @@ async function loadInvoices() {
 }
 
 function openInvoiceFromQuery() {
-  const rawInvoiceId = Array.isArray(route.query.invoiceId) ? route.query.invoiceId[0] : route.query.invoiceId
+  const rawInvoiceId = Array.isArray(route.query.invoiceId)
+    ? route.query.invoiceId[0]
+    : route.query.invoiceId
   const invoiceId = Number(rawInvoiceId)
   if (!invoiceId) return
   const invoice = invoices.value.find((candidate) => candidate.id === invoiceId)

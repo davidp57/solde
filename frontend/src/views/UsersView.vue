@@ -11,9 +11,23 @@
     </AppPageHeader>
 
     <section class="app-stat-grid">
-      <AppStatCard :label="t('users.stats.total')" :value="users.length" :caption="t('users.results_label', { count: users.length })" />
-      <AppStatCard :label="t('users.stats.active')" :value="activeCount" :caption="t('users.status_values.active')" tone="success" />
-      <AppStatCard :label="t('users.stats.admins')" :value="adminCount" :caption="t('users.role_cards.admin.title')" tone="warn" />
+      <AppStatCard
+        :label="t('users.stats.total')"
+        :value="users.length"
+        :caption="t('users.results_label', { count: users.length })"
+      />
+      <AppStatCard
+        :label="t('users.stats.active')"
+        :value="activeCount"
+        :caption="t('users.status_values.active')"
+        tone="success"
+      />
+      <AppStatCard
+        :label="t('users.stats.admins')"
+        :value="adminCount"
+        :caption="t('users.role_cards.admin.title')"
+        tone="warn"
+      />
     </section>
 
     <AppPanel :title="t('users.matrix_title')" :subtitle="t('users.matrix_subtitle')">
@@ -57,7 +71,9 @@
         <Column field="is_active" :header="t('users.status')">
           <template #body="{ data }">
             <Tag
-              :value="data.is_active ? t('users.status_values.active') : t('users.status_values.inactive')"
+              :value="
+                data.is_active ? t('users.status_values.active') : t('users.status_values.inactive')
+              "
               :severity="data.is_active ? 'success' : 'contrast'"
             />
           </template>
@@ -94,15 +110,24 @@
     >
       <form class="app-form-stack" @submit.prevent="submitCreate">
         <div class="app-field">
-          <label class="app-field__label" for="user-create-username">{{ t('users.username') }}</label>
+          <label class="app-field__label" for="user-create-username">{{
+            t('users.username')
+          }}</label>
           <InputText id="user-create-username" v-model="createForm.username" class="w-full" />
         </div>
         <div class="app-field">
           <label class="app-field__label" for="user-create-email">{{ t('users.email') }}</label>
-          <InputText id="user-create-email" v-model="createForm.email" type="email" class="w-full" />
+          <InputText
+            id="user-create-email"
+            v-model="createForm.email"
+            type="email"
+            class="w-full"
+          />
         </div>
         <div class="app-field">
-          <label class="app-field__label" for="user-create-password">{{ t('users.password') }}</label>
+          <label class="app-field__label" for="user-create-password">{{
+            t('users.password')
+          }}</label>
           <Password
             id="user-create-password"
             v-model="createForm.password"
@@ -125,8 +150,18 @@
           />
         </div>
         <div class="app-form-actions">
-          <Button type="button" :label="t('common.cancel')" severity="secondary" @click="closeCreateDialog" />
-          <Button type="submit" :label="t('users.save')" :disabled="!canCreate" :loading="savingCreate" />
+          <Button
+            type="button"
+            :label="t('common.cancel')"
+            severity="secondary"
+            @click="closeCreateDialog"
+          />
+          <Button
+            type="submit"
+            :label="t('users.save')"
+            :disabled="!canCreate"
+            :loading="savingCreate"
+          />
         </div>
       </form>
     </Dialog>
@@ -159,13 +194,29 @@
           />
         </div>
         <div class="users-switch-row">
-          <ToggleSwitch id="user-edit-active" v-model="editForm.is_active" :disabled="isEditingSelf" />
+          <ToggleSwitch
+            id="user-edit-active"
+            v-model="editForm.is_active"
+            :disabled="isEditingSelf"
+          />
           <label for="user-edit-active" class="app-field__label">{{ t('users.active') }}</label>
         </div>
-        <Message v-if="isEditingSelf" severity="warn" :closable="false">{{ t('users.self_guard') }}</Message>
+        <Message v-if="isEditingSelf" severity="warn" :closable="false">{{
+          t('users.self_guard')
+        }}</Message>
         <div class="app-form-actions">
-          <Button type="button" :label="t('common.cancel')" severity="secondary" @click="closeEditDialog" />
-          <Button type="submit" :label="t('users.update')" :disabled="!canEdit" :loading="savingEdit" />
+          <Button
+            type="button"
+            :label="t('common.cancel')"
+            severity="secondary"
+            @click="closeEditDialog"
+          />
+          <Button
+            type="submit"
+            :label="t('users.update')"
+            :disabled="!canEdit"
+            :loading="savingEdit"
+          />
         </div>
       </form>
     </Dialog>
@@ -291,7 +342,9 @@ const roleDefinitions = computed<RoleDefinition[]>(() => [
   },
 ])
 
-const roleOptions = computed(() => roleDefinitions.value.map((role) => ({ value: role.value, label: role.title })))
+const roleOptions = computed(() =>
+  roleDefinitions.value.map((role) => ({ value: role.value, label: role.title })),
+)
 
 const roleCards = computed(() => roleDefinitions.value)
 
@@ -300,9 +353,9 @@ const adminCount = computed(() => users.value.filter((user) => user.role === 'ad
 const isEditingSelf = computed(() => editingUser.value?.id === auth.user?.id)
 const canCreate = computed(() => {
   return (
-    createForm.value.username.trim().length > 0
-    && createForm.value.email.trim().length > 0
-    && createForm.value.password.length >= 8
+    createForm.value.username.trim().length > 0 &&
+    createForm.value.email.trim().length > 0 &&
+    createForm.value.password.length >= 8
   )
 })
 const canEdit = computed(() => {
@@ -310,8 +363,8 @@ const canEdit = computed(() => {
     return false
   }
   return (
-    editForm.value.role !== editingUser.value.role
-    || editForm.value.is_active !== editingUser.value.is_active
+    editForm.value.role !== editingUser.value.role ||
+    editForm.value.is_active !== editingUser.value.is_active
   )
 })
 
@@ -335,7 +388,8 @@ function formatDate(value: string): string {
 
 function getApiErrorSummary(error: unknown): string {
   const status = (error as { response?: { status?: number } }).response?.status
-  const detail = (error as { response?: { data?: { detail?: string | ApiErrorDetail } } }).response?.data?.detail
+  const detail = (error as { response?: { data?: { detail?: string | ApiErrorDetail } } }).response
+    ?.data?.detail
 
   if (typeof detail === 'object' && detail !== null && typeof detail.code === 'string') {
     const translationKey = userApiErrorMessages[detail.code]
@@ -402,7 +456,11 @@ async function submitCreate(): Promise<void> {
 
   savingCreate.value = true
   try {
-    await createUserApi({ ...createForm.value, username: createForm.value.username.trim(), email: createForm.value.email.trim() })
+    await createUserApi({
+      ...createForm.value,
+      username: createForm.value.username.trim(),
+      email: createForm.value.email.trim(),
+    })
     toast.add({ severity: 'success', summary: t('users.created'), life: 3000 })
     closeCreateDialog()
     await loadUsers()

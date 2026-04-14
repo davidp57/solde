@@ -1,6 +1,9 @@
 <template>
   <AppPage width="wide">
-    <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('accounting.balance.title')" />
+    <AppPageHeader
+      :eyebrow="t('ui.page.accounting_eyebrow')"
+      :title="t('accounting.balance.title')"
+    />
 
     <AppPanel :title="t('accounting.balance.title')" dense>
       <div class="app-toolbar">
@@ -34,15 +37,35 @@
         </div>
       </div>
 
-      <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small" row-hover>
-      <Column field="account_number" :header="t('accounting.balance.account_number')" sortable />
-      <Column field="account_label" :header="t('accounting.balance.account_label')" />
-      <Column field="account_type" :header="t('accounting.balance.account_type')">
-        <template #body="{ data }">{{ t(`accounting.account_types.${data.account_type}`) }}</template>
-      </Column>
-      <Column field="total_debit" :header="t('accounting.balance.total_debit')" class="app-money" />
-      <Column field="total_credit" :header="t('accounting.balance.total_credit')" class="app-money" />
-      <Column field="solde" :header="t('accounting.balance.solde')" class="app-money" />
+      <DataTable
+        :value="filtered"
+        :loading="loading"
+        class="app-data-table"
+        striped-rows
+        paginator
+        :rows="20"
+        :rows-per-page-options="[20, 50, 100, 500]"
+        size="small"
+        row-hover
+      >
+        <Column field="account_number" :header="t('accounting.balance.account_number')" sortable />
+        <Column field="account_label" :header="t('accounting.balance.account_label')" />
+        <Column field="account_type" :header="t('accounting.balance.account_type')">
+          <template #body="{ data }">{{
+            t(`accounting.account_types.${data.account_type}`)
+          }}</template>
+        </Column>
+        <Column
+          field="total_debit"
+          :header="t('accounting.balance.total_debit')"
+          class="app-money"
+        />
+        <Column
+          field="total_credit"
+          :header="t('accounting.balance.total_credit')"
+          class="app-money"
+        />
+        <Column field="solde" :header="t('accounting.balance.solde')" class="app-money" />
         <template #empty>
           <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
         </template>
