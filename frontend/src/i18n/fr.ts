@@ -138,6 +138,19 @@ export default {
     all: 'Tous',
     actions: 'Actions',
     filter_placeholder: 'Rechercher…',
+    list: {
+      count_total: '{count} élément(s)',
+      count_filtered: '{shown} sur {total}',
+      search_chip: 'Recherche : {query}',
+      filter_chip: 'Filtre : {label}',
+      status: {
+        loading: 'Mise à jour de la liste en cours.',
+        empty: 'Aucun élément à afficher pour le moment.',
+        filtered_empty: 'Aucun résultat ne correspond aux filtres actifs.',
+        filtered_scope: 'Affichage restreint par les filtres et la recherche en cours.',
+        full_scope: 'Affichage complet sur le périmètre actuellement chargé.',
+      },
+    },
     error: {
       unknown: 'Une erreur est survenue.',
       forbidden: 'Accès refusé.',

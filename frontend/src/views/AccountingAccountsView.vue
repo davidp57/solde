@@ -35,6 +35,16 @@
       </div>
 
       <div class="app-toolbar">
+        <div class="app-toolbar__meta">
+          <AppListState
+            :displayed-count="filtered.length"
+            :total-count="accounts.length"
+            :loading="loading"
+            :search-text="filterText"
+            :active-filters="activeFilterLabels"
+          />
+        </div>
+
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
@@ -62,7 +72,7 @@
           style="width: 8rem"
         />
         <Column field="label" :header="t('accounting.accounts.label')" sortable />
-        <Column field="type" :header="t('accounting.accounts.type')" style="width: 7rem">
+        <Column field="type" :header="t('accounting.accounts.type')" style="width: 7rem" sortable>
           <template #body="{ data }">
             <Tag
               :value="t(`accounting.account_types.${data.type}`)"
@@ -70,7 +80,12 @@
             />
           </template>
         </Column>
-        <Column field="is_default" :header="t('accounting.accounts.default')" style="width: 6rem">
+        <Column
+          field="is_default"
+          :header="t('accounting.accounts.default')"
+          style="width: 6rem"
+          sortable
+        >
           <template #body="{ data }">
             <i v-if="data.is_default" class="pi pi-check text-green-500" />
           </template>
@@ -115,8 +130,9 @@ import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppListState from '@/components/ui/AppListState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
@@ -147,6 +163,13 @@ const typeOptions: Array<{ label: string; value: AccountType | undefined }> = [
   { label: t('accounting.account_types.charge'), value: 'charge' },
   { label: t('accounting.account_types.produit'), value: 'produit' },
 ]
+
+const activeFilterLabels = computed(() => {
+  if (!typeFilter.value) return []
+
+  const selectedOption = typeOptions.find((option) => option.value === typeFilter.value)
+  return selectedOption ? [selectedOption.label] : [String(typeFilter.value)]
+})
 
 function applyTypeFilter(nextType: AccountType | undefined): void {
   typeFilter.value = nextType

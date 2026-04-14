@@ -13,6 +13,15 @@
 
     <AppPanel :title="t('accounting.rules.title')" dense>
       <div class="app-toolbar">
+        <div class="app-toolbar__meta">
+          <AppListState
+            :displayed-count="filtered.length"
+            :total-count="rules.length"
+            :loading="loading"
+            :search-text="filterText"
+          />
+        </div>
+
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
@@ -32,9 +41,9 @@
         size="small"
         row-hover
       >
-        <Column field="trigger_type" :header="t('accounting.rules.trigger_type')" />
-        <Column field="name" :header="t('accounting.rules.name')" />
-        <Column field="is_active" :header="t('accounting.rules.active')">
+        <Column field="trigger_type" :header="t('accounting.rules.trigger_type')" sortable />
+        <Column field="name" :header="t('accounting.rules.name')" sortable />
+        <Column field="is_active" :header="t('accounting.rules.active')" sortable>
           <template #body="{ data }">
             <Tag
               :value="
@@ -44,7 +53,7 @@
             />
           </template>
         </Column>
-        <Column field="priority" :header="t('accounting.rules.priority')" />
+        <Column field="priority" :header="t('accounting.rules.priority')" sortable />
         <Column :header="t('common.actions')">
           <template #body="{ data }">
             <Button
@@ -76,6 +85,7 @@ import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
+import AppListState from '../components/ui/AppListState.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
