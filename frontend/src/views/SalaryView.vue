@@ -98,10 +98,13 @@
           :show-filter-match-modes="false"
           :show-add-button="false"
         >
+          <template #body="{ data }">{{ formatDisplayMonth(data.month) }}</template>
           <template #filter="{ filterModel }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
               :options="salaryMonthOptions"
+              option-label="label"
+              option-value="value"
               :placeholder="t('common.all')"
               show-clear
             />
@@ -183,7 +186,7 @@
           </template>
         </Column>
         <template #empty
-          ><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template
+          ><div class="app-empty-state">{{ t('salary.empty') }}</div></template
         >
       </DataTable>
     </AppPanel>
@@ -220,10 +223,13 @@
           :show-filter-match-modes="false"
           :show-add-button="false"
         >
+          <template #body="{ data }">{{ formatDisplayMonth(data.month) }}</template>
           <template #filter="{ filterModel }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
               :options="summaryMonthOptions"
+              option-label="label"
+              option-value="value"
               :placeholder="t('common.all')"
               show-clear
             />
@@ -298,7 +304,7 @@
           </template>
         </Column>
         <template #empty
-          ><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template
+          ><div class="app-empty-state">{{ t('salary.empty') }}</div></template
         >
       </DataTable>
     </AppPanel>
@@ -432,6 +438,7 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatDisplayMonth } from '../utils/format'
 
 const { t } = useI18n()
 const confirm = useConfirm()
@@ -528,10 +535,14 @@ const salaryEmployeeOptions = computed(() =>
   Array.from(new Set(salaries.value.map((salary) => salary.employee_name))).sort(),
 )
 const salaryMonthOptions = computed(() =>
-  Array.from(new Set(salaries.value.map((salary) => salary.month))).sort(),
+  Array.from(new Set(salaries.value.map((salary) => salary.month)))
+    .sort()
+    .map((month) => ({ label: formatDisplayMonth(month), value: month })),
 )
 const summaryMonthOptions = computed(() =>
-  Array.from(new Set(summary.value.map((row) => row.month))).sort(),
+  Array.from(new Set(summary.value.map((row) => row.month)))
+    .sort()
+    .map((month) => ({ label: formatDisplayMonth(month), value: month })),
 )
 const salaryMonthRange = computed(() => ({
   from_month: fiscalYearStore.selectedFiscalYear?.start_date.slice(0, 7),
@@ -670,7 +681,10 @@ async function save() {
 
 function confirmDelete(salary: SalaryRead) {
   confirm.require({
-    message: t('salary.confirm_delete', { employee: salary.employee_name, month: salary.month }),
+    message: t('salary.confirm_delete', {
+      employee: salary.employee_name,
+      month: formatDisplayMonth(salary.month),
+    }),
     header: t('common.confirm'),
     icon: 'pi pi-exclamation-triangle',
     acceptProps: { severity: 'danger', label: t('common.delete') },

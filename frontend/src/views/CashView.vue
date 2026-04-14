@@ -17,7 +17,7 @@
       <AppStatCard
         :label="t('cash.journal')"
         :value="displayedEntries.length"
-        :caption="`${entries.length} total`"
+        :caption="t('cash.metrics.entries_total', { count: entries.length })"
       />
       <AppStatCard :label="t('cash.counts_title')" :value="displayedCounts.length" tone="warn" />
     </section>
@@ -195,7 +195,7 @@
                 </template>
               </Column>
               <template #empty>
-                <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
+                <div class="app-empty-state">{{ t('cash.journal_empty') }}</div>
               </template>
             </DataTable>
           </TabPanel>
@@ -305,7 +305,7 @@
                 </template>
               </Column>
               <template #empty>
-                <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
+                <div class="app-empty-state">{{ t('cash.counts_empty') }}</div>
               </template>
             </DataTable>
           </TabPanel>
