@@ -24,6 +24,7 @@ export default {
     session_active: 'Session active',
   },
   nav: {
+    section_home: 'Accueil',
     section_management: 'Gestion',
     section_accounting: 'Comptabilité',
     section_administration: 'Administration',

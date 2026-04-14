@@ -42,8 +42,12 @@ type MenuItem = {
   label: string
 }
 
+const homeItems = computed<MenuItem[]>(() => [
+  { to: '/dashboard', icon: 'pi-home', label: t('nav.dashboard') },
+])
+
 const managementItems = computed<MenuItem[]>(() => {
-  const items: MenuItem[] = [{ to: '/dashboard', icon: 'pi-home', label: t('nav.dashboard') }]
+  const items: MenuItem[] = []
 
   if (auth.canAccessManagement) {
     items.push(
@@ -95,6 +99,11 @@ const administrationItems = computed<MenuItem[]>(() => {
 
 const menuSections = computed(() => {
   const sections = [
+    {
+      key: 'home',
+      title: t('nav.section_home'),
+      items: homeItems.value,
+    },
     {
       key: 'management',
       title: t('nav.section_management'),

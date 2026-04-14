@@ -175,7 +175,7 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresAccounting && !auth.canAccessAccounting) {
-    return auth.canAccessManagement ? { name: 'dashboard' } : { name: 'login' }
+    return { name: 'dashboard' }
   }
 
   if (to.meta.requiresManagement && !auth.canAccessManagement) {

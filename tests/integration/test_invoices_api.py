@@ -43,10 +43,22 @@ class TestListInvoices:
         r = await client.get("/api/invoices/")
         assert r.status_code == 401
 
+    async def test_readonly_cannot_list_invoices(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ):
+        r = await client.get("/api/invoices/", headers=readonly_auth_headers)
+        assert r.status_code == 403
+
     async def test_returns_empty_list(self, client: AsyncClient, auth_headers: dict):
         r = await client.get("/api/invoices/", headers=auth_headers)
         assert r.status_code == 200
         assert r.json() == []
+
+    async def test_gestionnaire_can_list_invoices(
+        self, client: AsyncClient, secretaire_auth_headers: dict
+    ):
+        r = await client.get("/api/invoices/", headers=secretaire_auth_headers)
+        assert r.status_code == 200
 
     async def test_filter_by_type(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
