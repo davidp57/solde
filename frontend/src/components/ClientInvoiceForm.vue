@@ -2,7 +2,9 @@
   <form class="app-dialog-form" @submit.prevent="submit">
     <section class="app-dialog-intro">
       <p class="app-dialog-intro__eyebrow">{{ t('invoices.client.title') }}</p>
-      <p class="app-dialog-intro__text">{{ t(isEditing ? 'invoices.client.form_intro_edit' : 'invoices.client.form_intro_create') }}</p>
+      <p class="app-dialog-intro__text">
+        {{ t(isEditing ? 'invoices.client.form_intro_edit' : 'invoices.client.form_intro_create') }}
+      </p>
     </section>
 
     <section class="app-dialog-section">
@@ -57,68 +59,66 @@
       </div>
     </section>
 
-      <section class="invoice-form__lines app-dialog-section">
-        <div class="app-dialog-section__header">
-          <h3 class="app-dialog-section__title">{{ t('invoices.client.lines_title') }}</h3>
-          <p class="app-dialog-section__copy">{{ t('invoices.client.lines_subtitle') }}</p>
-        </div>
-        <div class="invoice-form__lines-header">
-          <label class="app-field__label">{{ t('invoices.lines') }}</label>
-          <Button
-            :label="t('invoices.add_line')"
-            icon="pi pi-plus"
-            size="small"
-            type="button"
-            severity="secondary"
-            @click="addLine"
-          />
-        </div>
-        <div
-          v-for="(line, idx) in form.lines"
-          :key="idx"
-          class="invoice-form__line-row"
-        >
-          <InputText
-            v-model="line.description"
-            :placeholder="t('invoices.line_description')"
-            class="invoice-form__description"
-          />
-          <InputNumber
-            v-model="line.quantity"
-            :placeholder="t('invoices.line_qty')"
-            :min="0"
-            :max-fraction-digits="3"
-            class="invoice-form__quantity"
-          />
-          <InputNumber
-            v-model="line.unit_price"
-            :placeholder="t('invoices.line_price')"
-            :min="0"
-            :max-fraction-digits="2"
-            class="invoice-form__price"
-            suffix=" €"
-          />
-          <span class="invoice-form__total">
-            {{ lineAmount(line) }} €
-          </span>
-          <Button
-            icon="pi pi-trash"
-            size="small"
-            severity="danger"
-            text
-            type="button"
-            @click="removeLine(idx)"
-          />
-        </div>
-        <div class="invoice-form__grand-total">
-          {{ t('invoices.total') }}: {{ computedTotal }} €
-        </div>
-      </section>
-
-      <div class="app-form-actions">
-        <Button :label="t('common.cancel')" severity="secondary" type="button" outlined @click="emit('cancel')" />
-        <Button :label="t('common.save')" type="submit" :loading="saving" />
+    <section class="invoice-form__lines app-dialog-section">
+      <div class="app-dialog-section__header">
+        <h3 class="app-dialog-section__title">{{ t('invoices.client.lines_title') }}</h3>
+        <p class="app-dialog-section__copy">{{ t('invoices.client.lines_subtitle') }}</p>
       </div>
+      <div class="invoice-form__lines-header">
+        <label class="app-field__label">{{ t('invoices.lines') }}</label>
+        <Button
+          :label="t('invoices.add_line')"
+          icon="pi pi-plus"
+          size="small"
+          type="button"
+          severity="secondary"
+          @click="addLine"
+        />
+      </div>
+      <div v-for="(line, idx) in form.lines" :key="idx" class="invoice-form__line-row">
+        <InputText
+          v-model="line.description"
+          :placeholder="t('invoices.line_description')"
+          class="invoice-form__description"
+        />
+        <InputNumber
+          v-model="line.quantity"
+          :placeholder="t('invoices.line_qty')"
+          :min="0"
+          :max-fraction-digits="3"
+          class="invoice-form__quantity"
+        />
+        <InputNumber
+          v-model="line.unit_price"
+          :placeholder="t('invoices.line_price')"
+          :min="0"
+          :max-fraction-digits="2"
+          class="invoice-form__price"
+          suffix=" €"
+        />
+        <span class="invoice-form__total"> {{ lineAmount(line) }} € </span>
+        <Button
+          icon="pi pi-trash"
+          size="small"
+          severity="danger"
+          text
+          type="button"
+          @click="removeLine(idx)"
+        />
+      </div>
+      <div class="invoice-form__grand-total">{{ t('invoices.total') }}: {{ computedTotal }} €</div>
+    </section>
+
+    <div class="app-form-actions">
+      <Button
+        :label="t('common.cancel')"
+        severity="secondary"
+        type="button"
+        outlined
+        @click="emit('cancel')"
+      />
+      <Button :label="t('common.save')" type="submit" :loading="saving" />
+    </div>
   </form>
 </template>
 

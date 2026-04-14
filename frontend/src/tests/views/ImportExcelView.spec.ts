@@ -19,7 +19,8 @@ const ButtonStub = defineComponent({
     loading: { type: Boolean, default: false },
   },
   emits: ['click'],
-  template: '<button :data-testid="$attrs[\'data-testid\']" :disabled="disabled || loading" @click="$emit(\'click\')">{{ label }}</button>',
+  template:
+    '<button :data-testid="$attrs[\'data-testid\']" :disabled="disabled || loading" @click="$emit(\'click\')">{{ label }}</button>',
 })
 
 const CheckboxStub = defineComponent({
@@ -27,7 +28,8 @@ const CheckboxStub = defineComponent({
     modelValue: { type: Boolean, default: false },
   },
   emits: ['update:modelValue'],
-  template: '<input type="checkbox" :data-testid="$attrs[\'data-testid\']" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
+  template:
+    '<input type="checkbox" :data-testid="$attrs[\'data-testid\']" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
 })
 
 const RadioButtonStub = defineComponent({
@@ -37,7 +39,8 @@ const RadioButtonStub = defineComponent({
     inputId: { type: String, default: undefined },
   },
   emits: ['update:modelValue'],
-  template: '<input :id="inputId" type="radio" :checked="modelValue === value" @change="$emit(\'update:modelValue\', value)" />',
+  template:
+    '<input :id="inputId" type="radio" :checked="modelValue === value" @change="$emit(\'update:modelValue\', value)" />',
 })
 
 const ContainerStub = defineComponent({
@@ -107,7 +110,9 @@ function mountView() {
 
 async function selectFile(wrapper: ReturnType<typeof mountView>, name = 'historique.xlsx') {
   const input = wrapper.get('input[type="file"]')
-  const file = new File(['excel'], name, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const file = new File(['excel'], name, {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
   Object.defineProperty(input.element, 'files', {
     value: [file],
     configurable: true,
@@ -128,14 +133,20 @@ describe('ImportExcelView', () => {
     const wrapper = mountView()
     await selectFile(wrapper)
 
-    expect((wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled).toBe(true)
+    expect(
+      (wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled,
+    ).toBe(true)
 
     await wrapper.get('[data-testid="preview-button"]').trigger('click')
     await flushView()
 
     expect(mockPreviewGestionFileApi).toHaveBeenCalledTimes(1)
-    expect((wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled).toBe(false)
-    expect((wrapper.get('[data-testid="confirm-import-button"]').element as HTMLButtonElement).disabled).toBe(false)
+    expect(
+      (wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled,
+    ).toBe(false)
+    expect(
+      (wrapper.get('[data-testid="confirm-import-button"]').element as HTMLButtonElement).disabled,
+    ).toBe(false)
   })
 
   it('hides the preview state until a preview exists', async () => {
@@ -149,33 +160,43 @@ describe('ImportExcelView', () => {
   })
 
   it('requires explicit warning acknowledgment before import', async () => {
-    mockPreviewGestionFileApi.mockResolvedValueOnce(buildPreviewResult({
-      warnings: ['warning'],
-      warning_details: [
-        {
-          severity: 'warning',
-          sheet_name: 'Factures',
-          kind: 'invoices',
-          row_number: 4,
-          message: 'warning',
-          display_message: 'Factures — Ligne 4 : warning',
-        },
-      ],
-    }))
+    mockPreviewGestionFileApi.mockResolvedValueOnce(
+      buildPreviewResult({
+        warnings: ['warning'],
+        warning_details: [
+          {
+            severity: 'warning',
+            sheet_name: 'Factures',
+            kind: 'invoices',
+            row_number: 4,
+            message: 'warning',
+            display_message: 'Factures — Ligne 4 : warning',
+          },
+        ],
+      }),
+    )
 
     const wrapper = mountView()
     await selectFile(wrapper)
     await wrapper.get('[data-testid="preview-button"]').trigger('click')
     await flushView()
 
-    expect((wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled).toBe(true)
-    expect((wrapper.get('[data-testid="confirm-import-button"]').element as HTMLButtonElement).disabled).toBe(true)
+    expect(
+      (wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled,
+    ).toBe(true)
+    expect(
+      (wrapper.get('[data-testid="confirm-import-button"]').element as HTMLButtonElement).disabled,
+    ).toBe(true)
 
     await wrapper.get('[data-testid="warning-ack-checkbox"]').setValue(true)
     await nextTick()
 
-    expect((wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled).toBe(false)
-    expect((wrapper.get('[data-testid="confirm-import-button"]').element as HTMLButtonElement).disabled).toBe(false)
+    expect(
+      (wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled,
+    ).toBe(false)
+    expect(
+      (wrapper.get('[data-testid="confirm-import-button"]').element as HTMLButtonElement).disabled,
+    ).toBe(false)
   })
 
   it('clears a previous preview when the import type changes', async () => {
@@ -186,12 +207,16 @@ describe('ImportExcelView', () => {
     await wrapper.get('[data-testid="preview-button"]').trigger('click')
     await flushView()
 
-    expect((wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled).toBe(false)
+    expect(
+      (wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled,
+    ).toBe(false)
 
     await wrapper.get('#type-compta').trigger('change')
     await nextTick()
 
-    expect((wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled).toBe(true)
+    expect(
+      (wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled,
+    ).toBe(true)
     expect(wrapper.find('[data-testid="confirm-import-button"]').exists()).toBe(false)
   })
 
@@ -206,8 +231,12 @@ describe('ImportExcelView', () => {
     await wrapper.get('[data-testid="primary-import-button"]').trigger('click')
     await flushView()
 
-    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('Import terminé avec succès')
-    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('Le détail complet reste affiché ci-dessous.')
+    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain(
+      'Import terminé avec succès',
+    )
+    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain(
+      'Le détail complet reste affiché ci-dessous.',
+    )
   })
 
   it('runs a temporary shortcut import without preview', async () => {
@@ -231,6 +260,8 @@ describe('ImportExcelView', () => {
     await flushView()
 
     expect(mockImportTestShortcutApi).toHaveBeenCalledWith('gestion-2024')
-    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain('Import terminé avec succès')
+    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain(
+      'Import terminé avec succès',
+    )
   })
 })

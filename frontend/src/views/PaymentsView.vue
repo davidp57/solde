@@ -7,16 +7,31 @@
     />
 
     <section class="app-stat-grid">
-      <AppStatCard :label="t('payments.metrics.visible')" :value="filtered.length" :caption="t('payments.metrics.total', { count: payments.length })" />
-      <AppStatCard :label="t('payments.metrics.amount')" :value="formatAmount(totalAmount)" :caption="t('payments.metrics.average', { amount: formatAmount(averageAmount) })" />
-      <AppStatCard :label="t('payments.metrics.undeposited')" :value="undepositedCount" :caption="t('payments.metrics.cheques', { count: chequeCount })" tone="warn" />
+      <AppStatCard
+        :label="t('payments.metrics.visible')"
+        :value="filtered.length"
+        :caption="t('payments.metrics.total', { count: payments.length })"
+      />
+      <AppStatCard
+        :label="t('payments.metrics.amount')"
+        :value="formatAmount(totalAmount)"
+        :caption="t('payments.metrics.average', { amount: formatAmount(averageAmount) })"
+      />
+      <AppStatCard
+        :label="t('payments.metrics.undeposited')"
+        :value="undepositedCount"
+        :caption="t('payments.metrics.cheques', { count: chequeCount })"
+        tone="warn"
+      />
     </section>
 
     <AppPanel :title="t('payments.workspace_title')" :subtitle="t('payments.workspace_subtitle')">
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('payments.filters_hint') }}</p>
-          <span class="app-chip">{{ t('payments.results_label', { count: filtered.length }) }}</span>
+          <span class="app-chip">{{
+            t('payments.results_label', { count: filtered.length })
+          }}</span>
         </div>
 
         <div class="app-filter-grid">
@@ -48,47 +63,49 @@
         size="small"
         row-hover
       >
-      <Column field="date" :header="t('payments.date')" sortable>
-        <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
-      </Column>
-      <Column field="amount" :header="t('payments.amount')" class="app-money">
-        <template #body="{ data }">
-          {{ formatAmount(data.amount) }}
-        </template>
-      </Column>
-      <Column field="method" :header="t('payments.method')">
-        <template #body="{ data }">
-          <Tag :value="t(`payments.methods.${data.method}`)" />
-        </template>
-      </Column>
-      <Column field="reference" :header="t('payments.reference')">
-        <template #body="{ data }">{{ paymentReference(data) }}</template>
-      </Column>
-      <Column field="cheque_number" :header="t('payments.cheque_number')" />
-      <Column field="deposited" :header="t('payments.deposited')">
-        <template #body="{ data }">
-          <i :class="data.deposited ? 'pi pi-check text-green-500' : 'pi pi-times text-red-400'" />
-        </template>
-      </Column>
-      <Column :header="t('common.actions')" class="payments-table__actions">
-        <template #body="{ data }">
-          <Button
-            data-testid="payment-edit-button"
-            icon="pi pi-pencil"
-            size="small"
-            severity="secondary"
-            text
-            @click="openEditDialog(data)"
-          />
-          <Button
-            icon="pi pi-trash"
-            size="small"
-            severity="danger"
-            text
-            @click="confirmDelete(data)"
-          />
-        </template>
-      </Column>
+        <Column field="date" :header="t('payments.date')" sortable>
+          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+        </Column>
+        <Column field="amount" :header="t('payments.amount')" class="app-money">
+          <template #body="{ data }">
+            {{ formatAmount(data.amount) }}
+          </template>
+        </Column>
+        <Column field="method" :header="t('payments.method')">
+          <template #body="{ data }">
+            <Tag :value="t(`payments.methods.${data.method}`)" />
+          </template>
+        </Column>
+        <Column field="reference" :header="t('payments.reference')">
+          <template #body="{ data }">{{ paymentReference(data) }}</template>
+        </Column>
+        <Column field="cheque_number" :header="t('payments.cheque_number')" />
+        <Column field="deposited" :header="t('payments.deposited')">
+          <template #body="{ data }">
+            <i
+              :class="data.deposited ? 'pi pi-check text-green-500' : 'pi pi-times text-red-400'"
+            />
+          </template>
+        </Column>
+        <Column :header="t('common.actions')" class="payments-table__actions">
+          <template #body="{ data }">
+            <Button
+              data-testid="payment-edit-button"
+              icon="pi pi-pencil"
+              size="small"
+              severity="secondary"
+              text
+              @click="openEditDialog(data)"
+            />
+            <Button
+              icon="pi pi-trash"
+              size="small"
+              severity="danger"
+              text
+              @click="confirmDelete(data)"
+            />
+          </template>
+        </Column>
         <template #empty>
           <div class="app-empty-state">{{ t('payments.empty') }}</div>
         </template>
@@ -131,10 +148,7 @@
           </div>
           <div class="app-field app-field--full">
             <label class="app-field__label">{{ t('payments.reference') }}</label>
-            <InputText
-              v-model="paymentForm.reference"
-              data-testid="payment-reference-input"
-            />
+            <InputText v-model="paymentForm.reference" data-testid="payment-reference-input" />
           </div>
           <div class="app-field app-field--full">
             <label class="app-field__label">{{ t('payments.notes') }}</label>
@@ -170,7 +184,13 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { deletePayment, listPayments, updatePayment, type Payment, type PaymentMethod } from '@/api/payments'
+import {
+  deletePayment,
+  listPayments,
+  updatePayment,
+  type Payment,
+  type PaymentMethod,
+} from '@/api/payments'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
@@ -199,10 +219,18 @@ const paymentForm = ref({
   reference: '',
   notes: '',
 })
-const totalAmount = computed(() => filtered.value.reduce((sum, payment) => sum + parseFloat(payment.amount), 0))
-const averageAmount = computed(() => filtered.value.length ? totalAmount.value / filtered.value.length : 0)
-const undepositedCount = computed(() => filtered.value.filter((payment) => !payment.deposited).length)
-const chequeCount = computed(() => filtered.value.filter((payment) => payment.method === 'cheque').length)
+const totalAmount = computed(() =>
+  filtered.value.reduce((sum, payment) => sum + parseFloat(payment.amount), 0),
+)
+const averageAmount = computed(() =>
+  filtered.value.length ? totalAmount.value / filtered.value.length : 0,
+)
+const undepositedCount = computed(
+  () => filtered.value.filter((payment) => !payment.deposited).length,
+)
+const chequeCount = computed(
+  () => filtered.value.filter((payment) => payment.method === 'cheque').length,
+)
 const methodOptions = computed(() => [
   { label: t('payments.methods.especes'), value: 'especes' },
   { label: t('payments.methods.cheque'), value: 'cheque' },

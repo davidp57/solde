@@ -1,34 +1,40 @@
 <template>
   <AppPage width="wide">
-    <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('accounting.accounts.title')">
+    <AppPageHeader
+      :eyebrow="t('ui.page.accounting_eyebrow')"
+      :title="t('accounting.accounts.title')"
+    >
       <template #actions>
         <div class="app-page-header__actions">
-        <Button
-          :label="t('accounting.accounts.seed')"
-          icon="pi pi-database"
-          severity="secondary"
-          :loading="seeding"
-          @click="runSeed"
-        />
-        <Button
-          :label="t('accounting.accounts.new')"
-          icon="pi pi-plus"
-          @click="openCreateDialog"
-        />
+          <Button
+            :label="t('accounting.accounts.seed')"
+            icon="pi pi-database"
+            severity="secondary"
+            :loading="seeding"
+            @click="runSeed"
+          />
+          <Button
+            :label="t('accounting.accounts.new')"
+            icon="pi pi-plus"
+            @click="openCreateDialog"
+          />
         </div>
       </template>
     </AppPageHeader>
 
     <AppPanel :title="t('accounting.accounts.title')" dense>
       <div class="account-type-toolbar">
-      <Button
-        v-for="opt in typeOptions"
-        :key="opt.value ?? 'all'"
-        :label="opt.label"
-        :severity="typeFilter === opt.value ? 'primary' : 'secondary'"
-        size="small"
-        @click="typeFilter = opt.value; void loadAccounts()"
-      />
+        <Button
+          v-for="opt in typeOptions"
+          :key="opt.value ?? 'all'"
+          :label="opt.label"
+          :severity="typeFilter === opt.value ? 'primary' : 'secondary'"
+          size="small"
+          @click="
+            typeFilter = opt.value
+            void loadAccounts()
+          "
+        />
       </div>
 
       <div class="app-toolbar">
@@ -40,32 +46,53 @@
         </div>
       </div>
 
-    <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" data-key="id" size="small" row-hover>
-      <Column field="number" :header="t('accounting.accounts.number')" sortable style="width:8rem" />
-      <Column field="label" :header="t('accounting.accounts.label')" sortable />
-      <Column field="type" :header="t('accounting.accounts.type')" style="width:7rem">
-        <template #body="{ data }">
-          <Tag :value="t(`accounting.account_types.${data.type}`)" :severity="typeSeverity(data.type)" />
-        </template>
-      </Column>
-      <Column field="is_default" :header="t('accounting.accounts.default')" style="width:6rem">
-        <template #body="{ data }">
-          <i v-if="data.is_default" class="pi pi-check text-green-500" />
-        </template>
-      </Column>
-      <Column :header="t('common.actions')" style="width:6rem">
-        <template #body="{ data }">
-          <Button
-            icon="pi pi-pencil"
-            size="small"
-            severity="secondary"
-            text
-            @click="openEditDialog(data)"
-          />
-        </template>
-      </Column>
-      <template #empty><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template>
-    </DataTable>
+      <DataTable
+        :value="filtered"
+        :loading="loading"
+        class="app-data-table"
+        striped-rows
+        paginator
+        :rows="20"
+        :rows-per-page-options="[20, 50, 100, 500]"
+        data-key="id"
+        size="small"
+        row-hover
+      >
+        <Column
+          field="number"
+          :header="t('accounting.accounts.number')"
+          sortable
+          style="width: 8rem"
+        />
+        <Column field="label" :header="t('accounting.accounts.label')" sortable />
+        <Column field="type" :header="t('accounting.accounts.type')" style="width: 7rem">
+          <template #body="{ data }">
+            <Tag
+              :value="t(`accounting.account_types.${data.type}`)"
+              :severity="typeSeverity(data.type)"
+            />
+          </template>
+        </Column>
+        <Column field="is_default" :header="t('accounting.accounts.default')" style="width: 6rem">
+          <template #body="{ data }">
+            <i v-if="data.is_default" class="pi pi-check text-green-500" />
+          </template>
+        </Column>
+        <Column :header="t('common.actions')" style="width: 6rem">
+          <template #body="{ data }">
+            <Button
+              icon="pi pi-pencil"
+              size="small"
+              severity="secondary"
+              text
+              @click="openEditDialog(data)"
+            />
+          </template>
+        </Column>
+        <template #empty
+          ><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template
+        >
+      </DataTable>
     </AppPanel>
 
     <!-- Create / Edit Dialog -->
@@ -75,11 +102,7 @@
       modal
       class="app-dialog app-dialog--medium account-dialog"
     >
-      <AccountForm
-        :account="editingAccount"
-        @saved="onSaved"
-        @cancel="dialogVisible = false"
-      />
+      <AccountForm :account="editingAccount" @saved="onSaved" @cancel="dialogVisible = false" />
     </Dialog>
 
     <Toast />

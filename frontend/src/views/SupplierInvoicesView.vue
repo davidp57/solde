@@ -11,16 +11,34 @@
     </AppPageHeader>
 
     <section class="app-stat-grid">
-      <AppStatCard :label="t('invoices.supplier.metrics.visible_count')" :value="filtered.length" :caption="t('invoices.supplier.metrics.total_count', { count: invoices.length })" />
-      <AppStatCard :label="t('invoices.supplier.metrics.total_amount')" :value="formatAmount(totalAmount) + ' €'" :caption="t('invoices.supplier.metrics.files_attached', { count: attachedFilesCount })" />
-      <AppStatCard :label="t('invoices.supplier.metrics.overdue_count')" :value="overdueCount" :caption="t('invoices.supplier.metrics.pending_count', { count: pendingCount })" tone="warn" />
+      <AppStatCard
+        :label="t('invoices.supplier.metrics.visible_count')"
+        :value="filtered.length"
+        :caption="t('invoices.supplier.metrics.total_count', { count: invoices.length })"
+      />
+      <AppStatCard
+        :label="t('invoices.supplier.metrics.total_amount')"
+        :value="formatAmount(totalAmount) + ' €'"
+        :caption="t('invoices.supplier.metrics.files_attached', { count: attachedFilesCount })"
+      />
+      <AppStatCard
+        :label="t('invoices.supplier.metrics.overdue_count')"
+        :value="overdueCount"
+        :caption="t('invoices.supplier.metrics.pending_count', { count: pendingCount })"
+        tone="warn"
+      />
     </section>
 
-    <AppPanel :title="t('invoices.supplier.workspace_title')" :subtitle="t('invoices.supplier.workspace_subtitle')">
+    <AppPanel
+      :title="t('invoices.supplier.workspace_title')"
+      :subtitle="t('invoices.supplier.workspace_subtitle')"
+    >
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('invoices.supplier.filters_hint') }}</p>
-          <span class="app-chip">{{ t('invoices.supplier.results_label', { count: filtered.length }) }}</span>
+          <span class="app-chip">{{
+            t('invoices.supplier.results_label', { count: filtered.length })
+          }}</span>
         </div>
 
         <div class="app-filter-grid">
@@ -55,58 +73,58 @@
         size="small"
         row-hover
       >
-      <Column field="number" :header="t('invoices.number')" sortable />
-      <Column field="date" :header="t('invoices.date')" sortable>
-        <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
-      </Column>
-      <Column field="contact_id" :header="t('invoices.contact')">
-        <template #body="{ data }">{{ contactName(data.contact_id) }}</template>
-      </Column>
-      <Column field="reference" :header="t('invoices.reference')" />
-      <Column field="total_amount" :header="t('invoices.total')" class="app-money">
-        <template #body="{ data }">{{ formatAmount(data.total_amount) }} €</template>
-      </Column>
-      <Column field="status" :header="t('invoices.status')">
-        <template #body="{ data }">
-          <Tag
-            :value="t(`invoices.statuses.${data.status}`)"
-            :severity="statusSeverity(data.status)"
-          />
-        </template>
-      </Column>
-      <Column field="file_path" :header="t('invoices.file')">
-        <template #body="{ data }">
-          <i v-if="data.file_path" class="pi pi-paperclip text-primary" />
-        </template>
-      </Column>
-      <Column :header="t('common.actions')" class="supplier-invoices-table__actions">
-        <template #body="{ data }">
-          <div class="app-inline-actions">
-            <Button
-              icon="pi pi-pencil"
-              size="small"
-              severity="secondary"
-              text
-              @click="openEditDialog(data)"
+        <Column field="number" :header="t('invoices.number')" sortable />
+        <Column field="date" :header="t('invoices.date')" sortable>
+          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+        </Column>
+        <Column field="contact_id" :header="t('invoices.contact')">
+          <template #body="{ data }">{{ contactName(data.contact_id) }}</template>
+        </Column>
+        <Column field="reference" :header="t('invoices.reference')" />
+        <Column field="total_amount" :header="t('invoices.total')" class="app-money">
+          <template #body="{ data }">{{ formatAmount(data.total_amount) }} €</template>
+        </Column>
+        <Column field="status" :header="t('invoices.status')">
+          <template #body="{ data }">
+            <Tag
+              :value="t(`invoices.statuses.${data.status}`)"
+              :severity="statusSeverity(data.status)"
             />
-            <Button
-              icon="pi pi-upload"
-              size="small"
-              severity="secondary"
-              text
-              :title="t('invoices.upload_file')"
-              @click="openUploadDialog(data)"
-            />
-            <Button
-              icon="pi pi-trash"
-              size="small"
-              severity="danger"
-              text
-              @click="confirmDelete(data)"
-            />
-          </div>
-        </template>
-      </Column>
+          </template>
+        </Column>
+        <Column field="file_path" :header="t('invoices.file')">
+          <template #body="{ data }">
+            <i v-if="data.file_path" class="pi pi-paperclip text-primary" />
+          </template>
+        </Column>
+        <Column :header="t('common.actions')" class="supplier-invoices-table__actions">
+          <template #body="{ data }">
+            <div class="app-inline-actions">
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                @click="openEditDialog(data)"
+              />
+              <Button
+                icon="pi pi-upload"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.upload_file')"
+                @click="openUploadDialog(data)"
+              />
+              <Button
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                text
+                @click="confirmDelete(data)"
+              />
+            </div>
+          </template>
+        </Column>
         <template #empty>
           <div class="app-empty-state">{{ t('invoices.supplier.empty') }}</div>
         </template>
@@ -220,10 +238,20 @@ const uploadTargetId = ref<number | null>(null)
 const selectedFile = ref<File | null>(null)
 const uploading = ref(false)
 const statusFilter = ref<InvoiceStatus | null>(null)
-const totalAmount = computed(() => filtered.value.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0))
-const attachedFilesCount = computed(() => filtered.value.filter((invoice) => Boolean(invoice.file_path)).length)
-const overdueCount = computed(() => filtered.value.filter((invoice) => invoice.status === 'overdue').length)
-const pendingCount = computed(() => filtered.value.filter((invoice) => invoice.status === 'sent' || invoice.status === 'partial').length)
+const totalAmount = computed(() =>
+  filtered.value.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0),
+)
+const attachedFilesCount = computed(
+  () => filtered.value.filter((invoice) => Boolean(invoice.file_path)).length,
+)
+const overdueCount = computed(
+  () => filtered.value.filter((invoice) => invoice.status === 'overdue').length,
+)
+const pendingCount = computed(
+  () =>
+    filtered.value.filter((invoice) => invoice.status === 'sent' || invoice.status === 'partial')
+      .length,
+)
 
 const statusOptions = [
   { label: t('invoices.statuses.draft'), value: 'draft' },
@@ -273,7 +301,9 @@ async function loadInvoices() {
 }
 
 function openInvoiceFromQuery() {
-  const rawInvoiceId = Array.isArray(route.query.invoiceId) ? route.query.invoiceId[0] : route.query.invoiceId
+  const rawInvoiceId = Array.isArray(route.query.invoiceId)
+    ? route.query.invoiceId[0]
+    : route.query.invoiceId
   const invoiceId = Number(rawInvoiceId)
   if (!invoiceId) return
   const invoice = invoices.value.find((candidate) => candidate.id === invoiceId)

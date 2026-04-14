@@ -9,8 +9,16 @@
     <section class="app-stat-grid">
       <AppStatCard :label="t('salary.title')" :value="filteredSalaries.length" />
       <AppStatCard :label="t('salary.gross')" :value="formatAmount(salaryMetrics.gross)" />
-      <AppStatCard :label="t('salary.net_pay')" :value="formatAmount(salaryMetrics.netPay)" tone="success" />
-      <AppStatCard :label="t('salary.total_cost')" :value="formatAmount(salaryMetrics.totalCost)" tone="warn" />
+      <AppStatCard
+        :label="t('salary.net_pay')"
+        :value="formatAmount(salaryMetrics.netPay)"
+        tone="success"
+      />
+      <AppStatCard
+        :label="t('salary.total_cost')"
+        :value="formatAmount(salaryMetrics.totalCost)"
+        tone="warn"
+      />
     </section>
 
     <AppPanel :title="t('salary.title')" dense>
@@ -55,41 +63,43 @@
         size="small"
         row-hover
       >
-      <Column field="employee_name" :header="t('salary.employee')" sortable />
-      <Column field="month" :header="t('salary.month')" sortable />
-      <Column :header="t('salary.hours')">
-        <template #body="{ data }">{{ data.hours }}</template>
-      </Column>
-      <Column :header="t('salary.gross')" class="app-money">
-        <template #body="{ data }">{{ formatAmount(data.gross) }}</template>
-      </Column>
-      <Column :header="t('salary.net_pay')" class="app-money">
-        <template #body="{ data }">{{ formatAmount(data.net_pay) }}</template>
-      </Column>
-      <Column :header="t('salary.total_cost')" class="app-money">
-        <template #body="{ data }">{{ formatAmount(data.total_cost) }}</template>
-      </Column>
-      <Column :header="t('common.actions')" style="width: 8rem">
-        <template #body="{ data }">
-          <div class="salary-actions">
-            <Button
-              icon="pi pi-pencil"
-              size="small"
-              severity="secondary"
-              text
-              @click="openEditDialog(data)"
-            />
-            <Button
-              icon="pi pi-trash"
-              size="small"
-              severity="danger"
-              text
-              @click="confirmDelete(data)"
-            />
-          </div>
-        </template>
-      </Column>
-        <template #empty><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template>
+        <Column field="employee_name" :header="t('salary.employee')" sortable />
+        <Column field="month" :header="t('salary.month')" sortable />
+        <Column :header="t('salary.hours')">
+          <template #body="{ data }">{{ data.hours }}</template>
+        </Column>
+        <Column :header="t('salary.gross')" class="app-money">
+          <template #body="{ data }">{{ formatAmount(data.gross) }}</template>
+        </Column>
+        <Column :header="t('salary.net_pay')" class="app-money">
+          <template #body="{ data }">{{ formatAmount(data.net_pay) }}</template>
+        </Column>
+        <Column :header="t('salary.total_cost')" class="app-money">
+          <template #body="{ data }">{{ formatAmount(data.total_cost) }}</template>
+        </Column>
+        <Column :header="t('common.actions')" style="width: 8rem">
+          <template #body="{ data }">
+            <div class="salary-actions">
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                @click="openEditDialog(data)"
+              />
+              <Button
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                text
+                @click="confirmDelete(data)"
+              />
+            </div>
+          </template>
+        </Column>
+        <template #empty
+          ><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template
+        >
       </DataTable>
     </AppPanel>
 
@@ -120,7 +130,9 @@
         <Column :header="t('salary.total_cost')" class="app-money">
           <template #body="{ data }">{{ formatAmount(data.total_cost) }}</template>
         </Column>
-        <template #empty><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template>
+        <template #empty
+          ><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template
+        >
       </DataTable>
     </AppPanel>
 
@@ -200,7 +212,12 @@
         </section>
       </div>
       <template #footer>
-        <Button :label="t('common.cancel')" severity="secondary" text @click="dialogVisible = false" />
+        <Button
+          :label="t('common.cancel')"
+          severity="secondary"
+          text
+          @click="dialogVisible = false"
+        />
         <Button :label="t('common.save')" :loading="saving" @click="save" />
       </template>
     </Dialog>
@@ -247,7 +264,10 @@ const confirm = useConfirm()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
-interface EmployeeOption { label: string; value: number }
+interface EmployeeOption {
+  label: string
+  value: number
+}
 
 const salaries = ref<SalaryRead[]>([])
 const summary = ref<SalarySummaryRow[]>([])
@@ -326,12 +346,15 @@ function formatAmount(v: number | string | null | undefined): string {
 
 async function loadEmployees() {
   try {
-    const res = await apiClient.get<{ id: number; nom: string; prenom: string | null }[]>('/contacts/')
+    const res =
+      await apiClient.get<{ id: number; nom: string; prenom: string | null }[]>('/contacts/')
     employees.value = res.data.map((c) => ({
       label: [c.prenom, c.nom].filter(Boolean).join(' '),
       value: c.id,
     }))
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 async function loadSalaries() {

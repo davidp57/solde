@@ -85,7 +85,8 @@ const InputTextStub = defineComponent({
         type: props.type,
         value: props.modelValue ?? '',
         disabled: props.disabled,
-        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+        onInput: (event: Event) =>
+          emit('update:modelValue', (event.target as HTMLInputElement).value),
       })
   },
 })
@@ -101,7 +102,8 @@ const InputNumberStub = defineComponent({
         'data-testid': attrs['data-testid'],
         type: 'number',
         value: props.modelValue ?? 0,
-        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+        onInput: (event: Event) =>
+          emit('update:modelValue', (event.target as HTMLInputElement).value),
       })
   },
 })
@@ -116,8 +118,12 @@ const DatePickerStub = defineComponent({
       h('input', {
         'data-testid': attrs['data-testid'],
         type: 'date',
-        value: props.modelValue instanceof Date ? props.modelValue.toISOString().slice(0, 10) : props.modelValue,
-        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+        value:
+          props.modelValue instanceof Date
+            ? props.modelValue.toISOString().slice(0, 10)
+            : props.modelValue,
+        onInput: (event: Event) =>
+          emit('update:modelValue', (event.target as HTMLInputElement).value),
       })
   },
 })
@@ -137,10 +143,15 @@ const SelectStub = defineComponent({
         {
           'data-testid': attrs['data-testid'],
           value: props.modelValue ?? '',
-          onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
+          onChange: (event: Event) =>
+            emit('update:modelValue', (event.target as HTMLSelectElement).value),
         },
         (props.options as Array<Record<string, string>>).map((option) =>
-          h('option', { key: option[props.optionValue], value: option[props.optionValue] }, option[props.optionLabel]),
+          h(
+            'option',
+            { key: option[props.optionValue], value: option[props.optionValue] },
+            option[props.optionLabel],
+          ),
         ),
       )
   },
@@ -156,7 +167,8 @@ const TextareaStub = defineComponent({
       h('textarea', {
         'data-testid': attrs['data-testid'],
         value: props.modelValue,
-        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLTextAreaElement).value),
+        onInput: (event: Event) =>
+          emit('update:modelValue', (event.target as HTMLTextAreaElement).value),
       })
   },
 })

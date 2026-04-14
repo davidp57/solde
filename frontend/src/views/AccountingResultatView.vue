@@ -1,6 +1,9 @@
 <template>
   <AppPage width="wide">
-    <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('accounting.resultat.title')" />
+    <AppPageHeader
+      :eyebrow="t('ui.page.accounting_eyebrow')"
+      :title="t('accounting.resultat.title')"
+    />
 
     <AppPanel :title="t('accounting.resultat.title')" dense>
       <div class="app-toolbar">
@@ -23,43 +26,82 @@
       </div>
 
       <div v-if="resultat" class="resultat-grid">
-      <!-- Charges -->
-      <AppPanel :title="t('accounting.resultat.charges')" dense>
-        <DataTable :value="resultat.charges" :loading="loading" class="app-data-table" paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small">
-          <Column field="account_number" :header="t('accounting.balance.account_number')" />
-          <Column field="account_label" :header="t('accounting.balance.account_label')" />
-          <Column field="solde" :header="t('accounting.resultat.total_charges')" class="app-money" />
-          <template #empty><div class="app-empty-state">{{ t('accounting.resultat.empty_charges') }}</div></template>
-        </DataTable>
-        <div class="resultat-total">
-          {{ t('accounting.resultat.total_charges') }} : <strong>{{ resultat.total_charges }}</strong>
-        </div>
-      </AppPanel>
+        <!-- Charges -->
+        <AppPanel :title="t('accounting.resultat.charges')" dense>
+          <DataTable
+            :value="resultat.charges"
+            :loading="loading"
+            class="app-data-table"
+            paginator
+            :rows="20"
+            :rows-per-page-options="[20, 50, 100, 500]"
+            size="small"
+          >
+            <Column field="account_number" :header="t('accounting.balance.account_number')" />
+            <Column field="account_label" :header="t('accounting.balance.account_label')" />
+            <Column
+              field="solde"
+              :header="t('accounting.resultat.total_charges')"
+              class="app-money"
+            />
+            <template #empty
+              ><div class="app-empty-state">
+                {{ t('accounting.resultat.empty_charges') }}
+              </div></template
+            >
+          </DataTable>
+          <div class="resultat-total">
+            {{ t('accounting.resultat.total_charges') }} :
+            <strong>{{ resultat.total_charges }}</strong>
+          </div>
+        </AppPanel>
 
-      <!-- Produits -->
-      <AppPanel :title="t('accounting.resultat.produits')" dense>
-        <DataTable :value="resultat.produits" :loading="loading" class="app-data-table" paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small">
-          <Column field="account_number" :header="t('accounting.balance.account_number')" />
-          <Column field="account_label" :header="t('accounting.balance.account_label')" />
-          <Column field="solde" :header="t('accounting.resultat.total_produits')" class="app-money" />
-          <template #empty><div class="app-empty-state">{{ t('accounting.resultat.empty_produits') }}</div></template>
-        </DataTable>
-        <div class="resultat-total">
-          {{ t('accounting.resultat.total_produits') }} : <strong>{{ resultat.total_produits }}</strong>
-        </div>
-      </AppPanel>
+        <!-- Produits -->
+        <AppPanel :title="t('accounting.resultat.produits')" dense>
+          <DataTable
+            :value="resultat.produits"
+            :loading="loading"
+            class="app-data-table"
+            paginator
+            :rows="20"
+            :rows-per-page-options="[20, 50, 100, 500]"
+            size="small"
+          >
+            <Column field="account_number" :header="t('accounting.balance.account_number')" />
+            <Column field="account_label" :header="t('accounting.balance.account_label')" />
+            <Column
+              field="solde"
+              :header="t('accounting.resultat.total_produits')"
+              class="app-money"
+            />
+            <template #empty
+              ><div class="app-empty-state">
+                {{ t('accounting.resultat.empty_produits') }}
+              </div></template
+            >
+          </DataTable>
+          <div class="resultat-total">
+            {{ t('accounting.resultat.total_produits') }} :
+            <strong>{{ resultat.total_produits }}</strong>
+          </div>
+        </AppPanel>
       </div>
 
       <div v-if="resultat" class="resultat-bottom">
-      <span
-        :class="[
-          'resultat-net',
-          parseFloat(resultat.resultat) >= 0 ? 'resultat-excedent' : 'resultat-deficit',
-        ]"
-      >
-        {{ parseFloat(resultat.resultat) >= 0 ? t('accounting.resultat.excedent') : t('accounting.resultat.deficit') }} :
-        <strong>{{ resultat.resultat }}</strong>
-      </span>
+        <span
+          :class="[
+            'resultat-net',
+            parseFloat(resultat.resultat) >= 0 ? 'resultat-excedent' : 'resultat-deficit',
+          ]"
+        >
+          {{
+            parseFloat(resultat.resultat) >= 0
+              ? t('accounting.resultat.excedent')
+              : t('accounting.resultat.deficit')
+          }}
+          :
+          <strong>{{ resultat.resultat }}</strong>
+        </span>
       </div>
     </AppPanel>
   </AppPage>

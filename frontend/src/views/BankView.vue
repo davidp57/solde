@@ -2,16 +2,39 @@
   <AppPage width="wide">
     <AppPageHeader :eyebrow="t('ui.page.collection_eyebrow')" :title="t('bank.title')">
       <template #actions>
-        <Button :label="t('bank.import_csv')" icon="pi pi-upload" severity="secondary" @click="importDialogVisible = true" />
-        <Button :label="t('bank.new_deposit')" icon="pi pi-inbox" severity="secondary" @click="openDepositDialog" />
-        <Button :label="t('bank.new_transaction')" icon="pi pi-plus" @click="txDialogVisible = true" />
+        <Button
+          :label="t('bank.import_csv')"
+          icon="pi pi-upload"
+          severity="secondary"
+          @click="importDialogVisible = true"
+        />
+        <Button
+          :label="t('bank.new_deposit')"
+          icon="pi pi-inbox"
+          severity="secondary"
+          @click="openDepositDialog"
+        />
+        <Button
+          :label="t('bank.new_transaction')"
+          icon="pi pi-plus"
+          @click="txDialogVisible = true"
+        />
       </template>
     </AppPageHeader>
 
     <section class="app-stat-grid">
       <AppStatCard :label="t('bank.balance')" :value="formatAmount(balance)" />
-      <AppStatCard :label="t('bank.transactions_title')" :value="filteredTransactions.length" :caption="`${transactions.length} total`" />
-      <AppStatCard :label="t('bank.deposits_title')" :value="filteredDeposits.length" :caption="`${undepositedPayments.length} paiements en attente`" tone="warn" />
+      <AppStatCard
+        :label="t('bank.transactions_title')"
+        :value="filteredTransactions.length"
+        :caption="`${transactions.length} total`"
+      />
+      <AppStatCard
+        :label="t('bank.deposits_title')"
+        :value="filteredDeposits.length"
+        :caption="`${undepositedPayments.length} paiements en attente`"
+        tone="warn"
+      />
     </section>
 
     <AppPanel :title="t('bank.title')" dense>
@@ -25,96 +48,129 @@
       </div>
 
       <Tabs v-model:value="activeTab">
-      <TabList>
-        <Tab value="transactions">{{ t('bank.transactions_title') }}</Tab>
-        <Tab value="deposits">{{ t('bank.deposits_title') }}</Tab>
-      </TabList>
+        <TabList>
+          <Tab value="transactions">{{ t('bank.transactions_title') }}</Tab>
+          <Tab value="deposits">{{ t('bank.deposits_title') }}</Tab>
+        </TabList>
 
-      <TabPanels>
-        <TabPanel value="transactions">
-          <div class="bank-panel-toolbar">
-            <ToggleButton
-              v-model="unreconciledOnly"
-              :on-label="t('bank.tx_reconciled')"
-              :off-label="t('bank.tx_reconciled')"
-              @change="loadTransactions"
-            />
-          </div>
-          <DataTable :value="filteredTransactions" :loading="loadingTx" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" data-key="id" size="small" row-hover>
-            <Column field="date" :header="t('bank.tx_date')" sortable>
-              <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
-            </Column>
-            <Column field="amount" :header="t('bank.tx_amount')" class="app-money">
-              <template #body="{ data }">
-                <span :class="parseFloat(data.amount) >= 0 ? 'bank-positive' : 'bank-negative'">
-                  {{ formatAmount(data.amount) }}
-                </span>
+        <TabPanels>
+          <TabPanel value="transactions">
+            <div class="bank-panel-toolbar">
+              <ToggleButton
+                v-model="unreconciledOnly"
+                :on-label="t('bank.tx_reconciled')"
+                :off-label="t('bank.tx_reconciled')"
+                @change="loadTransactions"
+              />
+            </div>
+            <DataTable
+              :value="filteredTransactions"
+              :loading="loadingTx"
+              class="app-data-table"
+              striped-rows
+              paginator
+              :rows="20"
+              :rows-per-page-options="[20, 50, 100, 500]"
+              data-key="id"
+              size="small"
+              row-hover
+            >
+              <Column field="date" :header="t('bank.tx_date')" sortable>
+                <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+              </Column>
+              <Column field="amount" :header="t('bank.tx_amount')" class="app-money">
+                <template #body="{ data }">
+                  <span :class="parseFloat(data.amount) >= 0 ? 'bank-positive' : 'bank-negative'">
+                    {{ formatAmount(data.amount) }}
+                  </span>
+                </template>
+              </Column>
+              <Column field="description" :header="t('bank.tx_description')" />
+              <Column field="reference" :header="t('bank.tx_reference')" />
+              <Column field="balance_after" :header="t('bank.tx_balance')">
+                <template #body="{ data }">{{ formatAmount(data.balance_after) }}</template>
+              </Column>
+              <Column field="reconciled" :header="t('bank.tx_reconciled')">
+                <template #body="{ data }">
+                  <i
+                    :class="
+                      data.reconciled
+                        ? 'pi pi-check-circle text-green-500'
+                        : 'pi pi-circle text-surface-400'
+                    "
+                  />
+                </template>
+              </Column>
+              <Column field="source" :header="t('bank.tx_source')">
+                <template #body="{ data }">
+                  <Tag :value="t(`bank.sources.${data.source}`)" severity="secondary" />
+                </template>
+              </Column>
+              <Column :header="t('common.actions')" style="width: 6rem">
+                <template #body="{ data }">
+                  <Button
+                    v-if="!data.reconciled"
+                    icon="pi pi-check"
+                    size="small"
+                    severity="success"
+                    text
+                    :title="t('bank.reconcile')"
+                    @click="reconcile(data)"
+                  />
+                </template>
+              </Column>
+              <template #empty>
+                <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
               </template>
-            </Column>
-            <Column field="description" :header="t('bank.tx_description')" />
-            <Column field="reference" :header="t('bank.tx_reference')" />
-            <Column field="balance_after" :header="t('bank.tx_balance')">
-              <template #body="{ data }">{{ formatAmount(data.balance_after) }}</template>
-            </Column>
-            <Column field="reconciled" :header="t('bank.tx_reconciled')">
-              <template #body="{ data }">
-                <i :class="data.reconciled ? 'pi pi-check-circle text-green-500' : 'pi pi-circle text-surface-400'" />
-              </template>
-            </Column>
-            <Column field="source" :header="t('bank.tx_source')">
-              <template #body="{ data }">
-                <Tag :value="t(`bank.sources.${data.source}`)" severity="secondary" />
-              </template>
-            </Column>
-            <Column :header="t('common.actions')" style="width: 6rem">
-              <template #body="{ data }">
-                <Button
-                  v-if="!data.reconciled"
-                  icon="pi pi-check"
-                  size="small"
-                  severity="success"
-                  text
-                  :title="t('bank.reconcile')"
-                  @click="reconcile(data)"
-                />
-              </template>
-            </Column>
-            <template #empty>
-              <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
-            </template>
-          </DataTable>
-        </TabPanel>
+            </DataTable>
+          </TabPanel>
 
-        <TabPanel value="deposits">
-          <DataTable :value="filteredDeposits" :loading="loadingDeposits" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" data-key="id" size="small" row-hover>
-            <Column field="date" :header="t('bank.deposit_date')" sortable>
-              <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
-            </Column>
-            <Column field="type" :header="t('bank.deposit_type')">
-              <template #body="{ data }">
-                <Tag :value="t(`bank.deposit_types.${data.type}`)" />
+          <TabPanel value="deposits">
+            <DataTable
+              :value="filteredDeposits"
+              :loading="loadingDeposits"
+              class="app-data-table"
+              striped-rows
+              paginator
+              :rows="20"
+              :rows-per-page-options="[20, 50, 100, 500]"
+              data-key="id"
+              size="small"
+              row-hover
+            >
+              <Column field="date" :header="t('bank.deposit_date')" sortable>
+                <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+              </Column>
+              <Column field="type" :header="t('bank.deposit_type')">
+                <template #body="{ data }">
+                  <Tag :value="t(`bank.deposit_types.${data.type}`)" />
+                </template>
+              </Column>
+              <Column field="total_amount" :header="t('bank.deposit_total')" class="app-money">
+                <template #body="{ data }">{{ formatAmount(data.total_amount) }}</template>
+              </Column>
+              <Column field="bank_reference" :header="t('bank.deposit_bank_ref')" />
+              <Column field="payment_ids" :header="t('bank.deposit_payments')">
+                <template #body="{ data }">
+                  {{ data.payment_ids?.length || 0 }} paiements
+                </template>
+              </Column>
+              <template #empty>
+                <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
               </template>
-            </Column>
-            <Column field="total_amount" :header="t('bank.deposit_total')" class="app-money">
-              <template #body="{ data }">{{ formatAmount(data.total_amount) }}</template>
-            </Column>
-            <Column field="bank_reference" :header="t('bank.deposit_bank_ref')" />
-            <Column field="payment_ids" :header="t('bank.deposit_payments')">
-              <template #body="{ data }">
-                {{ data.payment_ids?.length || 0 }} paiements
-              </template>
-            </Column>
-            <template #empty>
-              <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
-            </template>
-          </DataTable>
-        </TabPanel>
-      </TabPanels>
-    </Tabs>
+            </DataTable>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
     </AppPanel>
 
     <!-- Add transaction dialog -->
-    <Dialog v-model:visible="txDialogVisible" :header="t('bank.new_transaction')" modal class="app-dialog app-dialog--medium">
+    <Dialog
+      v-model:visible="txDialogVisible"
+      :header="t('bank.new_transaction')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
       <form class="app-dialog-form bank-form" @submit.prevent="submitTransaction">
         <section class="app-dialog-intro">
           <p class="app-dialog-intro__eyebrow">{{ t('bank.transactions_title') }}</p>
@@ -128,7 +184,12 @@
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('bank.tx_amount') }}</label>
-              <InputNumber v-model="txForm.amount" mode="decimal" :min-fraction-digits="2" :max-fraction-digits="2" />
+              <InputNumber
+                v-model="txForm.amount"
+                mode="decimal"
+                :min-fraction-digits="2"
+                :max-fraction-digits="2"
+              />
             </div>
             <div class="app-field app-field--full">
               <label class="app-field__label">{{ t('bank.tx_description') }}</label>
@@ -140,19 +201,34 @@
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('bank.tx_balance') }}</label>
-              <InputNumber v-model="txForm.balance_after" mode="decimal" :min-fraction-digits="2" :max-fraction-digits="2" />
+              <InputNumber
+                v-model="txForm.balance_after"
+                mode="decimal"
+                :min-fraction-digits="2"
+                :max-fraction-digits="2"
+              />
             </div>
           </div>
         </section>
         <div class="app-form-actions">
-          <Button :label="t('common.cancel')" severity="secondary" text @click="txDialogVisible = false" />
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            @click="txDialogVisible = false"
+          />
           <Button type="submit" :label="t('common.save')" :loading="saving" />
         </div>
       </form>
     </Dialog>
 
     <!-- CSV import dialog -->
-    <Dialog v-model:visible="importDialogVisible" :header="t('bank.import_dialog_title')" modal class="app-dialog app-dialog--medium">
+    <Dialog
+      v-model:visible="importDialogVisible"
+      :header="t('bank.import_dialog_title')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
       <div class="app-dialog-form bank-form">
         <section class="app-dialog-intro">
           <p class="app-dialog-intro__eyebrow">{{ t('bank.import_csv') }}</p>
@@ -165,14 +241,29 @@
           </div>
         </section>
         <div class="app-form-actions">
-          <Button :label="t('common.cancel')" severity="secondary" text @click="importDialogVisible = false" />
-          <Button :label="t('bank.import_csv')" icon="pi pi-upload" :loading="saving" @click="submitImport" />
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            @click="importDialogVisible = false"
+          />
+          <Button
+            :label="t('bank.import_csv')"
+            icon="pi pi-upload"
+            :loading="saving"
+            @click="submitImport"
+          />
         </div>
       </div>
     </Dialog>
 
     <!-- Create deposit dialog -->
-    <Dialog v-model:visible="depositDialogVisible" :header="t('bank.new_deposit')" modal class="app-dialog app-dialog--medium">
+    <Dialog
+      v-model:visible="depositDialogVisible"
+      :header="t('bank.new_deposit')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
       <div class="app-dialog-form bank-form">
         <section class="app-dialog-intro">
           <p class="app-dialog-intro__eyebrow">{{ t('bank.deposits_title') }}</p>
@@ -186,7 +277,12 @@
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('bank.deposit_type') }}</label>
-              <Select v-model="depositForm.type" :options="depositTypeOptions" option-label="label" option-value="value" />
+              <Select
+                v-model="depositForm.type"
+                :options="depositTypeOptions"
+                option-label="label"
+                option-value="value"
+              />
             </div>
             <div class="app-field app-field--full">
               <label class="app-field__label">{{ t('bank.deposit_bank_ref') }}</label>
@@ -202,20 +298,40 @@
           <Message v-if="undepositedPayments.length === 0" severity="warn">
             {{ t('bank.deposit_empty') }}
           </Message>
-          <p v-if="undepositedPayments.length === 0" class="app-dialog-note">{{ t('bank.deposit_empty_hint') }}</p>
+          <p v-if="undepositedPayments.length === 0" class="app-dialog-note">
+            {{ t('bank.deposit_empty_hint') }}
+          </p>
           <div v-else class="app-dialog-list">
-            <label v-for="p in undepositedPayments" :key="p.id" class="app-dialog-list__item bank-payment-option">
+            <label
+              v-for="p in undepositedPayments"
+              :key="p.id"
+              class="app-dialog-list__item bank-payment-option"
+            >
               <Checkbox v-model="depositForm.payment_ids" :value="p.id" />
               <span class="app-dialog-list__meta">
-                <span class="app-dialog-list__title">{{ formatDisplayDate(p.date) }} — {{ formatAmount(p.amount) }}</span>
-                <span class="app-dialog-list__caption">{{ t(`payments.methods.${p.method}`) }}</span>
+                <span class="app-dialog-list__title"
+                  >{{ formatDisplayDate(p.date) }} — {{ formatAmount(p.amount) }}</span
+                >
+                <span class="app-dialog-list__caption">{{
+                  t(`payments.methods.${p.method}`)
+                }}</span>
               </span>
             </label>
           </div>
         </section>
         <div class="app-form-actions">
-          <Button :label="t('common.cancel')" severity="secondary" text @click="depositDialogVisible = false" />
-          <Button :label="t('common.save')" :loading="saving" :disabled="depositForm.payment_ids.length === 0" @click="submitDeposit" />
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            @click="depositDialogVisible = false"
+          />
+          <Button
+            :label="t('common.save')"
+            :loading="saving"
+            :disabled="depositForm.payment_ids.length === 0"
+            @click="submitDeposit"
+          />
         </div>
       </div>
     </Dialog>
@@ -289,8 +405,19 @@ const depositTypeOptions = [
   { label: t('bank.deposit_types.especes'), value: 'especes' },
 ]
 
-const txForm = ref({ date: new Date(), amount: 0, description: '', reference: '', balance_after: 0 })
-const depositForm = ref({ date: new Date(), type: 'cheques' as 'cheques' | 'especes', bank_reference: '', payment_ids: [] as number[] })
+const txForm = ref({
+  date: new Date(),
+  amount: 0,
+  description: '',
+  reference: '',
+  balance_after: 0,
+})
+const depositForm = ref({
+  date: new Date(),
+  type: 'cheques' as 'cheques' | 'especes',
+  bank_reference: '',
+  payment_ids: [] as number[],
+})
 
 function formatAmount(value: string | number): string {
   return `${parseFloat(String(value)).toFixed(2)} €`
@@ -351,7 +478,10 @@ async function submitTransaction() {
       balance_after: String(txForm.value.balance_after),
     })
     txDialogVisible.value = false
-    await Promise.all([getBankBalance().then((b) => (balance.value = b.balance)), loadTransactions()])
+    await Promise.all([
+      getBankBalance().then((b) => (balance.value = b.balance)),
+      loadTransactions(),
+    ])
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -365,8 +495,15 @@ async function submitImport() {
     const imported = await importCsv(csvContent.value)
     importDialogVisible.value = false
     csvContent.value = ''
-    toast.add({ severity: 'success', summary: t('bank.import_success', { n: imported.length }), life: 3000 })
-    await Promise.all([getBankBalance().then((b) => (balance.value = b.balance)), loadTransactions()])
+    toast.add({
+      severity: 'success',
+      summary: t('bank.import_success', { n: imported.length }),
+      life: 3000,
+    })
+    await Promise.all([
+      getBankBalance().then((b) => (balance.value = b.balance)),
+      loadTransactions(),
+    ])
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {

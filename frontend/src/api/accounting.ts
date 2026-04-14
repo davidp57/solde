@@ -36,26 +36,19 @@ export async function listAccountsApi(
   const params = new URLSearchParams()
   if (type) params.set('type', type)
   params.set('active_only', String(activeOnly))
-  const response = await apiClient.get<AccountingAccount[]>(
-    `/api/accounting/accounts/?${params}`,
-  )
+  const response = await apiClient.get<AccountingAccount[]>(`/api/accounting/accounts/?${params}`)
   return response.data
 }
 
 export async function seedAccountsApi(): Promise<{ inserted: number }> {
-  const response = await apiClient.post<{ inserted: number }>(
-    '/api/accounting/accounts/seed',
-  )
+  const response = await apiClient.post<{ inserted: number }>('/api/accounting/accounts/seed')
   return response.data
 }
 
 export async function createAccountApi(
   payload: AccountingAccountCreate,
 ): Promise<AccountingAccount> {
-  const response = await apiClient.post<AccountingAccount>(
-    '/api/accounting/accounts/',
-    payload,
-  )
+  const response = await apiClient.post<AccountingAccount>('/api/accounting/accounts/', payload)
   return response.data
 }
 
@@ -63,10 +56,7 @@ export async function updateAccountApi(
   id: number,
   payload: AccountingAccountUpdate,
 ): Promise<AccountingAccount> {
-  const response = await apiClient.put<AccountingAccount>(
-    `/api/accounting/accounts/${id}`,
-    payload,
-  )
+  const response = await apiClient.put<AccountingAccount>(`/api/accounting/accounts/${id}`, payload)
   return response.data
 }
 
@@ -219,11 +209,13 @@ export async function getJournalGroupsApi(
   return response.data
 }
 
-export async function getBalanceApi(filters: {
-  from_date?: string
-  to_date?: string
-  fiscal_year_id?: number
-} = {}): Promise<BalanceRow[]> {
+export async function getBalanceApi(
+  filters: {
+    from_date?: string
+    to_date?: string
+    fiscal_year_id?: number
+  } = {},
+): Promise<BalanceRow[]> {
   const params = new URLSearchParams()
   if (filters.from_date) params.set('from_date', filters.from_date)
   if (filters.to_date) params.set('to_date', filters.to_date)
@@ -300,7 +292,9 @@ export async function listFiscalYearsApi(): Promise<FiscalYearRead[]> {
 }
 
 export async function getCurrentFiscalYearApi(): Promise<FiscalYearRead | null> {
-  const response = await apiClient.get<FiscalYearRead | null>('/api/accounting/fiscal-years/current')
+  const response = await apiClient.get<FiscalYearRead | null>(
+    '/api/accounting/fiscal-years/current',
+  )
   return response.data
 }
 
@@ -600,7 +594,9 @@ export async function importTestShortcutApi(alias: string): Promise<ImportResult
 // -----------------------------------------------------------------------
 
 export async function getFiscalYearPreCloseChecksApi(id: number): Promise<string[]> {
-  const response = await apiClient.get<string[]>(`/api/accounting/fiscal-years/${id}/pre-close-checks`)
+  const response = await apiClient.get<string[]>(
+    `/api/accounting/fiscal-years/${id}/pre-close-checks`,
+  )
   return response.data
 }
 
@@ -771,7 +767,10 @@ export async function previewGestionFileApi(file: File): Promise<PreviewResult> 
 export async function previewComptabiliteFileApi(file: File): Promise<PreviewResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<PreviewResult>('/api/import/excel/comptabilite/preview', form)
+  const response = await apiClient.post<PreviewResult>(
+    '/api/import/excel/comptabilite/preview',
+    form,
+  )
   return response.data
 }
 

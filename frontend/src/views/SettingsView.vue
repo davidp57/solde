@@ -143,12 +143,7 @@
           :disabled="loading"
           @click="reset"
         />
-        <Button
-          type="submit"
-          :label="t('common.save')"
-          :loading="loading"
-          icon="pi pi-check"
-        />
+        <Button type="submit" :label="t('common.save')" :loading="loading" icon="pi pi-check" />
       </div>
     </form>
 
@@ -159,7 +154,11 @@
       {{ errorMessage }}
     </Message>
 
-    <AppPanel class="danger-panel" :title="t('settings.danger_zone')" :subtitle="t('settings.reset_db_desc')">
+    <AppPanel
+      class="danger-panel"
+      :title="t('settings.danger_zone')"
+      :subtitle="t('settings.reset_db_desc')"
+    >
       <div class="settings-danger">
         <div>
           <Button
@@ -224,9 +223,11 @@ const { t } = useI18n()
 const { isDark } = useDarkMode()
 const fiscalYearStore = useFiscalYearStore()
 
-const dangerHeaderBg = computed(() => isDark.value ? 'rgba(239,68,68,0.08)' : 'var(--p-red-50)')
-const dangerBorderColor = computed(() => isDark.value ? 'rgba(239,68,68,0.25)' : 'var(--p-red-200)')
-const dangerTitleColor = computed(() => isDark.value ? 'var(--p-red-400)' : 'var(--p-red-600)')
+const dangerHeaderBg = computed(() => (isDark.value ? 'rgba(239,68,68,0.08)' : 'var(--p-red-50)'))
+const dangerBorderColor = computed(() =>
+  isDark.value ? 'rgba(239,68,68,0.25)' : 'var(--p-red-200)',
+)
+const dangerTitleColor = computed(() => (isDark.value ? 'var(--p-red-400)' : 'var(--p-red-600)'))
 
 interface SettingsForm {
   association_name: string
@@ -411,4 +412,3 @@ onMounted(load)
   font-weight: 600;
 }
 </style>
-
