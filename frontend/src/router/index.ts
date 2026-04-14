@@ -29,86 +29,103 @@ const router = createRouter({
           path: 'contacts',
           name: 'contacts',
           component: () => import('../views/ContactsView.vue'),
+          meta: { requiresManagement: true },
         },
         {
           path: 'contacts/:id/history',
           name: 'contact-history',
           component: () => import('../views/ContactDetailView.vue'),
+          meta: { requiresManagement: true },
         },
         {
           path: 'accounting/accounts',
           name: 'accounting-accounts',
           component: () => import('../views/AccountingAccountsView.vue'),
+          meta: { requiresAccounting: true },
         },
         {
           path: 'invoices/client',
           name: 'invoices-client',
           component: () => import('../views/ClientInvoicesView.vue'),
+          meta: { requiresManagement: true },
         },
         {
           path: 'invoices/supplier',
           name: 'invoices-supplier',
           component: () => import('../views/SupplierInvoicesView.vue'),
+          meta: { requiresManagement: true },
         },
         {
           path: 'payments',
           name: 'payments',
           component: () => import('../views/PaymentsView.vue'),
+          meta: { requiresManagement: true },
         },
         {
           path: 'cash',
           name: 'cash',
           component: () => import('../views/CashView.vue'),
+          meta: { requiresManagement: true },
         },
         {
           path: 'bank',
           name: 'bank',
           component: () => import('../views/BankView.vue'),
+          meta: { requiresManagement: true },
         },
         {
           path: 'accounting/journal',
           name: 'accounting-journal',
           component: () => import('../views/AccountingJournalView.vue'),
+          meta: { requiresAccounting: true },
         },
         {
           path: 'accounting/balance',
           name: 'accounting-balance',
           component: () => import('../views/AccountingBalanceView.vue'),
+          meta: { requiresAccounting: true },
         },
         {
           path: 'accounting/ledger',
           name: 'accounting-ledger',
           component: () => import('../views/AccountingLedgerView.vue'),
+          meta: { requiresAccounting: true },
         },
         {
           path: 'accounting/resultat',
           name: 'accounting-resultat',
           component: () => import('../views/AccountingResultatView.vue'),
+          meta: { requiresAccounting: true },
         },
         {
           path: 'accounting/bilan',
           name: 'accounting-bilan',
           component: () => import('../views/AccountingBilanView.vue'),
+          meta: { requiresAccounting: true },
         },
         {
           path: 'accounting/rules',
           name: 'accounting-rules',
           component: () => import('../views/AccountingRulesView.vue'),
+          meta: { requiresAccounting: true },
         },
         {
           path: 'accounting/fiscal-years',
           name: 'accounting-fiscal-years',
           component: () => import('../views/FiscalYearView.vue'),
+          meta: { requiresAccounting: true },
         },
         {
           path: 'salaries',
           name: 'salaries',
           component: () => import('../views/SalaryView.vue'),
+          meta: { requiresAccounting: true },
         },
         {
           path: 'import/excel',
           name: 'import-excel',
           component: () => import('../views/ImportExcelView.vue'),
+          meta: { requiresAccounting: true },
         },
         {
           path: 'settings',
@@ -155,6 +172,14 @@ router.beforeEach(async (to) => {
 
   if (!auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  if (to.meta.requiresAccounting && !auth.canAccessAccounting) {
+    return auth.canAccessManagement ? { name: 'dashboard' } : { name: 'login' }
+  }
+
+  if (to.meta.requiresManagement && !auth.canAccessManagement) {
+    return { name: 'dashboard' }
   }
 
   if (to.meta.requiresAdmin && !auth.isAdmin) {

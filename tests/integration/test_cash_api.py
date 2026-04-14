@@ -39,6 +39,31 @@ async def test_add_entry_in(client: AsyncClient, admin_user: User, auth_headers:
 
 
 @pytest.mark.asyncio
+async def test_secretaire_can_add_entry(
+    client: AsyncClient, secretaire_user: User, secretaire_auth_headers: dict
+) -> None:
+    response = await client.post(
+        "/api/cash/entries",
+        json={
+            "date": "2024-03-01",
+            "amount": "150.00",
+            "type": "in",
+            "description": "Cotisations reçues",
+        },
+        headers=secretaire_auth_headers,
+    )
+    assert response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_readonly_cannot_access_cash_balance(
+    client: AsyncClient, readonly_user: User, readonly_auth_headers: dict
+) -> None:
+    response = await client.get("/api/cash/balance", headers=readonly_auth_headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_add_entry_unauthenticated(client: AsyncClient) -> None:
     response = await client.post(
         "/api/cash/entries",

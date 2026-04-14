@@ -304,18 +304,18 @@ function defaultCreateForm(): CreateUserForm {
     username: '',
     email: '',
     password: '',
-    role: 'readonly',
+    role: 'secretaire',
   }
 }
 
 function defaultEditForm(): EditUserForm {
   return {
-    role: 'readonly',
+    role: 'secretaire',
     is_active: true,
   }
 }
 
-const roleDefinitions = computed<RoleDefinition[]>(() => [
+const allRoleDefinitions = computed<RoleDefinition[]>(() => [
   {
     value: 'readonly',
     title: t('users.role_cards.readonly.title'),
@@ -342,9 +342,25 @@ const roleDefinitions = computed<RoleDefinition[]>(() => [
   },
 ])
 
-const roleOptions = computed(() =>
-  roleDefinitions.value.map((role) => ({ value: role.value, label: role.title })),
+const roleDefinitions = computed(() =>
+  allRoleDefinitions.value.filter((role) => role.value !== 'readonly'),
 )
+
+const roleOptions = computed(() => {
+  const options = roleDefinitions.value.map((role) => ({ value: role.value, label: role.title }))
+
+  if (editingUser.value?.role === 'readonly') {
+    return [
+      {
+        value: 'readonly' satisfies UserRole,
+        label: t('users.role_cards.readonly.title'),
+      },
+      ...options,
+    ]
+  }
+
+  return options
+})
 
 const roleCards = computed(() => roleDefinitions.value)
 
@@ -369,7 +385,7 @@ const canEdit = computed(() => {
 })
 
 function roleLabel(role: UserRole): string {
-  return roleDefinitions.value.find((item) => item.value === role)?.title ?? role
+  return allRoleDefinitions.value.find((item) => item.value === role)?.title ?? role
 }
 
 function roleSeverity(role: UserRole): 'info' | 'success' | 'warn' | 'contrast' {

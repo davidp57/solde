@@ -10,7 +10,7 @@
         @click="sidebarVisible = true"
       />
       <span class="topbar-title">{{ t('app.name') }}</span>
-      <div class="topbar-context">
+      <div v-if="auth.canAccessAccounting" class="topbar-context">
         <span class="topbar-context__label">{{ t('app.active_fiscal_year') }}</span>
         <Select
           v-model="selectedFiscalYearOptionId"
@@ -24,7 +24,7 @@
         />
       </div>
       <div class="topbar-user">
-        <span class="topbar-username">{{ auth.user?.username }}</span>
+        <span class="topbar-username">{{ displayedUsername }}</span>
         <Button
           :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
           text
@@ -57,10 +57,8 @@
         <NavMenu />
         <div class="sidebar-footer">
           <div class="sidebar-user">
-            <span class="sidebar-username">{{ auth.user?.username }}</span>
-            <span class="sidebar-role">{{
-              auth.user?.role ? t(`user.role.${auth.user.role}`) : ''
-            }}</span>
+            <span class="sidebar-username">{{ displayedUsername }}</span>
+            <span class="sidebar-role">{{ displayedRoleLabel }}</span>
           </div>
           <Button
             :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
@@ -106,6 +104,10 @@ const fiscalYearStore = useFiscalYearStore()
 const { isDark, toggle: toggleDark } = useDarkMode()
 
 const sidebarVisible = ref(false)
+const displayedUsername = computed(() => auth.user?.username ?? t('auth.me'))
+const displayedRoleLabel = computed(() =>
+  auth.user?.role ? t(`user.role.${auth.user.role}`) : t('auth.session_active'),
+)
 const fiscalYearOptions = computed(() => [
   { id: null, name: t('app.all_fiscal_years') },
   ...fiscalYearStore.fiscalYears,
@@ -126,7 +128,9 @@ async function handleLogout(): Promise<void> {
 }
 
 onMounted(() => {
-  void fiscalYearStore.initialize()
+  if (auth.canAccessAccounting) {
+    void fiscalYearStore.initialize()
+  }
 })
 </script>
 
