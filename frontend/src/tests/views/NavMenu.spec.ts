@@ -1,0 +1,77 @@
+import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import NavMenu from '@/components/NavMenu.vue'
+import { useAuthStore } from '@/stores/auth'
+
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({
+    t: (key: string) => key,
+  }),
+}))
+
+vi.mock('@/composables/useDarkMode', () => ({
+  useDarkMode: () => ({
+    isDark: { value: false },
+  }),
+}))
+
+function mountNavMenu() {
+  return mount(NavMenu, {
+    global: {
+      stubs: {
+        RouterLink: {
+          props: ['to'],
+          template: '<a :href="to"><slot /></a>',
+        },
+      },
+    },
+  })
+}
+
+describe('NavMenu', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('shows only the management section for a gestionnaire', () => {
+    const auth = useAuthStore()
+    auth.user = {
+      id: 1,
+      username: 'gestionnaire',
+      email: 'gestionnaire@example.com',
+      role: 'secretaire',
+      is_active: true,
+      created_at: '2025-01-01T00:00:00',
+    }
+
+    const wrapper = mountNavMenu()
+    const text = wrapper.text()
+
+    expect(text).toContain('nav.section_management')
+    expect(text).toContain('nav.dashboard')
+    expect(text).toContain('nav.bank')
+    expect(text).not.toContain('nav.section_accounting')
+    expect(text).not.toContain('nav.accounting_journal')
+    expect(text).not.toContain('nav.section_administration')
+  })
+
+  it('shows management and accounting sections for a comptable', () => {
+    const auth = useAuthStore()
+    auth.user = {
+      id: 2,
+      username: 'comptable',
+      email: 'comptable@example.com',
+      role: 'tresorier',
+      is_active: true,
+      created_at: '2025-01-01T00:00:00',
+    }
+
+    const wrapper = mountNavMenu()
+    const text = wrapper.text()
+
+    expect(text).toContain('nav.section_management')
+    expect(text).toContain('nav.section_accounting')
+    expect(text).toContain('nav.accounting_journal')
+    expect(text).not.toContain('nav.section_administration')
+  })
+})

@@ -94,6 +94,14 @@ async def test_list_payments_empty(
 
 
 @pytest.mark.asyncio
+async def test_readonly_cannot_list_payments(
+    client: AsyncClient, readonly_user: User, readonly_auth_headers: dict
+) -> None:
+    response = await client.get("/api/payments/", headers=readonly_auth_headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_get_payment_not_found(
     client: AsyncClient, admin_user: User, auth_headers: dict
 ) -> None:

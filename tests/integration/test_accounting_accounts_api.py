@@ -40,6 +40,12 @@ class TestSeedAccounts:
 
 
 class TestListAccounts:
+    async def test_requires_comptable_or_admin_for_read(
+        self, client: AsyncClient, secretaire_auth_headers: dict
+    ):
+        response = await client.get("/api/accounting/accounts/", headers=secretaire_auth_headers)
+        assert response.status_code == 403
+
     async def test_returns_empty_before_seed(self, client: AsyncClient, auth_headers: dict):
         response = await client.get("/api/accounting/accounts/", headers=auth_headers)
         assert response.status_code == 200

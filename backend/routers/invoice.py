@@ -21,7 +21,7 @@ from backend.config import Settings, get_settings
 from backend.database import get_db
 from backend.models.invoice import InvoiceStatus, InvoiceType
 from backend.models.user import User, UserRole
-from backend.routers.auth import get_current_user, require_role
+from backend.routers.auth import require_role
 from backend.schemas.invoice import (
     InvoiceCreate,
     InvoiceRead,
@@ -37,7 +37,10 @@ _WriteAccess = Annotated[
     User,
     Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
 ]
-_ReadAccess = Annotated[User, Depends(get_current_user)]
+_ReadAccess = Annotated[
+    User,
+    Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
+]
 
 # Allowed MIME types for supplier invoice file uploads
 _ALLOWED_MIME_TYPES = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
