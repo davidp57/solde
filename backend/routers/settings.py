@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import get_db
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
-from backend.schemas.settings import AppSettingsRead, AppSettingsUpdate
+from backend.schemas.settings import (
+    AppSettingsRead,
+    AppSettingsUpdate,
+    TreasurySystemOpeningRead,
+    TreasurySystemOpeningUpdate,
+)
 from backend.services import settings as settings_service
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -33,6 +38,25 @@ async def update_settings(
 ) -> AppSettingsRead:
     """Update application settings (admin only)."""
     return await settings_service.update_settings(db, payload)  # type: ignore[return-value]
+
+
+@router.get("/system-opening", response_model=TreasurySystemOpeningRead)
+async def get_system_opening(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _AdminRequired,
+) -> TreasurySystemOpeningRead:
+    """Return the current treasury system opening configuration (admin only)."""
+    return await settings_service.get_treasury_system_opening(db)
+
+
+@router.put("/system-opening", response_model=TreasurySystemOpeningRead)
+async def update_system_opening(
+    payload: TreasurySystemOpeningUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _AdminRequired,
+) -> TreasurySystemOpeningRead:
+    """Create or update the treasury system opening entries (admin only)."""
+    return await settings_service.upsert_treasury_system_opening(db, payload)
 
 
 @router.post("/reset-db", response_model=dict[str, int])

@@ -1,7 +1,7 @@
 import apiClient from './client'
 
 export type DepositType = 'cheques' | 'especes'
-export type BankTransactionSource = 'manual' | 'import'
+export type BankTransactionSource = 'manual' | 'import' | 'system_opening'
 
 export interface BankTransaction {
   id: number

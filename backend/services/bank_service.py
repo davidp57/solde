@@ -24,15 +24,34 @@ async def _current_bank_balance(db: AsyncSession) -> Decimal:
     return Decimal(str(total))
 
 
+async def recompute_bank_balances(db: AsyncSession) -> bool:
+    """Recompute running bank balances and report whether persisted values changed."""
+    result = await db.execute(
+        select(BankTransaction).order_by(BankTransaction.date.asc(), BankTransaction.id.asc())
+    )
+    running_balance = Decimal("0")
+    changed = False
+    for entry in result.scalars().all():
+        running_balance += Decimal(str(entry.amount))
+        if entry.balance_after != running_balance:
+            entry.balance_after = running_balance
+            changed = True
+    return changed
+
+
 async def add_transaction(db: AsyncSession, payload: BankTransactionCreate) -> BankTransaction:
     tx = BankTransaction(**payload.model_dump())
     db.add(tx)
+    await db.flush()
+    await recompute_bank_balances(db)
     await db.commit()
     await db.refresh(tx)
     return tx
 
 
 async def get_transaction(db: AsyncSession, tx_id: int) -> BankTransaction | None:
+    if await recompute_bank_balances(db):
+        await db.commit()
     result = await db.execute(select(BankTransaction).where(BankTransaction.id == tx_id))
     return result.scalar_one_or_none()
 
@@ -46,6 +65,8 @@ async def list_transactions(
     skip: int = 0,
     limit: int | None = None,
 ) -> list[BankTransaction]:
+    if await recompute_bank_balances(db):
+        await db.commit()
     query = select(BankTransaction)
     if from_date is not None:
         query = query.where(BankTransaction.date >= from_date)
@@ -66,6 +87,8 @@ async def update_transaction(
 ) -> BankTransaction:
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(tx, field, value)
+    await db.flush()
+    await recompute_bank_balances(db)
     await db.commit()
     await db.refresh(tx)
     return tx

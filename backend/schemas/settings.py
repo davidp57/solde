@@ -1,5 +1,10 @@
 """Pydantic schemas for application settings."""
 
+from __future__ import annotations
+
+from datetime import date as _Date
+from decimal import Decimal as _Decimal
+
 from pydantic import BaseModel, field_validator
 
 
@@ -52,3 +57,34 @@ class AppSettingsUpdate(BaseModel):
         if v is not None and not 1 <= v <= 65535:
             raise ValueError("smtp_port must be between 1 and 65535")
         return v
+
+
+class SystemOpeningRead(BaseModel):
+    configured: bool
+    date: _Date | None = None
+    amount: _Decimal | None = None
+    reference: str | None = None
+
+
+class TreasurySystemOpeningRead(BaseModel):
+    default_date: _Date | None = None
+    bank: SystemOpeningRead
+    cash: SystemOpeningRead
+
+
+class SystemOpeningUpdate(BaseModel):
+    date: _Date
+    amount: _Decimal
+    reference: str | None = None
+
+    @field_validator("amount")
+    @classmethod
+    def amount_not_zero(cls, v: _Decimal) -> _Decimal:
+        if v == 0:
+            raise ValueError("amount must not be zero")
+        return v
+
+
+class TreasurySystemOpeningUpdate(BaseModel):
+    bank: SystemOpeningUpdate
+    cash: SystemOpeningUpdate
