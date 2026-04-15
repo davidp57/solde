@@ -14,7 +14,12 @@ from backend.models.app_settings import AppSettings
 from backend.models.bank import BankTransaction, BankTransactionSource
 from backend.models.cash import CashMovementType, CashRegister
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
-from backend.schemas.settings import AppSettingsUpdate, SystemOpeningRead, TreasurySystemOpeningRead, TreasurySystemOpeningUpdate
+from backend.schemas.settings import (
+    AppSettingsUpdate,
+    SystemOpeningRead,
+    TreasurySystemOpeningRead,
+    TreasurySystemOpeningUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,19 +65,27 @@ async def _get_default_system_opening_date(db: AsyncSession) -> date | None:
 async def get_treasury_system_opening(db: AsyncSession) -> TreasurySystemOpeningRead:
     default_date = await _get_default_system_opening_date(db)
     bank_entry = (
-        await db.execute(
-            select(BankTransaction)
-            .where(BankTransaction.source == BankTransactionSource.SYSTEM_OPENING)
-            .order_by(BankTransaction.date.asc(), BankTransaction.id.asc())
+        (
+            await db.execute(
+                select(BankTransaction)
+                .where(BankTransaction.source == BankTransactionSource.SYSTEM_OPENING)
+                .order_by(BankTransaction.date.asc(), BankTransaction.id.asc())
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
     cash_entry = (
-        await db.execute(
-            select(CashRegister)
-            .where(CashRegister.description == _SYSTEM_OPENING_DESCRIPTION)
-            .order_by(CashRegister.date.asc(), CashRegister.id.asc())
+        (
+            await db.execute(
+                select(CashRegister)
+                .where(CashRegister.description == _SYSTEM_OPENING_DESCRIPTION)
+                .order_by(CashRegister.date.asc(), CashRegister.id.asc())
+            )
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
 
     return TreasurySystemOpeningRead(
         default_date=default_date,
@@ -98,27 +111,35 @@ async def upsert_treasury_system_opening(
     from backend.services.cash_service import recompute_cash_balances
 
     bank_entries = (
-        await db.execute(
-            select(BankTransaction)
-            .where(BankTransaction.source == BankTransactionSource.SYSTEM_OPENING)
-            .order_by(BankTransaction.id.asc())
+        (
+            await db.execute(
+                select(BankTransaction)
+                .where(BankTransaction.source == BankTransactionSource.SYSTEM_OPENING)
+                .order_by(BankTransaction.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     cash_entries = (
-        await db.execute(
-            select(CashRegister)
-            .where(CashRegister.description == _SYSTEM_OPENING_DESCRIPTION)
-            .order_by(CashRegister.id.asc())
+        (
+            await db.execute(
+                select(CashRegister)
+                .where(CashRegister.description == _SYSTEM_OPENING_DESCRIPTION)
+                .order_by(CashRegister.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
-    bank_entry = bank_entries[0] if bank_entries else None
-    cash_entry = cash_entries[0] if cash_entries else None
+    bank_entry: BankTransaction | None = bank_entries[0] if bank_entries else None
+    cash_entry: CashRegister | None = cash_entries[0] if cash_entries else None
 
-    for extra_entry in bank_entries[1:]:
-        await db.delete(extra_entry)
-    for extra_entry in cash_entries[1:]:
-        await db.delete(extra_entry)
+    for extra_bank_entry in bank_entries[1:]:
+        await db.delete(extra_bank_entry)
+    for extra_cash_entry in cash_entries[1:]:
+        await db.delete(extra_cash_entry)
 
     if bank_entry is None:
         bank_entry = BankTransaction(

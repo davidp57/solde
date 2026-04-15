@@ -20,14 +20,18 @@ from backend.models.contact import Contact, ContactType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.import_log import ImportLog, ImportLogStatus, ImportLogType
 from backend.models.user import User, UserRole
-from backend.schemas.settings import AppSettingsUpdate, SystemOpeningUpdate, TreasurySystemOpeningUpdate
+from backend.schemas.settings import (
+    AppSettingsUpdate,
+    SystemOpeningUpdate,
+    TreasurySystemOpeningUpdate,
+)
 from backend.services.settings import (
     bootstrap_accounting_setup,
     get_settings,
     get_treasury_system_opening,
     reset_data,
-    upsert_treasury_system_opening,
     update_settings,
+    upsert_treasury_system_opening,
 )
 
 
@@ -300,11 +304,23 @@ class TestTreasurySystemOpening:
         assert opening.cash.amount == Decimal("50.00")
 
         bank_entries = (
-            await db_session.execute(select(BankTransaction).order_by(BankTransaction.date, BankTransaction.id))
-        ).scalars().all()
+            (
+                await db_session.execute(
+                    select(BankTransaction).order_by(BankTransaction.date, BankTransaction.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
         cash_entries = (
-            await db_session.execute(select(CashRegister).order_by(CashRegister.date, CashRegister.id))
-        ).scalars().all()
+            (
+                await db_session.execute(
+                    select(CashRegister).order_by(CashRegister.date, CashRegister.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         assert len(bank_entries) == 2
         assert bank_entries[0].source == BankTransactionSource.SYSTEM_OPENING
