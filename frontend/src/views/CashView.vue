@@ -119,6 +119,7 @@
                     <Tag
                       v-if="data.is_system_opening"
                       :value="t('cash.origins.system_opening')"
+                      class="cash-entry-type__system-opening"
                       severity="info"
                     />
                   </div>
@@ -353,7 +354,11 @@
         </div>
         <div v-if="selectedEntry.is_system_opening" class="cash-detail__row">
           <span class="cash-detail__label">{{ t('cash.entry_origin') }}</span>
-          <Tag :value="t('cash.origins.system_opening')" severity="info" />
+          <Tag
+            :value="t('cash.origins.system_opening')"
+            class="cash-entry-type__system-opening"
+            severity="info"
+          />
         </div>
         <div class="cash-detail__row">
           <span class="cash-detail__label">{{ t('cash.entry_amount') }}</span>

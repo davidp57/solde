@@ -490,7 +490,7 @@ export default {
     section_smtp_subtitle: "Parametres d'envoi pour les e-mails automatiques et les relances.",
     system_opening_title: 'Ouverture du système',
     system_opening_subtitle:
-      'Définis le point de départ réel de la banque et de la caisse sur le plus ancien exercice importé.',
+      'Définissez le point de départ réel de la banque et de la caisse sur le plus ancien exercice importé.',
     system_opening_hint:
       'Ces montants créent des écritures identifiées comme ouverture du système. Les valeurs négatives sont autorisées.',
     system_opening_bank_title: 'Banque',

@@ -356,6 +356,16 @@ describe('CashView', () => {
     expect(wrapper.text()).toContain('Participation sortie')
   })
 
+  it('renders the system opening indicator when a cash entry is flagged', async () => {
+    mockListCashEntries.mockResolvedValue([{ ...cashEntryFixture, is_system_opening: true }])
+
+    const wrapper = mountView()
+    await flushView()
+
+    expect(wrapper.text()).toContain('cash.origins.system_opening')
+    expect(wrapper.find('.cash-entry-type__system-opening').exists()).toBe(true)
+  })
+
   it('edits a cash entry from the journal', async () => {
     const wrapper = mountView()
     await flushView()
