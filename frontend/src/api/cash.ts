@@ -12,6 +12,7 @@ export interface CashEntry {
   reference: string | null
   description: string
   balance_after: string
+  is_system_opening: boolean
 }
 
 export interface CashEntryCreate {

@@ -1,7 +1,13 @@
 """Integration tests for GET/PUT /api/settings."""
 
+from datetime import date
+
 from httpx import AsyncClient
 from sqlalchemy import select
+
+from backend.models.bank import BankTransaction, BankTransactionSource
+from backend.models.cash import CashMovementType, CashRegister
+from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 
 
 class TestGetSettings:
@@ -105,6 +111,69 @@ class TestUpdateSettings:
         data = response.json()
         assert data["smtp_host"] == "smtp.gmail.com"
         assert data["smtp_user"] == "test@gmail.com"
+
+
+class TestTreasurySystemOpening:
+    async def test_get_system_opening_requires_auth(self, client: AsyncClient) -> None:
+        response = await client.get("/api/settings/system-opening")
+        assert response.status_code == 401
+
+    async def test_get_system_opening_returns_default_date(
+        self, client: AsyncClient, auth_headers: dict, db_session
+    ) -> None:
+        db_session.add(
+            FiscalYear(
+                name="2024",
+                start_date=date(2024, 8, 1),
+                end_date=date(2025, 7, 31),
+                status=FiscalYearStatus.OPEN,
+            )
+        )
+        await db_session.commit()
+
+        response = await client.get("/api/settings/system-opening", headers=auth_headers)
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["default_date"] == "2024-08-01"
+        assert payload["bank"]["configured"] is False
+        assert payload["cash"]["configured"] is False
+
+    async def test_put_system_opening_creates_bank_and_cash_entries(
+        self, client: AsyncClient, auth_headers: dict, db_session
+    ) -> None:
+        response = await client.put(
+            "/api/settings/system-opening",
+            json={
+                "bank": {
+                    "date": "2024-08-01",
+                    "amount": "100.00",
+                    "reference": "Solde banque initial",
+                },
+                "cash": {
+                    "date": "2024-08-01",
+                    "amount": "-15.00",
+                    "reference": "Ajustement initial",
+                },
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["bank"]["configured"] is True
+        assert payload["bank"]["amount"] == "100.00"
+        assert payload["cash"]["configured"] is True
+        assert payload["cash"]["amount"] == "-15.00"
+
+        bank_entry = (await db_session.execute(select(BankTransaction))).scalar_one()
+        cash_entry = (await db_session.execute(select(CashRegister))).scalar_one()
+
+        assert bank_entry.source == BankTransactionSource.SYSTEM_OPENING
+        assert bank_entry.reference == "Solde banque initial"
+        assert cash_entry.type == CashMovementType.OUT
+        assert cash_entry.amount == 15
+        assert cash_entry.reference == "Ajustement initial"
 
 
 class TestNonAdminAccess:

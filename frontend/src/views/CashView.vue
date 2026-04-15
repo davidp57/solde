@@ -78,6 +78,7 @@
               :global-filter-fields="[
                 'date',
                 'type_label',
+                'origin_label',
                 'amount',
                 'reference',
                 'description',
@@ -110,10 +111,17 @@
                 :show-add-button="false"
               >
                 <template #body="{ data }">
-                  <Tag
-                    :value="t(`cash.movements.${data.type}`)"
-                    :severity="data.type === 'in' ? 'success' : 'danger'"
-                  />
+                  <div class="cash-entry-type">
+                    <Tag
+                      :value="t(`cash.movements.${data.type}`)"
+                      :severity="data.type === 'in' ? 'success' : 'danger'"
+                    />
+                    <Tag
+                      v-if="data.is_system_opening"
+                      :value="t('cash.origins.system_opening')"
+                      severity="info"
+                    />
+                  </div>
                 </template>
                 <template #filter="{ filterModel }">
                   <AppFilterMultiSelect
@@ -343,6 +351,10 @@
           <span class="cash-detail__label">{{ t('cash.entry_type') }}</span>
           <span>{{ t(`cash.movements.${selectedEntry.type}`) }}</span>
         </div>
+        <div v-if="selectedEntry.is_system_opening" class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.entry_origin') }}</span>
+          <Tag :value="t('cash.origins.system_opening')" severity="info" />
+        </div>
         <div class="cash-detail__row">
           <span class="cash-detail__label">{{ t('cash.entry_amount') }}</span>
           <span>{{ formatAmount(selectedEntry.amount) }}</span>
@@ -559,6 +571,7 @@ const entryRows = computed(() =>
   entries.value.map((entry) => ({
     ...entry,
     type_label: t(`cash.movements.${entry.type}`),
+    origin_label: entry.is_system_opening ? t('cash.origins.system_opening') : '',
     amount_value: parseFloat(entry.amount),
     balance_after_value: parseFloat(entry.balance_after),
   })),
@@ -869,6 +882,12 @@ onMounted(async () => {
 <style scoped>
 .cash-journal__actions {
   width: 8rem;
+}
+
+.cash-entry-type {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
 }
 
 .cash-form {

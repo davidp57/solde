@@ -60,6 +60,7 @@ const cashEntryFixture = {
   reference: 'CAISSE-2025-001',
   description: 'Participation sortie',
   balance_after: '145.00',
+  is_system_opening: false,
 }
 
 const ContainerStub = defineComponent({

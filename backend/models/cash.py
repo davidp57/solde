@@ -44,6 +44,10 @@ class CashRegister(Base):
         DateTime, nullable=False, server_default=func.now()
     )
 
+    @property
+    def is_system_opening(self) -> bool:
+        return self.description == "Ouverture du système"
+
 
 class CashCount(Base):
     """Physical cash counting record."""

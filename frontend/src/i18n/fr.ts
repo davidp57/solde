@@ -397,6 +397,7 @@ export default {
     entry_date: 'Date',
     entry_amount: 'Montant',
     entry_type: 'Type',
+    entry_origin: 'Origine',
     entry_description: 'Description',
     entry_reference: 'Référence',
     balance_after: 'Solde après',
@@ -409,6 +410,9 @@ export default {
     movements: {
       in: 'Entrée',
       out: 'Sortie',
+    },
+    origins: {
+      system_opening: 'Ouverture du système',
     },
     metrics: {
       current_balance_caption: 'Toutes périodes confondues',
@@ -458,6 +462,7 @@ export default {
     sources: {
       manual: 'Manuel',
       import: 'Import',
+      system_opening: 'Ouverture du système',
     },
     deposit_types: {
       cheques: 'Chèques',
@@ -483,6 +488,29 @@ export default {
       'Identite administrative et informations qui structurent les documents emis.',
     section_smtp: 'Configuration e-mail (SMTP)',
     section_smtp_subtitle: "Parametres d'envoi pour les e-mails automatiques et les relances.",
+    system_opening_title: 'Ouverture du système',
+    system_opening_subtitle:
+      'Définis le point de départ réel de la banque et de la caisse sur le plus ancien exercice importé.',
+    system_opening_hint:
+      'Ces montants créent des écritures identifiées comme ouverture du système. Les valeurs négatives sont autorisées.',
+    system_opening_bank_title: 'Banque',
+    system_opening_bank_subtitle: 'Solde initial visible avant les premiers mouvements importés.',
+    system_opening_cash_title: 'Caisse',
+    system_opening_cash_subtitle: 'Espèces initiales connues au démarrage du système.',
+    system_opening_status_configured: 'Configurée',
+    system_opening_status_pending: 'À renseigner',
+    system_opening_date: 'Date',
+    system_opening_amount: 'Montant',
+    system_opening_reference: 'Référence / note',
+    system_opening_reference_placeholder: 'Ex : solde repris au 01/08/2024',
+    system_opening_default_date: 'Date par défaut proposée : {date}',
+    system_opening_save: "Enregistrer l'ouverture",
+    system_opening_saved: 'Ouverture du système enregistrée.',
+    system_opening_load_error: "Impossible de charger l'ouverture du système.",
+    system_opening_save_error: "Impossible d'enregistrer l'ouverture du système.",
+    system_opening_validation_error:
+      'Renseigne une date et un montant pour la banque et la caisse.',
+    system_opening_zero_error: 'Le montant doit être non nul pour la banque et la caisse.',
     asso_name: "Nom de l'association",
     siret: 'N° SIRET',
     address: 'Adresse',

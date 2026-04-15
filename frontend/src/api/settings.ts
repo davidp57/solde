@@ -26,6 +26,30 @@ export interface AppSettingsUpdate {
   smtp_use_tls?: boolean
 }
 
+export interface SystemOpening {
+  configured: boolean
+  date: string | null
+  amount: string | null
+  reference: string | null
+}
+
+export interface TreasurySystemOpening {
+  default_date: string | null
+  bank: SystemOpening
+  cash: SystemOpening
+}
+
+export interface SystemOpeningUpdate {
+  date: string
+  amount: string
+  reference?: string | null
+}
+
+export interface TreasurySystemOpeningUpdate {
+  bank: SystemOpeningUpdate
+  cash: SystemOpeningUpdate
+}
+
 export async function getSettingsApi(): Promise<AppSettings> {
   const response = await apiClient.get<AppSettings>('/api/settings/')
   return response.data
@@ -33,6 +57,21 @@ export async function getSettingsApi(): Promise<AppSettings> {
 
 export async function updateSettingsApi(payload: AppSettingsUpdate): Promise<AppSettings> {
   const response = await apiClient.put<AppSettings>('/api/settings/', payload)
+  return response.data
+}
+
+export async function getSystemOpeningApi(): Promise<TreasurySystemOpening> {
+  const response = await apiClient.get<TreasurySystemOpening>('/api/settings/system-opening')
+  return response.data
+}
+
+export async function updateSystemOpeningApi(
+  payload: TreasurySystemOpeningUpdate,
+): Promise<TreasurySystemOpening> {
+  const response = await apiClient.put<TreasurySystemOpening>(
+    '/api/settings/system-opening',
+    payload,
+  )
   return response.data
 }
 
