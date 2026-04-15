@@ -2673,6 +2673,56 @@ async def test_preview_and_import_gestion_ignore_bank_opening_descriptive_rows(
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_and_import_gestion_ignore_dated_bank_opening_balance_rows(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    """Bank preview and import should ignore dated opening balance rows without movement."""
+    content = _make_multi_sheet_xlsx(
+        {
+            "Banque": (
+                ["Date", "Montant", "Libellé", "Solde"],
+                [
+                    ["2024-08-01", None, "Solde initial", 566.76],
+                    [None, None, "Assurance MAIF", 566.76],
+                    ["2024-08-02", -18, "Paiement CB", 548.76],
+                ],
+            )
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    sheets = {sheet["name"]: sheet for sheet in preview_data["sheets"]}
+    assert preview_data["can_import"] is True
+    assert sheets["Banque"]["rows"] == 1
+    assert sheets["Banque"]["ignored_rows"] == 2
+    assert sheets["Banque"]["blocked_rows"] == 0
+    assert any(
+        "descriptive" in warning.lower() or "solde" in warning.lower()
+        for warning in sheets["Banque"]["warnings"]
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    import_data = import_response.json()
+    assert import_data["bank_created"] == 1
+    assert import_data["ignored_rows"] == 2
+    assert import_data["blocked_rows"] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
 async def test_preview_and_import_gestion_block_bank_row_with_isolated_year(
     client: AsyncClient, auth_headers: dict
 ) -> None:

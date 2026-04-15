@@ -2,6 +2,7 @@
 
 import logging
 from datetime import date
+from decimal import Decimal
 from typing import Any, cast
 
 from sqlalchemy import delete, select
@@ -10,8 +11,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import Base
 from backend.models.app_settings import AppSettings
+from backend.models.bank import BankTransaction, BankTransactionSource
+from backend.models.cash import (
+    CASH_SYSTEM_OPENING_DESCRIPTION,
+    CashEntrySource,
+    CashMovementType,
+    CashRegister,
+)
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
-from backend.schemas.settings import AppSettingsUpdate
+from backend.schemas.settings import (
+    AppSettingsUpdate,
+    SystemOpeningRead,
+    TreasurySystemOpeningRead,
+    TreasurySystemOpeningUpdate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +52,143 @@ async def update_settings(db: AsyncSession, payload: AppSettingsUpdate) -> AppSe
     await db.commit()
     await db.refresh(settings)
     return settings
+
+
+def _to_signed_cash_amount(entry: CashRegister | None) -> Decimal | None:
+    if entry is None:
+        return None
+    amount = Decimal(str(entry.amount))
+    return amount if entry.type == CashMovementType.IN else -amount
+
+
+async def _get_default_system_opening_date(db: AsyncSession) -> date | None:
+    result = await db.execute(select(FiscalYear.start_date).order_by(FiscalYear.start_date.asc()))
+    return result.scalars().first()
+
+
+async def get_treasury_system_opening(db: AsyncSession) -> TreasurySystemOpeningRead:
+    default_date = await _get_default_system_opening_date(db)
+    bank_entry = (
+        (
+            await db.execute(
+                select(BankTransaction)
+                .where(BankTransaction.source == BankTransactionSource.SYSTEM_OPENING)
+                .order_by(BankTransaction.date.asc(), BankTransaction.id.asc())
+            )
+        )
+        .scalars()
+        .first()
+    )
+    cash_entry = (
+        (
+            await db.execute(
+                select(CashRegister)
+                .where(CashRegister.source == CashEntrySource.SYSTEM_OPENING)
+                .order_by(CashRegister.date.asc(), CashRegister.id.asc())
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+    return TreasurySystemOpeningRead(
+        default_date=default_date,
+        bank=SystemOpeningRead(
+            configured=bank_entry is not None,
+            date=bank_entry.date if bank_entry is not None else None,
+            amount=Decimal(str(bank_entry.amount)) if bank_entry is not None else None,
+            reference=bank_entry.reference if bank_entry is not None else None,
+        ),
+        cash=SystemOpeningRead(
+            configured=cash_entry is not None,
+            date=cash_entry.date if cash_entry is not None else None,
+            amount=_to_signed_cash_amount(cash_entry),
+            reference=cash_entry.reference if cash_entry is not None else None,
+        ),
+    )
+
+
+async def upsert_treasury_system_opening(
+    db: AsyncSession, payload: TreasurySystemOpeningUpdate
+) -> TreasurySystemOpeningRead:
+    from backend.services.bank_service import recompute_bank_balances
+    from backend.services.cash_service import recompute_cash_balances
+
+    bank_entries = (
+        (
+            await db.execute(
+                select(BankTransaction)
+                .where(BankTransaction.source == BankTransactionSource.SYSTEM_OPENING)
+                .order_by(BankTransaction.id.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    cash_entries = (
+        (
+            await db.execute(
+                select(CashRegister)
+                .where(CashRegister.source == CashEntrySource.SYSTEM_OPENING)
+                .order_by(CashRegister.id.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    bank_entry: BankTransaction | None = bank_entries[0] if bank_entries else None
+    cash_entry: CashRegister | None = cash_entries[0] if cash_entries else None
+
+    for extra_bank_entry in bank_entries[1:]:
+        await db.delete(extra_bank_entry)
+    for extra_cash_entry in cash_entries[1:]:
+        await db.delete(extra_cash_entry)
+
+    if bank_entry is None:
+        bank_entry = BankTransaction(
+            date=payload.bank.date,
+            amount=payload.bank.amount,
+            reference=payload.bank.reference,
+            description=CASH_SYSTEM_OPENING_DESCRIPTION,
+            balance_after=Decimal("0"),
+            source=BankTransactionSource.SYSTEM_OPENING,
+        )
+        db.add(bank_entry)
+    else:
+        bank_entry.date = payload.bank.date
+        bank_entry.amount = payload.bank.amount
+        bank_entry.reference = payload.bank.reference
+        bank_entry.description = CASH_SYSTEM_OPENING_DESCRIPTION
+        bank_entry.source = BankTransactionSource.SYSTEM_OPENING
+
+    cash_amount = abs(payload.cash.amount)
+    cash_type = CashMovementType.IN if payload.cash.amount > 0 else CashMovementType.OUT
+    if cash_entry is None:
+        cash_entry = CashRegister(
+            date=payload.cash.date,
+            amount=cash_amount,
+            type=cash_type,
+            reference=payload.cash.reference,
+            description=CASH_SYSTEM_OPENING_DESCRIPTION,
+            source=CashEntrySource.SYSTEM_OPENING,
+            balance_after=Decimal("0"),
+        )
+        db.add(cash_entry)
+    else:
+        cash_entry.date = payload.cash.date
+        cash_entry.amount = cash_amount
+        cash_entry.type = cash_type
+        cash_entry.reference = payload.cash.reference
+        cash_entry.description = CASH_SYSTEM_OPENING_DESCRIPTION
+        cash_entry.source = CashEntrySource.SYSTEM_OPENING
+
+    await db.flush()
+    await recompute_bank_balances(db)
+    await recompute_cash_balances(db)
+    await db.commit()
+
+    return await get_treasury_system_opening(db)
 
 
 # ---------------------------------------------------------------------------

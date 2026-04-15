@@ -166,6 +166,18 @@ def test_should_ignore_bank_balance_description() -> None:
         label="Solde au 01/01",
         balance=Decimal("1250.00"),
     )
+    assert should_ignore_bank_balance_description(
+        entry_date=date(2024, 8, 1),
+        amount=None,
+        label="Solde initial",
+        balance=Decimal("1250.00"),
+    )
+    assert not should_ignore_bank_balance_description(
+        entry_date=date(2024, 8, 2),
+        amount=None,
+        label="Paiement carte",
+        balance=Decimal("1232.00"),
+    )
     assert BANK_BALANCE_DESCRIPTION_MESSAGE == "ligne descriptive de solde ignoree"
 
 

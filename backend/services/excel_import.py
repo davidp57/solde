@@ -1975,7 +1975,7 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
     Expected columns (flexible): date | libellé/description | entrée | sortie
     or: date | description | montant | type (E/S or in/out)
     """
-    from backend.models.cash import CashMovementType, CashRegister  # noqa: PLC0415
+    from backend.models.cash import CashEntrySource, CashMovementType, CashRegister  # noqa: PLC0415
     from backend.models.invoice import Invoice, InvoiceType  # noqa: PLC0415
     from backend.models.payment import Payment  # noqa: PLC0415
     from backend.services.accounting_engine import (  # noqa: PLC0415
@@ -2034,6 +2034,7 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
             payment_id=payment_id,
             reference=cash_row.reference,
             description=cash_row.description,
+            source=CashEntrySource.MANUAL,
             balance_after=Decimal("0"),
         )
         db.add(entry)

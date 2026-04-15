@@ -216,7 +216,10 @@
                 :show-add-button="false"
               >
                 <template #body="{ data }">
-                  <Tag :value="t(`bank.sources.${data.source}`)" severity="secondary" />
+                  <Tag
+                    :value="t(`bank.sources.${data.source}`)"
+                    :severity="data.source === 'system_opening' ? 'info' : 'secondary'"
+                  />
                 </template>
                 <template #filter="{ filterModel }">
                   <AppFilterMultiSelect
@@ -617,6 +620,7 @@ const depositTypeOptions = [
 const sourceOptions = [
   { label: t('bank.sources.manual'), value: 'manual' },
   { label: t('bank.sources.import'), value: 'import' },
+  { label: t('bank.sources.system_opening'), value: 'system_opening' },
 ]
 
 const yesNoOptions = [

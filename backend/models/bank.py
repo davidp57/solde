@@ -19,6 +19,7 @@ _Decimal = Decimal
 class BankTransactionSource(StrEnum):
     MANUAL = "manual"
     IMPORT = "import"
+    SYSTEM_OPENING = "system_opening"
 
 
 class DepositType(StrEnum):
@@ -54,6 +55,10 @@ class BankTransaction(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )
+
+    @property
+    def is_system_opening(self) -> bool:
+        return self.source == BankTransactionSource.SYSTEM_OPENING
 
 
 class Deposit(Base):
