@@ -8,7 +8,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.cash import CashCount, CashMovementType, CashRegister
+from backend.models.cash import CashCount, CashEntrySource, CashMovementType, CashRegister
 from backend.schemas.cash import CashCountCreate, CashEntryCreate, CashEntryUpdate
 
 # Denomination values in euros
@@ -70,6 +70,7 @@ async def add_cash_entry(db: AsyncSession, payload: CashEntryCreate) -> CashRegi
         payment_id=payload.payment_id,
         reference=payload.reference,
         description=payload.description,
+        source=CashEntrySource.MANUAL,
         balance_after=Decimal("0"),
     )
     db.add(entry)

@@ -12,7 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import Base
 from backend.models.app_settings import AppSettings
 from backend.models.bank import BankTransaction, BankTransactionSource
-from backend.models.cash import CashMovementType, CashRegister
+from backend.models.cash import (
+    CASH_SYSTEM_OPENING_DESCRIPTION,
+    CashEntrySource,
+    CashMovementType,
+    CashRegister,
+)
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.schemas.settings import (
     AppSettingsUpdate,
@@ -25,7 +30,6 @@ logger = logging.getLogger(__name__)
 
 _SETTINGS_ID = 1
 _PRESERVED_TABLES = {"users"}
-_SYSTEM_OPENING_DESCRIPTION = "Ouverture du système"
 
 
 async def get_settings(db: AsyncSession) -> AppSettings:
@@ -79,7 +83,7 @@ async def get_treasury_system_opening(db: AsyncSession) -> TreasurySystemOpening
         (
             await db.execute(
                 select(CashRegister)
-                .where(CashRegister.description == _SYSTEM_OPENING_DESCRIPTION)
+                .where(CashRegister.source == CashEntrySource.SYSTEM_OPENING)
                 .order_by(CashRegister.date.asc(), CashRegister.id.asc())
             )
         )
@@ -125,7 +129,7 @@ async def upsert_treasury_system_opening(
         (
             await db.execute(
                 select(CashRegister)
-                .where(CashRegister.description == _SYSTEM_OPENING_DESCRIPTION)
+                .where(CashRegister.source == CashEntrySource.SYSTEM_OPENING)
                 .order_by(CashRegister.id.asc())
             )
         )
@@ -146,7 +150,7 @@ async def upsert_treasury_system_opening(
             date=payload.bank.date,
             amount=payload.bank.amount,
             reference=payload.bank.reference,
-            description=_SYSTEM_OPENING_DESCRIPTION,
+            description=CASH_SYSTEM_OPENING_DESCRIPTION,
             balance_after=Decimal("0"),
             source=BankTransactionSource.SYSTEM_OPENING,
         )
@@ -155,7 +159,7 @@ async def upsert_treasury_system_opening(
         bank_entry.date = payload.bank.date
         bank_entry.amount = payload.bank.amount
         bank_entry.reference = payload.bank.reference
-        bank_entry.description = _SYSTEM_OPENING_DESCRIPTION
+        bank_entry.description = CASH_SYSTEM_OPENING_DESCRIPTION
         bank_entry.source = BankTransactionSource.SYSTEM_OPENING
 
     cash_amount = abs(payload.cash.amount)
@@ -166,7 +170,8 @@ async def upsert_treasury_system_opening(
             amount=cash_amount,
             type=cash_type,
             reference=payload.cash.reference,
-            description=_SYSTEM_OPENING_DESCRIPTION,
+            description=CASH_SYSTEM_OPENING_DESCRIPTION,
+            source=CashEntrySource.SYSTEM_OPENING,
             balance_after=Decimal("0"),
         )
         db.add(cash_entry)
@@ -175,7 +180,8 @@ async def upsert_treasury_system_opening(
         cash_entry.amount = cash_amount
         cash_entry.type = cash_type
         cash_entry.reference = payload.cash.reference
-        cash_entry.description = _SYSTEM_OPENING_DESCRIPTION
+        cash_entry.description = CASH_SYSTEM_OPENING_DESCRIPTION
+        cash_entry.source = CashEntrySource.SYSTEM_OPENING
 
     await db.flush()
     await recompute_bank_balances(db)

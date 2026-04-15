@@ -6,7 +6,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from backend.models.bank import BankTransaction, BankTransactionSource
-from backend.models.cash import CashMovementType, CashRegister
+from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 
 
@@ -171,12 +171,68 @@ class TestTreasurySystemOpening:
 
         assert bank_entry.source == BankTransactionSource.SYSTEM_OPENING
         assert bank_entry.reference == "Solde banque initial"
+        assert cash_entry.source == CashEntrySource.SYSTEM_OPENING
         assert cash_entry.type == CashMovementType.OUT
         assert cash_entry.amount == 15
         assert cash_entry.reference == "Ajustement initial"
 
 
 class TestNonAdminAccess:
+    async def test_tresorier_cannot_access_system_opening_get(
+        self, client: AsyncClient, db_session, auth_headers: dict
+    ):
+        from backend.models.user import User, UserRole
+        from backend.services.auth import hash_password
+
+        tresorier = User(
+            username="tresorier-system-opening-read",
+            email="tresorier-system-opening-read@test.com",
+            password_hash=hash_password("password123"),
+            role=UserRole.TRESORIER,
+            is_active=True,
+        )
+        db_session.add(tresorier)
+        await db_session.commit()
+
+        login = await client.post(
+            "/api/auth/login",
+            data={"username": "tresorier-system-opening-read", "password": "password123"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        response = await client.get("/api/settings/system-opening", headers=headers)
+        assert response.status_code == 403
+
+    async def test_tresorier_cannot_access_system_opening_put(
+        self, client: AsyncClient, db_session, auth_headers: dict
+    ):
+        from backend.models.user import User, UserRole
+        from backend.services.auth import hash_password
+
+        tresorier = User(
+            username="tresorier-system-opening-write",
+            email="tresorier-system-opening-write@test.com",
+            password_hash=hash_password("password123"),
+            role=UserRole.TRESORIER,
+            is_active=True,
+        )
+        db_session.add(tresorier)
+        await db_session.commit()
+
+        login = await client.post(
+            "/api/auth/login",
+            data={"username": "tresorier-system-opening-write", "password": "password123"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        response = await client.put(
+            "/api/settings/system-opening",
+            json={
+                "bank": {"date": "2024-08-01", "amount": "100.00"},
+                "cash": {"date": "2024-08-01", "amount": "50.00"},
+            },
+            headers=headers,
+        )
+        assert response.status_code == 403
+
     async def test_tresorier_cannot_access_settings(
         self, client: AsyncClient, db_session, auth_headers: dict
     ):

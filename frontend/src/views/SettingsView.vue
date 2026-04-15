@@ -309,12 +309,7 @@
       </AppPanel>
     </form>
 
-    <Message
-      v-if="systemOpeningSuccessMessage"
-      severity="success"
-      class="mt-4"
-      :closable="true"
-    >
+    <Message v-if="systemOpeningSuccessMessage" severity="success" class="mt-4" :closable="true">
       {{ systemOpeningSuccessMessage }}
     </Message>
     <Message v-if="systemOpeningErrorMessage" severity="error" class="mt-4" :closable="true">
@@ -487,7 +482,9 @@ const MONTHS = [
 ]
 const monthOptions = MONTHS.map((label, i) => ({ label, value: i + 1 }))
 const systemOpeningDefaultDateLabel = computed(() =>
-  systemOpeningDefaultDate.value ? systemOpeningDefaultDate.value.split('-').reverse().join('/') : '',
+  systemOpeningDefaultDate.value
+    ? systemOpeningDefaultDate.value.split('-').reverse().join('/')
+    : '',
 )
 
 function toIsoDate(value: Date): string {

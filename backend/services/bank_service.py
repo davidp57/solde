@@ -50,8 +50,6 @@ async def add_transaction(db: AsyncSession, payload: BankTransactionCreate) -> B
 
 
 async def get_transaction(db: AsyncSession, tx_id: int) -> BankTransaction | None:
-    if await recompute_bank_balances(db):
-        await db.commit()
     result = await db.execute(select(BankTransaction).where(BankTransaction.id == tx_id))
     return result.scalar_one_or_none()
 
@@ -65,8 +63,6 @@ async def list_transactions(
     skip: int = 0,
     limit: int | None = None,
 ) -> list[BankTransaction]:
-    if await recompute_bank_balances(db):
-        await db.commit()
     query = select(BankTransaction)
     if from_date is not None:
         query = query.where(BankTransaction.date >= from_date)
