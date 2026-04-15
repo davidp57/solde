@@ -65,6 +65,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-022 | 2026-04-13 | Évolution | Utilisateurs / Sécurité | P1 | Renforcer la gestion des utilisateurs avec des rôles métier plus clairs, la création et l'administration des comptes, l'autonomie sur le profil et un socle de sécurité de compte plus complet |
 | BL-024 | 2026-04-13 | Correction | Paiements / Banque | P1 | Clarifier le workflow cible de saisie des paiements et corriger l'automatisme qui remet en banque les paiements `espèces` et `virement` dès leur encodage |
+| BL-027 | 2026-04-15 | Évolution | Import Excel / Trésorerie | P1 | Gérer une ouverture du système explicite pour Banque et Caisse sur le premier exercice importé |
 
 ## Détail des sujets
 
@@ -338,6 +339,33 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Critère d'acceptation** : pour un exercice donné, le grand livre n'affiche que les écritures rattachées à cet exercice, y compris son report à nouveau éventuel, et présente un solde cohérent sans cumul indu entre ouvertures d'exercices successifs.
 - **Point d'attention** : c'est un sujet comptable critique à traiter avant de faire confiance aux états ; il faudra le recouper avec `BL-010` et les choix de clôture des exercices historiques.
 
+### BL-026 — Valider les imports Excel par rapprochement chiffré sur 2024 et 2025
+
+- **Dates** : `created=2026-04-15`, `started=2026-04-15`
+- **Pourquoi** : après la fiabilisation de la mécanique d'import, il faut maintenant confirmer sur le cas réel que les données visibles dans Solde correspondent bien aux fichiers Excel sources, aussi bien côté `Gestion` que côté `Comptabilité`, et cela sur les deux exercices historiques.
+- **Résultat attendu** : disposer d'une validation explicite, exercice par exercice, des chiffres importés dans Solde par rapport aux fichiers Excel `2024` et `2025`, avec une liste claire des écarts constatés ou la confirmation qu'il n'y en a pas.
+- **Avancement actuel** : le cadrage initial de la recette est posé dans `doc/dev/bl-026-cadrage-validation-imports-excel.md`, avec distinction entre sources primaires et secondaires, séquence de validation par exercice et matrice de rapprochement `Gestion` / `Comptabilité`.
+- **Périmètre minimal** :
+	- comparer les chiffres de `Gestion` visibles dans l'application avec ceux des fichiers Excel correspondants pour `2024` et `2025` ;
+	- comparer les chiffres de `Comptabilité` visibles dans l'application avec ceux des fichiers Excel correspondants pour `2024` et `2025` ;
+	- expliciter la méthode de rapprochement retenue par écran ou par état (totaux, comptes, journaux, soldes, volumes) ;
+	- consigner tout écart résiduel avec un diagnostic exploitable pour décider s'il s'agit d'un bug, d'un problème de données source ou d'un écart de lecture métier.
+- **Critère d'acceptation** : pour chacun des deux exercices, on peut produire un constat de validation lisible indiquant ce qui a été comparé, quels chiffres concordent entre Excel et Solde, et quels écarts restent ouverts le cas échéant.
+- **Point d'attention** : ce ticket est complémentaire de `BL-008` ; ici l'objectif n'est pas de concevoir le futur mode générique de convergence, mais de valider concrètement la reprise réelle déjà importée sur `2024` et `2025`.
+
+### BL-027 — Gérer une ouverture du système explicite pour Banque et Caisse
+
+- **Dates** : `created=2026-04-15`
+- **Pourquoi** : pendant la validation `BL-026`, il apparaît que le premier exercice importé a besoin d'un point de départ explicite côté gestion pour `Banque` et `Caisse`, distinct de l'ouverture comptable de l'exercice. Aujourd'hui, les lignes Excel de `solde initial` sont traitées comme des lignes ignorées, ce qui ne permet pas de représenter proprement l'état hérité du système avant le premier exercice suivi.
+- **Résultat attendu** : définir puis implémenter une notion d'`ouverture du système` pour `Banque` et `Caisse`, injectée une seule fois sur le plus ancien exercice importé, contribuant aux soldes cumulés, et identifiée visiblement comme donnée spéciale dans l'interface (badge, type ou rendu distinct).
+- **Périmètre initial** :
+	- gérer explicitement un solde d'ouverture `Banque` sur le premier exercice importé ;
+	- gérer explicitement un solde d'ouverture `Caisse` sur le premier exercice importé ;
+	- rendre ces lignes distinguables des mouvements normaux dans les écrans de trésorerie ;
+	- éviter toute réinjection automatique du même concept sur les exercices suivants.
+- **Critère d'acceptation** : après import du plus ancien exercice, les écrans `Banque` et `Caisse` affichent un point de départ cohérent et identifié comme `ouverture du système`, les soldes des exercices suivants héritent correctement de ce point de départ sans doublon, et les chiffres `BL-026` peuvent être remesurés proprement pour la trésorerie.
+- **Point d'attention** : ce sujet doit être traité sur une branche distincte de `BL-026`, car il fera évoluer les chiffres de `Banque` et `Caisse` déjà relevés dans le constat de validation.
+
 ## Prêt
 
 - Aucun sujet pour le moment.
@@ -346,6 +374,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels a été traité séparément dans `BL-023`, désormais terminé.
+- **BL-026** — `created=2026-04-15`, `started=2026-04-15` — Branche de travail créée pour lancer la validation chiffrée des imports Excel `Gestion` / `Comptabilité` sur les exercices `2024` et `2025`.
 
 ## Fait
 
