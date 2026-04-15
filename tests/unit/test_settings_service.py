@@ -1,6 +1,7 @@
 """Unit tests for the settings service."""
 
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,16 +14,31 @@ from backend.models.accounting_rule import (
     TriggerType,
 )
 from backend.models.app_settings import AppSettings
+from backend.models.bank import BankTransaction, BankTransactionSource
+from backend.models.cash import (
+    CASH_SYSTEM_OPENING_DESCRIPTION,
+    CashEntrySource,
+    CashMovementType,
+    CashRegister,
+)
 from backend.models.contact import Contact, ContactType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.import_log import ImportLog, ImportLogStatus, ImportLogType
 from backend.models.user import User, UserRole
-from backend.schemas.settings import AppSettingsUpdate
+from backend.schemas.settings import (
+    AppSettingsUpdate,
+    SystemOpeningUpdate,
+    TreasurySystemOpeningUpdate,
+)
+from backend.services.bank_service import recompute_bank_balances
+from backend.services.cash_service import recompute_cash_balances
 from backend.services.settings import (
     bootstrap_accounting_setup,
     get_settings,
+    get_treasury_system_opening,
     reset_data,
     update_settings,
+    upsert_treasury_system_opening,
 )
 
 
@@ -221,3 +237,215 @@ class TestBootstrapAccountingSetup:
             "rules_inserted": 0,
             "fiscal_years_created": 0,
         }
+
+
+class TestTreasurySystemOpening:
+    async def test_returns_oldest_fiscal_year_start_as_default_date(
+        self, db_session: AsyncSession
+    ) -> None:
+        db_session.add_all(
+            [
+                FiscalYear(
+                    name="2024",
+                    start_date=date(2024, 8, 1),
+                    end_date=date(2025, 7, 31),
+                    status=FiscalYearStatus.OPEN,
+                ),
+                FiscalYear(
+                    name="2025",
+                    start_date=date(2025, 8, 1),
+                    end_date=date(2026, 7, 31),
+                    status=FiscalYearStatus.OPEN,
+                ),
+            ]
+        )
+        await db_session.commit()
+
+        opening = await get_treasury_system_opening(db_session)
+
+        assert opening.default_date == date(2024, 8, 1)
+        assert opening.bank.configured is False
+        assert opening.cash.configured is False
+
+    async def test_upsert_creates_openings_and_recomputes_running_balances(
+        self, db_session: AsyncSession
+    ) -> None:
+        bank_tx = BankTransaction(
+            date=date(2024, 8, 2),
+            amount=Decimal("10.00"),
+            reference="RELEVE-1",
+            description="Operation courante",
+            balance_after=Decimal("10.00"),
+            source=BankTransactionSource.IMPORT,
+        )
+        cash_entry = CashRegister(
+            date=date(2024, 8, 2),
+            amount=Decimal("30.00"),
+            type=CashMovementType.IN,
+            reference="CAISSE-1",
+            description="Recette",
+            balance_after=Decimal("30.00"),
+        )
+        db_session.add_all([bank_tx, cash_entry])
+        await db_session.commit()
+
+        opening = await upsert_treasury_system_opening(
+            db_session,
+            TreasurySystemOpeningUpdate(
+                bank=SystemOpeningUpdate(
+                    date=date(2024, 8, 1),
+                    amount=Decimal("100.00"),
+                    reference="Solde banque initial",
+                ),
+                cash=SystemOpeningUpdate(
+                    date=date(2024, 8, 1),
+                    amount=Decimal("50.00"),
+                    reference="Fond de caisse initial",
+                ),
+            ),
+        )
+
+        assert opening.bank.configured is True
+        assert opening.bank.amount == Decimal("100.00")
+        assert opening.cash.configured is True
+        assert opening.cash.amount == Decimal("50.00")
+
+        bank_entries = (
+            (
+                await db_session.execute(
+                    select(BankTransaction).order_by(BankTransaction.date, BankTransaction.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        cash_entries = (
+            (
+                await db_session.execute(
+                    select(CashRegister).order_by(CashRegister.date, CashRegister.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        assert len(bank_entries) == 2
+        assert bank_entries[0].source == BankTransactionSource.SYSTEM_OPENING
+        assert bank_entries[0].balance_after == Decimal("100.00")
+        assert bank_entries[1].balance_after == Decimal("110.00")
+
+        assert len(cash_entries) == 2
+        assert cash_entries[0].description == CASH_SYSTEM_OPENING_DESCRIPTION
+        assert cash_entries[0].source == CashEntrySource.SYSTEM_OPENING
+        assert cash_entries[0].balance_after == Decimal("50.00")
+        assert cash_entries[1].balance_after == Decimal("80.00")
+
+    async def test_upsert_updates_existing_openings_without_duplication(
+        self, db_session: AsyncSession
+    ) -> None:
+        await upsert_treasury_system_opening(
+            db_session,
+            TreasurySystemOpeningUpdate(
+                bank=SystemOpeningUpdate(date=date(2024, 8, 1), amount=Decimal("100.00")),
+                cash=SystemOpeningUpdate(date=date(2024, 8, 1), amount=Decimal("20.00")),
+            ),
+        )
+
+        opening = await upsert_treasury_system_opening(
+            db_session,
+            TreasurySystemOpeningUpdate(
+                bank=SystemOpeningUpdate(date=date(2024, 8, 1), amount=Decimal("125.00")),
+                cash=SystemOpeningUpdate(date=date(2024, 8, 1), amount=Decimal("-10.00")),
+            ),
+        )
+
+        bank_entries = (await db_session.execute(select(BankTransaction))).scalars().all()
+        cash_entries = (await db_session.execute(select(CashRegister))).scalars().all()
+
+        assert len(bank_entries) == 1
+        assert len(cash_entries) == 1
+        assert opening.bank.amount == Decimal("125.00")
+        assert opening.cash.amount == Decimal("-10.00")
+        opening_bank_entries = [
+            entry for entry in bank_entries if entry.source == BankTransactionSource.SYSTEM_OPENING
+        ]
+        assert len(opening_bank_entries) == 1
+
+    async def test_upsert_moving_opening_dates_recomputes_running_balances(
+        self, db_session: AsyncSession
+    ) -> None:
+        await upsert_treasury_system_opening(
+            db_session,
+            TreasurySystemOpeningUpdate(
+                bank=SystemOpeningUpdate(date=date(2024, 8, 2), amount=Decimal("100.00")),
+                cash=SystemOpeningUpdate(date=date(2024, 8, 2), amount=Decimal("50.00")),
+            ),
+        )
+
+        bank_tx = BankTransaction(
+            date=date(2024, 8, 3),
+            amount=Decimal("10.00"),
+            reference="RELEVE-2",
+            description="Operation courante",
+            balance_after=Decimal("0"),
+            source=BankTransactionSource.MANUAL,
+        )
+        cash_tx = CashRegister(
+            date=date(2024, 8, 3),
+            amount=Decimal("20.00"),
+            type=CashMovementType.IN,
+            reference="CAISSE-2",
+            description="Recette",
+            source=CashEntrySource.MANUAL,
+            balance_after=Decimal("0"),
+        )
+        db_session.add_all([bank_tx, cash_tx])
+        await db_session.flush()
+        await recompute_bank_balances(db_session)
+        await recompute_cash_balances(db_session)
+        await db_session.commit()
+
+        opening = await upsert_treasury_system_opening(
+            db_session,
+            TreasurySystemOpeningUpdate(
+                bank=SystemOpeningUpdate(date=date(2024, 8, 1), amount=Decimal("80.00")),
+                cash=SystemOpeningUpdate(date=date(2024, 8, 1), amount=Decimal("40.00")),
+            ),
+        )
+
+        bank_entries = (
+            (
+                await db_session.execute(
+                    select(BankTransaction).order_by(BankTransaction.date, BankTransaction.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        cash_entries = (
+            (
+                await db_session.execute(
+                    select(CashRegister).order_by(CashRegister.date, CashRegister.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        assert opening.bank.amount == Decimal("80.00")
+        assert opening.cash.amount == Decimal("40.00")
+        opening_bank_entries = [
+            entry for entry in bank_entries if entry.source == BankTransactionSource.SYSTEM_OPENING
+        ]
+        opening_cash_entries = [
+            entry for entry in cash_entries if entry.source == CashEntrySource.SYSTEM_OPENING
+        ]
+
+        assert len(opening_bank_entries) == 1
+        assert len(opening_cash_entries) == 1
+        assert bank_entries[0].date == date(2024, 8, 1)
+        assert bank_entries[0].balance_after == Decimal("80.00")
+        assert bank_entries[1].balance_after == Decimal("90.00")
+        assert cash_entries[0].date == date(2024, 8, 1)
+        assert cash_entries[0].balance_after == Decimal("40.00")
+        assert cash_entries[1].balance_after == Decimal("60.00")

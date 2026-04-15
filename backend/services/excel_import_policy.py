@@ -232,11 +232,13 @@ def should_ignore_bank_balance_description(
     balance: Decimal | None,
 ) -> bool:
     """Return True when the row only documents a balance without a movement."""
+    normalized_label = label.strip().casefold()
+    has_balance_marker = any(marker in normalized_label for marker in ("solde", "ouverture"))
     return (
-        entry_date is None
-        and amount in (None, Decimal("0"))
+        amount in (None, Decimal("0"))
         and bool(label)
         and balance is not None
+        and (entry_date is None or has_balance_marker)
     )
 
 

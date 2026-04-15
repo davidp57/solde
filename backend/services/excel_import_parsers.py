@@ -719,20 +719,21 @@ def parse_bank_sheet(
             amount = parse_decimal(get_row_value(row, montant_idx))
 
         entry_date = parse_date(get_row_value(row, date_idx))
-        if entry_date is None:
-            if should_ignore_bank_balance_description(
-                entry_date=entry_date,
-                amount=amount,
-                label=parse_str(get_row_value(row, libelle_idx)),
-                balance=parse_decimal(get_row_value(row, solde_idx)),
-            ):
-                ignored_issues.append(
-                    RowIgnoredIssue(
-                        source_row_number=source_row_number,
-                        message=BANK_BALANCE_DESCRIPTION_MESSAGE,
-                    )
+        if should_ignore_bank_balance_description(
+            entry_date=entry_date,
+            amount=amount,
+            label=parse_str(get_row_value(row, libelle_idx)),
+            balance=parse_decimal(get_row_value(row, solde_idx)),
+        ):
+            ignored_issues.append(
+                RowIgnoredIssue(
+                    source_row_number=source_row_number,
+                    message=BANK_BALANCE_DESCRIPTION_MESSAGE,
                 )
-                continue
+            )
+            continue
+
+        if entry_date is None:
             issues.append(make_validation_issue(source_row_number, [BANK_INVALID_DATE_MESSAGE]))
             continue
 

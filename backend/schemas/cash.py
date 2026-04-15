@@ -54,6 +54,7 @@ class CashEntryRead(BaseModel):
     reference: str | None
     description: str
     balance_after: _Decimal
+    is_system_opening: bool
 
     model_config = {"from_attributes": True}
 

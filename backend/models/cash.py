@@ -20,6 +20,14 @@ class CashMovementType(StrEnum):
     OUT = "out"
 
 
+class CashEntrySource(StrEnum):
+    MANUAL = "manual"
+    SYSTEM_OPENING = "system_opening"
+
+
+CASH_SYSTEM_OPENING_DESCRIPTION = "Ouverture du système"
+
+
 class CashRegister(Base):
     """Journal entry for the cash register."""
 
@@ -37,12 +45,19 @@ class CashRegister(Base):
     )
     reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source: Mapped[CashEntrySource] = mapped_column(
+        String(20), nullable=False, index=True, default=CashEntrySource.MANUAL
+    )
     balance_after: Mapped[_Decimal] = mapped_column(
         Numeric(10, 2), nullable=False, default=Decimal("0")
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )
+
+    @property
+    def is_system_opening(self) -> bool:
+        return self.source == CashEntrySource.SYSTEM_OPENING
 
 
 class CashCount(Base):
