@@ -8,7 +8,8 @@ received, deposit created, etc.).
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+import unicodedata
+from collections.abc import Mapping, Sequence
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
@@ -22,9 +23,9 @@ from backend.models.accounting_entry import (
     EntrySourceType,
     build_entry_group_key,
 )
-from backend.models.accounting_rule import AccountingRule, TriggerType
+from backend.models.accounting_rule import AccountingRule, AccountingRuleEntry, TriggerType
 from backend.models.bank import Deposit, DepositType
-from backend.models.invoice import Invoice, InvoiceLabel, InvoiceType
+from backend.models.invoice import Invoice, InvoiceLabel, InvoiceLine, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
 from backend.services.fiscal_year_service import find_fiscal_year_id_for_date
 
@@ -65,9 +66,34 @@ async def _apply_rule(
     group_key: str | None = None,
 ) -> list[AccountingEntry]:
     """Create accounting entries for all rule_entries of a rule."""
+    return await _apply_rule_entries(
+        db,
+        rule.entries,
+        amount,
+        entry_date,
+        context,
+        source_type,
+        source_id,
+        fiscal_year_id,
+        group_key,
+    )
+
+
+async def _apply_rule_entries(
+    db: AsyncSession,
+    rule_entries: Sequence[AccountingRuleEntry],
+    amount: Decimal,
+    entry_date: date,
+    context: Mapping[str, object],
+    source_type: EntrySourceType | None,
+    source_id: int | None,
+    fiscal_year_id: int | None,
+    group_key: str | None = None,
+) -> list[AccountingEntry]:
+    """Create accounting entries for a selected subset of rule entries."""
     created: list[AccountingEntry] = []
     resolved_group_key = group_key or build_entry_group_key(source_type, source_id)
-    for rule_entry in rule.entries:
+    for rule_entry in rule_entries:
         entry_number = await _next_entry_number(db)
         label = _render_template(rule_entry.description_template, context)
 
@@ -90,6 +116,102 @@ async def _apply_rule(
         await db.flush()  # ensure COUNT is accurate for the next entry in the loop
         created.append(entry)
 
+    return created
+
+
+def _normalize_invoice_line_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value.casefold())
+    return "".join(character for character in normalized if not unicodedata.combining(character))
+
+
+def _classify_client_invoice_line(line: InvoiceLine) -> InvoiceLabel | None:
+    if not (text := _normalize_invoice_line_text(line.description)):
+        return None
+    return (
+        InvoiceLabel.ADHESION
+        if "adhesion" in text
+        else InvoiceLabel.CS
+        if "cours" in text or "soutien" in text
+        else None
+    )
+
+
+async def _generate_split_client_invoice_entries(
+    db: AsyncSession,
+    invoice: Invoice,
+    *,
+    context: Mapping[str, object],
+    fiscal_year_id: int | None,
+) -> list[AccountingEntry] | None:
+    if invoice.label != InvoiceLabel.CS_ADHESION or len(invoice.lines) < 2:
+        return None
+
+    grouped_amounts: dict[InvoiceLabel, Decimal] = {}
+    for line in invoice.lines:
+        component_label = _classify_client_invoice_line(line)
+        if component_label is None:
+            return None
+        grouped_amounts[component_label] = grouped_amounts.get(
+            component_label,
+            Decimal("0"),
+        ) + Decimal(str(line.amount))
+
+    if set(grouped_amounts) != {InvoiceLabel.CS, InvoiceLabel.ADHESION}:
+        return None
+
+    total_amount = sum(grouped_amounts.values(), Decimal("0"))
+    if total_amount != Decimal(str(invoice.total_amount)):
+        return None
+
+    cs_a_rule = await _get_rule(db, TriggerType.INVOICE_CLIENT_CS_A)
+    cs_rule = await _get_rule(db, TriggerType.INVOICE_CLIENT_CS)
+    adhesion_rule = await _get_rule(db, TriggerType.INVOICE_CLIENT_A)
+    if cs_a_rule is None or cs_rule is None or adhesion_rule is None:
+        return None
+
+    debit_entries = [entry for entry in cs_a_rule.entries if entry.side == "debit"]
+    cs_credit_entries = [entry for entry in cs_rule.entries if entry.side == "credit"]
+    adhesion_credit_entries = [entry for entry in adhesion_rule.entries if entry.side == "credit"]
+    if not debit_entries or not cs_credit_entries or not adhesion_credit_entries:
+        return None
+
+    created: list[AccountingEntry] = []
+    created.extend(
+        await _apply_rule_entries(
+            db,
+            debit_entries,
+            total_amount,
+            invoice.date,
+            context,
+            EntrySourceType.INVOICE,
+            invoice.id,
+            fiscal_year_id,
+        )
+    )
+    created.extend(
+        await _apply_rule_entries(
+            db,
+            cs_credit_entries,
+            grouped_amounts[InvoiceLabel.CS],
+            invoice.date,
+            context,
+            EntrySourceType.INVOICE,
+            invoice.id,
+            fiscal_year_id,
+        )
+    )
+    created.extend(
+        await _apply_rule_entries(
+            db,
+            adhesion_credit_entries,
+            grouped_amounts[InvoiceLabel.ADHESION],
+            invoice.date,
+            context,
+            EntrySourceType.INVOICE,
+            invoice.id,
+            fiscal_year_id,
+        )
+    )
     return created
 
 
@@ -170,12 +292,10 @@ async def generate_entries_for_invoice(
             None: TriggerType.INVOICE_CLIENT_GENERAL,
         }
         trigger = label_map.get(invoice.label, TriggerType.INVOICE_CLIENT_GENERAL)
+    elif invoice.label == InvoiceLabel.CS:
+        trigger = TriggerType.INVOICE_FOURNISSEUR_SUBCONTRACTING
     else:
-        # Fournisseur — use CS as proxy for sous-traitance (label-based heuristic)
-        if invoice.label == InvoiceLabel.CS:
-            trigger = TriggerType.INVOICE_FOURNISSEUR_SUBCONTRACTING
-        else:
-            trigger = TriggerType.INVOICE_FOURNISSEUR_GENERAL
+        trigger = TriggerType.INVOICE_FOURNISSEUR_GENERAL
 
     rule = await _get_rule(db, trigger)
     if rule is None:
@@ -189,6 +309,16 @@ async def generate_entries_for_invoice(
         "amount": str(invoice.total_amount),
         "date": str(invoice.date),
     }
+
+    split_entries = await _generate_split_client_invoice_entries(
+        db,
+        invoice,
+        context=context,
+        fiscal_year_id=fiscal_year_id,
+    )
+    if split_entries is not None:
+        await db.flush()
+        return split_entries
 
     entries = await _apply_rule(
         db,

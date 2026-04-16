@@ -6,7 +6,9 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.models.accounting_entry import EntrySourceType
 from backend.models.accounting_rule import (
@@ -19,7 +21,7 @@ from backend.models.accounting_rule import (
 from backend.models.bank import Deposit, DepositType
 from backend.models.contact import Contact, ContactType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
-from backend.models.invoice import Invoice, InvoiceLabel, InvoiceStatus, InvoiceType
+from backend.models.invoice import Invoice, InvoiceLabel, InvoiceLine, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
 from backend.models.salary import Salary
 from backend.services.accounting_engine import (
@@ -78,21 +80,36 @@ async def _make_invoice(
     inv_type: InvoiceType = InvoiceType.CLIENT,
     label: InvoiceLabel | None = InvoiceLabel.CS,
     total: Decimal = Decimal("100.00"),
+    lines: list[tuple[str, Decimal]] | None = None,
 ) -> Invoice:
+    invoice_total = sum((amount for _, amount in lines), Decimal("0")) if lines else total
     inv = Invoice(
         number="2024-C-0001",
         type=inv_type,
         contact_id=1,
         date=date(2024, 1, 15),
-        total_amount=total,
+        total_amount=invoice_total,
         paid_amount=Decimal("0"),
         status=InvoiceStatus.SENT,
         label=label,
     )
     db.add(inv)
+    await db.flush()
+    for description, amount in lines or []:
+        db.add(
+            InvoiceLine(
+                invoice_id=inv.id,
+                description=description,
+                quantity=Decimal("1"),
+                unit_price=amount,
+                amount=amount,
+            )
+        )
     await db.commit()
-    await db.refresh(inv)
-    return inv
+    result = await db.execute(
+        select(Invoice).where(Invoice.id == inv.id).options(selectinload(Invoice.lines))
+    )
+    return result.scalar_one()
 
 
 async def _make_payment(
@@ -257,6 +274,52 @@ class TestGenerateEntriesForInvoice:
         inv = await _make_invoice(db_session, label=InvoiceLabel.CS_ADHESION)
         entries = await generate_entries_for_invoice(db_session, inv)
         assert len(entries) == 2
+
+    @pytest.mark.asyncio
+    async def test_client_cs_a_lines_split_credit_accounts(self, db_session: AsyncSession) -> None:
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_A, "411100", "756000")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS_ADHESION,
+            lines=[
+                ("Cours de soutien", Decimal("130.00")),
+                ("Adhesion annuelle", Decimal("30.00")),
+            ],
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 3
+        debit = next(entry for entry in entries if entry.debit > 0)
+        assert debit.account_number == "411100"
+        assert debit.debit == Decimal("160.00")
+        assert {entry.account_number: entry.credit for entry in entries if entry.credit > 0} == {
+            "706110": Decimal("130.00"),
+            "756000": Decimal("30.00"),
+        }
+
+    @pytest.mark.asyncio
+    async def test_client_cs_a_unclassified_lines_fall_back_to_default_rule(
+        self, db_session: AsyncSession
+    ) -> None:
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_A, "411100", "756000")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS_ADHESION,
+            lines=[("Pack rentree", Decimal("100.00"))],
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 2
+        assert any(
+            entry.account_number == "706110" and entry.credit == Decimal("100.00")
+            for entry in entries
+        )
 
     @pytest.mark.asyncio
     async def test_client_general_label(self, db_session: AsyncSession) -> None:

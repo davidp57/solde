@@ -66,7 +66,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-022 | 2026-04-13 | Évolution | Utilisateurs / Sécurité | P1 | Renforcer la gestion des utilisateurs avec des rôles métier plus clairs, la création et l'administration des comptes, l'autonomie sur le profil et un socle de sécurité de compte plus complet |
 | BL-024 | 2026-04-13 | Correction | Paiements / Banque | P1 | Clarifier le workflow cible de saisie des paiements et corriger l'automatisme qui remet en banque les paiements `espèces` et `virement` dès leur encodage |
 | BL-027 | 2026-04-15 | Évolution | Import Excel / Trésorerie | P1 | Gérer une ouverture du système explicite pour Banque et Caisse sur le premier exercice importé |
-| BL-028 | 2026-04-16 | Correction | Comptabilité / Factures clients | P1 | Ventiler les factures clients mixtes de type `cs+a` sur les mêmes comptes produits que dans Excel quand l'information source le permet |
 
 ## Détail des sujets
 
@@ -156,7 +155,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-028 — Ventiler les factures clients mixtes `cs+a` comme dans la comptabilité Excel
 
-- **Dates** : `created=2026-04-16`
+- **Dates** : `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-16`
 - **Pourquoi** : pendant `BL-026`, il apparaît que certaines factures clients historiques, comme `2024-0186`, sont ventilées dans Excel sur plusieurs comptes produits parce qu'elles mélangent des lignes de cours (`cs`) et d'adhésion (`a`). Aujourd'hui, Solde ne reproduit pas forcément cette ventilation fine, ce qui gêne le rapprochement comptable par compte et ne reflète pas totalement la réalité comptable attendue.
 - **Résultat attendu** : quand l'information source de `Gestion` permet d'identifier une facture mixte, Solde doit générer la même ventilation comptable par compte produit que celle attendue dans Excel, au lieu de s'appuyer uniquement sur un total global de facture.
 - **Périmètre initial** :
@@ -166,6 +165,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- ajouter une couverture de tests ciblée sur au moins un cas réel de facture mixte.
 - **Critère d'acceptation** : sur un cas comme `2024-0186`, les écritures générées par Solde portent les mêmes montants sur les mêmes comptes produits que la comptabilité Excel de référence, sans casser les cas simples mono-produit.
 - **Point d'attention** : ce sujet est distinct de `BL-008` ; ici l'objectif est d'aligner le comportement comptable réel de Solde, pas seulement de mieux tolérer un écart dans l'outil de comparaison.
+- **Livré parce que** : l'import `Gestion` sait désormais exploiter des colonnes explicites `cours` / `adhésion` pour créer des lignes de facture sur les cas `cs+a`, et le moteur comptable ventile alors les produits sur `706110` et `756000` au lieu d'un seul produit global, avec couverture unitaire et d'intégration sur le cas type `2024-0186`.
 
 ### BL-009 — Enrichir le plan comptable par défaut à partir des imports réels
 
@@ -412,6 +412,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-018** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les écrans de liste principaux partagent maintenant un socle commun de tri, filtres et compteurs d'état, avec filtres de date FR/ISO et exclusion explicite des tableaux fixes `bilan` / `résultat`.
 - **BL-023** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les rôles métier `Gestionnaire` / `Comptable` / `Administrateur` sont maintenant alignés entre docs, navigation, guards frontend et permissions backend, avec séparation visible `Gestion` / `Comptabilité` et couverture de test ciblée.
 - **BL-026** — `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16` — Le ticket a livré un cadrage de recette et un constat exploitable sur la reprise `2024`, puis a été clos une fois les écarts résiduels requalifiés en différences de modélisation assumées ou en suites dédiées (`BL-008`, `BL-028`).
+- **BL-028** — `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-16` — Les factures clients mixtes `cs+a` sont désormais ventilées sur plusieurs comptes produits quand la feuille `Factures` fournit explicitement les composantes `cours` et `adhésion`, avec lignes de facture importées et génération comptable alignée sur la cible Excel.
 - **BL-012** — `created=2026-04-12`, `completed=2026-04-12` — La liste des paiements affiche la référence métier et permet l'édition directe.
 - **BL-013** — `created=2026-04-12`, `completed=2026-04-12` — Le journal de caisse propose désormais référence, détail et édition directe.
 - **BL-014** — `created=2026-04-12`, `completed=2026-04-12` — Le journal comptable est enrichi pour la lecture métier, le détail et la navigation vers les factures.

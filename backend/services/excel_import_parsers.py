@@ -183,6 +183,14 @@ def parse_invoice_sheet(
     nom_idx = find_col_idx(col_map, "nom", "client", "adhérent", "adherent")
     numero_idx = find_invoice_number_idx(col_map, exclude_idx=date_idx)
     label_idx = find_col_idx(col_map, "motif", "libellé", "libelle", "type")
+    course_amount_idx = find_col_idx(col_map, "montant cours", "cours")
+    adhesion_amount_idx = find_col_idx(
+        col_map,
+        "montant adhésion",
+        "montant adhesion",
+        "adhésion",
+        "adhesion",
+    )
 
     missing_columns = invoice_missing_columns(
         date_idx=date_idx,
@@ -238,11 +246,38 @@ def parse_invoice_sheet(
         assert amount is not None
         assert invoice_date is not None
         raw_number = get_row_value(row, numero_idx)
+        normalized_label = normalize_invoice_label(get_row_value(row, label_idx))
         invoice_number: str | None = None
         if not isinstance(raw_number, (date, datetime)):
             candidate = parse_str(raw_number)
             if candidate and not _DATE_LIKE_TEXT_RE.match(candidate):
                 invoice_number = candidate
+
+        course_amount = parse_decimal(get_row_value(row, course_amount_idx))
+        adhesion_amount = parse_decimal(get_row_value(row, adhesion_amount_idx))
+        if normalized_label == "cs+a":
+            valid_course_amount = (
+                course_amount if course_amount is not None and course_amount > 0 else None
+            )
+            valid_adhesion_amount = (
+                adhesion_amount if adhesion_amount is not None and adhesion_amount > 0 else None
+            )
+            component_total = (valid_course_amount or Decimal("0")) + (
+                valid_adhesion_amount or Decimal("0")
+            )
+            if (
+                valid_course_amount is not None
+                and valid_adhesion_amount is not None
+                and component_total == amount
+            ):
+                course_amount = valid_course_amount
+                adhesion_amount = valid_adhesion_amount
+            else:
+                course_amount = None
+                adhesion_amount = None
+        else:
+            course_amount = None
+            adhesion_amount = None
 
         rows.append(
             NormalizedInvoiceRow(
@@ -251,7 +286,9 @@ def parse_invoice_sheet(
                 amount=amount,
                 contact_name=contact_name,
                 invoice_number=invoice_number,
-                label=normalize_invoice_label(get_row_value(row, label_idx)),
+                label=normalized_label,
+                course_amount=course_amount,
+                adhesion_amount=adhesion_amount,
             )
         )
 
