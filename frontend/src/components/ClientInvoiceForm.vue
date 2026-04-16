@@ -38,23 +38,9 @@
           </div>
         </div>
 
-        <div class="app-form-grid">
-          <div class="app-field">
-            <label class="app-field__label">{{ t('invoices.label') }}</label>
-            <Select
-              v-model="form.label"
-              :options="labelOptions"
-              option-label="label"
-              option-value="value"
-              :placeholder="t('invoices.label_placeholder')"
-              show-clear
-              class="w-full"
-            />
-          </div>
-          <div class="app-field">
-            <label class="app-field__label">{{ t('invoices.description') }}</label>
-            <InputText v-model="form.description" class="w-full" />
-          </div>
+        <div class="app-field">
+          <label class="app-field__label">{{ t('invoices.description') }}</label>
+          <InputText v-model="form.description" class="w-full" />
         </div>
       </div>
     </section>
@@ -76,6 +62,15 @@
         />
       </div>
       <div v-for="(line, idx) in form.lines" :key="idx" class="invoice-form__line-row">
+        <Select
+          v-model="line.line_type"
+          :options="lineTypeOptions"
+          option-label="label"
+          option-value="value"
+          :placeholder="t('invoices.client.line_type')"
+          class="invoice-form__type"
+          @update:model-value="onLineTypeChange(line)"
+        />
         <InputText
           v-model="line.description"
           :placeholder="t('invoices.line_description')"
@@ -91,7 +86,6 @@
         <InputNumber
           v-model="line.unit_price"
           :placeholder="t('invoices.line_price')"
-          :min="0"
           :max-fraction-digits="2"
           class="invoice-form__price"
           suffix=" €"
@@ -107,6 +101,9 @@
         />
       </div>
       <div class="invoice-form__grand-total">{{ t('invoices.total') }}: {{ computedTotal }} €</div>
+      <p v-if="hasNegativeTotal" class="invoice-form__error">
+        {{ t('invoices.client.negative_total_error') }}
+      </p>
     </section>
 
     <div class="app-form-actions">
@@ -117,7 +114,7 @@
         outlined
         @click="emit('cancel')"
       />
-      <Button :label="t('common.save')" type="submit" :loading="saving" />
+      <Button :label="t('common.save')" type="submit" :loading="saving" :disabled="saveDisabled" />
     </div>
   </form>
 </template>
@@ -133,7 +130,12 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Contact } from '../api/contacts'
-import { createInvoiceApi, updateInvoiceApi, type Invoice } from '../api/invoices'
+import {
+  createInvoiceApi,
+  updateInvoiceApi,
+  type Invoice,
+  type InvoiceLineType,
+} from '../api/invoices'
 
 const props = defineProps<{
   invoice: Invoice | null
@@ -150,6 +152,7 @@ const saving = ref(false)
 const isEditing = computed(() => props.invoice !== null)
 
 interface LineForm {
+  line_type: InvoiceLineType | null
   description: string
   quantity: number
   unit_price: number
@@ -159,7 +162,6 @@ interface FormState {
   contact_id: number | null
   date: Date | null
   due_date: Date | null
-  label: string | null
   description: string
   lines: LineForm[]
 }
@@ -168,17 +170,21 @@ const form = reactive<FormState>({
   contact_id: null,
   date: null,
   due_date: null,
-  label: null,
   description: '',
   lines: [],
 })
 
-const labelOptions = [
-  { label: t('invoices.labels.cs'), value: 'cs' },
-  { label: t('invoices.labels.a'), value: 'a' },
-  { label: 'invoices.labels.cs_a', value: 'cs+a' },
-  { label: t('invoices.labels.general'), value: 'general' },
+const lineTypeOptions = [
+  { label: t('invoices.client.line_types.cours'), value: 'cours' },
+  { label: t('invoices.client.line_types.adhesion'), value: 'adhesion' },
+  { label: t('invoices.client.line_types.autres'), value: 'autres' },
 ]
+
+const defaultLineDescriptions: Record<InvoiceLineType, string> = {
+  cours: 'Cours de soutien',
+  adhesion: 'Adhesion annuelle',
+  autres: 'Autres prestations',
+}
 
 function lineAmount(line: LineForm): string {
   return ((line.quantity || 0) * (line.unit_price || 0)).toFixed(2)
@@ -188,8 +194,48 @@ const computedTotal = computed(() =>
   form.lines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unit_price || 0), 0).toFixed(2),
 )
 
+const hasNegativeTotal = computed(
+  () => form.lines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unit_price || 0), 0) < 0,
+)
+
+const saveDisabled = computed(
+  () =>
+    saving.value ||
+    !form.contact_id ||
+    !form.date ||
+    form.lines.length === 0 ||
+    hasNegativeTotal.value ||
+    form.lines.some((line) => !line.description.trim() || !line.line_type),
+)
+
+function inferLineType(description: string, label: Invoice['label']): InvoiceLineType {
+  const normalizedDescription = description.toLocaleLowerCase('fr-FR')
+  if (normalizedDescription.includes('adhesion')) return 'adhesion'
+  if (normalizedDescription.includes('cours') || normalizedDescription.includes('soutien')) {
+    return 'cours'
+  }
+  if (label === 'cs') return 'cours'
+  if (label === 'a') return 'adhesion'
+  return 'autres'
+}
+
+function onLineTypeChange(line: LineForm) {
+  if (!line.line_type) return
+  if (
+    !line.description.trim() ||
+    Object.values(defaultLineDescriptions).includes(line.description)
+  ) {
+    line.description = defaultLineDescriptions[line.line_type]
+  }
+}
+
 function addLine() {
-  form.lines.push({ description: '', quantity: 1, unit_price: 0 })
+  form.lines.push({
+    line_type: 'cours',
+    description: 'Cours de soutien',
+    quantity: 1,
+    unit_price: 0,
+  })
 }
 
 function removeLine(idx: number) {
@@ -200,7 +246,6 @@ function resetForm() {
   form.contact_id = null
   form.date = null
   form.due_date = null
-  form.label = null
   form.description = ''
   form.lines = []
 }
@@ -209,9 +254,9 @@ function setFromInvoice(inv: Invoice) {
   form.contact_id = inv.contact_id
   form.date = new Date(inv.date)
   form.due_date = inv.due_date ? new Date(inv.due_date) : null
-  form.label = inv.label
   form.description = inv.description ?? ''
   form.lines = inv.lines.map((l) => ({
+    line_type: l.line_type ?? inferLineType(l.description, inv.label),
     description: l.description,
     quantity: parseFloat(l.quantity),
     unit_price: parseFloat(l.unit_price),
@@ -222,7 +267,10 @@ watch(
   () => props.invoice,
   (inv) => {
     if (inv) setFromInvoice(inv)
-    else resetForm()
+    else {
+      resetForm()
+      addLine()
+    }
   },
   { immediate: true },
 )
@@ -240,10 +288,10 @@ async function submit() {
       contact_id: form.contact_id,
       date: formatDate(form.date),
       due_date: form.due_date ? formatDate(form.due_date) : null,
-      label: (form.label as Invoice['label']) ?? null,
       description: form.description || null,
       lines: form.lines.map((l) => ({
         description: l.description,
+        line_type: l.line_type,
         quantity: String(l.quantity),
         unit_price: String(l.unit_price),
       })),
@@ -293,11 +341,12 @@ onMounted(() => {
 
 .invoice-form__line-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.8fr) 110px 140px 110px auto;
+  grid-template-columns: 160px minmax(0, 1.6fr) 110px 140px 110px auto;
   gap: var(--app-space-3);
   align-items: center;
 }
 
+.invoice-form__type,
 .invoice-form__description,
 .invoice-form__quantity,
 .invoice-form__price {
@@ -316,6 +365,11 @@ onMounted(() => {
   font-size: 1rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+
+.invoice-form__error {
+  color: var(--p-red-600);
+  font-size: 0.92rem;
 }
 
 @media (max-width: 900px) {

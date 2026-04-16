@@ -21,7 +21,14 @@ from backend.models.accounting_rule import (
 from backend.models.bank import Deposit, DepositType
 from backend.models.contact import Contact, ContactType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
-from backend.models.invoice import Invoice, InvoiceLabel, InvoiceLine, InvoiceStatus, InvoiceType
+from backend.models.invoice import (
+    Invoice,
+    InvoiceLabel,
+    InvoiceLine,
+    InvoiceLineType,
+    InvoiceStatus,
+    InvoiceType,
+)
 from backend.models.payment import Payment, PaymentMethod
 from backend.models.salary import Salary
 from backend.services.accounting_engine import (
@@ -80,10 +87,10 @@ async def _make_invoice(
     inv_type: InvoiceType = InvoiceType.CLIENT,
     label: InvoiceLabel | None = InvoiceLabel.CS,
     total: Decimal = Decimal("100.00"),
-    lines: list[tuple[str, Decimal]] | None = None,
+    lines: list[tuple[str, Decimal] | tuple[str, Decimal, InvoiceLineType | None]] | None = None,
     has_explicit_breakdown: bool = False,
 ) -> Invoice:
-    invoice_total = sum((amount for _, amount in lines), Decimal("0")) if lines else total
+    invoice_total = sum((line[1] for line in lines), Decimal("0")) if lines else total
     inv = Invoice(
         number="2024-C-0001",
         type=inv_type,
@@ -97,11 +104,14 @@ async def _make_invoice(
     )
     db.add(inv)
     await db.flush()
-    for description, amount in lines or []:
+    for line in lines or []:
+        description, amount = line[0], line[1]
+        line_type = line[2] if len(line) > 2 else None
         db.add(
             InvoiceLine(
                 invoice_id=inv.id,
                 description=description,
+                line_type=line_type,
                 quantity=Decimal("1"),
                 unit_price=amount,
                 amount=amount,
@@ -286,8 +296,8 @@ class TestGenerateEntriesForInvoice:
             db_session,
             label=InvoiceLabel.CS_ADHESION,
             lines=[
-                ("Cours de soutien", Decimal("130.00")),
-                ("Adhesion annuelle", Decimal("30.00")),
+                ("Cours de soutien", Decimal("130.00"), InvoiceLineType.COURSE),
+                ("Adhesion annuelle", Decimal("30.00"), InvoiceLineType.ADHESION),
             ],
             has_explicit_breakdown=True,
         )
@@ -304,28 +314,26 @@ class TestGenerateEntriesForInvoice:
         }
 
     @pytest.mark.asyncio
-    async def test_client_cs_a_unclassified_lines_fall_back_to_default_rule(
+    async def test_client_other_lines_use_general_rule(
         self, db_session: AsyncSession
     ) -> None:
-        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
-        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
-        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_A, "411100", "756000")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_GENERAL, "411100", "758000")
         inv = await _make_invoice(
             db_session,
-            label=InvoiceLabel.CS_ADHESION,
-            lines=[("Pack rentree", Decimal("100.00"))],
+            label=InvoiceLabel.GENERAL,
+            lines=[("Pack rentree", Decimal("100.00"), InvoiceLineType.OTHER)],
         )
 
         entries = await generate_entries_for_invoice(db_session, inv)
 
         assert len(entries) == 2
         assert any(
-            entry.account_number == "706110" and entry.credit == Decimal("100.00")
+            entry.account_number == "758000" and entry.credit == Decimal("100.00")
             for entry in entries
         )
 
     @pytest.mark.asyncio
-    async def test_client_cs_a_lines_without_explicit_breakdown_fall_back_to_default_rule(
+    async def test_client_typed_lines_split_without_extra_flag(
         self, db_session: AsyncSession
     ) -> None:
         await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
@@ -335,22 +343,21 @@ class TestGenerateEntriesForInvoice:
             db_session,
             label=InvoiceLabel.CS_ADHESION,
             lines=[
-                ("Cours de soutien", Decimal("130.00")),
-                ("Adhesion annuelle", Decimal("30.00")),
+                ("Cours de soutien", Decimal("130.00"), InvoiceLineType.COURSE),
+                ("Adhesion annuelle", Decimal("30.00"), InvoiceLineType.ADHESION),
             ],
         )
 
         entries = await generate_entries_for_invoice(db_session, inv)
 
-        assert len(entries) == 2
-        assert any(
-            entry.account_number == "706110" and entry.credit == Decimal("160.00")
-            for entry in entries
-        )
-        assert all(entry.account_number != "756000" or entry.credit <= 0 for entry in entries)
+        assert len(entries) == 3
+        assert {entry.account_number: entry.credit for entry in entries if entry.credit > 0} == {
+            "706110": Decimal("130.00"),
+            "756000": Decimal("30.00"),
+        }
 
     @pytest.mark.asyncio
-    async def test_client_cs_a_explicit_breakdown_skips_zero_credit_entry(
+    async def test_client_typed_lines_skip_zero_credit_entry(
         self, db_session: AsyncSession
     ) -> None:
         await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
@@ -360,10 +367,9 @@ class TestGenerateEntriesForInvoice:
             db_session,
             label=InvoiceLabel.CS_ADHESION,
             lines=[
-                ("Cours de soutien", Decimal("160.00")),
-                ("Adhesion annuelle", Decimal("0.00")),
+                ("Cours de soutien", Decimal("160.00"), InvoiceLineType.COURSE),
+                ("Adhesion annuelle", Decimal("0.00"), InvoiceLineType.ADHESION),
             ],
-            has_explicit_breakdown=True,
         )
 
         entries = await generate_entries_for_invoice(db_session, inv)
@@ -380,30 +386,29 @@ class TestGenerateEntriesForInvoice:
         assert all(entry.account_number != "756000" for entry in entries)
 
     @pytest.mark.asyncio
-    async def test_client_cs_a_explicit_breakdown_with_zero_component_does_not_require_unused_rule(
+    async def test_client_negative_line_is_aggregated_by_type(
         self, db_session: AsyncSession
     ) -> None:
         await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
         await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
         inv = await _make_invoice(
             db_session,
-            label=InvoiceLabel.CS_ADHESION,
+            label=InvoiceLabel.CS,
             lines=[
-                ("Cours de soutien", Decimal("160.00")),
-                ("Adhesion annuelle", Decimal("0.00")),
+                ("Cours de soutien", Decimal("160.00"), InvoiceLineType.COURSE),
+                ("Remise cours", Decimal("-10.00"), InvoiceLineType.COURSE),
             ],
-            has_explicit_breakdown=True,
         )
 
         entries = await generate_entries_for_invoice(db_session, inv)
 
         assert len(entries) == 2
         assert any(
-            entry.account_number == "411100" and entry.debit == Decimal("160.00")
+            entry.account_number == "411100" and entry.debit == Decimal("150.00")
             for entry in entries
         )
         assert any(
-            entry.account_number == "706110" and entry.credit == Decimal("160.00")
+            entry.account_number == "706110" and entry.credit == Decimal("150.00")
             for entry in entries
         )
 

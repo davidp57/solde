@@ -109,14 +109,25 @@ class TestCreateInvoice:
     async def test_create_client_invoice_with_lines(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
         lines = [
-            {"description": "Cours maths", "quantity": "2", "unit_price": "30.00"},
-            {"description": "Adhésion", "quantity": "1", "unit_price": "20.00"},
+            {
+                "description": "Cours maths",
+                "line_type": "cours",
+                "quantity": "2",
+                "unit_price": "30.00",
+            },
+            {
+                "description": "Adhésion",
+                "line_type": "adhesion",
+                "quantity": "1",
+                "unit_price": "20.00",
+            },
         ]
         invoice = await _create_invoice(client, auth_headers, cid, lines=lines)
         assert invoice["number"] == "2025-C-0001"
         assert float(invoice["total_amount"]) == 80.0
         assert invoice["status"] == "draft"
         assert len(invoice["lines"]) == 2
+        assert invoice["label"] == "cs+a"
 
     async def test_create_supplier_invoice(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
@@ -206,10 +217,19 @@ class TestStatusChange:
             client,
             auth_headers,
             cid,
-            label="cs+a",
             lines=[
-                {"description": "Cours de soutien", "quantity": "1", "unit_price": "130.00"},
-                {"description": "Adhesion annuelle", "quantity": "1", "unit_price": "30.00"},
+                {
+                    "description": "Cours de soutien",
+                    "line_type": "cours",
+                    "quantity": "1",
+                    "unit_price": "130.00",
+                },
+                {
+                    "description": "Adhesion annuelle",
+                    "line_type": "adhesion",
+                    "quantity": "1",
+                    "unit_price": "30.00",
+                },
             ],
         )
 

@@ -2,12 +2,14 @@ import apiClient from './client'
 
 export type InvoiceType = 'client' | 'fournisseur'
 export type InvoiceLabel = 'cs' | 'a' | 'cs+a' | 'general'
+export type InvoiceLineType = 'cours' | 'adhesion' | 'autres'
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'partial' | 'overdue' | 'disputed'
 
 export interface InvoiceLine {
   id: number
   invoice_id: number
   description: string
+  line_type: InvoiceLineType | null
   quantity: string
   unit_price: string
   amount: string
@@ -15,6 +17,7 @@ export interface InvoiceLine {
 
 export interface InvoiceLineCreate {
   description: string
+  line_type?: InvoiceLineType | null
   quantity?: string
   unit_price?: string
 }
