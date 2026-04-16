@@ -648,23 +648,16 @@ const depositRows = computed(() =>
   })),
 )
 
-const periodVariation = computed(() =>
-  transactions.value.reduce((total, transaction) => total + parseFloat(transaction.amount), 0),
-)
-
 const displayedPeriodVariation = computed(() =>
-  displayedTransactions.value.reduce((total, transaction) => total + parseFloat(transaction.amount), 0),
+  displayedTransactions.value.reduce(
+    (total, transaction) => total + parseFloat(transaction.amount),
+    0,
+  ),
 )
 
 const selectedPeriodLabel = computed(
   () => fiscalYearStore.selectedFiscalYear?.name ?? t('app.all_fiscal_years'),
 )
-
-const periodVariationTone = computed(() => {
-  if (periodVariation.value > 0) return 'success'
-  if (periodVariation.value < 0) return 'danger'
-  return 'warn'
-})
 
 const displayedPeriodVariationTone = computed(() => {
   if (displayedPeriodVariation.value > 0) return 'success'
@@ -746,9 +739,7 @@ function pickLatestVisibleBalanceAfter(
 
 const scopedBalance = computed(() => pickLatestVisibleBalanceAfter(displayedTransactions.value))
 
-const displayBalanceValue = computed(() =>
-  formatAmount(scopedBalance.value ?? balance.value),
-)
+const displayBalanceValue = computed(() => formatAmount(scopedBalance.value ?? balance.value))
 
 const currentBalanceCaption = computed(() =>
   transactionHasActiveFilters.value || fiscalYearStore.selectedFiscalYear

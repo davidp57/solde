@@ -136,7 +136,7 @@ async def import_csv(
         rows = parse_credit_mutuel_csv(payload.content)
     except BankImportError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
     created: list[BankTransactionRead] = []
@@ -197,7 +197,7 @@ async def import_ofx(
         rows = parse_ofx(payload.content)
     except BankImportError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     return await _import_rows(rows, db)
 
@@ -217,7 +217,7 @@ async def import_qif(
         rows = parse_qif(payload.content)
     except BankImportError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     return await _import_rows(rows, db)
 
@@ -270,7 +270,7 @@ async def create_deposit(
         deposit = await bank_service.create_deposit(db, payload)
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     pids = await bank_service.get_deposit_payment_ids(db, deposit.id)
     return DepositRead(
