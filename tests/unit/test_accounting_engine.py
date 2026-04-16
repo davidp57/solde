@@ -325,7 +325,7 @@ class TestGenerateEntriesForInvoice:
         )
 
     @pytest.mark.asyncio
-    async def test_client_cs_a_manual_lines_do_not_trigger_split(
+    async def test_client_cs_a_lines_without_explicit_breakdown_fall_back_to_default_rule(
         self, db_session: AsyncSession
     ) -> None:
         await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")

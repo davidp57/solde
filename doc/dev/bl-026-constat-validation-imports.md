@@ -71,7 +71,7 @@ Méthode de référence : `doc/dev/bl-026-cadrage-validation-imports-excel.md`.
 
 - Bornes de l'exercice dans Solde : `...`
 - Fichier(s) Excel de référence : `...`
-- Décision de clôture `BL-026` : `l'exercice 2025 n'est pas poursuivi dans ce ticket ; la suite de la validation stricte est reportée après cadrage de BL-008 et traitement des correctifs identifiés comme BL-028`
+- Décision de clôture `BL-026` : `l'exercice 2025 n'est pas poursuivi dans ce ticket ; la suite de la validation stricte est reportée après cadrage de BL-008 et traitement des correctifs identifiés comme BL-029`
 
 | Domaine | Chiffres Excel | Chiffres Solde | Statut | Commentaire |
 |---|---|---|---|---|
@@ -96,6 +96,6 @@ Méthode de référence : `doc/dev/bl-026-cadrage-validation-imports-excel.md`.
 
 - Niveau de confiance sur la reprise `Gestion` : `élevé sur l'exercice 2024 pour les chiffres métier visibles : factures fournisseurs, paiements, banque et caisse sont conformes ou justifiés ; la validation 2025 reste à faire et certains points de convention métier demeurent ouverts côté factures clients et salaires`
 - Niveau de confiance sur la reprise `Comptabilité` : `moyen à bon sur l'exercice 2024 : les états principaux sont cohérents et les écarts résiduels identifiés relèvent en partie de différences de modélisation entre Excel et Solde ; la validation 2025 n'est pas poursuivie dans BL-026 et la règle de comparaison comptable cible doit encore être figée`
-- Écarts bloquants : `aucun écart bloquant démontré à ce stade sur la reprise 2024 ; en revanche, il n'existe pas encore de convention de rapprochement assez explicite pour conclure à une convergence comptable brute Excel = Solde sur le journal final, ce qui motive la bascule vers BL-008 et BL-028`
+- Écarts bloquants : `aucun écart bloquant démontré à ce stade sur la reprise 2024 ; en revanche, il n'existe pas encore de convention de rapprochement assez explicite pour conclure à une convergence comptable brute Excel = Solde sur le journal final, ce qui motive la bascule vers BL-008 et BL-029`
 - Écarts non bloquants : `montant en retard client dépendant de la convention UI (`due_date` / `overdue`) ; trésorerie 2024 nécessitant l'intégration de l'ouverture du système hors fichier ; comparaison comptable 2024 sensible à des différences de granularité (facture fournisseur + règlement dans Solde vs paiement direct dans Excel, ventilation produit côté clients, regroupements salariaux)`
-- Sujets à transformer en correctifs distincts : `BL-028 pour la ventilation comptable des factures clients mixtes de type cs+a ; BL-008 pour un mode de validation itérative distinguant convergence globale et validation du moteur Gestion ; éventuellement un sujet dédié si la convention d'affichage du passif au Bilan doit être revue ; la validation future de 2025 devra être reprise dans ce nouveau cadre plutôt que prolongée telle quelle dans BL-026`
+- Sujets à transformer en correctifs distincts : `BL-029 pour la saisie et la ventilation des factures clients pilotées par les lignes, y compris le cas des factures mixtes ; BL-008 pour un mode de validation itérative distinguant convergence globale et validation du moteur Gestion ; éventuellement un sujet dédié si la convention d'affichage du passif au Bilan doit être revue ; la validation future de 2025 devra être reprise dans ce nouveau cadre plutôt que prolongée telle quelle dans BL-026`

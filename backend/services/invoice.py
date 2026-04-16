@@ -7,7 +7,7 @@ from sqlalchemy import extract, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from backend.models.invoice import Invoice, InvoiceLine, InvoiceStatus, InvoiceType
+from backend.models.invoice import Invoice, InvoiceLabel, InvoiceLine, InvoiceStatus, InvoiceType
 from backend.schemas.invoice import InvoiceCreate, InvoiceLineCreate, InvoiceUpdate
 
 
@@ -64,6 +64,16 @@ def _compute_total(lines: list[InvoiceLineCreate]) -> Decimal:
     )
 
 
+def _has_user_entered_breakdown(
+    invoice_type: InvoiceType,
+    label: InvoiceLabel | None,
+    line_count: int,
+) -> bool:
+    return (
+        invoice_type == InvoiceType.CLIENT and label == InvoiceLabel.CS_ADHESION and line_count > 0
+    )
+
+
 async def _next_number(db: AsyncSession, invoice_type: InvoiceType, year: int) -> str:
     """Generate the next sequential invoice number for a given type and year.
 
@@ -106,6 +116,11 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
         reference=payload.reference,
         total_amount=total,
         paid_amount=Decimal("0"),
+        has_explicit_breakdown=_has_user_entered_breakdown(
+            payload.type,
+            payload.label,
+            len(payload.lines),
+        ),
         status=InvoiceStatus.DRAFT,
     )
     db.add(invoice)
@@ -186,7 +201,6 @@ async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpd
         for existing_line in list(invoice.lines):
             await db.delete(existing_line)
         await db.flush()
-        invoice.has_explicit_breakdown = False
         new_lines = []
         for ln in payload.lines:
             line = InvoiceLine(
@@ -201,6 +215,13 @@ async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpd
         invoice.total_amount = _compute_total(payload.lines)
     elif payload.total_amount is not None:
         invoice.total_amount = payload.total_amount
+
+    line_count = len(payload.lines) if payload.lines is not None else len(invoice.lines)
+    invoice.has_explicit_breakdown = _has_user_entered_breakdown(
+        invoice.type,
+        invoice.label,
+        line_count,
+    )
 
     invoice.updated_at = datetime.now(UTC)
     invoice_id = invoice.id  # save before expire clears attributes
@@ -245,6 +266,11 @@ async def duplicate_invoice(db: AsyncSession, source: Invoice) -> Invoice:
         reference=None,
         total_amount=source.total_amount,
         paid_amount=Decimal("0"),
+        has_explicit_breakdown=_has_user_entered_breakdown(
+            source.type,
+            source.label,
+            len(source.lines),
+        ),
         status=InvoiceStatus.DRAFT,
     )
     db.add(copy)
