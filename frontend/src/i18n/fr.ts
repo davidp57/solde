@@ -416,6 +416,7 @@ export default {
     },
     metrics: {
       current_balance_caption: 'Toutes périodes confondues',
+      visible_scope_caption: 'Périmètre affiché',
       period_variation_caption: 'Période : {period}',
       entries_total: '{count} écriture(s) sur la période',
       counts_total: '{count} comptage(s) sur la période',
@@ -473,6 +474,7 @@ export default {
     import_success: '{n} opération(s) importée(s).',
     metrics: {
       current_balance_caption: 'Toutes périodes confondues',
+      visible_scope_caption: 'Périmètre affiché',
       period_variation_caption: 'Période : {period}',
       transactions_total: '{count} au total',
       pending_payments: '{count} paiement(s) en attente',

@@ -25,14 +25,14 @@
     <section class="app-stat-grid">
       <AppStatCard
         :label="t('bank.current_balance')"
-        :value="formatAmount(balance)"
-        :caption="t('bank.metrics.current_balance_caption')"
+        :value="displayBalanceValue"
+        :caption="currentBalanceCaption"
       />
       <AppStatCard
         :label="t('bank.period_variation')"
-        :value="formatSignedAmount(periodVariation)"
-        :caption="t('bank.metrics.period_variation_caption', { period: selectedPeriodLabel })"
-        :tone="periodVariationTone"
+        :value="formatSignedAmount(displayedPeriodVariation)"
+        :caption="periodVariationCaption"
+        :tone="displayedPeriodVariationTone"
       />
       <AppStatCard
         :label="t('bank.transactions_title')"
@@ -652,6 +652,10 @@ const periodVariation = computed(() =>
   transactions.value.reduce((total, transaction) => total + parseFloat(transaction.amount), 0),
 )
 
+const displayedPeriodVariation = computed(() =>
+  displayedTransactions.value.reduce((total, transaction) => total + parseFloat(transaction.amount), 0),
+)
+
 const selectedPeriodLabel = computed(
   () => fiscalYearStore.selectedFiscalYear?.name ?? t('app.all_fiscal_years'),
 )
@@ -659,6 +663,12 @@ const selectedPeriodLabel = computed(
 const periodVariationTone = computed(() => {
   if (periodVariation.value > 0) return 'success'
   if (periodVariation.value < 0) return 'danger'
+  return 'warn'
+})
+
+const displayedPeriodVariationTone = computed(() => {
+  if (displayedPeriodVariation.value > 0) return 'success'
+  if (displayedPeriodVariation.value < 0) return 'danger'
   return 'warn'
 })
 
@@ -712,6 +722,44 @@ const activeHasFilters = computed(() =>
   activeTab.value === 'transactions'
     ? transactionHasActiveFilters.value
     : depositHasActiveFilters.value,
+)
+
+function pickLatestVisibleBalanceAfter(
+  rows: Array<{ id: number; date: string; balance_after: string }>,
+): string | null {
+  if (rows.length === 0) {
+    return null
+  }
+
+  const latestRow = rows.reduce((latest, current) => {
+    if (current.date > latest.date) {
+      return current
+    }
+    if (current.date === latest.date && current.id > latest.id) {
+      return current
+    }
+    return latest
+  })
+
+  return latestRow.balance_after
+}
+
+const scopedBalance = computed(() => pickLatestVisibleBalanceAfter(displayedTransactions.value))
+
+const displayBalanceValue = computed(() =>
+  formatAmount(scopedBalance.value ?? balance.value),
+)
+
+const currentBalanceCaption = computed(() =>
+  transactionHasActiveFilters.value || fiscalYearStore.selectedFiscalYear
+    ? t('bank.metrics.visible_scope_caption')
+    : t('bank.metrics.current_balance_caption'),
+)
+
+const periodVariationCaption = computed(() =>
+  transactionHasActiveFilters.value
+    ? t('bank.metrics.visible_scope_caption')
+    : t('bank.metrics.period_variation_caption', { period: selectedPeriodLabel.value }),
 )
 
 function resetActiveFilters() {
