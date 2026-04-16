@@ -151,7 +151,7 @@ async def update_manual_entry(
         status_code = (
             status.HTTP_404_NOT_FOUND
             if "not found" in detail
-            else status.HTTP_422_UNPROCESSABLE_ENTITY
+            else status.HTTP_422_UNPROCESSABLE_CONTENT
         )
         raise HTTPException(status_code=status_code, detail=detail) from exc
     return cast(list[AccountingEntryRead], [debit, credit])

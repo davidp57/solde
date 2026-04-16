@@ -245,7 +245,7 @@ async def send_invoice_email(
     contact = result.scalar_one_or_none()
     if contact is None or not contact.email:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Contact has no email address",
         )
 
