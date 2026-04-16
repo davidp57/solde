@@ -331,7 +331,7 @@ describe('CashView', () => {
 
     expect(wrapper.text()).toContain('cash.current_balance')
     expect(wrapper.text()).toContain('145.00 €')
-    expect(wrapper.text()).toContain('cash.metrics.current_balance_caption')
+    expect(wrapper.text()).toContain('cash.metrics.visible_scope_caption')
     expect(wrapper.text()).toContain('cash.period_variation')
     expect(wrapper.text()).toContain('+45.00 €')
     expect(wrapper.text()).toContain('cash.metrics.period_variation_caption')
