@@ -81,6 +81,7 @@ async def _make_invoice(
     label: InvoiceLabel | None = InvoiceLabel.CS,
     total: Decimal = Decimal("100.00"),
     lines: list[tuple[str, Decimal]] | None = None,
+    has_explicit_breakdown: bool = False,
 ) -> Invoice:
     invoice_total = sum((amount for _, amount in lines), Decimal("0")) if lines else total
     inv = Invoice(
@@ -92,6 +93,7 @@ async def _make_invoice(
         paid_amount=Decimal("0"),
         status=InvoiceStatus.SENT,
         label=label,
+        has_explicit_breakdown=has_explicit_breakdown,
     )
     db.add(inv)
     await db.flush()
@@ -287,6 +289,7 @@ class TestGenerateEntriesForInvoice:
                 ("Cours de soutien", Decimal("130.00")),
                 ("Adhesion annuelle", Decimal("30.00")),
             ],
+            has_explicit_breakdown=True,
         )
 
         entries = await generate_entries_for_invoice(db_session, inv)
@@ -318,6 +321,89 @@ class TestGenerateEntriesForInvoice:
         assert len(entries) == 2
         assert any(
             entry.account_number == "706110" and entry.credit == Decimal("100.00")
+            for entry in entries
+        )
+
+    @pytest.mark.asyncio
+    async def test_client_cs_a_manual_lines_do_not_trigger_split(
+        self, db_session: AsyncSession
+    ) -> None:
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_A, "411100", "756000")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS_ADHESION,
+            lines=[
+                ("Cours de soutien", Decimal("130.00")),
+                ("Adhesion annuelle", Decimal("30.00")),
+            ],
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 2
+        assert any(
+            entry.account_number == "706110" and entry.credit == Decimal("160.00")
+            for entry in entries
+        )
+        assert all(entry.account_number != "756000" or entry.credit <= 0 for entry in entries)
+
+    @pytest.mark.asyncio
+    async def test_client_cs_a_explicit_breakdown_skips_zero_credit_entry(
+        self, db_session: AsyncSession
+    ) -> None:
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_A, "411100", "756000")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS_ADHESION,
+            lines=[
+                ("Cours de soutien", Decimal("160.00")),
+                ("Adhesion annuelle", Decimal("0.00")),
+            ],
+            has_explicit_breakdown=True,
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 2
+        assert any(
+            entry.account_number == "411100" and entry.debit == Decimal("160.00")
+            for entry in entries
+        )
+        assert any(
+            entry.account_number == "706110" and entry.credit == Decimal("160.00")
+            for entry in entries
+        )
+        assert all(entry.account_number != "756000" for entry in entries)
+
+    @pytest.mark.asyncio
+    async def test_client_cs_a_explicit_breakdown_with_zero_component_does_not_require_unused_rule(
+        self, db_session: AsyncSession
+    ) -> None:
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS_ADHESION,
+            lines=[
+                ("Cours de soutien", Decimal("160.00")),
+                ("Adhesion annuelle", Decimal("0.00")),
+            ],
+            has_explicit_breakdown=True,
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 2
+        assert any(
+            entry.account_number == "411100" and entry.debit == Decimal("160.00")
+            for entry in entries
+        )
+        assert any(
+            entry.account_number == "706110" and entry.credit == Decimal("160.00")
             for entry in entries
         )
 

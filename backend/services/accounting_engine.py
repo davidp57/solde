@@ -143,7 +143,11 @@ async def _generate_split_client_invoice_entries(
     context: Mapping[str, object],
     fiscal_year_id: int | None,
 ) -> list[AccountingEntry] | None:
-    if invoice.label != InvoiceLabel.CS_ADHESION or len(invoice.lines) < 2:
+    if (
+        invoice.label != InvoiceLabel.CS_ADHESION
+        or not invoice.has_explicit_breakdown
+        or len(invoice.lines) < 2
+    ):
         return None
 
     grouped_amounts: dict[InvoiceLabel, Decimal] = {}
@@ -164,15 +168,39 @@ async def _generate_split_client_invoice_entries(
         return None
 
     cs_a_rule = await _get_rule(db, TriggerType.INVOICE_CLIENT_CS_A)
-    cs_rule = await _get_rule(db, TriggerType.INVOICE_CLIENT_CS)
-    adhesion_rule = await _get_rule(db, TriggerType.INVOICE_CLIENT_A)
-    if cs_a_rule is None or cs_rule is None or adhesion_rule is None:
+    cs_rule = (
+        await _get_rule(db, TriggerType.INVOICE_CLIENT_CS)
+        if grouped_amounts[InvoiceLabel.CS] > 0
+        else None
+    )
+    adhesion_rule = (
+        await _get_rule(db, TriggerType.INVOICE_CLIENT_A)
+        if grouped_amounts[InvoiceLabel.ADHESION] > 0
+        else None
+    )
+    if cs_a_rule is None:
+        return None
+    if grouped_amounts[InvoiceLabel.CS] > 0 and cs_rule is None:
+        return None
+    if grouped_amounts[InvoiceLabel.ADHESION] > 0 and adhesion_rule is None:
         return None
 
     debit_entries = [entry for entry in cs_a_rule.entries if entry.side == "debit"]
-    cs_credit_entries = [entry for entry in cs_rule.entries if entry.side == "credit"]
-    adhesion_credit_entries = [entry for entry in adhesion_rule.entries if entry.side == "credit"]
-    if not debit_entries or not cs_credit_entries or not adhesion_credit_entries:
+    cs_credit_entries = [
+        entry
+        for entry in (cs_rule.entries if cs_rule is not None else [])
+        if entry.side == "credit"
+    ]
+    adhesion_credit_entries = [
+        entry
+        for entry in (adhesion_rule.entries if adhesion_rule is not None else [])
+        if entry.side == "credit"
+    ]
+    if not debit_entries:
+        return None
+    if grouped_amounts[InvoiceLabel.CS] > 0 and not cs_credit_entries:
+        return None
+    if grouped_amounts[InvoiceLabel.ADHESION] > 0 and not adhesion_credit_entries:
         return None
 
     created: list[AccountingEntry] = []
@@ -188,30 +216,32 @@ async def _generate_split_client_invoice_entries(
             fiscal_year_id,
         )
     )
-    created.extend(
-        await _apply_rule_entries(
-            db,
-            cs_credit_entries,
-            grouped_amounts[InvoiceLabel.CS],
-            invoice.date,
-            context,
-            EntrySourceType.INVOICE,
-            invoice.id,
-            fiscal_year_id,
+    if grouped_amounts[InvoiceLabel.CS] > 0:
+        created.extend(
+            await _apply_rule_entries(
+                db,
+                cs_credit_entries,
+                grouped_amounts[InvoiceLabel.CS],
+                invoice.date,
+                context,
+                EntrySourceType.INVOICE,
+                invoice.id,
+                fiscal_year_id,
+            )
         )
-    )
-    created.extend(
-        await _apply_rule_entries(
-            db,
-            adhesion_credit_entries,
-            grouped_amounts[InvoiceLabel.ADHESION],
-            invoice.date,
-            context,
-            EntrySourceType.INVOICE,
-            invoice.id,
-            fiscal_year_id,
+    if grouped_amounts[InvoiceLabel.ADHESION] > 0:
+        created.extend(
+            await _apply_rule_entries(
+                db,
+                adhesion_credit_entries,
+                grouped_amounts[InvoiceLabel.ADHESION],
+                invoice.date,
+                context,
+                EntrySourceType.INVOICE,
+                invoice.id,
+                fiscal_year_id,
+            )
         )
-    )
     return created
 
 

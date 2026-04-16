@@ -186,6 +186,7 @@ async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpd
         for existing_line in list(invoice.lines):
             await db.delete(existing_line)
         await db.flush()
+        invoice.has_explicit_breakdown = False
         new_lines = []
         for ln in payload.lines:
             line = InvoiceLine(

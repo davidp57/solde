@@ -415,6 +415,7 @@ async def test_import_gestion_splits_cs_a_invoice_when_component_columns_exist(
         ("Cours de soutien", Decimal("130.00")),
         ("Adhesion annuelle", Decimal("30.00")),
     ]
+    assert invoice.has_explicit_breakdown is True
 
     entries = (
         (
@@ -437,6 +438,47 @@ async def test_import_gestion_splits_cs_a_invoice_when_component_columns_exist(
     )
     assert any(
         entry.account_number == "756000" and entry.credit == Decimal("30.00") for entry in entries
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_blocks_inconsistent_cs_a_component_columns(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                [
+                    "Date facture",
+                    "Réf facture",
+                    "Client",
+                    "Montant",
+                    "Montant cours",
+                    "Montant adhésion",
+                    "Type",
+                ],
+                [["2024-08-26", "2024-0186", "Alexandre ELEZI", 160, 120, 30, "cs+a"]],
+            ),
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    sheets = {sheet["name"]: sheet for sheet in preview_data["sheets"]}
+    assert preview_data["can_import"] is False
+    assert preview_data["estimated_invoices"] == 0
+    assert sheets["Factures"]["rows"] == 0
+    assert any(
+        "ventilation cours/adhesion incoherente" in error.lower()
+        for error in sheets["Factures"]["errors"]
     )
 
 
