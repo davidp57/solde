@@ -90,7 +90,7 @@ async def close_fiscal_year(
         closed = await fiscal_year_service.close_fiscal_year(db, fy)
     except FiscalYearError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     return closed  # type: ignore[return-value]
 
@@ -109,7 +109,7 @@ async def administrative_close_fiscal_year(
         closed = await fiscal_year_service.administrative_close_fiscal_year(db, fy)
     except FiscalYearError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     return closed  # type: ignore[return-value]
 
@@ -133,6 +133,6 @@ async def open_new_fiscal_year(
         new_fy = await fiscal_year_service.open_new_fiscal_year(db, closed_fy, payload)
     except FiscalYearError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     return new_fy  # type: ignore[return-value]
