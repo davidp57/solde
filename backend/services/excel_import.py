@@ -1496,11 +1496,13 @@ async def _import_contacts_sheet(db: AsyncSession, ws: Any, result: ImportResult
 async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
     """Import invoices from a sheet with flexible column detection."""
     from sqlalchemy import select  # noqa: PLC0415
+    from sqlalchemy.orm import selectinload  # noqa: PLC0415
 
     from backend.models.contact import Contact, ContactType  # noqa: PLC0415
     from backend.models.invoice import (  # noqa: PLC0415
         Invoice,
         InvoiceLabel,
+        InvoiceLine,
         InvoiceStatus,
         InvoiceType,
     )
@@ -1609,6 +1611,26 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
             label=InvoiceLabel(invoice_row.label),
         )
         db.add(invoice)
+        await db.flush()
+        if invoice_row.course_amount is not None and invoice_row.adhesion_amount is not None:
+            db.add_all(
+                [
+                    InvoiceLine(
+                        invoice_id=invoice.id,
+                        description="Cours de soutien",
+                        quantity=Decimal("1"),
+                        unit_price=invoice_row.course_amount,
+                        amount=invoice_row.course_amount,
+                    ),
+                    InvoiceLine(
+                        invoice_id=invoice.id,
+                        description="Adhesion annuelle",
+                        quantity=Decimal("1"),
+                        unit_price=invoice_row.adhesion_amount,
+                        amount=invoice_row.adhesion_amount,
+                    ),
+                ]
+            )
         created_invoices.append(invoice)
         logger.debug(
             "Row %d — invoice '%s' queued (contact_id=%d, amount=%s)",
@@ -1647,7 +1669,18 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
 
         for inv_obj in created_invoices:
             try:
-                entries = await generate_entries_for_invoice(db, inv_obj)
+                refreshed_invoice = (
+                    (
+                        await db.execute(
+                            select(Invoice)
+                            .where(Invoice.id == inv_obj.id)
+                            .options(selectinload(Invoice.lines))
+                        )
+                    )
+                    .scalars()
+                    .one()
+                )
+                entries = await generate_entries_for_invoice(db, refreshed_invoice)
                 result.entries_created += len(entries)
             except Exception as e:
                 logger.debug("Accounting entries skipped for invoice '%s': %s", inv_obj.number, e)

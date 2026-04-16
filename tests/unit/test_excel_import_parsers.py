@@ -82,6 +82,34 @@ def test_parse_invoice_sheet_blocks_missing_or_invalid_invoice_date() -> None:
     ]
 
 
+def test_parse_invoice_sheet_extracts_optional_cs_a_components() -> None:
+    sheet = _make_sheet(
+        "Factures",
+        [
+            [
+                "Date facture",
+                "Réf facture",
+                "Client",
+                "Montant",
+                "Montant cours",
+                "Montant adhésion",
+                "Type",
+            ],
+            ["2025-08-01", "2025-0142", "Christine LOPES", 160, 130, 30, "CS+A"],
+        ],
+    )
+
+    parsed_sheet, rows, issues, ignored_issues = parse_invoice_sheet(sheet)
+
+    assert parsed_sheet is not None
+    assert issues == []
+    assert ignored_issues == []
+    assert len(rows) == 1
+    assert rows[0].label == "cs+a"
+    assert rows[0].course_amount == Decimal("130")
+    assert rows[0].adhesion_amount == Decimal("30")
+
+
 def test_parse_payment_sheet_normalizes_payment_fields() -> None:
     sheet = _make_sheet(
         "Paiements",
