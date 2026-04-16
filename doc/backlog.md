@@ -379,7 +379,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-029 — Saisie des factures clients pilotée par types de lignes
 
-- **Dates** : `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-16`
+- **Dates** : `created=2026-04-16`, `started=2026-04-16`
 - **Pourquoi** : le modèle actuel demande encore un label global de facture (`cs`, `a`, `cs+a`, `general`) alors que le besoin métier cible est plus fin : l'utilisateur pense d'abord en lignes de facture, chacune portant un type métier (`cours`, `adhésion`, `autres`), puis attend que Solde calcule le total et la ventilation comptable à partir de cette saisie ; les remises doivent rester visibles sur la facture mais être portées par des lignes négatives du même type métier, pas par une catégorie séparée. Le sous-sujet exploré auparavant comme `BL-028` est absorbé ici, car il n'est pas testable isolément sur `Gestion 2024` faute de détail source exploitable pour des factures mixtes.
 - **Résultat attendu** : une création de facture client où l'utilisateur saisit le client et les lignes, choisit un type par ligne, voit le total calculé automatiquement, et obtient à validation des écritures comptables dérivées de la composition réelle de la facture sans dépendre d'un label global saisi à la main.
 - **Règle métier cible actuellement privilégiée** :
@@ -404,6 +404,16 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- quelle règle appliquer si une facture mélange `cours`, `adhésion` et `autres`, avec ou sans lignes négatives de remise.
 - **Critère d'acceptation** : un utilisateur peut créer une facture client complète sans se poser de question sur le label comptable global ; le total affiché correspond exactement aux lignes saisies et les écritures générées à validation reflètent cette décomposition ligne par ligne.
 - **Point d'attention** : l'import `Comptabilité` deviendrait alors non seulement un import d'écritures, mais aussi un mécanisme d'enrichissement métier des factures déjà créées ; il faudra l'encadrer par des règles de sûreté et de coexistence explicites.
+- **État d'avancement au 2026-04-16** : l'implémentation a été livrée sur la branche `feature/bl-029-factures-clients-par-lignes` et poussée dans la PR `#18` ; la recette utilisateur reste à faire.
+- **Implémenté dans ce lot** :
+	- ajout d'un type de ligne de facture client (`cours`, `adhésion`, `autres`) en base, API et logique métier ;
+	- calcul du total, du label dérivé et de la ventilation comptable directement à partir des lignes, avec support des remises via lignes négatives ;
+	- import `Gestion` revu pour créer systématiquement des lignes typées sans inventer de détail absent ;
+	- import `Comptabilité` revu pour clarifier de façon sûre une facture mixte existante quand les écritures permettent d'en déduire la ventilation ;
+	- formulaire frontend de facture client revu pour supprimer la saisie du label global et piloter la facture par types de lignes ;
+	- migration Alembic, tests backend/frontend et backlog mis à jour.
+- **Validation technique réalisée** : la suite `pytest tests/`, le `type-check` frontend, `eslint` ciblé et `prettier --check` sur les fichiers frontend touchés sont passés localement avant push.
+- **Prochaine étape** : recette métier utilisateur sur le scénario `Gestion 2024` puis `Comptabilité 2024`, avant clôture effective du ticket.
 
 ### BL-030 — Politique de modification des objets métier validés
 
@@ -427,10 +437,9 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels a été traité séparément dans `BL-023`, désormais terminé.
+- **BL-029** — `created=2026-04-16`, `started=2026-04-16` — L'implémentation est poussée sur la PR `#18` avec lignes typées, import `Gestion`/`Comptabilité` adapté et UI revue ; la recette métier utilisateur reste à faire avant clôture.
 
 ## Fait
-
-- **BL-029** — `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-16` — Le ticket absorbe l'ancienne piste `BL-028` et livre maintenant la saisie client par lignes typées, la ventilation comptable dérivée de ces lignes et le cadrage d'import associé, y compris la clarification sûre depuis `Comptabilité` pour les factures mixtes importées depuis `Gestion`.
 
 - **BL-001** — `created=2026-04-12`, `completed=2026-04-12` — Le backlog sert désormais de support de suivi versionné avec priorités, statuts et mises à jour explicites.
 - **BL-002** — `created=2026-04-12`, `completed=2026-04-12` — La documentation utilisateur import/reset a été rédigée dans `doc/user/import-excel-et-reinitialisation.md`.
