@@ -33,7 +33,6 @@
   .totals td { padding: 6px 12px; font-size: 10pt; }
   .totals tr.grand-total td { font-weight: bold; font-size: 12pt; border-top: 2px solid #2563eb; }
   .totals td:last-child { text-align: right; }
-  .label-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 9pt; font-weight: bold; background: #dbeafe; color: #1e40af; }
   .footer { margin-top: 30px; padding-top: 14px; border-top: 1px solid #e2e8f0; font-size: 9pt; color: #64748b; text-align: center; line-height: 1.6; }
   .due-date { color: #dc2626; font-weight: bold; }
 </style>
@@ -74,9 +73,6 @@
 </div>
 
 <div class="meta">
-  {% if invoice.label %}
-  <div class="meta-item">Type : <span class="label-badge">{{ invoice.label }}</span></div>
-  {% endif %}
   {% if invoice.reference %}
   <div class="meta-item">Réf. : <span>{{ invoice.reference }}</span></div>
   {% endif %}

@@ -1,5 +1,6 @@
 """Invoice service — CRUD, numbering, status changes, duplication."""
 
+from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
@@ -7,7 +8,16 @@ from sqlalchemy import extract, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from backend.models.invoice import Invoice, InvoiceLabel, InvoiceLine, InvoiceStatus, InvoiceType
+from backend.models.invoice import (
+    Invoice,
+    InvoiceLabel,
+    InvoiceLine,
+    InvoiceLineType,
+    InvoiceStatus,
+    InvoiceType,
+    derive_client_invoice_label,
+    infer_client_line_type,
+)
 from backend.schemas.invoice import InvoiceCreate, InvoiceLineCreate, InvoiceUpdate
 
 
@@ -64,14 +74,44 @@ def _compute_total(lines: list[InvoiceLineCreate]) -> Decimal:
     )
 
 
+def _resolve_client_line_type(
+    description: str,
+    line_type: InvoiceLineType | None,
+    fallback_label: InvoiceLabel | None,
+) -> InvoiceLineType:
+    return line_type or infer_client_line_type(description, fallback_label)
+
+
+def _derive_client_label(
+    lines: Sequence[InvoiceLineCreate | InvoiceLine],
+    fallback_label: InvoiceLabel | None,
+) -> InvoiceLabel:
+    line_types = {
+        _resolve_client_line_type(
+            line.description,
+            getattr(line, "line_type", None),
+            fallback_label,
+        )
+        for line in lines
+    }
+    return derive_client_invoice_label(line_types)
+
+
+def _resolve_invoice_label(
+    invoice_type: InvoiceType,
+    payload_label: InvoiceLabel | None,
+    lines: Sequence[InvoiceLineCreate | InvoiceLine],
+) -> InvoiceLabel | None:
+    if invoice_type != InvoiceType.CLIENT or not lines:
+        return payload_label
+    return _derive_client_label(lines, payload_label)
+
+
 def _has_user_entered_breakdown(
     invoice_type: InvoiceType,
-    label: InvoiceLabel | None,
     line_count: int,
 ) -> bool:
-    return (
-        invoice_type == InvoiceType.CLIENT and label == InvoiceLabel.CS_ADHESION and line_count > 0
-    )
+    return invoice_type == InvoiceType.CLIENT and line_count > 0
 
 
 async def _next_number(db: AsyncSession, invoice_type: InvoiceType, year: int) -> str:
@@ -105,20 +145,21 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
     else:
         total = Decimal("0")
 
+    resolved_label = _resolve_invoice_label(payload.type, payload.label, payload.lines)
+
     invoice = Invoice(
         number=number,
         type=payload.type,
         contact_id=payload.contact_id,
         date=payload.date,
         due_date=payload.due_date,
-        label=payload.label,
+        label=resolved_label,
         description=payload.description,
         reference=payload.reference,
         total_amount=total,
         paid_amount=Decimal("0"),
         has_explicit_breakdown=_has_user_entered_breakdown(
             payload.type,
-            payload.label,
             len(payload.lines),
         ),
         status=InvoiceStatus.DRAFT,
@@ -130,6 +171,11 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
         line = InvoiceLine(
             invoice_id=invoice.id,
             description=ln.description,
+            line_type=(
+                _resolve_client_line_type(ln.description, ln.line_type, resolved_label)
+                if payload.type == InvoiceType.CLIENT
+                else None
+            ),
             quantity=ln.quantity,
             unit_price=ln.unit_price,
             amount=_compute_line_amount(ln.quantity, ln.unit_price),
@@ -188,7 +234,6 @@ async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpd
         "contact_id",
         "date",
         "due_date",
-        "label",
         "description",
         "reference",
     ):
@@ -196,16 +241,30 @@ async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpd
         if value is not None:
             setattr(invoice, field, value)
 
+    if payload.label is not None and invoice.type != InvoiceType.CLIENT:
+        invoice.label = payload.label
+
+    effective_lines: Sequence[InvoiceLineCreate | InvoiceLine] = invoice.lines
     if payload.lines is not None:
         # Replace all existing lines
         for existing_line in list(invoice.lines):
             await db.delete(existing_line)
         await db.flush()
         new_lines = []
+        resolved_label = _resolve_invoice_label(
+            invoice.type,
+            payload.label if payload.label is not None else invoice.label,
+            payload.lines,
+        )
         for ln in payload.lines:
             line = InvoiceLine(
                 invoice_id=invoice.id,
                 description=ln.description,
+                line_type=(
+                    _resolve_client_line_type(ln.description, ln.line_type, resolved_label)
+                    if invoice.type == InvoiceType.CLIENT
+                    else None
+                ),
                 quantity=ln.quantity,
                 unit_price=ln.unit_price,
                 amount=_compute_line_amount(ln.quantity, ln.unit_price),
@@ -213,13 +272,19 @@ async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpd
             db.add(line)
             new_lines.append(line)
         invoice.total_amount = _compute_total(payload.lines)
+        effective_lines = payload.lines
     elif payload.total_amount is not None:
         invoice.total_amount = payload.total_amount
+
+    invoice.label = _resolve_invoice_label(
+        invoice.type,
+        payload.label if payload.label is not None else invoice.label,
+        effective_lines,
+    )
 
     line_count = len(payload.lines) if payload.lines is not None else len(invoice.lines)
     invoice.has_explicit_breakdown = _has_user_entered_breakdown(
         invoice.type,
-        invoice.label,
         line_count,
     )
 
@@ -261,14 +326,13 @@ async def duplicate_invoice(db: AsyncSession, source: Invoice) -> Invoice:
         contact_id=source.contact_id,
         date=today,
         due_date=None,
-        label=source.label,
+        label=_resolve_invoice_label(source.type, source.label, source.lines),
         description=source.description,
         reference=None,
         total_amount=source.total_amount,
         paid_amount=Decimal("0"),
         has_explicit_breakdown=_has_user_entered_breakdown(
             source.type,
-            source.label,
             len(source.lines),
         ),
         status=InvoiceStatus.DRAFT,
@@ -280,6 +344,7 @@ async def duplicate_invoice(db: AsyncSession, source: Invoice) -> Invoice:
         line = InvoiceLine(
             invoice_id=copy.id,
             description=src_line.description,
+            line_type=src_line.line_type,
             quantity=src_line.quantity,
             unit_price=src_line.unit_price,
             amount=src_line.amount,

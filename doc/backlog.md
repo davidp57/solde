@@ -379,7 +379,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-029 — Saisie des factures clients pilotée par types de lignes
 
-- **Dates** : `created=2026-04-16`, `started=2026-04-16`
+- **Dates** : `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-16`
 - **Pourquoi** : le modèle actuel demande encore un label global de facture (`cs`, `a`, `cs+a`, `general`) alors que le besoin métier cible est plus fin : l'utilisateur pense d'abord en lignes de facture, chacune portant un type métier (`cours`, `adhésion`, `autres`), puis attend que Solde calcule le total et la ventilation comptable à partir de cette saisie ; les remises doivent rester visibles sur la facture mais être portées par des lignes négatives du même type métier, pas par une catégorie séparée. Le sous-sujet exploré auparavant comme `BL-028` est absorbé ici, car il n'est pas testable isolément sur `Gestion 2024` faute de détail source exploitable pour des factures mixtes.
 - **Résultat attendu** : une création de facture client où l'utilisateur saisit le client et les lignes, choisit un type par ligne, voit le total calculé automatiquement, et obtient à validation des écritures comptables dérivées de la composition réelle de la facture sans dépendre d'un label global saisi à la main.
 - **Règle métier cible actuellement privilégiée** :
@@ -427,9 +427,10 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels a été traité séparément dans `BL-023`, désormais terminé.
-- **BL-029** — `created=2026-04-16`, `started=2026-04-16` — Le ticket absorbe l'ancienne piste `BL-028` et porte désormais le travail testable sur la création de factures clients pilotée par les lignes, la ventilation comptable dérivée de ces lignes et le cadrage d'import associé.
 
 ## Fait
+
+- **BL-029** — `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-16` — Le ticket absorbe l'ancienne piste `BL-028` et livre maintenant la saisie client par lignes typées, la ventilation comptable dérivée de ces lignes et le cadrage d'import associé, y compris la clarification sûre depuis `Comptabilité` pour les factures mixtes importées depuis `Gestion`.
 
 - **BL-001** — `created=2026-04-12`, `completed=2026-04-12` — Le backlog sert désormais de support de suivi versionné avec priorités, statuts et mises à jour explicites.
 - **BL-002** — `created=2026-04-12`, `completed=2026-04-12` — La documentation utilisateur import/reset a été rédigée dans `doc/user/import-excel-et-reinitialisation.md`.
