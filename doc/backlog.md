@@ -65,6 +65,8 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-022 | 2026-04-13 | Évolution | Utilisateurs / Sécurité | P1 | Renforcer la gestion des utilisateurs avec des rôles métier plus clairs, la création et l'administration des comptes, l'autonomie sur le profil et un socle de sécurité de compte plus complet |
 | BL-024 | 2026-04-13 | Correction | Paiements / Banque | P1 | Clarifier le workflow cible de saisie des paiements et corriger l'automatisme qui remet en banque les paiements `espèces` et `virement` dès leur encodage |
+| BL-027 | 2026-04-15 | Évolution | Import Excel / Trésorerie | P1 | Gérer une ouverture du système explicite pour Banque et Caisse sur le premier exercice importé |
+| BL-028 | 2026-04-16 | Correction | Comptabilité / Factures clients | P1 | Ventiler les factures clients mixtes de type `cs+a` sur les mêmes comptes produits que dans Excel quand l'information source le permet |
 
 ## Détail des sujets
 
@@ -134,15 +136,36 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Phase 1** : initialiser proprement Solde à partir des fichiers historiques existants.
 - **Phase 2** : réimporter régulièrement Excel pour vérifier que les écritures et mouvements saisis dans Solde correspondent exactement à la réalité comptable de référence.
 - **Résultat attendu** : détecter toute écriture manquante, en trop ou divergente, avec un haut niveau d'exigence sur montants, dates, libellés et équilibres, et une politique claire sur ce qui reste bloquant versus seulement signalé.
+- **Décisions de cadrage issues de `BL-026`** :
+	- prévoir deux modes de comparaison distincts : `convergence globale` pour comparer l'état final Excel et l'état final Solde, y compris les écritures d'ouverture et les écritures importées depuis `Comptabilite`, et `validation du moteur Gestion` pour comparer seulement les écritures générées par `Gestion` avec les écritures Excel correspondant aux mêmes événements métier ;
+	- ne pas imposer une identité ligne à ligne comme unique cible : certaines différences de structure doivent être rapprochées par des règles métier explicites ;
+	- pour les fournisseurs, considérer comme cas normalisable le fait qu'Excel porte souvent un paiement direct (`charge -> banque/caisse`) alors que Solde modélise `facture fournisseur -> règlement` ;
+	- pour les factures clients mixtes de type `cs+a`, considérer au contraire que la ventilation multi-comptes observée dans Excel exprime une réalité comptable cible et non un simple artefact de rapprochement ;
+	- sur les salaires, ne pas ouvrir de sujet correctif tant qu'aucun écart métier de montant n'est démontré ; au besoin, formaliser seulement une convention de date et de regroupement pour la comparaison.
 - **Premier lot visé** :
+	- formaliser ces deux modes de validation (`convergence globale` et `validation du moteur Gestion`) et leurs périmètres respectifs ;
 	- formaliser un contrat de comparaison par domaine (`Factures`, `Paiements`, `Caisse`, `Banque`, `Journal`) ;
 	- ajouter un mode de comparaison sans écriture, probablement adossé à la preview existante ;
 	- catégoriser les écarts avec des codes stables (`missing-in-solde`, `extra-in-solde`, `amount-mismatch`, `date-mismatch`, `ambiguous-match`, `ignored-by-policy`, `blocked-by-coexistence`) ;
+	- porter explicitement des règles de projection ou de normalisation pour les cas attendus (`facture fournisseur + règlement` côté Solde vs paiement direct côté Excel, ouvertures d'exercice, autres écarts de granularité assumés) ;
 	- produire un rapport exploitable avec résumé global, détail par feuille et exemples d'écarts ;
 	- cibler d'abord la chaîne réelle `Gestion 2024` / `Gestion 2025` avant toute généralisation plus large.
-- **Critère d'acceptation** : on doit pouvoir répondre, sans rien persister, à quatre questions simples : qu'est-ce qui manque dans Solde, qu'est-ce qui est en trop, qu'est-ce qui diverge, et qu'est-ce qui est ignoré volontairement selon la politique métier.
+- **Critère d'acceptation** : on doit pouvoir répondre, sans rien persister, à quatre questions simples pour chacun des deux modes : qu'est-ce qui manque dans Solde, qu'est-ce qui est en trop, qu'est-ce qui diverge, et qu'est-ce qui est ignoré volontairement selon la politique métier.
 - **Hors périmètre initial** : pas de correction automatique des écarts, pas d'ouverture large de l'import `Comptabilite` en réel tant que `BL-005` n'est pas tranché, et pas d'outil générique de réconciliation déconnecté du cas de reprise réel.
 - **Enjeu** : sujet critique pour la confiance métier pendant toute la transition hors Excel.
+
+### BL-028 — Ventiler les factures clients mixtes `cs+a` comme dans la comptabilité Excel
+
+- **Dates** : `created=2026-04-16`
+- **Pourquoi** : pendant `BL-026`, il apparaît que certaines factures clients historiques, comme `2024-0186`, sont ventilées dans Excel sur plusieurs comptes produits parce qu'elles mélangent des lignes de cours (`cs`) et d'adhésion (`a`). Aujourd'hui, Solde ne reproduit pas forcément cette ventilation fine, ce qui gêne le rapprochement comptable par compte et ne reflète pas totalement la réalité comptable attendue.
+- **Résultat attendu** : quand l'information source de `Gestion` permet d'identifier une facture mixte, Solde doit générer la même ventilation comptable par compte produit que celle attendue dans Excel, au lieu de s'appuyer uniquement sur un total global de facture.
+- **Périmètre initial** :
+	- identifier dans les données `Gestion` les signaux exploitables permettant de distinguer les composantes d'une facture mixte ;
+	- définir la règle comptable cible de ventilation par compte produit ;
+	- adapter la génération des écritures de factures clients pour refléter cette ventilation ;
+	- ajouter une couverture de tests ciblée sur au moins un cas réel de facture mixte.
+- **Critère d'acceptation** : sur un cas comme `2024-0186`, les écritures générées par Solde portent les mêmes montants sur les mêmes comptes produits que la comptabilité Excel de référence, sans casser les cas simples mono-produit.
+- **Point d'attention** : ce sujet est distinct de `BL-008` ; ici l'objectif est d'aligner le comportement comptable réel de Solde, pas seulement de mieux tolérer un écart dans l'outil de comparaison.
 
 ### BL-009 — Enrichir le plan comptable par défaut à partir des imports réels
 
@@ -338,6 +361,33 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Critère d'acceptation** : pour un exercice donné, le grand livre n'affiche que les écritures rattachées à cet exercice, y compris son report à nouveau éventuel, et présente un solde cohérent sans cumul indu entre ouvertures d'exercices successifs.
 - **Point d'attention** : c'est un sujet comptable critique à traiter avant de faire confiance aux états ; il faudra le recouper avec `BL-010` et les choix de clôture des exercices historiques.
 
+### BL-026 — Valider les imports Excel par rapprochement chiffré sur 2024 et 2025
+
+- **Dates** : `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16`
+- **Pourquoi** : après la fiabilisation de la mécanique d'import, il faut maintenant confirmer sur le cas réel que les données visibles dans Solde correspondent bien aux fichiers Excel sources, aussi bien côté `Gestion` que côté `Comptabilité`, et cela sur les deux exercices historiques.
+- **Résultat attendu** : disposer d'une validation explicite, exercice par exercice, des chiffres importés dans Solde par rapport aux fichiers Excel `2024` et `2025`, avec une liste claire des écarts constatés ou la confirmation qu'il n'y en a pas.
+- **Résultat livré** : le cadrage de recette a été formalisé dans `doc/dev/bl-026-cadrage-validation-imports-excel.md` et un constat exploitable a été produit dans `doc/dev/bl-026-constat-validation-imports.md` pour l'exercice `2024`, avec distinction entre chiffres conformes, écarts justifiés de modélisation et sujets à corriger. Le ticket est clos comme ticket de constat et d'orientation ; la poursuite de la validation comptable stricte est désormais renvoyée vers `BL-008`, et l'alignement du comportement comptable attendu sur les factures clients mixtes vers `BL-028`.
+- **Périmètre minimal** :
+	- comparer les chiffres de `Gestion` visibles dans l'application avec ceux des fichiers Excel correspondants pour `2024` et `2025` ;
+	- comparer les chiffres de `Comptabilité` visibles dans l'application avec ceux des fichiers Excel correspondants pour `2024` et `2025` ;
+	- expliciter la méthode de rapprochement retenue par écran ou par état (totaux, comptes, journaux, soldes, volumes) ;
+	- consigner tout écart résiduel avec un diagnostic exploitable pour décider s'il s'agit d'un bug, d'un problème de données source ou d'un écart de lecture métier.
+- **Critère d'acceptation** : pour chacun des deux exercices, on peut produire un constat de validation lisible indiquant ce qui a été comparé, quels chiffres concordent entre Excel et Solde, et quels écarts restent ouverts le cas échéant.
+- **Point d'attention** : ce ticket est complémentaire de `BL-008` ; la clôture de `BL-026` ne signifie pas que la convergence comptable Excel/Solde est entièrement démontrée, mais que les écarts restants ont été suffisamment qualifiés pour être repris dans des tickets plus ciblés.
+
+### BL-027 — Gérer une ouverture du système explicite pour Banque et Caisse
+
+- **Dates** : `created=2026-04-15`
+- **Pourquoi** : pendant la validation `BL-026`, il apparaît que le premier exercice importé a besoin d'un point de départ explicite côté gestion pour `Banque` et `Caisse`, distinct de l'ouverture comptable de l'exercice. Aujourd'hui, les lignes Excel de `solde initial` sont traitées comme des lignes ignorées, ce qui ne permet pas de représenter proprement l'état hérité du système avant le premier exercice suivi.
+- **Résultat attendu** : définir puis implémenter une notion d'`ouverture du système` pour `Banque` et `Caisse`, injectée une seule fois sur le plus ancien exercice importé, contribuant aux soldes cumulés, et identifiée visiblement comme donnée spéciale dans l'interface (badge, type ou rendu distinct).
+- **Périmètre initial** :
+	- gérer explicitement un solde d'ouverture `Banque` sur le premier exercice importé ;
+	- gérer explicitement un solde d'ouverture `Caisse` sur le premier exercice importé ;
+	- rendre ces lignes distinguables des mouvements normaux dans les écrans de trésorerie ;
+	- éviter toute réinjection automatique du même concept sur les exercices suivants.
+- **Critère d'acceptation** : après import du plus ancien exercice, les écrans `Banque` et `Caisse` affichent un point de départ cohérent et identifié comme `ouverture du système`, les soldes des exercices suivants héritent correctement de ce point de départ sans doublon, et les chiffres `BL-026` peuvent être remesurés proprement pour la trésorerie.
+- **Point d'attention** : ce sujet doit être traité sur une branche distincte de `BL-026`, car il fera évoluer les chiffres de `Banque` et `Caisse` déjà relevés dans le constat de validation.
+
 ## Prêt
 
 - Aucun sujet pour le moment.
@@ -361,6 +411,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-017** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — L'affichage des mois et périodes métier est maintenant uniformisé au format français sur `Salaires` et le `Dashboard` sans changer les formats d'échange ISO.
 - **BL-018** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les écrans de liste principaux partagent maintenant un socle commun de tri, filtres et compteurs d'état, avec filtres de date FR/ISO et exclusion explicite des tableaux fixes `bilan` / `résultat`.
 - **BL-023** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les rôles métier `Gestionnaire` / `Comptable` / `Administrateur` sont maintenant alignés entre docs, navigation, guards frontend et permissions backend, avec séparation visible `Gestion` / `Comptabilité` et couverture de test ciblée.
+- **BL-026** — `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16` — Le ticket a livré un cadrage de recette et un constat exploitable sur la reprise `2024`, puis a été clos une fois les écarts résiduels requalifiés en différences de modélisation assumées ou en suites dédiées (`BL-008`, `BL-028`).
 - **BL-012** — `created=2026-04-12`, `completed=2026-04-12` — La liste des paiements affiche la référence métier et permet l'édition directe.
 - **BL-013** — `created=2026-04-12`, `completed=2026-04-12` — Le journal de caisse propose désormais référence, détail et édition directe.
 - **BL-014** — `created=2026-04-12`, `completed=2026-04-12` — Le journal comptable est enrichi pour la lecture métier, le détail et la navigation vers les factures.
