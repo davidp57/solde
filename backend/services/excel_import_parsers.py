@@ -34,6 +34,7 @@ from backend.services.excel_import_policy import (
     ENTRY_MISSING_ACCOUNT_MESSAGE,
     ENTRY_SUSPICIOUS_DATE_MESSAGE,
     INVOICE_INVALID_AMOUNT_MESSAGE,
+    INVOICE_INVALID_COMPONENT_BREAKDOWN_MESSAGE,
     INVOICE_INVALID_DATE_MESSAGE,
     INVOICE_REQUIRED_CONTACT_MESSAGE,
     INVOICE_TOTAL_MESSAGE,
@@ -140,6 +141,10 @@ def _parse_salary_month(value: Any) -> str | None:
     if match is None:
         return None
     return f"{match.group(1)}-{match.group(2)}"
+
+
+def _has_explicit_component_value(value: Any) -> bool:
+    return parse_str(value) != ""
 
 
 def _salary_decimal_or_zero(value: Any) -> Decimal:
@@ -253,23 +258,38 @@ def parse_invoice_sheet(
             if candidate and not _DATE_LIKE_TEXT_RE.match(candidate):
                 invoice_number = candidate
 
-        course_amount = parse_decimal(get_row_value(row, course_amount_idx))
-        adhesion_amount = parse_decimal(get_row_value(row, adhesion_amount_idx))
+        raw_course_amount = get_row_value(row, course_amount_idx)
+        raw_adhesion_amount = get_row_value(row, adhesion_amount_idx)
+        course_amount = parse_decimal(raw_course_amount)
+        adhesion_amount = parse_decimal(raw_adhesion_amount)
         if normalized_label == "cs+a":
-            valid_course_amount = (
-                course_amount if course_amount is not None and course_amount > 0 else None
-            )
-            valid_adhesion_amount = (
-                adhesion_amount if adhesion_amount is not None and adhesion_amount > 0 else None
-            )
-            component_total = (valid_course_amount or Decimal("0")) + (
-                valid_adhesion_amount or Decimal("0")
-            )
-            if (
-                valid_course_amount is not None
-                and valid_adhesion_amount is not None
-                and component_total == amount
-            ):
+            has_explicit_breakdown = _has_explicit_component_value(
+                raw_course_amount
+            ) or _has_explicit_component_value(raw_adhesion_amount)
+            if has_explicit_breakdown:
+                valid_course_amount = (
+                    course_amount if course_amount is not None and course_amount >= 0 else None
+                )
+                valid_adhesion_amount = (
+                    adhesion_amount
+                    if adhesion_amount is not None and adhesion_amount >= 0
+                    else None
+                )
+                component_total = (valid_course_amount or Decimal("0")) + (
+                    valid_adhesion_amount or Decimal("0")
+                )
+                if (
+                    valid_course_amount is None
+                    or valid_adhesion_amount is None
+                    or component_total != amount
+                ):
+                    issues.append(
+                        make_validation_issue(
+                            source_row_number,
+                            [INVOICE_INVALID_COMPONENT_BREAKDOWN_MESSAGE],
+                        )
+                    )
+                    continue
                 course_amount = valid_course_amount
                 adhesion_amount = valid_adhesion_amount
             else:

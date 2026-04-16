@@ -1609,6 +1609,9 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
             paid_amount=Decimal("0"),
             status=InvoiceStatus.SENT,
             label=InvoiceLabel(invoice_row.label),
+            has_explicit_breakdown=(
+                invoice_row.course_amount is not None and invoice_row.adhesion_amount is not None
+            ),
         )
         db.add(invoice)
         await db.flush()
