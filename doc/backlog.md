@@ -23,6 +23,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 5. Déplacer en **Fait** quand l'implémentation est livrée et considérée comme terminée côté backlog.
 6. Suivre les dates avec le format ISO (`YYYY-MM-DD`) : `created`, `started`, `completed`.
 7. Ne pas laisser de suite actionnable uniquement dans la conversation si elle doit être retrouvée plus tard.
+8. Dans chaque section qui liste des tickets, conserver l'ordre numérique croissant des identifiants `BL-xxx`.
 
 ### Signification des priorités
 
@@ -66,6 +67,8 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-022 | 2026-04-13 | Évolution | Utilisateurs / Sécurité | P1 | Renforcer la gestion des utilisateurs avec des rôles métier plus clairs, la création et l'administration des comptes, l'autonomie sur le profil et un socle de sécurité de compte plus complet |
 | BL-024 | 2026-04-13 | Correction | Paiements / Banque | P1 | Clarifier le workflow cible de saisie des paiements et corriger l'automatisme qui remet en banque les paiements `espèces` et `virement` dès leur encodage |
 | BL-027 | 2026-04-15 | Évolution | Import Excel / Trésorerie | P1 | Gérer une ouverture du système explicite pour Banque et Caisse sur le premier exercice importé |
+| BL-029 | 2026-04-16 | Évolution | Factures clients / UX métier | P1 | Repenser la saisie et l'import des factures clients autour de lignes typées (`cours`, `adhésion`, `autres`), avec remises portées par des lignes négatives du même type métier, et faire de ces lignes la source de vérité pour le total et la ventilation comptable |
+| BL-030 | 2026-04-16 | Décision | Métier / Edition des données | P1 | Définir une politique explicite de modification des objets métier déjà créés ou validés (factures, paiements, achats, etc.) avec règles de recalcul, traçabilité et limites selon le statut |
 
 ## Détail des sujets
 
@@ -152,20 +155,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Critère d'acceptation** : on doit pouvoir répondre, sans rien persister, à quatre questions simples pour chacun des deux modes : qu'est-ce qui manque dans Solde, qu'est-ce qui est en trop, qu'est-ce qui diverge, et qu'est-ce qui est ignoré volontairement selon la politique métier.
 - **Hors périmètre initial** : pas de correction automatique des écarts, pas d'ouverture large de l'import `Comptabilite` en réel tant que `BL-005` n'est pas tranché, et pas d'outil générique de réconciliation déconnecté du cas de reprise réel.
 - **Enjeu** : sujet critique pour la confiance métier pendant toute la transition hors Excel.
-
-### BL-028 — Ventiler les factures clients mixtes `cs+a` comme dans la comptabilité Excel
-
-- **Dates** : `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-16`
-- **Pourquoi** : pendant `BL-026`, il apparaît que certaines factures clients historiques, comme `2024-0186`, sont ventilées dans Excel sur plusieurs comptes produits parce qu'elles mélangent des lignes de cours (`cs`) et d'adhésion (`a`). Aujourd'hui, Solde ne reproduit pas forcément cette ventilation fine, ce qui gêne le rapprochement comptable par compte et ne reflète pas totalement la réalité comptable attendue.
-- **Résultat attendu** : quand l'information source de `Gestion` permet d'identifier une facture mixte, Solde doit générer la même ventilation comptable par compte produit que celle attendue dans Excel, au lieu de s'appuyer uniquement sur un total global de facture.
-- **Périmètre initial** :
-	- identifier dans les données `Gestion` les signaux exploitables permettant de distinguer les composantes d'une facture mixte ;
-	- définir la règle comptable cible de ventilation par compte produit ;
-	- adapter la génération des écritures de factures clients pour refléter cette ventilation ;
-	- ajouter une couverture de tests ciblée sur au moins un cas réel de facture mixte.
-- **Critère d'acceptation** : sur un cas comme `2024-0186`, les écritures générées par Solde portent les mêmes montants sur les mêmes comptes produits que la comptabilité Excel de référence, sans casser les cas simples mono-produit.
-- **Point d'attention** : ce sujet est distinct de `BL-008` ; ici l'objectif est d'aligner le comportement comptable réel de Solde, pas seulement de mieux tolérer un écart dans l'outil de comparaison.
-- **Livré parce que** : l'import `Gestion` sait désormais exploiter des colonnes explicites `cours` / `adhésion` pour créer des lignes de facture sur les cas `cs+a`, et le moteur comptable ventile alors les produits sur `706110` et `756000` au lieu d'un seul produit global, avec couverture unitaire et d'intégration sur le cas type `2024-0186`.
 
 ### BL-009 — Enrichir le plan comptable par défaut à partir des imports réels
 
@@ -366,7 +355,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Dates** : `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16`
 - **Pourquoi** : après la fiabilisation de la mécanique d'import, il faut maintenant confirmer sur le cas réel que les données visibles dans Solde correspondent bien aux fichiers Excel sources, aussi bien côté `Gestion` que côté `Comptabilité`, et cela sur les deux exercices historiques.
 - **Résultat attendu** : disposer d'une validation explicite, exercice par exercice, des chiffres importés dans Solde par rapport aux fichiers Excel `2024` et `2025`, avec une liste claire des écarts constatés ou la confirmation qu'il n'y en a pas.
-- **Résultat livré** : le cadrage de recette a été formalisé dans `doc/dev/bl-026-cadrage-validation-imports-excel.md` et un constat exploitable a été produit dans `doc/dev/bl-026-constat-validation-imports.md` pour l'exercice `2024`, avec distinction entre chiffres conformes, écarts justifiés de modélisation et sujets à corriger. Le ticket est clos comme ticket de constat et d'orientation ; la poursuite de la validation comptable stricte est désormais renvoyée vers `BL-008`, et l'alignement du comportement comptable attendu sur les factures clients mixtes vers `BL-028`.
+- **Résultat livré** : le cadrage de recette a été formalisé dans `doc/dev/bl-026-cadrage-validation-imports-excel.md` et un constat exploitable a été produit dans `doc/dev/bl-026-constat-validation-imports.md` pour l'exercice `2024`, avec distinction entre chiffres conformes, écarts justifiés de modélisation et sujets à corriger. Le ticket est clos comme ticket de constat et d'orientation ; la poursuite de la validation comptable stricte est désormais renvoyée vers `BL-008`, et l'alignement du comportement comptable attendu sur les factures clients mixtes vers `BL-029`.
 - **Périmètre minimal** :
 	- comparer les chiffres de `Gestion` visibles dans l'application avec ceux des fichiers Excel correspondants pour `2024` et `2025` ;
 	- comparer les chiffres de `Comptabilité` visibles dans l'application avec ceux des fichiers Excel correspondants pour `2024` et `2025` ;
@@ -388,6 +377,48 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Critère d'acceptation** : après import du plus ancien exercice, les écrans `Banque` et `Caisse` affichent un point de départ cohérent et identifié comme `ouverture du système`, les soldes des exercices suivants héritent correctement de ce point de départ sans doublon, et les chiffres `BL-026` peuvent être remesurés proprement pour la trésorerie.
 - **Point d'attention** : ce sujet doit être traité sur une branche distincte de `BL-026`, car il fera évoluer les chiffres de `Banque` et `Caisse` déjà relevés dans le constat de validation.
 
+### BL-029 — Saisie des factures clients pilotée par types de lignes
+
+- **Dates** : `created=2026-04-16`, `started=2026-04-16`
+- **Pourquoi** : le modèle actuel demande encore un label global de facture (`cs`, `a`, `cs+a`, `general`) alors que le besoin métier cible est plus fin : l'utilisateur pense d'abord en lignes de facture, chacune portant un type métier (`cours`, `adhésion`, `autres`), puis attend que Solde calcule le total et la ventilation comptable à partir de cette saisie ; les remises doivent rester visibles sur la facture mais être portées par des lignes négatives du même type métier, pas par une catégorie séparée. Le sous-sujet exploré auparavant comme `BL-028` est absorbé ici, car il n'est pas testable isolément sur `Gestion 2024` faute de détail source exploitable pour des factures mixtes.
+- **Résultat attendu** : une création de facture client où l'utilisateur saisit le client et les lignes, choisit un type par ligne, voit le total calculé automatiquement, et obtient à validation des écritures comptables dérivées de la composition réelle de la facture sans dépendre d'un label global saisi à la main.
+- **Règle métier cible actuellement privilégiée** :
+	- les seuls types de lignes métier exposés sont `cours`, `adhésion` et `autres` ;
+	- une remise est saisie comme une seconde ligne négative du même type métier que la ligne remisée ;
+	- le client voit toutes les lignes, y compris la remise, mais la ventilation comptable travaille sur le net agrégé par type métier ;
+	- une facture ne doit jamais aboutir à un total négatif.
+- **Conséquence de cadrage** :
+	- on ne garde plus de ticket autonome pour une ventilation `cs+a` dépendant d'un détail explicite dans `Gestion 2024` ;
+	- le travail utile déjà engagé sur la ventilation à partir des lignes de facture est poursuivi directement dans `BL-029` ;
+	- la logique future d'enrichissement a posteriori depuis `Comptabilité` reste traitée séparément dans `BL-030`.
+- **Comportement d'import cible** :
+	- import `Gestion` : si le libellé indique `cs`, créer une ligne `cours` ; s'il indique `a`, créer une ligne `adhésion` ; sinon créer une ligne `autres` ;
+	- import `Gestion` : ne pas inventer de remise ni de ventilation détaillée absente de la source ;
+	- import `Comptabilité` : quand une facture déjà présente porte une ligne `autres`, autoriser un enrichissement ou une clarification automatique de cette ligne si les comptes produits utilisés dans les écritures permettent une déduction sûre ;
+	- en cas de rapprochement ambigu entre `Gestion` et `Comptabilité`, ne rien réécrire silencieusement.
+- **Questions à trancher** :
+	- faut-il supprimer complètement le label global utilisateur au profit d'un calcul depuis les lignes ;
+	- comment modéliser les lignes `autres` côté comptable ;
+	- jusqu'où autoriser l'import `Comptabilité` à requalifier automatiquement une ligne `autres` ;
+	- quelle traçabilité garder entre ligne créée depuis `Gestion`, ligne enrichie via `Comptabilité` et ligne corrigée manuellement ;
+	- quelle règle appliquer si une facture mélange `cours`, `adhésion` et `autres`, avec ou sans lignes négatives de remise.
+- **Critère d'acceptation** : un utilisateur peut créer une facture client complète sans se poser de question sur le label comptable global ; le total affiché correspond exactement aux lignes saisies et les écritures générées à validation reflètent cette décomposition ligne par ligne.
+- **Point d'attention** : l'import `Comptabilité` deviendrait alors non seulement un import d'écritures, mais aussi un mécanisme d'enrichissement métier des factures déjà créées ; il faudra l'encadrer par des règles de sûreté et de coexistence explicites.
+
+### BL-030 — Politique de modification des objets métier validés
+
+- **Dates** : `created=2026-04-16`
+- **Pourquoi** : plusieurs objets métier ont déjà un cycle de vie implicite (`draft`, `sent`, `paid`, écritures auto-générées, imports historiques), mais la règle cible de modification reste floue dès qu'un objet a déjà produit des effets comptables ou des dépendances fonctionnelles.
+- **Résultat attendu** : une politique explicite qui dit, selon le type d'objet et son statut, ce qui est modifiable directement, ce qui doit régénérer des effets dérivés, ce qui doit être historisé, et ce qui doit être interdit ou remplacé par une opération métier distincte.
+- **Questions à trancher** :
+	- peut-on modifier librement une facture `draft`, `sent` ou `paid` ;
+	- faut-il régénérer, annuler puis recréer, ou historiser les écritures comptables dérivées après modification ;
+	- quelle différence de traitement entre correction mineure, changement de montant et annulation métier ;
+	- faut-il prévoir plus tard des mécanismes dédiés (`avoir`, annulation, revalidation, journal d'audit`) au lieu d'une édition directe uniforme ;
+	- qu'a-t-on le droit de réécrire automatiquement lorsqu'un import `Comptabilité` vient clarifier une facture créée plus tôt depuis `Gestion`.
+- **Critère d'acceptation** : pour chaque grande famille d'objet métier, un utilisateur et un développeur peuvent répondre sans ambiguïté à la question "que se passe-t-il si je modifie cet objet maintenant ?".
+- **Point d'attention** : la traçabilité et la cohérence comptable doivent primer sur la simplicité apparente d'une édition directe, y compris quand la modification vient d'un rapprochement automatique entre imports `Gestion` et `Comptabilité`.
+
 ## Prêt
 
 - Aucun sujet pour le moment.
@@ -396,6 +427,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels a été traité séparément dans `BL-023`, désormais terminé.
+- **BL-029** — `created=2026-04-16`, `started=2026-04-16` — Le ticket absorbe l'ancienne piste `BL-028` et porte désormais le travail testable sur la création de factures clients pilotée par les lignes, la ventilation comptable dérivée de ces lignes et le cadrage d'import associé.
 
 ## Fait
 
@@ -405,14 +437,13 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-007** — `created=2026-04-12`, `completed=2026-04-13` — La convention est arrêtée pour le mode de travail actuel : `doc/backlog.md` reste la source de vérité, sans synchronisation systématique avec des issues GitHub à ce stade.
 - **BL-009** — `created=2026-04-12`, `completed=2026-04-12` — Le plan comptable par défaut a été enrichi à partir des comptes réellement rencontrés dans les imports historiques.
 - **BL-010** — `created=2026-04-12`, `completed=2026-04-12` — Une stratégie sûre de clôture administrative des exercices historiques importés a été définie et livrée.
-- **BL-025** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13` — Le grand livre est maintenant borné à l'exercice choisi, sans option multi-exercices, avec un solde d'ouverture cohérent quand la période démarre en cours d'exercice.
 - **BL-011** — `created=2026-04-12`, `completed=2026-04-12` — L'exercice courant global et son sélecteur partagé ont été livrés sur les écrans comptables concernés.
+- **BL-012** — `created=2026-04-12`, `completed=2026-04-12` — La liste des paiements affiche la référence métier et permet l'édition directe.
+- **BL-013** — `created=2026-04-12`, `completed=2026-04-12` — Le journal de caisse propose désormais référence, détail et édition directe.
+- **BL-014** — `created=2026-04-12`, `completed=2026-04-12` — Le journal comptable est enrichi pour la lecture métier, le détail et la navigation vers les factures.
 - **BL-016** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les microcopies et états visibles les plus incohérents ont été harmonisés sur `Banque`, `Caisse` et `Salaires` via des clés i18n dédiées.
 - **BL-017** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — L'affichage des mois et périodes métier est maintenant uniformisé au format français sur `Salaires` et le `Dashboard` sans changer les formats d'échange ISO.
 - **BL-018** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les écrans de liste principaux partagent maintenant un socle commun de tri, filtres et compteurs d'état, avec filtres de date FR/ISO et exclusion explicite des tableaux fixes `bilan` / `résultat`.
 - **BL-023** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les rôles métier `Gestionnaire` / `Comptable` / `Administrateur` sont maintenant alignés entre docs, navigation, guards frontend et permissions backend, avec séparation visible `Gestion` / `Comptabilité` et couverture de test ciblée.
-- **BL-026** — `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16` — Le ticket a livré un cadrage de recette et un constat exploitable sur la reprise `2024`, puis a été clos une fois les écarts résiduels requalifiés en différences de modélisation assumées ou en suites dédiées (`BL-008`, `BL-028`).
-- **BL-028** — `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-16` — Les factures clients mixtes `cs+a` sont désormais ventilées sur plusieurs comptes produits quand la feuille `Factures` fournit explicitement les composantes `cours` et `adhésion`, avec lignes de facture importées et génération comptable alignée sur la cible Excel.
-- **BL-012** — `created=2026-04-12`, `completed=2026-04-12` — La liste des paiements affiche la référence métier et permet l'édition directe.
-- **BL-013** — `created=2026-04-12`, `completed=2026-04-12` — Le journal de caisse propose désormais référence, détail et édition directe.
-- **BL-014** — `created=2026-04-12`, `completed=2026-04-12` — Le journal comptable est enrichi pour la lecture métier, le détail et la navigation vers les factures.
+- **BL-025** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13` — Le grand livre est maintenant borné à l'exercice choisi, sans option multi-exercices, avec un solde d'ouverture cohérent quand la période démarre en cours d'exercice.
+- **BL-026** — `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16` — Le ticket a livré un cadrage de recette et un constat exploitable sur la reprise `2024`, puis a été clos une fois les écarts résiduels requalifiés en différences de modélisation assumées ou en suites dédiées (`BL-008`, `BL-029`).

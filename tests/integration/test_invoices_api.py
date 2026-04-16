@@ -1,8 +1,13 @@
 """Integration tests for the invoices API."""
 
 from datetime import date
+from decimal import Decimal
 
 from httpx import AsyncClient
+from sqlalchemy import select
+
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.services.accounting_engine import seed_default_rules
 
 
 async def _create_contact(client: AsyncClient, headers: dict, nom: str = "Dupont") -> int:
@@ -21,6 +26,7 @@ async def _create_invoice(
     contact_id: int,
     *,
     invoice_type: str = "client",
+    label: str | None = None,
     lines: list | None = None,
     total_amount: float | None = None,
     invoice_date: date = date(2025, 9, 1),
@@ -31,6 +37,8 @@ async def _create_invoice(
         "date": str(invoice_date),
         "lines": lines or [],
     }
+    if label is not None:
+        payload["label"] = label
     if total_amount is not None:
         payload["total_amount"] = str(total_amount)
     r = await client.post("/api/invoices/", json=payload, headers=headers)
@@ -185,6 +193,56 @@ class TestStatusChange:
             headers=auth_headers,
         )
         assert r.status_code == 409
+
+    async def test_sent_client_cs_a_invoice_splits_entries_from_user_lines(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        db_session,
+    ):
+        await seed_default_rules(db_session)
+        cid = await _create_contact(client, auth_headers)
+        created = await _create_invoice(
+            client,
+            auth_headers,
+            cid,
+            label="cs+a",
+            lines=[
+                {"description": "Cours de soutien", "quantity": "1", "unit_price": "130.00"},
+                {"description": "Adhesion annuelle", "quantity": "1", "unit_price": "30.00"},
+            ],
+        )
+
+        r = await client.patch(
+            f"/api/invoices/{created['id']}/status",
+            json={"status": "sent"},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 200
+        entries = list(
+            (
+                await db_session.execute(
+                    select(AccountingEntry)
+                    .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                    .where(AccountingEntry.source_id == created["id"])
+                    .order_by(AccountingEntry.entry_number.asc())
+                )
+            ).scalars()
+        )
+        assert len(entries) == 3
+        assert any(
+            entry.account_number == "411100" and entry.debit == Decimal("160.00")
+            for entry in entries
+        )
+        assert any(
+            entry.account_number == "706110" and entry.credit == Decimal("130.00")
+            for entry in entries
+        )
+        assert any(
+            entry.account_number == "756000" and entry.credit == Decimal("30.00")
+            for entry in entries
+        )
 
 
 class TestDuplicate:
