@@ -527,6 +527,28 @@ function onFileChange(event: Event) {
   resetImportFlow()
 }
 
+function getImportErrorSummary(error: unknown): string {
+  const responseData = (error as { response?: { data?: unknown } }).response?.data
+  const detail =
+    responseData && typeof responseData === 'object'
+      ? (responseData as { detail?: unknown }).detail
+      : undefined
+  if (typeof detail === 'string' && detail.trim()) {
+    return detail
+  }
+
+  if ((error as { code?: string }).code === 'ECONNABORTED') {
+    return t('import.request_timeout')
+  }
+
+  const message = (error as { message?: unknown }).message
+  if (typeof message === 'string' && message.trim()) {
+    return message
+  }
+
+  return t('common.error.unknown')
+}
+
 async function loadTestShortcuts() {
   try {
     testShortcuts.value = (await listTestImportShortcutsApi()).sort(
@@ -553,8 +575,8 @@ async function doPreview() {
     } else {
       preview.value = await previewComptabiliteFileApi(selectedFile.value)
     }
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (error: unknown) {
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     previewing.value = false
   }
@@ -591,8 +613,8 @@ async function doImport() {
       summary: hasIssues ? t('import.completed_with_issues') : t('import.success'),
       life: 3500,
     })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (error: unknown) {
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     importing.value = false
   }

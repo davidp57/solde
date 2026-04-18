@@ -24,12 +24,11 @@ class Base(DeclarativeBase):
 def _build_engine(database_url: str | None = None) -> AsyncEngine:
     """Create async SQLAlchemy engine with WAL journal mode."""
     url = database_url or get_settings().database_url
-    engine = create_async_engine(
+    return create_async_engine(
         url,
-        echo=get_settings().debug,
+        echo=False,
         connect_args={"check_same_thread": False},
     )
-    return engine
 
 
 # Module-level engine and session factory

@@ -19,8 +19,8 @@
           <label class="app-field__label">{{ t('invoices.contact') }}</label>
           <Select
             v-model="form.contact_id"
-            :options="contacts"
-            option-label="nom"
+            :options="contactOptions"
+            option-label="displayName"
             option-value="id"
             :placeholder="t('invoices.contact_placeholder')"
             filter
@@ -100,6 +100,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { Contact } from '../api/contacts'
 import { createInvoiceApi, updateInvoiceApi, type Invoice } from '../api/invoices'
+import { formatContactDisplayName } from '../utils/contact'
 
 const props = defineProps<{
   invoice: Invoice | null
@@ -132,6 +133,13 @@ const form = reactive<FormState>({
   total_amount: null,
   description: '',
 })
+
+const contactOptions = computed(() =>
+  props.contacts.map((contact) => ({
+    ...contact,
+    displayName: formatContactDisplayName(contact),
+  })),
+)
 
 function resetForm() {
   form.contact_id = null

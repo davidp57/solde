@@ -51,6 +51,9 @@ GESTION_UNKNOWN_STRUCTURE_MESSAGE = "Structure non reconnue, feuille ignoree par
 INVOICE_AMBIGUOUS_CONTACT_MESSAGE = "client ambigu : plusieurs contacts correspondent"
 INVOICE_INVALID_AMOUNT_MESSAGE = "montant manquant ou invalide"
 INVOICE_INVALID_DATE_MESSAGE = "date manquante ou invalide"
+INVOICE_INVALID_COMPONENT_BREAKDOWN_MESSAGE = (
+    "ventilation cours/adhesion incoherente avec le montant total"
+)
 INVOICE_REQUIRED_COLUMNS = ("date", "montant", "client")
 INVOICE_REQUIRED_CONTACT_MESSAGE = "client manquant"
 INVOICE_TOTAL_MESSAGE = "ligne de total ignoree"
@@ -127,6 +130,7 @@ _ISSUE_CATEGORY_BY_KIND_AND_MESSAGE = {
     "invoices": {
         INVOICE_AMBIGUOUS_CONTACT_MESSAGE: "invoice-ambiguous-contact",
         INVOICE_INVALID_AMOUNT_MESSAGE: "invoice-invalid-amount",
+        INVOICE_INVALID_COMPONENT_BREAKDOWN_MESSAGE: "invoice-invalid-component-breakdown",
         INVOICE_INVALID_DATE_MESSAGE: "invoice-invalid-date",
         INVOICE_REQUIRED_CONTACT_MESSAGE: "invoice-missing-contact",
     },

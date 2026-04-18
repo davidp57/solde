@@ -5,13 +5,14 @@ from __future__ import annotations
 import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
-from backend.models.invoice import InvoiceLabel, InvoiceStatus, InvoiceType
+from backend.models.invoice import InvoiceLabel, InvoiceLineType, InvoiceStatus, InvoiceType
 
 
 class InvoiceLineBase(BaseModel):
     description: str
+    line_type: InvoiceLineType | None = None
     quantity: Decimal = Decimal("1")
     unit_price: Decimal = Decimal("0")
 
@@ -27,13 +28,6 @@ class InvoiceLineBase(BaseModel):
     def quantity_positive(cls, v: Decimal) -> Decimal:
         if v <= 0:
             raise ValueError("quantity must be positive")
-        return v
-
-    @field_validator("unit_price")
-    @classmethod
-    def unit_price_non_negative(cls, v: Decimal) -> Decimal:
-        if v < 0:
-            raise ValueError("unit_price must be non-negative")
         return v
 
 
@@ -70,6 +64,18 @@ class InvoiceCreate(InvoiceBase):
             raise ValueError("total_amount must be non-negative")
         return v
 
+    @model_validator(mode="after")
+    def validate_client_total(self) -> InvoiceCreate:
+        if self.type != InvoiceType.CLIENT or not self.lines:
+            return self
+        computed_total = sum(
+            (line.quantity * line.unit_price for line in self.lines),
+            start=Decimal("0"),
+        )
+        if computed_total < 0:
+            raise ValueError("client invoice total must not be negative")
+        return self
+
 
 class InvoiceUpdate(BaseModel):
     """All fields optional for partial update."""
@@ -82,6 +88,18 @@ class InvoiceUpdate(BaseModel):
     reference: str | None = None
     lines: list[InvoiceLineCreate] | None = None
     total_amount: Decimal | None = None
+
+    @model_validator(mode="after")
+    def validate_client_total(self) -> InvoiceUpdate:
+        if self.lines is None:
+            return self
+        computed_total = sum(
+            (line.quantity * line.unit_price for line in self.lines),
+            start=Decimal("0"),
+        )
+        if computed_total < 0:
+            raise ValueError("client invoice total must not be negative")
+        return self
 
 
 class InvoiceStatusUpdate(BaseModel):
