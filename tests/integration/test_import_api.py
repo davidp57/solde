@@ -359,6 +359,202 @@ async def test_preview_and_import_gestion_accept_payment_matched_by_contact(
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_import_gestion_splits_cs_a_invoice_when_component_columns_exist(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from sqlalchemy.orm import selectinload
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+    from backend.models.invoice import Invoice, InvoiceLabel, InvoiceLineType
+    from backend.services.accounting_engine import seed_default_rules
+
+    await seed_default_rules(db_session)
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                [
+                    "Date facture",
+                    "Réf facture",
+                    "Client",
+                    "Montant",
+                    "Montant cours",
+                    "Montant adhésion",
+                    "Type",
+                ],
+                [["2024-08-26", "2024-0186", "Alexandre ELEZI", 160, 130, 30, "cs+a"]],
+            ),
+        }
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    import_data = import_response.json()
+    assert import_data["invoices_created"] == 1
+    assert import_data["entries_created"] == 3
+
+    invoice = (
+        (
+            await db_session.execute(
+                select(Invoice)
+                .where(Invoice.number == "2024-0186")
+                .options(selectinload(Invoice.lines))
+            )
+        )
+        .scalars()
+        .one()
+    )
+    assert [(line.description, line.line_type, line.amount) for line in invoice.lines] == [
+        ("Cours de soutien", InvoiceLineType.COURSE, Decimal("130.00")),
+        ("Adhesion annuelle", InvoiceLineType.ADHESION, Decimal("30.00")),
+    ]
+    assert invoice.has_explicit_breakdown is True
+    assert invoice.label == InvoiceLabel.CS_ADHESION
+
+    entries = (
+        (
+            await db_session.execute(
+                select(AccountingEntry)
+                .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                .where(AccountingEntry.source_id == invoice.id)
+                .order_by(AccountingEntry.entry_number.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(entries) == 3
+    assert any(
+        entry.account_number == "411100" and entry.debit == Decimal("160.00") for entry in entries
+    )
+    assert any(
+        entry.account_number == "706110" and entry.credit == Decimal("130.00") for entry in entries
+    )
+    assert any(
+        entry.account_number == "756000" and entry.credit == Decimal("30.00") for entry in entries
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_import_gestion_maps_mixed_client_invoice_to_other_line_when_no_split_exists(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from sqlalchemy.orm import selectinload
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+    from backend.models.invoice import Invoice, InvoiceLabel, InvoiceLineType
+    from backend.services.accounting_engine import seed_default_rules
+
+    await seed_default_rules(db_session)
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant", "Type"],
+                [["2024-08-30", "2024-0192", "Aleksander ELEZI", 100, "cs+a"]],
+            ),
+        }
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    import_data = import_response.json()
+    assert import_data["invoices_created"] == 1
+    assert import_data["entries_created"] == 2
+
+    invoice = (
+        (
+            await db_session.execute(
+                select(Invoice)
+                .where(Invoice.number == "2024-0192")
+                .options(selectinload(Invoice.lines))
+            )
+        )
+        .scalars()
+        .one()
+    )
+    assert invoice.label == InvoiceLabel.GENERAL
+    assert invoice.has_explicit_breakdown is False
+    assert [(line.line_type, line.amount) for line in invoice.lines] == [
+        (InvoiceLineType.OTHER, Decimal("100.00"))
+    ]
+
+    entries = (
+        (
+            await db_session.execute(
+                select(AccountingEntry)
+                .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                .where(AccountingEntry.source_id == invoice.id)
+                .order_by(AccountingEntry.entry_number.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(entries) == 2
+    assert any(
+        entry.account_number == "758000" and entry.credit == Decimal("100.00") for entry in entries
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_blocks_inconsistent_cs_a_component_columns(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                [
+                    "Date facture",
+                    "Réf facture",
+                    "Client",
+                    "Montant",
+                    "Montant cours",
+                    "Montant adhésion",
+                    "Type",
+                ],
+                [["2024-08-26", "2024-0186", "Alexandre ELEZI", 160, 120, 30, "cs+a"]],
+            ),
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    sheets = {sheet["name"]: sheet for sheet in preview_data["sheets"]}
+    assert preview_data["can_import"] is False
+    assert preview_data["estimated_invoices"] == 0
+    assert sheets["Factures"]["rows"] == 0
+    assert any(
+        "ventilation cours/adhesion incoherente" in error.lower()
+        for error in sheets["Factures"]["errors"]
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
 async def test_preview_and_import_gestion_create_supplier_invoice_and_payment_from_bank_row(
     client: AsyncClient,
     auth_headers: dict,
@@ -2957,6 +3153,69 @@ async def test_preview_comptabilite_ignores_journal_saisie(
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_comptabilite_ignores_existing_generated_group(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    db_session.add_all(
+        [
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2025, 8, 1),
+                account_number="658000",
+                label="Frais divers",
+                debit=Decimal("10.00"),
+                credit=Decimal("0.00"),
+                source_type=EntrySourceType.GESTION,
+                source_id=1,
+                group_key="gestion:1",
+            ),
+            AccountingEntry(
+                entry_number="000002",
+                date=date(2025, 8, 1),
+                account_number="512000",
+                label="Frais divers",
+                debit=Decimal("0.00"),
+                credit=Decimal("10.00"),
+                source_type=EntrySourceType.GESTION,
+                source_id=1,
+                group_key="gestion:1",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit", "ChangeNum"],
+                [
+                    ["2025-08-01", "658000", "Frais divers", 10, None, 1],
+                    ["2025-08-01", "512000", "Frais divers", None, 10, 1],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        files={"file": ("Comptabilite 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["estimated_entries"] == 0
+    assert data["can_import"] is True
+    journal_sheet = next(sheet for sheet in data["sheets"] if sheet["name"] == "Journal")
+    assert journal_sheet["ignored_rows"] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
 async def test_preview_and_import_comptabilite_block_row_with_missing_account(
     client: AsyncClient, auth_headers: dict
 ) -> None:
@@ -3382,18 +3641,28 @@ async def test_import_comptabilite_ignores_generated_group_even_when_label_diffe
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
-async def test_import_comptabilite_ignores_client_invoice_groups_when_split(
+async def test_import_comptabilite_clarifies_existing_client_invoice_other_line_when_split_is_safe(
     client: AsyncClient,
     auth_headers: dict,
     db_session,
 ) -> None:
-    """Client invoice journal rows should be ignored.
+    """Client invoice journal rows can clarify an existing imported mixed invoice."""
+    from sqlalchemy.orm import selectinload
 
-    This remains true when an existing invoice is split differently.
-    """
     from backend.models.accounting_entry import AccountingEntry, EntrySourceType
     from backend.models.contact import Contact, ContactType
-    from backend.models.invoice import Invoice, InvoiceLabel, InvoiceStatus, InvoiceType
+    from backend.models.invoice import (
+        Invoice,
+        InvoiceLabel,
+        InvoiceLine,
+        InvoiceLineType,
+        InvoiceStatus,
+        InvoiceType,
+    )
+    from backend.services.accounting_engine import seed_default_rules
+
+    await seed_default_rules(db_session)
+    await db_session.commit()
 
     contact = Contact(nom="ELEZI", prenom="Aleksander", type=ContactType.CLIENT)
     db_session.add(contact)
@@ -3407,10 +3676,22 @@ async def test_import_comptabilite_ignores_client_invoice_groups_when_split(
         total_amount=Decimal("100.00"),
         paid_amount=Decimal("100.00"),
         status=InvoiceStatus.PAID,
-        label=InvoiceLabel.CS,
+        label=InvoiceLabel.GENERAL,
+        has_explicit_breakdown=False,
     )
     db_session.add(invoice)
     await db_session.flush()
+
+    db_session.add(
+        InvoiceLine(
+            invoice_id=invoice.id,
+            description="Autres prestations",
+            line_type=InvoiceLineType.OTHER,
+            quantity=Decimal("1.00"),
+            unit_price=Decimal("100.00"),
+            amount=Decimal("100.00"),
+        )
+    )
 
     db_session.add_all(
         [
@@ -3481,6 +3762,44 @@ async def test_import_comptabilite_ignores_client_invoice_groups_when_split(
         select(AccountingEntry).where(AccountingEntry.source_type == EntrySourceType.MANUAL)
     )
     assert result.scalars().all() == []
+
+    refreshed_invoice = (
+        (
+            await db_session.execute(
+                select(Invoice).where(Invoice.id == invoice.id).options(selectinload(Invoice.lines))
+            )
+        )
+        .scalars()
+        .one()
+    )
+    assert refreshed_invoice.label == InvoiceLabel.CS_ADHESION
+    assert refreshed_invoice.has_explicit_breakdown is True
+    assert {(line.line_type, line.amount) for line in refreshed_invoice.lines} == {
+        (InvoiceLineType.COURSE, Decimal("50.00")),
+        (InvoiceLineType.ADHESION, Decimal("50.00")),
+    }
+
+    invoice_entries = (
+        (
+            await db_session.execute(
+                select(AccountingEntry)
+                .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                .where(AccountingEntry.source_id == invoice.id)
+                .order_by(AccountingEntry.entry_number.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(invoice_entries) == 3
+    assert any(
+        entry.account_number == "706110" and entry.credit == Decimal("50.00")
+        for entry in invoice_entries
+    )
+    assert any(
+        entry.account_number == "756000" and entry.credit == Decimal("50.00")
+        for entry in invoice_entries
+    )
 
 
 @pytest.mark.asyncio

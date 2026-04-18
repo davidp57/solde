@@ -42,6 +42,8 @@ class NormalizedInvoiceRow:
     contact_name: str
     invoice_number: str | None
     label: str
+    course_amount: Decimal | None = None
+    adhesion_amount: Decimal | None = None
 
 
 @dataclass(slots=True)

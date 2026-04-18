@@ -202,6 +202,9 @@ _SALARY_MONTH_RE = re.compile(r"\b(20\d{2})[.-](\d{2})\b")
 _SALARY_TRAILING_INITIAL_RE = re.compile(r"\s+[a-z]$")
 _SALARY_ACCRUAL_ACCOUNT_PREFIXES = ("421", "431", "443", "641", "645")
 _SALARY_PAYMENT_ACCOUNT_PREFIXES = ("421", "512")
+_CLIENT_INVOICE_CLARIFIED_MESSAGE = (
+    "Facture client existante clarifiee a partir des ecritures comptables"
+)
 
 
 class _ImportSheetFailure(RuntimeError):
@@ -495,6 +498,199 @@ def _matching_existing_client_invoice_reference(
     return reference
 
 
+def _client_invoice_line_type_from_account_number(account_number: str) -> Any | None:
+    from backend.models.invoice import InvoiceLineType  # noqa: PLC0415
+
+    normalized_account_number = _normalize_text(account_number)
+    if normalized_account_number.startswith("706"):
+        return InvoiceLineType.COURSE
+    if normalized_account_number.startswith("756"):
+        return InvoiceLineType.ADHESION
+    if normalized_account_number.startswith("758"):
+        return InvoiceLineType.OTHER
+    return None
+
+
+def _client_invoice_breakdown_from_entry_group(
+    entry_rows: list[NormalizedEntryRow],
+) -> dict[Any, Decimal] | None:
+    from backend.models.invoice import InvoiceLineType  # noqa: PLC0415
+
+    if not _is_client_invoice_entry_group(entry_rows):
+        return None
+
+    breakdown: dict[Any, Decimal] = {
+        InvoiceLineType.COURSE: Decimal("0"),
+        InvoiceLineType.ADHESION: Decimal("0"),
+        InvoiceLineType.OTHER: Decimal("0"),
+    }
+    receivable_total = Decimal("0")
+    revenue_total = Decimal("0")
+
+    for entry_row in entry_rows:
+        normalized_account_number = _normalize_text(entry_row.account_number)
+        if normalized_account_number.startswith("411"):
+            receivable_total += entry_row.debit
+            continue
+        if entry_row.credit <= 0:
+            continue
+        if normalized_account_number.startswith(("70", "75")):
+            line_type = _client_invoice_line_type_from_account_number(entry_row.account_number)
+            if line_type is None:
+                return None
+            breakdown[line_type] += entry_row.credit
+            revenue_total += entry_row.credit
+
+    if revenue_total <= 0 or receivable_total != revenue_total:
+        return None
+
+    return {line_type: amount for line_type, amount in breakdown.items() if amount != Decimal("0")}
+
+
+def _current_client_invoice_breakdown(invoice: Any) -> dict[Any, Decimal]:
+    from backend.models.invoice import infer_client_line_type  # noqa: PLC0415
+
+    breakdown: dict[Any, Decimal] = {}
+    for line in invoice.lines:
+        line_type = line.line_type or infer_client_line_type(line.description, invoice.label)
+        breakdown[line_type] = breakdown.get(line_type, Decimal("0")) + Decimal(str(line.amount))
+    return {line_type: amount for line_type, amount in breakdown.items() if amount != Decimal("0")}
+
+
+def _can_clarify_existing_client_invoice(invoice: Any) -> bool:
+    from backend.models.invoice import InvoiceLineType, infer_client_line_type  # noqa: PLC0415
+
+    if not invoice.lines:
+        return False
+    current_line_types = {
+        line.line_type or infer_client_line_type(line.description, invoice.label)
+        for line in invoice.lines
+    }
+    return current_line_types == {InvoiceLineType.OTHER}
+
+
+async def _find_clarifiable_existing_client_invoice(
+    db: AsyncSession,
+    entry_rows: list[NormalizedEntryRow],
+    existing_client_invoices_by_number: dict[str, Any] | None = None,
+) -> Any | None:
+    from sqlalchemy import select  # noqa: PLC0415
+    from sqlalchemy.orm import selectinload  # noqa: PLC0415
+
+    from backend.models.invoice import (  # noqa: PLC0415
+        Invoice,
+        InvoiceType,
+    )
+
+    reference = _single_client_invoice_reference(*(entry_row.label for entry_row in entry_rows))
+    if reference is None:
+        return None
+
+    breakdown = _client_invoice_breakdown_from_entry_group(entry_rows)
+    if breakdown is None:
+        return None
+
+    if existing_client_invoices_by_number is None:
+        invoice_result = await db.execute(
+            select(Invoice)
+            .where(Invoice.type == InvoiceType.CLIENT, Invoice.number == reference)
+            .options(selectinload(Invoice.lines))
+        )
+        invoice = invoice_result.scalar_one_or_none()
+    else:
+        invoice = existing_client_invoices_by_number.get(_normalize_text(reference))
+
+    if invoice is None or not _can_clarify_existing_client_invoice(invoice):
+        return None
+
+    current_breakdown = _current_client_invoice_breakdown(invoice)
+    if current_breakdown == breakdown:
+        return None
+
+    total_amount = sum(breakdown.values(), Decimal("0"))
+    if total_amount != Decimal(str(invoice.total_amount)):
+        return None
+
+    return invoice
+
+
+async def _clarify_existing_client_invoice_from_entries(
+    db: AsyncSession,
+    entry_rows: list[NormalizedEntryRow],
+    existing_client_invoices_by_number: dict[str, Any] | None = None,
+) -> Any | None:
+    from sqlalchemy import delete  # noqa: PLC0415
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType  # noqa: PLC0415
+    from backend.models.invoice import (  # noqa: PLC0415
+        InvoiceLabel,
+        InvoiceLine,
+        default_client_line_description,
+        derive_client_invoice_label,
+    )
+    from backend.services.accounting_engine import generate_entries_for_invoice  # noqa: PLC0415
+
+    invoice = await _find_clarifiable_existing_client_invoice(
+        db,
+        entry_rows,
+        existing_client_invoices_by_number,
+    )
+    if invoice is None:
+        return None
+
+    breakdown = _client_invoice_breakdown_from_entry_group(entry_rows)
+    if breakdown is None:
+        return None
+
+    await db.execute(
+        delete(AccountingEntry).where(
+            AccountingEntry.source_type == EntrySourceType.INVOICE,
+            AccountingEntry.source_id == invoice.id,
+        )
+    )
+
+    invoice.lines.clear()
+    await db.flush()
+
+    positive_line_types = {line_type for line_type, amount in breakdown.items() if amount > 0}
+    invoice.label = derive_client_invoice_label(positive_line_types)
+    invoice.has_explicit_breakdown = len(breakdown) > 1 or invoice.label != InvoiceLabel.GENERAL
+    invoice.lines.extend(
+        InvoiceLine(
+            invoice_id=invoice.id,
+            description=default_client_line_description(line_type),
+            line_type=line_type,
+            quantity=Decimal("1"),
+            unit_price=amount,
+            amount=amount,
+        )
+        for line_type, amount in sorted(breakdown.items(), key=lambda item: item[0].value)
+    )
+
+    await db.flush()
+    await generate_entries_for_invoice(db, invoice)
+    await db.flush()
+    return invoice
+
+
+async def _load_existing_client_invoices_by_number(db: AsyncSession) -> dict[str, Any]:
+    from sqlalchemy import select  # noqa: PLC0415
+    from sqlalchemy.orm import selectinload  # noqa: PLC0415
+
+    from backend.models.invoice import Invoice, InvoiceType  # noqa: PLC0415
+
+    result = await db.execute(
+        select(Invoice)
+        .where(Invoice.type == InvoiceType.CLIENT)
+        .options(selectinload(Invoice.lines))
+    )
+    return {
+        _normalize_text(invoice.number): invoice
+        for invoice in result.scalars().all()
+        if invoice.number
+    }
+
+
 def _is_client_payment_entry_group(entry_rows: list[NormalizedEntryRow]) -> bool:
     has_receivable_credit = any(
         _normalize_text(entry_row.account_number).startswith("411") and entry_row.credit > 0
@@ -549,6 +745,71 @@ async def _load_existing_client_payment_reference_signatures(
                 )
             )
     return signatures
+
+
+def _build_client_invoice_lines_from_import_row(
+    invoice_row: NormalizedInvoiceRow,
+) -> list[dict[str, Any]]:
+    from backend.models.invoice import (  # noqa: PLC0415
+        InvoiceLabel,
+        InvoiceLineType,
+        default_client_line_description,
+    )
+
+    if invoice_row.course_amount is not None and invoice_row.adhesion_amount is not None:
+        return [
+            {
+                "description": default_client_line_description(InvoiceLineType.COURSE),
+                "line_type": InvoiceLineType.COURSE,
+                "amount": invoice_row.course_amount,
+            },
+            {
+                "description": default_client_line_description(InvoiceLineType.ADHESION),
+                "line_type": InvoiceLineType.ADHESION,
+                "amount": invoice_row.adhesion_amount,
+            },
+        ]
+
+    label = InvoiceLabel(invoice_row.label)
+    if label == InvoiceLabel.CS:
+        line_type = InvoiceLineType.COURSE
+    elif label == InvoiceLabel.ADHESION:
+        line_type = InvoiceLineType.ADHESION
+    else:
+        line_type = InvoiceLineType.OTHER
+
+    return [
+        {
+            "description": default_client_line_description(line_type),
+            "line_type": line_type,
+            "amount": invoice_row.amount,
+        }
+    ]
+
+
+def _merge_existing_client_invoice_entry_groups(
+    entry_groups: list[list[NormalizedEntryRow]],
+    start_index: int,
+    existing_invoice_numbers: set[str],
+) -> tuple[list[NormalizedEntryRow], int]:
+    merged_group = list(entry_groups[start_index])
+    reference = _matching_existing_client_invoice_reference(merged_group, existing_invoice_numbers)
+    if reference is None:
+        return merged_group, start_index + 1
+
+    next_index = start_index + 1
+    while next_index < len(entry_groups):
+        next_group = entry_groups[next_index]
+        next_reference = _matching_existing_client_invoice_reference(
+            next_group,
+            existing_invoice_numbers,
+        )
+        if next_reference != reference:
+            break
+        merged_group.extend(next_group)
+        next_index += 1
+
+    return merged_group, next_index
 
 
 def _matching_existing_client_payment_reference(
@@ -1496,13 +1757,15 @@ async def _import_contacts_sheet(db: AsyncSession, ws: Any, result: ImportResult
 async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
     """Import invoices from a sheet with flexible column detection."""
     from sqlalchemy import select  # noqa: PLC0415
+    from sqlalchemy.orm import selectinload  # noqa: PLC0415
 
     from backend.models.contact import Contact, ContactType  # noqa: PLC0415
     from backend.models.invoice import (  # noqa: PLC0415
         Invoice,
-        InvoiceLabel,
+        InvoiceLine,
         InvoiceStatus,
         InvoiceType,
+        derive_client_invoice_label,
     )
 
     parsed_sheet, normalized_rows, _, ignored_issues = _parse_invoice_sheet(ws)
@@ -1598,6 +1861,11 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
             )
             continue
 
+        invoice_lines = _build_client_invoice_lines_from_import_row(invoice_row)
+        derived_label = derive_client_invoice_label(
+            {line["line_type"] for line in invoice_lines if line["amount"] > 0}
+        )
+
         invoice = Invoice(
             number=number_raw,
             type=InvoiceType.CLIENT,
@@ -1606,9 +1874,24 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
             total_amount=total,
             paid_amount=Decimal("0"),
             status=InvoiceStatus.SENT,
-            label=InvoiceLabel(invoice_row.label),
+            label=derived_label,
+            has_explicit_breakdown=len(invoice_lines) > 1,
         )
         db.add(invoice)
+        await db.flush()
+        db.add_all(
+            [
+                InvoiceLine(
+                    invoice_id=invoice.id,
+                    description=line["description"],
+                    line_type=line["line_type"],
+                    quantity=Decimal("1"),
+                    unit_price=line["amount"],
+                    amount=line["amount"],
+                )
+                for line in invoice_lines
+            ]
+        )
         created_invoices.append(invoice)
         logger.debug(
             "Row %d — invoice '%s' queued (contact_id=%d, amount=%s)",
@@ -1647,7 +1930,18 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
 
         for inv_obj in created_invoices:
             try:
-                entries = await generate_entries_for_invoice(db, inv_obj)
+                refreshed_invoice = (
+                    (
+                        await db.execute(
+                            select(Invoice)
+                            .where(Invoice.id == inv_obj.id)
+                            .options(selectinload(Invoice.lines))
+                        )
+                    )
+                    .scalars()
+                    .one()
+                )
+                entries = await generate_entries_for_invoice(db, refreshed_invoice)
                 result.entries_created += len(entries)
             except Exception as e:
                 logger.debug("Accounting entries skipped for invoice '%s': %s", inv_obj.number, e)
@@ -2240,6 +2534,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
 
     existing_entry_signatures = await _load_existing_accounting_entry_signatures(db)
     existing_invoice_numbers = await _load_existing_invoice_numbers(db)
+    existing_client_invoices_by_number = await _load_existing_client_invoices_by_number(db)
     existing_client_payment_signatures = await _load_existing_client_payment_reference_signatures(
         db
     )
@@ -2262,8 +2557,29 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
     base_count = count_result.scalar_one_or_none() or 0
     entries_to_add: list[AccountingEntry] = []
     next_offset = 0
-    for entry_group in _build_entry_row_groups(normalized_rows):
-        if _matching_existing_client_invoice_reference(entry_group, existing_invoice_numbers):
+    entry_groups = _build_entry_row_groups(normalized_rows)
+    index = 0
+    while index < len(entry_groups):
+        entry_group, next_index = _merge_existing_client_invoice_entry_groups(
+            entry_groups,
+            index,
+            existing_invoice_numbers,
+        )
+        existing_client_invoice_reference = _matching_existing_client_invoice_reference(
+            entry_group,
+            existing_invoice_numbers,
+        )
+        if existing_client_invoice_reference is not None:
+            clarified_invoice = await _clarify_existing_client_invoice_from_entries(
+                db,
+                entry_group,
+                existing_client_invoices_by_number,
+            )
+            message = (
+                _CLIENT_INVOICE_CLARIFIED_MESSAGE
+                if clarified_invoice is not None
+                else ENTRY_EXISTING_MESSAGE
+            )
             for entry_row in entry_group:
                 result.add_ignored_row(
                     ws.title,
@@ -2271,10 +2587,20 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                     format_row_issue(
                         RowIgnoredIssue(
                             source_row_number=entry_row.source_row_number,
-                            message=ENTRY_EXISTING_MESSAGE,
+                            message=message,
                         )
                     ),
                 )
+            if clarified_invoice is not None:
+                result.record_created_object(
+                    sheet_name=ws.title,
+                    kind="entries",
+                    object_type="invoice",
+                    object_id=clarified_invoice.id,
+                    reference=clarified_invoice.number,
+                    details={"action": "clarified_from_accounting_entries"},
+                )
+            index = next_index
             continue
 
         if _matching_existing_client_payment_reference(
@@ -2292,6 +2618,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                         )
                     ),
                 )
+            index = next_index
             continue
 
         if _matching_existing_supplier_invoice_payment_reference(
@@ -2309,6 +2636,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                         )
                     ),
                 )
+            index = next_index
             continue
 
         if _matching_existing_salary_entry_group(
@@ -2326,6 +2654,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                         )
                     ),
                 )
+            index = next_index
             continue
 
         if _normalized_entry_group_signature(entry_group) in existing_generated_group_signatures:
@@ -2340,6 +2669,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                         )
                     ),
                 )
+            index = next_index
             continue
 
         group_key = f"import:{uuid4().hex}"
@@ -2379,6 +2709,8 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
             entries_to_add.append(entry)
             existing_entry_signatures.add(signature)
             result.add_imported_row(ws.title, "entries")
+
+        index = next_index
 
     try:
         for entry in entries_to_add:
@@ -2591,6 +2923,7 @@ async def _add_comptabilite_existing_rows_preview(
     existing_supplier_payment_signatures = (
         await _load_existing_supplier_payment_reference_signatures(db)
     )
+    existing_client_invoices_by_number = await _load_existing_client_invoices_by_number(db)
     existing_salary_group_signatures = await _load_existing_salary_group_signatures(db)
     existing_generated_group_signatures = (
         await _load_existing_generated_accounting_group_signatures(db)
@@ -2614,18 +2947,39 @@ async def _add_comptabilite_existing_rows_preview(
         if parsed_sheet is None or parsed_sheet.missing_columns:
             continue
 
-        for entry_group in _build_entry_row_groups(normalized_rows):
-            if _matching_existing_client_invoice_reference(entry_group, existing_invoice_numbers):
+        entry_groups = _build_entry_row_groups(normalized_rows)
+        index = 0
+        while index < len(entry_groups):
+            entry_group, next_index = _merge_existing_client_invoice_entry_groups(
+                entry_groups,
+                index,
+                existing_invoice_numbers,
+            )
+            existing_client_invoice_reference = _matching_existing_client_invoice_reference(
+                entry_group,
+                existing_invoice_numbers,
+            )
+            if existing_client_invoice_reference is not None:
+                clarified_invoice = await _find_clarifiable_existing_client_invoice(
+                    db,
+                    entry_group,
+                    existing_client_invoices_by_number,
+                )
                 for entry_row in entry_group:
                     _append_preview_ignored_issue(
                         preview,
                         sheet_preview,
                         RowIgnoredIssue(
                             source_row_number=entry_row.source_row_number,
-                            message=ENTRY_EXISTING_MESSAGE,
+                            message=(
+                                _CLIENT_INVOICE_CLARIFIED_MESSAGE
+                                if clarified_invoice is not None
+                                else ENTRY_EXISTING_MESSAGE
+                            ),
                         ),
                     )
                     preview.estimated_entries = max(0, preview.estimated_entries - 1)
+                index = next_index
                 continue
 
             if _matching_existing_client_payment_reference(
@@ -2642,6 +2996,7 @@ async def _add_comptabilite_existing_rows_preview(
                         ),
                     )
                     preview.estimated_entries = max(0, preview.estimated_entries - 1)
+                index = next_index
                 continue
 
             if _matching_existing_supplier_invoice_payment_reference(
@@ -2658,6 +3013,7 @@ async def _add_comptabilite_existing_rows_preview(
                         ),
                     )
                     preview.estimated_entries = max(0, preview.estimated_entries - 1)
+                index = next_index
                 continue
 
             if _matching_existing_salary_entry_group(
@@ -2674,6 +3030,7 @@ async def _add_comptabilite_existing_rows_preview(
                         ),
                     )
                     preview.estimated_entries = max(0, preview.estimated_entries - 1)
+                index = next_index
                 continue
 
             if (
@@ -2690,6 +3047,7 @@ async def _add_comptabilite_existing_rows_preview(
                         ),
                     )
                     preview.estimated_entries = max(0, preview.estimated_entries - 1)
+                index = next_index
                 continue
 
             for entry_row in entry_group:
@@ -2711,6 +3069,7 @@ async def _add_comptabilite_existing_rows_preview(
                     ),
                 )
                 preview.estimated_entries = max(0, preview.estimated_entries - 1)
+            index = next_index
 
     _recompute_preview_can_import(preview)
 

@@ -240,10 +240,17 @@ export default {
         'Ajustez la facture sans perdre la lisibilité des lignes et des montants déjà préparés.',
       identity_title: 'Cadre de facturation',
       identity_subtitle:
-        'Choisissez le contact, les dates et le type de facture avant de détailler les lignes.',
+        'Choisissez le contact et les dates, puis laissez la composition de la facture se déduire des lignes.',
       lines_title: 'Détail des lignes',
       lines_subtitle:
-        'Chaque ligne doit rester lisible pour faciliter la relecture, l’envoi et le suivi du paiement.',
+        'Chaque ligne porte un type métier ; une remise reste visible via une ligne négative du même type.',
+      line_type: 'Type de ligne',
+      line_types: {
+        cours: 'Cours',
+        adhesion: 'Adhésion',
+        autres: 'Autres',
+      },
+      negative_total_error: 'Le total de la facture client ne peut pas être négatif.',
       history_intro:
         'Retrouvez rapidement le niveau d’encaissement et l’historique des règlements associés à cette facture.',
     },
@@ -848,6 +855,8 @@ export default {
     result_persistent_hint:
       '{count} élément(s) créé(s), {ignored} ligne(s) ignorée(s) et {blocked} ligne(s) bloquantes. Le détail complet reste affiché ci-dessous.',
     file_required: 'Veuillez sélectionner un fichier.',
+    request_timeout:
+      'L’import prend plus de temps que prévu. Le traitement a peut-être continué côté serveur ; vérifiez le résultat puis relancez si nécessaire.',
     result_sheets_title: 'Détail par feuille',
     sheet_ignored_rows: '{count} ligne(s) ignorée(s)',
     sheet_blocked_rows: '{count} ligne(s) bloquante(s)',
