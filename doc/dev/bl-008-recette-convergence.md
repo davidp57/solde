@@ -10,21 +10,21 @@ Rejouer, sans rien persister, les previews de convergence BL-008 sur les classeu
 
 ## Commande de recette
 
-Depuis la racine du dépôt :
+Depuis la racine du dépôt, avec l'environnement virtuel activé :
 
 ```bash
-d:/dev/_misc/solde/.venv/Scripts/python.exe scripts/run_excel_convergence_preview.py
+python scripts/run_excel_convergence_preview.py
 ```
 
 Pour conserver le rapport JSON :
 
 ```bash
-d:/dev/_misc/solde/.venv/Scripts/python.exe scripts/run_excel_convergence_preview.py --output data/logs/bl-008-convergence-preview.json
+python scripts/run_excel_convergence_preview.py --output data/logs/bl-008-convergence-preview.json
 ```
 
 ## Comportement du script
 
-- utilise la base pointée par `database_url` ; par défaut ici `data/solde.db` ;
+- utilise la base pointée par la configuration applicative ; en local ici, c'est généralement `data/solde.db` ;
 - utilise en priorité les chemins configurés dans `test_import_*_path` si présents ;
 - sinon détecte automatiquement les quatre classeurs historiques sous `data/` ;
 - exécute les previews existantes `Gestion` et `Comptabilite`, sans import ;

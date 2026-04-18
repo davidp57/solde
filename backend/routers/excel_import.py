@@ -195,7 +195,7 @@ async def preview_gestion(
     ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="La date de debut doit etre inferieure ou egale a la date de fin",
+            detail="La date de début doit être inférieure ou égale à la date de fin",
         )
     content = await _read_limited(file)
     result = await excel_import.preview_gestion_file(
@@ -225,7 +225,7 @@ async def preview_comptabilite(
     ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="La date de debut doit etre inferieure ou egale a la date de fin",
+            detail="La date de début doit être inférieure ou égale à la date de fin",
         )
     content = await _read_limited(file)
     result = await excel_import.preview_comptabilite_file(
