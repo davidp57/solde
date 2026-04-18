@@ -422,10 +422,92 @@ async def test_preview_gestion_comparison_counts_extra_invoices_in_solde(
         "already_in_solde": 1,
         "missing_in_solde": 1,
         "extra_in_solde": 1,
+        "extra_in_solde_details": [
+            {
+                "summary": "2025-0199 · 2025-08-02",
+                "number": "2025-0199",
+                "date": "2025-08-02",
+            }
+        ],
         "ignored_by_policy": 0,
         "blocked": 0,
     }
     assert data["comparison"]["totals"]["extra_in_solde"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_comparison_filters_only_convergence_section_by_date_window(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+
+    contact = Contact(nom="LOPES", prenom="Christine", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+    db_session.add_all(
+        [
+            Invoice(
+                number="2025-0142",
+                type=InvoiceType.CLIENT,
+                contact_id=contact.id,
+                date=date(2025, 8, 1),
+                total_amount=Decimal("55.00"),
+                paid_amount=Decimal("0.00"),
+                status=InvoiceStatus.DRAFT,
+            ),
+            Invoice(
+                number="2025-0199",
+                type=InvoiceType.CLIENT,
+                contact_id=contact.id,
+                date=date(2025, 8, 2),
+                total_amount=Decimal("80.00"),
+                paid_amount=Decimal("0.00"),
+                status=InvoiceStatus.DRAFT,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [
+                    ["2025-08-01", "2025-0142", "Christine LOPES", 55],
+                    ["2025-08-02", "2025-0143", "Christine LOPES", 75],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        data={
+            "comparison_start_date": "2025-08-01",
+            "comparison_end_date": "2025-08-01",
+        },
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["invoices"] == {
+        "kind": "invoices",
+        "file_rows": 1,
+        "already_in_solde": 1,
+        "missing_in_solde": 0,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+    sheets = {sheet["name"]: sheet for sheet in data["sheets"]}
+    assert sheets["Factures"]["rows"] == 1
 
 
 @pytest.mark.asyncio
@@ -536,6 +618,13 @@ async def test_preview_gestion_invoice_extra_in_solde_counts_next_year_in_exerci
         "already_in_solde": 0,
         "missing_in_solde": 1,
         "extra_in_solde": 1,
+        "extra_in_solde_details": [
+            {
+                "summary": "2026-0004 · 2026-03-05",
+                "number": "2026-0004",
+                "date": "2026-03-05",
+            }
+        ],
         "ignored_by_policy": 0,
         "blocked": 0,
     }
@@ -607,6 +696,16 @@ async def test_preview_gestion_payment_extra_in_solde_uses_file_exercise_window(
         "already_in_solde": 0,
         "missing_in_solde": 1,
         "extra_in_solde": 1,
+        "extra_in_solde_details": [
+            {
+                "summary": "2025-0199 · 2026-05-10 · 80 · 512100",
+                "reference": "2025-0199",
+                "payment_date": "2026-05-10",
+                "amount": "80",
+                "settlement_account": "512100",
+                "invoice_number": "2025-0199",
+            }
+        ],
         "ignored_by_policy": 0,
         "blocked": 0,
     }
@@ -794,6 +893,15 @@ async def test_preview_gestion_bank_extra_in_solde_counts_intermediate_year(
         "already_in_solde": 0,
         "missing_in_solde": 2,
         "extra_in_solde": 1,
+        "extra_in_solde_details": [
+            {
+                "summary": "2025-05-15 · 42 · Virement intermediaire · INT-2025",
+                "entry_date": "2025-05-15",
+                "amount": "42",
+                "description": "Virement intermediaire",
+                "reference": "INT-2025",
+            }
+        ],
         "ignored_by_policy": 0,
         "blocked": 0,
     }
@@ -847,6 +955,16 @@ async def test_preview_gestion_cash_extra_in_solde_counts_intermediate_year(
         "already_in_solde": 0,
         "missing_in_solde": 2,
         "extra_in_solde": 1,
+        "extra_in_solde_details": [
+            {
+                "summary": "2025-05-15 · in · 42 · Don intermediaire · CAISSE-2025",
+                "entry_date": "2025-05-15",
+                "movement_type": "in",
+                "amount": "42",
+                "description": "Don intermediaire",
+                "reference": "CAISSE-2025",
+            }
+        ],
         "ignored_by_policy": 0,
         "blocked": 0,
     }
@@ -3868,6 +3986,77 @@ async def test_preview_comptabilite_comparison_counts_extra_entries_in_solde(
         "ignored_by_policy": 0,
         "blocked": 0,
     }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_comptabilite_comparison_filters_only_convergence_section_by_date_window(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    db_session.add_all(
+        [
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2025, 8, 1),
+                account_number="401100",
+                label="Facture fournisseur",
+                debit=Decimal("10.00"),
+                credit=Decimal("0.00"),
+                source_type=EntrySourceType.MANUAL,
+            ),
+            AccountingEntry(
+                entry_number="000002",
+                date=date(2025, 8, 3),
+                account_number="512000",
+                label="Virement en trop",
+                debit=Decimal("0.00"),
+                credit=Decimal("20.00"),
+                source_type=EntrySourceType.MANUAL,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit"],
+                [
+                    ["2025-08-01", "401100", "Facture fournisseur", 10, None],
+                    ["2025-08-02", "512000", "Virement nouveau", None, 20],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        data={
+            "comparison_start_date": "2025-08-01",
+            "comparison_end_date": "2025-08-01",
+        },
+        files={"file": ("Comptabilite 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["entries"] == {
+        "kind": "entries",
+        "file_rows": 1,
+        "already_in_solde": 1,
+        "missing_in_solde": 0,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+    journal_sheet = next(sheet for sheet in data["sheets"] if sheet["name"] == "Journal")
+    assert journal_sheet["rows"] == 1
 
 
 @pytest.mark.asyncio

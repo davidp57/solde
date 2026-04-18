@@ -77,6 +77,40 @@
           </div>
         </div>
 
+        <div v-if="selectedFile" class="import-comparison-window-card">
+          <div>
+            <p class="import-section-eyebrow">{{ t('import.comparison_window_label') }}</p>
+            <h3 class="import-guidance-card__title">{{ t('import.comparison_window_title') }}</h3>
+            <p class="import-action-hint">{{ t('import.comparison_window_subtitle') }}</p>
+          </div>
+          <div class="import-comparison-window-grid">
+            <div class="app-field">
+              <label for="comparison-start-date" class="app-field__label">
+                {{ t('import.comparison_window_start') }}
+              </label>
+              <input
+                id="comparison-start-date"
+                data-testid="comparison-start-date"
+                v-model="comparisonStartDate"
+                type="date"
+                class="app-input"
+              />
+            </div>
+            <div class="app-field">
+              <label for="comparison-end-date" class="app-field__label">
+                {{ t('import.comparison_window_end') }}
+              </label>
+              <input
+                id="comparison-end-date"
+                data-testid="comparison-end-date"
+                v-model="comparisonEndDate"
+                type="date"
+                class="app-input"
+              />
+            </div>
+          </div>
+        </div>
+
         <!-- Submit / Preview buttons -->
         <div class="app-form-actions">
           <Button
@@ -183,34 +217,35 @@
       >
         {{ preview.can_import ? t('import.preview_ready') : t('import.preview_blocked') }}
       </p>
-      <div v-if="preview.comparison?.domains.length" class="import-comparison-block">
+      <div v-if="previewComparison" class="import-comparison-block">
         <div class="import-comparison-block__header">
           <div>
+            <p class="import-section-eyebrow">{{ t('import.preview_comparison_section_title') }}</p>
             <h3 class="import-sheet-list__title">{{ comparisonTitle }}</h3>
             <p class="import-action-hint">{{ comparisonSubtitle }}</p>
           </div>
           <div class="import-sheet-card__stats">
             <strong class="import-sheet-card__rows">
-              {{ t('import.comparison_file_rows', { count: preview.comparison.totals.file_rows }) }}
+              {{ t('import.comparison_file_rows', { count: previewComparison.totals.file_rows }) }}
             </strong>
             <span class="import-sheet-card__stat import-sheet-card__stat--success">
               {{
                 t('import.comparison_already_in_solde', {
-                  count: preview.comparison.totals.already_in_solde,
+                  count: previewComparison.totals.already_in_solde,
                 })
               }}
             </span>
             <span class="import-sheet-card__stat">
               {{
                 t('import.comparison_missing_in_solde', {
-                  count: preview.comparison.totals.missing_in_solde,
+                  count: previewComparison.totals.missing_in_solde,
                 })
               }}
             </span>
             <span class="import-sheet-card__stat import-sheet-card__stat--warning">
               {{
                 t('import.comparison_extra_in_solde', {
-                  count: preview.comparison.totals.extra_in_solde,
+                  count: previewComparison.totals.extra_in_solde,
                 })
               }}
             </span>
@@ -219,7 +254,7 @@
 
         <div class="import-comparison-grid">
           <article
-            v-for="domain in preview.comparison.domains"
+            v-for="domain in previewComparison.domains"
             :key="`comparison-${domain.kind}`"
             class="import-comparison-card"
           >
@@ -258,13 +293,66 @@
                 <strong>{{ domain.blocked }}</strong>
               </div>
             </div>
+            <div
+              v-if="domain.extra_in_solde_details?.length"
+              class="import-comparison-detail-block"
+            >
+              <span class="app-field__label">
+                {{
+                  t('import.comparison_extra_details_title', {
+                    count: domain.extra_in_solde_details.length,
+                  })
+                }}
+              </span>
+              <ul class="import-comparison-detail-list">
+                <li
+                  v-for="(detail, detailIndex) in domain.extra_in_solde_details"
+                  :key="`comparison-${domain.kind}-detail-${detailIndex}`"
+                  class="import-comparison-detail-item"
+                >
+                  <strong>{{ detail.summary }}</strong>
+                  <div
+                    v-if="previewComparisonExtraDetailFields(detail).length"
+                    class="import-comparison-detail-fields"
+                  >
+                    <span
+                      v-for="field in previewComparisonExtraDetailFields(detail)"
+                      :key="`${detail.summary}-${field.key}`"
+                      class="import-comparison-detail-field"
+                    >
+                      {{ t(`import.comparison_detail_fields.${field.key}`) }}: {{ field.value }}
+                    </span>
+                  </div>
+                </li>
+              </ul>
+            </div>
           </article>
+        </div>
+      </div>
+      <div
+        v-if="preview.sheets.length || preview.warnings.length || preview.errors.length"
+        class="import-diagnostic-block"
+      >
+        <div class="import-diagnostic-block__header">
+          <div>
+            <p class="import-section-eyebrow">{{ t('import.preview_diagnostic_section_title') }}</p>
+            <h3 class="import-sheet-list__title">{{ t('import.preview_diagnostic_title') }}</h3>
+            <p class="import-action-hint">{{ t('import.preview_diagnostic_subtitle') }}</p>
+          </div>
         </div>
       </div>
       <div v-if="preview.warnings.length" class="import-warnings-block">
         <span class="app-field__label">{{ t('import.warnings') }}</span>
         <ul class="import-warnings">
-          <li v-for="(warning, idx) in preview.warnings" :key="`warning-${idx}`">{{ warning }}</li>
+          <li
+            v-for="(warning, idx) in previewIssueMessages(
+              preview.warnings,
+              preview.warning_details,
+            )"
+            :key="`warning-${idx}`"
+          >
+            {{ warning }}
+          </li>
         </ul>
       </div>
       <div v-if="hasPreviewWarnings && preview.can_import" class="import-confirmation-guard">
@@ -277,7 +365,12 @@
       <div v-if="preview.errors.length" class="import-errors">
         <span class="app-field__label">{{ t('import.errors') }}</span>
         <ul>
-          <li v-for="(err, idx) in preview.errors" :key="idx">{{ err }}</li>
+          <li
+            v-for="(err, idx) in previewIssueMessages(preview.errors, preview.error_details)"
+            :key="idx"
+          >
+            {{ err }}
+          </li>
         </ul>
       </div>
       <div v-if="preview.sheets.length" class="import-sheet-list">
@@ -332,12 +425,18 @@
           </div>
 
           <ul v-if="sheet.warnings.length" class="import-warnings">
-            <li v-for="(warning, idx) in sheet.warnings" :key="`${sheet.name}-warning-${idx}`">
+            <li
+              v-for="(warning, idx) in previewIssueMessages(sheet.warnings, sheet.warning_details)"
+              :key="`${sheet.name}-warning-${idx}`"
+            >
               {{ warning }}
             </li>
           </ul>
           <ul v-if="sheet.errors.length" class="import-errors">
-            <li v-for="(error, idx) in sheet.errors" :key="`${sheet.name}-error-${idx}`">
+            <li
+              v-for="(error, idx) in previewIssueMessages(sheet.errors, sheet.error_details)"
+              :key="`${sheet.name}-error-${idx}`"
+            >
               {{ error }}
             </li>
           </ul>
@@ -478,6 +577,7 @@ import { useToast } from 'primevue/usetoast'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
+import { getSettingsApi } from '../api/settings'
 import {
   importGestionFileApi,
   importTestShortcutApi,
@@ -486,6 +586,7 @@ import {
   previewGestionFileApi,
   previewComptabiliteFileApi,
   type ImportResult,
+  type PreviewComparisonExtraDetail,
   type PreviewSheetResult,
   type PreviewResult,
   type TestImportShortcut,
@@ -499,8 +600,11 @@ const selectedFile = ref<File | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
 const previewing = ref(false)
+const fiscalYearStartMonth = ref(8)
 const result = ref<ImportResult | null>(null)
 const preview = ref<PreviewResult | null>(null)
+const comparisonStartDate = ref('')
+const comparisonEndDate = ref('')
 const warningsAcknowledged = ref(false)
 const testShortcuts = ref<TestImportShortcut[]>([])
 const runningShortcutAlias = ref<string | null>(null)
@@ -576,6 +680,18 @@ const comparisonSubtitle = computed(() => {
   }
   return t('import.comparison_subtitle')
 })
+const isAlreadyImportedPreview = computed(() =>
+  Boolean(
+    preview.value?.error_details.some((detail) => detail.category === 'already-imported') ||
+    preview.value?.errors.some((message) => message.startsWith('Fichier deja importe')),
+  ),
+)
+const showPreviewComparison = computed(
+  () => Boolean(preview.value?.comparison?.domains.length) && isAlreadyImportedPreview.value,
+)
+const previewComparison = computed(() =>
+  showPreviewComparison.value ? (preview.value?.comparison ?? null) : null,
+)
 const importActionHint = computed(() => {
   if (!selectedFile.value) return t('import.file_required')
   if (!preview.value) return t('import.preview_required')
@@ -591,11 +707,59 @@ function resetImportFlow() {
   warningsAcknowledged.value = false
 }
 
+function padMonth(value: number) {
+  return String(value).padStart(2, '0')
+}
+
+function formatIsoDate(value: Date) {
+  const year = value.getFullYear()
+  const month = padMonth(value.getMonth() + 1)
+  const day = padMonth(value.getDate())
+  return `${year}-${month}-${day}`
+}
+
+function buildDefaultComparisonRange(fileName: string | undefined) {
+  if (!fileName) {
+    return { start: '', end: '' }
+  }
+  const yearMatch = fileName.match(/(20\d{2})/)
+  if (!yearMatch) {
+    return { start: '', end: '' }
+  }
+  const matchedYear = yearMatch[1]
+  if (!matchedYear) {
+    return { start: '', end: '' }
+  }
+  const startYear = Number.parseInt(matchedYear, 10)
+  const startMonth = Math.min(Math.max(fiscalYearStartMonth.value, 1), 12)
+  const startDate = new Date(startYear, startMonth - 1, 1)
+  const nextFiscalYearStart = new Date(startYear + 1, startMonth - 1, 1)
+  const endDate = new Date(nextFiscalYearStart.getTime() - 24 * 60 * 60 * 1000)
+  return {
+    start: formatIsoDate(startDate),
+    end: formatIsoDate(endDate),
+  }
+}
+
+function applyDefaultComparisonRange(fileName: string | undefined = selectedFile.value?.name) {
+  const defaults = buildDefaultComparisonRange(fileName)
+  comparisonStartDate.value = defaults.start
+  comparisonEndDate.value = defaults.end
+}
+
 watch(importType, () => {
   resetImportFlow()
+  applyDefaultComparisonRange()
+})
+
+watch([comparisonStartDate, comparisonEndDate], () => {
+  if (preview.value !== null) {
+    resetImportFlow()
+  }
 })
 
 onMounted(async () => {
+  await loadSettings()
   await loadTestShortcuts()
 })
 
@@ -607,6 +771,19 @@ function previewSheetStatusLabel(status: PreviewSheetResult['status']) {
   return t(`import.sheet_status.${status}`)
 }
 
+function previewComparisonExtraDetailFields(detail: PreviewComparisonExtraDetail) {
+  return Object.entries(detail)
+    .filter(([key, value]) => key !== 'summary' && typeof value === 'string' && value.trim())
+    .map(([key, value]) => ({ key, value: value as string }))
+}
+
+function previewIssueMessages(messages: string[], details: Array<{ display_message: string }>) {
+  if (details.length > 0) {
+    return details.map((detail) => detail.display_message)
+  }
+  return messages
+}
+
 function importSheetKindLabel(kind: string) {
   return t(`import.sheet_kind.${kind}`)
 }
@@ -615,6 +792,7 @@ function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   selectedFile.value = input.files?.[0] ?? null
   resetImportFlow()
+  applyDefaultComparisonRange(selectedFile.value?.name)
 }
 
 function getImportErrorSummary(error: unknown): string {
@@ -653,6 +831,16 @@ async function loadTestShortcuts() {
   }
 }
 
+async function loadSettings() {
+  try {
+    const data = await getSettingsApi()
+    fiscalYearStartMonth.value = data.fiscal_year_start_month
+    applyDefaultComparisonRange()
+  } catch {
+    fiscalYearStartMonth.value = 8
+  }
+}
+
 async function doPreview() {
   if (!selectedFile.value) return
   previewing.value = true
@@ -660,10 +848,14 @@ async function doPreview() {
   preview.value = null
   result.value = null
   try {
+    const comparisonWindow = {
+      comparison_start_date: comparisonStartDate.value || undefined,
+      comparison_end_date: comparisonEndDate.value || undefined,
+    }
     if (importType.value === 'gestion') {
-      preview.value = await previewGestionFileApi(selectedFile.value)
+      preview.value = await previewGestionFileApi(selectedFile.value, comparisonWindow)
     } else {
-      preview.value = await previewComptabiliteFileApi(selectedFile.value)
+      preview.value = await previewComptabiliteFileApi(selectedFile.value, comparisonWindow)
     }
   } catch (error: unknown) {
     toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
@@ -776,6 +968,22 @@ async function runTestShortcut(alias: string) {
 
 .import-file-name--empty {
   color: var(--p-text-muted-color);
+}
+
+.import-comparison-window-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-radius-md);
+  background: linear-gradient(180deg, var(--app-surface-bg), var(--app-surface-muted));
+}
+
+.import-comparison-window-grid {
+  display: grid;
+  gap: var(--app-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
 }
 
 .import-guidance {
@@ -951,11 +1159,34 @@ async function runTestShortcut(alias: string) {
   gap: var(--app-space-4);
 }
 
+.import-section-eyebrow {
+  margin: 0 0 var(--app-space-1);
+  color: var(--p-text-muted-color);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .import-comparison-block {
   margin-top: var(--app-space-5);
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
+}
+
+.import-diagnostic-block {
+  margin-top: var(--app-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.import-diagnostic-block__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--app-space-4);
+  align-items: flex-start;
 }
 
 .import-comparison-block__header {
@@ -979,6 +1210,41 @@ async function runTestShortcut(alias: string) {
   border: 1px solid var(--app-surface-border);
   border-radius: var(--app-radius-md);
   background: linear-gradient(180deg, var(--app-surface-bg), var(--app-surface-muted));
+}
+
+.import-comparison-detail-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.import-comparison-detail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.import-comparison-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
+  border-radius: var(--app-radius-md);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.import-comparison-detail-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+.import-comparison-detail-field {
+  font-size: 0.82rem;
+  color: var(--app-text-muted);
 }
 
 .import-sheet-list__title {
