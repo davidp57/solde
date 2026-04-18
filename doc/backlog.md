@@ -16,14 +16,14 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## Règles de fonctionnement
 
-1. Ajouter chaque nouveau sujet dans **Bac d'entrée** avec une formulation courte et concrète.
+1. Ajouter chaque nouveau sujet dans le **Récapitulatif des sujets ouverts** avec une formulation courte et concrète.
 2. Proposer une **priorité** (`P1`, `P2`, `P3`) avant arbitrage.
 3. Passer un sujet en **Prêt** une fois le besoin clarifié.
 4. Déplacer en **En cours** quand le travail démarre sur une branche active.
 5. Déplacer en **Fait** quand l'implémentation est livrée et considérée comme terminée côté backlog.
 6. Suivre les dates avec le format ISO (`YYYY-MM-DD`) : `created`, `started`, `completed`.
 7. Ne pas laisser de suite actionnable uniquement dans la conversation si elle doit être retrouvée plus tard.
-8. Dans chaque section qui liste des tickets, conserver l'ordre numérique croissant des identifiants `BL-xxx`.
+8. Dans chaque section qui liste des tickets, y compris le récapitulatif des sujets ouverts, conserver l'ordre numérique croissant des identifiants `BL-xxx`.
 
 ### Signification des priorités
 
@@ -37,6 +37,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - `Prêt` — besoin clarifié, prêt à être pris.
 - `En cours` — sujet en cours d'implémentation sur une branche active.
 - `Fait` — sujet livré et prêt à être fusionné ou déjà intégré.
+- Dans ce document, un sujet encore au statut `Bac d'entrée` apparaît uniquement dans le récapitulatif des sujets ouverts, sans entrée dédiée dans `Prêt`, `En cours` ou `Fait`.
 
 ### Champs de dates
 
@@ -51,16 +52,15 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 1. **BL-024** — clarifier le workflow de saisie des paiements et corriger les remises en banque automatiques.
 2. **BL-022** — terminer les lots restants sur la gestion des utilisateurs, profils et sécurité de compte.
-3. **BL-008** — fiabiliser l'import Excel comme outil de validation itérative de convergence.
+3. **BL-027** — gérer une ouverture du système explicite pour Banque et Caisse.
 
-## Bac d'entrée
+## Récapitulatif des sujets ouverts
 
 | ID | Créé le | Type | Zone | Priorité proposée | Sujet |
 |---|---|---|---|---|---|
 | BL-004 | 2026-04-12 | Amélioration | Import Excel / Support | P2 | Afficher un historique d'import exploitable dans l'UI avec type, date, compteurs, diagnostics, et une traçabilité suffisamment fine des objets créés |
 | BL-005 | 2026-04-12 | Décision | Comptabilité / Import | P1 | Formaliser la politique de coexistence entre imports Excel, écritures manuelles ou auto-générées déjà présentes, et doublons métier proches |
 | BL-006 | 2026-04-12 | Technique | API / Framework | P3 | Traiter les warnings de dépréciation `HTTP_422_UNPROCESSABLE_ENTITY` remontés par la suite de tests |
-| BL-008 | 2026-04-12 | Amélioration | Import Excel / Qualité | P1 | Faire évoluer l'import Excel pour qu'il serve d'abord à l'initialisation depuis les fichiers 2024/2025, puis à une validation itérative régulière entre Excel et Solde sans manque ni divergence |
 | BL-015 | 2026-04-13 | Amélioration | Import Excel / Outillage | P2 | Ajouter un reset sélectif orienté reprise pour rejouer proprement un import par filière ou période sans repartir systématiquement d'un effacement global |
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
@@ -133,7 +133,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-008 — Import Excel comme validation itérative de convergence
 
-- **Dates** : `created=2026-04-12`, `started=2026-04-18`
+- **Dates** : `created=2026-04-12`, `started=2026-04-18`, `completed=2026-04-18`
 - **Pourquoi** : l'import Excel ne doit pas seulement servir à la reprise initiale 2024/2025 ; il doit aussi devenir un garde-fou qualité pendant la période de double tenue Excel + Solde.
 - **Phase 1** : initialiser proprement Solde à partir des fichiers historiques existants.
 - **Phase 2** : réimporter régulièrement Excel pour vérifier que les écritures et mouvements saisis dans Solde correspondent exactement à la réalité comptable de référence.
@@ -198,7 +198,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Critère d'acceptation** : on doit pouvoir répondre, sans rien persister, à quatre questions simples pour chacun des deux modes : qu'est-ce qui manque dans Solde, qu'est-ce qui est en trop, qu'est-ce qui diverge, et qu'est-ce qui est ignoré volontairement selon la politique métier.
 - **Hors périmètre initial** : pas de correction automatique des écarts, pas d'ouverture large de l'import `Comptabilite` en réel tant que `BL-005` n'est pas tranché, et pas d'outil générique de réconciliation déconnecté du cas de reprise réel.
 - **Enjeu** : sujet critique pour la confiance métier pendant toute la transition hors Excel.
-- **État d'avancement au 2026-04-18** : les deux premiers lots prévus sont désormais en place dans la preview sans écriture : `Gestion` expose le delta `Excel -> Solde` avec le sens inverse `extra_in_solde`, `Comptabilite` expose un mode `convergence globale` bidirectionnel, et une recette locale rejouable est désormais documentée dans `doc/dev/bl-008-recette-convergence.md` via `scripts/run_excel_convergence_preview.py`.
+- **Résultat livré au 2026-04-18** : les deux premiers lots prévus sont désormais intégrés dans `develop` dans la preview sans écriture : `Gestion` expose le delta `Excel -> Solde` avec le sens inverse `extra_in_solde`, `Comptabilite` expose un mode `convergence globale` bidirectionnel, et une recette locale rejouable est désormais documentée dans `doc/dev/bl-008-recette-convergence.md` via `scripts/run_excel_convergence_preview.py`.
 
 ### BL-009 — Enrichir le plan comptable par défaut à partir des imports réels
 
@@ -479,7 +479,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## En cours
 
-- **BL-008** — `created=2026-04-12`, `started=2026-04-18` — Reprise du sujet comme lot de convergence `Excel -> Solde` sans écriture, d'abord adossé à la preview `Gestion`, pour objectiver les écarts domaine par domaine avant la validation stricte complète.
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels a été traité séparément dans `BL-023`, désormais terminé.
 - **BL-029** — `created=2026-04-16`, `started=2026-04-16` — L'implémentation est poussée sur la PR `#18` avec lignes typées, import `Gestion`/`Comptabilité` adapté et UI revue ; la recette métier utilisateur reste à faire avant clôture.
@@ -490,6 +489,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-002** — `created=2026-04-12`, `completed=2026-04-12` — La documentation utilisateur import/reset a été rédigée dans `doc/user/import-excel-et-reinitialisation.md`.
 - **BL-003** — `created=2026-04-12`, `completed=2026-04-12` — La campagne de retest sur imports réels 2024/2025 a été rejouée sans écart bloquant.
 - **BL-007** — `created=2026-04-12`, `completed=2026-04-13` — La convention est arrêtée pour le mode de travail actuel : `doc/backlog.md` reste la source de vérité, sans synchronisation systématique avec des issues GitHub à ce stade.
+- **BL-008** — `created=2026-04-12`, `started=2026-04-18`, `completed=2026-04-18` — Le premier lot de convergence BL-008 est désormais intégré dans `develop` avec preview bidirectionnelle par domaine, détails `extra_in_solde`, filtre de période dédié à la comparaison et recette locale rejouable.
 - **BL-009** — `created=2026-04-12`, `completed=2026-04-12` — Le plan comptable par défaut a été enrichi à partir des comptes réellement rencontrés dans les imports historiques.
 - **BL-010** — `created=2026-04-12`, `completed=2026-04-12` — Une stratégie sûre de clôture administrative des exercices historiques importés a été définie et livrée.
 - **BL-011** — `created=2026-04-12`, `completed=2026-04-12` — L'exercice courant global et son sélecteur partagé ont été livrés sur les écrans comptables concernés.
