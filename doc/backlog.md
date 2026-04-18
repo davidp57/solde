@@ -155,7 +155,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Critère d'acceptation** : on doit pouvoir répondre, sans rien persister, à quatre questions simples pour chacun des deux modes : qu'est-ce qui manque dans Solde, qu'est-ce qui est en trop, qu'est-ce qui diverge, et qu'est-ce qui est ignoré volontairement selon la politique métier.
 - **Hors périmètre initial** : pas de correction automatique des écarts, pas d'ouverture large de l'import `Comptabilite` en réel tant que `BL-005` n'est pas tranché, et pas d'outil générique de réconciliation déconnecté du cas de reprise réel.
 - **Enjeu** : sujet critique pour la confiance métier pendant toute la transition hors Excel.
-- **État d'avancement au 2026-04-18** : un premier lot a été relancé sur la preview `Gestion` pour exposer un résumé `Excel -> Solde` sans écriture, par domaine, afin de visualiser rapidement ce qui manque encore dans Solde, ce qui y est déjà présent, ce qui est ignoré par politique et ce qui bloque.
+- **État d'avancement au 2026-04-18** : les deux premiers lots prévus sont désormais en place dans la preview sans écriture : `Gestion` expose le delta `Excel -> Solde` avec le sens inverse `extra_in_solde`, `Comptabilite` expose un mode `convergence globale` bidirectionnel, et une recette locale rejouable est désormais documentée dans `doc/dev/bl-008-recette-convergence.md` via `scripts/run_excel_convergence_preview.py`.
 
 ### BL-009 — Enrichir le plan comptable par défaut à partir des imports réels
 
