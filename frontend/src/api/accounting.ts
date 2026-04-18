@@ -735,15 +735,40 @@ export interface PreviewSheetResult {
   status: PreviewSheetStatus
   header_row: number | null
   rows: number
+  source_rows?: number
   detected_columns: string[]
   missing_columns: string[]
   ignored_rows: number
+  policy_ignored_rows?: number
   blocked_rows: number
+  initial_blocked_rows?: number
   sample_rows: Record<string, string>[]
   warnings: string[]
   errors: string[]
   warning_details: ImportIssueDetail[]
   error_details: ImportIssueDetail[]
+}
+
+export interface PreviewComparisonDomain {
+  kind: string
+  file_rows: number
+  already_in_solde: number
+  missing_in_solde: number
+  ignored_by_policy: number
+  blocked: number
+}
+
+export interface PreviewComparisonSummary {
+  mode: 'gestion-excel-to-solde'
+  direction: 'excel-to-solde'
+  domains: PreviewComparisonDomain[]
+  totals: {
+    file_rows: number
+    already_in_solde: number
+    missing_in_solde: number
+    ignored_by_policy: number
+    blocked: number
+  }
 }
 
 export interface PreviewResult {
@@ -759,6 +784,7 @@ export interface PreviewResult {
   warning_details: ImportIssueDetail[]
   can_import: boolean
   sample_rows: Record<string, unknown>[]
+  comparison?: PreviewComparisonSummary
 }
 
 export async function previewGestionFileApi(file: File): Promise<PreviewResult> {

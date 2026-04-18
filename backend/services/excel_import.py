@@ -3106,7 +3106,7 @@ async def _add_gestion_payment_validation(
         if sheet_preview is None:
             continue
 
-        payment_errors: list[str] = []
+        blocked_count = 0
         for payment_row in payment_rows:
             resolution = await _resolve_payment_match(
                 db,
@@ -3121,11 +3121,12 @@ async def _add_gestion_payment_validation(
                 require_persistable_candidate=False,
             )
             if blocking_issue is not None:
-                payment_errors.append(format_row_issue(blocking_issue))
+                _append_preview_blocked_issue(preview, sheet_preview, blocking_issue)
+                blocked_count += 1
 
-        if payment_errors:
-            sheet_preview["errors"].extend(payment_errors)
-            preview.errors.extend(f"{sheet_name} — {error}" for error in payment_errors)
+        if blocked_count:
+            sheet_preview["rows"] = max(0, sheet_preview["rows"] - blocked_count)
+            preview.estimated_payments = max(0, preview.estimated_payments - blocked_count)
 
 
 def _collect_sample_rows(
@@ -3411,6 +3412,7 @@ def _preview_gestion_file(file_bytes: bytes) -> PreviewResult:
 async def preview_gestion_file(db: AsyncSession, file_bytes: bytes) -> PreviewResult:
     """Dry-run parse of a Gestion file with shared business validation."""
     preview = _preview_gestion_file(file_bytes)
+    preview.comparison_mode = "gestion-excel-to-solde"
     if preview.errors:
         preview.can_import = False
         return preview
