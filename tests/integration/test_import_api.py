@@ -170,6 +170,70 @@ async def test_import_rejects_non_excel(client: AsyncClient, auth_headers: dict)
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_rejects_invalid_comparison_date_range(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    """Preview should reject a comparison window where start_date is after end_date."""
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        data={
+            "comparison_start_date": "2025-08-02",
+            "comparison_end_date": "2025-08-01",
+        },
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "La date de début doit être inférieure ou égale à la date de fin"
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_comptabilite_rejects_invalid_comparison_date_range(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    """Comptabilité preview should reject a comparison window where start_date is after end_date."""
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit"],
+                [["2025-08-01", "401100", "Facture fournisseur", 10, None]],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        data={
+            "comparison_start_date": "2025-08-02",
+            "comparison_end_date": "2025-08-01",
+        },
+        files={"file": ("Comptabilite 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "La date de début doit être inférieure ou égale à la date de fin"
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
 async def test_preview_gestion_reports_auxiliary_sheets(
     client: AsyncClient, auth_headers: dict
 ) -> None:

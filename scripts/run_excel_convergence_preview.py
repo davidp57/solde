@@ -6,10 +6,41 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from backend.config import get_settings
 from backend.database import get_session
 from backend.services import excel_import
+
+
+def _redact_database_url(database_url: str) -> str:
+    parsed_url = urlsplit(database_url)
+    if parsed_url.username is None and parsed_url.password is None:
+        return database_url
+
+    host = parsed_url.hostname or ""
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+
+    credentials = parsed_url.username or ""
+    if parsed_url.password is not None:
+        credentials = f"{credentials}:***"
+    if credentials:
+        credentials = f"{credentials}@"
+
+    netloc = f"{credentials}{host}"
+    if parsed_url.port is not None:
+        netloc = f"{netloc}:{parsed_url.port}"
+
+    return urlunsplit(
+        (
+            parsed_url.scheme,
+            netloc,
+            parsed_url.path,
+            parsed_url.query,
+            parsed_url.fragment,
+        )
+    )
 
 
 def _resolve_default_file_paths(repo_root: Path) -> list[tuple[str, Path]]:
@@ -107,7 +138,7 @@ async def _run(repo_root: Path) -> dict[str, Any]:
 
     return {
         "generated_at": datetime.now(UTC).isoformat(),
-        "database_url": get_settings().database_url,
+        "database_url": _redact_database_url(get_settings().database_url),
         "previews": previews,
     }
 
