@@ -183,6 +183,71 @@
       >
         {{ preview.can_import ? t('import.preview_ready') : t('import.preview_blocked') }}
       </p>
+      <div v-if="preview.comparison?.domains.length" class="import-comparison-block">
+        <div class="import-comparison-block__header">
+          <div>
+            <h3 class="import-sheet-list__title">{{ t('import.comparison_title') }}</h3>
+            <p class="import-action-hint">{{ t('import.comparison_subtitle') }}</p>
+          </div>
+          <div class="import-sheet-card__stats">
+            <strong class="import-sheet-card__rows">
+              {{ t('import.comparison_file_rows', { count: preview.comparison.totals.file_rows }) }}
+            </strong>
+            <span class="import-sheet-card__stat import-sheet-card__stat--success">
+              {{
+                t('import.comparison_already_in_solde', {
+                  count: preview.comparison.totals.already_in_solde,
+                })
+              }}
+            </span>
+            <span class="import-sheet-card__stat">
+              {{
+                t('import.comparison_missing_in_solde', {
+                  count: preview.comparison.totals.missing_in_solde,
+                })
+              }}
+            </span>
+          </div>
+        </div>
+
+        <div class="import-comparison-grid">
+          <article
+            v-for="domain in preview.comparison.domains"
+            :key="`comparison-${domain.kind}`"
+            class="import-comparison-card"
+          >
+            <h4 class="import-sheet-card__title">{{ previewSheetKindLabel(domain.kind) }}</h4>
+            <div class="import-summary-grid import-summary-grid--compact">
+              <div class="import-summary-row">
+                <span>{{ t('import.comparison_file_rows', { count: domain.file_rows }) }}</span>
+                <strong>{{ domain.file_rows }}</strong>
+              </div>
+              <div class="import-summary-row">
+                <span>{{
+                  t('import.comparison_already_in_solde', { count: domain.already_in_solde })
+                }}</span>
+                <strong>{{ domain.already_in_solde }}</strong>
+              </div>
+              <div class="import-summary-row">
+                <span>{{
+                  t('import.comparison_missing_in_solde', { count: domain.missing_in_solde })
+                }}</span>
+                <strong>{{ domain.missing_in_solde }}</strong>
+              </div>
+              <div class="import-summary-row">
+                <span>{{
+                  t('import.comparison_ignored_by_policy', { count: domain.ignored_by_policy })
+                }}</span>
+                <strong>{{ domain.ignored_by_policy }}</strong>
+              </div>
+              <div class="import-summary-row">
+                <span>{{ t('import.comparison_blocked', { count: domain.blocked }) }}</span>
+                <strong>{{ domain.blocked }}</strong>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
       <div v-if="preview.warnings.length" class="import-warnings-block">
         <span class="app-field__label">{{ t('import.warnings') }}</span>
         <ul class="import-warnings">
@@ -783,6 +848,10 @@ async function runTestShortcut(alias: string) {
   gap: var(--app-space-3);
 }
 
+.import-summary-grid--compact {
+  gap: var(--app-space-2);
+}
+
 .import-summary-row {
   display: flex;
   justify-content: space-between;
@@ -855,6 +924,36 @@ async function runTestShortcut(alias: string) {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
+}
+
+.import-comparison-block {
+  margin-top: var(--app-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.import-comparison-block__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--app-space-4);
+  align-items: flex-start;
+}
+
+.import-comparison-grid {
+  display: grid;
+  gap: var(--app-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.import-comparison-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-radius-md);
+  background: linear-gradient(180deg, var(--app-surface-bg), var(--app-surface-muted));
 }
 
 .import-sheet-list__title {
@@ -976,6 +1075,17 @@ async function runTestShortcut(alias: string) {
 :global(html.dark-mode) .import-errors,
 :global(html.dark-mode) .import-errors ul {
   color: var(--p-red-200);
+}
+
+@media (max-width: 720px) {
+  .import-comparison-block__header,
+  .import-sheet-card__header {
+    flex-direction: column;
+  }
+
+  .import-sheet-card__stats {
+    align-items: flex-start;
+  }
 }
 
 :global(html.dark-mode) .import-chip--danger {

@@ -133,7 +133,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-008 — Import Excel comme validation itérative de convergence
 
-- **Dates** : `created=2026-04-12`
+- **Dates** : `created=2026-04-12`, `started=2026-04-18`
 - **Pourquoi** : l'import Excel ne doit pas seulement servir à la reprise initiale 2024/2025 ; il doit aussi devenir un garde-fou qualité pendant la période de double tenue Excel + Solde.
 - **Phase 1** : initialiser proprement Solde à partir des fichiers historiques existants.
 - **Phase 2** : réimporter régulièrement Excel pour vérifier que les écritures et mouvements saisis dans Solde correspondent exactement à la réalité comptable de référence.
@@ -155,6 +155,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Critère d'acceptation** : on doit pouvoir répondre, sans rien persister, à quatre questions simples pour chacun des deux modes : qu'est-ce qui manque dans Solde, qu'est-ce qui est en trop, qu'est-ce qui diverge, et qu'est-ce qui est ignoré volontairement selon la politique métier.
 - **Hors périmètre initial** : pas de correction automatique des écarts, pas d'ouverture large de l'import `Comptabilite` en réel tant que `BL-005` n'est pas tranché, et pas d'outil générique de réconciliation déconnecté du cas de reprise réel.
 - **Enjeu** : sujet critique pour la confiance métier pendant toute la transition hors Excel.
+- **État d'avancement au 2026-04-18** : un premier lot a été relancé sur la preview `Gestion` pour exposer un résumé `Excel -> Solde` sans écriture, par domaine, afin de visualiser rapidement ce qui manque encore dans Solde, ce qui y est déjà présent, ce qui est ignoré par politique et ce qui bloque.
 
 ### BL-009 — Enrichir le plan comptable par défaut à partir des imports réels
 
@@ -435,6 +436,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## En cours
 
+- **BL-008** — `created=2026-04-12`, `started=2026-04-18` — Reprise du sujet comme lot de convergence `Excel -> Solde` sans écriture, d'abord adossé à la preview `Gestion`, pour objectiver les écarts domaine par domaine avant la validation stricte complète.
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels a été traité séparément dans `BL-023`, désormais terminé.
 - **BL-029** — `created=2026-04-16`, `started=2026-04-16` — L'implémentation est poussée sur la PR `#18` avec lignes typées, import `Gestion`/`Comptabilité` adapté et UI revue ; la recette métier utilisateur reste à faire avant clôture.

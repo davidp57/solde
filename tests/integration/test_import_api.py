@@ -258,8 +258,102 @@ async def test_preview_gestion_estimates_contacts_from_invoices_and_payments(
     assert response.status_code == 200
     data = response.json()
     assert data["estimated_invoices"] == 2
-    assert data["estimated_payments"] == 2
+    assert data["estimated_payments"] == 1
     assert data["estimated_contacts"] == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_comparison_summarizes_existing_missing_and_ignored_invoices(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+
+    contact = Contact(nom="LOPES", prenom="Christine", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+    db_session.add(
+        Invoice(
+            number="2025-0142",
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 8, 1),
+            total_amount=Decimal("55.00"),
+            paid_amount=Decimal("0.00"),
+            status=InvoiceStatus.DRAFT,
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [
+                    ["2025-08-01", "2025-0142", "Christine LOPES", 55],
+                    ["2025-08-02", "2025-0143", "Christine LOPES", 75],
+                    ["2025-08-02", "2025-0143", "Christine LOPES", 75],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["comparison"]["mode"] == "gestion-excel-to-solde"
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["invoices"] == {
+        "kind": "invoices",
+        "file_rows": 3,
+        "already_in_solde": 1,
+        "missing_in_solde": 1,
+        "ignored_by_policy": 1,
+        "blocked": 0,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_comparison_counts_blocked_unmatched_payments(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    content = _make_multi_sheet_xlsx(
+        {
+            "Paiements": (
+                ["Réf facture", "Adhérent", "Montant", "Date paiement"],
+                [["2025-0999", "Christine LOPES", 55, "2025-08-02"]],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["payments"] == {
+        "kind": "payments",
+        "file_rows": 1,
+        "already_in_solde": 0,
+        "missing_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 1,
+    }
+    assert data["can_import"] is False
 
 
 @pytest.mark.asyncio

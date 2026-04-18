@@ -9,6 +9,11 @@ from backend.services.excel_import_policy import issue_category_for_message
 
 _SHEET_PREFIX_SEPARATOR = " — "
 _ROW_ISSUE_RE = re.compile(r"^Ligne (?P<row_number>\d+) : (?P<message>.+)$")
+_EXISTING_IN_SOLDE_CATEGORIES = {
+    "existing-contact",
+    "existing-invoice",
+    "existing-salary",
+}
 
 
 def _split_sheet_prefix(message: str) -> tuple[str | None, str]:
@@ -97,6 +102,45 @@ def _serialize_sheet_summary(summary: dict[str, Any]) -> dict[str, Any]:
         kind=summary.get("kind"),
     )
     return serialized
+
+
+def _build_gestion_preview_comparison(
+    serialized_sheets: list[dict[str, Any]],
+) -> dict[str, Any]:
+    domains: list[dict[str, Any]] = []
+    for summary in serialized_sheets:
+        kind = summary.get("kind")
+        if kind in (None, "ignored", "entries"):
+            continue
+        if summary.get("status") not in {"recognized", "unsupported"}:
+            continue
+
+        policy_ignored_rows = int(summary.get("policy_ignored_rows", 0))
+        ignored_rows = int(summary.get("ignored_rows", 0))
+        source_rows = int(summary.get("source_rows", summary.get("rows", 0)))
+        initial_blocked_rows = int(summary.get("initial_blocked_rows", 0))
+        domain = {
+            "kind": kind,
+            "file_rows": source_rows + policy_ignored_rows + initial_blocked_rows,
+            "already_in_solde": max(0, ignored_rows - policy_ignored_rows),
+            "missing_in_solde": int(summary.get("rows", 0)),
+            "ignored_by_policy": policy_ignored_rows,
+            "blocked": int(summary.get("blocked_rows", 0)),
+        }
+        domains.append(domain)
+
+    return {
+        "mode": "gestion-excel-to-solde",
+        "direction": "excel-to-solde",
+        "domains": domains,
+        "totals": {
+            "file_rows": sum(domain["file_rows"] for domain in domains),
+            "already_in_solde": sum(domain["already_in_solde"] for domain in domains),
+            "missing_in_solde": sum(domain["missing_in_solde"] for domain in domains),
+            "ignored_by_policy": sum(domain["ignored_by_policy"] for domain in domains),
+            "blocked": sum(domain["blocked"] for domain in domains),
+        },
+    }
 
 
 class ImportResult:
@@ -265,6 +309,7 @@ class PreviewResult:
         self.sample_rows: list[dict[str, Any]] = []
         self.can_import: bool = False
         self._candidate_contacts: set[str] = set()
+        self.comparison_mode: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         serialized_sheets = [_serialize_sheet_summary(summary) for summary in self.sheets]
@@ -273,7 +318,7 @@ class PreviewResult:
             for summary in serialized_sheets
             if summary.get("name") and summary.get("kind")
         }
-        return {
+        payload = {
             "sheets": serialized_sheets,
             "estimated_contacts": self.estimated_contacts,
             "estimated_invoices": self.estimated_invoices,
@@ -295,3 +340,6 @@ class PreviewResult:
             ),
             "can_import": self.can_import,
         }
+        if self.comparison_mode == "gestion-excel-to-solde":
+            payload["comparison"] = _build_gestion_preview_comparison(serialized_sheets)
+        return payload
