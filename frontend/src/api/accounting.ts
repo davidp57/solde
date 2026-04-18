@@ -760,8 +760,8 @@ export interface PreviewComparisonDomain {
 }
 
 export interface PreviewComparisonSummary {
-  mode: 'gestion-excel-to-solde'
-  direction: 'excel-to-solde'
+  mode: 'gestion-excel-to-solde' | 'global-convergence'
+  direction: 'excel-to-solde' | 'bidirectional'
   domains: PreviewComparisonDomain[]
   totals: {
     file_rows: number

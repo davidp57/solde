@@ -3375,9 +3375,75 @@ async def test_preview_comptabilite_ignores_existing_generated_group(
     assert response.status_code == 200
     data = response.json()
     assert data["estimated_entries"] == 0
-    assert data["can_import"] is True
+    assert data["can_import"] is False
     journal_sheet = next(sheet for sheet in data["sheets"] if sheet["name"] == "Journal")
     assert journal_sheet["ignored_rows"] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_comptabilite_comparison_counts_extra_entries_in_solde(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    db_session.add_all(
+        [
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2025, 8, 1),
+                account_number="401100",
+                label="Facture fournisseur",
+                debit=Decimal("10.00"),
+                credit=Decimal("0.00"),
+                source_type=EntrySourceType.MANUAL,
+            ),
+            AccountingEntry(
+                entry_number="000002",
+                date=date(2025, 8, 3),
+                account_number="512000",
+                label="Virement en trop",
+                debit=Decimal("0.00"),
+                credit=Decimal("20.00"),
+                source_type=EntrySourceType.MANUAL,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit"],
+                [
+                    ["2025-08-01", "401100", "Facture fournisseur", 10, None],
+                    ["2025-08-02", "512000", "Virement nouveau", None, 20],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        files={"file": ("Comptabilite 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["comparison"]["mode"] == "global-convergence"
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["entries"] == {
+        "kind": "entries",
+        "file_rows": 2,
+        "already_in_solde": 1,
+        "missing_in_solde": 1,
+        "extra_in_solde": 1,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
 
 
 @pytest.mark.asyncio
