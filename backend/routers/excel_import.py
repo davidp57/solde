@@ -1,10 +1,11 @@
 """Excel import API — upload and import Gestion / Comptabilité Excel files."""
 
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import get_settings
@@ -182,11 +183,28 @@ async def preview_gestion(
     file: UploadFile,
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _WriteAccess,
+    comparison_start_date: date | None = Form(default=None),
+    comparison_end_date: date | None = Form(default=None),
 ) -> dict[str, object]:
     """Dry-run parse of a Gestion file — returns estimated row counts without importing."""
     _check_excel_extension(file.filename)
+    if (
+        comparison_start_date is not None
+        and comparison_end_date is not None
+        and comparison_start_date > comparison_end_date
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="La date de debut doit etre inferieure ou egale a la date de fin",
+        )
     content = await _read_limited(file)
-    result = await excel_import.preview_gestion_file(db, content, file.filename)
+    result = await excel_import.preview_gestion_file(
+        db,
+        content,
+        file.filename,
+        comparison_start_date=comparison_start_date,
+        comparison_end_date=comparison_end_date,
+    )
     return result.to_dict()
 
 
@@ -195,11 +213,28 @@ async def preview_comptabilite(
     file: UploadFile,
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _WriteAccess,
+    comparison_start_date: date | None = Form(default=None),
+    comparison_end_date: date | None = Form(default=None),
 ) -> dict[str, object]:
     """Dry-run parse of a Comptabilité file — returns estimated row counts without importing."""
     _check_excel_extension(file.filename)
+    if (
+        comparison_start_date is not None
+        and comparison_end_date is not None
+        and comparison_start_date > comparison_end_date
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="La date de debut doit etre inferieure ou egale a la date de fin",
+        )
     content = await _read_limited(file)
-    result = await excel_import.preview_comptabilite_file(db, content)
+    result = await excel_import.preview_comptabilite_file(
+        db,
+        content,
+        file.filename,
+        comparison_start_date=comparison_start_date,
+        comparison_end_date=comparison_end_date,
+    )
     return result.to_dict()
 
 
