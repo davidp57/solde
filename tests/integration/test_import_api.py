@@ -508,8 +508,7 @@ async def test_import_gestion_maps_mixed_client_invoice_to_other_line_when_no_sp
     )
     assert len(entries) == 2
     assert any(
-        entry.account_number == "758000" and entry.credit == Decimal("100.00")
-        for entry in entries
+        entry.account_number == "758000" and entry.credit == Decimal("100.00") for entry in entries
     )
 
 
@@ -3150,6 +3149,69 @@ async def test_preview_comptabilite_ignores_journal_saisie(
     assert sheets["Journal"]["status"] == "recognized"
     assert sheets["Journal (saisie)"]["status"] == "ignored"
     assert any("Journal (saisie)" in warning for warning in data["warnings"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_comptabilite_ignores_existing_generated_group(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    db_session.add_all(
+        [
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2025, 8, 1),
+                account_number="658000",
+                label="Frais divers",
+                debit=Decimal("10.00"),
+                credit=Decimal("0.00"),
+                source_type=EntrySourceType.GESTION,
+                source_id=1,
+                group_key="gestion:1",
+            ),
+            AccountingEntry(
+                entry_number="000002",
+                date=date(2025, 8, 1),
+                account_number="512000",
+                label="Frais divers",
+                debit=Decimal("0.00"),
+                credit=Decimal("10.00"),
+                source_type=EntrySourceType.GESTION,
+                source_id=1,
+                group_key="gestion:1",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit", "ChangeNum"],
+                [
+                    ["2025-08-01", "658000", "Frais divers", 10, None, 1],
+                    ["2025-08-01", "512000", "Frais divers", None, 10, 1],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        files={"file": ("Comptabilite 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["estimated_entries"] == 0
+    assert data["can_import"] is True
+    journal_sheet = next(sheet for sheet in data["sheets"] if sheet["name"] == "Journal")
+    assert journal_sheet["ignored_rows"] == 2
 
 
 @pytest.mark.asyncio

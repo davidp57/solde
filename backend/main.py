@@ -50,6 +50,7 @@ logging.config.dictConfig(
             "console": {
                 "class": "logging.StreamHandler",
                 "formatter": "default",
+                "level": "INFO",
             },
             "file": {
                 "class": "logging.handlers.RotatingFileHandler",
@@ -58,6 +59,7 @@ logging.config.dictConfig(
                 "backupCount": 3,
                 "encoding": "utf-8",
                 "formatter": "default",
+                "level": "DEBUG",
             },
         },
         "loggers": {
@@ -66,10 +68,25 @@ logging.config.dictConfig(
                 "level": "DEBUG",
                 "propagate": False,
             },
+            "sqlalchemy.engine": {
+                "handlers": ["file"],
+                "level": "INFO" if get_settings().debug else "WARNING",
+                "propagate": False,
+            },
+            "uvicorn.access": {
+                "handlers": ["console", "file"],
+                "level": "INFO",
+                "propagate": False,
+            },
+            "uvicorn.error": {
+                "handlers": ["console", "file"],
+                "level": "INFO",
+                "propagate": False,
+            },
         },
         "root": {
             "handlers": ["console"],
-            "level": "INFO",
+            "level": "WARNING",
         },
     }
 )

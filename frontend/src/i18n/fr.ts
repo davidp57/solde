@@ -855,6 +855,8 @@ export default {
     result_persistent_hint:
       '{count} élément(s) créé(s), {ignored} ligne(s) ignorée(s) et {blocked} ligne(s) bloquantes. Le détail complet reste affiché ci-dessous.',
     file_required: 'Veuillez sélectionner un fichier.',
+    request_timeout:
+      'L’import prend plus de temps que prévu. Le traitement a peut-être continué côté serveur ; vérifiez le résultat puis relancez si nécessaire.',
     result_sheets_title: 'Détail par feuille',
     sheet_ignored_rows: '{count} ligne(s) ignorée(s)',
     sheet_blocked_rows: '{count} ligne(s) bloquante(s)',
