@@ -825,8 +825,11 @@ export default {
     estimated_salaries: 'Salaires estimés',
     estimated_entries: 'Écritures estimées',
     comparison_title: 'Comparaison Excel -> Solde',
+    comparison_title_global: 'Convergence globale Excel et Solde',
     comparison_subtitle:
       'Ce résumé indique, par domaine, ce qui est déjà présent dans Solde, ce qui manque encore, ce qui est en trop côté Solde, ce qui est ignoré par politique et ce qui bloque.',
+    comparison_subtitle_global:
+      'Ce résumé rapproche le journal Excel et les écritures déjà présentes dans Solde pour signaler les lignes déjà couvertes, celles encore manquantes et celles présentes seulement dans Solde.',
     comparison_file_rows: '{count} ligne(s) Excel',
     comparison_already_in_solde: '{count} déjà dans Solde',
     comparison_missing_in_solde: '{count} manquante(s) dans Solde',

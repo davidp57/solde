@@ -186,8 +186,8 @@
       <div v-if="preview.comparison?.domains.length" class="import-comparison-block">
         <div class="import-comparison-block__header">
           <div>
-            <h3 class="import-sheet-list__title">{{ t('import.comparison_title') }}</h3>
-            <p class="import-action-hint">{{ t('import.comparison_subtitle') }}</p>
+            <h3 class="import-sheet-list__title">{{ comparisonTitle }}</h3>
+            <p class="import-action-hint">{{ comparisonSubtitle }}</p>
           </div>
           <div class="import-sheet-card__stats">
             <strong class="import-sheet-card__rows">
@@ -563,6 +563,18 @@ const previewStateMessage = computed(() => {
   if (previewState.value === 'ready') return t('import.preview_ready')
   if (previewState.value === 'noop') return t('import.preview_noop')
   return t('import.preview_blocked')
+})
+const comparisonTitle = computed(() => {
+  if (preview.value?.comparison?.mode === 'global-convergence') {
+    return t('import.comparison_title_global')
+  }
+  return t('import.comparison_title')
+})
+const comparisonSubtitle = computed(() => {
+  if (preview.value?.comparison?.mode === 'global-convergence') {
+    return t('import.comparison_subtitle_global')
+  }
+  return t('import.comparison_subtitle')
 })
 const importActionHint = computed(() => {
   if (!selectedFile.value) return t('import.file_required')

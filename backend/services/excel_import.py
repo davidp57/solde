@@ -1502,6 +1502,85 @@ async def _collect_gestion_extra_in_solde_by_kind(
     return extra_in_solde_by_kind
 
 
+async def _load_existing_accounting_entry_comparison_signatures(
+    db: AsyncSession,
+    years: set[int],
+) -> set[str]:
+    if not years:
+        return set()
+
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.accounting_entry import AccountingEntry  # noqa: PLC0415
+
+    result = await db.execute(
+        select(
+            AccountingEntry.date,
+            AccountingEntry.account_number,
+            AccountingEntry.label,
+            AccountingEntry.debit,
+            AccountingEntry.credit,
+        )
+    )
+    return {
+        _accounting_entry_signature(
+            entry_date=entry_date,
+            account_number=account_number,
+            label=label,
+            debit=debit,
+            credit=credit,
+        )
+        for entry_date, account_number, label, debit, credit in result.all()
+        if entry_date.year in years
+    }
+
+
+async def _collect_comptabilite_extra_in_solde_by_kind(
+    db: AsyncSession,
+    file_bytes: bytes,
+    preview: PreviewResult,
+) -> dict[str, int]:
+    from io import BytesIO  # noqa: PLC0415
+
+    import openpyxl  # noqa: PLC0415
+
+    workbook_entry_signatures: set[str] = set()
+    workbook_years: set[int] = set()
+
+    wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        kind, _ = _classify_comptabilite_sheet(sheet_name)
+        sheet_preview = _find_sheet_preview(preview, sheet_name)
+        if kind != "entries" or sheet_preview is None or sheet_preview["status"] != "recognized":
+            continue
+
+        parsed_sheet, normalized_rows, _, _ = _parse_entries_sheet(ws)
+        if parsed_sheet is None or parsed_sheet.missing_columns:
+            continue
+
+        for entry_row in normalized_rows:
+            workbook_years.add(entry_row.entry_date.year)
+            workbook_entry_signatures.add(
+                _accounting_entry_signature(
+                    entry_date=entry_row.entry_date,
+                    account_number=entry_row.account_number,
+                    label=entry_row.label,
+                    debit=entry_row.debit,
+                    credit=entry_row.credit,
+                )
+            )
+
+    if not workbook_years:
+        return {}
+
+    existing_entry_signatures = await _load_existing_accounting_entry_comparison_signatures(
+        db,
+        workbook_years,
+    )
+    return {"entries": len(existing_entry_signatures - workbook_entry_signatures)}
+
+
 def _matching_existing_salary_entry_group(
     entry_rows: list[NormalizedEntryRow],
     existing_salary_group_signatures: dict[str, set[tuple[str, ...]]],
@@ -3353,6 +3432,7 @@ async def _add_comptabilite_existing_rows_preview(
                             ),
                         ),
                     )
+                    sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
                     preview.estimated_entries = max(0, preview.estimated_entries - 1)
                 index = next_index
                 continue
@@ -3370,6 +3450,7 @@ async def _add_comptabilite_existing_rows_preview(
                             message=ENTRY_EXISTING_MESSAGE,
                         ),
                     )
+                    sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
                     preview.estimated_entries = max(0, preview.estimated_entries - 1)
                 index = next_index
                 continue
@@ -3387,6 +3468,7 @@ async def _add_comptabilite_existing_rows_preview(
                             message=ENTRY_EXISTING_MESSAGE,
                         ),
                     )
+                    sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
                     preview.estimated_entries = max(0, preview.estimated_entries - 1)
                 index = next_index
                 continue
@@ -3404,6 +3486,7 @@ async def _add_comptabilite_existing_rows_preview(
                             message=ENTRY_EXISTING_MESSAGE,
                         ),
                     )
+                    sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
                     preview.estimated_entries = max(0, preview.estimated_entries - 1)
                 index = next_index
                 continue
@@ -3421,6 +3504,7 @@ async def _add_comptabilite_existing_rows_preview(
                             message=ENTRY_EXISTING_MESSAGE,
                         ),
                     )
+                    sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
                     preview.estimated_entries = max(0, preview.estimated_entries - 1)
                 index = next_index
                 continue
@@ -3443,6 +3527,7 @@ async def _add_comptabilite_existing_rows_preview(
                         message=ENTRY_EXISTING_MESSAGE,
                     ),
                 )
+                sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
                 preview.estimated_entries = max(0, preview.estimated_entries - 1)
             index = next_index
 
@@ -3830,6 +3915,10 @@ async def preview_comptabilite_file(db: AsyncSession, file_bytes: bytes) -> Prev
 
     await _add_comptabilite_coexistence_validation(db, preview)
     await _add_comptabilite_existing_rows_preview(db, file_bytes, preview)
+    preview.comparison_mode = "global-convergence"
+    preview.comparison_context[
+        "extra_in_solde_by_kind"
+    ] = await _collect_comptabilite_extra_in_solde_by_kind(db, file_bytes, preview)
     if preview.errors:
         preview.can_import = False
         return preview

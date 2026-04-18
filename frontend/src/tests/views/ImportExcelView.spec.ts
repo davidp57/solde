@@ -11,6 +11,7 @@ const mockImportGestionFileApi = vi.spyOn(accountingApi, 'importGestionFileApi')
 const mockImportTestShortcutApi = vi.spyOn(accountingApi, 'importTestShortcutApi')
 const mockListTestImportShortcutsApi = vi.spyOn(accountingApi, 'listTestImportShortcutsApi')
 const mockPreviewGestionFileApi = vi.spyOn(accountingApi, 'previewGestionFileApi')
+const mockPreviewComptabiliteFileApi = vi.spyOn(accountingApi, 'previewComptabiliteFileApi')
 
 const ButtonStub = defineComponent({
   props: {
@@ -234,6 +235,45 @@ describe('ImportExcelView', () => {
     await flushView()
 
     expect(wrapper.text()).toContain('3 en trop dans Solde')
+  })
+
+  it('shows the global convergence title for comptabilite comparisons', async () => {
+    mockPreviewComptabiliteFileApi.mockResolvedValueOnce(
+      buildPreviewResult({
+        comparison: {
+          mode: 'global-convergence',
+          direction: 'bidirectional',
+          domains: [
+            {
+              kind: 'entries',
+              file_rows: 2,
+              already_in_solde: 1,
+              missing_in_solde: 1,
+              extra_in_solde: 1,
+              ignored_by_policy: 0,
+              blocked: 0,
+            },
+          ],
+          totals: {
+            file_rows: 2,
+            already_in_solde: 1,
+            missing_in_solde: 1,
+            extra_in_solde: 1,
+            ignored_by_policy: 0,
+            blocked: 0,
+          },
+        },
+      }),
+    )
+
+    const wrapper = mountView()
+    await wrapper.get('#type-compta').trigger('change')
+    await nextTick()
+    await selectFile(wrapper, 'Comptabilite 2025.xlsx')
+    await wrapper.get('[data-testid="preview-button"]').trigger('click')
+    await flushView()
+
+    expect(wrapper.text()).toContain('Convergence globale Excel et Solde')
   })
 
   it('clears a previous preview when the import type changes', async () => {

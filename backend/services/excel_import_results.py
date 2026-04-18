@@ -148,6 +148,51 @@ def _build_gestion_preview_comparison(
     }
 
 
+def _build_comptabilite_preview_comparison(
+    serialized_sheets: list[dict[str, Any]],
+    *,
+    extra_in_solde_by_kind: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    extra_in_solde_by_kind = extra_in_solde_by_kind or {}
+    domains: list[dict[str, Any]] = []
+    for summary in serialized_sheets:
+        kind = summary.get("kind")
+        if kind != "entries":
+            continue
+        if summary.get("status") not in {"recognized", "unsupported"}:
+            continue
+
+        policy_ignored_rows = int(summary.get("policy_ignored_rows", 0))
+        ignored_rows = int(summary.get("ignored_rows", 0))
+        source_rows = int(summary.get("source_rows", summary.get("rows", 0)))
+        initial_blocked_rows = int(summary.get("initial_blocked_rows", 0))
+        domains.append(
+            {
+                "kind": kind,
+                "file_rows": source_rows + policy_ignored_rows + initial_blocked_rows,
+                "already_in_solde": max(0, ignored_rows - policy_ignored_rows),
+                "missing_in_solde": int(summary.get("rows", 0)),
+                "extra_in_solde": int(extra_in_solde_by_kind.get("entries", 0)),
+                "ignored_by_policy": policy_ignored_rows,
+                "blocked": int(summary.get("blocked_rows", 0)),
+            }
+        )
+
+    return {
+        "mode": "global-convergence",
+        "direction": "bidirectional",
+        "domains": domains,
+        "totals": {
+            "file_rows": sum(domain["file_rows"] for domain in domains),
+            "already_in_solde": sum(domain["already_in_solde"] for domain in domains),
+            "missing_in_solde": sum(domain["missing_in_solde"] for domain in domains),
+            "extra_in_solde": sum(domain["extra_in_solde"] for domain in domains),
+            "ignored_by_policy": sum(domain["ignored_by_policy"] for domain in domains),
+            "blocked": sum(domain["blocked"] for domain in domains),
+        },
+    }
+
+
 class ImportResult:
     """Summary of an import operation."""
 
@@ -348,6 +393,11 @@ class PreviewResult:
         }
         if self.comparison_mode == "gestion-excel-to-solde":
             payload["comparison"] = _build_gestion_preview_comparison(
+                serialized_sheets,
+                extra_in_solde_by_kind=self.comparison_context.get("extra_in_solde_by_kind"),
+            )
+        if self.comparison_mode == "global-convergence":
+            payload["comparison"] = _build_comptabilite_preview_comparison(
                 serialized_sheets,
                 extra_in_solde_by_kind=self.comparison_context.get("extra_in_solde_by_kind"),
             )
