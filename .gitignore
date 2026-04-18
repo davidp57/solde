@@ -60,3 +60,6 @@ desktop.ini
 
 # Docker
 docker-compose.override.yml
+
+# Project-specific
+data/

@@ -116,6 +116,7 @@ export interface ImportResult {
 }
 
 export interface ImportIssueDetail {
+  category?: string | null
   severity: 'warning' | 'error'
   sheet_name: string | null
   kind: string | null
