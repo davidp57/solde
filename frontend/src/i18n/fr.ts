@@ -826,10 +826,11 @@ export default {
     estimated_entries: 'Écritures estimées',
     comparison_title: 'Comparaison Excel -> Solde',
     comparison_subtitle:
-      'Premier lot BL-008 : ce résumé indique, par domaine, ce qui est déjà présent dans Solde, ce qui manque encore, ce qui est ignoré par politique et ce qui bloque.',
+      'Ce résumé indique, par domaine, ce qui est déjà présent dans Solde, ce qui manque encore, ce qui est en trop côté Solde, ce qui est ignoré par politique et ce qui bloque.',
     comparison_file_rows: '{count} ligne(s) Excel',
     comparison_already_in_solde: '{count} déjà dans Solde',
     comparison_missing_in_solde: '{count} manquante(s) dans Solde',
+    comparison_extra_in_solde: '{count} en trop dans Solde',
     comparison_ignored_by_policy: '{count} ignorée(s) par politique',
     comparison_blocked: '{count} bloquante(s)',
     warnings: 'Avertissements',

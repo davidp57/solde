@@ -754,6 +754,7 @@ export interface PreviewComparisonDomain {
   file_rows: number
   already_in_solde: number
   missing_in_solde: number
+  extra_in_solde: number
   ignored_by_policy: number
   blocked: number
 }
@@ -766,6 +767,7 @@ export interface PreviewComparisonSummary {
     file_rows: number
     already_in_solde: number
     missing_in_solde: number
+    extra_in_solde: number
     ignored_by_policy: number
     blocked: number
   }
