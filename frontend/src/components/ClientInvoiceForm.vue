@@ -17,8 +17,8 @@
           <label class="app-field__label">{{ t('invoices.contact') }}</label>
           <Select
             v-model="form.contact_id"
-            :options="contacts"
-            option-label="nom"
+            :options="contactOptions"
+            option-label="displayName"
             option-value="id"
             :placeholder="t('invoices.contact_placeholder')"
             filter
@@ -97,6 +97,7 @@
           severity="danger"
           text
           type="button"
+          class="invoice-form__remove"
           @click="removeLine(idx)"
         />
       </div>
@@ -136,6 +137,7 @@ import {
   type Invoice,
   type InvoiceLineType,
 } from '../api/invoices'
+import { formatContactDisplayName } from '../utils/contact'
 
 const props = defineProps<{
   invoice: Invoice | null
@@ -179,6 +181,13 @@ const lineTypeOptions = [
   { label: t('invoices.client.line_types.adhesion'), value: 'adhesion' },
   { label: t('invoices.client.line_types.autres'), value: 'autres' },
 ]
+
+const contactOptions = computed(() =>
+  props.contacts.map((contact) => ({
+    ...contact,
+    displayName: formatContactDisplayName(contact),
+  })),
+)
 
 const defaultLineDescriptions: Record<InvoiceLineType, string> = {
   cours: 'Cours de soutien',
@@ -341,9 +350,16 @@ onMounted(() => {
 
 .invoice-form__line-row {
   display: grid;
-  grid-template-columns: 160px minmax(0, 1.6fr) 110px 140px 110px auto;
+  grid-template-columns:
+    minmax(8.5rem, 1.05fr) minmax(0, 1.8fr) minmax(5.5rem, 0.7fr) minmax(7rem, 0.9fr)
+    minmax(6.5rem, 0.75fr) auto;
+  grid-template-areas: 'type description quantity price total remove';
   gap: var(--app-space-3);
   align-items: center;
+}
+
+.invoice-form__line-row > * {
+  min-width: 0;
 }
 
 .invoice-form__type,
@@ -353,11 +369,41 @@ onMounted(() => {
   width: 100%;
 }
 
+.invoice-form__type {
+  grid-area: type;
+}
+
+.invoice-form__description {
+  grid-area: description;
+}
+
+.invoice-form__quantity {
+  grid-area: quantity;
+}
+
+.invoice-form__price {
+  grid-area: price;
+}
+
+.invoice-form__line-row :deep(.p-select),
+.invoice-form__line-row :deep(.p-inputtext),
+.invoice-form__line-row :deep(.p-inputnumber),
+.invoice-form__line-row :deep(.p-inputnumber-input) {
+  width: 100%;
+  min-width: 0;
+}
+
 .invoice-form__total {
+  grid-area: total;
   text-align: right;
   font-size: 0.95rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.invoice-form__remove {
+  grid-area: remove;
+  justify-self: end;
 }
 
 .invoice-form__grand-total {
@@ -372,14 +418,39 @@ onMounted(() => {
   font-size: 0.92rem;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1080px) {
+  .invoice-form__line-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas:
+      'type description description remove'
+      'quantity price total remove';
+    align-items: start;
+  }
+
+  .invoice-form__remove {
+    align-self: center;
+  }
+}
+
+@media (max-width: 700px) {
   .invoice-form__line-row {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      'type'
+      'description'
+      'quantity'
+      'price'
+      'total'
+      'remove';
   }
 
   .invoice-form__total,
   .invoice-form__grand-total {
     text-align: left;
+  }
+
+  .invoice-form__remove {
+    justify-self: start;
   }
 }
 </style>

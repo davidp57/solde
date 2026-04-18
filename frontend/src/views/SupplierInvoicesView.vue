@@ -338,6 +338,7 @@ import {
   findSelectedFilterLabel,
 } from '../composables/activeFilterLabels'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatContactDisplayName } from '../utils/contact'
 import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
@@ -433,7 +434,7 @@ function formatAmount(val: string | number) {
 function contactName(id: number): string {
   const c = contacts.value.find((c) => c.id === id)
   if (!c) return String(id)
-  return c.prenom ? `${c.prenom} ${c.nom}` : c.nom
+  return formatContactDisplayName(c)
 }
 
 function statusSeverity(s: InvoiceStatus): string {

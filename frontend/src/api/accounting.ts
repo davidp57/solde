@@ -568,14 +568,18 @@ export interface TestImportShortcut {
 export async function importGestionFileApi(file: File): Promise<ImportResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<ImportResult>('/api/import/excel/gestion', form)
+  const response = await apiClient.post<ImportResult>('/api/import/excel/gestion', form, {
+    timeout: 120000,
+  })
   return response.data
 }
 
 export async function importComptabiliteFileApi(file: File): Promise<ImportResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<ImportResult>('/api/import/excel/comptabilite', form)
+  const response = await apiClient.post<ImportResult>('/api/import/excel/comptabilite', form, {
+    timeout: 120000,
+  })
   return response.data
 }
 
@@ -760,7 +764,9 @@ export interface PreviewResult {
 export async function previewGestionFileApi(file: File): Promise<PreviewResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<PreviewResult>('/api/import/excel/gestion/preview', form)
+  const response = await apiClient.post<PreviewResult>('/api/import/excel/gestion/preview', form, {
+    timeout: 60000,
+  })
   return response.data
 }
 
@@ -770,6 +776,9 @@ export async function previewComptabiliteFileApi(file: File): Promise<PreviewRes
   const response = await apiClient.post<PreviewResult>(
     '/api/import/excel/comptabilite/preview',
     form,
+    {
+      timeout: 60000,
+    },
   )
   return response.data
 }
