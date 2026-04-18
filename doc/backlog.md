@@ -138,12 +138,55 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Phase 1** : initialiser proprement Solde à partir des fichiers historiques existants.
 - **Phase 2** : réimporter régulièrement Excel pour vérifier que les écritures et mouvements saisis dans Solde correspondent exactement à la réalité comptable de référence.
 - **Résultat attendu** : détecter toute écriture manquante, en trop ou divergente, avec un haut niveau d'exigence sur montants, dates, libellés et équilibres, et une politique claire sur ce qui reste bloquant versus seulement signalé.
+- **Objectif métier clarifié au 2026-04-18** : après un import initial, vérifier que ce qui est ensuite généré dans Solde et ce qui continue à être saisi dans Excel restent cohérents sur les invariants métier essentiels, plutôt que d'exiger une identité aveugle ligne à ligne sur tout l'historique ou d'attendre qu'un seul fichier Excel recouvre à lui seul tout ce qui existe dans Solde.
+- **Invariants métier à contrôler** :
+	- les factures clientes sont cohérentes dans les deux sens, mais sur des périmètres différents : côté `Solde -> Excel`, seules les factures appartenant à la vraie période/exercice du fichier doivent être attendues dans Excel ; côté `Excel -> Solde`, toutes les factures encore présentes dans Excel, même anciennes car non soldées, doivent exister aussi dans Solde ;
+	- les soldes des comptes de trésorerie sont cohérents entre Solde et Excel (`Banque`, `Caisse`, remises/chèques à déposer) ;
+	- les soldes comptables des comptes structurants sont identiques entre Solde et Excel (`clients`, `fournisseurs`, `banque`, `caisse`, `chèques à déposer`, autres comptes pivots de rapprochement), sans exiger que le détail des écritures soit identique ligne à ligne si les deux systèmes modélisent différemment une même opération ;
+	- les paiements/règlements sont cohérents avec les factures ouvertes et soldées : pas de facture marquée payée d'un côté et impayée de l'autre, pas de règlement orphelin ou dupliqué ;
+	- les comparaisons métier qui dépendent d'écritures dérivées doivent être raisonnées sur l'ensemble `Gestion + Comptabilite`, et non sur un seul fichier pris isolément, en particulier quand `Comptabilite` porte des ventilations ou des splits absents de `Gestion` ;
+	- les écarts acceptables doivent être explicitement normalisés par politique métier (différences de granularité, projections fournisseur, écritures d'ouverture, reports historiques encore ouverts), et tout le reste doit ressortir comme divergence réelle ;
+	- la cible finale n'est pas l'absence totale d'écart brut, mais le fait que tous les écarts restants soient prévisibles, explicables et progressivement réduits à mesure que les règles métier de comparaison sont enrichies.
 - **Décisions de cadrage issues de `BL-026`** :
 	- prévoir deux modes de comparaison distincts : `convergence globale` pour comparer l'état final Excel et l'état final Solde, y compris les écritures d'ouverture et les écritures importées depuis `Comptabilite`, et `validation du moteur Gestion` pour comparer seulement les écritures générées par `Gestion` avec les écritures Excel correspondant aux mêmes événements métier ;
 	- ne pas imposer une identité ligne à ligne comme unique cible : certaines différences de structure doivent être rapprochées par des règles métier explicites ;
 	- pour les fournisseurs, considérer comme cas normalisable le fait qu'Excel porte souvent un paiement direct (`charge -> banque/caisse`) alors que Solde modélise `facture fournisseur -> règlement` ;
 	- pour les factures clients mixtes de type `cs+a`, considérer au contraire que la ventilation multi-comptes observée dans Excel exprime une réalité comptable cible et non un simple artefact de rapprochement ;
 	- sur les salaires, ne pas ouvrir de sujet correctif tant qu'aucun écart métier de montant n'est démontré ; au besoin, formaliser seulement une convention de date et de regroupement pour la comparaison.
+	- pour les factures clients, la comparaison `Solde -> Excel` ne doit pas prendre comme borne la première ou la dernière facture visible dans le classeur, car `Gestion 2025` peut conserver quelques factures beaucoup plus anciennes encore impayées ; le périmètre des `extra_in_solde` doit être borné par la vraie plage de l'exercice du fichier, tandis que la comparaison inverse `Excel -> Solde` doit continuer à vérifier toutes les factures effectivement présentes dans le classeur, y compris les anciennes restées ouvertes ; la même asymétrie de périmètre devra être confirmée ou non pour les autres domaines (`Paiements`, `Caisse`, `Banque`).
+	- pour rendre cette règle opérationnelle sur `Factures`, un fichier nommé `Gestion YYYY` doit être interprété comme l'exercice démarrant au mois `fiscal_year_start_month` de l'année `YYYY` et se terminant la veille du même mois l'année suivante ; si le nom du fichier ne permet pas de déduire l'exercice, la comparaison peut retomber provisoirement sur les dates visibles dans le classeur.
+	- pour `Paiements / règlements`, la comparaison bidirectionnelle doit suivre la même fenêtre d'exercice `Gestion YYYY` pour le périmètre temporel principal, y compris quand cet exercice déborde sur l'année civile suivante ; le contrôle complémentaire des paiements rattachés à des factures anciennes encore ouvertes reste un sujet distinct.
+	- pour `Banque`, le sens `Solde -> Excel` doit suivre la plage réelle couverte par le relevé visible dans le classeur, et cette plage peut recouvrir plusieurs années civiles même si aucune ligne n'existe dans l'une d'elles ; les `extra_in_solde` doivent donc être cherchés sur toute la fenêtre de dates, pas seulement sur les années explicitement présentes dans les lignes du fichier.
+	- pour `Caisse`, le sens `Solde -> Excel` doit suivre la plage réelle couverte par le registre visible dans le classeur, avec la même vigilance que pour `Banque` sur les années intermédiaires absentes des lignes affichées ; les `extra_in_solde` doivent être cherchés sur toute la fenêtre de dates, en excluant toujours le solde d'ouverture système.
+- **Grille de contrôle cible par domaine** :
+	- `Factures` :
+	  - **Source de vérité** : `Gestion` pour la présence des pièces ouvertes/soldées ; `Comptabilite` pour les ventilations dérivées quand une facture `cs+a` ou une règle de projection produit plusieurs lignes comptables.
+	  - **Sens de comparaison** : `Excel -> Solde` sur toutes les factures encore visibles dans le fichier ; `Solde -> Excel` seulement sur la vraie période/exercice du fichier.
+	  - **Invariants à vérifier** : existence des factures, montant total, statut métier (`ouverte`, `partielle`, `soldée`), reste dû, rattachement au bon contact.
+	  - **Écarts acceptables** : factures historiques encore ouvertes hors période d'exercice ; différences de ventilation comptable si le total et le reste dû restent cohérents.
+	- `Paiements / règlements` :
+	  - **Source de vérité** : `Gestion` pour les paiements clients et les règlements simples ; `Gestion + Compta` quand la contrepartie comptable doit être reconstituée.
+	  - **Sens de comparaison** : bidirectionnel sur la période du fichier, avec contrôle complémentaire des paiements rattachés à des factures encore ouvertes dans Excel.
+	  - **Invariants à vérifier** : pas de règlement orphelin, pas de doublon significatif, même facture soldée/non soldée des deux côtés, mêmes montants encaissés/décaisés par pièce.
+	  - **Écarts acceptables** : différences de granularité technique tant que le total réglé par facture et le statut de solde restent identiques.
+	- `Banque` :
+	  - **Source de vérité** : `Gestion` pour les mouvements bancaires importés ; `Comptabilite` pour vérifier les soldes de comptes et les projections induites.
+	  - **Sens de comparaison** : `Excel -> Solde` sur tous les mouvements du fichier ; `Solde -> Excel` borné à la période du relevé/exercice contrôlé.
+	  - **Invariants à vérifier** : même solde bancaire final, mêmes mouvements significatifs non rapprochés, mêmes remises/chèques en transit.
+	  - **Écarts acceptables** : lignes descriptives de solde, écritures d'ouverture, regroupements techniques explicitement normalisés.
+	- `Caisse` :
+	  - **Source de vérité** : `Gestion` pour les mouvements de caisse ; `Comptabilite` pour la cohérence du compte de caisse et des projections associées.
+	  - **Sens de comparaison** : bidirectionnel sur la période du fichier, avec borne métier d'exercice et exclusion explicite du solde d'ouverture système.
+	  - **Invariants à vérifier** : même solde de caisse, mêmes entrées/sorties significatives, pas d'écart inexpliqué sur les remises d'espèces ou les décaissements fournisseurs.
+	  - **Écarts acceptables** : solde initial, prévisions de remise d'espèces ou regroupements normalisés par politique métier.
+	- `Comptabilité / comptes pivots` :
+	  - **Source de vérité** : `Comptabilite` pour les écritures de référence ; `Gestion` sert d'entrée métier mais ne suffit pas à lui seul pour comparer les écritures dérivées.
+	  - **Sens de comparaison** : comparaison des soldes et des groupes d'écritures sur la période, pas identité brute ligne à ligne si les deux systèmes modélisent différemment la même opération.
+	  - **Invariants à vérifier** : mêmes soldes sur les comptes structurants (`clients`, `fournisseurs`, `banque`, `caisse`, `chèques à déposer`, autres comptes de rapprochement), mêmes équilibres par groupe métier important.
+	  - **Écarts acceptables** : une opération détaillée en `2` écritures dans Excel et `4` dans Solde si le résultat comptable final, les soldes et le sens des comptes restent identiques.
+	- `Écarts résiduels` :
+	  - **Objectif** : tout écart restant doit être classé comme `attendu et expliqué par une règle métier`, `toléré mais à surveiller`, ou `anomalie réelle`.
+	  - **Critère de maturité BL-008** : les écarts non expliqués doivent tendre vers zéro, et chaque nouvelle passe de recette doit enrichir les règles de comparaison pour rendre les écarts restants prévisibles et compréhensibles.
 - **Premier lot visé** :
 	- formaliser ces deux modes de validation (`convergence globale` et `validation du moteur Gestion`) et leurs périmètres respectifs ;
 	- formaliser un contrat de comparaison par domaine (`Factures`, `Paiements`, `Caisse`, `Banque`, `Journal`) ;

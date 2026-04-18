@@ -93,7 +93,7 @@ async def _run(repo_root: Path) -> dict[str, Any]:
 
             content = file_path.read_bytes()
             if import_type == "gestion":
-                preview = await excel_import.preview_gestion_file(session, content)
+                preview = await excel_import.preview_gestion_file(session, content, file_path.name)
             else:
                 preview = await excel_import.preview_comptabilite_file(session, content)
             previews.append(

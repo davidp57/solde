@@ -60,3 +60,4 @@ desktop.ini
 
 # Docker
 docker-compose.override.yml
+data/logs/solde.log.3
