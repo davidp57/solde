@@ -175,9 +175,7 @@ async def _generate_split_client_invoice_entries(
     if total_amount <= 0:
         return []
 
-    positive_line_types = {
-        line_type for line_type, amount in grouped_amounts.items() if amount > 0
-    }
+    positive_line_types = {line_type for line_type, amount in grouped_amounts.items() if amount > 0}
     derived_label = derive_client_invoice_label(positive_line_types)
 
     debit_rule = await _get_rule(db, _trigger_for_client_invoice_label(derived_label))
