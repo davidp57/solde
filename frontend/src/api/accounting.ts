@@ -535,6 +535,7 @@ export interface ImportResult {
 }
 
 export interface ImportIssueDetail {
+  category?: string | null
   severity: 'warning' | 'error'
   sheet_name: string | null
   kind: string | null
@@ -735,15 +736,48 @@ export interface PreviewSheetResult {
   status: PreviewSheetStatus
   header_row: number | null
   rows: number
+  source_rows?: number
   detected_columns: string[]
   missing_columns: string[]
   ignored_rows: number
+  policy_ignored_rows?: number
   blocked_rows: number
+  initial_blocked_rows?: number
   sample_rows: Record<string, string>[]
   warnings: string[]
   errors: string[]
   warning_details: ImportIssueDetail[]
   error_details: ImportIssueDetail[]
+}
+
+export interface PreviewComparisonDomain {
+  kind: string
+  file_rows: number
+  already_in_solde: number
+  missing_in_solde: number
+  extra_in_solde: number
+  extra_in_solde_details?: PreviewComparisonExtraDetail[]
+  ignored_by_policy: number
+  blocked: number
+}
+
+export interface PreviewComparisonExtraDetail {
+  summary: string
+  [key: string]: string | undefined
+}
+
+export interface PreviewComparisonSummary {
+  mode: 'gestion-excel-to-solde' | 'global-convergence'
+  direction: 'excel-to-solde' | 'bidirectional'
+  domains: PreviewComparisonDomain[]
+  totals: {
+    file_rows: number
+    already_in_solde: number
+    missing_in_solde: number
+    extra_in_solde: number
+    ignored_by_policy: number
+    blocked: number
+  }
 }
 
 export interface PreviewResult {
@@ -759,20 +793,44 @@ export interface PreviewResult {
   warning_details: ImportIssueDetail[]
   can_import: boolean
   sample_rows: Record<string, unknown>[]
+  comparison?: PreviewComparisonSummary
 }
 
-export async function previewGestionFileApi(file: File): Promise<PreviewResult> {
+export interface PreviewComparisonWindow {
+  comparison_start_date?: string
+  comparison_end_date?: string
+}
+
+export async function previewGestionFileApi(
+  file: File,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<PreviewResult> {
   const form = new FormData()
   form.append('file', file)
+  if (comparisonWindow.comparison_start_date) {
+    form.append('comparison_start_date', comparisonWindow.comparison_start_date)
+  }
+  if (comparisonWindow.comparison_end_date) {
+    form.append('comparison_end_date', comparisonWindow.comparison_end_date)
+  }
   const response = await apiClient.post<PreviewResult>('/api/import/excel/gestion/preview', form, {
     timeout: 60000,
   })
   return response.data
 }
 
-export async function previewComptabiliteFileApi(file: File): Promise<PreviewResult> {
+export async function previewComptabiliteFileApi(
+  file: File,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<PreviewResult> {
   const form = new FormData()
   form.append('file', file)
+  if (comparisonWindow.comparison_start_date) {
+    form.append('comparison_start_date', comparisonWindow.comparison_start_date)
+  }
+  if (comparisonWindow.comparison_end_date) {
+    form.append('comparison_end_date', comparisonWindow.comparison_end_date)
+  }
   const response = await apiClient.post<PreviewResult>(
     '/api/import/excel/comptabilite/preview',
     form,
