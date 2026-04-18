@@ -199,6 +199,43 @@ describe('ImportExcelView', () => {
     ).toBe(false)
   })
 
+  it('shows extra rows already present only in Solde inside the comparison summary', async () => {
+    mockPreviewGestionFileApi.mockResolvedValueOnce(
+      buildPreviewResult({
+        comparison: {
+          mode: 'gestion-excel-to-solde',
+          direction: 'excel-to-solde',
+          domains: [
+            {
+              kind: 'invoices',
+              file_rows: 2,
+              already_in_solde: 1,
+              missing_in_solde: 1,
+              extra_in_solde: 3,
+              ignored_by_policy: 0,
+              blocked: 0,
+            },
+          ],
+          totals: {
+            file_rows: 2,
+            already_in_solde: 1,
+            missing_in_solde: 1,
+            extra_in_solde: 3,
+            ignored_by_policy: 0,
+            blocked: 0,
+          },
+        },
+      }),
+    )
+
+    const wrapper = mountView()
+    await selectFile(wrapper)
+    await wrapper.get('[data-testid="preview-button"]').trigger('click')
+    await flushView()
+
+    expect(wrapper.text()).toContain('3 en trop dans Solde')
+  })
+
   it('clears a previous preview when the import type changes', async () => {
     mockPreviewGestionFileApi.mockResolvedValueOnce(buildPreviewResult())
 

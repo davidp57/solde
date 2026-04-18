@@ -1127,6 +1127,381 @@ async def _load_existing_salary_group_signatures(
     }
 
 
+def _gestion_payment_comparison_signature(
+    *,
+    reference: str,
+    payment_date: date,
+    amount: Decimal,
+    settlement_account: str,
+) -> tuple[str, str, str, str]:
+    return (
+        _normalize_text(reference),
+        payment_date.isoformat(),
+        _normalize_decimal_text(amount),
+        _normalize_text(settlement_account),
+    )
+
+
+def _gestion_salary_comparison_signature(
+    *,
+    month: str,
+    employee_name: str,
+    gross: Decimal,
+    net_pay: Decimal,
+) -> tuple[str, str, str, str]:
+    return (
+        month,
+        _salary_employee_key(employee_name),
+        _normalize_decimal_text(gross),
+        _normalize_decimal_text(net_pay),
+    )
+
+
+def _gestion_bank_comparison_signature(
+    *,
+    entry_date: date,
+    amount: Decimal,
+    description: str,
+    reference: str | None,
+) -> tuple[str, str, str, str]:
+    return (
+        entry_date.isoformat(),
+        _normalize_decimal_text(amount),
+        _normalize_text(description),
+        _normalize_text(reference or ""),
+    )
+
+
+def _gestion_cash_comparison_signature(
+    *,
+    entry_date: date,
+    movement_type: str,
+    amount: Decimal,
+    description: str,
+    reference: str | None,
+) -> tuple[str, str, str, str, str]:
+    return (
+        entry_date.isoformat(),
+        _normalize_text(movement_type),
+        _normalize_decimal_text(amount),
+        _normalize_text(description),
+        _normalize_text(reference or ""),
+    )
+
+
+async def _load_existing_client_invoice_comparison_signatures(
+    db: AsyncSession,
+    years: set[int],
+) -> set[str]:
+    if not years:
+        return set()
+
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.invoice import Invoice, InvoiceType  # noqa: PLC0415
+
+    result = await db.execute(
+        select(Invoice.number, Invoice.date).where(Invoice.type == InvoiceType.CLIENT)
+    )
+    return {
+        _normalize_text(number)
+        for number, invoice_date in result.all()
+        if number and invoice_date.year in years
+    }
+
+
+async def _load_existing_client_payment_comparison_signatures(
+    db: AsyncSession,
+    years: set[int],
+) -> set[tuple[str, str, str, str]]:
+    if not years:
+        return set()
+
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.invoice import Invoice, InvoiceType  # noqa: PLC0415
+    from backend.models.payment import Payment  # noqa: PLC0415
+
+    result = await db.execute(
+        select(Invoice.number, Invoice.reference, Payment.date, Payment.amount, Payment.method)
+        .join(Payment, Payment.invoice_id == Invoice.id)
+        .where(Invoice.type == InvoiceType.CLIENT)
+    )
+
+    signatures: set[tuple[str, str, str, str]] = set()
+    for number, reference, payment_date, amount, method in result.all():
+        if payment_date.year not in years:
+            continue
+        references = {number}
+        if reference:
+            references.add(reference)
+        settlement_account = _client_settlement_account_from_method(str(method))
+        for candidate_reference in references:
+            if not candidate_reference:
+                continue
+            signatures.add(
+                _gestion_payment_comparison_signature(
+                    reference=candidate_reference,
+                    payment_date=payment_date,
+                    amount=amount,
+                    settlement_account=settlement_account,
+                )
+            )
+    return signatures
+
+
+async def _load_existing_salary_comparison_signatures(
+    db: AsyncSession,
+    months: set[str],
+) -> set[tuple[str, str, str, str]]:
+    if not months:
+        return set()
+
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.contact import Contact  # noqa: PLC0415
+    from backend.models.salary import Salary  # noqa: PLC0415
+
+    result = await db.execute(
+        select(
+            Salary.month,
+            Contact.nom,
+            Contact.prenom,
+            Salary.gross,
+            Salary.net_pay,
+        ).join(Contact)
+    )
+    return {
+        _gestion_salary_comparison_signature(
+            month=month,
+            employee_name=_format_contact_display_name(nom, prenom) or nom,
+            gross=Decimal(str(gross)),
+            net_pay=Decimal(str(net_pay)),
+        )
+        for month, nom, prenom, gross, net_pay in result.all()
+        if month in months
+    }
+
+
+async def _load_existing_bank_comparison_signatures(
+    db: AsyncSession,
+    years: set[int],
+) -> set[tuple[str, str, str, str]]:
+    if not years:
+        return set()
+
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.bank import BankTransaction, BankTransactionSource  # noqa: PLC0415
+
+    result = await db.execute(
+        select(
+            BankTransaction.date,
+            BankTransaction.amount,
+            BankTransaction.description,
+            BankTransaction.reference,
+            BankTransaction.source,
+        )
+    )
+    return {
+        _gestion_bank_comparison_signature(
+            entry_date=entry_date,
+            amount=amount,
+            description=description,
+            reference=reference,
+        )
+        for entry_date, amount, description, reference, source in result.all()
+        if entry_date.year in years and source != BankTransactionSource.SYSTEM_OPENING
+    }
+
+
+async def _load_existing_cash_comparison_signatures(
+    db: AsyncSession,
+    years: set[int],
+) -> set[tuple[str, str, str, str, str]]:
+    if not years:
+        return set()
+
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.cash import CashEntrySource, CashRegister  # noqa: PLC0415
+
+    result = await db.execute(
+        select(
+            CashRegister.date,
+            CashRegister.type,
+            CashRegister.amount,
+            CashRegister.description,
+            CashRegister.reference,
+            CashRegister.source,
+        )
+    )
+    return {
+        _gestion_cash_comparison_signature(
+            entry_date=entry_date,
+            movement_type=str(movement_type),
+            amount=amount,
+            description=description,
+            reference=reference,
+        )
+        for entry_date, movement_type, amount, description, reference, source in result.all()
+        if entry_date.year in years and source != CashEntrySource.SYSTEM_OPENING
+    }
+
+
+async def _collect_gestion_extra_in_solde_by_kind(
+    db: AsyncSession,
+    file_bytes: bytes,
+    preview: PreviewResult,
+) -> dict[str, int]:
+    from io import BytesIO  # noqa: PLC0415
+
+    import openpyxl  # noqa: PLC0415
+
+    workbook_invoice_numbers: set[str] = set()
+    workbook_payment_signatures: set[tuple[str, str, str, str]] = set()
+    workbook_salary_signatures: set[tuple[str, str, str, str]] = set()
+    workbook_bank_signatures: set[tuple[str, str, str, str]] = set()
+    workbook_cash_signatures: set[tuple[str, str, str, str, str]] = set()
+    invoice_years: set[int] = set()
+    payment_years: set[int] = set()
+    bank_years: set[int] = set()
+    cash_years: set[int] = set()
+    salary_months: set[str] = set()
+    workbook_candidates: list[PaymentMatchCandidate] = []
+    payment_rows: list[NormalizedPaymentRow] = []
+
+    wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        kind, _ = _classify_gestion_sheet(sheet_name)
+        sheet_preview = _find_sheet_preview(preview, sheet_name)
+        if kind is None or sheet_preview is None or sheet_preview["status"] != "recognized":
+            continue
+
+        if kind == "invoices":
+            parsed_sheet, invoice_rows, _, _ = _parse_invoice_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            invoice_rows, _ = filter_duplicate_invoice_rows(
+                invoice_rows,
+                normalize_text=_normalize_text,
+            )
+            for invoice_row in invoice_rows:
+                if invoice_row.invoice_number:
+                    workbook_invoice_numbers.add(_normalize_text(invoice_row.invoice_number))
+                invoice_years.add(invoice_row.invoice_date.year)
+                workbook_candidates.append(_make_workbook_invoice_candidate(invoice_row))
+
+        elif kind == "payments":
+            parsed_sheet, parsed_payment_rows, _ = _parse_payment_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            payment_rows.extend(parsed_payment_rows)
+            payment_years.update(
+                payment_row.payment_date.year for payment_row in parsed_payment_rows
+            )
+
+        elif kind == "salaries":
+            parsed_sheet, salary_rows, _ = _parse_salary_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            for salary_row in salary_rows:
+                salary_months.add(salary_row.month)
+                workbook_salary_signatures.add(
+                    _gestion_salary_comparison_signature(
+                        month=salary_row.month,
+                        employee_name=salary_row.employee_name,
+                        gross=salary_row.gross,
+                        net_pay=salary_row.net_pay,
+                    )
+                )
+
+        elif kind == "bank":
+            parsed_sheet, bank_rows, _, _ = _parse_bank_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            for bank_row in bank_rows:
+                bank_years.add(bank_row.entry_date.year)
+                workbook_bank_signatures.add(
+                    _gestion_bank_comparison_signature(
+                        entry_date=bank_row.entry_date,
+                        amount=bank_row.amount,
+                        description=bank_row.description,
+                        reference=bank_row.reference,
+                    )
+                )
+
+        elif kind == "cash":
+            parsed_sheet, cash_rows, _, _ = _parse_cash_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            for cash_row in cash_rows:
+                cash_years.add(cash_row.entry_date.year)
+                workbook_cash_signatures.add(
+                    _gestion_cash_comparison_signature(
+                        entry_date=cash_row.entry_date,
+                        movement_type=cash_row.movement_type,
+                        amount=cash_row.amount,
+                        description=cash_row.description,
+                        reference=cash_row.reference,
+                    )
+                )
+
+    for payment_row in payment_rows:
+        resolution = await _resolve_payment_match(
+            db,
+            payment_row,
+            workbook_candidates=workbook_candidates,
+        )
+        if resolution.status != "matched" or resolution.candidate is None:
+            continue
+        if not resolution.candidate.invoice_number:
+            continue
+        workbook_payment_signatures.add(
+            _gestion_payment_comparison_signature(
+                reference=resolution.candidate.invoice_number,
+                payment_date=payment_row.payment_date,
+                amount=payment_row.amount,
+                settlement_account=_client_settlement_account_from_method(payment_row.method),
+            )
+        )
+
+    extra_in_solde_by_kind: dict[str, int] = {}
+    if invoice_years:
+        existing_invoice_numbers = await _load_existing_client_invoice_comparison_signatures(
+            db,
+            invoice_years,
+        )
+        extra_in_solde_by_kind["invoices"] = len(
+            existing_invoice_numbers - workbook_invoice_numbers
+        )
+    if payment_years:
+        existing_payment_signatures = await _load_existing_client_payment_comparison_signatures(
+            db,
+            payment_years,
+        )
+        extra_in_solde_by_kind["payments"] = len(
+            existing_payment_signatures - workbook_payment_signatures
+        )
+    if salary_months:
+        existing_salary_signatures = await _load_existing_salary_comparison_signatures(
+            db,
+            salary_months,
+        )
+        extra_in_solde_by_kind["salaries"] = len(
+            existing_salary_signatures - workbook_salary_signatures
+        )
+    if bank_years:
+        existing_bank_signatures = await _load_existing_bank_comparison_signatures(db, bank_years)
+        extra_in_solde_by_kind["bank"] = len(existing_bank_signatures - workbook_bank_signatures)
+    if cash_years:
+        existing_cash_signatures = await _load_existing_cash_comparison_signatures(db, cash_years)
+        extra_in_solde_by_kind["cash"] = len(existing_cash_signatures - workbook_cash_signatures)
+
+    return extra_in_solde_by_kind
+
+
 def _matching_existing_salary_entry_group(
     entry_rows: list[NormalizedEntryRow],
     existing_salary_group_signatures: dict[str, set[tuple[str, ...]]],
@@ -3418,6 +3793,13 @@ async def preview_gestion_file(db: AsyncSession, file_bytes: bytes) -> PreviewRe
         return preview
 
     await _add_gestion_existing_rows_preview(db, file_bytes, preview)
+    preview.comparison_context[
+        "extra_in_solde_by_kind"
+    ] = await _collect_gestion_extra_in_solde_by_kind(
+        db,
+        file_bytes,
+        preview,
+    )
 
     import_log = await _find_successful_import_log(db, "gestion", _compute_file_hash(file_bytes))
     if import_log is not None:

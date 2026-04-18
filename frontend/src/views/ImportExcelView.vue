@@ -207,6 +207,13 @@
                 })
               }}
             </span>
+            <span class="import-sheet-card__stat import-sheet-card__stat--warning">
+              {{
+                t('import.comparison_extra_in_solde', {
+                  count: preview.comparison.totals.extra_in_solde,
+                })
+              }}
+            </span>
           </div>
         </div>
 
@@ -233,6 +240,12 @@
                   t('import.comparison_missing_in_solde', { count: domain.missing_in_solde })
                 }}</span>
                 <strong>{{ domain.missing_in_solde }}</strong>
+              </div>
+              <div class="import-summary-row">
+                <span>{{
+                  t('import.comparison_extra_in_solde', { count: domain.extra_in_solde })
+                }}</span>
+                <strong>{{ domain.extra_in_solde }}</strong>
               </div>
               <div class="import-summary-row">
                 <span>{{
