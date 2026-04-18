@@ -6,7 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, false, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database import Base
@@ -122,7 +122,7 @@ class Invoice(Base):
         Numeric(10, 2), nullable=False, default=Decimal("0")
     )
     has_explicit_breakdown: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="0"
+        Boolean, nullable=False, default=False, server_default=false()
     )
     status: Mapped[InvoiceStatus] = mapped_column(
         String(20), nullable=False, default=InvoiceStatus.DRAFT, index=True

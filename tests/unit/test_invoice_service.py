@@ -179,6 +179,28 @@ class TestCreateInvoice:
 
         assert invoice.has_explicit_breakdown is True
 
+    async def test_single_client_line_does_not_mark_explicit_breakdown(
+        self, db_session: AsyncSession
+    ):
+        contact = await _make_contact(db_session)
+        payload = InvoiceCreate(
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 9, 1),
+            label=InvoiceLabel.CS_ADHESION,
+            lines=[
+                InvoiceLineCreate(
+                    description="Cours de soutien",
+                    quantity=Decimal("1"),
+                    unit_price=Decimal("130.00"),
+                )
+            ],
+        )
+
+        invoice = await create_invoice(db_session, payload)
+
+        assert invoice.has_explicit_breakdown is False
+
 
 class TestGetInvoice:
     async def test_returns_invoice_with_lines(self, db_session: AsyncSession):
@@ -316,6 +338,42 @@ class TestUpdateInvoice:
 
         assert updated.has_explicit_breakdown is True
 
+    async def test_update_single_client_line_clears_explicit_breakdown(
+        self, db_session: AsyncSession
+    ):
+        invoice = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS_ADHESION,
+            lines=[
+                InvoiceLineCreate(
+                    description="Cours de soutien",
+                    quantity=Decimal("1"),
+                    unit_price=Decimal("130.00"),
+                ),
+                InvoiceLineCreate(
+                    description="Adhesion annuelle",
+                    quantity=Decimal("1"),
+                    unit_price=Decimal("30.00"),
+                ),
+            ],
+        )
+
+        updated = await update_invoice(
+            db_session,
+            invoice,
+            InvoiceUpdate(
+                lines=[
+                    InvoiceLineCreate(
+                        description="Cours de soutien",
+                        quantity=Decimal("1"),
+                        unit_price=Decimal("160.00"),
+                    )
+                ]
+            ),
+        )
+
+        assert updated.has_explicit_breakdown is False
+
 
 class TestStatusChange:
     async def test_draft_to_sent(self, db_session: AsyncSession):
@@ -397,6 +455,25 @@ class TestDuplicate:
         copy = await duplicate_invoice(db_session, invoice)  # type: ignore[arg-type]
 
         assert copy.has_explicit_breakdown is True
+
+    async def test_duplicate_single_client_line_does_not_mark_explicit_breakdown(
+        self, db_session: AsyncSession
+    ):
+        invoice = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS_ADHESION,
+            lines=[
+                InvoiceLineCreate(
+                    description="Cours de soutien",
+                    quantity=Decimal("1"),
+                    unit_price=Decimal("130.00"),
+                )
+            ],
+        )
+
+        copy = await duplicate_invoice(db_session, invoice)  # type: ignore[arg-type]
+
+        assert copy.has_explicit_breakdown is False
 
 
 class TestDeleteInvoice:

@@ -111,7 +111,7 @@ def _has_user_entered_breakdown(
     invoice_type: InvoiceType,
     line_count: int,
 ) -> bool:
-    return invoice_type == InvoiceType.CLIENT and line_count > 0
+    return invoice_type == InvoiceType.CLIENT and line_count >= 2
 
 
 async def _next_number(db: AsyncSession, invoice_type: InvoiceType, year: int) -> str:

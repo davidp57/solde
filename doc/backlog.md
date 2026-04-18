@@ -426,7 +426,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- quelle différence de traitement entre correction mineure, changement de montant et annulation métier ;
 	- faut-il prévoir plus tard des mécanismes dédiés (`avoir`, annulation, revalidation, journal d'audit`) au lieu d'une édition directe uniforme ;
 	- qu'a-t-on le droit de réécrire automatiquement lorsqu'un import `Comptabilité` vient clarifier une facture créée plus tôt depuis `Gestion`.
-- **Critère d'acceptation** : pour chaque grande famille d'objet métier, un utilisateur et un développeur peuvent répondre sans ambiguïté à la question "que se passe-t-il si je modifie cet objet maintenant ?".
+- **Critère d'acceptation** : pour chaque grande famille d'objets métier, un utilisateur et un développeur peuvent répondre sans ambiguïté à la question "que se passe-t-il si je modifie cet objet maintenant ?".
 - **Point d'attention** : la traçabilité et la cohérence comptable doivent primer sur la simplicité apparente d'une édition directe, y compris quand la modification vient d'un rapprochement automatique entre imports `Gestion` et `Comptabilité`.
 
 ## Prêt
