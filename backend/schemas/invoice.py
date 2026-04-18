@@ -30,6 +30,7 @@ class InvoiceLineBase(BaseModel):
             raise ValueError("quantity must be positive")
         return v
 
+
 class InvoiceLineCreate(InvoiceLineBase):
     pass
 

@@ -314,9 +314,7 @@ class TestGenerateEntriesForInvoice:
         }
 
     @pytest.mark.asyncio
-    async def test_client_other_lines_use_general_rule(
-        self, db_session: AsyncSession
-    ) -> None:
+    async def test_client_other_lines_use_general_rule(self, db_session: AsyncSession) -> None:
         await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_GENERAL, "411100", "758000")
         inv = await _make_invoice(
             db_session,
