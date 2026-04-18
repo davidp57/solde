@@ -40,6 +40,7 @@ ENTRY_INVALID_CREDIT_MESSAGE = "montant credit invalide"
 ENTRY_INVALID_DATE_MESSAGE = "date invalide"
 ENTRY_INVALID_DEBIT_MESSAGE = "montant debit invalide"
 ENTRY_EXISTING_MESSAGE = "ecriture deja existante, ligne ignoree"
+EXISTING_GESTION_ROW_MESSAGE = "ligne deja existante dans Solde, ligne ignoree"
 ENTRY_MISSING_ACCOUNT_MESSAGE = "compte manquant"
 ENTRY_SUSPICIOUS_DATE_MESSAGE = "date incoherente avec les lignes voisines"
 ENTRY_REQUIRED_ACCOUNT_OR_AMOUNT_COLUMNS = ("compte", "débit/crédit")
@@ -90,6 +91,7 @@ _UNAMBIGUOUS_ISSUE_CATEGORY_BY_MESSAGE = {
     DUPLICATE_CONTACT_MESSAGE: "duplicate-contact",
     DUPLICATE_INVOICE_MESSAGE: "duplicate-invoice",
     ENTRY_EXISTING_MESSAGE: "entry-existing",
+    EXISTING_GESTION_ROW_MESSAGE: "existing-row-in-solde",
     EXISTING_CONTACT_MESSAGE: "existing-contact",
     EXISTING_INVOICE_MESSAGE: "existing-invoice",
     EXISTING_SALARY_MESSAGE: "existing-salary",

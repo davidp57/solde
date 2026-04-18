@@ -5,13 +5,14 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.config import get_settings
 from backend.services.excel_import_classification import (
     classify_comptabilite_sheet as _classify_comptabilite_sheet,
 )
@@ -78,6 +79,7 @@ from backend.services.excel_import_payment_matching import (
 from backend.services.excel_import_policy import (
     COMPTABILITE_UNKNOWN_STRUCTURE_MESSAGE,
     ENTRY_EXISTING_MESSAGE,
+    EXISTING_GESTION_ROW_MESSAGE,
     EXISTING_SALARY_MESSAGE,
     GESTION_UNKNOWN_STRUCTURE_MESSAGE,
     detect_gestion_preview_header,
@@ -197,6 +199,7 @@ _load_existing_generated_accounting_group_signatures = (
 )
 
 _GESTION_IMPORT_ORDER = ("contacts", "invoices", "payments", "salaries", "cash", "bank")
+_GESTION_FILE_YEAR_RE = re.compile(r"gestion\D*(20\d{2})", re.IGNORECASE)
 _CLIENT_INVOICE_REFERENCE_RE = re.compile(r"\b\d{4}-\d{4}\b")
 _SALARY_MONTH_RE = re.compile(r"\b(20\d{2})[.-](\d{2})\b")
 _SALARY_TRAILING_INITIAL_RE = re.compile(r"\s+[a-z]$")
@@ -1189,9 +1192,58 @@ def _gestion_cash_comparison_signature(
     )
 
 
+def _expand_date_bounds(
+    start_date: date | None,
+    end_date: date | None,
+    candidate_date: date,
+) -> tuple[date, date]:
+    if start_date is None or candidate_date < start_date:
+        start_date = candidate_date
+    if end_date is None or candidate_date > end_date:
+        end_date = candidate_date
+    return start_date, end_date
+
+
+def _is_within_date_bounds(
+    candidate_date: date,
+    start_date: date | None,
+    end_date: date | None,
+) -> bool:
+    if start_date is not None and candidate_date < start_date:
+        return False
+    return end_date is None or candidate_date <= end_date
+
+
+def _gestion_file_fiscal_year_bounds(file_name: str | None) -> tuple[date, date] | None:
+    if not file_name:
+        return None
+
+    match = _GESTION_FILE_YEAR_RE.search(file_name)
+    if match is None:
+        return None
+
+    fiscal_year_start_month = get_settings().fiscal_year_start_month
+    start_year = int(match.group(1))
+    start_date = date(start_year, fiscal_year_start_month, 1)
+    next_fiscal_year_start = date(start_year + 1, fiscal_year_start_month, 1)
+    return start_date, next_fiscal_year_start - timedelta(days=1)
+
+
+def _comparison_years_within_bounds(
+    years: set[int],
+    start_date: date | None,
+    end_date: date | None,
+) -> set[int]:
+    if start_date is None or end_date is None:
+        return years
+    return set(range(start_date.year, end_date.year + 1))
+
+
 async def _load_existing_client_invoice_comparison_signatures(
     db: AsyncSession,
     years: set[int],
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> set[str]:
     if not years:
         return set()
@@ -1206,13 +1258,17 @@ async def _load_existing_client_invoice_comparison_signatures(
     return {
         _normalize_text(number)
         for number, invoice_date in result.all()
-        if number and invoice_date.year in years
+        if number
+        and invoice_date.year in years
+        and _is_within_date_bounds(invoice_date, start_date, end_date)
     }
 
 
 async def _load_existing_client_payment_comparison_signatures(
     db: AsyncSession,
     years: set[int],
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> set[tuple[str, str, str, str]]:
     if not years:
         return set()
@@ -1230,7 +1286,11 @@ async def _load_existing_client_payment_comparison_signatures(
 
     signatures: set[tuple[str, str, str, str]] = set()
     for number, reference, payment_date, amount, method in result.all():
-        if payment_date.year not in years:
+        if payment_date.year not in years or not _is_within_date_bounds(
+            payment_date,
+            start_date,
+            end_date,
+        ):
             continue
         references = {number}
         if reference:
@@ -1286,6 +1346,8 @@ async def _load_existing_salary_comparison_signatures(
 async def _load_existing_bank_comparison_signatures(
     db: AsyncSession,
     years: set[int],
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> set[tuple[str, str, str, str]]:
     if not years:
         return set()
@@ -1311,13 +1373,17 @@ async def _load_existing_bank_comparison_signatures(
             reference=reference,
         )
         for entry_date, amount, description, reference, source in result.all()
-        if entry_date.year in years and source != BankTransactionSource.SYSTEM_OPENING
+        if entry_date.year in years
+        and _is_within_date_bounds(entry_date, start_date, end_date)
+        and source != BankTransactionSource.SYSTEM_OPENING
     }
 
 
 async def _load_existing_cash_comparison_signatures(
     db: AsyncSession,
     years: set[int],
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> set[tuple[str, str, str, str, str]]:
     if not years:
         return set()
@@ -1345,7 +1411,9 @@ async def _load_existing_cash_comparison_signatures(
             reference=reference,
         )
         for entry_date, movement_type, amount, description, reference, source in result.all()
-        if entry_date.year in years and source != CashEntrySource.SYSTEM_OPENING
+        if entry_date.year in years
+        and _is_within_date_bounds(entry_date, start_date, end_date)
+        and source != CashEntrySource.SYSTEM_OPENING
     }
 
 
@@ -1353,6 +1421,7 @@ async def _collect_gestion_extra_in_solde_by_kind(
     db: AsyncSession,
     file_bytes: bytes,
     preview: PreviewResult,
+    file_name: str | None = None,
 ) -> dict[str, int]:
     from io import BytesIO  # noqa: PLC0415
 
@@ -1368,6 +1437,20 @@ async def _collect_gestion_extra_in_solde_by_kind(
     bank_years: set[int] = set()
     cash_years: set[int] = set()
     salary_months: set[str] = set()
+    gestion_exercise_bounds = _gestion_file_fiscal_year_bounds(file_name)
+    invoice_exercise_bounds = gestion_exercise_bounds
+    invoice_start_date: date | None = (
+        invoice_exercise_bounds[0] if invoice_exercise_bounds else None
+    )
+    invoice_end_date: date | None = invoice_exercise_bounds[1] if invoice_exercise_bounds else None
+    payment_start_date: date | None = (
+        gestion_exercise_bounds[0] if gestion_exercise_bounds else None
+    )
+    payment_end_date: date | None = gestion_exercise_bounds[1] if gestion_exercise_bounds else None
+    bank_start_date: date | None = None
+    bank_end_date: date | None = None
+    cash_start_date: date | None = None
+    cash_end_date: date | None = None
     workbook_candidates: list[PaymentMatchCandidate] = []
     payment_rows: list[NormalizedPaymentRow] = []
 
@@ -1391,6 +1474,12 @@ async def _collect_gestion_extra_in_solde_by_kind(
                 if invoice_row.invoice_number:
                     workbook_invoice_numbers.add(_normalize_text(invoice_row.invoice_number))
                 invoice_years.add(invoice_row.invoice_date.year)
+                if invoice_exercise_bounds is None:
+                    invoice_start_date, invoice_end_date = _expand_date_bounds(
+                        invoice_start_date,
+                        invoice_end_date,
+                        invoice_row.invoice_date,
+                    )
                 workbook_candidates.append(_make_workbook_invoice_candidate(invoice_row))
 
         elif kind == "payments":
@@ -1398,9 +1487,14 @@ async def _collect_gestion_extra_in_solde_by_kind(
             if parsed_sheet is None or parsed_sheet.missing_columns:
                 continue
             payment_rows.extend(parsed_payment_rows)
-            payment_years.update(
-                payment_row.payment_date.year for payment_row in parsed_payment_rows
-            )
+            for payment_row in parsed_payment_rows:
+                payment_years.add(payment_row.payment_date.year)
+                if gestion_exercise_bounds is None:
+                    payment_start_date, payment_end_date = _expand_date_bounds(
+                        payment_start_date,
+                        payment_end_date,
+                        payment_row.payment_date,
+                    )
 
         elif kind == "salaries":
             parsed_sheet, salary_rows, _ = _parse_salary_sheet(ws)
@@ -1423,6 +1517,11 @@ async def _collect_gestion_extra_in_solde_by_kind(
                 continue
             for bank_row in bank_rows:
                 bank_years.add(bank_row.entry_date.year)
+                bank_start_date, bank_end_date = _expand_date_bounds(
+                    bank_start_date,
+                    bank_end_date,
+                    bank_row.entry_date,
+                )
                 workbook_bank_signatures.add(
                     _gestion_bank_comparison_signature(
                         entry_date=bank_row.entry_date,
@@ -1438,6 +1537,11 @@ async def _collect_gestion_extra_in_solde_by_kind(
                 continue
             for cash_row in cash_rows:
                 cash_years.add(cash_row.entry_date.year)
+                cash_start_date, cash_end_date = _expand_date_bounds(
+                    cash_start_date,
+                    cash_end_date,
+                    cash_row.entry_date,
+                )
                 workbook_cash_signatures.add(
                     _gestion_cash_comparison_signature(
                         entry_date=cash_row.entry_date,
@@ -1469,17 +1573,31 @@ async def _collect_gestion_extra_in_solde_by_kind(
 
     extra_in_solde_by_kind: dict[str, int] = {}
     if invoice_years:
+        invoice_comparison_years = _comparison_years_within_bounds(
+            invoice_years,
+            invoice_start_date,
+            invoice_end_date,
+        )
         existing_invoice_numbers = await _load_existing_client_invoice_comparison_signatures(
             db,
-            invoice_years,
+            invoice_comparison_years,
+            start_date=invoice_start_date,
+            end_date=invoice_end_date,
         )
         extra_in_solde_by_kind["invoices"] = len(
             existing_invoice_numbers - workbook_invoice_numbers
         )
     if payment_years:
+        payment_comparison_years = _comparison_years_within_bounds(
+            payment_years,
+            payment_start_date,
+            payment_end_date,
+        )
         existing_payment_signatures = await _load_existing_client_payment_comparison_signatures(
             db,
-            payment_years,
+            payment_comparison_years,
+            start_date=payment_start_date,
+            end_date=payment_end_date,
         )
         extra_in_solde_by_kind["payments"] = len(
             existing_payment_signatures - workbook_payment_signatures
@@ -1493,10 +1611,30 @@ async def _collect_gestion_extra_in_solde_by_kind(
             existing_salary_signatures - workbook_salary_signatures
         )
     if bank_years:
-        existing_bank_signatures = await _load_existing_bank_comparison_signatures(db, bank_years)
+        bank_comparison_years = _comparison_years_within_bounds(
+            bank_years,
+            bank_start_date,
+            bank_end_date,
+        )
+        existing_bank_signatures = await _load_existing_bank_comparison_signatures(
+            db,
+            bank_comparison_years,
+            start_date=bank_start_date,
+            end_date=bank_end_date,
+        )
         extra_in_solde_by_kind["bank"] = len(existing_bank_signatures - workbook_bank_signatures)
     if cash_years:
-        existing_cash_signatures = await _load_existing_cash_comparison_signatures(db, cash_years)
+        cash_comparison_years = _comparison_years_within_bounds(
+            cash_years,
+            cash_start_date,
+            cash_end_date,
+        )
+        existing_cash_signatures = await _load_existing_cash_comparison_signatures(
+            db,
+            cash_comparison_years,
+            start_date=cash_start_date,
+            end_date=cash_end_date,
+        )
         extra_in_solde_by_kind["cash"] = len(existing_cash_signatures - workbook_cash_signatures)
 
     return extra_in_solde_by_kind
@@ -1911,7 +2049,7 @@ async def import_gestion_file(
     result = ImportResult()
 
     file_hash = _compute_file_hash(file_bytes)
-    preview = await preview_gestion_file(db, file_bytes)
+    preview = await preview_gestion_file(db, file_bytes, file_name)
     if preview.errors:
         result.absorb_preview(preview)
         await _record_import_log(
@@ -3204,6 +3342,47 @@ async def _add_gestion_existing_rows_preview(
     existing_salary_keys = await _load_existing_salary_keys(db)
 
     wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
+    workbook_candidates: list[PaymentMatchCandidate] = []
+    payment_years: set[int] = set()
+    bank_years: set[int] = set()
+    cash_years: set[int] = set()
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        kind, _ = _classify_gestion_sheet(sheet_name)
+        if kind == "invoices":
+            parsed_sheet, invoice_rows, _, _ = _parse_invoice_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            invoice_rows, _ = filter_duplicate_invoice_rows(
+                invoice_rows,
+                normalize_text=_normalize_text,
+            )
+            workbook_candidates.extend(
+                _make_workbook_invoice_candidate(invoice_row) for invoice_row in invoice_rows
+            )
+        elif kind == "payments":
+            parsed_sheet, payment_rows, _ = _parse_payment_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            payment_years.update(payment_row.payment_date.year for payment_row in payment_rows)
+        elif kind == "bank":
+            parsed_sheet, bank_rows, _, _ = _parse_bank_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            bank_years.update(bank_row.entry_date.year for bank_row in bank_rows)
+        elif kind == "cash":
+            parsed_sheet, cash_rows, _, _ = _parse_cash_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            cash_years.update(cash_row.entry_date.year for cash_row in cash_rows)
+
+    existing_payment_signatures = await _load_existing_client_payment_comparison_signatures(
+        db,
+        payment_years,
+    )
+    existing_bank_signatures = await _load_existing_bank_comparison_signatures(db, bank_years)
+    existing_cash_signatures = await _load_existing_cash_comparison_signatures(db, cash_years)
+
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
         kind, _ = _classify_gestion_sheet(sheet_name)
@@ -3274,12 +3453,70 @@ async def _add_gestion_existing_rows_preview(
                 sheet_preview["rows"] = max(0, sheet_preview["rows"] - blocked_count)
                 preview.estimated_invoices = max(0, preview.estimated_invoices - blocked_count)
 
+        elif kind == "payments":
+            parsed_sheet, payment_rows, _ = _parse_payment_sheet(ws)
+            if parsed_sheet is None or parsed_sheet.missing_columns:
+                continue
+            for payment_row in payment_rows:
+                resolution = await _resolve_payment_match(
+                    db,
+                    payment_row,
+                    workbook_candidates,
+                )
+                if resolution.status != "matched" or resolution.candidate is None:
+                    continue
+                if not resolution.candidate.invoice_number:
+                    continue
+                payment_signature = _gestion_payment_comparison_signature(
+                    reference=resolution.candidate.invoice_number,
+                    payment_date=payment_row.payment_date,
+                    amount=payment_row.amount,
+                    settlement_account=_client_settlement_account_from_method(payment_row.method),
+                )
+                if payment_signature not in existing_payment_signatures:
+                    continue
+                _append_preview_ignored_issue(
+                    preview,
+                    sheet_preview,
+                    RowIgnoredIssue(
+                        source_row_number=payment_row.source_row_number,
+                        message=EXISTING_GESTION_ROW_MESSAGE,
+                    ),
+                )
+                sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
+                preview.estimated_payments = max(0, preview.estimated_payments - 1)
+
         elif kind == "bank":
             parsed_sheet, bank_rows, _, _ = _parse_bank_sheet(ws)
             if parsed_sheet is None or parsed_sheet.missing_columns:
                 continue
             for bank_row in bank_rows:
+                bank_signature = _gestion_bank_comparison_signature(
+                    entry_date=bank_row.entry_date,
+                    amount=bank_row.amount,
+                    description=bank_row.description,
+                    reference=bank_row.reference,
+                )
                 candidate = _supplier_invoice_candidate_from_bank_row(bank_row)
+                if bank_signature in existing_bank_signatures:
+                    _append_preview_ignored_issue(
+                        preview,
+                        sheet_preview,
+                        RowIgnoredIssue(
+                            source_row_number=bank_row.source_row_number,
+                            message=EXISTING_GESTION_ROW_MESSAGE,
+                        ),
+                    )
+                    sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
+                    if candidate is not None:
+                        preview.estimated_invoices = max(0, preview.estimated_invoices - 1)
+                        preview.estimated_payments = max(0, preview.estimated_payments - 1)
+                    elif _single_client_invoice_reference(
+                        bank_row.reference,
+                        bank_row.description,
+                    ):
+                        preview.estimated_payments = max(0, preview.estimated_payments - 1)
+                    continue
                 if candidate is None:
                     continue
                 if _normalize_text(candidate.invoice_number) in existing_invoice_numbers:
@@ -3288,7 +3525,9 @@ async def _add_gestion_existing_rows_preview(
                         sheet_preview,
                         make_existing_invoice_issue(candidate.source_row_number),
                     )
+                    sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
                     preview.estimated_invoices = max(0, preview.estimated_invoices - 1)
+                    preview.estimated_payments = max(0, preview.estimated_payments - 1)
                     continue
                 _, supplier_blocked_issue = resolve_invoice_contact_match(
                     _invoice_row_from_supplier_candidate(candidate),
@@ -3309,7 +3548,28 @@ async def _add_gestion_existing_rows_preview(
             if parsed_sheet is None or parsed_sheet.missing_columns:
                 continue
             for cash_row in cash_rows:
+                cash_signature = _gestion_cash_comparison_signature(
+                    entry_date=cash_row.entry_date,
+                    movement_type=cash_row.movement_type,
+                    amount=cash_row.amount,
+                    description=cash_row.description,
+                    reference=cash_row.reference,
+                )
                 candidate = _supplier_invoice_candidate_from_cash_row(cash_row)
+                if cash_signature in existing_cash_signatures:
+                    _append_preview_ignored_issue(
+                        preview,
+                        sheet_preview,
+                        RowIgnoredIssue(
+                            source_row_number=cash_row.source_row_number,
+                            message=EXISTING_GESTION_ROW_MESSAGE,
+                        ),
+                    )
+                    sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
+                    if candidate is not None:
+                        preview.estimated_invoices = max(0, preview.estimated_invoices - 1)
+                        preview.estimated_payments = max(0, preview.estimated_payments - 1)
+                    continue
                 if candidate is None:
                     continue
                 if _normalize_text(candidate.invoice_number) in existing_invoice_numbers:
@@ -3318,7 +3578,9 @@ async def _add_gestion_existing_rows_preview(
                         sheet_preview,
                         make_existing_invoice_issue(candidate.source_row_number),
                     )
+                    sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
                     preview.estimated_invoices = max(0, preview.estimated_invoices - 1)
+                    preview.estimated_payments = max(0, preview.estimated_payments - 1)
                     continue
                 _, supplier_blocked_issue = resolve_invoice_contact_match(
                     _invoice_row_from_supplier_candidate(candidate),
@@ -3869,7 +4131,11 @@ def _preview_gestion_file(file_bytes: bytes) -> PreviewResult:
     return preview
 
 
-async def preview_gestion_file(db: AsyncSession, file_bytes: bytes) -> PreviewResult:
+async def preview_gestion_file(
+    db: AsyncSession,
+    file_bytes: bytes,
+    file_name: str | None = None,
+) -> PreviewResult:
     """Dry-run parse of a Gestion file with shared business validation."""
     preview = _preview_gestion_file(file_bytes)
     preview.comparison_mode = "gestion-excel-to-solde"
@@ -3884,6 +4150,7 @@ async def preview_gestion_file(db: AsyncSession, file_bytes: bytes) -> PreviewRe
         db,
         file_bytes,
         preview,
+        file_name,
     )
 
     import_log = await _find_successful_import_log(db, "gestion", _compute_file_hash(file_bytes))

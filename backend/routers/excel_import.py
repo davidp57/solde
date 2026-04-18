@@ -186,7 +186,7 @@ async def preview_gestion(
     """Dry-run parse of a Gestion file — returns estimated row counts without importing."""
     _check_excel_extension(file.filename)
     content = await _read_limited(file)
-    result = await excel_import.preview_gestion_file(db, content)
+    result = await excel_import.preview_gestion_file(db, content, file.filename)
     return result.to_dict()
 
 
