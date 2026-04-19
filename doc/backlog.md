@@ -50,9 +50,9 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## Priorités proposées pour la prochaine discussion
 
-1. **BL-024** — clarifier le workflow de saisie des paiements et corriger les remises en banque automatiques.
-2. **BL-031** — concevoir une vraie réconciliation bancaire bout en bout entre relevés importés, transactions détectées, catégorisation et création de paiements.
-3. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
+1. **BL-031** — concevoir une vraie réconciliation bancaire bout en bout entre relevés importés, transactions détectées, catégorisation et création de paiements.
+2. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
+3. **BL-019** — refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker.
 
 ## Récapitulatif des sujets ouverts
 
@@ -340,9 +340,10 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-024 — Clarifier la saisie des paiements et corriger les remises en banque automatiques
 
-- **Dates** : `created=2026-04-13`, `started=2026-04-19`
+- **Dates** : `created=2026-04-13`, `started=2026-04-19`, `completed=2026-04-19`
 - **Pourquoi** : en usage réel, il n'est pas clair comment un paiement doit être saisi dans l'application, et les paiements de type `espèces` ou `virement` semblent être remis en banque automatiquement dès leur encodage, ce qui pose une question de justesse métier et comptable.
 - **Résultat attendu** : définir un workflow cible simple pour la création, la consultation et l'éventuelle remise en banque des paiements, puis corriger l'application pour que chaque mode de paiement suive le bon traitement.
+- **Résultat livré** : la saisie manuelle standard des règlements clients est désormais recentrée sur la facture client pour `chèque` et `espèces`, avec création immédiate d'une écriture de caisse pour les espèces, dépôt manuel explicite selon le type de remise, verrouillage des modifications qui désynchroniseraient la trésorerie, et rejet explicite des `virements` côté saisie manuelle au profit du futur workflow `banque -> paiement` porté par `BL-031`.
 - **Décision produit désormais retenue pour les virements** :
 	- un `virement` ne doit pas être saisi d'abord comme paiement ; la source de vérité est l'entrée visible sur le relevé bancaire ;
 	- le workflow cible est donc `banque -> paiement` pour les virements : import ou saisie du relevé, détection du mouvement créditeur, puis création ou rattachement du paiement correspondant ;
@@ -476,7 +477,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 ## En cours
 
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
-- **BL-024** — `created=2026-04-13`, `started=2026-04-19` — Le ticket est recadré sur `fix/bl-024-payment-workflow` : `virement` doit suivre un flux `banque -> paiement`, tandis que `chèque` et `espèces` gardent un point d'entrée côté paiement selon leur traitement métier.
 
 ## Fait
 
@@ -497,6 +497,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-018** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les écrans de liste principaux partagent maintenant un socle commun de tri, filtres et compteurs d'état, avec filtres de date FR/ISO et exclusion explicite des tableaux fixes `bilan` / `résultat`.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-19` — La gestion des comptes couvre désormais l'administration, l'espace `Mon profil`, le changement de mot de passe utilisateur, la réinitialisation administrateur adaptée au contexte auto-hébergé et l'invalidation des anciennes sessions après changement de mot de passe.
 - **BL-023** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les rôles métier `Gestionnaire` / `Comptable` / `Administrateur` sont maintenant alignés entre docs, navigation, guards frontend et permissions backend, avec séparation visible `Gestion` / `Comptabilité` et couverture de test ciblée.
+- **BL-024** — `created=2026-04-13`, `started=2026-04-19`, `completed=2026-04-19` — Le workflow de paiement est désormais clarifié et fusionné dans `develop` : `chèque` et `espèces` restent saisis côté facture/paiement avec traitement de trésorerie cohérent, tandis que les `virements` sont explicitement renvoyés au futur flux `banque -> paiement` de `BL-031`.
 - **BL-025** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13` — Le grand livre est maintenant borné à l'exercice choisi, sans option multi-exercices, avec un solde d'ouverture cohérent quand la période démarre en cours d'exercice.
 - **BL-026** — `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16` — Le ticket a livré un cadrage de recette et un constat exploitable sur la reprise `2024`, puis a été clos une fois les écarts résiduels requalifiés en différences de modélisation assumées ou en suites dédiées (`BL-008`, `BL-029`).
 - **BL-029** — `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-19` — La saisie des factures clients par lignes typées, le calcul dérivé du total et de la ventilation comptable, et les adaptations d'import `Gestion` / `Comptabilité` sont maintenant intégrés dans `develop` et validés côté recette métier utilisateur.
