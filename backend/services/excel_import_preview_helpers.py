@@ -198,6 +198,16 @@ def append_preview_ignored_issue(
     preview.warnings.append(f"{sheet_preview['name']} — {message}")
 
 
+def append_preview_warning_issue(
+    preview: PreviewResult,
+    sheet_preview: dict[str, Any],
+    issue: Any,
+) -> None:
+    message = format_row_issue(issue)
+    sheet_preview["warnings"].append(message)
+    preview.warnings.append(f"{sheet_preview['name']} — {message}")
+
+
 def append_preview_blocked_issue(
     preview: PreviewResult,
     sheet_preview: dict[str, Any],

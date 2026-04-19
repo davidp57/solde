@@ -11,6 +11,7 @@ from backend.services.excel_import_types import (
     NormalizedInvoiceRow,
     RowIgnoredIssue,
     RowValidationIssue,
+    RowWarningIssue,
 )
 
 BANK_BALANCE_DESCRIPTION_MESSAGE = "ligne descriptive de solde ignoree"
@@ -27,7 +28,7 @@ CASH_INVALID_MOVEMENT_MESSAGE = "mouvement ou montant manquant/invalide"
 CASH_REQUIRED_DATE_OR_AMOUNT_COLUMNS = ("date", "entrée/sortie ou montant")
 CONTACT_REQUIRED_NAME_MESSAGE = "nom"
 COMPTABILITE_ENTRY_HELPER_SHEET_MESSAGE = "Feuille d'aide a la saisie ignoree par la preview"
-COMPTABILITE_COEXISTENCE_BLOCKED_MESSAGE_PREFIX = (
+COMPTABILITE_COEXISTENCE_WARNING_MESSAGE_PREFIX = (
     "Import comptabilite : des ecritures auto-generees issues de la gestion existent deja en base"
 )
 COMPTABILITE_REPORT_SHEET_MESSAGE = "Feuille de reporting ignoree par la preview"
@@ -40,6 +41,10 @@ ENTRY_INVALID_CREDIT_MESSAGE = "montant credit invalide"
 ENTRY_INVALID_DATE_MESSAGE = "date invalide"
 ENTRY_INVALID_DEBIT_MESSAGE = "montant debit invalide"
 ENTRY_EXISTING_MESSAGE = "ecriture deja existante, ligne ignoree"
+ENTRY_COVERED_BY_SOLDE_MESSAGE = "ecriture deja couverte par Solde, ligne ignoree"
+ENTRY_NEAR_EXISTING_MANUAL_MESSAGE = (
+    "ecriture proche d'une ecriture manuelle existante, revue conseillee"
+)
 EXISTING_GESTION_ROW_MESSAGE = "ligne deja existante dans Solde, ligne ignoree"
 ENTRY_MISSING_ACCOUNT_MESSAGE = "compte manquant"
 ENTRY_SUSPICIOUS_DATE_MESSAGE = "date incoherente avec les lignes voisines"
@@ -90,7 +95,9 @@ _UNAMBIGUOUS_ISSUE_CATEGORY_BY_MESSAGE = {
     COMPTABILITE_UNKNOWN_STRUCTURE_MESSAGE: "comptabilite-unknown-structure",
     DUPLICATE_CONTACT_MESSAGE: "duplicate-contact",
     DUPLICATE_INVOICE_MESSAGE: "duplicate-invoice",
+    ENTRY_COVERED_BY_SOLDE_MESSAGE: "entry-covered-by-solde",
     ENTRY_EXISTING_MESSAGE: "entry-existing",
+    ENTRY_NEAR_EXISTING_MANUAL_MESSAGE: "entry-near-manual",
     EXISTING_GESTION_ROW_MESSAGE: "existing-row-in-solde",
     EXISTING_CONTACT_MESSAGE: "existing-contact",
     EXISTING_INVOICE_MESSAGE: "existing-invoice",
@@ -353,7 +360,7 @@ def format_source_row_issue(source_row_number: int, message: str) -> str:
     return f"Ligne {source_row_number} : {message}"
 
 
-def format_row_issue(issue: RowValidationIssue | RowIgnoredIssue) -> str:
+def format_row_issue(issue: RowValidationIssue | RowIgnoredIssue | RowWarningIssue) -> str:
     """Build the stable display string for a typed row issue."""
     return format_source_row_issue(issue.source_row_number, issue.message)
 
@@ -408,7 +415,7 @@ def issue_category_for_message(
     """Return a stable category for a known issue message when available."""
     if message.startswith(ALREADY_IMPORTED_MESSAGE_PREFIX):
         return "already-imported"
-    if message.startswith(COMPTABILITE_COEXISTENCE_BLOCKED_MESSAGE_PREFIX):
+    if message.startswith(COMPTABILITE_COEXISTENCE_WARNING_MESSAGE_PREFIX):
         return "comptabilite-coexistence"
     if message.startswith(IMPORT_ERROR_MESSAGE_PREFIX):
         return "import-error"
