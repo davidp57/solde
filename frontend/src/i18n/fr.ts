@@ -477,6 +477,7 @@ export default {
     },
     origins: {
       manual: 'Manuel',
+      deposit: 'Remise en banque',
       payment: 'Paiement client',
       system_opening: 'Ouverture du système',
     },
