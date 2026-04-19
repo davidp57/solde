@@ -5217,16 +5217,14 @@ async def test_import_comptabilite_blocks_reimport_of_same_file(
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
-async def test_preview_and_import_comptabilite_ignores_exact_duplicates_and_keeps_new_rows(
+async def test_preview_and_import_comptabilite_ignores_rows_already_covered_by_solde(
     client: AsyncClient,
     auth_headers: dict,
     db_session,
 ) -> None:
-    """Comptabilité import should ignore exact duplicates and keep new rows."""
+    """Comptabilité import should ignore rows already covered by Solde and keep new rows."""
     from datetime import date
     from decimal import Decimal
-
-    from sqlalchemy import select
 
     from backend.models.accounting_entry import AccountingEntry, EntrySourceType
     from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
@@ -5278,7 +5276,12 @@ async def test_preview_and_import_comptabilite_ignores_exact_duplicates_and_keep
     assert preview_data["estimated_entries"] == 1
     assert preview_data["sheets"][0]["ignored_rows"] == 1
     assert any(
-        "deja existante" in warning.lower() for warning in preview_data["sheets"][0]["warnings"]
+        "deja couverte par solde" in warning.lower()
+        for warning in preview_data["sheets"][0]["warnings"]
+    )
+    assert any(
+        detail["category"] == "entry-covered-by-solde"
+        for detail in preview_data["sheets"][0]["warning_details"]
     )
 
     import_response = await client.post(
@@ -5293,6 +5296,79 @@ async def test_preview_and_import_comptabilite_ignores_exact_duplicates_and_keep
     assert import_data["ignored_rows"] == 1
     assert import_data["errors"] == []
 
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_and_import_comptabilite_ignores_exact_manual_duplicates_with_exact_category(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Exact duplicates against existing manual entries stay categorized as entry-existing."""
+    from datetime import date
+    from decimal import Decimal
+
+    from sqlalchemy import select
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    db_session.add(
+        AccountingEntry(
+            entry_number="000001",
+            date=date(2025, 8, 1),
+            account_number="411100",
+            label="Ecriture manuelle existante",
+            debit=Decimal("55"),
+            credit=Decimal("0"),
+            source_type=EntrySourceType.MANUAL,
+            source_id=None,
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit"],
+                [["2025-08-01", "411100", "Ecriture manuelle existante", 55, None]],
+            ),
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        files={"file": ("Comptabilite exact-duplicate.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    assert preview_data["estimated_entries"] == 0
+    assert preview_data["sheets"][0]["ignored_rows"] == 1
+    assert any(
+        "deja existante" in warning.lower() for warning in preview_data["sheets"][0]["warnings"]
+    )
+    assert any(
+        detail["category"] == "entry-existing"
+        for detail in preview_data["sheets"][0]["warning_details"]
+    )
+    assert all(
+        detail["category"] != "entry-near-manual"
+        for detail in preview_data["sheets"][0]["warning_details"]
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/comptabilite",
+        files={"file": ("Comptabilite exact-duplicate.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    import_data = import_response.json()
+    assert import_data["entries_created"] == 0
+    assert import_data["ignored_rows"] == 1
+    assert import_data["errors"] == []
+
     manual_entries = (
         (
             await db_session.execute(
@@ -5303,9 +5379,95 @@ async def test_preview_and_import_comptabilite_ignores_exact_duplicates_and_keep
         .all()
     )
     assert len(manual_entries) == 1
-    assert manual_entries[0].account_number == "706200"
-    assert manual_entries[0].label == "Nouvelle ecriture"
-    assert manual_entries[0].fiscal_year_id == fiscal_year.id
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_and_import_comptabilite_warns_for_near_manual_entries_without_blocking(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Near matches with manual entries should warn but still import."""
+    from datetime import date
+    from decimal import Decimal
+
+    from sqlalchemy import select
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    db_session.add(
+        AccountingEntry(
+            entry_number="000001",
+            date=date(2025, 8, 1),
+            account_number="411100",
+            label="Libelle manuel",
+            debit=Decimal("55"),
+            credit=Decimal("0"),
+            source_type=EntrySourceType.MANUAL,
+            source_id=None,
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit"],
+                [["2025-08-01", "411100", "Libelle importe", 55, None]],
+            ),
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        files={"file": ("Comptabilite near-manual.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    assert preview_data["can_import"] is True
+    assert preview_data["estimated_entries"] == 1
+    assert preview_data["sheets"][0]["ignored_rows"] == 0
+    assert any(
+        "proche d'une ecriture manuelle existante" in warning.lower()
+        for warning in preview_data["sheets"][0]["warnings"]
+    )
+    assert any(
+        detail["category"] == "entry-near-manual"
+        for detail in preview_data["sheets"][0]["warning_details"]
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/comptabilite",
+        files={"file": ("Comptabilite near-manual.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    import_data = import_response.json()
+    assert import_data["entries_created"] == 1
+    assert import_data["ignored_rows"] == 0
+    assert import_data["errors"] == []
+    assert any(
+        "proche d'une ecriture manuelle existante" in warning.lower()
+        for warning in import_data["warnings"]
+    )
+    assert any(
+        detail["category"] == "entry-near-manual" for detail in import_data["warning_details"]
+    )
+
+    manual_entries = (
+        (
+            await db_session.execute(
+                select(AccountingEntry).where(AccountingEntry.source_type == EntrySourceType.MANUAL)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(manual_entries) == 2
 
 
 @pytest.mark.asyncio

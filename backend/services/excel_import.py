@@ -81,7 +81,9 @@ from backend.services.excel_import_payment_matching import (
 )
 from backend.services.excel_import_policy import (
     COMPTABILITE_UNKNOWN_STRUCTURE_MESSAGE,
+    ENTRY_COVERED_BY_SOLDE_MESSAGE,
     ENTRY_EXISTING_MESSAGE,
+    ENTRY_NEAR_EXISTING_MANUAL_MESSAGE,
     EXISTING_GESTION_ROW_MESSAGE,
     EXISTING_SALARY_MESSAGE,
     GESTION_UNKNOWN_STRUCTURE_MESSAGE,
@@ -114,6 +116,9 @@ from backend.services.excel_import_preview_helpers import (
 )
 from backend.services.excel_import_preview_helpers import (
     append_preview_open_error as _append_preview_open_error,
+)
+from backend.services.excel_import_preview_helpers import (
+    append_preview_warning_issue as _append_preview_warning_issue,
 )
 from backend.services.excel_import_preview_helpers import (
     append_reasoned_ignored_sheet_preview as _append_reasoned_ignored_sheet_preview,
@@ -172,6 +177,7 @@ from backend.services.excel_import_state import (
 )
 from backend.services.excel_import_state import (
     load_existing_generated_accounting_group_signatures,
+    load_existing_manual_accounting_line_signatures,
 )
 from backend.services.excel_import_state import (
     load_existing_invoice_numbers as _load_existing_invoice_numbers,
@@ -193,6 +199,7 @@ from backend.services.excel_import_types import (
     ParsedSheet,
     RowIgnoredIssue,
     RowValidationIssue,
+    RowWarningIssue,
 )
 
 logger = logging.getLogger(__name__)
@@ -4381,6 +4388,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
         await _load_existing_supplier_payment_reference_signatures(db)
     )
     existing_salary_group_signatures = await _load_existing_salary_group_signatures(db)
+    existing_manual_line_signatures = await load_existing_manual_accounting_line_signatures(db)
     existing_generated_group_signatures = (
         await _load_existing_generated_accounting_group_signatures(db)
     )
@@ -4417,7 +4425,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
             message = (
                 _CLIENT_INVOICE_CLARIFIED_MESSAGE
                 if clarified_invoice is not None
-                else ENTRY_EXISTING_MESSAGE
+                else ENTRY_COVERED_BY_SOLDE_MESSAGE
             )
             for entry_row in entry_group:
                 result.add_ignored_row(
@@ -4453,7 +4461,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                     format_row_issue(
                         RowIgnoredIssue(
                             source_row_number=entry_row.source_row_number,
-                            message=ENTRY_EXISTING_MESSAGE,
+                            message=ENTRY_COVERED_BY_SOLDE_MESSAGE,
                         )
                     ),
                 )
@@ -4471,7 +4479,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                     format_row_issue(
                         RowIgnoredIssue(
                             source_row_number=entry_row.source_row_number,
-                            message=ENTRY_EXISTING_MESSAGE,
+                            message=ENTRY_COVERED_BY_SOLDE_MESSAGE,
                         )
                     ),
                 )
@@ -4489,7 +4497,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                     format_row_issue(
                         RowIgnoredIssue(
                             source_row_number=entry_row.source_row_number,
-                            message=ENTRY_EXISTING_MESSAGE,
+                            message=ENTRY_COVERED_BY_SOLDE_MESSAGE,
                         )
                     ),
                 )
@@ -4504,7 +4512,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                     format_row_issue(
                         RowIgnoredIssue(
                             source_row_number=entry_row.source_row_number,
-                            message=ENTRY_EXISTING_MESSAGE,
+                            message=ENTRY_COVERED_BY_SOLDE_MESSAGE,
                         )
                     ),
                 )
@@ -4532,6 +4540,24 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                     ),
                 )
                 continue
+
+            line_signature = _accounting_entry_line_signature(
+                entry_date=entry_row.entry_date,
+                account_number=entry_row.account_number,
+                debit=entry_row.debit,
+                credit=entry_row.credit,
+            )
+            if line_signature in existing_manual_line_signatures:
+                result.add_warning(
+                    ws.title,
+                    "entries",
+                    format_row_issue(
+                        RowWarningIssue(
+                            source_row_number=entry_row.source_row_number,
+                            message=ENTRY_NEAR_EXISTING_MANUAL_MESSAGE,
+                        )
+                    ),
+                )
 
             next_offset += 1
             entry = AccountingEntry(
@@ -4888,6 +4914,7 @@ async def _add_comptabilite_existing_rows_preview(
     )
     existing_client_invoices_by_number = await _load_existing_client_invoices_by_number(db)
     existing_salary_group_signatures = await _load_existing_salary_group_signatures(db)
+    existing_manual_line_signatures = await load_existing_manual_accounting_line_signatures(db)
     existing_generated_group_signatures = (
         await _load_existing_generated_accounting_group_signatures(db)
     )
@@ -4937,7 +4964,7 @@ async def _add_comptabilite_existing_rows_preview(
                             message=(
                                 _CLIENT_INVOICE_CLARIFIED_MESSAGE
                                 if clarified_invoice is not None
-                                else ENTRY_EXISTING_MESSAGE
+                                else ENTRY_COVERED_BY_SOLDE_MESSAGE
                             ),
                         ),
                     )
@@ -4956,7 +4983,7 @@ async def _add_comptabilite_existing_rows_preview(
                         sheet_preview,
                         RowIgnoredIssue(
                             source_row_number=entry_row.source_row_number,
-                            message=ENTRY_EXISTING_MESSAGE,
+                            message=ENTRY_COVERED_BY_SOLDE_MESSAGE,
                         ),
                     )
                     sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
@@ -4974,7 +5001,7 @@ async def _add_comptabilite_existing_rows_preview(
                         sheet_preview,
                         RowIgnoredIssue(
                             source_row_number=entry_row.source_row_number,
-                            message=ENTRY_EXISTING_MESSAGE,
+                            message=ENTRY_COVERED_BY_SOLDE_MESSAGE,
                         ),
                     )
                     sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
@@ -4992,7 +5019,7 @@ async def _add_comptabilite_existing_rows_preview(
                         sheet_preview,
                         RowIgnoredIssue(
                             source_row_number=entry_row.source_row_number,
-                            message=ENTRY_EXISTING_MESSAGE,
+                            message=ENTRY_COVERED_BY_SOLDE_MESSAGE,
                         ),
                     )
                     sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
@@ -5010,7 +5037,7 @@ async def _add_comptabilite_existing_rows_preview(
                         sheet_preview,
                         RowIgnoredIssue(
                             source_row_number=entry_row.source_row_number,
-                            message=ENTRY_EXISTING_MESSAGE,
+                            message=ENTRY_COVERED_BY_SOLDE_MESSAGE,
                         ),
                     )
                     sheet_preview["rows"] = max(0, sheet_preview["rows"] - 1)
@@ -5027,6 +5054,21 @@ async def _add_comptabilite_existing_rows_preview(
                     credit=entry_row.credit,
                 )
                 if signature not in existing_entry_signatures:
+                    line_signature = _accounting_entry_line_signature(
+                        entry_date=entry_row.entry_date,
+                        account_number=entry_row.account_number,
+                        debit=entry_row.debit,
+                        credit=entry_row.credit,
+                    )
+                    if line_signature in existing_manual_line_signatures:
+                        _append_preview_warning_issue(
+                            preview,
+                            sheet_preview,
+                            RowWarningIssue(
+                                source_row_number=entry_row.source_row_number,
+                                message=ENTRY_NEAR_EXISTING_MANUAL_MESSAGE,
+                            ),
+                        )
                     continue
                 _append_preview_ignored_issue(
                     preview,

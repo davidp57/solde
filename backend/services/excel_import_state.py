@@ -153,6 +153,30 @@ async def load_existing_accounting_entry_signatures(db: AsyncSession) -> set[str
     }
 
 
+async def load_existing_manual_accounting_line_signatures(db: AsyncSession) -> set[str]:
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType  # noqa: PLC0415
+
+    result = await db.execute(
+        select(
+            AccountingEntry.date,
+            AccountingEntry.account_number,
+            AccountingEntry.debit,
+            AccountingEntry.credit,
+        ).where(AccountingEntry.source_type == EntrySourceType.MANUAL)
+    )
+    return {
+        accounting_entry_line_signature(
+            entry_date=entry_date,
+            account_number=account_number,
+            debit=debit,
+            credit=credit,
+        )
+        for entry_date, account_number, debit, credit in result.all()
+    }
+
+
 async def load_existing_generated_accounting_group_signatures(
     db: AsyncSession,
 ) -> set[tuple[str, ...]]:

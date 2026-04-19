@@ -23,10 +23,12 @@ from backend.services.excel_import_policy import (
     CONTACT_REQUIRED_NAME_MESSAGE,
     DUPLICATE_CONTACT_MESSAGE,
     DUPLICATE_INVOICE_MESSAGE,
+    ENTRY_COVERED_BY_SOLDE_MESSAGE,
     ENTRY_INVALID_CREDIT_MESSAGE,
     ENTRY_INVALID_DATE_MESSAGE,
     ENTRY_INVALID_DEBIT_MESSAGE,
     ENTRY_MISSING_ACCOUNT_MESSAGE,
+    ENTRY_NEAR_EXISTING_MANUAL_MESSAGE,
     ENTRY_REQUIRED_ACCOUNT_OR_AMOUNT_COLUMNS,
     EXISTING_CONTACT_MESSAGE,
     EXISTING_INVOICE_MESSAGE,
@@ -465,6 +467,8 @@ def test_issue_category_for_message_uses_global_prefixes() -> None:
         )
         == "comptabilite-coexistence"
     )
+    assert issue_category_for_message(ENTRY_COVERED_BY_SOLDE_MESSAGE) == "entry-covered-by-solde"
+    assert issue_category_for_message(ENTRY_NEAR_EXISTING_MANUAL_MESSAGE) == "entry-near-manual"
     assert issue_category_for_message("Erreur import gestion : boom") == "import-error"
 
 
