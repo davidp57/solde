@@ -1,9 +1,10 @@
-"""Authentication router — login, refresh, current user."""
+"""Authentication router — login, refresh, current user and account security."""
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,11 +12,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import get_db
 from backend.models.user import User, UserRole
 from backend.schemas.auth import (
+    PasswordChangeRequest,
     RefreshRequest,
     TokenResponse,
     UserAdminUpdate,
     UserCreate,
+    UserPasswordReset,
     UserRead,
+    UserSelfUpdate,
 )
 from backend.services.auth import (
     create_access_token,
@@ -51,6 +55,14 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
+
+    issued_at = payload.get("iat")
+    if not isinstance(issued_at, (int, float)):
+        raise credentials_exception
+
+    password_changed_at = user.password_changed_at.replace(tzinfo=UTC).timestamp()
+    if float(issued_at) < password_changed_at:
+        raise credentials_exception
     return user
 
 
@@ -82,6 +94,15 @@ def _admin_user_update_exception(
     status_code: int = status.HTTP_400_BAD_REQUEST,
 ) -> HTTPException:
     """Build a stable error payload for admin-managed user updates."""
+    return HTTPException(status_code=status_code, detail={"code": code, "message": message})
+
+
+def _account_security_exception(
+    code: str,
+    message: str,
+    status_code: int = status.HTTP_400_BAD_REQUEST,
+) -> HTTPException:
+    """Build a stable error payload for profile and password flows."""
     return HTTPException(status_code=status_code, detail={"code": code, "message": message})
 
 
@@ -179,6 +200,60 @@ async def get_me(
     return current_user
 
 
+@router.patch("/me", response_model=UserRead)
+async def update_me(
+    body: UserSelfUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    """Update the authenticated user's own profile fields."""
+    normalized_email = body.email.strip()
+    if not normalized_email:
+        raise _account_security_exception("email_required", "Email is required")
+
+    if normalized_email == current_user.email:
+        raise _account_security_exception("no_changes", "No changes requested")
+
+    existing = await db.execute(
+        select(User).where(User.email == normalized_email, User.id != current_user.id)
+    )
+    if existing.scalar_one_or_none() is not None:
+        raise _account_security_exception(
+            "email_exists",
+            "Email already exists",
+            status.HTTP_409_CONFLICT,
+        )
+
+    current_user.email = normalized_email
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+
+@router.post("/me/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_my_password(
+    body: PasswordChangeRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Response:
+    """Change the authenticated user's password and invalidate older tokens."""
+    if not verify_password(body.current_password, current_user.password_hash):
+        raise _account_security_exception(
+            "invalid_current_password",
+            "Current password is incorrect",
+        )
+    if verify_password(body.new_password, current_user.password_hash):
+        raise _account_security_exception(
+            "same_password",
+            "New password must differ from the current password",
+        )
+
+    current_user.password_hash = hash_password(body.new_password)
+    current_user.password_changed_at = datetime.now(UTC)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.post(
     "/users",
     response_model=UserRead,
@@ -256,3 +331,29 @@ async def update_user(
     await db.commit()
     await db.refresh(user)
     return user
+
+
+@router.post(
+    "/users/{user_id}/reset-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_role(UserRole.ADMIN))],
+)
+async def reset_user_password(
+    user_id: int,
+    body: UserPasswordReset,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Response:
+    """Reset a user's password through an admin-managed procedure."""
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if user is None:
+        raise _admin_user_update_exception(
+            "user_not_found",
+            "User not found",
+            status.HTTP_404_NOT_FOUND,
+        )
+
+    user.password_hash = hash_password(body.new_password)
+    user.password_changed_at = datetime.now(UTC)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

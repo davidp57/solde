@@ -51,8 +51,8 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 ## Priorités proposées pour la prochaine discussion
 
 1. **BL-024** — clarifier le workflow de saisie des paiements et corriger les remises en banque automatiques.
-2. **BL-022** — terminer les lots restants sur la gestion des utilisateurs, profils et sécurité de compte.
-3. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
+2. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
+3. **BL-019** — refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker.
 
 ## Récapitulatif des sujets ouverts
 
@@ -64,7 +64,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-021 | 2026-04-13 | Documentation | Utilisateur / Parcours | P1 | Rédiger un manuel utilisateur illustré et pas à pas aligné sur les écrans réellement disponibles |
-| BL-022 | 2026-04-13 | Évolution | Utilisateurs / Sécurité | P1 | Renforcer la gestion des utilisateurs avec des rôles métier plus clairs, la création et l'administration des comptes, l'autonomie sur le profil et un socle de sécurité de compte plus complet |
 | BL-024 | 2026-04-13 | Correction | Paiements / Banque | P1 | Clarifier le workflow cible de saisie des paiements et corriger l'automatisme qui remet en banque les paiements `espèces` et `virement` dès leur encodage |
 | BL-030 | 2026-04-16 | Décision | Métier / Edition des données | P1 | Définir une politique explicite de modification des objets métier déjà créés ou validés (factures, paiements, achats, etc.) avec règles de recalcul, traçabilité et limites selon le statut |
 
@@ -320,35 +319,13 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-022 — Gestion des utilisateurs, rôles et sécurité de compte
 
-- **Dates** : `created=2026-04-13`, `started=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-19`
 - **Pourquoi** : l'authentification existe déjà, mais la gestion des utilisateurs reste encore trop limitée pour un usage réel durable avec plusieurs profils, une administration claire des comptes et des attentes minimales de sécurité.
 - **Résultat attendu** : faire évoluer la gestion des comptes pour couvrir un vrai cycle de vie utilisateur : rôles métier lisibles, création et administration des comptes, autonomie minimale des utilisateurs sur leur propre profil et mécanismes de sécurité cohérents pour l'accès au compte.
-- **Périmètre fonctionnel visé** :
-	- revoir les rôles pour coller aux usages métier cibles (`admin`, `gestionnaire`, `comptable`) avec une matrice d'autorisations compréhensible ;
-	- permettre la création, l'activation, la désactivation et la gestion courante des comptes ;
-	- permettre à chaque utilisateur de consulter et modifier son profil dans un périmètre maîtrisé ;
-	- couvrir au minimum le changement de mot de passe, la réinitialisation ou récupération de compte, et les garde-fous usuels d'authentification.
-- **Questions à trancher** :
-	- comment faire correspondre les rôles actuels aux rôles métier attendus sans casser les règles d'autorisation déjà en place ;
-	- quelle part de gestion du profil est laissée à l'utilisateur lui-même versus à l'administrateur ;
-	- quel mécanisme réaliste retenir pour le mot de passe perdu dans un contexte associatif auto-hébergé.
 - **Critère d'acceptation** : un administrateur doit pouvoir gérer les comptes et leurs rôles sans intervention technique, et un utilisateur doit pouvoir accéder à son compte, gérer son profil essentiel et récupérer ou faire réinitialiser son accès selon un processus clair et sûr.
 - **État de départ actuel** : l'application dispose déjà d'une authentification JWT, d'un utilisateur courant, d'une création de compte réservée à l'admin et de rôles techniques (`readonly`, `secretaire`, `tresorier`, `admin`), mais pas encore d'interface complète ni de cycle de vie cohérent du compte.
-- **Avancement actuel** : les lots 1 et 2 sont désormais intégrés dans `develop` avec la documentation des rôles et l'administration des comptes ; le retest métier laisse toutefois ouverte la question de la matrice d'autorisations réellement observée, capturée séparément dans `BL-023`.
-- **Lotissement recommandé** :
-	- lot 1 : clarifier la cible produit des rôles et produire une matrice d'autorisations lisible ;
-	- lot 2 : ajouter l'administration des comptes (`liste`, `création`, `activation/désactivation`, changement de rôle) ;
-	- lot 3 : ajouter l'espace `mon profil` pour consultation et modification des données autorisées par l'utilisateur lui-même ;
-	- lot 4 : compléter la sécurité de compte (`changer le mot de passe`, `mot de passe oublié` ou procédure de réinitialisation adaptée au contexte d'hébergement, garde-fous de session) ;
-	- lot 5 : aligner la documentation utilisateur et admin sur ces nouveaux parcours.
-- **Séquence recommandée** : commencer par les rôles et l'administration, puis seulement ouvrir l'autonomie utilisateur et la récupération d'accès, car ces deux derniers points dépendent directement du modèle d'autorisation retenu.
-- **Format attendu des livrables** :
-	- une décision produit sur les rôles cibles ;
-	- une matrice permissions par rôle et par écran ou action critique ;
-	- les écrans et API d'administration correspondants ;
-	- une procédure de récupération d'accès adaptée à un contexte associatif auto-hébergé ;
-	- les tests et la documentation associés.
-- **Point d'attention** : ce sujet touche à la sécurité et aux permissions ; toute simplification produit doit rester cohérente avec le modèle d'autorisation backend déjà en place.
+- **Résultat livré** : BL-022 couvre désormais l'ensemble du cycle de vie visé pour les comptes applicatifs : rôles métier clarifiés, administration des comptes côté `admin`, espace `Mon profil` pour consultation et mise à jour de l'e-mail, changement du mot de passe par l'utilisateur lui-même, procédure de réinitialisation administrateur adaptée au contexte auto-hébergé, invalidation des anciens jetons après changement ou reset, et documentation utilisateur/admin alignée sur ces parcours.
+- **Livré parce que** : les lots 3 à 5 ont été implémentés sur `feature/bl-022-profile-account-security` avec migration de sécurité, endpoints backend dédiés, vue frontend `Mon profil`, dialogue de réinitialisation administrateur, mises à jour de navigation et de documentation, puis validation backend/frontend complète avant PR.
 
 ### BL-023 — Revalider les droits réels par rôle et la visibilité des écrans comptables
 
@@ -472,7 +449,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 ## En cours
 
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
-- **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels a été traité séparément dans `BL-023`, désormais terminé.
 
 ## Fait
 
@@ -491,6 +467,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-016** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les microcopies et états visibles les plus incohérents ont été harmonisés sur `Banque`, `Caisse` et `Salaires` via des clés i18n dédiées.
 - **BL-017** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — L'affichage des mois et périodes métier est maintenant uniformisé au format français sur `Salaires` et le `Dashboard` sans changer les formats d'échange ISO.
 - **BL-018** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les écrans de liste principaux partagent maintenant un socle commun de tri, filtres et compteurs d'état, avec filtres de date FR/ISO et exclusion explicite des tableaux fixes `bilan` / `résultat`.
+- **BL-022** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-19` — La gestion des comptes couvre désormais l'administration, l'espace `Mon profil`, le changement de mot de passe utilisateur, la réinitialisation administrateur adaptée au contexte auto-hébergé et l'invalidation des anciennes sessions après changement de mot de passe.
 - **BL-023** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les rôles métier `Gestionnaire` / `Comptable` / `Administrateur` sont maintenant alignés entre docs, navigation, guards frontend et permissions backend, avec séparation visible `Gestion` / `Comptabilité` et couverture de test ciblée.
 - **BL-025** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13` — Le grand livre est maintenant borné à l'exercice choisi, sans option multi-exercices, avec un solde d'ouverture cohérent quand la période démarre en cours d'exercice.
 - **BL-026** — `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16` — Le ticket a livré un cadrage de recette et un constat exploitable sur la reprise `2024`, puis a été clos une fois les écarts résiduels requalifiés en différences de modélisation assumées ou en suites dédiées (`BL-008`, `BL-029`).

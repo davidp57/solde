@@ -14,6 +14,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 **Gestion des utilisateurs**
 - Documentation de cadrage `doc/dev/gestion-utilisateurs-et-permissions.md` pour clarifier la cible produit des rôles et la matrice simplifiée des permissions
 - Administration des comptes réservée à l'administrateur avec liste, création, activation/désactivation et changement de rôle
+- Espace `Mon profil` permettant à chaque utilisateur authentifié de consulter son compte, de mettre à jour son e-mail et de changer son mot de passe
+- Procédure de réinitialisation d'accès par l'administrateur avec mot de passe temporaire pour le contexte auto-hébergé
 
 **Frontend — filtre générique**
 - Composable `useTableFilter` + `applyFilter` (`composables/useTableFilter.ts`) : filtre client-side fuzzy sur tous les champs d'un tableau
@@ -51,6 +53,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ### Corrigé
 
 **Backend**
+- invalidation des anciens jetons JWT après changement ou réinitialisation de mot de passe pour éviter qu'une ancienne session reste active
 - `excel_import.py` : support des feuilles Caisse (`caisse`/`cash`) et Banque (`banque`/`bank`/`relev`) dans l'import Excel de gestion ; déduplication des numéros de factures dans le même batch ; création automatique du contact si absent (plutôt que saut de ligne silencieux)
 - sécurité et robustesse revues après commentaires de PR : secret JWT obligatoire hors dev/test, conversion propre des erreurs d'édition manuelle en réponses HTTP, metadata Alembic complétée pour l'autogénération
 - factures clients mixtes `cs+a` : quand la feuille `Factures` expose des montants distincts `cours` et `adhésion`, l'import historique crée les lignes de facture correspondantes et la génération comptable ventile désormais les produits sur les comptes dédiés au lieu d'un seul produit global
