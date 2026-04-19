@@ -57,10 +57,12 @@ async def get_current_user(
         raise credentials_exception
 
     issued_at = payload.get("iat")
-    if isinstance(issued_at, (int, float)):
-        password_changed_at = user.password_changed_at.replace(tzinfo=UTC).timestamp()
-        if float(issued_at) < password_changed_at:
-            raise credentials_exception
+    if not isinstance(issued_at, (int, float)):
+        raise credentials_exception
+
+    password_changed_at = user.password_changed_at.replace(tzinfo=UTC).timestamp()
+    if float(issued_at) < password_changed_at:
+        raise credentials_exception
     return user
 
 

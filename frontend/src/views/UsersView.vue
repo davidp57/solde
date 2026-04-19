@@ -376,6 +376,7 @@ import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
 import { createUserApi, listUsersApi, resetUserPasswordApi, updateUserApi } from '@/api/users'
 import type { UserPasswordResetRequest, UserRead, UserRole } from '@/api/types'
+import { PASSWORD_MIN_LENGTH } from '@/constants/auth'
 import { useAuthStore } from '@/stores/auth'
 import {
   dateRangeFilter,
@@ -546,7 +547,7 @@ const canCreate = computed(() => {
   return (
     createForm.value.username.trim().length > 0 &&
     createForm.value.email.trim().length > 0 &&
-    createForm.value.password.length >= 8
+    createForm.value.password.length >= PASSWORD_MIN_LENGTH
   )
 })
 const canEdit = computed(() => {
@@ -559,7 +560,10 @@ const canEdit = computed(() => {
   )
 })
 const canResetPassword = computed(() => {
-  return resetPasswordForm.value.new_password.length >= 8 && resetPasswordUser.value !== null
+  return (
+    resetPasswordForm.value.new_password.length >= PASSWORD_MIN_LENGTH &&
+    resetPasswordUser.value !== null
+  )
 })
 
 function roleLabel(role: UserRole): string {
