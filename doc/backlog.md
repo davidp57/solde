@@ -52,14 +52,13 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 1. **BL-024** — clarifier le workflow de saisie des paiements et corriger les remises en banque automatiques.
 2. **BL-022** — terminer les lots restants sur la gestion des utilisateurs, profils et sécurité de compte.
-3. **BL-029** — repenser la saisie et l'import des factures clients autour de lignes typées.
+3. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
 
 ## Récapitulatif des sujets ouverts
 
 | ID | Créé le | Type | Zone | Priorité proposée | Sujet |
 |---|---|---|---|---|---|
 | BL-004 | 2026-04-12 | Amélioration | Import Excel / Support | P2 | Afficher un historique d'import exploitable dans l'UI avec type, date, compteurs, diagnostics, et une traçabilité suffisamment fine des objets créés |
-| BL-005 | 2026-04-12 | Décision | Comptabilité / Import | P1 | Formaliser la politique de coexistence entre imports Excel, écritures manuelles ou auto-générées déjà présentes, et doublons métier proches |
 | BL-006 | 2026-04-12 | Technique | API / Framework | P3 | Traiter les warnings de dépréciation `HTTP_422_UNPROCESSABLE_ENTITY` remontés par la suite de tests |
 | BL-015 | 2026-04-13 | Amélioration | Import Excel / Outillage | P2 | Ajouter un reset sélectif orienté reprise pour rejouer proprement un import par filière ou période sans repartir systématiquement d'un effacement global |
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
@@ -67,7 +66,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-021 | 2026-04-13 | Documentation | Utilisateur / Parcours | P1 | Rédiger un manuel utilisateur illustré et pas à pas aligné sur les écrans réellement disponibles |
 | BL-022 | 2026-04-13 | Évolution | Utilisateurs / Sécurité | P1 | Renforcer la gestion des utilisateurs avec des rôles métier plus clairs, la création et l'administration des comptes, l'autonomie sur le profil et un socle de sécurité de compte plus complet |
 | BL-024 | 2026-04-13 | Correction | Paiements / Banque | P1 | Clarifier le workflow cible de saisie des paiements et corriger l'automatisme qui remet en banque les paiements `espèces` et `virement` dès leur encodage |
-| BL-029 | 2026-04-16 | Évolution | Factures clients / UX métier | P1 | Repenser la saisie et l'import des factures clients autour de lignes typées (`cours`, `adhésion`, `autres`), avec remises portées par des lignes négatives du même type métier, et faire de ces lignes la source de vérité pour le total et la ventilation comptable |
 | BL-030 | 2026-04-16 | Décision | Métier / Edition des données | P1 | Définir une politique explicite de modification des objets métier déjà créés ou validés (factures, paiements, achats, etc.) avec règles de recalcul, traçabilité et limites selon le statut |
 
 ## Détail des sujets
@@ -102,23 +100,12 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-005 — Politique de coexistence import / écritures existantes
 
-- **Dates** : `created=2026-04-12`, `started=2026-04-19`
+- **Dates** : `created=2026-04-12`, `started=2026-04-19`, `completed=2026-04-19`
 - **Pourquoi** : l'import historique a désormais des garde-fous solides, mais la politique cible n'est pas encore entièrement tranchée quand des écritures manuelles, des écritures auto-générées ou des doublons métier proches coexistent déjà en base.
 - **Résultat attendu** : une politique explicite, documentée et testée qui dit pour chaque cas de coexistence ce qui doit être bloqué, toléré, ignoré comme doublon ou remonté pour revue manuelle avant d'ouvrir davantage l'import `Comptabilite` en réel.
-- **État actuel** : le contrat opérationnel courant des imports historiques est déjà consigné dans `doc/dev/import-excel-contract.md` avec les catégories `accepté / ignoré / bloquant / ambigu`, mais la matrice cible de coexistence fine entre imports, écritures auto-générées et écritures manuelles reste encore à formaliser explicitement.
-- **Avancement au 2026-04-19** : la politique de coexistence actuellement implémentée a été formalisée dans `doc/dev/bl-005-politique-coexistence-imports.md` à partir du comportement réel du code et des tests : avertissement non bloquant en présence d'écritures auto-générées, déduplication stricte des doublons exacts, coexistence autorisée avec des écritures `MANUAL`, signal non bloquant pour les écritures proches d'une `MANUAL`, blocage maintenu pour les rapprochements métier ambigus, et diagnostics désormais distincts entre `entry-existing` (doublon exact), `entry-covered-by-solde` (déjà couvert par Solde) et `entry-near-manual` (proximité avec une écriture manuelle).
-- **Cas à trancher explicitement** :
-	- import `Comptabilite` alors que des écritures auto-générées issues de la gestion existent déjà ;
-	- import `Comptabilite` alors que des écritures `MANUAL` existent déjà sur la même période ;
-	- réimport ou import tardif d'une donnée métier déjà présente mais pas strictement identique ;
-	- doublon exact versus doublon métier proche ;
-	- écart ambigu qui ne peut pas être classé de façon sûre sans validation humaine.
-- **Sorties attendues de la décision** :
-	- une matrice de règles simple du type `bloquer / autoriser / ignorer / signaler` par famille de cas ;
-	- une traduction homogène de ces règles dans la preview, l'import réel et les diagnostics structurés ;
-	- des catégories stables côté rapport pour distinguer clairement `blocked-by-coexistence`, `ignored-as-duplicate`, `manual-review-required` et les cas autorisés.
+- **Résultat livré** : la politique de coexistence actuellement implémentée est maintenant explicitée dans `doc/dev/bl-005-politique-coexistence-imports.md` et traduite dans le code et les tests avec trois diagnostics distincts pour les imports `Comptabilite` : `entry-existing` pour le doublon exact, `entry-covered-by-solde` pour une ligne déjà couverte par Solde, et `entry-near-manual` pour une proximité non bloquante avec une écriture `MANUAL` existante.
 - **Critère d'acceptation** : à lecture de la preview, un utilisateur doit comprendre sans ambiguïté pourquoi un cas coexistence est bloqué, toléré ou seulement signalé, et la même décision doit être respectée à l'import réel.
-- **Point d'attention** : la sûreté métier prime sur l'automatisation agressive ; en cas d'ambiguïté non triviale, la règle par défaut doit être le blocage ou la revue manuelle, jamais l'import silencieux.
+- **Livré parce que** : la PR `#20` a été mergée dans `develop` le `2026-04-19` après validation backend/frontend complète, avec documentation dédiée, diagnostics structurés et couverture de tests associée.
 
 ### BL-006 — Warnings de dépréciation FastAPI
 
@@ -428,7 +415,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-029 — Saisie des factures clients pilotée par types de lignes
 
-- **Dates** : `created=2026-04-16`, `started=2026-04-16`
+- **Dates** : `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-19`
 - **Pourquoi** : le modèle actuel demande encore un label global de facture (`cs`, `a`, `cs+a`, `general`) alors que le besoin métier cible est plus fin : l'utilisateur pense d'abord en lignes de facture, chacune portant un type métier (`cours`, `adhésion`, `autres`), puis attend que Solde calcule le total et la ventilation comptable à partir de cette saisie ; les remises doivent rester visibles sur la facture mais être portées par des lignes négatives du même type métier, pas par une catégorie séparée. Le sous-sujet exploré auparavant comme `BL-028` est absorbé ici, car il n'est pas testable isolément sur `Gestion 2024` faute de détail source exploitable pour des factures mixtes.
 - **Résultat attendu** : une création de facture client où l'utilisateur saisit le client et les lignes, choisit un type par ligne, voit le total calculé automatiquement, et obtient à validation des écritures comptables dérivées de la composition réelle de la facture sans dépendre d'un label global saisi à la main.
 - **Règle métier cible actuellement privilégiée** :
@@ -453,7 +440,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- quelle règle appliquer si une facture mélange `cours`, `adhésion` et `autres`, avec ou sans lignes négatives de remise.
 - **Critère d'acceptation** : un utilisateur peut créer une facture client complète sans se poser de question sur le label comptable global ; le total affiché correspond exactement aux lignes saisies et les écritures générées à validation reflètent cette décomposition ligne par ligne.
 - **Point d'attention** : l'import `Comptabilité` deviendrait alors non seulement un import d'écritures, mais aussi un mécanisme d'enrichissement métier des factures déjà créées ; il faudra l'encadrer par des règles de sûreté et de coexistence explicites.
-- **État d'avancement au 2026-04-18** : l'implémentation a été fusionnée dans `develop` via le merge de la PR `#18` ; la recette utilisateur reste à faire avant clôture.
+- **Résultat livré** : l'implémentation a été fusionnée dans `develop` via le merge de la PR `#18`, puis la recette métier utilisateur a été confirmée sur les scénarios prévus ; la saisie par lignes typées sert désormais de source de vérité pour le total, le libellé dérivé et la ventilation comptable des factures clientes.
 - **Implémenté dans ce lot** :
 	- ajout d'un type de ligne de facture client (`cours`, `adhésion`, `autres`) en base, API et logique métier ;
 	- calcul du total, du label dérivé et de la ventilation comptable directement à partir des lignes, avec support des remises via lignes négatives ;
@@ -462,7 +449,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- formulaire frontend de facture client revu pour supprimer la saisie du label global et piloter la facture par types de lignes ;
 	- migration Alembic, tests backend/frontend et backlog mis à jour.
 - **Validation technique réalisée** : la suite `pytest tests/`, le `type-check` frontend, `eslint` ciblé et `prettier --check` sur les fichiers frontend touchés sont passés localement avant push.
-- **Prochaine étape** : recette métier utilisateur sur le scénario `Gestion 2024` puis `Comptabilité 2024`, avant clôture effective du ticket.
+- **Validation métier réalisée** : la recette utilisateur a été confirmée après fusion, ce qui clôt le ticket côté backlog.
 
 ### BL-030 — Politique de modification des objets métier validés
 
@@ -484,16 +471,15 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## En cours
 
-- **BL-005** — `created=2026-04-12`, `started=2026-04-19` — La politique de coexistence réellement implémentée est maintenant explicitée dans `doc/dev/bl-005-politique-coexistence-imports.md`, avec diagnostics distincts entre doublon exact, ligne déjà couverte par Solde et proximité avec une écriture `MANUAL` ; il reste à décider si certains autres doublons proches doivent à l'avenir être signalés plus finement.
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels a été traité séparément dans `BL-023`, désormais terminé.
-- **BL-029** — `created=2026-04-16`, `started=2026-04-16` — L'implémentation est désormais fusionnée dans `develop` via la PR `#18`, avec lignes typées, import `Gestion`/`Comptabilité` adapté et UI revue ; la recette métier utilisateur reste à faire avant clôture.
 
 ## Fait
 
 - **BL-001** — `created=2026-04-12`, `completed=2026-04-12` — Le backlog sert désormais de support de suivi versionné avec priorités, statuts et mises à jour explicites.
 - **BL-002** — `created=2026-04-12`, `completed=2026-04-12` — La documentation utilisateur import/reset a été rédigée dans `doc/user/import-excel-et-reinitialisation.md`.
 - **BL-003** — `created=2026-04-12`, `completed=2026-04-12` — La campagne de retest sur imports réels 2024/2025 a été rejouée sans écart bloquant.
+- **BL-005** — `created=2026-04-12`, `started=2026-04-19`, `completed=2026-04-19` — La politique de coexistence effectivement implémentée pour les imports `Comptabilite` est désormais documentée, testée et intégrée dans `develop`, avec distinction explicite entre doublon exact, ligne déjà couverte par Solde et proximité non bloquante avec une écriture `MANUAL`.
 - **BL-007** — `created=2026-04-12`, `completed=2026-04-13` — La convention est arrêtée pour le mode de travail actuel : `doc/backlog.md` reste la source de vérité, sans synchronisation systématique avec des issues GitHub à ce stade.
 - **BL-008** — `created=2026-04-12`, `started=2026-04-18`, `completed=2026-04-18` — Le premier lot de convergence BL-008 est désormais intégré dans `develop` avec preview bidirectionnelle par domaine, détails `extra_in_solde`, filtre de période dédié à la comparaison et recette locale rejouable.
 - **BL-009** — `created=2026-04-12`, `completed=2026-04-12` — Le plan comptable par défaut a été enrichi à partir des comptes réellement rencontrés dans les imports historiques.
@@ -508,3 +494,4 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-023** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les rôles métier `Gestionnaire` / `Comptable` / `Administrateur` sont maintenant alignés entre docs, navigation, guards frontend et permissions backend, avec séparation visible `Gestion` / `Comptabilité` et couverture de test ciblée.
 - **BL-025** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13` — Le grand livre est maintenant borné à l'exercice choisi, sans option multi-exercices, avec un solde d'ouverture cohérent quand la période démarre en cours d'exercice.
 - **BL-026** — `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16` — Le ticket a livré un cadrage de recette et un constat exploitable sur la reprise `2024`, puis a été clos une fois les écarts résiduels requalifiés en différences de modélisation assumées ou en suites dédiées (`BL-008`, `BL-029`).
+- **BL-029** — `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-19` — La saisie des factures clients par lignes typées, le calcul dérivé du total et de la ventilation comptable, et les adaptations d'import `Gestion` / `Comptabilité` sont maintenant intégrés dans `develop` et validés côté recette métier utilisateur.
