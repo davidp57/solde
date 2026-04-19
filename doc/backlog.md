@@ -51,8 +51,8 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 ## Priorités proposées pour la prochaine discussion
 
 1. **BL-024** — clarifier le workflow de saisie des paiements et corriger les remises en banque automatiques.
-2. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
-3. **BL-019** — refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker.
+2. **BL-031** — concevoir une vraie réconciliation bancaire bout en bout entre relevés importés, transactions détectées, catégorisation et création de paiements.
+3. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
 
 ## Récapitulatif des sujets ouverts
 
@@ -66,6 +66,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-021 | 2026-04-13 | Documentation | Utilisateur / Parcours | P1 | Rédiger un manuel utilisateur illustré et pas à pas aligné sur les écrans réellement disponibles |
 | BL-024 | 2026-04-13 | Correction | Paiements / Banque | P1 | Clarifier le workflow cible de saisie des paiements et corriger l'automatisme qui remet en banque les paiements `espèces` et `virement` dès leur encodage |
 | BL-030 | 2026-04-16 | Décision | Métier / Edition des données | P1 | Définir une politique explicite de modification des objets métier déjà créés ou validés (factures, paiements, achats, etc.) avec règles de recalcul, traçabilité et limites selon le statut |
+| BL-031 | 2026-04-19 | Amélioration | Banque / Rapprochement | P1 | Concevoir puis implémenter une vraie réconciliation bancaire entre relevés importés, transactions détectées, catégorisation et création ou rapprochement des paiements |
 
 ## Détail des sujets
 
@@ -339,15 +340,41 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-024 — Clarifier la saisie des paiements et corriger les remises en banque automatiques
 
-- **Dates** : `created=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-19`
 - **Pourquoi** : en usage réel, il n'est pas clair comment un paiement doit être saisi dans l'application, et les paiements de type `espèces` ou `virement` semblent être remis en banque automatiquement dès leur encodage, ce qui pose une question de justesse métier et comptable.
 - **Résultat attendu** : définir un workflow cible simple pour la création, la consultation et l'éventuelle remise en banque des paiements, puis corriger l'application pour que chaque mode de paiement suive le bon traitement.
-- **Questions à trancher** :
-	- dans quel écran un utilisateur est-il censé encoder un paiement au quotidien ;
-	- quels types de paiement doivent générer une remise en banque automatique, une remise manuelle ultérieure ou aucune remise ;
-	- faut-il distinguer plus clairement `encaissement`, `dépôt bancaire`, `paiement fournisseur` et `mouvement de caisse` dans l'interface.
+- **Décision produit désormais retenue pour les virements** :
+	- un `virement` ne doit pas être saisi d'abord comme paiement ; la source de vérité est l'entrée visible sur le relevé bancaire ;
+	- le workflow cible est donc `banque -> paiement` pour les virements : import ou saisie du relevé, détection du mouvement créditeur, puis création ou rattachement du paiement correspondant ;
+	- un `chèque` reste un flux `paiement -> remise en banque` ;
+	- des `espèces` restent un flux `paiement -> caisse`, avec dépôt bancaire éventuel traité séparément.
+- **Recadrage acté pendant la discussion** :
+	- l'exploration en cours sur `fix/bl-024-payment-workflow` a permis de confirmer que l'application n'implémente aujourd'hui qu'un rapprochement bancaire superficiel (`reconciled` / `reconciled_with`) sans vrai lien métier entre ligne de banque et paiement ;
+	- la piste `paiement -> banque` pour les virements a été explicitement rejetée comme cible produit ;
+	- le ticket doit maintenant se concentrer sur le bon point d'entrée des paiements selon le moyen de règlement, sans considérer les virements comme des paiements saisis depuis la facture client.
 - **Critère d'acceptation** : un utilisateur comprend où saisir un paiement, le fait sans détour, et les écritures ou remises générées correspondent au comportement métier attendu pour chaque mode de règlement.
 - **Point d'attention** : ce sujet touche à la fois l'UX des écrans `paiements`, la logique de banque/caisse et la génération des écritures comptables associées.
+
+### BL-031 — Construire une vraie réconciliation bancaire bout en bout
+
+- **Dates** : `created=2026-04-19`
+- **Pourquoi** : le produit sait aujourd'hui importer ou saisir des opérations bancaires et les marquer comme `rapprochées`, mais ce rapprochement reste superficiel : il n'existe ni vrai lien métier entre une transaction bancaire et un paiement, ni workflow robuste pour partir d'un relevé et en déduire ou rattacher les paiements clients attendus, en particulier pour les virements.
+- **Résultat attendu** : disposer d'une chaîne cohérente de réconciliation bancaire couvrant l'import des relevés, la détection des transactions utiles, leur catégorisation, la proposition de rapprochements, et la création ou le rattachement des paiements et autres mouvements métier appropriés.
+- **Périmètre visé** :
+	- import des relevés via les formats utiles (`QIF`, `OFX`, et si pertinent les extractions Excel ou CSV réellement utilisées) ;
+	- détection des mouvements créditeurs et débiteurs significatifs ;
+	- catégorisation initiale des lignes (`virement client`, `frais bancaires`, `virement interne`, `subvention`, `prélèvement`, etc.) ;
+	- proposition de rapprochement avec les factures, paiements, remises et autres objets métier ;
+	- création d'un paiement à partir d'une ligne bancaire quand le flux métier le justifie, notamment pour les virements clients ;
+	- conservation d'un lien traçable entre la ligne de relevé, la transaction bancaire persistée, le paiement éventuel et l'objet métier final.
+- **Questions à trancher** :
+	- quelles sources d'import doivent être supportées en priorité dans le vrai workflow de rapprochement (`QIF`, `OFX`, CSV bancaire, export Excel) ;
+	- jusqu'où pousser l'automatisation de la catégorisation avant validation humaine ;
+	- quels critères de matching utiliser pour proposer un rattachement (montant exact, date, contact, libellé, référence, tolérance temporelle, fractionnement ou agrégation) ;
+	- faut-il distinguer un statut `détecté`, `catégorisé`, `proposé`, `rapproché`, `confirmé` plutôt qu'un simple booléen `reconciled` ;
+	- comment gérer les cas ambigus ou composites (virement groupé, paiement partiel, un virement pour plusieurs factures, référence absente ou bruitée).
+- **Critère d'acceptation** : depuis un relevé importé, un utilisateur peut identifier les lignes bancaires à traiter, voir des suggestions de catégorisation et de rapprochement, confirmer le bon rattachement, puis obtenir une trace explicite entre l'opération bancaire et le paiement ou mouvement métier créé.
+- **Point d'attention** : ce ticket touche au coeur du modèle de trésorerie ; il faudra éviter d'empiler un second workflow implicite par-dessus le booléen `reconciled` actuel sans refonte explicite du concept de rapprochement.
 
 ### BL-025 — Corriger le report à nouveau et les soldes du grand livre multi-exercices
 
@@ -449,6 +476,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 ## En cours
 
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
+- **BL-024** — `created=2026-04-13`, `started=2026-04-19` — Le ticket est recadré sur `fix/bl-024-payment-workflow` : `virement` doit suivre un flux `banque -> paiement`, tandis que `chèque` et `espèces` gardent un point d'entrée côté paiement selon leur traitement métier.
 
 ## Fait
 

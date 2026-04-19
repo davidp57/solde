@@ -219,6 +219,15 @@
                 @click="openHistory(data)"
               />
               <Button
+                v-if="canRecordPayment(data)"
+                icon="pi pi-wallet"
+                size="small"
+                severity="success"
+                text
+                :title="t('invoices.record_payment')"
+                @click="openPaymentDialog(data)"
+              />
+              <Button
                 icon="pi pi-pencil"
                 size="small"
                 severity="secondary"
@@ -288,9 +297,18 @@
       class="app-dialog app-dialog--medium"
     >
       <div v-if="historyInvoice" class="history-dialog">
-        <section class="app-dialog-intro">
-          <p class="app-dialog-intro__eyebrow">{{ t('invoices.history') }}</p>
-          <p class="app-dialog-intro__text">{{ t('invoices.client.history_intro') }}</p>
+        <section class="app-dialog-intro history-dialog__intro">
+          <div>
+            <p class="app-dialog-intro__eyebrow">{{ t('invoices.history') }}</p>
+            <p class="app-dialog-intro__text">{{ t('invoices.client.history_intro') }}</p>
+          </div>
+          <Button
+            v-if="canRecordPayment(historyInvoice)"
+            :label="t('invoices.record_payment')"
+            icon="pi pi-wallet"
+            size="small"
+            @click="openPaymentDialog(historyInvoice)"
+          />
         </section>
         <div class="history-dialog__summary">
           <div class="history-dialog__metric">
@@ -398,6 +416,76 @@
         </DataTable>
       </div>
     </Dialog>
+
+    <Dialog
+      v-model:visible="paymentDialogVisible"
+      :header="paymentInvoice ? t('invoices.record_payment') : ''"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <form class="app-dialog-form" @submit.prevent="submitPayment">
+        <section v-if="paymentInvoice" class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ paymentInvoice.number }}</p>
+          <p class="app-dialog-intro__text">{{ t('invoices.client.payment_intro') }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <div class="history-dialog__summary">
+            <div class="history-dialog__metric">
+              <div class="history-dialog__label">{{ t('invoices.remaining') }}</div>
+              <div class="history-dialog__value history-dialog__value--warn">
+                {{ paymentRemaining.toFixed(2) }} €
+              </div>
+            </div>
+          </div>
+          <div class="app-form-grid">
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.date') }}</label>
+              <DatePicker v-model="paymentForm.date" date-format="yy-mm-dd" show-icon />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.amount') }}</label>
+              <InputNumber
+                v-model="paymentForm.amount"
+                mode="decimal"
+                :min="0.01"
+                :min-fraction-digits="2"
+                :max-fraction-digits="2"
+              />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.method') }}</label>
+              <Select
+                v-model="paymentForm.method"
+                :options="paymentMethodOptions"
+                option-label="label"
+                option-value="value"
+              />
+            </div>
+            <div v-if="paymentForm.method === 'cheque'" class="app-field">
+              <label class="app-field__label">{{ t('payments.cheque_number') }}</label>
+              <InputText v-model="paymentForm.cheque_number" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.reference') }}</label>
+              <InputText v-model="paymentForm.reference" />
+            </div>
+            <div class="app-field app-field--span-2">
+              <label class="app-field__label">{{ t('payments.notes') }}</label>
+              <Textarea v-model="paymentForm.notes" rows="3" />
+            </div>
+          </div>
+        </section>
+        <div class="app-form-actions">
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            @click="paymentDialogVisible = false"
+          />
+          <Button type="submit" :label="t('common.save')" :loading="paymentSaving" />
+        </div>
+      </form>
+    </Dialog>
   </AppPage>
 </template>
 
@@ -406,11 +494,14 @@ import Button from 'primevue/button'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
+import DatePicker from 'primevue/datepicker'
 import Dialog from 'primevue/dialog'
+import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import ProgressSpinner from 'primevue/progressspinner'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
+import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -427,7 +518,7 @@ import {
   type Invoice,
   type InvoiceStatus,
 } from '../api/invoices'
-import { listPayments, type Payment } from '../api/payments'
+import { createPayment, listPayments, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
@@ -471,6 +562,17 @@ const historyVisible = ref(false)
 const historyInvoice = ref<Invoice | null>(null)
 const historyLoading = ref(false)
 const historyPayments = ref<Payment[]>([])
+const paymentDialogVisible = ref(false)
+const paymentInvoice = ref<Invoice | null>(null)
+const paymentSaving = ref(false)
+const paymentForm = ref({
+  date: new Date(),
+  amount: 0,
+  method: 'cheque' as 'especes' | 'cheque',
+  cheque_number: '',
+  reference: '',
+  notes: '',
+})
 const historyPaymentRows = computed(() =>
   historyPayments.value.map((payment) => ({
     ...payment,
@@ -516,9 +618,12 @@ const { filters: historyTableFilters } = useDataTableFilters(historyPaymentRows,
 
 const remaining = computed(() => {
   if (!historyInvoice.value) return 0
-  return (
-    parseFloat(historyInvoice.value.total_amount) - parseFloat(historyInvoice.value.paid_amount)
-  )
+  return remainingForInvoice(historyInvoice.value)
+})
+
+const paymentRemaining = computed(() => {
+  if (!paymentInvoice.value) return 0
+  return remainingForInvoice(paymentInvoice.value)
 })
 
 const portfolioMetrics = computed(() => {
@@ -563,7 +668,6 @@ const statusOptions = [
 const paymentMethodOptions = [
   { label: t('payments.methods.especes'), value: 'especes' },
   { label: t('payments.methods.cheque'), value: 'cheque' },
-  { label: t('payments.methods.virement'), value: 'virement' },
 ]
 
 const labelOptions = [
@@ -575,6 +679,20 @@ const labelOptions = [
 
 function formatAmount(val: string | number) {
   return parseFloat(String(val)).toFixed(2)
+}
+
+function toIsoDate(value: Date | string): string {
+  if (typeof value === 'string') return value
+  return value.toISOString().slice(0, 10)
+}
+
+function remainingForInvoice(invoice: Invoice): number {
+  return Math.max(0, parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount))
+}
+
+function canRecordPayment(invoice: Invoice | null): boolean {
+  if (!invoice) return false
+  return invoice.status !== 'draft' && remainingForInvoice(invoice) > 0
 }
 
 function contactName(id: number): string {
@@ -671,12 +789,93 @@ async function duplicate(invoice: Invoice) {
 async function openHistory(invoice: Invoice) {
   historyInvoice.value = invoice
   historyVisible.value = true
+  await loadHistoryPayments(invoice.id)
+}
+
+async function loadHistoryPayments(invoiceId: number) {
   historyLoading.value = true
   historyPayments.value = []
   try {
-    historyPayments.value = await listPayments({ invoice_id: invoice.id })
+    historyPayments.value = await listPayments({ invoice_id: invoiceId })
+    const refreshedInvoice = invoices.value.find((candidate) => candidate.id === invoiceId)
+    if (refreshedInvoice) {
+      historyInvoice.value = refreshedInvoice
+    }
   } finally {
     historyLoading.value = false
+  }
+}
+
+function openPaymentDialog(invoice: Invoice) {
+  paymentInvoice.value = invoice
+  paymentForm.value = {
+    date: new Date(),
+    amount: remainingForInvoice(invoice),
+    method: 'cheque',
+    cheque_number: '',
+    reference: '',
+    notes: '',
+  }
+  paymentDialogVisible.value = true
+}
+
+async function submitPayment() {
+  if (!paymentInvoice.value) {
+    return
+  }
+
+  const amount = Number(paymentForm.value.amount)
+  if (!(amount > 0)) {
+    toast.add({ severity: 'warn', summary: t('payments.errors.amount_positive'), life: 3500 })
+    return
+  }
+  if (amount - paymentRemaining.value > 0.001) {
+    toast.add({
+      severity: 'warn',
+      summary: t('payments.errors.amount_exceeds_remaining'),
+      life: 3500,
+    })
+    return
+  }
+  if (
+    paymentForm.value.method === 'cheque' &&
+    paymentForm.value.cheque_number.trim().length === 0
+  ) {
+    toast.add({
+      severity: 'warn',
+      summary: t('payments.errors.cheque_number_required'),
+      life: 3500,
+    })
+    return
+  }
+
+  paymentSaving.value = true
+  try {
+    await createPayment({
+      invoice_id: paymentInvoice.value.id,
+      contact_id: paymentInvoice.value.contact_id,
+      amount: amount.toFixed(2),
+      date: toIsoDate(paymentForm.value.date),
+      method: paymentForm.value.method,
+      cheque_number:
+        paymentForm.value.method === 'cheque'
+          ? paymentForm.value.cheque_number.trim() || null
+          : null,
+      reference: paymentForm.value.reference.trim() || null,
+      notes: paymentForm.value.notes.trim() || null,
+    })
+    paymentDialogVisible.value = false
+    toast.add({ severity: 'success', summary: t('payments.created'), life: 3000 })
+    const invoiceId = paymentInvoice.value.id
+    await loadInvoices()
+    paymentInvoice.value = invoices.value.find((invoice) => invoice.id === invoiceId) ?? null
+    if (historyVisible.value && historyInvoice.value?.id === invoiceId) {
+      await loadHistoryPayments(invoiceId)
+    }
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } finally {
+    paymentSaving.value = false
   }
 }
 
@@ -722,13 +921,20 @@ onMounted(async () => {
 
 <style scoped>
 .invoices-table__actions-column {
-  width: 13.5rem;
+  width: 16rem;
 }
 
 .history-dialog {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
+}
+
+.history-dialog__intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
 }
 
 .history-dialog__summary {
@@ -774,6 +980,11 @@ onMounted(async () => {
 }
 
 @media (max-width: 767px) {
+  .history-dialog__intro {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .history-dialog__summary {
     grid-template-columns: 1fr;
   }

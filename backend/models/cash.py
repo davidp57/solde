@@ -22,6 +22,7 @@ class CashMovementType(StrEnum):
 
 class CashEntrySource(StrEnum):
     MANUAL = "manual"
+    PAYMENT = "payment"
     SYSTEM_OPENING = "system_opening"
 
 

@@ -122,7 +122,7 @@
           <template #filter="{ filterModel }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
-              :options="methodOptions"
+              :options="allMethodOptions"
               option-label="label"
               option-value="value"
               :placeholder="t('common.all')"
@@ -224,7 +224,7 @@
             <label class="app-field__label">{{ t('payments.method') }}</label>
             <Select
               v-model="paymentForm.method"
-              :options="methodOptions"
+              :options="editableMethodOptions"
               option-label="label"
               option-value="value"
             />
@@ -357,11 +357,17 @@ const chequeCount = computed(
 const activeFilterLabels = computed(() =>
   collectActiveFilterLabels(undepositedOnly.value ? t('payments.filter_undeposited') : undefined),
 )
-const methodOptions = computed(() => [
+const allMethodOptions = computed(() => [
   { label: t('payments.methods.especes'), value: 'especes' },
   { label: t('payments.methods.cheque'), value: 'cheque' },
   { label: t('payments.methods.virement'), value: 'virement' },
 ])
+const editableMethodOptions = computed(() => {
+  if (editingPayment.value?.method === 'virement') {
+    return allMethodOptions.value
+  }
+  return allMethodOptions.value.filter((option) => option.value !== 'virement')
+})
 const yesNoOptions = computed(() => [
   { label: t('common.yes'), value: true },
   { label: t('common.no'), value: false },

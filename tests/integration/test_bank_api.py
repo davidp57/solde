@@ -7,8 +7,10 @@ from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.models.cash import CashMovementType, CashRegister
 from backend.models.contact import Contact, ContactType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
@@ -173,6 +175,64 @@ async def test_create_deposit(
     data = response.json()
     assert data["total_amount"] == "100.00"
     assert payment_id in data["payment_ids"]
+
+
+@pytest.mark.asyncio
+async def test_create_cash_deposit_creates_cash_out_entry(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    c = Contact(type=ContactType.CLIENT, nom="Banque Especes")
+    db_session.add(c)
+    await db_session.flush()
+    inv = Invoice(
+        number="F-2024-100",
+        type=InvoiceType.CLIENT,
+        contact_id=c.id,
+        date=date(2024, 1, 15),
+        total_amount=Decimal("80.00"),
+        paid_amount=Decimal("0"),
+        status=InvoiceStatus.SENT,
+    )
+    db_session.add(inv)
+    await db_session.commit()
+
+    payment_response = await client.post(
+        "/api/payments/",
+        json={
+            "invoice_id": inv.id,
+            "contact_id": c.id,
+            "amount": "80.00",
+            "date": "2024-03-01",
+            "method": "especes",
+        },
+        headers=auth_headers,
+    )
+    assert payment_response.status_code == 201
+    payment_id = payment_response.json()["id"]
+
+    response = await client.post(
+        "/api/bank/deposits",
+        json={
+            "date": "2024-03-05",
+            "type": "especes",
+            "payment_ids": [payment_id],
+            "bank_reference": "ESP-001",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+
+    cash_entries = list(
+        (await db_session.execute(select(CashRegister).order_by(CashRegister.id.asc()))).scalars()
+    )
+    assert len(cash_entries) == 2
+    assert cash_entries[0].type == CashMovementType.IN
+    assert cash_entries[1].type == CashMovementType.OUT
+    assert cash_entries[1].amount == Decimal("80.00")
 
 
 @pytest.mark.asyncio

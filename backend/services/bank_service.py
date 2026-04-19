@@ -8,13 +8,16 @@ from decimal import Decimal
 from sqlalchemy import func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.bank import BankTransaction, Deposit, deposit_payments
-from backend.models.payment import Payment
-from backend.schemas.bank import (
-    BankTransactionCreate,
-    BankTransactionUpdate,
-    DepositCreate,
+from backend.models.bank import (
+    BankTransaction,
+    BankTransactionSource,
+    Deposit,
+    DepositType,
+    deposit_payments,
 )
+from backend.models.cash import CashEntrySource, CashMovementType
+from backend.models.payment import Payment, PaymentMethod
+from backend.schemas.bank import BankTransactionCreate, BankTransactionUpdate, DepositCreate
 
 
 async def _current_bank_balance(db: AsyncSession) -> Decimal:
@@ -40,12 +43,40 @@ async def recompute_bank_balances(db: AsyncSession) -> bool:
 
 
 async def add_transaction(db: AsyncSession, payload: BankTransactionCreate) -> BankTransaction:
-    tx = BankTransaction(**payload.model_dump())
+    tx = await create_bank_transaction_record(
+        db,
+        date=payload.date,
+        amount=payload.amount,
+        reference=payload.reference,
+        description=payload.description,
+        source=payload.source,
+    )
+    await db.commit()
+    await db.refresh(tx)
+    return tx
+
+
+async def create_bank_transaction_record(
+    db: AsyncSession,
+    *,
+    date: date,
+    amount: Decimal,
+    reference: str | None = None,
+    description: str = "",
+    source: BankTransactionSource = BankTransactionSource.MANUAL,
+) -> BankTransaction:
+    """Create a bank transaction without committing, then recompute balances."""
+    tx = BankTransaction(
+        date=date,
+        amount=amount,
+        reference=reference,
+        description=description,
+        balance_after=Decimal("0"),
+        source=source,
+    )
     db.add(tx)
     await db.flush()
     await recompute_bank_balances(db)
-    await db.commit()
-    await db.refresh(tx)
     return tx
 
 
@@ -107,7 +138,17 @@ async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
     if len(payments) != len(payload.payment_ids):
         raise ValueError("one or more payment_ids not found")
 
-    total_amount = sum(Decimal(str(p.amount)) for p in payments)
+    expected_method = (
+        PaymentMethod.CHEQUE if payload.type == DepositType.CHEQUES else PaymentMethod.ESPECES
+    )
+    invalid_payment = next(
+        (payment for payment in payments if payment.method != expected_method),
+        None,
+    )
+    if invalid_payment is not None:
+        raise ValueError("deposit payments must match the selected deposit type")
+
+    total_amount = sum((Decimal(str(payment.amount)) for payment in payments), Decimal("0"))
 
     deposit = Deposit(
         date=payload.date,
@@ -129,6 +170,20 @@ async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
     for p in payments:
         p.deposited = True
         p.deposit_date = payload.date
+
+    if payload.type == DepositType.ESPECES:
+        from backend.services.cash_service import create_cash_entry_record  # noqa: PLC0415
+
+        reference = payload.bank_reference or f"DEP-ESP-{deposit.id}"
+        await create_cash_entry_record(
+            db,
+            date=payload.date,
+            amount=total_amount,
+            type=CashMovementType.OUT,
+            reference=reference,
+            description="Remise d'especes en banque",
+            source=CashEntrySource.MANUAL,
+        )
 
     # Auto-generate accounting entries
     from backend.services.accounting_engine import (  # noqa: PLC0415

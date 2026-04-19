@@ -301,6 +301,8 @@ export default {
       negative_total_error: 'Le total de la facture client ne peut pas être négatif.',
       history_intro:
         'Retrouvez rapidement le niveau d’encaissement et l’historique des règlements associés à cette facture.',
+      payment_intro:
+        'Enregistrez ici un règlement en chèque ou en espèces ; les virements se traitent depuis le relevé bancaire.',
     },
     supplier: {
       title: 'Factures fournisseurs',
@@ -367,6 +369,7 @@ export default {
     file_uploaded: 'Fichier joint avec succès.',
     file: 'Pièce jointe',
     history: 'Historique',
+    record_payment: 'Enregistrer un règlement',
     history_title: 'Historique de la facture {number}',
     paid: 'Réglé',
     remaining: 'Restant dû',
@@ -411,6 +414,7 @@ export default {
     deposit_date: 'Date de remise',
     filter_undeposited: 'À remettre en banque',
     updated: 'Paiement mis à jour.',
+    created: 'Paiement enregistré.',
     deleted: 'Paiement supprimé.',
     confirm_delete: 'Supprimer ce paiement de {amount} € ?',
     metrics: {
@@ -425,6 +429,11 @@ export default {
       especes: 'Espèces',
       cheque: 'Chèque',
       virement: 'Virement',
+    },
+    errors: {
+      amount_positive: 'Saisissez un montant strictement positif.',
+      amount_exceeds_remaining: 'Le montant dépasse le restant dû de la facture.',
+      cheque_number_required: 'Renseignez un numéro de chèque pour ce règlement.',
     },
   },
   cash: {
@@ -467,6 +476,8 @@ export default {
       out: 'Sortie',
     },
     origins: {
+      manual: 'Manuel',
+      payment: 'Paiement client',
       system_opening: 'Ouverture du système',
     },
     metrics: {
