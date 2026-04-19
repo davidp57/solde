@@ -227,7 +227,7 @@ async def test_list_deposits(db_session: AsyncSession) -> None:
         contact_id=contact.id,
         amount=Decimal("50.00"),
         date=date(2024, 2, 2),
-        method=PaymentMethod.CHEQUE,
+        method=PaymentMethod.ESPECES,
         deposited=False,
     )
     db_session.add(p2)

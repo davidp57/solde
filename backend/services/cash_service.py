@@ -62,7 +62,8 @@ async def recompute_cash_balances(db: AsyncSession) -> bool:
 
 async def add_cash_entry(db: AsyncSession, payload: CashEntryCreate) -> CashRegister:
     """Add a cash register entry and recompute running balances in journal order."""
-    entry = CashRegister(
+    entry = await create_cash_entry_record(
+        db,
         date=payload.date,
         amount=payload.amount,
         type=payload.type,
@@ -71,13 +72,39 @@ async def add_cash_entry(db: AsyncSession, payload: CashEntryCreate) -> CashRegi
         reference=payload.reference,
         description=payload.description,
         source=CashEntrySource.MANUAL,
+    )
+    await db.commit()
+    await db.refresh(entry)
+    return entry
+
+
+async def create_cash_entry_record(
+    db: AsyncSession,
+    *,
+    date: date,
+    amount: Decimal,
+    type: CashMovementType,
+    contact_id: int | None = None,
+    payment_id: int | None = None,
+    reference: str | None = None,
+    description: str = "",
+    source: CashEntrySource = CashEntrySource.MANUAL,
+) -> CashRegister:
+    """Create a cash entry without committing, then recompute balances."""
+    entry = CashRegister(
+        date=date,
+        amount=amount,
+        type=type,
+        contact_id=contact_id,
+        payment_id=payment_id,
+        reference=reference,
+        description=description,
+        source=source,
         balance_after=Decimal("0"),
     )
     db.add(entry)
     await db.flush()
     await recompute_cash_balances(db)
-    await db.commit()
-    await db.refresh(entry)
     return entry
 
 

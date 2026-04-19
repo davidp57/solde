@@ -185,6 +185,7 @@ La liste affiche notamment le numéro, la date, le contact, le type, le total et
 Depuis la ligne d'une facture, vous pouvez :
 
 - ouvrir l'historique de la facture ;
+- enregistrer un règlement ;
 - modifier la facture ;
 - générer un PDF ;
 - envoyer la facture par e-mail ;
@@ -199,6 +200,8 @@ L'historique de facture permet de visualiser rapidement :
 - le montant déjà réglé ;
 - le restant dû ;
 - la liste des paiements rattachés à cette facture.
+
+Depuis cette fenêtre, vous pouvez aussi enregistrer un nouveau règlement tant qu'il reste un solde à percevoir.
 
 ### Résultat attendu
 
@@ -216,13 +219,28 @@ La facture apparaît dans le portefeuille client avec son statut et son total. S
 
 Vérifier les paiements déjà enregistrés, suivre les règlements par facture ou par contact, et contrôler ce qui reste à remettre en banque.
 
-### Ce que permet l'application aujourd'hui
+### Saisir un paiement client
 
-Dans l'interface actuellement disponible, l'écran `Paiements` sert surtout à consulter, filtrer et supprimer un paiement existant. Il n'expose pas encore un formulaire dédié pour créer ou modifier un paiement depuis cet écran principal.
+Le parcours standard consiste à enregistrer depuis la facture client les règlements en `Espèces` et en `Chèque`.
 
-Autrement dit, le suivi des paiements est bien visible, mais la saisie manuelle directe d'un paiement dans l'interface principale n'est pas encore documentée ici car elle n'est pas exposée comme parcours utilisateur standard.
+1. Ouvrez `Factures clients`.
+2. Repérez la facture à régler.
+3. Cliquez sur `Enregistrer un règlement` depuis la ligne ou depuis l'historique de la facture.
+4. Vérifiez la date proposée et ajustez-la si nécessaire.
+5. Renseignez le montant encaissé.
+6. Choisissez le mode de règlement : `Espèces` ou `Chèque`.
+7. Si vous saisissez un chèque, renseignez le numéro de chèque.
+8. Ajoutez si besoin une référence ou une note.
+9. Cliquez sur `Enregistrer`.
 
-En pratique, les paiements visibles dans Solde proviennent surtout des données déjà importées ou des paiements déjà rattachés aux factures existantes. L'écran `Paiements` sert donc aujourd'hui d'abord à contrôler et suivre ce qui est déjà enregistré.
+Les `Virements` suivent un autre point d'entrée : ils doivent être constatés depuis le relevé bancaire, puis rapprochés du bon paiement.
+
+### Effet selon le mode de règlement
+
+- `Espèces` : le paiement est enregistré et apparaît immédiatement dans le journal `Caisse`.
+- `Chèque` : le paiement est enregistré, mais reste en attente d'une remise manuelle en banque.
+
+Ce comportement permet de distinguer clairement l'encaissement réel du dépôt bancaire, surtout pour les chèques et les dépôts d'espèces.
 
 ### Consulter les paiements d'une facture
 
@@ -260,7 +278,7 @@ Vous pouvez répondre à trois questions simples :
 
 - Un paiement supprimé peut modifier automatiquement le statut de la facture associée.
 - Les chèques non remis en banque sont à surveiller de près, notamment avant une remise.
-- Pour la création ou l'édition directe d'un paiement via l'interface, il faudra documenter un lot ultérieur quand ce parcours sera exposé de façon standard.
+- Une remise d'espèces en banque crée un mouvement de sortie dans la caisse au moment du dépôt, en plus du mouvement d'entrée enregistré lors de l'encaissement.
 
 ## 6. Saisir et suivre une facture fournisseur
 

@@ -1,6 +1,7 @@
 import apiClient from './client'
 
 export type CashMovementType = 'in' | 'out'
+export type CashEntrySource = 'manual' | 'deposit' | 'payment' | 'system_opening'
 
 export interface CashEntry {
   id: number
@@ -11,6 +12,7 @@ export interface CashEntry {
   payment_id: number | null
   reference: string | null
   description: string
+  source: CashEntrySource
   balance_after: string
   is_system_opening: boolean
 }

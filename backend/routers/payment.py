@@ -58,7 +58,12 @@ async def create_payment(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _WriteAccess,
 ) -> PaymentRead:
-    payment = await payment_service.create_payment(db, payload)
+    try:
+        payment = await payment_service.create_payment(db, payload)
+    except payment_service.InvoiceNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return payment  # type: ignore[return-value]
 
 
@@ -84,7 +89,10 @@ async def update_payment(
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
-    updated = await payment_service.update_payment(db, payment, payload)
+    try:
+        updated = await payment_service.update_payment(db, payment, payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return updated  # type: ignore[return-value]
 
 

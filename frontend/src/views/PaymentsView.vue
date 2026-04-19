@@ -122,7 +122,7 @@
           <template #filter="{ filterModel }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
-              :options="methodOptions"
+              :options="allMethodOptions"
               option-label="label"
               option-value="value"
               :placeholder="t('common.all')"
@@ -214,19 +214,26 @@
         <div class="app-form-grid">
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.date') }}</label>
-            <InputText v-model="paymentForm.date" type="date" />
+            <InputText v-model="paymentForm.date" type="date" :disabled="isCashPaymentLocked" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.amount') }}</label>
-            <InputText v-model="paymentForm.amount" type="number" step="0.01" min="0.01" />
+            <InputText
+              v-model="paymentForm.amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              :disabled="isCashPaymentLocked"
+            />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.method') }}</label>
             <Select
               v-model="paymentForm.method"
-              :options="methodOptions"
+              :options="editableMethodOptions"
               option-label="label"
               option-value="value"
+              :disabled="isClientPaymentMethodLocked"
             />
           </div>
           <div class="app-field">
@@ -357,11 +364,36 @@ const chequeCount = computed(
 const activeFilterLabels = computed(() =>
   collectActiveFilterLabels(undepositedOnly.value ? t('payments.filter_undeposited') : undefined),
 )
-const methodOptions = computed(() => [
+const allMethodOptions = computed(() => [
   { label: t('payments.methods.especes'), value: 'especes' },
   { label: t('payments.methods.cheque'), value: 'cheque' },
   { label: t('payments.methods.virement'), value: 'virement' },
 ])
+const editableMethodOptions = computed(() => {
+  const currentMethod = editingPayment.value?.method
+
+  if (!currentMethod) {
+    return allMethodOptions.value
+  }
+
+  if (currentMethod === 'especes' || currentMethod === 'cheque') {
+    return allMethodOptions.value.filter((option) => option.value === currentMethod)
+  }
+
+  if (currentMethod === 'virement') {
+    return allMethodOptions.value
+  }
+
+  return allMethodOptions.value
+})
+const isClientPaymentMethodLocked = computed(
+  () =>
+    editingPayment.value?.invoice_type === 'client' &&
+    (editingPayment.value.method === 'especes' || editingPayment.value.method === 'cheque'),
+)
+const isCashPaymentLocked = computed(
+  () => editingPayment.value?.invoice_type === 'client' && editingPayment.value.method === 'especes',
+)
 const yesNoOptions = computed(() => [
   { label: t('common.yes'), value: true },
   { label: t('common.no'), value: false },
