@@ -10,7 +10,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.cash import CashMovementType, CashRegister
+from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
 from backend.models.contact import Contact, ContactType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
@@ -233,6 +233,7 @@ async def test_create_cash_deposit_creates_cash_out_entry(
     assert cash_entries[0].type == CashMovementType.IN
     assert cash_entries[1].type == CashMovementType.OUT
     assert cash_entries[1].amount == Decimal("80.00")
+    assert cash_entries[1].source == CashEntrySource.DEPOSIT
 
 
 @pytest.mark.asyncio

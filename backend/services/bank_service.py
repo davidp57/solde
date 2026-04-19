@@ -182,7 +182,7 @@ async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
             type=CashMovementType.OUT,
             reference=reference,
             description="Remise d'especes en banque",
-            source=CashEntrySource.MANUAL,
+            source=CashEntrySource.DEPOSIT,
         )
 
     # Auto-generate accounting entries
