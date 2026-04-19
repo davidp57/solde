@@ -500,15 +500,15 @@
             <h3 class="app-dialog-section__title">{{ t('bank.deposit_selection_title') }}</h3>
             <p class="app-dialog-section__copy">{{ t('bank.deposit_selection_subtitle') }}</p>
           </div>
-          <Message v-if="undepositedPayments.length === 0" severity="warn">
+          <Message v-if="availableDepositPayments.length === 0" severity="warn">
             {{ t('bank.deposit_empty') }}
           </Message>
-          <p v-if="undepositedPayments.length === 0" class="app-dialog-note">
+          <p v-if="availableDepositPayments.length === 0" class="app-dialog-note">
             {{ t('bank.deposit_empty_hint') }}
           </p>
           <div v-else class="app-dialog-list">
             <label
-              v-for="p in undepositedPayments"
+              v-for="p in availableDepositPayments"
               :key="p.id"
               class="app-dialog-list__item bank-payment-option"
             >
@@ -647,6 +647,11 @@ const depositRows = computed(() =>
     payment_count_label: `${deposit.payment_ids?.length || 0}`,
   })),
 )
+
+const availableDepositPayments = computed(() => {
+  const expectedMethod = depositForm.value.type === 'cheques' ? 'cheque' : 'especes'
+  return undepositedPayments.value.filter((payment) => payment.method === expectedMethod)
+})
 
 const displayedPeriodVariation = computed(() =>
   displayedTransactions.value.reduce(
@@ -883,6 +888,7 @@ async function openDepositDialog() {
     to_date: fiscalYearStore.selectedFiscalYear?.end_date,
   })
   depositForm.value.payment_ids = []
+  depositForm.value.type = 'cheques'
   depositDialogVisible.value = true
 }
 
@@ -903,6 +909,13 @@ async function submitDeposit() {
     saving.value = false
   }
 }
+
+watch(
+  () => depositForm.value.type,
+  () => {
+    depositForm.value.payment_ids = []
+  },
+)
 
 watch(
   () => fiscalYearStore.selectedFiscalYearId,

@@ -59,6 +59,7 @@ const cashEntryFixture = {
   payment_id: null,
   reference: 'CAISSE-2025-001',
   description: 'Participation sortie',
+  source: 'manual' as const,
   balance_after: '145.00',
   is_system_opening: false,
 }
@@ -357,7 +358,9 @@ describe('CashView', () => {
   })
 
   it('renders the system opening indicator when a cash entry is flagged', async () => {
-    mockListCashEntries.mockResolvedValue([{ ...cashEntryFixture, is_system_opening: true }])
+    mockListCashEntries.mockResolvedValue([
+      { ...cashEntryFixture, source: 'system_opening', is_system_opening: true },
+    ])
 
     const wrapper = mountView()
     await flushView()

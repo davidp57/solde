@@ -34,6 +34,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+**Paiements et trésorerie**
+- Les règlements clients en `chèque` et `espèces` se saisissent désormais depuis la facture client et son historique, avec un parcours dédié pour enregistrer date, montant, mode, référence et note
+- Le journal `Caisse` affiche explicitement les mouvements issus d'un paiement client, et les bordereaux bancaires filtrent les paiements selon le type de remise choisi
+
 **Authentification et permissions**
 - Les rôles techniques existants restent inchangés côté API, mais leur présentation est clarifiée côté produit pour préparer l'administration des comptes sans casser les autorisations existantes
 
@@ -51,6 +55,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `SettingsView.vue` : fond de la « Zone de danger » adouci en dark mode (`rgba(239,68,68,0.08)`)
 
 ### Corrigé
+
+**Paiements et trésorerie**
+- Un règlement en `espèces` crée désormais immédiatement une entrée en caisse, tandis que la remise d'espèces en banque sort explicitement la somme de la caisse au moment du dépôt
+- Un règlement par `chèque` reste en attente d'une remise manuelle en banque au lieu d'être assimilé à un dépôt automatique
 
 **Backend**
 - invalidation des anciens jetons JWT après changement ou réinitialisation de mot de passe pour éviter qu'une ancienne session reste active

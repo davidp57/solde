@@ -117,10 +117,10 @@
                       :severity="data.type === 'in' ? 'success' : 'danger'"
                     />
                     <Tag
-                      v-if="data.is_system_opening"
-                      :value="t('cash.origins.system_opening')"
+                      v-if="data.origin_label"
+                      :value="data.origin_label"
                       class="cash-entry-type__system-opening"
-                      severity="info"
+                      :severity="data.source === 'payment' ? 'success' : 'info'"
                     />
                   </div>
                 </template>
@@ -352,12 +352,12 @@
           <span class="cash-detail__label">{{ t('cash.entry_type') }}</span>
           <span>{{ t(`cash.movements.${selectedEntry.type}`) }}</span>
         </div>
-        <div v-if="selectedEntry.is_system_opening" class="cash-detail__row">
+        <div class="cash-detail__row">
           <span class="cash-detail__label">{{ t('cash.entry_origin') }}</span>
           <Tag
-            :value="t('cash.origins.system_opening')"
+            :value="t(`cash.origins.${selectedEntry.source}`)"
             class="cash-entry-type__system-opening"
-            severity="info"
+            :severity="selectedEntry.source === 'payment' ? 'success' : 'info'"
           />
         </div>
         <div class="cash-detail__row">
@@ -576,7 +576,7 @@ const entryRows = computed(() =>
   entries.value.map((entry) => ({
     ...entry,
     type_label: t(`cash.movements.${entry.type}`),
-    origin_label: entry.is_system_opening ? t('cash.origins.system_opening') : '',
+    origin_label: t(`cash.origins.${entry.source}`),
     amount_value: parseFloat(entry.amount),
     balance_after_value: parseFloat(entry.balance_after),
   })),

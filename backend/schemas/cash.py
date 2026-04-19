@@ -7,7 +7,7 @@ from decimal import Decimal as _Decimal
 
 from pydantic import BaseModel, field_validator
 
-from backend.models.cash import CashMovementType
+from backend.models.cash import CashEntrySource, CashMovementType
 
 
 class CashEntryCreate(BaseModel):
@@ -53,6 +53,7 @@ class CashEntryRead(BaseModel):
     payment_id: int | None
     reference: str | None
     description: str
+    source: CashEntrySource
     balance_after: _Decimal
     is_system_opening: bool
 
