@@ -20,6 +20,19 @@ export interface UserRead {
   created_at: string
 }
 
+export interface UserSelfUpdate {
+  email: string
+}
+
+export interface PasswordChangeRequest {
+  current_password: string
+  new_password: string
+}
+
+export interface UserPasswordResetRequest {
+  new_password: string
+}
+
 export type ContactType = 'client' | 'fournisseur' | 'les_deux'
 
 // ---------------------------------------------------------------------------

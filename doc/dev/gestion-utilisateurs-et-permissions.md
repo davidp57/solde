@@ -77,7 +77,7 @@ Précisions d'implémentation utiles :
 - l'écran de gestion des exercices reste réservé à `Comptable` et `Administrateur` ;
 - la carte `Exercice en cours` du tableau de bord suit la même logique que le sélecteur global : exercice ouvert couvrant la date du jour, sinon exercice ouvert le plus récent.
 
-## Portée du lot 2
+## Portée des lots BL-022
 
 Le lot 2 ajoute l'administration des comptes avec les capacités suivantes :
 
@@ -86,17 +86,37 @@ Le lot 2 ajoute l'administration des comptes avec les capacités suivantes :
 - changer le rôle d'un compte ;
 - activer ou désactiver un compte.
 
-Le lot 2 ne couvre pas encore :
+Le lot 3 ajoute l'espace `Mon profil` avec les capacités suivantes :
 
-- l'espace `Mon profil` ;
-- le changement de mot de passe par l'utilisateur lui-même ;
-- le mot de passe oublié ou la récupération d'accès ;
-- l'alignement complet backend/frontend avec la nouvelle matrice BL-023.
+- consulter son identifiant, son rôle métier effectif et la date de création du compte ;
+- modifier son e-mail de contact dans un périmètre maîtrisé ;
+- conserver un identifiant de connexion stable, non modifiable depuis l'interface.
+
+Le lot 4 complète la sécurité de compte avec les capacités suivantes :
+
+- changer son mot de passe en fournissant le mot de passe actuel ;
+- invalider les anciens jetons JWT après changement de mot de passe ou réinitialisation ;
+- permettre à l'administrateur de définir un mot de passe temporaire pour un autre utilisateur, afin de couvrir la récupération d'accès dans un contexte associatif auto-hébergé.
+
+À ce stade, BL-022 ne couvre toujours pas l'alignement complet backend/frontend avec la nouvelle matrice BL-023.
+
+## Procédure retenue pour la récupération d'accès
+
+Le ticket ne met pas en place de flux autonome `mot de passe oublié` par e-mail. La procédure retenue est volontairement plus simple et plus robuste pour le contexte cible :
+
+1. l'utilisateur qui ne peut plus se connecter contacte un administrateur ;
+2. l'administrateur ouvre `Utilisateurs` et définit un mot de passe temporaire ;
+3. l'utilisateur se reconnecte avec ce mot de passe temporaire ;
+4. l'utilisateur le change immédiatement depuis `Mon profil`.
+
+Cette approche évite de rendre la récupération d'accès dépendante d'un SMTP correctement configuré, tout en gardant un processus explicite et sûr.
 
 ## Garde-fous retenus
 
-Pour éviter une perte d'accès administrative dans ce lot :
+Pour éviter une perte d'accès administrative ou une persistance de session non voulue dans ce lot :
 
 - un administrateur ne peut pas se désactiver lui-même ;
 - un administrateur ne peut pas se retirer lui-même son rôle d'administration ;
 - le dernier administrateur actif ne peut pas être désactivé ni rétrogradé.
+- un changement de mot de passe ou une réinitialisation invalide les anciens jetons d'accès et de refresh ;
+- la réinitialisation administrateur reste séparée du changement de mot de passe utilisateur pour éviter de mélanger support et autonomie.

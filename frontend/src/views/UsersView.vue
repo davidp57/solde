@@ -173,6 +173,14 @@
                 text
                 @click="openEditDialog(data)"
               />
+              <Button
+                icon="pi pi-key"
+                size="small"
+                severity="secondary"
+                text
+                :disabled="data.id === auth.user?.id"
+                @click="openResetDialog(data)"
+              />
             </div>
           </template>
         </Column>
@@ -300,6 +308,48 @@
         </div>
       </form>
     </Dialog>
+
+    <Dialog
+      v-model:visible="resetDialogVisible"
+      :header="t('users.reset_dialog_title')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <form class="app-form-stack" @submit.prevent="submitResetPassword">
+        <Message severity="info" :closable="false">{{ t('users.reset_password_help') }}</Message>
+        <div class="app-field">
+          <label class="app-field__label">{{ t('users.username') }}</label>
+          <InputText :model-value="resetPasswordUser?.username ?? ''" disabled class="w-full" />
+        </div>
+        <div class="app-field">
+          <label class="app-field__label" for="user-reset-password">{{
+            t('users.reset_password')
+          }}</label>
+          <Password
+            id="user-reset-password"
+            v-model="resetPasswordForm.new_password"
+            :feedback="false"
+            toggle-mask
+            class="w-full"
+            input-class="w-full"
+          />
+        </div>
+        <div class="app-form-actions">
+          <Button
+            type="button"
+            :label="t('common.cancel')"
+            severity="secondary"
+            @click="closeResetDialog"
+          />
+          <Button
+            type="submit"
+            :label="t('users.reset_password_action')"
+            :disabled="!canResetPassword"
+            :loading="savingResetPassword"
+          />
+        </div>
+      </form>
+    </Dialog>
   </AppPage>
 </template>
 
@@ -324,8 +374,8 @@ import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
-import { createUserApi, listUsersApi, updateUserApi } from '@/api/users'
-import type { UserRead, UserRole } from '@/api/types'
+import { createUserApi, listUsersApi, resetUserPasswordApi, updateUserApi } from '@/api/users'
+import type { UserPasswordResetRequest, UserRead, UserRole } from '@/api/types'
 import { useAuthStore } from '@/stores/auth'
 import {
   dateRangeFilter,
@@ -345,6 +395,8 @@ interface EditUserForm {
   role: UserRole
   is_active: boolean
 }
+
+type ResetPasswordForm = UserPasswordResetRequest
 
 interface RoleDefinition {
   value: UserRole
@@ -369,11 +421,15 @@ const userRows = ref<
 const loading = ref(false)
 const savingCreate = ref(false)
 const savingEdit = ref(false)
+const savingResetPassword = ref(false)
 const createDialogVisible = ref(false)
 const editDialogVisible = ref(false)
+const resetDialogVisible = ref(false)
 const editingUser = ref<UserRead | null>(null)
+const resetPasswordUser = ref<UserRead | null>(null)
 const createForm = ref<CreateUserForm>(defaultCreateForm())
 const editForm = ref<EditUserForm>(defaultEditForm())
+const resetPasswordForm = ref<ResetPasswordForm>(defaultResetPasswordForm())
 const yesNoOptions = [
   { label: t('common.yes'), value: true },
   { label: t('common.no'), value: false },
@@ -421,6 +477,12 @@ function defaultEditForm(): EditUserForm {
   return {
     role: 'secretaire',
     is_active: true,
+  }
+}
+
+function defaultResetPasswordForm(): ResetPasswordForm {
+  return {
+    new_password: '',
   }
 }
 
@@ -495,6 +557,9 @@ const canEdit = computed(() => {
     editForm.value.role !== editingUser.value.role ||
     editForm.value.is_active !== editingUser.value.is_active
   )
+})
+const canResetPassword = computed(() => {
+  return resetPasswordForm.value.new_password.length >= 8 && resetPasswordUser.value !== null
 })
 
 function roleLabel(role: UserRole): string {
@@ -586,6 +651,18 @@ function closeEditDialog(): void {
   editForm.value = defaultEditForm()
 }
 
+function openResetDialog(user: UserRead): void {
+  resetPasswordUser.value = user
+  resetPasswordForm.value = defaultResetPasswordForm()
+  resetDialogVisible.value = true
+}
+
+function closeResetDialog(): void {
+  resetDialogVisible.value = false
+  resetPasswordUser.value = null
+  resetPasswordForm.value = defaultResetPasswordForm()
+}
+
 async function submitCreate(): Promise<void> {
   if (!canCreate.value) return
 
@@ -630,6 +707,23 @@ async function submitEdit(): Promise<void> {
   }
 }
 
+async function submitResetPassword(): Promise<void> {
+  if (!resetPasswordUser.value || !canResetPassword.value) return
+
+  savingResetPassword.value = true
+  try {
+    await resetUserPasswordApi(resetPasswordUser.value.id, {
+      new_password: resetPasswordForm.value.new_password,
+    })
+    toast.add({ severity: 'success', summary: t('users.password_reset'), life: 3000 })
+    closeResetDialog()
+  } catch (error: unknown) {
+    toast.add({ severity: 'error', summary: getApiErrorSummary(error), life: 3500 })
+  } finally {
+    savingResetPassword.value = false
+  }
+}
+
 onMounted(loadUsers)
 </script>
 
@@ -660,7 +754,7 @@ onMounted(loadUsers)
 }
 
 .users-actions {
-  width: 6rem;
+  width: 8rem;
 }
 
 .users-switch-row {
