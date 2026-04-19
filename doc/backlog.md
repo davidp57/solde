@@ -52,7 +52,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 1. **BL-024** — clarifier le workflow de saisie des paiements et corriger les remises en banque automatiques.
 2. **BL-022** — terminer les lots restants sur la gestion des utilisateurs, profils et sécurité de compte.
-3. **BL-027** — gérer une ouverture du système explicite pour Banque et Caisse.
+3. **BL-029** — repenser la saisie et l'import des factures clients autour de lignes typées.
 
 ## Récapitulatif des sujets ouverts
 
@@ -64,9 +64,9 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-015 | 2026-04-13 | Amélioration | Import Excel / Outillage | P2 | Ajouter un reset sélectif orienté reprise pour rejouer proprement un import par filière ou période sans repartir systématiquement d'un effacement global |
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
+| BL-021 | 2026-04-13 | Documentation | Utilisateur / Parcours | P1 | Rédiger un manuel utilisateur illustré et pas à pas aligné sur les écrans réellement disponibles |
 | BL-022 | 2026-04-13 | Évolution | Utilisateurs / Sécurité | P1 | Renforcer la gestion des utilisateurs avec des rôles métier plus clairs, la création et l'administration des comptes, l'autonomie sur le profil et un socle de sécurité de compte plus complet |
 | BL-024 | 2026-04-13 | Correction | Paiements / Banque | P1 | Clarifier le workflow cible de saisie des paiements et corriger l'automatisme qui remet en banque les paiements `espèces` et `virement` dès leur encodage |
-| BL-027 | 2026-04-15 | Évolution | Import Excel / Trésorerie | P1 | Gérer une ouverture du système explicite pour Banque et Caisse sur le premier exercice importé |
 | BL-029 | 2026-04-16 | Évolution | Factures clients / UX métier | P1 | Repenser la saisie et l'import des factures clients autour de lignes typées (`cours`, `adhésion`, `autres`), avec remises portées par des lignes négatives du même type métier, et faire de ces lignes la source de vérité pour le total et la ventilation comptable |
 | BL-030 | 2026-04-16 | Décision | Métier / Edition des données | P1 | Définir une politique explicite de modification des objets métier déjà créés ou validés (factures, paiements, achats, etc.) avec règles de recalcul, traçabilité et limites selon le statut |
 
@@ -102,9 +102,11 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-005 — Politique de coexistence import / écritures existantes
 
-- **Dates** : `created=2026-04-12`
+- **Dates** : `created=2026-04-12`, `started=2026-04-19`
 - **Pourquoi** : l'import historique a désormais des garde-fous solides, mais la politique cible n'est pas encore entièrement tranchée quand des écritures manuelles, des écritures auto-générées ou des doublons métier proches coexistent déjà en base.
 - **Résultat attendu** : une politique explicite, documentée et testée qui dit pour chaque cas de coexistence ce qui doit être bloqué, toléré, ignoré comme doublon ou remonté pour revue manuelle avant d'ouvrir davantage l'import `Comptabilite` en réel.
+- **État actuel** : le contrat opérationnel courant des imports historiques est déjà consigné dans `doc/dev/import-excel-contract.md` avec les catégories `accepté / ignoré / bloquant / ambigu`, mais la matrice cible de coexistence fine entre imports, écritures auto-générées et écritures manuelles reste encore à formaliser explicitement.
+- **Avancement au 2026-04-19** : la politique de coexistence actuellement implémentée a été formalisée dans `doc/dev/bl-005-politique-coexistence-imports.md` à partir du comportement réel du code et des tests : avertissement non bloquant en présence d'écritures auto-générées, déduplication stricte des doublons exacts, coexistence autorisée avec des écritures `MANUAL`, signal non bloquant pour les écritures proches d'une `MANUAL`, blocage maintenu pour les rapprochements métier ambigus, et diagnostics désormais distincts entre `entry-existing` (doublon exact), `entry-covered-by-solde` (déjà couvert par Solde) et `entry-near-manual` (proximité avec une écriture manuelle).
 - **Cas à trancher explicitement** :
 	- import `Comptabilite` alors que des écritures auto-générées issues de la gestion existent déjà ;
 	- import `Comptabilite` alors que des écritures `MANUAL` existent déjà sur la même période ;
@@ -278,6 +280,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Dates** : `created=2026-04-13`
 - **Pourquoi** : la documentation projet existe mais reste encore trop dispersée ou trop implicite pour quelqu'un qui doit installer, mettre à jour ou exploiter Solde sans relire tout le dépôt.
 - **Résultat attendu** : un README plus clair et une documentation technique structurée couvrant au minimum l'installation, la mise à jour, la pile technologique, la configuration, Docker, les volumes de données, les sauvegardes et les points d'exploitation courants.
+- **État actuel** : le `README.md` couvre déjà le démarrage Docker/local, les variables d'environnement, la structure du dépôt et les liens de documentation ; il manque encore la documentation d'exploitation structurée attendue sur la mise à jour, les volumes de données, les sauvegardes et les opérations courantes.
 - **Priorisation proposée** : lot rapide et structurant ; c'est le meilleur point d'entrée documentation à livrer vite car il clarifie aussi le cadre pour les docs plus détaillées.
 - **Séquence recommandée** : commencer par clarifier le README, puis extraire les détails longs vers une doc technique dédiée plutôt que tout entasser en page d'accueil.
 - **Point d'attention** : distinguer ce qui relève du guide d'exploitation réel de ce qui relève des détails purement développeur, pour éviter un README surchargé.
@@ -287,6 +290,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Dates** : `created=2026-04-13`
 - **Pourquoi** : contribuer efficacement au projet suppose aujourd'hui de reconstituer les prérequis et les conventions depuis plusieurs fichiers, ce qui freine la reprise de contexte et la qualité des contributions.
 - **Résultat attendu** : une documentation développeur claire expliquant les prérequis, la mise en route locale, les commandes de build/test/lint, la qualité attendue, l'organisation du dépôt, le workflow de contribution et les attentes avant PR.
+- **État actuel** : le `README.md` fournit déjà une mise en route locale minimale et les commandes de base, et `doc/dev/gestion-utilisateurs-et-permissions.md` documente un sous-ensemble fonctionnel utile ; il manque encore une documentation développeur centrale sur le workflow de contribution, les commandes qualité réellement utilisées et les attentes avant PR.
 - **Priorisation proposée** : lot utile mais moins urgent ; à traiter après le cadrage README/doc technique et sans concurrencer le manuel utilisateur.
 - **Séquence recommandée** : s'appuyer sur les commandes et conventions déjà stabilisées dans le dépôt, puis documenter le workflow réel de contribution sans créer de nouvelle couche procédurale artificielle.
 - **Point d'attention** : cette documentation doit rester fidèle aux commandes réellement utilisées dans le dépôt, pas à un idéal théorique.
@@ -410,16 +414,17 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-027 — Gérer une ouverture du système explicite pour Banque et Caisse
 
-- **Dates** : `created=2026-04-15`
+- **Dates** : `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16`
 - **Pourquoi** : pendant la validation `BL-026`, il apparaît que le premier exercice importé a besoin d'un point de départ explicite côté gestion pour `Banque` et `Caisse`, distinct de l'ouverture comptable de l'exercice. Aujourd'hui, les lignes Excel de `solde initial` sont traitées comme des lignes ignorées, ce qui ne permet pas de représenter proprement l'état hérité du système avant le premier exercice suivi.
 - **Résultat attendu** : définir puis implémenter une notion d'`ouverture du système` pour `Banque` et `Caisse`, injectée une seule fois sur le plus ancien exercice importé, contribuant aux soldes cumulés, et identifiée visiblement comme donnée spéciale dans l'interface (badge, type ou rendu distinct).
+- **Résultat livré** : une ouverture du système dédiée peut être configurée côté paramètres pour la `Banque` et la `Caisse`, avec une date par défaut calée sur le plus ancien exercice ; ces écritures sont stockées avec une source explicite `system_opening`, intégrées aux soldes, affichées distinctement dans les vues de trésorerie, et exclues des comparaisons d'import pour éviter les doublons ; le constat `BL-026` confirme ensuite le comportement attendu sur les chiffres visibles.
 - **Périmètre initial** :
 	- gérer explicitement un solde d'ouverture `Banque` sur le premier exercice importé ;
 	- gérer explicitement un solde d'ouverture `Caisse` sur le premier exercice importé ;
 	- rendre ces lignes distinguables des mouvements normaux dans les écrans de trésorerie ;
 	- éviter toute réinjection automatique du même concept sur les exercices suivants.
 - **Critère d'acceptation** : après import du plus ancien exercice, les écrans `Banque` et `Caisse` affichent un point de départ cohérent et identifié comme `ouverture du système`, les soldes des exercices suivants héritent correctement de ce point de départ sans doublon, et les chiffres `BL-026` peuvent être remesurés proprement pour la trésorerie.
-- **Point d'attention** : ce sujet doit être traité sur une branche distincte de `BL-026`, car il fera évoluer les chiffres de `Banque` et `Caisse` déjà relevés dans le constat de validation.
+- **Livré parce que** : le commit `1faa72a` du `2026-04-15` introduit l'ouverture du système et sa gestion d'import, puis le constat `BL-026` du `2026-04-16` documente explicitement son application sur `Banque` et `Caisse`.
 
 ### BL-029 — Saisie des factures clients pilotée par types de lignes
 
@@ -448,7 +453,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- quelle règle appliquer si une facture mélange `cours`, `adhésion` et `autres`, avec ou sans lignes négatives de remise.
 - **Critère d'acceptation** : un utilisateur peut créer une facture client complète sans se poser de question sur le label comptable global ; le total affiché correspond exactement aux lignes saisies et les écritures générées à validation reflètent cette décomposition ligne par ligne.
 - **Point d'attention** : l'import `Comptabilité` deviendrait alors non seulement un import d'écritures, mais aussi un mécanisme d'enrichissement métier des factures déjà créées ; il faudra l'encadrer par des règles de sûreté et de coexistence explicites.
-- **État d'avancement au 2026-04-16** : l'implémentation a été livrée sur la branche `feature/bl-029-factures-clients-par-lignes` et poussée dans la PR `#18` ; la recette utilisateur reste à faire.
+- **État d'avancement au 2026-04-18** : l'implémentation a été fusionnée dans `develop` via le merge de la PR `#18` ; la recette utilisateur reste à faire avant clôture.
 - **Implémenté dans ce lot** :
 	- ajout d'un type de ligne de facture client (`cours`, `adhésion`, `autres`) en base, API et logique métier ;
 	- calcul du total, du label dérivé et de la ventilation comptable directement à partir des lignes, avec support des remises via lignes négatives ;
@@ -479,9 +484,10 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## En cours
 
+- **BL-005** — `created=2026-04-12`, `started=2026-04-19` — La politique de coexistence réellement implémentée est maintenant explicitée dans `doc/dev/bl-005-politique-coexistence-imports.md`, avec diagnostics distincts entre doublon exact, ligne déjà couverte par Solde et proximité avec une écriture `MANUAL` ; il reste à décider si certains autres doublons proches doivent à l'avenir être signalés plus finement.
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 et 2 sont intégrés dans `develop` ; les lots suivants restent à traiter et le retest des droits réels a été traité séparément dans `BL-023`, désormais terminé.
-- **BL-029** — `created=2026-04-16`, `started=2026-04-16` — L'implémentation est poussée sur la PR `#18` avec lignes typées, import `Gestion`/`Comptabilité` adapté et UI revue ; la recette métier utilisateur reste à faire avant clôture.
+- **BL-029** — `created=2026-04-16`, `started=2026-04-16` — L'implémentation est désormais fusionnée dans `develop` via la PR `#18`, avec lignes typées, import `Gestion`/`Comptabilité` adapté et UI revue ; la recette métier utilisateur reste à faire avant clôture.
 
 ## Fait
 

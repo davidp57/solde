@@ -33,6 +33,14 @@ class RowIgnoredIssue:
 
 
 @dataclass(slots=True)
+class RowWarningIssue:
+    """Non-blocking warning attached to a source row."""
+
+    source_row_number: int
+    message: str
+
+
+@dataclass(slots=True)
 class NormalizedInvoiceRow:
     """Validated invoice row ready for preview or persistence."""
 

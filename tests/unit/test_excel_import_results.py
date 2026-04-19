@@ -226,3 +226,66 @@ def test_preview_result_to_dict_categorizes_global_errors_and_warnings() -> None
             ),
         },
     ]
+
+
+def test_preview_result_to_dict_categorizes_sheet_warning_for_existing_solde_coverage() -> None:
+    preview = PreviewResult()
+    preview.sheets = [
+        {
+            "name": "Journal",
+            "kind": "entries",
+            "status": "recognized",
+            "rows": 0,
+            "source_rows": 1,
+            "detected_columns": [],
+            "missing_columns": [],
+            "ignored_rows": 1,
+            "policy_ignored_rows": 1,
+            "blocked_rows": 0,
+            "initial_blocked_rows": 0,
+            "sample_rows": [],
+            "warnings": ["Ligne 4 : ecriture deja couverte par Solde, ligne ignoree"],
+            "errors": [],
+        }
+    ]
+    preview.warnings = ["Journal — Ligne 4 : ecriture deja couverte par Solde, ligne ignoree"]
+
+    payload = preview.to_dict()
+
+    assert payload["sheets"][0]["warning_details"] == [
+        {
+            "category": "entry-covered-by-solde",
+            "severity": "warning",
+            "sheet_name": "Journal",
+            "kind": "entries",
+            "row_number": 4,
+            "message": "ecriture deja couverte par Solde, ligne ignoree",
+            "display_message": "Ligne 4 : ecriture deja couverte par Solde, ligne ignoree",
+        }
+    ]
+
+
+def test_import_result_to_dict_categorizes_sheet_warning_for_near_manual_entry() -> None:
+    result = ImportResult()
+    result.add_warning(
+        "Journal",
+        "entries",
+        "Ligne 7 : ecriture proche d'une ecriture manuelle existante, revue conseillee",
+    )
+
+    payload = result.to_dict()
+
+    assert payload["warning_details"] == [
+        {
+            "category": "entry-near-manual",
+            "severity": "warning",
+            "sheet_name": "Journal",
+            "kind": "entries",
+            "row_number": 7,
+            "message": "ecriture proche d'une ecriture manuelle existante, revue conseillee",
+            "display_message": (
+                "Journal — Ligne 7 : ecriture proche d'une ecriture manuelle "
+                "existante, revue conseillee"
+            ),
+        }
+    ]
