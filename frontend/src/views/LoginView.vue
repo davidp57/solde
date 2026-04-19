@@ -47,6 +47,8 @@
             :loading="auth.loading"
             class="w-full"
           />
+
+          <p class="login-help">{{ t('auth.login.reset_hint') }}</p>
         </form>
       </template>
     </Card>
@@ -156,5 +158,12 @@ async function handleSubmit(): Promise<void> {
   font-weight: 500;
   font-size: 0.875rem;
   color: var(--p-text-color);
+}
+
+.login-help {
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--p-text-muted-color);
 }
 </style>

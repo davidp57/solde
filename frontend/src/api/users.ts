@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { UserRead, UserRole } from './types'
+import type { UserPasswordResetRequest, UserRead, UserRole } from './types'
 
 export interface UserCreatePayload {
   username: string
@@ -29,4 +29,11 @@ export async function updateUserApi(
 ): Promise<UserRead> {
   const response = await apiClient.patch<UserRead>(`/api/auth/users/${userId}`, payload)
   return response.data
+}
+
+export async function resetUserPasswordApi(
+  userId: number,
+  payload: UserPasswordResetRequest,
+): Promise<void> {
+  await apiClient.post(`/api/auth/users/${userId}/reset-password`, payload)
 }

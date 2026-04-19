@@ -6,6 +6,18 @@ from pydantic import BaseModel, field_validator
 
 from backend.models.user import UserRole
 
+PASSWORD_MIN_LENGTH = 8
+
+
+def _validate_password_min_length(value: str) -> str:
+    if len(value) < PASSWORD_MIN_LENGTH:
+        raise ValueError(f"Password must be at least {PASSWORD_MIN_LENGTH} characters")
+    return value
+
+
+class OrmReadModel(BaseModel):
+    model_config = {"from_attributes": True}
+
 
 class LoginRequest(BaseModel):
     username: str
@@ -31,9 +43,7 @@ class UserCreate(BaseModel):
     @field_validator("password")
     @classmethod
     def password_min_length(cls, v: str) -> str:
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        return v
+        return _validate_password_min_length(v)
 
     @field_validator("username")
     @classmethod
@@ -43,7 +53,7 @@ class UserCreate(BaseModel):
         return v
 
 
-class UserRead(BaseModel):
+class UserRead(OrmReadModel):
     id: int
     username: str
     email: str
@@ -51,11 +61,30 @@ class UserRead(BaseModel):
     is_active: bool
     created_at: datetime
 
-    model_config = {"from_attributes": True}
-
 
 class UserAdminUpdate(BaseModel):
     role: UserRole | None = None
     is_active: bool | None = None
 
-    model_config = {"from_attributes": True}
+
+class UserSelfUpdate(BaseModel):
+    email: str
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        return _validate_password_min_length(v)
+
+
+class UserPasswordReset(BaseModel):
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        return _validate_password_min_length(v)

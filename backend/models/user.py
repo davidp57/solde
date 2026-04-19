@@ -1,6 +1,6 @@
 """User model — authentication and role management."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, String, func
@@ -27,6 +27,11 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    password_changed_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+    )
     role: Mapped[UserRole] = mapped_column(String(20), nullable=False, default=UserRole.READONLY)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(

@@ -1,5 +1,12 @@
 import axios from 'axios'
-import type { LoginRequest, TokenResponse, UserRead } from './types'
+import apiClient from './client'
+import type {
+  LoginRequest,
+  PasswordChangeRequest,
+  TokenResponse,
+  UserRead,
+  UserSelfUpdate,
+} from './types'
 
 export async function loginApi(request: LoginRequest): Promise<TokenResponse> {
   // FastAPI OAuth2PasswordRequestForm expects form data
@@ -25,4 +32,13 @@ export async function getMeApi(accessToken: string): Promise<UserRead> {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
   return response.data
+}
+
+export async function updateMyProfileApi(payload: UserSelfUpdate): Promise<UserRead> {
+  const response = await apiClient.patch<UserRead>('/api/auth/me', payload)
+  return response.data
+}
+
+export async function changeMyPasswordApi(payload: PasswordChangeRequest): Promise<void> {
+  await apiClient.post('/api/auth/me/change-password', payload)
 }

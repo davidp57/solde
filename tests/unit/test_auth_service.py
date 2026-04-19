@@ -56,6 +56,7 @@ def test_decode_access_token_valid() -> None:
     payload = decode_access_token(token)
     assert payload is not None
     assert payload.get("sub") == "testuser"
+    assert isinstance(payload.get("iat"), (int, float))
 
 
 def test_decode_access_token_invalid() -> None:
