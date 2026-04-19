@@ -2,8 +2,10 @@
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from jose import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.config import get_settings
 from backend.database import get_db
 from backend.main import create_app
 from backend.models.user import User, UserRole
@@ -144,6 +146,27 @@ async def test_change_my_password_invalidates_existing_access_token(
         data={"username": "admin", "password": "newsecurepassword123"},
     )
     assert login_response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_get_me_rejects_access_token_without_iat(
+    client: AsyncClient,
+    admin_user: User,
+) -> None:
+    """Access tokens without an iat claim are rejected."""
+    settings = get_settings()
+    token_without_iat = jwt.encode(
+        {"sub": admin_user.username},
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+
+    response = await client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {token_without_iat}"},
+    )
+
+    assert response.status_code == 401
 
 
 @pytest.mark.asyncio

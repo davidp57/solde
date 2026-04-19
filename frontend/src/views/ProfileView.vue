@@ -135,6 +135,7 @@ import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
 import { changeMyPasswordApi, updateMyProfileApi } from '@/api/auth'
+import { PASSWORD_MIN_LENGTH } from '@/constants/auth'
 import { useAuthStore } from '@/stores/auth'
 
 interface ProfileForm {
@@ -201,7 +202,7 @@ const passwordMismatch = computed(() => {
 const canChangePassword = computed(() => {
   return (
     passwordForm.value.current_password.length > 0 &&
-    passwordForm.value.new_password.length >= 8 &&
+    passwordForm.value.new_password.length >= PASSWORD_MIN_LENGTH &&
     passwordForm.value.confirm_password.length > 0 &&
     !passwordMismatch.value
   )
