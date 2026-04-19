@@ -8,8 +8,9 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.models.cash import CashEntrySource, CashMovementType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
-from backend.models.payment import Payment
+from backend.models.payment import Payment, PaymentMethod
 from backend.schemas.payment import PaymentCreate, PaymentUpdate
 
 
@@ -26,12 +27,16 @@ async def _attach_invoice_number(db: AsyncSession, payment: Payment) -> Payment:
 
 async def create_payment(db: AsyncSession, payload: PaymentCreate) -> Payment:
     """Record a payment and update the invoice paid_amount and status."""
+    invoice = await _get_invoice(db, payload.invoice_id)
+    _validate_manual_client_payment_method(invoice, payload.method)
     payment = Payment(**payload.model_dump())
     db.add(payment)
     await db.flush()
     await _refresh_invoice_status(db, payload.invoice_id)
+    if invoice is not None:
+        await _create_treasury_entries_for_payment(db, payment, invoice)
     # Auto-generate accounting entries (no-op if no rules seeded)
-    invoice_type = await _get_invoice_type(db, payload.invoice_id)
+    invoice_type = invoice.type if invoice is not None else None
     if invoice_type is not None:
         from backend.services.accounting_engine import (  # noqa: PLC0415
             generate_entries_for_payment,
@@ -87,6 +92,9 @@ async def list_payments(
 
 
 async def update_payment(db: AsyncSession, payment: Payment, payload: PaymentUpdate) -> Payment:
+    invoice = await _get_invoice(db, payment.invoice_id)
+    next_method = payload.method if payload.method is not None else payment.method
+    _validate_manual_client_payment_method(invoice, next_method, current_method=payment.method)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(payment, field, value)
     await db.flush()
@@ -109,6 +117,55 @@ async def _get_invoice_type(db: AsyncSession, invoice_id: int) -> InvoiceType | 
     """Return the type of the invoice (CLIENT/FOURNISSEUR), or None if not found."""
     result = await db.execute(select(Invoice.type).where(Invoice.id == invoice_id))
     return result.scalar_one_or_none()
+
+
+async def _get_invoice(db: AsyncSession, invoice_id: int) -> Invoice | None:
+    """Return the invoice for a payment, or None if it does not exist."""
+    result = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    return result.scalar_one_or_none()
+
+
+def _validate_manual_client_payment_method(
+    invoice: Invoice | None,
+    method: PaymentMethod,
+    *,
+    current_method: PaymentMethod | None = None,
+) -> None:
+    """Reject manual client virements until bank reconciliation owns that workflow."""
+    if invoice is None or invoice.type != InvoiceType.CLIENT:
+        return
+    if method != PaymentMethod.VIREMENT:
+        return
+    if current_method == PaymentMethod.VIREMENT:
+        return
+    raise ValueError("client virement payments must be created from bank reconciliation")
+
+
+async def _create_treasury_entries_for_payment(
+    db: AsyncSession,
+    payment: Payment,
+    invoice: Invoice,
+) -> None:
+    """Mirror client payment receipts into the operational treasury journals."""
+    if invoice.type != InvoiceType.CLIENT:
+        return
+
+    description = f"Reglement facture {invoice.number}"
+
+    if payment.method == PaymentMethod.ESPECES:
+        from backend.services.cash_service import create_cash_entry_record  # noqa: PLC0415
+
+        await create_cash_entry_record(
+            db,
+            date=payment.date,
+            amount=Decimal(str(payment.amount)),
+            type=CashMovementType.IN,
+            contact_id=payment.contact_id,
+            payment_id=payment.id,
+            reference=payment.reference,
+            description=description,
+            source=CashEntrySource.PAYMENT,
+        )
 
 
 async def _refresh_invoice_status(db: AsyncSession, invoice_id: int) -> None:
