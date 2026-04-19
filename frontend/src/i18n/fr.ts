@@ -11,6 +11,8 @@ export default {
       username: 'Identifiant',
       password: 'Mot de passe',
       submit: 'Se connecter',
+      reset_hint:
+        'Mot de passe oublié ? Demandez à un administrateur de réinitialiser temporairement votre accès.',
       error: {
         invalid: 'Identifiant ou mot de passe incorrect.',
         network: 'Impossible de contacter le serveur. Veuillez réessayer.',
@@ -29,6 +31,7 @@ export default {
     section_accounting: 'Comptabilité',
     section_administration: 'Administration',
     dashboard: 'Tableau de bord',
+    profile: 'Mon profil',
     contacts: 'Contacts',
     invoices_client: 'Factures clients',
     invoices_supplier: 'Factures fournisseurs',
@@ -75,7 +78,12 @@ export default {
     email: 'E-mail',
     password: 'Mot de passe initial',
     password_help:
-      'Minimum 8 caractères. Le changement de mot de passe utilisateur sera traité dans un lot suivant.',
+      'Minimum 8 caractères. L’utilisateur pourra ensuite le changer depuis son profil.',
+    reset_password: 'Mot de passe temporaire',
+    reset_password_action: 'Réinitialiser le mot de passe',
+    reset_dialog_title: 'Réinitialiser l’accès',
+    reset_password_help:
+      'Définissez un mot de passe temporaire puis communiquez-le à l’utilisateur par un canal sûr. Il pourra ensuite le changer depuis Mon profil.',
     role: 'Rôle',
     status: 'Statut',
     created_at: 'Créé le',
@@ -86,6 +94,7 @@ export default {
     update: 'Mettre à jour le compte',
     created: 'Compte utilisateur créé.',
     updated: 'Compte utilisateur mis à jour.',
+    password_reset: 'Mot de passe réinitialisé.',
     duplicate_error: 'Cet identifiant ou cet e-mail existe déjà.',
     self_guard:
       'Ce lot ne permet pas de modifier votre propre rôle ni de désactiver votre propre compte.',
@@ -126,6 +135,45 @@ export default {
         subtitle: 'Valeur technique : admin',
         description: 'Administration complète de l’application, des comptes et des paramètres.',
       },
+    },
+  },
+  profile: {
+    title: 'Mon profil',
+    subtitle:
+      'Consultez vos informations de compte, mettez à jour votre e-mail et changez votre mot de passe sans passer par l’administration.',
+    account_title: 'Informations du compte',
+    account_subtitle:
+      'Votre identifiant reste stable ; seul l’e-mail de contact peut être modifié directement.',
+    password_title: 'Sécurité du compte',
+    password_subtitle:
+      'Changez votre mot de passe pour sécuriser votre accès. Cette action vous reconnectera ensuite.',
+    username: 'Identifiant',
+    username_help: 'L’identifiant sert à la connexion et ne peut pas être modifié dans ce lot.',
+    email: 'E-mail',
+    save_profile: 'Enregistrer le profil',
+    profile_updated: 'Profil mis à jour.',
+    current_password: 'Mot de passe actuel',
+    new_password: 'Nouveau mot de passe',
+    confirm_password: 'Confirmer le nouveau mot de passe',
+    password_help:
+      'Minimum 8 caractères. Après le changement, les anciennes sessions seront invalidées et une nouvelle connexion sera demandée.',
+    password_mismatch: 'La confirmation ne correspond pas au nouveau mot de passe.',
+    change_password: 'Changer le mot de passe',
+    password_changed: 'Mot de passe modifié. Veuillez vous reconnecter.',
+    stats: {
+      role: 'Rôle actif',
+      role_caption: 'Permission actuellement appliquée',
+      username: 'Identifiant',
+      username_caption: 'Référence de connexion',
+      created_at: 'Compte créé',
+      created_at_caption: 'Date de création du compte',
+    },
+    api_errors: {
+      email_exists: 'Cet e-mail est déjà utilisé par un autre compte.',
+      email_required: 'Un e-mail est requis pour mettre à jour le profil.',
+      no_changes: 'Aucune modification n’a été demandée.',
+      invalid_current_password: 'Le mot de passe actuel est incorrect.',
+      same_password: 'Le nouveau mot de passe doit être différent de l’actuel.',
     },
   },
   common: {

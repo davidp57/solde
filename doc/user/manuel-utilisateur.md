@@ -556,6 +556,14 @@ Vous savez vers quel écran vous diriger selon que vous cherchez une écriture p
 
 Certains écrans ou certaines actions dépendent de votre rôle utilisateur. Les écrans d'administration ne sont pas visibles pour tous les profils.
 
+### Où modifier mon e-mail ou mon mot de passe ?
+
+Utilisez l'écran `Mon profil`, accessible depuis le menu principal. Vous pouvez y mettre à jour votre e-mail de contact et changer votre mot de passe en renseignant le mot de passe actuel.
+
+### J'ai oublié mon mot de passe, que faire ?
+
+Demandez à un administrateur de réinitialiser temporairement votre accès depuis l'écran `Utilisateurs`. Une fois reconnecté, changez immédiatement ce mot de passe temporaire depuis `Mon profil`.
+
 ### Pourquoi une facture n'apparaît pas comme payée ?
 
 Le statut dépend des paiements réellement rattachés à cette facture. Vérifiez l'historique de la facture et la présence des paiements attendus.
@@ -571,6 +579,10 @@ La prévisualisation signale les colonnes manquantes, lignes ambiguës ou erreur
 ### Où saisir un paiement manuellement ?
 
 L'écran `Paiements` permet aujourd'hui surtout la consultation, le filtrage et la suppression. Le parcours standard de saisie manuelle d'un paiement n'est pas encore exposé comme formulaire dédié dans cet écran principal.
+
+### Que se passe-t-il après un changement de mot de passe ?
+
+Les anciennes sessions sont invalidées. Reconnectez-vous simplement avec votre nouveau mot de passe.
 
 ## 12. Glossaire simple
 

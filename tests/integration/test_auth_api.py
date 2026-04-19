@@ -57,6 +57,141 @@ async def test_get_me_authenticated(
 
 
 @pytest.mark.asyncio
+async def test_update_me_email(
+    client: AsyncClient, admin_user: User, auth_headers: dict, db_session: AsyncSession
+) -> None:
+    """Authenticated users can update their own email address."""
+    response = await client.patch(
+        "/api/auth/me",
+        headers=auth_headers,
+        json={"email": "updated-admin@test.com"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["email"] == "updated-admin@test.com"
+
+    await db_session.refresh(admin_user)
+    assert admin_user.email == "updated-admin@test.com"
+
+
+@pytest.mark.asyncio
+async def test_update_me_rejects_duplicate_email(
+    client: AsyncClient,
+    admin_user: User,
+    readonly_user: User,
+    auth_headers: dict,
+) -> None:
+    """Users cannot take another account's email address."""
+    response = await client.patch(
+        "/api/auth/me",
+        headers=auth_headers,
+        json={"email": readonly_user.email},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == {
+        "code": "email_exists",
+        "message": "Email already exists",
+    }
+
+
+@pytest.mark.asyncio
+async def test_change_my_password_requires_current_password(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    """The current password must be provided correctly to change it."""
+    response = await client.post(
+        "/api/auth/me/change-password",
+        headers=auth_headers,
+        json={
+            "current_password": "wrongpassword",
+            "new_password": "newsecurepassword123",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "code": "invalid_current_password",
+        "message": "Current password is incorrect",
+    }
+
+
+@pytest.mark.asyncio
+async def test_change_my_password_invalidates_existing_access_token(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    """Changing a password invalidates tokens issued before the change."""
+    response = await client.post(
+        "/api/auth/me/change-password",
+        headers=auth_headers,
+        json={
+            "current_password": "adminpassword123",
+            "new_password": "newsecurepassword123",
+        },
+    )
+
+    assert response.status_code == 204
+
+    stale_response = await client.get("/api/auth/me", headers=auth_headers)
+    assert stale_response.status_code == 401
+
+    login_response = await client.post(
+        "/api/auth/login",
+        data={"username": "admin", "password": "newsecurepassword123"},
+    )
+    assert login_response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_admin_can_reset_user_password(
+    client: AsyncClient,
+    admin_user: User,
+    readonly_user: User,
+    auth_headers: dict,
+) -> None:
+    """Admin can reset another user's password through the admin-managed flow."""
+    response = await client.post(
+        f"/api/auth/users/{readonly_user.id}/reset-password",
+        headers=auth_headers,
+        json={"new_password": "temporaryreset123"},
+    )
+
+    assert response.status_code == 204
+
+    old_login = await client.post(
+        "/api/auth/login",
+        data={"username": "readonly", "password": "readonlypassword123"},
+    )
+    assert old_login.status_code == 401
+
+    new_login = await client.post(
+        "/api/auth/login",
+        data={"username": "readonly", "password": "temporaryreset123"},
+    )
+    assert new_login.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_reset_user_password_requires_admin(
+    client: AsyncClient,
+    admin_user: User,
+    readonly_auth_headers: dict,
+) -> None:
+    """Only admins can reset another user's password."""
+    response = await client.post(
+        f"/api/auth/users/{admin_user.id}/reset-password",
+        headers=readonly_auth_headers,
+        json={"new_password": "temporaryreset123"},
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_get_me_unauthenticated(client: AsyncClient) -> None:
     """Unauthenticated request to /me returns 401."""
     response = await client.get("/api/auth/me")

@@ -58,4 +58,31 @@ class UserAdminUpdate(BaseModel):
     role: UserRole | None = None
     is_active: bool | None = None
 
+
+class UserSelfUpdate(BaseModel):
+    email: str
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
+
+class UserPasswordReset(BaseModel):
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
     model_config = {"from_attributes": True}
