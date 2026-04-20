@@ -1419,9 +1419,9 @@ const supplierPaymentInvoiceOptions = computed(() => {
       return right.date.localeCompare(left.date)
     })
     .map((invoice) => ({
-      label: `${invoice.number} · ${contactName(invoice.contact_id)} · reste ${formatAmount(
-        invoiceRemainingAmount(invoice),
-      )}`,
+      label: `${invoice.number} · ${contactName(invoice.contact_id)} · ${t('bank.remaining_amount', {
+        amount: formatAmount(invoiceRemainingAmount(invoice)),
+      })}`,
       value: invoice.id,
     }))
 })
@@ -1572,7 +1572,9 @@ function buildClientPaymentAllocationDrafts(): ClientPaymentAllocationDraft[] {
     return {
       invoice_id: invoice.id,
       title: `${invoice.number} · ${contactName(invoice.contact_id)}`,
-      caption: `${formatDisplayDate(invoice.date)} · reste ${formatAmount(remainingAmount)}`,
+      caption: `${formatDisplayDate(invoice.date)} · ${t('bank.remaining_amount', {
+        amount: formatAmount(remainingAmount),
+      })}`,
       remaining_amount: remainingAmount,
       allocated_amount: suggestedAmount,
       selected: suggestedAmount > 0,

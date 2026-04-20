@@ -541,6 +541,7 @@ export default {
     create_client_payment_ready_to_save:
       'La ventilation couvre exactement le montant du virement. Vous pouvez enregistrer le rapprochement.',
     create_client_payment_tx_summary: 'Opération du {date} · {amount} · {description}',
+    remaining_amount: 'reste {amount}',
     create_client_payment_no_invoice:
       'Aucune facture client ouverte n’est disponible pour ce rattachement.',
     create_client_payment_success:

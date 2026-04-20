@@ -44,19 +44,36 @@ _ReadAccess = Annotated[
 ]
 
 
+def _serialize_transaction_with_payment_ids(
+    tx: BankTransaction,
+    payment_ids: list[int],
+) -> BankTransactionRead:
+    return BankTransactionRead.model_validate(tx).model_copy(update={"payment_ids": payment_ids})
+
+
 async def _serialize_transaction(
     db: AsyncSession,
     tx: BankTransaction,
 ) -> BankTransactionRead:
     payment_ids = await bank_service.get_transaction_payment_ids(db, tx.id)
-    return BankTransactionRead.model_validate(tx).model_copy(update={"payment_ids": payment_ids})
+    return _serialize_transaction_with_payment_ids(tx, payment_ids)
 
 
 async def _serialize_transactions(
     db: AsyncSession,
     txs: list[BankTransaction],
 ) -> list[BankTransactionRead]:
-    return [await _serialize_transaction(db, tx) for tx in txs]
+    if not txs:
+        return []
+
+    payment_ids_by_tx_id = await bank_service.get_transaction_payment_ids_map(
+        db,
+        [tx.id for tx in txs],
+    )
+    return [
+        _serialize_transaction_with_payment_ids(tx, payment_ids_by_tx_id.get(tx.id, []))
+        for tx in txs
+    ]
 
 
 # ---------------------------------------------------------------------------
