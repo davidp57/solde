@@ -3,7 +3,7 @@
     <AppPageHeader :eyebrow="t('ui.page.collection_eyebrow')" :title="t('bank.title')">
       <template #actions>
         <Button
-          :label="t('bank.import_csv')"
+          :label="t('bank.import_statement')"
           icon="pi pi-upload"
           severity="secondary"
           @click="importDialogVisible = true"
@@ -100,6 +100,7 @@
                 'reference',
                 'balance_after',
                 'reconciled_label',
+                'detected_category_label',
                 'source_label',
               ]"
               data-key="id"
@@ -207,6 +208,32 @@
                 </template>
               </Column>
               <Column
+                field="detected_category_label"
+                :header="t('bank.tx_category')"
+                sortable
+                filter-field="detected_category"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">
+                  <Tag
+                    :value="t(`bank.categories.${data.detected_category}`)"
+                    severity="contrast"
+                  />
+                </template>
+                <template #filter="{ filterModel }">
+                  <AppFilterMultiSelect
+                    v-model="filterModel.value"
+                    :options="categoryOptions"
+                    option-label="label"
+                    option-value="value"
+                    :placeholder="t('common.all')"
+                    display="chip"
+                    show-clear
+                  />
+                </template>
+              </Column>
+              <Column
                 field="source_label"
                 :header="t('bank.tx_source')"
                 class="bank-table__source"
@@ -233,8 +260,44 @@
                   />
                 </template>
               </Column>
-              <Column :header="t('common.actions')" style="width: 4.5rem">
+              <Column :header="t('common.actions')" style="width: 8.5rem">
                 <template #body="{ data }">
+                  <Button
+                    v-if="canLinkExistingSupplierPayment(data)"
+                    icon="pi pi-link"
+                    size="small"
+                    severity="secondary"
+                    text
+                    :title="t('bank.link_supplier_payment')"
+                    @click="openExistingSupplierPaymentDialog(data)"
+                  />
+                  <Button
+                    v-if="canCreateSupplierPayment(data)"
+                    icon="pi pi-arrow-up-right"
+                    size="small"
+                    severity="secondary"
+                    text
+                    :title="t('bank.create_supplier_payment')"
+                    @click="openSupplierPaymentDialog(data)"
+                  />
+                  <Button
+                    v-if="canLinkExistingClientPayment(data)"
+                    icon="pi pi-link"
+                    size="small"
+                    severity="secondary"
+                    text
+                    :title="t('bank.link_client_payment')"
+                    @click="openExistingClientPaymentDialog(data)"
+                  />
+                  <Button
+                    v-if="canCreateClientPayment(data)"
+                    icon="pi pi-wallet"
+                    size="small"
+                    severity="secondary"
+                    text
+                    :title="t('bank.create_client_payment')"
+                    @click="openClientPaymentDialog(data)"
+                  />
                   <Button
                     v-if="!data.reconciled"
                     icon="pi pi-check"
@@ -427,7 +490,7 @@
       </form>
     </Dialog>
 
-    <!-- CSV import dialog -->
+    <!-- Statement import dialog -->
     <Dialog
       v-model:visible="importDialogVisible"
       :header="t('bank.import_dialog_title')"
@@ -436,13 +499,33 @@
     >
       <div class="app-dialog-form bank-form">
         <section class="app-dialog-intro">
-          <p class="app-dialog-intro__eyebrow">{{ t('bank.import_csv') }}</p>
+          <p class="app-dialog-intro__eyebrow">{{ t('bank.import_statement') }}</p>
           <p class="app-dialog-intro__text">{{ t('bank.import_intro') }}</p>
         </section>
         <section class="app-dialog-section">
-          <div class="app-field">
-            <label class="app-field__label">{{ t('bank.import_paste_label') }}</label>
-            <Textarea v-model="csvContent" rows="8" class="font-mono text-sm" />
+          <div class="app-form-grid">
+            <div class="app-field app-field--span-2">
+              <label class="app-field__label">{{ t('bank.import_file_label') }}</label>
+              <div class="bank-import-file-row">
+                <Button
+                  :label="t('bank.import_pick_file')"
+                  icon="pi pi-paperclip"
+                  severity="secondary"
+                  outlined
+                  @click="openImportFilePicker"
+                />
+                <span class="bank-import-file-name">
+                  {{ importFileName || t('bank.import_no_file') }}
+                </span>
+              </div>
+              <input
+                ref="importFileInput"
+                type="file"
+                class="bank-import-file-input"
+                accept=".csv,.ofx,.qfx,.qif,text/csv,text/plain,application/xml,text/xml"
+                @change="onImportFileSelected"
+              />
+            </div>
           </div>
         </section>
         <div class="app-form-actions">
@@ -453,10 +536,341 @@
             @click="importDialogVisible = false"
           />
           <Button
-            :label="t('bank.import_csv')"
+            :label="t('bank.import_statement')"
             icon="pi pi-upload"
             :loading="saving"
             @click="submitImport"
+          />
+        </div>
+      </div>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="clientPaymentDialogVisible"
+      :header="t('bank.create_client_payment_title')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <div class="app-dialog-form bank-form">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ t('bank.create_client_payment') }}</p>
+          <p class="app-dialog-intro__text">{{ t('bank.create_client_payment_intro') }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <p v-if="clientPaymentTransaction" class="app-dialog-note">
+            {{
+              t('bank.create_client_payment_tx_summary', {
+                date: formatDisplayDate(clientPaymentTransaction.date),
+                amount: formatAmount(clientPaymentTransaction.amount),
+                description:
+                  clientPaymentTransaction.description || clientPaymentTransaction.reference || '-',
+              })
+            }}
+          </p>
+          <div class="app-field">
+            <label class="app-field__label">{{
+              t('bank.create_client_payment_allocations')
+            }}</label>
+            <div
+              v-if="!clientPaymentLoading && clientPaymentAllocations.length > 0"
+              class="app-dialog-list bank-allocation-list"
+            >
+              <div
+                v-for="allocation in clientPaymentAllocations"
+                :key="allocation.invoice_id"
+                class="app-dialog-list__item bank-allocation-item"
+              >
+                <div class="bank-allocation-item__summary">
+                  <Checkbox
+                    v-model="allocation.selected"
+                    binary
+                    @update:model-value="syncClientAllocationAmount(allocation)"
+                  />
+                  <span class="app-dialog-list__meta">
+                    <span class="app-dialog-list__title">{{ allocation.title }}</span>
+                    <span class="app-dialog-list__caption">{{ allocation.caption }}</span>
+                  </span>
+                </div>
+                <div class="bank-allocation-item__amount">
+                  <label class="app-field__label">{{
+                    t('bank.create_client_payment_allocated_amount')
+                  }}</label>
+                  <InputNumber
+                    v-model="allocation.allocated_amount"
+                    mode="currency"
+                    currency="EUR"
+                    locale="fr-FR"
+                    :min="0"
+                    :max="clientAllocationMaxAmount(allocation)"
+                    :disabled="!allocation.selected"
+                    fluid
+                    @update:model-value="syncClientAllocationAmount(allocation)"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <Message
+            v-if="!clientPaymentLoading && clientPaymentAllocations.length === 0"
+            severity="warn"
+          >
+            {{ t('bank.create_client_payment_no_invoice') }}
+          </Message>
+          <Message
+            v-else-if="!clientPaymentLoading"
+            :severity="Math.abs(clientPaymentRemainingToAllocate) < 0.005 ? 'info' : 'warn'"
+          >
+            {{
+              Math.abs(clientPaymentRemainingToAllocate) < 0.005
+                ? t('bank.create_client_payment_ready_to_save')
+                : t('bank.create_client_payment_remaining_to_allocate', {
+                    amount: formatAmount(clientPaymentRemainingToAllocate),
+                  })
+            }}
+          </Message>
+        </section>
+        <div class="app-form-actions">
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            @click="clientPaymentDialogVisible = false"
+          />
+          <Button
+            :label="t('common.save')"
+            :loading="clientPaymentSaving"
+            :disabled="clientPaymentLoading || !canSubmitClientPayment"
+            @click="submitClientPayment"
+          />
+        </div>
+      </div>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="existingClientPaymentDialogVisible"
+      :header="t('bank.link_client_payment_title')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <div class="app-dialog-form bank-form">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ t('bank.link_client_payment') }}</p>
+          <p class="app-dialog-intro__text">{{ t('bank.link_client_payment_intro') }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <p v-if="existingClientPaymentTransaction" class="app-dialog-note">
+            {{
+              t('bank.create_client_payment_tx_summary', {
+                date: formatDisplayDate(existingClientPaymentTransaction.date),
+                amount: formatAmount(existingClientPaymentTransaction.amount),
+                description:
+                  existingClientPaymentTransaction.description ||
+                  existingClientPaymentTransaction.reference ||
+                  '-',
+              })
+            }}
+          </p>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('bank.link_client_payment_payments') }}</label>
+            <div
+              v-if="!existingClientPaymentLoading && existingClientPaymentSelections.length > 0"
+              class="app-dialog-list bank-allocation-list"
+            >
+              <div
+                v-for="selection in existingClientPaymentSelections"
+                :key="selection.payment_id"
+                class="app-dialog-list__item bank-allocation-item"
+              >
+                <div class="bank-allocation-item__summary">
+                  <Checkbox v-model="selection.selected" binary />
+                  <span class="app-dialog-list__meta">
+                    <span class="app-dialog-list__title">{{ selection.title }}</span>
+                    <span class="app-dialog-list__caption">{{ selection.caption }}</span>
+                  </span>
+                </div>
+                <strong class="bank-allocation-item__fixed-amount">{{
+                  formatAmount(selection.amount)
+                }}</strong>
+              </div>
+            </div>
+          </div>
+          <Message
+            v-if="!existingClientPaymentLoading && existingClientPaymentSelections.length === 0"
+            severity="warn"
+          >
+            {{ t('bank.link_client_payment_no_payment') }}
+          </Message>
+          <Message
+            v-else-if="!existingClientPaymentLoading"
+            :severity="Math.abs(existingClientPaymentRemainingToMatch) < 0.005 ? 'info' : 'warn'"
+          >
+            {{
+              Math.abs(existingClientPaymentRemainingToMatch) < 0.005
+                ? t('bank.link_client_payment_ready_to_confirm')
+                : t('bank.link_client_payment_remaining_to_match', {
+                    amount: formatAmount(existingClientPaymentRemainingToMatch),
+                  })
+            }}
+          </Message>
+        </section>
+        <div class="app-form-actions">
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            @click="existingClientPaymentDialogVisible = false"
+          />
+          <Button
+            :label="t('common.confirm')"
+            :loading="existingClientPaymentSaving"
+            :disabled="existingClientPaymentLoading || !canSubmitExistingClientPayment"
+            @click="submitExistingClientPayment"
+          />
+        </div>
+      </div>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="supplierPaymentDialogVisible"
+      :header="t('bank.create_supplier_payment_title')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <div class="app-dialog-form bank-form">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ t('bank.create_supplier_payment') }}</p>
+          <p class="app-dialog-intro__text">{{ t('bank.create_supplier_payment_intro') }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <p v-if="supplierPaymentTransaction" class="app-dialog-note">
+            {{
+              t('bank.create_client_payment_tx_summary', {
+                date: formatDisplayDate(supplierPaymentTransaction.date),
+                amount: formatAmount(supplierPaymentTransaction.amount),
+                description:
+                  supplierPaymentTransaction.description ||
+                  supplierPaymentTransaction.reference ||
+                  '-',
+              })
+            }}
+          </p>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('bank.create_supplier_payment_invoice') }}</label>
+            <Select
+              v-model="supplierPaymentForm.invoice_id"
+              :options="supplierPaymentInvoiceOptions"
+              option-label="label"
+              option-value="value"
+              :loading="supplierPaymentLoading"
+              :placeholder="
+                supplierPaymentLoading
+                  ? t('common.loading')
+                  : t('bank.create_supplier_payment_invoice')
+              "
+              filter
+              show-clear
+            />
+          </div>
+          <Message
+            v-if="!supplierPaymentLoading && supplierPaymentInvoiceOptions.length === 0"
+            severity="warn"
+          >
+            {{ t('bank.create_supplier_payment_no_invoice') }}
+          </Message>
+          <Message
+            v-else-if="!supplierPaymentLoading && supplierPaymentForm.invoice_id !== null"
+            severity="info"
+          >
+            {{ t('bank.suggested_candidate_hint') }}
+          </Message>
+        </section>
+        <div class="app-form-actions">
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            @click="supplierPaymentDialogVisible = false"
+          />
+          <Button
+            :label="t('common.save')"
+            :loading="supplierPaymentSaving"
+            :disabled="supplierPaymentForm.invoice_id === null || supplierPaymentLoading"
+            @click="submitSupplierPayment"
+          />
+        </div>
+      </div>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="existingSupplierPaymentDialogVisible"
+      :header="t('bank.link_supplier_payment_title')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <div class="app-dialog-form bank-form">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ t('bank.link_supplier_payment') }}</p>
+          <p class="app-dialog-intro__text">{{ t('bank.link_supplier_payment_intro') }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <p v-if="existingSupplierPaymentTransaction" class="app-dialog-note">
+            {{
+              t('bank.create_client_payment_tx_summary', {
+                date: formatDisplayDate(existingSupplierPaymentTransaction.date),
+                amount: formatAmount(existingSupplierPaymentTransaction.amount),
+                description:
+                  existingSupplierPaymentTransaction.description ||
+                  existingSupplierPaymentTransaction.reference ||
+                  '-',
+              })
+            }}
+          </p>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('bank.link_supplier_payment_payment') }}</label>
+            <Select
+              v-model="existingSupplierPaymentForm.payment_id"
+              :options="existingSupplierPaymentOptions"
+              option-label="label"
+              option-value="value"
+              :loading="existingSupplierPaymentLoading"
+              :placeholder="
+                existingSupplierPaymentLoading
+                  ? t('common.loading')
+                  : t('bank.link_supplier_payment_payment')
+              "
+              filter
+              show-clear
+            />
+          </div>
+          <Message
+            v-if="!existingSupplierPaymentLoading && existingSupplierPaymentOptions.length === 0"
+            severity="warn"
+          >
+            {{ t('bank.link_supplier_payment_no_payment') }}
+          </Message>
+          <Message
+            v-else-if="
+              !existingSupplierPaymentLoading && existingSupplierPaymentForm.payment_id !== null
+            "
+            severity="info"
+          >
+            {{ t('bank.suggested_candidate_hint') }}
+          </Message>
+        </section>
+        <div class="app-form-actions">
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            @click="existingSupplierPaymentDialogVisible = false"
+          />
+          <Button
+            :label="t('common.confirm')"
+            :loading="existingSupplierPaymentSaving"
+            :disabled="
+              existingSupplierPaymentForm.payment_id === null || existingSupplierPaymentLoading
+            "
+            @click="submitExistingSupplierPayment"
           />
         </div>
       </div>
@@ -560,11 +974,11 @@ import TabPanel from 'primevue/tabpanel'
 import TabPanels from 'primevue/tabpanels'
 import Tabs from 'primevue/tabs'
 import Tag from 'primevue/tag'
-import Textarea from 'primevue/textarea'
 import ToggleButton from 'primevue/togglebutton'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { listContactsApi, type Contact } from '@/api/contacts'
 import AppPage from '../components/ui/AppPage.vue'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
@@ -574,17 +988,27 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import {
   addTransaction,
+  createClientPaymentsFromTransaction,
   createDeposit,
+  createSupplierPaymentFromTransaction,
   getBankBalance,
-  importCsv,
+  importBankStatement,
+  linkClientPaymentToTransaction,
+  linkClientPaymentsToTransaction,
+  linkSupplierPaymentToTransaction,
   listDeposits,
   listTransactions,
   updateTransaction,
+  type BankImportFormat,
+  type BankTransactionClientPaymentAllocation,
   type BankTransaction,
   type Deposit,
 } from '@/api/bank'
+import { listInvoicesApi, type Invoice } from '@/api/invoices'
 import { listPayments, type Payment } from '@/api/payments'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
+import { scoreInvoiceSuggestion, scorePaymentSuggestion } from '@/utils/bankReconciliation'
+import { formatContactDisplayName } from '@/utils/contact'
 import { formatDisplayDate } from '@/utils/format'
 import {
   dateRangeFilter,
@@ -610,7 +1034,47 @@ const txDialogVisible = ref(false)
 const importDialogVisible = ref(false)
 const depositDialogVisible = ref(false)
 const saving = ref(false)
-const csvContent = ref('')
+const clientPaymentDialogVisible = ref(false)
+const clientPaymentSaving = ref(false)
+const clientPaymentLoading = ref(false)
+const existingClientPaymentDialogVisible = ref(false)
+const existingClientPaymentSaving = ref(false)
+const existingClientPaymentLoading = ref(false)
+const supplierPaymentDialogVisible = ref(false)
+const supplierPaymentSaving = ref(false)
+const supplierPaymentLoading = ref(false)
+const existingSupplierPaymentDialogVisible = ref(false)
+const existingSupplierPaymentSaving = ref(false)
+const existingSupplierPaymentLoading = ref(false)
+const importContent = ref('')
+const importFileName = ref('')
+const importFileInput = ref<HTMLInputElement | null>(null)
+const clientPaymentTransaction = ref<BankTransaction | null>(null)
+const existingClientPaymentTransaction = ref<BankTransaction | null>(null)
+const supplierPaymentTransaction = ref<BankTransaction | null>(null)
+const existingSupplierPaymentTransaction = ref<BankTransaction | null>(null)
+const clientInvoices = ref<Invoice[]>([])
+const supplierInvoices = ref<Invoice[]>([])
+const clientContacts = ref<Contact[]>([])
+const existingClientPayments = ref<Payment[]>([])
+const existingSupplierPayments = ref<Payment[]>([])
+
+interface ClientPaymentAllocationDraft {
+  invoice_id: number
+  title: string
+  caption: string
+  remaining_amount: number
+  allocated_amount: number
+  selected: boolean
+}
+
+interface ExistingClientPaymentSelectionDraft {
+  payment_id: number
+  title: string
+  caption: string
+  amount: number
+  selected: boolean
+}
 
 const depositTypeOptions = [
   { label: t('bank.deposit_types.cheques'), value: 'cheques' },
@@ -621,6 +1085,22 @@ const sourceOptions = [
   { label: t('bank.sources.manual'), value: 'manual' },
   { label: t('bank.sources.import'), value: 'import' },
   { label: t('bank.sources.system_opening'), value: 'system_opening' },
+]
+
+const categoryOptions = [
+  { label: t('bank.categories.customer_payment'), value: 'customer_payment' },
+  { label: t('bank.categories.cheque_deposit'), value: 'cheque_deposit' },
+  { label: t('bank.categories.cash_deposit'), value: 'cash_deposit' },
+  { label: t('bank.categories.supplier_payment'), value: 'supplier_payment' },
+  { label: t('bank.categories.salary'), value: 'salary' },
+  { label: t('bank.categories.social_charge'), value: 'social_charge' },
+  { label: t('bank.categories.bank_fee'), value: 'bank_fee' },
+  { label: t('bank.categories.internal_transfer'), value: 'internal_transfer' },
+  { label: t('bank.categories.grant'), value: 'grant' },
+  { label: t('bank.categories.sepa_debit'), value: 'sepa_debit' },
+  { label: t('bank.categories.other_credit'), value: 'other_credit' },
+  { label: t('bank.categories.other_debit'), value: 'other_debit' },
+  { label: t('bank.categories.uncategorized'), value: 'uncategorized' },
 ]
 
 const yesNoOptions = [
@@ -634,6 +1114,7 @@ const transactionRows = computed(() =>
     amount_value: parseFloat(transaction.amount),
     balance_after_value: parseFloat(transaction.balance_after),
     reconciled_label: transaction.reconciled ? t('common.yes') : t('common.no'),
+    detected_category_label: t(`bank.categories.${transaction.detected_category}`),
     source_label: t(`bank.sources.${transaction.source}`),
   })),
 )
@@ -685,6 +1166,7 @@ const {
   reference: textFilter(),
   balance_after_value: numericRangeFilter(),
   reconciled: inFilter(),
+  detected_category: inFilter(),
   source: inFilter(),
 })
 
@@ -780,6 +1262,18 @@ const depositForm = ref({
   bank_reference: '',
   payment_ids: [] as number[],
 })
+const clientPaymentForm = ref({
+  allocations: [] as ClientPaymentAllocationDraft[],
+})
+const existingClientPaymentForm = ref({
+  selections: [] as ExistingClientPaymentSelectionDraft[],
+})
+const supplierPaymentForm = ref({
+  invoice_id: null as number | null,
+})
+const existingSupplierPaymentForm = ref({
+  payment_id: null as number | null,
+})
 
 function formatAmount(value: string | number): string {
   return `${parseFloat(String(value)).toFixed(2)} €`
@@ -792,9 +1286,372 @@ function formatSignedAmount(value: number): string {
   return formatAmount(value)
 }
 
+function contactName(contactId: number): string {
+  const contact = clientContacts.value.find((candidate) => candidate.id === contactId)
+  if (!contact) {
+    return `#${contactId}`
+  }
+  return formatContactDisplayName(contact)
+}
+
+function invoiceRemainingAmount(invoice: Invoice): number {
+  return Math.max(0, parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount))
+}
+
+function resolveApiErrorMessage(error: unknown): string {
+  const detail = (
+    error as {
+      response?: {
+        data?: {
+          detail?: unknown
+        }
+      }
+    }
+  )?.response?.data?.detail
+  if (typeof detail === 'string' && detail.trim().length > 0) {
+    return detail
+  }
+  return t('common.error.unknown')
+}
+
+const sortedClientPaymentInvoices = computed(() => {
+  const transactionAmount = clientPaymentTransaction.value
+    ? parseFloat(clientPaymentTransaction.value.amount)
+    : 0
+
+  return clientInvoices.value
+    .filter(
+      (invoice) =>
+        ['sent', 'partial', 'overdue'].includes(invoice.status) &&
+        invoiceRemainingAmount(invoice) > 0,
+    )
+    .sort((left, right) => {
+      const leftScore = scoreInvoiceSuggestion({
+        transactionAmount,
+        transactionDate: clientPaymentTransaction.value?.date ?? '',
+        transactionDescription: clientPaymentTransaction.value?.description ?? '',
+        transactionReference: clientPaymentTransaction.value?.reference,
+        candidateNumber: left.number,
+        candidateReference: left.reference,
+        candidateContactName: contactName(left.contact_id),
+        candidateDate: left.date,
+        candidateRemainingAmount: invoiceRemainingAmount(left),
+      })
+      const rightScore = scoreInvoiceSuggestion({
+        transactionAmount,
+        transactionDate: clientPaymentTransaction.value?.date ?? '',
+        transactionDescription: clientPaymentTransaction.value?.description ?? '',
+        transactionReference: clientPaymentTransaction.value?.reference,
+        candidateNumber: right.number,
+        candidateReference: right.reference,
+        candidateContactName: contactName(right.contact_id),
+        candidateDate: right.date,
+        candidateRemainingAmount: invoiceRemainingAmount(right),
+      })
+      if (leftScore !== rightScore) {
+        return rightScore - leftScore
+      }
+      return right.date.localeCompare(left.date)
+    })
+})
+
+const clientPaymentAllocations = computed(() => clientPaymentForm.value.allocations)
+
+const clientPaymentTransactionAmount = computed(() =>
+  clientPaymentTransaction.value ? parseFloat(clientPaymentTransaction.value.amount) : 0,
+)
+
+const clientPaymentSelectedTotal = computed(() =>
+  clientPaymentForm.value.allocations.reduce(
+    (sum, allocation) => sum + (allocation.selected ? Number(allocation.allocated_amount || 0) : 0),
+    0,
+  ),
+)
+
+const clientPaymentRemainingToAllocate = computed(() =>
+  Number((clientPaymentTransactionAmount.value - clientPaymentSelectedTotal.value).toFixed(2)),
+)
+
+const canSubmitClientPayment = computed(
+  () =>
+    clientPaymentAllocations.value.some(
+      (allocation) => allocation.selected && allocation.allocated_amount > 0,
+    ) && Math.abs(clientPaymentRemainingToAllocate.value) < 0.005,
+)
+
+const supplierPaymentInvoiceOptions = computed(() => {
+  const transactionAmount = supplierPaymentTransaction.value
+    ? Math.abs(parseFloat(supplierPaymentTransaction.value.amount))
+    : 0
+
+  return supplierInvoices.value
+    .filter(
+      (invoice) =>
+        ['sent', 'partial', 'overdue'].includes(invoice.status) &&
+        invoiceRemainingAmount(invoice) > 0,
+    )
+    .sort((left, right) => {
+      const leftScore = scoreInvoiceSuggestion({
+        transactionAmount,
+        transactionDate: supplierPaymentTransaction.value?.date ?? '',
+        transactionDescription: supplierPaymentTransaction.value?.description ?? '',
+        transactionReference: supplierPaymentTransaction.value?.reference,
+        candidateNumber: left.number,
+        candidateReference: left.reference,
+        candidateContactName: contactName(left.contact_id),
+        candidateDate: left.date,
+        candidateRemainingAmount: invoiceRemainingAmount(left),
+      })
+      const rightScore = scoreInvoiceSuggestion({
+        transactionAmount,
+        transactionDate: supplierPaymentTransaction.value?.date ?? '',
+        transactionDescription: supplierPaymentTransaction.value?.description ?? '',
+        transactionReference: supplierPaymentTransaction.value?.reference,
+        candidateNumber: right.number,
+        candidateReference: right.reference,
+        candidateContactName: contactName(right.contact_id),
+        candidateDate: right.date,
+        candidateRemainingAmount: invoiceRemainingAmount(right),
+      })
+      if (leftScore !== rightScore) {
+        return rightScore - leftScore
+      }
+      return right.date.localeCompare(left.date)
+    })
+    .map((invoice) => ({
+      label: `${invoice.number} · ${contactName(invoice.contact_id)} · ${t('bank.remaining_amount', {
+        amount: formatAmount(invoiceRemainingAmount(invoice)),
+      })}`,
+      value: invoice.id,
+    }))
+})
+
+const sortedExistingClientPayments = computed(() => {
+  const transactionAmount = existingClientPaymentTransaction.value
+    ? parseFloat(existingClientPaymentTransaction.value.amount)
+    : 0
+
+  return existingClientPayments.value
+    .filter(
+      (payment) =>
+        payment.method === 'virement' && parseFloat(payment.amount) <= transactionAmount + 0.0001,
+    )
+    .sort((left, right) => {
+      const leftScore = scorePaymentSuggestion({
+        transactionAmount,
+        transactionDate: existingClientPaymentTransaction.value?.date ?? '',
+        transactionDescription: existingClientPaymentTransaction.value?.description ?? '',
+        transactionReference: existingClientPaymentTransaction.value?.reference,
+        candidateInvoiceNumber: left.invoice_number,
+        candidateReference: left.reference,
+        candidateContactName: contactName(left.contact_id),
+        candidateDate: left.date,
+        candidateAmount: parseFloat(left.amount),
+      })
+      const rightScore = scorePaymentSuggestion({
+        transactionAmount,
+        transactionDate: existingClientPaymentTransaction.value?.date ?? '',
+        transactionDescription: existingClientPaymentTransaction.value?.description ?? '',
+        transactionReference: existingClientPaymentTransaction.value?.reference,
+        candidateInvoiceNumber: right.invoice_number,
+        candidateReference: right.reference,
+        candidateContactName: contactName(right.contact_id),
+        candidateDate: right.date,
+        candidateAmount: parseFloat(right.amount),
+      })
+      if (leftScore !== rightScore) {
+        return rightScore - leftScore
+      }
+      return right.date.localeCompare(left.date)
+    })
+})
+
+const existingClientPaymentSelections = computed(() => existingClientPaymentForm.value.selections)
+
+const existingClientPaymentTransactionAmount = computed(() =>
+  existingClientPaymentTransaction.value
+    ? parseFloat(existingClientPaymentTransaction.value.amount)
+    : 0,
+)
+
+const existingClientPaymentSelectedTotal = computed(() =>
+  existingClientPaymentForm.value.selections.reduce(
+    (sum, selection) => sum + (selection.selected ? selection.amount : 0),
+    0,
+  ),
+)
+
+const existingClientPaymentRemainingToMatch = computed(() =>
+  Number(
+    (
+      existingClientPaymentTransactionAmount.value - existingClientPaymentSelectedTotal.value
+    ).toFixed(2),
+  ),
+)
+
+const canSubmitExistingClientPayment = computed(
+  () =>
+    existingClientPaymentSelections.value.some((selection) => selection.selected) &&
+    Math.abs(existingClientPaymentRemainingToMatch.value) < 0.005,
+)
+
+const existingSupplierPaymentOptions = computed(() => {
+  const transactionAmount = existingSupplierPaymentTransaction.value
+    ? Math.abs(parseFloat(existingSupplierPaymentTransaction.value.amount))
+    : 0
+
+  return existingSupplierPayments.value
+    .filter(
+      (payment) =>
+        payment.method === 'virement' &&
+        Math.abs(parseFloat(payment.amount) - transactionAmount) < 0.0001,
+    )
+    .sort((left, right) => {
+      const leftScore = scorePaymentSuggestion({
+        transactionAmount,
+        transactionDate: existingSupplierPaymentTransaction.value?.date ?? '',
+        transactionDescription: existingSupplierPaymentTransaction.value?.description ?? '',
+        transactionReference: existingSupplierPaymentTransaction.value?.reference,
+        candidateInvoiceNumber: left.invoice_number,
+        candidateReference: left.reference,
+        candidateContactName: contactName(left.contact_id),
+        candidateDate: left.date,
+        candidateAmount: parseFloat(left.amount),
+      })
+      const rightScore = scorePaymentSuggestion({
+        transactionAmount,
+        transactionDate: existingSupplierPaymentTransaction.value?.date ?? '',
+        transactionDescription: existingSupplierPaymentTransaction.value?.description ?? '',
+        transactionReference: existingSupplierPaymentTransaction.value?.reference,
+        candidateInvoiceNumber: right.invoice_number,
+        candidateReference: right.reference,
+        candidateContactName: contactName(right.contact_id),
+        candidateDate: right.date,
+        candidateAmount: parseFloat(right.amount),
+      })
+      if (leftScore !== rightScore) {
+        return rightScore - leftScore
+      }
+      return right.date.localeCompare(left.date)
+    })
+    .map((payment) => {
+      const reference = payment.reference ? ` · ${payment.reference}` : ''
+      return {
+        label: `${payment.invoice_number || `#${payment.invoice_id}`} · ${contactName(
+          payment.contact_id,
+        )} · ${formatAmount(payment.amount)} · ${formatDisplayDate(payment.date)}${reference}`,
+        value: payment.id,
+      }
+    })
+})
+
 function toIsoDate(d: Date | string): string {
   if (typeof d === 'string') return d
   return d.toISOString().slice(0, 10)
+}
+
+function detectImportFormatFromFileName(fileName: string): BankImportFormat {
+  const lowerName = fileName.toLowerCase()
+  if (lowerName.endsWith('.ofx') || lowerName.endsWith('.qfx')) {
+    return 'ofx'
+  }
+  if (lowerName.endsWith('.qif')) {
+    return 'qif'
+  }
+  return 'csv'
+}
+
+function buildClientPaymentAllocationDrafts(): ClientPaymentAllocationDraft[] {
+  let remainingToAllocate = clientPaymentTransactionAmount.value
+
+  return sortedClientPaymentInvoices.value.map((invoice) => {
+    const remainingAmount = invoiceRemainingAmount(invoice)
+    const suggestedAmount = Math.min(remainingAmount, Math.max(remainingToAllocate, 0))
+    remainingToAllocate = Number((remainingToAllocate - suggestedAmount).toFixed(2))
+
+    return {
+      invoice_id: invoice.id,
+      title: `${invoice.number} · ${contactName(invoice.contact_id)}`,
+      caption: `${formatDisplayDate(invoice.date)} · ${t('bank.remaining_amount', {
+        amount: formatAmount(remainingAmount),
+      })}`,
+      remaining_amount: remainingAmount,
+      allocated_amount: suggestedAmount,
+      selected: suggestedAmount > 0,
+    }
+  })
+}
+
+function buildExistingClientPaymentSelectionDrafts(): ExistingClientPaymentSelectionDraft[] {
+  let remainingToMatch = existingClientPaymentTransactionAmount.value
+
+  return sortedExistingClientPayments.value.map((payment) => {
+    const amount = parseFloat(payment.amount)
+    const reference = payment.reference ? ` · ${payment.reference}` : ''
+    const selected = amount <= remainingToMatch + 0.0001
+    if (selected) {
+      remainingToMatch = Number((remainingToMatch - amount).toFixed(2))
+    }
+
+    return {
+      payment_id: payment.id,
+      title: `${payment.invoice_number || `#${payment.invoice_id}`} · ${contactName(
+        payment.contact_id,
+      )}`,
+      caption: `${formatDisplayDate(payment.date)}${reference}`,
+      amount,
+      selected,
+    }
+  })
+}
+
+function clientAllocationSelectedSumExcluding(invoiceId: number): number {
+  return clientPaymentForm.value.allocations.reduce((sum, allocation) => {
+    if (!allocation.selected || allocation.invoice_id === invoiceId) {
+      return sum
+    }
+    return sum + Number(allocation.allocated_amount || 0)
+  }, 0)
+}
+
+function clientAllocationMaxAmount(allocation: ClientPaymentAllocationDraft): number {
+  const remainingTxAmount =
+    clientPaymentTransactionAmount.value -
+    clientAllocationSelectedSumExcluding(allocation.invoice_id)
+  return Math.max(0, Math.min(allocation.remaining_amount, remainingTxAmount))
+}
+
+function syncClientAllocationAmount(allocation: ClientPaymentAllocationDraft): void {
+  if (!allocation.selected) {
+    allocation.allocated_amount = 0
+    return
+  }
+
+  const maxAmount = clientAllocationMaxAmount(allocation)
+  const currentAmount = Number(allocation.allocated_amount || 0)
+
+  if (currentAmount <= 0) {
+    allocation.allocated_amount = maxAmount
+    return
+  }
+
+  allocation.allocated_amount = Math.min(currentAmount, maxAmount)
+}
+
+function openImportFilePicker() {
+  importFileInput.value?.click()
+}
+
+async function onImportFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) {
+    return
+  }
+
+  importFileName.value = file.name
+  importContent.value = await file.text()
+  input.value = ''
 }
 
 async function loadTransactions() {
@@ -836,6 +1693,238 @@ async function reconcile(tx: BankTransaction) {
   await loadTransactions()
 }
 
+function canCreateClientPayment(tx: BankTransaction): boolean {
+  return (
+    !tx.reconciled &&
+    parseFloat(tx.amount) > 0 &&
+    ['customer_payment', 'other_credit'].includes(tx.detected_category)
+  )
+}
+
+function canLinkExistingClientPayment(tx: BankTransaction): boolean {
+  return canCreateClientPayment(tx)
+}
+
+function canCreateSupplierPayment(tx: BankTransaction): boolean {
+  return (
+    !tx.reconciled &&
+    parseFloat(tx.amount) < 0 &&
+    ['supplier_payment', 'other_debit'].includes(tx.detected_category)
+  )
+}
+
+function canLinkExistingSupplierPayment(tx: BankTransaction): boolean {
+  return canCreateSupplierPayment(tx)
+}
+
+async function openClientPaymentDialog(tx: BankTransaction) {
+  clientPaymentTransaction.value = tx
+  clientPaymentForm.value.allocations = []
+  clientPaymentDialogVisible.value = true
+  clientPaymentLoading.value = true
+  try {
+    const [invoices, contacts] = await Promise.all([
+      listInvoicesApi({ invoice_type: 'client' }),
+      listContactsApi({ active_only: true }),
+    ])
+    clientInvoices.value = invoices
+    clientContacts.value = contacts
+    clientPaymentForm.value.allocations = buildClientPaymentAllocationDrafts()
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } finally {
+    clientPaymentLoading.value = false
+  }
+}
+
+async function openExistingClientPaymentDialog(tx: BankTransaction) {
+  existingClientPaymentTransaction.value = tx
+  existingClientPaymentForm.value.selections = []
+  existingClientPaymentDialogVisible.value = true
+  existingClientPaymentLoading.value = true
+  try {
+    const [payments, contacts] = await Promise.all([
+      listPayments({ invoice_type: 'client' }),
+      listContactsApi({ active_only: true }),
+    ])
+    existingClientPayments.value = payments
+    clientContacts.value = contacts
+    existingClientPaymentForm.value.selections = buildExistingClientPaymentSelectionDrafts()
+  } catch (error) {
+    toast.add({ severity: 'error', summary: resolveApiErrorMessage(error), life: 3000 })
+  } finally {
+    existingClientPaymentLoading.value = false
+  }
+}
+
+async function openSupplierPaymentDialog(tx: BankTransaction) {
+  supplierPaymentTransaction.value = tx
+  supplierPaymentForm.value.invoice_id = null
+  supplierPaymentDialogVisible.value = true
+  supplierPaymentLoading.value = true
+  try {
+    const [invoices, contacts] = await Promise.all([
+      listInvoicesApi({ invoice_type: 'fournisseur' }),
+      listContactsApi({ active_only: true }),
+    ])
+    supplierInvoices.value = invoices
+    clientContacts.value = contacts
+    supplierPaymentForm.value.invoice_id = supplierPaymentInvoiceOptions.value[0]?.value ?? null
+  } catch (error) {
+    toast.add({ severity: 'error', summary: resolveApiErrorMessage(error), life: 3000 })
+  } finally {
+    supplierPaymentLoading.value = false
+  }
+}
+
+async function openExistingSupplierPaymentDialog(tx: BankTransaction) {
+  existingSupplierPaymentTransaction.value = tx
+  existingSupplierPaymentForm.value.payment_id = null
+  existingSupplierPaymentDialogVisible.value = true
+  existingSupplierPaymentLoading.value = true
+  try {
+    const [payments, contacts] = await Promise.all([
+      listPayments({ invoice_type: 'fournisseur' }),
+      listContactsApi({ active_only: true }),
+    ])
+    existingSupplierPayments.value = payments
+    clientContacts.value = contacts
+    existingSupplierPaymentForm.value.payment_id =
+      existingSupplierPaymentOptions.value[0]?.value ?? null
+  } catch (error) {
+    toast.add({ severity: 'error', summary: resolveApiErrorMessage(error), life: 3000 })
+  } finally {
+    existingSupplierPaymentLoading.value = false
+  }
+}
+
+async function submitClientPayment() {
+  if (!clientPaymentTransaction.value || !canSubmitClientPayment.value) {
+    return
+  }
+
+  clientPaymentSaving.value = true
+  try {
+    const allocations: BankTransactionClientPaymentAllocation[] =
+      clientPaymentForm.value.allocations
+        .filter((allocation) => allocation.selected && allocation.allocated_amount > 0)
+        .map((allocation) => ({
+          invoice_id: allocation.invoice_id,
+          amount: allocation.allocated_amount.toFixed(2),
+        }))
+
+    await createClientPaymentsFromTransaction(clientPaymentTransaction.value.id, allocations)
+    clientPaymentDialogVisible.value = false
+    clientPaymentTransaction.value = null
+    const allocationCount = allocations.length
+    clientPaymentForm.value.allocations = []
+    toast.add({
+      severity: 'success',
+      summary: t('bank.create_client_payment_success', { count: allocationCount }),
+      life: 3000,
+    })
+    await loadTransactions()
+  } catch (error) {
+    toast.add({ severity: 'error', summary: resolveApiErrorMessage(error), life: 3000 })
+  } finally {
+    clientPaymentSaving.value = false
+  }
+}
+
+async function submitExistingClientPayment() {
+  if (!existingClientPaymentTransaction.value || !canSubmitExistingClientPayment.value) {
+    return
+  }
+
+  existingClientPaymentSaving.value = true
+  try {
+    const paymentIds = existingClientPaymentForm.value.selections
+      .filter((selection) => selection.selected)
+      .map((selection) => selection.payment_id)
+
+    const [singlePaymentId] = paymentIds
+    if (paymentIds.length === 1 && singlePaymentId !== undefined) {
+      await linkClientPaymentToTransaction(
+        existingClientPaymentTransaction.value.id,
+        singlePaymentId,
+      )
+    } else {
+      await linkClientPaymentsToTransaction(existingClientPaymentTransaction.value.id, paymentIds)
+    }
+
+    existingClientPaymentDialogVisible.value = false
+    existingClientPaymentTransaction.value = null
+    existingClientPaymentForm.value.selections = []
+    toast.add({
+      severity: 'success',
+      summary: t('bank.link_client_payment_success', { count: paymentIds.length }),
+      life: 3000,
+    })
+    await loadTransactions()
+  } catch (error) {
+    toast.add({ severity: 'error', summary: resolveApiErrorMessage(error), life: 3000 })
+  } finally {
+    existingClientPaymentSaving.value = false
+  }
+}
+
+async function submitSupplierPayment() {
+  if (!supplierPaymentTransaction.value || supplierPaymentForm.value.invoice_id === null) {
+    return
+  }
+
+  supplierPaymentSaving.value = true
+  try {
+    await createSupplierPaymentFromTransaction(
+      supplierPaymentTransaction.value.id,
+      supplierPaymentForm.value.invoice_id,
+    )
+    supplierPaymentDialogVisible.value = false
+    supplierPaymentTransaction.value = null
+    supplierPaymentForm.value.invoice_id = null
+    toast.add({
+      severity: 'success',
+      summary: t('bank.create_supplier_payment_success'),
+      life: 3000,
+    })
+    await loadTransactions()
+  } catch (error) {
+    toast.add({ severity: 'error', summary: resolveApiErrorMessage(error), life: 3000 })
+  } finally {
+    supplierPaymentSaving.value = false
+  }
+}
+
+async function submitExistingSupplierPayment() {
+  if (
+    !existingSupplierPaymentTransaction.value ||
+    existingSupplierPaymentForm.value.payment_id === null
+  ) {
+    return
+  }
+
+  existingSupplierPaymentSaving.value = true
+  try {
+    await linkSupplierPaymentToTransaction(
+      existingSupplierPaymentTransaction.value.id,
+      existingSupplierPaymentForm.value.payment_id,
+    )
+    existingSupplierPaymentDialogVisible.value = false
+    existingSupplierPaymentTransaction.value = null
+    existingSupplierPaymentForm.value.payment_id = null
+    toast.add({
+      severity: 'success',
+      summary: t('bank.link_supplier_payment_success'),
+      life: 3000,
+    })
+    await loadTransactions()
+  } catch (error) {
+    toast.add({ severity: 'error', summary: resolveApiErrorMessage(error), life: 3000 })
+  } finally {
+    existingSupplierPaymentSaving.value = false
+  }
+}
+
 async function submitTransaction() {
   saving.value = true
   try {
@@ -859,11 +1948,20 @@ async function submitTransaction() {
 }
 
 async function submitImport() {
+  if (!importFileName.value || !importContent.value.trim()) {
+    toast.add({ severity: 'warn', summary: t('bank.import_file_required'), life: 3000 })
+    return
+  }
+
   saving.value = true
   try {
-    const imported = await importCsv(csvContent.value)
+    const imported = await importBankStatement(
+      detectImportFormatFromFileName(importFileName.value),
+      importContent.value,
+    )
     importDialogVisible.value = false
-    csvContent.value = ''
+    importContent.value = ''
+    importFileName.value = ''
     toast.add({
       severity: 'success',
       summary: t('bank.import_success', { n: imported.length }),
@@ -948,6 +2046,21 @@ onMounted(async () => {
   width: 6.5rem;
 }
 
+.bank-import-file-row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+}
+
+.bank-import-file-name {
+  color: var(--app-text-muted);
+  font-size: 0.95rem;
+}
+
+.bank-import-file-input {
+  display: none;
+}
+
 .bank-form {
   display: flex;
   flex-direction: column;
@@ -964,6 +2077,43 @@ onMounted(async () => {
 
 .bank-payment-option {
   cursor: pointer;
+}
+
+.bank-allocation-list {
+  gap: var(--app-space-3);
+}
+
+.bank-allocation-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--app-space-4);
+}
+
+.bank-allocation-item__summary {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--app-space-3);
+  min-width: 0;
+}
+
+.bank-allocation-item__amount {
+  min-width: 12rem;
+}
+
+.bank-allocation-item__fixed-amount {
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .bank-allocation-item {
+    flex-direction: column;
+  }
+
+  .bank-allocation-item__amount {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .bank-payment-option :deep(.p-checkbox) {

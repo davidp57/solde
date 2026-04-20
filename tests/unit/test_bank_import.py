@@ -7,8 +7,10 @@ from decimal import Decimal
 
 import pytest
 
+from backend.models.bank import BankTransactionCategory
 from backend.services.bank_import import (
     BankImportError,
+    detect_transaction_category,
     parse_credit_mutuel_csv,
     parse_ofx,
     parse_qif,
@@ -145,6 +147,46 @@ def test_ofx_xml_reference() -> None:
 def test_ofx_empty_raises() -> None:
     with pytest.raises(BankImportError):
         parse_ofx("<OFX></OFX>")
+
+
+def test_detect_customer_payment_category() -> None:
+    category = detect_transaction_category(
+        amount=Decimal("52.00"),
+        description="VIR INST ANNE WENTZO VIREMENT DE",
+    )
+    assert category == BankTransactionCategory.CUSTOMER_PAYMENT
+
+
+def test_detect_cheque_deposit_category() -> None:
+    category = detect_transaction_category(
+        amount=Decimal("388.00"),
+        description="REM CHQ REF05001A05",
+    )
+    assert category == BankTransactionCategory.CHEQUE_DEPOSIT
+
+
+def test_detect_cash_deposit_category() -> None:
+    category = detect_transaction_category(
+        amount=Decimal("700.00"),
+        description="VRST REF05001A05",
+    )
+    assert category == BankTransactionCategory.CASH_DEPOSIT
+
+
+def test_detect_salary_category() -> None:
+    category = detect_transaction_category(
+        amount=Decimal("-1249.64"),
+        description="VIR INST SALAIRE LAY 2026.02 VG6",
+    )
+    assert category == BankTransactionCategory.SALARY
+
+
+def test_detect_social_charge_category() -> None:
+    category = detect_transaction_category(
+        amount=Decimal("-800.00"),
+        description="PRLV SEPA URSSAF DE LORRAINE TT4",
+    )
+    assert category == BankTransactionCategory.SOCIAL_CHARGE
 
 
 # ---------------------------------------------------------------------------
