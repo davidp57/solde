@@ -136,7 +136,12 @@
             @click="doImport"
           />
         </div>
-        <p class="import-action-hint">{{ importActionHint }}</p>
+        <p
+          class="import-action-hint"
+          :class="{ 'import-action-hint--warning': hasPreviewWarnings && preview?.can_import }"
+        >
+          {{ importActionHint }}
+        </p>
         <div
           v-if="result"
           data-testid="import-result-banner"
@@ -147,6 +152,15 @@
         >
           <strong>{{ resultStateMessage }}</strong>
           <p>{{ resultStateDetail }}</p>
+          <div
+            v-if="activeRun?.status === 'failed' && result.errors.length"
+            data-testid="import-result-banner-errors"
+            class="import-result-banner-errors"
+          >
+            <ul class="import-errors">
+              <li v-for="(err, idx) in result.errors" :key="`banner-error-${idx}`">{{ err }}</li>
+            </ul>
+          </div>
         </div>
       </div>
     </AppPanel>
@@ -248,6 +262,9 @@
               </span>
               <span class="import-operation-metric import-operation-metric--danger">
                 {{ t('import.operation_decision.block') }}: {{ operationDecisionStats.block }}
+              </span>
+              <span class="import-operation-metric import-operation-metric--danger">
+                {{ t('import.operation_status.failed') }}: {{ operationDecisionStats.failed }}
               </span>
             </div>
           </div>
@@ -597,6 +614,9 @@
                   </span>
                   <span class="import-operation-metric import-operation-metric--danger">
                     {{ t('import.operation_decision.block') }}: {{ operationDecisionStats.block }}
+                  </span>
+                  <span class="import-operation-metric import-operation-metric--danger">
+                    {{ t('import.operation_status.failed') }}: {{ operationDecisionStats.failed }}
                   </span>
                 </div>
               </div>
@@ -1022,18 +1042,6 @@
               </ul>
             </div>
 
-            <div v-if="hasPreviewWarnings && preview.can_import" class="import-confirmation-guard">
-              <label class="import-confirmation-guard__checkbox">
-                <Checkbox
-                  v-model="warningsAcknowledged"
-                  binary
-                  data-testid="warning-ack-checkbox"
-                />
-                <span>{{ t('import.warning_ack_label') }}</span>
-              </label>
-              <p class="import-confirmation-guard__help">{{ t('import.warning_ack_help') }}</p>
-            </div>
-
             <div v-if="preview.errors.length" class="import-errors">
               <span class="app-field__label">{{ t('import.errors') }}</span>
               <ul>
@@ -1082,6 +1090,13 @@
               @click="redoRun(activeRun.id)"
             />
           </div>
+          <p
+            v-if="hasPreviewWarnings && preview.can_import"
+            data-testid="confirm-import-warning"
+            class="import-action-hint import-action-hint--warning"
+          >
+            {{ t('import.warning_review_hint') }}
+          </p>
         </AppPanel>
       </div>
 
@@ -1198,7 +1213,6 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
 import RadioButton from 'primevue/radiobutton'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
@@ -1209,6 +1223,7 @@ import { getSettingsApi } from '../api/settings'
 import {
   importTestShortcutApi,
   executeImportRunApi,
+  getImportRunApi,
   listTestImportShortcutsApi,
   prepareComptabiliteRunApi,
   prepareGestionRunApi,
@@ -1253,7 +1268,6 @@ const operationSortField = ref<
 >('position')
 const operationSortDirection = ref<'asc' | 'desc'>('asc')
 const expandedOperationIds = ref<number[]>([])
-const warningsAcknowledged = ref(false)
 const testShortcuts = ref<TestImportShortcut[]>([])
 const runningShortcutAlias = ref<string | null>(null)
 
@@ -1271,7 +1285,12 @@ type OperationTableRow = {
   operation: ImportOperationRead
 }
 const resultHasIssues = computed(() =>
-  Boolean(result.value && (result.value.errors.length > 0 || result.value.warnings.length > 0)),
+  Boolean(
+    result.value &&
+      (activeRun.value?.status === 'failed' ||
+        result.value.errors.length > 0 ||
+        result.value.warnings.length > 0),
+  ),
 )
 const resultCreatedCount = computed(() => {
   if (!result.value) return 0
@@ -1287,10 +1306,17 @@ const resultCreatedCount = computed(() => {
 })
 const resultStateMessage = computed(() => {
   if (!result.value) return ''
+  if (activeRun.value?.status === 'failed') return t('import.failed')
   return resultHasIssues.value ? t('import.completed_with_issues') : t('import.success')
 })
 const resultStateDetail = computed(() => {
   if (!result.value) return ''
+  if (activeRun.value?.status === 'failed') {
+    return t('import.result_failed_hint', {
+      count: resultCreatedCount.value,
+      errors: result.value.errors.length,
+    })
+  }
   return t('import.result_persistent_hint', {
     count: resultCreatedCount.value,
     ignored: result.value.ignored_rows,
@@ -1311,8 +1337,7 @@ const canConfirmImport = computed(() =>
   Boolean(
     selectedFile.value &&
     preview.value?.can_import &&
-    activeRun.value?.can_execute !== false &&
-    (!hasPreviewWarnings.value || warningsAcknowledged.value),
+    activeRun.value?.can_execute !== false,
   ),
 )
 const previewState = computed<'ready' | 'noop' | 'blocked'>(() => {
@@ -1505,6 +1530,7 @@ const operationDecisionStats = computed(() => {
     apply: operations.filter((operation) => operation.decision === 'apply').length,
     ignore: operations.filter((operation) => operation.decision === 'ignore').length,
     block: operations.filter((operation) => operation.decision === 'block').length,
+    failed: operations.filter((operation) => operation.status === 'failed').length,
   }
 })
 const blockedOperationRows = computed(() =>
@@ -1519,9 +1545,8 @@ const hasBlockingOperations = computed(
 const importActionHint = computed(() => {
   if (!selectedFile.value) return t('import.file_required')
   if (!preview.value) return t('import.preview_required')
-  if (hasPreviewWarnings.value && !warningsAcknowledged.value)
-    return t('import.warning_ack_required')
   if (!preview.value.can_import) return t('import.preview_blocked')
+  if (hasPreviewWarnings.value) return t('import.warning_review_hint')
   return t('import.import_ready')
 })
 
@@ -1529,7 +1554,6 @@ function resetImportFlow() {
   result.value = null
   preview.value = null
   activeRun.value = null
-  warningsAcknowledged.value = false
   resetOperationTableState()
 }
 
@@ -1829,6 +1853,20 @@ function getImportErrorSummary(error: unknown): string {
   return t('common.error.unknown')
 }
 
+function isRequestTimeout(error: unknown): boolean {
+  return (error as { code?: string }).code === 'ECONNABORTED'
+}
+
+async function refreshRunAfterTimeout(runId: number) {
+  try {
+    const refreshedRun = await getImportRunApi(runId)
+    syncRunState(refreshedRun)
+    toast.add({ severity: 'info', summary: t('import.request_timeout_refreshed'), life: 5000 })
+  } catch {
+    toast.add({ severity: 'warn', summary: t('import.request_timeout'), life: 5000 })
+  }
+}
+
 async function loadTestShortcuts() {
   try {
     testShortcuts.value = (await listTestImportShortcutsApi()).sort(
@@ -1856,7 +1894,6 @@ async function loadSettings() {
 async function doPreview() {
   if (!selectedFile.value) return
   previewing.value = true
-  warningsAcknowledged.value = false
   preview.value = null
   result.value = null
   activeRun.value = null
@@ -1887,10 +1924,6 @@ async function doImport() {
     toast.add({ severity: 'warn', summary: t('import.preview_required'), life: 3000 })
     return
   }
-  if (hasPreviewWarnings.value && !warningsAcknowledged.value) {
-    toast.add({ severity: 'warn', summary: t('import.warning_ack_required'), life: 3500 })
-    return
-  }
   if (!preview.value.can_import) {
     toast.add({ severity: 'warn', summary: t('import.preview_blocked'), life: 3500 })
     return
@@ -1905,15 +1938,27 @@ async function doImport() {
     const run = await executeImportRunApi(activeRun.value.id)
     syncRunState(run)
     const runResult = run.summary
+    const hasFailed = run.status === 'failed'
     const hasIssues = Boolean(
-      runResult && (runResult.errors.length > 0 || runResult.warnings.length > 0),
+      hasFailed || (runResult && (runResult.errors.length > 0 || runResult.warnings.length > 0)),
     )
     toast.add({
-      severity: hasIssues ? 'warn' : 'success',
-      summary: hasIssues ? t('import.completed_with_issues') : t('import.success'),
-      life: 3500,
+      severity: hasFailed ? 'error' : hasIssues ? 'warn' : 'success',
+      summary: hasFailed
+        ? t('import.failed')
+        : hasIssues
+          ? t('import.completed_with_issues')
+          : t('import.success'),
+      detail: hasFailed
+        ? getImportErrorSummary(runResult)
+        : undefined,
+      life: hasFailed ? 5000 : 3500,
     })
   } catch (error: unknown) {
+    if (isRequestTimeout(error) && activeRun.value?.id != null) {
+      await refreshRunAfterTimeout(activeRun.value.id)
+      return
+    }
     toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     importing.value = false
@@ -1928,6 +1973,10 @@ async function undoRun(runId: number) {
       syncRunState(run)
     }
   } catch (error: unknown) {
+    if (isRequestTimeout(error)) {
+      await refreshRunAfterTimeout(runId)
+      return
+    }
     toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     busyRunId.value = null
@@ -1942,6 +1991,10 @@ async function redoRun(runId: number) {
       syncRunState(run)
     }
   } catch (error: unknown) {
+    if (isRequestTimeout(error)) {
+      await refreshRunAfterTimeout(runId)
+      return
+    }
     toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     busyRunId.value = null
@@ -1954,6 +2007,10 @@ async function undoOperation(operationId: number) {
     const run = await undoImportOperationApi(operationId)
     syncRunState(run)
   } catch (error: unknown) {
+    if (isRequestTimeout(error) && activeRun.value?.id != null) {
+      await refreshRunAfterTimeout(activeRun.value.id)
+      return
+    }
     toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     busyOperationId.value = null
@@ -1966,6 +2023,10 @@ async function redoOperation(operationId: number) {
     const run = await redoImportOperationApi(operationId)
     syncRunState(run)
   } catch (error: unknown) {
+    if (isRequestTimeout(error) && activeRun.value?.id != null) {
+      await refreshRunAfterTimeout(activeRun.value.id)
+      return
+    }
     toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     busyOperationId.value = null
@@ -1980,24 +2041,45 @@ async function runTestShortcut(alias: string) {
     fileInput.value.value = ''
   }
   preview.value = null
-  warningsAcknowledged.value = false
   result.value = null
   try {
     const shortcut = testShortcuts.value.find((item) => item.alias === alias)
     if (shortcut) {
       importType.value = shortcut.import_type
+      applyDefaultComparisonRange(shortcut.file_name ?? undefined)
     }
-    result.value = await importTestShortcutApi(alias)
-    const hasIssues = result.value.errors.length > 0 || result.value.warnings.length > 0
-    toast.add({
-      severity: hasIssues ? 'warn' : 'success',
-      summary: hasIssues ? t('import.completed_with_issues') : t('import.success'),
-      life: 3500,
-    })
+    const comparisonWindow = {
+      comparison_start_date: comparisonStartDate.value || undefined,
+      comparison_end_date: comparisonEndDate.value || undefined,
+    }
+    const run = await importTestShortcutApi(alias, comparisonWindow)
+    syncRunState(run)
+    if (run.summary) {
+      const hasFailed = run.status === 'failed'
+      const hasIssues = Boolean(
+        hasFailed || run.summary.errors.length > 0 || run.summary.warnings.length > 0,
+      )
+      toast.add({
+        severity: hasFailed ? 'error' : hasIssues ? 'warn' : 'success',
+        summary: hasFailed
+          ? t('import.failed')
+          : hasIssues
+            ? t('import.completed_with_issues')
+            : t('import.success'),
+        detail: hasFailed ? getImportErrorSummary(run.summary) : undefined,
+        life: hasFailed ? 5000 : 3500,
+      })
+    } else {
+      toast.add({
+        severity: 'warn',
+        summary: run.preview?.can_import ? t('import.run_not_executable') : t('import.preview_blocked'),
+        life: 4000,
+      })
+    }
+    await scrollToPreviewPanel()
     await loadTestShortcuts()
   } catch (error: unknown) {
-    const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
-    toast.add({ severity: 'error', summary: detail ?? t('common.error.unknown'), life: 4500 })
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 4500 })
   } finally {
     importing.value = false
     runningShortcutAlias.value = null
@@ -2121,6 +2203,10 @@ async function runTestShortcut(alias: string) {
   font-size: 0.95rem;
 }
 
+.import-action-hint--warning {
+  color: color-mix(in srgb, var(--p-amber-700) 78%, var(--p-text-color) 22%);
+}
+
 .import-result-banner {
   display: flex;
   flex-direction: column;
@@ -2131,6 +2217,15 @@ async function runTestShortcut(alias: string) {
 
 .import-result-banner strong,
 .import-result-banner p {
+  margin: 0;
+}
+
+.import-result-banner-errors {
+  padding-top: var(--app-space-1);
+  border-top: 1px solid currentColor;
+}
+
+.import-result-banner-errors .import-errors {
   margin: 0;
 }
 
@@ -2299,28 +2394,6 @@ async function runTestShortcut(alias: string) {
   padding-left: 1rem;
   color: var(--p-amber-700);
   font-size: 0.92rem;
-}
-
-.import-confirmation-guard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  padding: var(--app-space-3) var(--app-space-4);
-  border: 1px solid color-mix(in srgb, var(--p-amber-500) 35%, var(--app-surface-border) 65%);
-  border-radius: var(--app-radius-md);
-  background: color-mix(in srgb, var(--p-amber-500) 10%, var(--app-surface-bg) 90%);
-}
-
-.import-confirmation-guard__checkbox {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: var(--app-space-3);
-}
-
-.import-confirmation-guard__help {
-  margin: 0;
-  color: var(--p-text-muted-color);
-  font-size: 0.95rem;
 }
 
 .import-sheet-list {

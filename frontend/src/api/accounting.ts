@@ -599,8 +599,18 @@ export async function listTestImportShortcutsApi(): Promise<TestImportShortcut[]
   return response.data
 }
 
-export async function importTestShortcutApi(alias: string): Promise<ImportResult> {
-  const response = await apiClient.post<ImportResult>(`/api/import/excel/test-shortcuts/${alias}`)
+export async function importTestShortcutApi(
+  alias: string,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(
+    `/api/import/excel/test-shortcuts/${alias}`,
+    undefined,
+    {
+      params: comparisonWindow,
+      timeout: 120000,
+    },
+  )
   return response.data
 }
 
@@ -917,27 +927,45 @@ export async function getImportRunApi(runId: number): Promise<ImportRunRead> {
 }
 
 export async function executeImportRunApi(runId: number): Promise<ImportRunRead> {
-  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/execute`)
+  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/execute`, undefined, {
+    timeout: 120000,
+  })
   return response.data
 }
 
 export async function undoImportRunApi(runId: number): Promise<ImportRunRead> {
-  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/undo`)
+  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/undo`, undefined, {
+    timeout: 120000,
+  })
   return response.data
 }
 
 export async function redoImportRunApi(runId: number): Promise<ImportRunRead> {
-  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/redo`)
+  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/redo`, undefined, {
+    timeout: 120000,
+  })
   return response.data
 }
 
 export async function undoImportOperationApi(operationId: number): Promise<ImportRunRead> {
-  const response = await apiClient.post<ImportRunRead>(`/api/import/operations/${operationId}/undo`)
+  const response = await apiClient.post<ImportRunRead>(
+    `/api/import/operations/${operationId}/undo`,
+    undefined,
+    {
+      timeout: 120000,
+    },
+  )
   return response.data
 }
 
 export async function redoImportOperationApi(operationId: number): Promise<ImportRunRead> {
-  const response = await apiClient.post<ImportRunRead>(`/api/import/operations/${operationId}/redo`)
+  const response = await apiClient.post<ImportRunRead>(
+    `/api/import/operations/${operationId}/redo`,
+    undefined,
+    {
+      timeout: 120000,
+    },
+  )
   return response.data
 }
 
