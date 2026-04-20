@@ -9,7 +9,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any, cast
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -136,7 +136,7 @@ def _file_matches_fiscal_year(file_name: str | None, fiscal_year: FiscalYear) ->
 async def _get_fiscal_year_or_raise(db: AsyncSession, fiscal_year_id: int) -> FiscalYear:
     fiscal_year = await db.get(FiscalYear, fiscal_year_id)
     if fiscal_year is None:
-        raise ValueError("Fiscal year not found")
+        raise LookupError("Fiscal year not found")
     return fiscal_year
 
 
@@ -327,29 +327,28 @@ async def _find_deletable_contact_ids(
 ) -> set[int]:
     if not candidate_contact_ids:
         return set()
-    deletable_ids: set[int] = set()
-    for contact_id in candidate_contact_ids:
-        invoice_count = await db.scalar(
-            select(func.count(Invoice.id)).where(
-                Invoice.contact_id == contact_id,
-                Invoice.id.not_in(delete_object_ids["invoice"] or {-1}),
-            )
+    referenced_contact_ids: set[int] = set()
+    source_queries = (
+        select(Invoice.contact_id).where(
+            Invoice.contact_id.in_(candidate_contact_ids),
+            Invoice.id.not_in(delete_object_ids["invoice"] or {-1}),
+        ),
+        select(Payment.contact_id).where(
+            Payment.contact_id.in_(candidate_contact_ids),
+            Payment.id.not_in(delete_object_ids["payment"] or {-1}),
+        ),
+        select(CashRegister.contact_id).where(
+            CashRegister.contact_id.in_(candidate_contact_ids),
+            CashRegister.id.not_in(delete_object_ids["cash_register"] or {-1}),
+        ),
+    )
+    for query in source_queries:
+        result = await db.execute(query.distinct())
+        referenced_contact_ids.update(
+            contact_id for contact_id in result.scalars().all() if contact_id is not None
         )
-        payment_count = await db.scalar(
-            select(func.count(Payment.id)).where(
-                Payment.contact_id == contact_id,
-                Payment.id.not_in(delete_object_ids["payment"] or {-1}),
-            )
-        )
-        cash_count = await db.scalar(
-            select(func.count(CashRegister.id)).where(
-                CashRegister.contact_id == contact_id,
-                CashRegister.id.not_in(delete_object_ids["cash_register"] or {-1}),
-            )
-        )
-        if (invoice_count or 0) == 0 and (payment_count or 0) == 0 and (cash_count or 0) == 0:
-            deletable_ids.add(contact_id)
-    return deletable_ids
+
+    return candidate_contact_ids - referenced_contact_ids
 
 
 async def _enrich_gestion_plan(db: AsyncSession, plan: _SelectiveResetPlan) -> None:

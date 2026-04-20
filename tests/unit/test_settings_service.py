@@ -4,6 +4,7 @@ import json
 from datetime import date
 from decimal import Decimal
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -251,6 +252,16 @@ class TestBootstrapAccountingSetup:
 
 
 class TestSelectiveReset:
+    async def test_preview_selective_reset_raises_lookup_error_for_unknown_fiscal_year(
+        self,
+        db_session: AsyncSession,
+    ) -> None:
+        with pytest.raises(LookupError, match="Fiscal year not found"):
+            await preview_selective_reset(
+                db_session,
+                SelectiveResetRequest(import_type=ImportLogType.GESTION, fiscal_year_id=999999),
+            )
+
     async def test_preview_and_apply_selective_reset_for_gestion_with_solde_derivatives(
         self,
         db_session: AsyncSession,
