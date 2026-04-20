@@ -228,7 +228,7 @@ describe('ImportExcelView', () => {
     ).toBe('2026-07-31')
   })
 
-  it('requires explicit warning acknowledgment before import', async () => {
+  it('keeps import enabled and shows a warning hint when preview has warnings', async () => {
     mockPrepareGestionRunApi.mockResolvedValueOnce(
       buildImportRun({
         preview: buildPreviewResult({
@@ -259,20 +259,15 @@ describe('ImportExcelView', () => {
 
     expect(
       (wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled,
-    ).toBe(true)
-    expect(
-      (wrapper.get('[data-testid="confirm-import-button"]').element as HTMLButtonElement).disabled,
-    ).toBe(true)
-
-    await wrapper.get('[data-testid="warning-ack-checkbox"]').setValue(true)
-    await nextTick()
-
-    expect(
-      (wrapper.get('[data-testid="primary-import-button"]').element as HTMLButtonElement).disabled,
     ).toBe(false)
     expect(
       (wrapper.get('[data-testid="confirm-import-button"]').element as HTMLButtonElement).disabled,
     ).toBe(false)
+
+    expect(wrapper.find('[data-testid="warning-ack-checkbox"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="confirm-import-warning"]').text()).toContain(
+      'Des avertissements ont été détectés. L’import reste possible',
+    )
   })
 
   it('shows extra rows already present only in Solde inside the comparison summary', async () => {
@@ -514,6 +509,38 @@ describe('ImportExcelView', () => {
     )
   })
 
+  it('shows a failed result banner after an import run fails', async () => {
+    mockPrepareGestionRunApi.mockResolvedValueOnce(buildImportRun())
+    mockExecuteImportRunApi.mockResolvedValueOnce(
+      buildImportRun({
+        status: 'failed',
+        can_execute: false,
+        can_undo: true,
+        summary: buildImportResult({
+          errors: ['2024-0170 — Le paiement préparé existe déjà'],
+        }),
+      }),
+    )
+
+    const wrapper = mountView()
+    await selectFile(wrapper)
+    await wrapper.get('[data-testid="preview-button"]').trigger('click')
+    await flushView()
+    await wrapper.get('[data-testid="primary-import-button"]').trigger('click')
+    await flushView()
+
+    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain(
+      'Import terminé en échec',
+    )
+    expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain(
+      '1 erreur(s) sont listées ci-dessous.',
+    )
+    expect(wrapper.get('[data-testid="import-result-banner-errors"]').text()).toContain(
+      '2024-0170 — Le paiement préparé existe déjà',
+    )
+    expect(wrapper.text()).toContain('2024-0170 — Le paiement préparé existe déjà')
+  })
+
   it('does not show an import result banner after preview only', async () => {
     mockPrepareGestionRunApi.mockResolvedValueOnce(
       buildImportRun({
@@ -582,9 +609,9 @@ describe('ImportExcelView', () => {
             source_sheet: 'Paiements',
             source_row_numbers: [18, 19],
             decision: 'apply',
-            status: 'prepared',
+            status: 'failed',
             diagnostics: [],
-            error_message: null,
+            error_message: 'Le paiement préparé existe déjà',
             can_undo: false,
             can_redo: false,
             effects: [
@@ -611,6 +638,7 @@ describe('ImportExcelView', () => {
     expect(wrapper.get('[data-testid="preview-quick-summary"]').text()).toContain(
       'Opérations préparées',
     )
+    expect(wrapper.text()).toContain('En échec: 1')
 
     expect(wrapper.get('[data-testid="operations-table"]').text()).toContain('Factures')
     expect(wrapper.get('[data-testid="operations-table"]').text()).toContain('Paiements')
@@ -838,7 +866,7 @@ describe('ImportExcelView', () => {
     expect(wrapper.get('[data-testid="operation-detail-202"]').text()).toContain('Christine LOPES')
   })
 
-  it('runs a temporary shortcut import without preview', async () => {
+  it('runs a temporary shortcut import through the reversible flow', async () => {
     mockListTestImportShortcutsApi.mockResolvedValueOnce([
       {
         alias: 'gestion-2024',
@@ -850,7 +878,17 @@ describe('ImportExcelView', () => {
         message: null,
       },
     ])
-    mockImportTestShortcutApi.mockResolvedValueOnce(buildImportResult())
+    mockImportTestShortcutApi.mockResolvedValueOnce(
+      buildImportRun({
+        status: 'completed',
+        file_name: 'Gestion 2024.xlsx',
+        comparison_start_date: '2024-08-01',
+        comparison_end_date: '2025-07-31',
+        summary: buildImportResult(),
+        can_execute: false,
+        can_undo: true,
+      }),
+    )
 
     const wrapper = mountView()
     await flushView()
@@ -859,7 +897,10 @@ describe('ImportExcelView', () => {
     await wrapper.get('[data-testid="quick-import-gestion-2024"]').trigger('click')
     await flushView()
 
-    expect(mockImportTestShortcutApi).toHaveBeenCalledWith('gestion-2024')
+    expect(mockImportTestShortcutApi).toHaveBeenCalledWith('gestion-2024', {
+      comparison_start_date: '2024-08-01',
+      comparison_end_date: '2025-07-31',
+    })
     expect(wrapper.get('[data-testid="import-result-banner"]').text()).toContain(
       'Import terminé avec succès',
     )

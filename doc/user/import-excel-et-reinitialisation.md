@@ -2,210 +2,69 @@
 
 ## But
 
-Ce document explique comment utiliser l'import Excel dans Solde pour :
+Ce document explique comment utiliser dans Solde :
 
-- initialiser l'application à partir des fichiers historiques existants ;
-- contrôler le résultat d'un import avant validation ;
-- comprendre les messages affichés par la prévisualisation et par l'import ;
-- savoir exactement ce que fait la réinitialisation des données.
+- l'import Excel `Gestion` ;
+- l'import Excel `Comptabilite` ;
+- l'historique d'import réversible ;
+- le reset sélectif de reprise ;
+- la réinitialisation complète de la base.
 
-Ce guide est orienté usage métier et tests manuels. Il complète le manuel utilisateur principal quand vous devez travailler sur une reprise historique ou un contrôle d'import.
-
-## Les deux types d'import
-
-### Import `Gestion`
-
-L'import `Gestion` sert à reprendre les données de gestion courante contenues dans un classeur historique.
-
-Il peut créer :
-
-- des contacts ;
-- des factures ;
-- des paiements ;
-- des mouvements de caisse ;
-- des mouvements bancaires ;
-- des écritures comptables générées à partir des règles comptables configurées dans Solde.
-
-Sur les fichiers historiques actuellement utilisés, l'import `Gestion` peut aussi reconstituer des factures fournisseurs et leur règlement quand il détecte des références de type `FF-...` dans les feuilles `Banque` ou `Caisse`.
-
-### Import `Comptabilité`
-
-L'import `Comptabilité` sert à importer les écritures du `Journal` Excel comme écritures comptables supplémentaires.
-
-Il ne crée pas de contacts, de factures ni de paiements. Il ajoute uniquement des écritures comptables manuelles.
-
-Si des écritures ont déjà été générées dans Solde depuis la gestion, l'import `Comptabilité` reste autorisé :
-
-- les doublons exacts sont ignorés ;
-- seules les écritures nouvelles sont ajoutées.
-
-## Avant de commencer
-
-Avant toute reprise ou tout test manuel, vérifiez les points suivants.
-
-1. Travaillez sur une base sauvegardée ou restaurable facilement.
-2. Utilisez un fichier Excel source non modifié entre deux essais, sinon le garde-fou de réimport exact devient moins utile.
-3. Créez d'abord les exercices comptables couvrant toutes les dates réellement présentes dans les fichiers à importer.
-4. Préparez le plan comptable si vous voulez relire et contrôler correctement les écritures importées.
-5. Préparez les règles comptables si vous voulez que l'import `Gestion` génère automatiquement les écritures correspondantes.
-
-Important : l'import Excel ne crée pas automatiquement :
-
-- les exercices comptables ;
-- le plan comptable ;
-- les règles comptables.
-
-## Comment utiliser la prévisualisation
-
-La prévisualisation est l'étape obligatoire avant un import.
-
-Elle permet de voir :
-
-- si le fichier est importable dans l'état actuel de la base ;
-- combien d'objets ou d'écritures seront probablement créés ;
-- quelles feuilles sont reconnues ;
-- quelles lignes seront ignorées ;
-- quelles lignes bloquent l'import.
-
-Procédure recommandée :
-
-1. Choisir le bon type de fichier : `Gestion` ou `Comptabilité`.
-2. Sélectionner le fichier Excel.
-3. Lancer la prévisualisation.
-4. Vérifier que l'état général permet l'import.
-5. Relire les avertissements feuille par feuille.
-6. Contrôler les compteurs de lignes ignorées et bloquantes.
-
-Si la prévisualisation est bloquée, il ne faut pas lancer l'import. Il faut d'abord corriger la donnée source ou la stratégie de reprise.
-
-## Comment interpréter les diagnostics
-
-### Avertissements
-
-Un avertissement indique qu'une ligne ou une feuille a été ignorée, ou qu'une adaptation automatique a été appliquée sans bloquer l'import.
-
-### Lignes bloquantes
-
-Une ligne bloquante empêche l'import complet du fichier.
-
-### Réimport exact
-
-Si un même fichier a déjà été importé avec succès, Solde refuse son réimport exact.
-
-Ce comportement est volontaire. Il évite les doublons involontaires et protège la reprise historique.
-
-## Réinitialisation des données
-
-La réinitialisation des données est une action d'administration destinée surtout aux démonstrations et aux tests de reprise.
-
-Elle supprime toutes les données applicatives, y compris :
-
-- les contacts ;
-- les factures ;
-- les paiements ;
-- les écritures comptables ;
-- les données de banque et de caisse ;
-- l'historique d'import.
-
-Conséquence importante : après une réinitialisation, il faut reconfigurer l'environnement avant de relancer un import, en particulier les exercices comptables, le plan comptable et les règles comptables utiles.
-
-Cette action est irréversible. Elle ne doit pas être utilisée sur une base que vous souhaitez conserver en l'état.
-
-## En cas de doute
-
-Si un import donne un résultat inattendu :
-
-1. ne relancez pas immédiatement sans comprendre ce qui s'est passé ;
-2. relisez la prévisualisation ;
-3. vérifiez les lignes ignorées et bloquantes ;
-4. vérifiez que les exercices nécessaires existent bien ;
-5. repartez d'une base restaurée si vous devez refaire une reprise complète propre.# Guide utilisateur — import Excel et réinitialisation
-
-## But
-
-Ce document explique comment utiliser l'import Excel dans Solde pour :
-
-- initialiser l'application à partir des fichiers historiques existants ;
-- contrôler le résultat d'un import avant validation ;
-- comprendre les messages affichés par la prévisualisation et par l'import ;
-- savoir exactement ce que fait la réinitialisation des données.
-
-Ce guide est orienté usage métier et tests manuels. Il complète la documentation technique, mais n'a pas besoin d'être lu comme une spécification.
+Il est orienté usage métier et tests manuels.
 
 ## Les deux types d'import
 
 ### Import `Gestion`
 
-L'import `Gestion` sert à reprendre les données de gestion courante contenues dans un classeur historique.
+L'import `Gestion` sert à reprendre la gestion courante depuis un classeur historique.
 
-Il peut créer :
+Il peut créer ou alimenter :
 
 - des contacts ;
 - des factures ;
 - des paiements ;
 - des mouvements de caisse ;
-- des mouvements bancaires ;
-- des écritures comptables générées à partir des règles comptables configurées dans Solde.
+- des transactions bancaires ;
+- des écritures comptables générées à partir des règles présentes dans Solde.
 
-Sur les fichiers historiques actuellement utilisés, l'import `Gestion` peut aussi reconstituer des factures fournisseurs et leur règlement quand il détecte des références de type `FF-...` dans les feuilles `Banque` ou `Caisse`.
+Sur les fichiers historiques actuellement utilisés, il peut aussi reconstituer des factures fournisseurs et leur règlement quand des références de type `FF-...` sont détectées dans `Banque` ou `Caisse`.
 
-### Import `Comptabilité`
+### Import `Comptabilite`
 
-L'import `Comptabilité` sert à importer les écritures du `Journal` Excel comme écritures comptables supplémentaires.
+L'import `Comptabilite` sert à reprendre les écritures du `Journal` Excel.
 
-Il ne crée pas de contacts, de factures ni de paiements. Il ajoute uniquement des écritures comptables manuelles.
+Il ne crée pas de contacts, de factures ni de paiements. Il ajoute uniquement des écritures comptables.
 
-Si des écritures ont déjà été générées dans Solde depuis la gestion, l'import `Comptabilité` reste autorisé :
+Si des écritures existent déjà dans Solde :
 
 - les doublons exacts sont ignorés ;
-- seules les écritures nouvelles sont ajoutées.
+- les lignes réellement nouvelles restent importables ;
+- certaines proximités avec des écritures manuelles existantes peuvent être seulement signalées en avertissement.
 
 ## Avant de commencer
 
-Avant toute reprise ou tout test manuel, vérifier les points suivants.
+Avant toute reprise ou tout retest manuel, vérifier les points suivants.
 
 1. Travailler sur une base sauvegardée ou restaurable facilement.
-2. Utiliser un fichier Excel source non modifié entre deux essais, sinon le garde-fou de réimport exact devient moins utile.
-3. Créer d'abord les exercices comptables couvrant toutes les dates réellement présentes dans les fichiers à importer.
-4. Préparer le plan comptable si vous voulez relire et contrôler correctement les écritures importées.
-5. Préparer les règles comptables si vous voulez que l'import `Gestion` génère automatiquement les écritures correspondantes.
+2. Utiliser un fichier Excel source inchangé entre deux essais comparables.
+3. Créer les exercices comptables couvrant réellement les dates présentes dans les fichiers.
+4. Préparer le plan comptable si vous voulez relire les écritures importées.
+5. Préparer les règles comptables si vous voulez que `Gestion` génère automatiquement ses écritures.
 
-Important : l'import Excel ne crée pas automatiquement :
+Important : l'import Excel ne crée pas automatiquement les exercices, le plan comptable ou les règles comptables.
 
-- les exercices comptables ;
-- le plan comptable ;
-- les règles comptables.
+## Workflow recommandé
 
-Pour les fichiers historiques actuellement rejoués dans le projet, il faut prévoir des exercices couvrant les dates de `2022` à `2026`, même si les fichiers portent les noms `2024` et `2025`.
+Quand l'import a été préparé par Solde via le flux réversible, l'ordre recommandé est le suivant :
 
-## Ordre recommandé pour les tests historiques actuels
+1. Prévisualiser.
+2. Exécuter l'import si le diagnostic est acceptable.
+3. Vérifier le résultat métier.
+4. Utiliser l'historique d'import pour `undo` ou `redo` tant que le journal réversible reste applicable.
 
-Pour le rejeu manuel des fichiers actuellement disponibles, l'ordre recommandé est le suivant.
+Quand le flux réversible ne suffit pas, ou pour des imports historiques plus anciens non couverts par ce mécanisme, utiliser le reset sélectif décrit plus bas.
 
-1. Importer `Gestion 2024.xlsx`.
-2. Importer `Gestion 2025.xlsx`.
-3. Vérifier que le résultat est cohérent côté gestion et écritures générées.
-4. Importer ensuite `Comptabilité 2024.xlsx` si vous voulez compléter la comptabilité avec le journal Excel.
-5. Importer enfin `Comptabilité 2025.xlsx`.
-
-Cet ordre est important, car certains rapprochements de paiements deviennent non ambigus seulement si le fichier `Gestion` précédent a déjà été repris.
-
-## Raccourcis temporaires de test
-
-En développement local, la page `Import Excel` peut afficher quatre boutons temporaires pour rejouer directement les fichiers historiques sans passer par la prévisualisation ni la confirmation des avertissements.
-
-Ces boutons sont volontairement réservés aux tests locaux. Ils utilisent des chemins de fichiers configurés côté serveur et restent désactivés tant que les classeurs attendus ne sont pas trouvés.
-
-Quand ils sont activés, l'ordre recommandé reste le même :
-
-1. `Gestion 2024`
-2. `Gestion 2025`
-3. `Comptabilité 2024`
-4. `Comptabilité 2025`
-
-Le résultat détaillé de chaque import reste affiché dans la page après exécution, ce qui permet de contrôler immédiatement les créations, lignes ignorées et blocages sans masquer un éventuel problème dans une opération globale.
-
-## Comment utiliser la prévisualisation
+## Prévisualisation
 
 La prévisualisation est l'étape obligatoire avant un import.
 
@@ -219,398 +78,135 @@ Elle permet de voir :
 
 Procédure recommandée :
 
-1. Choisir le bon type de fichier : `Gestion` ou `Comptabilité`.
+1. Choisir le bon type de fichier : `Gestion` ou `Comptabilite`.
 2. Sélectionner le fichier Excel.
 3. Lancer la prévisualisation.
 4. Vérifier que l'état général permet l'import.
 5. Relire les avertissements feuille par feuille.
 6. Contrôler les compteurs de lignes ignorées et bloquantes.
 
-Si la prévisualisation est bloquée, il ne faut pas lancer l'import. Il faut d'abord corriger la donnée source ou la stratégie de reprise.
+Si la prévisualisation est bloquée, il ne faut pas lancer l'import.
 
-## Comment interpréter les diagnostics
-
-Tous les messages n'ont pas la même gravité.
+## Comment lire les diagnostics
 
 ### Avertissements
 
 Un avertissement indique qu'une ligne ou une feuille a été ignorée, ou qu'une adaptation automatique a été appliquée sans bloquer l'import.
 
-Exemples fréquents :
-
-- feuille auxiliaire ignorée ;
-- ligne `Total` ignorée dans `Factures` ;
-- ligne de solde initial ignorée dans `Caisse` ;
-- ligne descriptive de solde ignorée dans `Banque` ;
-- ligne `Journal` à débit et crédit nuls ignorée ;
-- doublon exact déjà présent en comptabilité.
-
 ### Lignes bloquantes
 
 Une ligne bloquante empêche l'import complet du fichier.
-
-Exemples fréquents :
-
-- colonnes requises absentes ;
-- date ou montant invalide ;
-- paiement impossible à rapprocher ;
-- paiement ambigu ;
-- contact ou facture impossible à déterminer sans ambiguïté.
 
 ### Réimport exact
 
 Si un même fichier a déjà été importé avec succès, Solde refuse son réimport exact.
 
-Ce comportement est volontaire. Il évite les doublons involontaires et protège la reprise historique.
+Ce comportement évite les doublons involontaires et protège la reprise historique.
 
-## Ce que fait réellement l'import `Gestion`
+## Historique d'import réversible
 
-L'import `Gestion` lit plusieurs feuilles du classeur historique.
+L'historique d'import réversible est le premier outil à utiliser pour rejouer proprement un import récent préparé par Solde.
 
-En pratique, il peut :
+Il permet, selon le cas :
 
-- créer les contacts absents ;
-- créer les factures absentes ;
-- rapprocher les paiements avec les factures existantes ou importées dans le même flux ;
-- créer les mouvements de caisse et de banque ;
-- générer les écritures comptables correspondantes si les règles existent déjà dans Solde ;
-- créer des factures fournisseurs historiques et leur règlement si une référence `FF-...` est détectée dans `Banque` ou `Caisse`.
+- de relire les opérations préparées ;
+- d'exécuter un import préparé ;
+- d'annuler un import ou une opération ;
+- de rejouer une opération annulée.
 
-L'import `Gestion` n'est donc pas limité aux seules factures clients. Sur les fichiers historiques, il peut enrichir sensiblement la reprise comptable.
+Ce mécanisme est strict : si l'état courant ne correspond plus à l'état attendu, Solde bloque l'`undo` ou le `redo` pour éviter une annulation incohérente.
 
-## Ce que fait réellement l'import `Comptabilité`
+## Reset sélectif de reprise
 
-L'import `Comptabilité` se concentre sur la feuille `Journal`.
+Le reset sélectif est disponible dans la zone de danger des paramètres.
 
-Il :
+Il sert à supprimer un périmètre d'import ciblé sans effacer toute la base.
 
-- importe les écritures exploitables ;
-- rattache chaque écriture à l'exercice couvrant sa date, si cet exercice existe ;
-- ignore les lignes à débit et crédit nuls ;
-- ignore les doublons exacts déjà présents ;
-- laisse de côté les feuilles de reporting et `Journal (saisie)`.
+### Quand l'utiliser
 
-Il ne remplace pas la préparation du plan comptable et ne crée pas les règles comptables.
+Utiliser ce reset quand :
 
-## Contrôles manuels après import
+- l'import d'origine n'était pas couvert par le journal réversible ;
+- l'`undo` strict n'est plus applicable ;
+- vous devez rejouer un import historique `Gestion` ou `Comptabilite` pour un exercice précis.
 
-Après chaque import, vérifier au minimum les points suivants.
+### Comment il est ciblé
 
-1. Le résumé global de l'import.
-2. Le détail feuille par feuille.
-3. Les compteurs de créations, de lignes ignorées et de lignes bloquantes.
-4. La présence des objets attendus dans l'interface.
-5. Le rattachement des écritures au bon exercice.
-6. L'absence d'erreur inattendue dans le résultat final.
+Le reset sélectif demande deux choix :
 
-Pour les tests historiques actuels, il est utile de comparer le résultat obtenu avec les ordres de grandeur déjà rejoués dans le projet :
+- la filière d'import : `Gestion` ou `Comptabilite` ;
+- l'exercice à nettoyer.
 
-- `Gestion 2024.xlsx` : `64` contacts, `303` factures, `308` paiements, `1222` écritures, `102` mouvements de caisse, `210` transactions bancaires ;
-- `Gestion 2025.xlsx` : `18` contacts, `211` factures, `211` paiements, `844` écritures, `75` mouvements de caisse, `145` transactions bancaires ;
-- `Comptabilité 2024.xlsx` : `1367` écritures importées ;
-- `Comptabilité 2025.xlsx` : `928` écritures importées.
+Solde construit alors un plan de suppression à partir des traces d'import et affiche une prévisualisation avant confirmation.
 
-Ces chiffres correspondent au rejeu réel validé sur base isolée avec les fichiers historiques présents dans `data/`.
+### Ce que supprime le reset sélectif
 
-## Quand clôturer les exercices historiques
+Pour `Gestion`, Solde supprime :
 
-Pendant une reprise historique, il ne faut pas clôturer les exercices au fil de l'eau.
+- les objets importés retrouvés dans les traces ;
+- les objets dérivés ensuite créés dans Solde à partir de ces objets importés quand ils font partie des dépendances métier connues ;
+- les traces d'import associées au périmètre supprimé.
 
-La bonne séquence est la suivante :
+Pour `Comptabilite`, Solde supprime :
 
-1. créer tous les exercices nécessaires ;
-2. importer tous les fichiers historiques ;
-3. vérifier le résultat métier et comptable ;
-4. clôturer ensuite les anciens exercices avec la clôture administrative.
+- les écritures importées pour l'exercice ciblé ;
+- les traces d'import associées.
 
-La clôture administrative sert uniquement à marquer un exercice comme clôturé sans créer de nouvelles écritures de clôture ou de report à nouveau. Elle est adaptée aux exercices déjà clôturés dans Excel avant reprise.
+La prévisualisation liste séparément :
 
-La clôture classique de Solde doit rester réservée aux exercices gérés directement dans l'application.
+- les objets importés retrouvés ;
+- les objets dérivés identifiés ;
+- le plan de suppression final.
 
-## Réinitialisation des données
+### Limites à connaître
 
-La réinitialisation des données est une action d'administration destinée surtout aux démonstrations et aux tests de reprise.
+Le reset sélectif n'est pas un moteur générique de nettoyage universel.
 
-Elle supprime toutes les données applicatives, y compris :
+Il applique les règles métier actuellement connues pour la reprise d'import. Il faut donc toujours relire la prévisualisation avant de confirmer.
 
-- les paramètres ;
-- le plan comptable ;
-- les règles comptables ;
-- les exercices comptables ;
+### Précaution importante
+
+Cette action est irréversible.
+
+Avant de l'utiliser, vérifier que vous travaillez bien sur l'exercice voulu et sur la bonne filière d'import.
+
+## Réinitialisation complète de la base
+
+La réinitialisation complète supprime toutes les données applicatives.
+
+Elle efface notamment :
+
 - les contacts ;
 - les factures ;
 - les paiements ;
 - les écritures comptables ;
 - les données de banque et de caisse ;
-- l'historique d'import.
+- les traces d'import.
 
-Seuls les utilisateurs sont conservés.
-
-Conséquence importante : après une réinitialisation, il faut reconfigurer l'environnement avant de relancer un import, en particulier :
-
-1. recréer les exercices comptables nécessaires ;
-2. recharger ou recréer le plan comptable ;
-3. recharger ou recréer les règles comptables si l'on veut régénérer les écritures depuis la gestion.
-
-Cette action est irréversible. Elle ne doit pas être utilisée sur une base que vous souhaitez conserver en l'état.
-
-## En cas de doute
-
-Si un import donne un résultat inattendu :
-
-1. ne pas relancer immédiatement sans comprendre ce qui s'est passé ;
-2. relire la prévisualisation ;
-3. vérifier les lignes ignorées et bloquantes ;
-4. vérifier que les exercices nécessaires existent bien ;
-5. repartir d'une base restaurée si vous devez refaire une reprise complète propre.
-
-En phase de transition, si vous tenez encore la comptabilité en parallèle dans Excel et dans Solde, l'import doit aussi servir de contrôle régulier pour vérifier qu'aucune écriture ne manque et qu'aucune divergence n'a été introduite.
-||||||| parent of 8704648 (feat(import): improve replay and accounting workflows)
-=======
-# Guide utilisateur — import Excel et réinitialisation
-
-## But
-
-Ce document explique comment utiliser l'import Excel dans Solde pour :
-
-- initialiser l'application à partir des fichiers historiques existants ;
-- contrôler le résultat d'un import avant validation ;
-- comprendre les messages affichés par la prévisualisation et par l'import ;
-- savoir exactement ce que fait la réinitialisation des données.
-
-Ce guide est orienté usage métier et tests manuels. Il complète la documentation technique, mais n'a pas besoin d'être lu comme une spécification.
-
-## Les deux types d'import
-
-### Import `Gestion`
-
-L'import `Gestion` sert à reprendre les données de gestion courante contenues dans un classeur historique.
-
-Il peut créer :
-
-- des contacts ;
-- des factures ;
-- des paiements ;
-- des mouvements de caisse ;
-- des mouvements bancaires ;
-- des écritures comptables générées à partir des règles comptables configurées dans Solde.
-
-Sur les fichiers historiques actuellement utilisés, l'import `Gestion` peut aussi reconstituer des factures fournisseurs et leur règlement quand il détecte des références de type `FF-...` dans les feuilles `Banque` ou `Caisse`.
-
-### Import `Comptabilité`
-
-L'import `Comptabilité` sert à importer les écritures du `Journal` Excel comme écritures comptables supplémentaires.
-
-Il ne crée pas de contacts, de factures ni de paiements. Il ajoute uniquement des écritures comptables manuelles.
-
-Si des écritures ont déjà été générées dans Solde depuis la gestion, l'import `Comptabilité` reste autorisé :
-
-- les doublons exacts sont ignorés ;
-- seules les écritures nouvelles sont ajoutées.
-
-## Avant de commencer
-
-Avant toute reprise ou tout test manuel, vérifier les points suivants.
-
-1. Travailler sur une base sauvegardée ou restaurable facilement.
-2. Utiliser un fichier Excel source non modifié entre deux essais, sinon le garde-fou de réimport exact devient moins utile.
-3. Créer d'abord les exercices comptables couvrant toutes les dates réellement présentes dans les fichiers à importer.
-4. Préparer le plan comptable si vous voulez relire et contrôler correctement les écritures importées.
-5. Préparer les règles comptables si vous voulez que l'import `Gestion` génère automatiquement les écritures correspondantes.
-
-Important : l'import Excel ne crée pas automatiquement :
+Après une réinitialisation complète, il faut reconfigurer l'environnement avant de relancer une reprise, en particulier :
 
 - les exercices comptables ;
 - le plan comptable ;
-- les règles comptables.
+- les règles comptables utiles ;
+- les éventuels paramétrages de trésorerie d'ouverture.
 
-Pour les fichiers historiques actuellement rejoués dans le projet, il faut prévoir des exercices couvrant les dates de `2022` à `2026`, même si les fichiers portent les noms `2024` et `2025`.
+Cette action doit rester réservée aux démonstrations, essais isolés et reprises complètes sur base jetable ou restaurable.
 
-## Ordre recommandé pour les tests historiques actuels
+## Contrôles manuels après import ou reset
 
-Pour le rejeu manuel des fichiers actuellement disponibles, l'ordre recommandé est le suivant.
+Après chaque import, `undo`, reset sélectif ou reset complet, vérifier au minimum :
 
-1. Importer `Gestion 2024.xlsx`.
-2. Importer `Gestion 2025.xlsx`.
-3. Vérifier que le résultat est cohérent côté gestion et écritures générées.
-4. Importer ensuite `Comptabilité 2024.xlsx` si vous voulez compléter la comptabilité avec le journal Excel.
-5. Importer enfin `Comptabilité 2025.xlsx`.
-
-Cet ordre est important, car certains rapprochements de paiements deviennent non ambigus seulement si le fichier `Gestion` précédent a déjà été repris.
-
-## Raccourcis temporaires de test
-
-En développement local, la page `Import Excel` peut afficher quatre boutons temporaires pour rejouer directement les fichiers historiques sans passer par la prévisualisation ni la confirmation des avertissements.
-
-Ces boutons sont volontairement réservés aux tests locaux. Ils utilisent des chemins de fichiers configurés côté serveur et restent désactivés tant que les classeurs attendus ne sont pas trouvés.
-
-Quand ils sont activés, l'ordre recommandé reste le même :
-
-1. `Gestion 2024`
-2. `Gestion 2025`
-3. `Comptabilité 2024`
-4. `Comptabilité 2025`
-
-Le résultat détaillé de chaque import reste affiché dans la page après exécution, ce qui permet de contrôler immédiatement les créations, lignes ignorées et blocages sans masquer un éventuel problème dans une opération globale.
-
-## Comment utiliser la prévisualisation
-
-La prévisualisation est l'étape obligatoire avant un import.
-
-Elle permet de voir :
-
-- si le fichier est importable dans l'état actuel de la base ;
-- combien d'objets ou d'écritures seront probablement créés ;
-- quelles feuilles sont reconnues ;
-- quelles lignes seront ignorées ;
-- quelles lignes bloquent l'import.
-
-Procédure recommandée :
-
-1. Choisir le bon type de fichier : `Gestion` ou `Comptabilité`.
-2. Sélectionner le fichier Excel.
-3. Lancer la prévisualisation.
-4. Vérifier que l'état général permet l'import.
-5. Relire les avertissements feuille par feuille.
-6. Contrôler les compteurs de lignes ignorées et bloquantes.
-
-Si la prévisualisation est bloquée, il ne faut pas lancer l'import. Il faut d'abord corriger la donnée source ou la stratégie de reprise.
-
-## Comment interpréter les diagnostics
-
-Tous les messages n'ont pas la même gravité.
-
-### Avertissements
-
-Un avertissement indique qu'une ligne ou une feuille a été ignorée, ou qu'une adaptation automatique a été appliquée sans bloquer l'import.
-
-Exemples fréquents :
-
-- feuille auxiliaire ignorée ;
-- ligne `Total` ignorée dans `Factures` ;
-- ligne de solde initial ignorée dans `Caisse` ;
-- ligne descriptive de solde ignorée dans `Banque` ;
-- ligne `Journal` à débit et crédit nuls ignorée ;
-- doublon exact déjà présent en comptabilité.
-
-### Lignes bloquantes
-
-Une ligne bloquante empêche l'import complet du fichier.
-
-Exemples fréquents :
-
-- colonnes requises absentes ;
-- date ou montant invalide ;
-- paiement impossible à rapprocher ;
-- paiement ambigu ;
-- contact ou facture impossible à déterminer sans ambiguïté.
-
-### Réimport exact
-
-Si un même fichier a déjà été importé avec succès, Solde refuse son réimport exact.
-
-Ce comportement est volontaire. Il évite les doublons involontaires et protège la reprise historique.
-
-## Ce que fait réellement l'import `Gestion`
-
-L'import `Gestion` lit plusieurs feuilles du classeur historique.
-
-En pratique, il peut :
-
-- créer les contacts absents ;
-- créer les factures absentes ;
-- rapprocher les paiements avec les factures existantes ou importées dans le même flux ;
-- créer les mouvements de caisse et de banque ;
-- générer les écritures comptables correspondantes si les règles existent déjà dans Solde ;
-- créer des factures fournisseurs historiques et leur règlement si une référence `FF-...` est détectée dans `Banque` ou `Caisse`.
-
-L'import `Gestion` n'est donc pas limité aux seules factures clients. Sur les fichiers historiques, il peut enrichir sensiblement la reprise comptable.
-
-## Ce que fait réellement l'import `Comptabilité`
-
-L'import `Comptabilité` se concentre sur la feuille `Journal`.
-
-Il :
-
-- importe les écritures exploitables ;
-- rattache chaque écriture à l'exercice couvrant sa date, si cet exercice existe ;
-- ignore les lignes à débit et crédit nuls ;
-- ignore les doublons exacts déjà présents ;
-- laisse de côté les feuilles de reporting et `Journal (saisie)`.
-
-Il ne remplace pas la préparation du plan comptable et ne crée pas les règles comptables.
-
-## Contrôles manuels après import
-
-Après chaque import, vérifier au minimum les points suivants.
-
-1. Le résumé global de l'import.
-2. Le détail feuille par feuille.
-3. Les compteurs de créations, de lignes ignorées et de lignes bloquantes.
-4. La présence des objets attendus dans l'interface.
-5. Le rattachement des écritures au bon exercice.
-6. L'absence d'erreur inattendue dans le résultat final.
-
-Pour les tests historiques actuels, il est utile de comparer le résultat obtenu avec les ordres de grandeur déjà rejoués dans le projet :
-
-- `Gestion 2024.xlsx` : `64` contacts, `303` factures, `308` paiements, `1222` écritures, `102` mouvements de caisse, `210` transactions bancaires ;
-- `Gestion 2025.xlsx` : `18` contacts, `211` factures, `211` paiements, `844` écritures, `75` mouvements de caisse, `145` transactions bancaires ;
-- `Comptabilité 2024.xlsx` : `1367` écritures importées ;
-- `Comptabilité 2025.xlsx` : `928` écritures importées.
-
-Ces chiffres correspondent au rejeu réel validé sur base isolée avec les fichiers historiques présents dans `data/`.
-
-## Quand clôturer les exercices historiques
-
-Pendant une reprise historique, il ne faut pas clôturer les exercices au fil de l'eau.
-
-La bonne séquence est la suivante :
-
-1. créer tous les exercices nécessaires ;
-2. importer tous les fichiers historiques ;
-3. vérifier le résultat métier et comptable ;
-4. clôturer ensuite les anciens exercices avec la clôture administrative.
-
-La clôture administrative sert uniquement à marquer un exercice comme clôturé sans créer de nouvelles écritures de clôture ou de report à nouveau. Elle est adaptée aux exercices déjà clôturés dans Excel avant reprise.
-
-La clôture classique de Solde doit rester réservée aux exercices gérés directement dans l'application.
-
-## Réinitialisation des données
-
-La réinitialisation des données est une action d'administration destinée surtout aux démonstrations et aux tests de reprise.
-
-Elle supprime toutes les données applicatives, y compris :
-
-- les paramètres ;
-- le plan comptable ;
-- les règles comptables ;
-- les exercices comptables ;
-- les contacts ;
-- les factures ;
-- les paiements ;
-- les écritures comptables ;
-- les données de banque et de caisse ;
-- l'historique d'import.
-
-Seuls les utilisateurs sont conservés.
-
-Conséquence importante : après une réinitialisation, il faut reconfigurer l'environnement avant de relancer un import, en particulier :
-
-1. recréer les exercices comptables nécessaires ;
-2. recharger ou recréer le plan comptable ;
-3. recharger ou recréer les règles comptables si l'on veut régénérer les écritures depuis la gestion.
-
-Cette action est irréversible. Elle ne doit pas être utilisée sur une base que vous souhaitez conserver en l'état.
+1. le résumé global de l'opération ;
+2. les objets attendus ou supprimés ;
+3. les exercices concernés ;
+4. les journaux de banque, de caisse et de comptabilité si le périmètre les touche ;
+5. l'absence d'effet de bord inattendu sur les autres données conservées.
 
 ## En cas de doute
 
-Si un import donne un résultat inattendu :
+Si un résultat semble incohérent :
 
-1. ne pas relancer immédiatement sans comprendre ce qui s'est passé ;
-2. relire la prévisualisation ;
-3. vérifier les lignes ignorées et bloquantes ;
-4. vérifier que les exercices nécessaires existent bien ;
-5. repartir d'une base restaurée si vous devez refaire une reprise complète propre.
-
-En phase de transition, si vous tenez encore la comptabilité en parallèle dans Excel et dans Solde, l'import doit aussi servir de contrôle régulier pour vérifier qu'aucune écriture ne manque et qu'aucune divergence n'a été introduite.
->>>>>>> 8704648 (feat(import): improve replay and accounting workflows)
+1. ne pas rejouer immédiatement sans comprendre ;
+2. relire la prévisualisation ou l'historique d'import ;
+3. vérifier le bon exercice et le bon type d'import ;
+4. repartir d'une base restaurée si vous devez refaire une reprise complète propre.

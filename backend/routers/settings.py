@@ -11,6 +11,8 @@ from backend.routers.auth import require_role
 from backend.schemas.settings import (
     AppSettingsRead,
     AppSettingsUpdate,
+    SelectiveResetPreviewRead,
+    SelectiveResetRequest,
     TreasurySystemOpeningRead,
     TreasurySystemOpeningUpdate,
 )
@@ -69,6 +71,26 @@ async def reset_db(
     Intended for demos and user-acceptance testing.
     """
     return await settings_service.reset_data(db)
+
+
+@router.post("/selective-reset/preview", response_model=SelectiveResetPreviewRead)
+async def preview_selective_reset(
+    payload: SelectiveResetRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _AdminRequired,
+) -> SelectiveResetPreviewRead:
+    """Preview the objects that would be deleted by a selective import reset."""
+    return await settings_service.preview_selective_reset(db, payload)
+
+
+@router.post("/selective-reset/apply", response_model=SelectiveResetPreviewRead)
+async def apply_selective_reset(
+    payload: SelectiveResetRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _AdminRequired,
+) -> SelectiveResetPreviewRead:
+    """Apply a selective import reset for one import type and one fiscal year."""
+    return await settings_service.apply_selective_reset(db, payload)
 
 
 @router.post("/bootstrap-accounting", response_model=dict[str, int])

@@ -50,19 +50,16 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## Priorités proposées pour la prochaine discussion
 
-1. **BL-030** — définir une politique explicite de modification des objets métier déjà créés ou validés.
-2. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
+1. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
 
 ## Récapitulatif des sujets ouverts
 
 | ID | Créé le | Type | Zone | Priorité proposée | Sujet |
 |---|---|---|---|---|---|
 | BL-006 | 2026-04-12 | Technique | API / Framework | P3 | Traiter les warnings de dépréciation `HTTP_422_UNPROCESSABLE_ENTITY` remontés par la suite de tests |
-| BL-015 | 2026-04-13 | Amélioration | Import Excel / Outillage | P2 | Ajouter un reset sélectif orienté reprise pour rejouer proprement un import par filière ou période sans repartir systématiquement d'un effacement global |
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-021 | 2026-04-13 | Documentation | Utilisateur / Parcours | P1 | Rédiger un manuel utilisateur illustré et pas à pas aligné sur les écrans réellement disponibles |
-| BL-030 | 2026-04-16 | Décision | Métier / Edition des données | P1 | Définir une politique explicite de modification des objets métier déjà créés ou validés (factures, paiements, achats, etc.) avec règles de recalcul, traçabilité et limites selon le statut |
 
 ## Détail des sujets
 
@@ -241,10 +238,11 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-015 — Reset sélectif orienté reprise d'import
 
-- **Dates** : `created=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-20`, `completed=2026-04-20`
 - **Pourquoi** : le reset global actuel est utile pour les essais complets, mais il reste trop brutal quand on veut simplement rejouer une filière d'import, un exercice ou une séquence de reprise précise.
 - **Recadrage après BL-004** : le cycle `prepare -> execute -> undo/redo` couvre désormais le cas standard de rejeu sûr pour les nouveaux imports réversibles, au niveau d'une opération ou d'un run complet. `BL-015` ne vise donc plus à rejouer ces imports normaux, mais les cas où le journal réversible ne suffit pas ou n'existe pas.
 - **Résultat attendu** : proposer un reset plus fin, compréhensible et sûr, capable de supprimer uniquement le périmètre utile à rejouer tout en explicitant le traitement des journaux d'import et des dépendances métier, en particulier pour les imports legacy, les données modifiées après coup qui bloquent un `undo` strict, ou les nettoyages administratifs ciblés par filière, période ou exercice.
+- **Livré parce que** : l'administration expose maintenant un reset sélectif avec prévisualisation puis exécution pour un couple `type d'import + exercice`, le backend s'appuie sur les traces `import_logs` et `import_runs` pour retrouver les objets racines puis supprimer aussi, côté `Gestion`, les dépendances métier dérivées explicitement cadrées, l'interface `Paramètres` est branchée de bout en bout, la documentation utilisateur a été consolidée, et toute la matrice de validation locale est passée, y compris `pytest tests/` (`710 passed`), `ruff`, `mypy`, `vue-tsc`, `eslint` et `vitest`.
 - **Point d'attention** : ce sujet ne doit pas fragiliser l'intégrité des données ; il faut privilégier des scénarios de reset explicitement cadrés plutôt qu'un outil générique trop puissant, et éviter tout chevauchement fonctionnel inutile avec le journal réversible de `BL-004`.
 
 ### BL-016 — Harmonisation i18n et microcopie UI
@@ -521,6 +519,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-012** — `created=2026-04-12`, `completed=2026-04-12` — La liste des paiements affiche la référence métier et permet l'édition directe.
 - **BL-013** — `created=2026-04-12`, `completed=2026-04-12` — Le journal de caisse propose désormais référence, détail et édition directe.
 - **BL-014** — `created=2026-04-12`, `completed=2026-04-12` — Le journal comptable est enrichi pour la lecture métier, le détail et la navigation vers les factures.
+- **BL-015** — `created=2026-04-13`, `started=2026-04-20`, `completed=2026-04-20` — L'administration propose désormais un reset sélectif par filière d'import et exercice, avec prévisualisation, suppression des objets importés et des dépendances métier dérivées explicitement cadrées, branchement complet dans `Paramètres`, documentation utilisateur mise à jour et validation locale complète passée.
 - **BL-016** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les microcopies et états visibles les plus incohérents ont été harmonisés sur `Banque`, `Caisse` et `Salaires` via des clés i18n dédiées.
 - **BL-017** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — L'affichage des mois et périodes métier est maintenant uniformisé au format français sur `Salaires` et le `Dashboard` sans changer les formats d'échange ISO.
 - **BL-018** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les écrans de liste principaux partagent maintenant un socle commun de tri, filtres et compteurs d'état, avec filtres de date FR/ISO et exclusion explicite des tableaux fixes `bilan` / `résultat`.
