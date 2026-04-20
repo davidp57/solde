@@ -42,8 +42,18 @@ def _require_transaction_direction(
         raise ValueError(f"only negative bank transactions can {purpose}")
 
 
-def _require_unreconciled_transaction(tx: BankTransaction) -> None:
+async def _require_unreconciled_transaction(
+    db: AsyncSession,
+    tx: BankTransaction,
+) -> None:
     if tx.reconciled or tx.payment_id is not None:
+        raise ValueError("bank transaction is already reconciled")
+    linked_result = await db.execute(
+        select(bank_transaction_payments.c.transaction_id).where(
+            bank_transaction_payments.c.transaction_id == tx.id
+        )
+    )
+    if linked_result.scalar_one_or_none() is not None:
         raise ValueError("bank transaction is already reconciled")
 
 
@@ -259,7 +269,7 @@ async def create_client_payment_from_transaction(
     if tx is None:
         raise LookupError("Transaction not found")
     _require_transaction_direction(tx, positive=True, purpose="create client payments")
-    _require_unreconciled_transaction(tx)
+    await _require_unreconciled_transaction(db, tx)
 
     payment = await payment_service.create_bank_reconciled_client_payment(
         db,
@@ -288,7 +298,7 @@ async def create_client_payments_from_transaction(
     if tx is None:
         raise LookupError("Transaction not found")
     _require_transaction_direction(tx, positive=True, purpose="create client payments")
-    _require_unreconciled_transaction(tx)
+    await _require_unreconciled_transaction(db, tx)
 
     expected_amount = Decimal(str(tx.amount))
     allocated_amount = sum(
@@ -329,7 +339,7 @@ async def create_supplier_payment_from_transaction(
     if tx is None:
         raise LookupError("Transaction not found")
     _require_transaction_direction(tx, positive=False, purpose="create supplier payments")
-    _require_unreconciled_transaction(tx)
+    await _require_unreconciled_transaction(db, tx)
 
     payment = await payment_service.create_bank_reconciled_supplier_payment(
         db,
@@ -362,7 +372,7 @@ async def link_client_payment_to_transaction(
         positive=True,
         purpose="link existing client payments",
     )
-    _require_unreconciled_transaction(tx)
+    await _require_unreconciled_transaction(db, tx)
 
     payment = await _require_linkable_payment(
         db,
@@ -392,7 +402,7 @@ async def link_client_payments_to_transaction(
         positive=True,
         purpose="link existing client payments",
     )
-    _require_unreconciled_transaction(tx)
+    await _require_unreconciled_transaction(db, tx)
 
     payments: list[Payment] = []
     for payment_id in payment_ids:
@@ -427,7 +437,7 @@ async def link_supplier_payment_to_transaction(
         positive=False,
         purpose="link existing supplier payments",
     )
-    _require_unreconciled_transaction(tx)
+    await _require_unreconciled_transaction(db, tx)
 
     payment = await _require_linkable_payment(
         db,
@@ -519,16 +529,43 @@ async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
 
 
 async def get_transaction_payment_ids(db: AsyncSession, tx_id: int) -> list[int]:
-    result = await db.execute(
-        select(bank_transaction_payments.c.payment_id)
-        .where(bank_transaction_payments.c.transaction_id == tx_id)
-        .order_by(bank_transaction_payments.c.payment_id.asc())
-    )
-    if payment_ids := list(result.scalars().all()):
-        return payment_ids
+    return (await get_transaction_payment_ids_map(db, [tx_id])).get(tx_id, [])
 
-    tx = await get_transaction(db, tx_id)
-    return [] if tx is None or tx.payment_id is None else [tx.payment_id]
+
+async def get_transaction_payment_ids_map(
+    db: AsyncSession,
+    tx_ids: list[int],
+) -> dict[int, list[int]]:
+    if not tx_ids:
+        return {}
+
+    payment_ids_by_tx_id: dict[int, list[int]] = {tx_id: [] for tx_id in tx_ids}
+
+    association_result = await db.execute(
+        select(
+            bank_transaction_payments.c.transaction_id,
+            bank_transaction_payments.c.payment_id,
+        )
+        .where(bank_transaction_payments.c.transaction_id.in_(tx_ids))
+        .order_by(
+            bank_transaction_payments.c.transaction_id.asc(),
+            bank_transaction_payments.c.payment_id.asc(),
+        )
+    )
+    for transaction_id, payment_id in association_result.all():
+        payment_ids_by_tx_id[transaction_id].append(payment_id)
+
+    legacy_result = await db.execute(
+        select(BankTransaction.id, BankTransaction.payment_id).where(
+            BankTransaction.id.in_(tx_ids),
+            BankTransaction.payment_id.is_not(None),
+        )
+    )
+    for transaction_id, payment_id in legacy_result.all():
+        if payment_id is not None and not payment_ids_by_tx_id[transaction_id]:
+            payment_ids_by_tx_id[transaction_id] = [payment_id]
+
+    return payment_ids_by_tx_id
 
 
 async def get_deposit(db: AsyncSession, deposit_id: int) -> Deposit | None:

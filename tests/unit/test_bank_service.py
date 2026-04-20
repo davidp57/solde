@@ -6,9 +6,10 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.bank import BankTransactionSource, DepositType
+from backend.models.bank import BankTransactionSource, DepositType, bank_transaction_payments
 from backend.models.contact import Contact, ContactType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
@@ -320,6 +321,72 @@ async def test_create_client_payments_from_transaction_rejects_amount_mismatch(
 
 
 @pytest.mark.asyncio
+async def test_create_client_payment_rejects_transaction_with_existing_association_link(
+    db_session: AsyncSession,
+) -> None:
+    contact = Contact(type=ContactType.CLIENT, nom="Durand")
+    db_session.add(contact)
+    await db_session.flush()
+
+    invoice = Invoice(
+        number="F-2024-216",
+        type=InvoiceType.CLIENT,
+        contact_id=contact.id,
+        date=date(2024, 3, 1),
+        total_amount=Decimal("120.00"),
+        paid_amount=Decimal("0"),
+        status=InvoiceStatus.SENT,
+    )
+    linked_invoice = Invoice(
+        number="F-2024-217",
+        type=InvoiceType.CLIENT,
+        contact_id=contact.id,
+        date=date(2024, 3, 2),
+        total_amount=Decimal("120.00"),
+        paid_amount=Decimal("120.00"),
+        status=InvoiceStatus.PAID,
+    )
+    db_session.add_all([invoice, linked_invoice])
+    await db_session.flush()
+
+    linked_payment = Payment(
+        invoice_id=linked_invoice.id,
+        contact_id=contact.id,
+        amount=Decimal("120.00"),
+        date=date(2024, 3, 9),
+        method=PaymentMethod.VIREMENT,
+        deposited=False,
+    )
+    db_session.add(linked_payment)
+    await db_session.flush()
+
+    tx = await bank_service.add_transaction(
+        db_session,
+        BankTransactionCreate(
+            date=date(2024, 3, 10),
+            amount=Decimal("120.00"),
+            description="VIR DURAND",
+            source=BankTransactionSource.IMPORT,
+        ),
+    )
+    tx.reconciled = False
+    tx.payment_id = None
+    await db_session.flush()
+    await db_session.execute(
+        insert(bank_transaction_payments),
+        [{"transaction_id": tx.id, "payment_id": linked_payment.id}],
+    )
+    await db_session.commit()
+
+    with pytest.raises(ValueError, match="bank transaction is already reconciled"):
+        await bank_service.create_client_payment_from_transaction(
+            db_session,
+            tx_id=tx.id,
+            invoice_id=invoice.id,
+        )
+
+
+@pytest.mark.asyncio
 async def test_link_existing_client_payment_to_transaction(db_session: AsyncSession) -> None:
     contact = Contact(type=ContactType.CLIENT, nom="Durand")
     db_session.add(contact)
@@ -451,6 +518,48 @@ async def test_link_existing_client_payments_to_transaction(db_session: AsyncSes
     assert payment_two.deposited is True
     assert payment_one.deposit_date == date(2024, 3, 10)
     assert payment_two.deposit_date == date(2024, 3, 10)
+
+
+@pytest.mark.asyncio
+async def test_get_transaction_payment_ids_map_supports_association_and_legacy_link(
+    db_session: AsyncSession,
+) -> None:
+    payment = await _make_payment(db_session)
+    second_payment = Payment(
+        invoice_id=payment.invoice_id,
+        contact_id=payment.contact_id,
+        amount=Decimal("40.00"),
+        date=date(2024, 2, 2),
+        method=PaymentMethod.CHEQUE,
+        deposited=False,
+    )
+    db_session.add(second_payment)
+    await db_session.flush()
+
+    legacy_tx = await bank_service.add_transaction(
+        db_session,
+        BankTransactionCreate(date=date(2024, 3, 10), amount=Decimal("100.00")),
+    )
+    legacy_tx.payment_id = payment.id
+    associated_tx = await bank_service.add_transaction(
+        db_session,
+        BankTransactionCreate(date=date(2024, 3, 11), amount=Decimal("40.00")),
+    )
+    await db_session.execute(
+        insert(bank_transaction_payments),
+        [{"transaction_id": associated_tx.id, "payment_id": second_payment.id}],
+    )
+    await db_session.commit()
+
+    payment_ids_by_tx_id = await bank_service.get_transaction_payment_ids_map(
+        db_session,
+        [legacy_tx.id, associated_tx.id],
+    )
+
+    assert payment_ids_by_tx_id == {
+        legacy_tx.id: [payment.id],
+        associated_tx.id: [second_payment.id],
+    }
 
 
 @pytest.mark.asyncio
