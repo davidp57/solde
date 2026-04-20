@@ -360,6 +360,24 @@ class TestResetDatabase:
 
 
 class TestSelectiveReset:
+    async def test_selective_reset_returns_404_for_unknown_fiscal_year(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+    ) -> None:
+        for endpoint in (
+            "/api/settings/selective-reset/preview",
+            "/api/settings/selective-reset/apply",
+        ):
+            response = await client.post(
+                endpoint,
+                json={"import_type": "gestion", "fiscal_year_id": 999999},
+                headers=auth_headers,
+            )
+
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Fiscal year not found"
+
     async def test_selective_reset_preview_and_apply_for_gestion(
         self, client: AsyncClient, auth_headers: dict, db_session
     ) -> None:
