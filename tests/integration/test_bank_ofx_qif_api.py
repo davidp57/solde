@@ -44,6 +44,7 @@ async def test_import_ofx_success(client: AsyncClient, auth_headers: dict) -> No
     assert len(data) == 1
     assert data[0]["amount"] == "-100.00"
     assert data[0]["description"] == "TEST OFX"
+    assert data[0]["detected_category"] == "other_debit"
 
 
 @pytest.mark.asyncio
@@ -68,6 +69,7 @@ async def test_import_qif_success(client: AsyncClient, auth_headers: dict) -> No
     assert len(data) == 1
     assert data[0]["amount"] == "-100.00"
     assert data[0]["description"] == "TEST QIF"
+    assert data[0]["detected_category"] == "other_debit"
 
 
 @pytest.mark.asyncio
