@@ -1,13 +1,24 @@
 """Integration tests for GET/PUT /api/settings."""
 
+import json
 from datetime import date
+from decimal import Decimal
 
 from httpx import AsyncClient
 from sqlalchemy import select
 
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.bank import BankTransaction, BankTransactionSource
 from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
+from backend.models.contact import Contact, ContactType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
+from backend.models.import_log import ImportLog, ImportLogStatus, ImportLogType
+from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+from backend.models.payment import PaymentMethod
+from backend.schemas.bank import DepositCreate
+from backend.schemas.payment import PaymentCreate
+from backend.services import bank_service
+from backend.services import payment as payment_service
 
 
 class TestGetSettings:
@@ -346,6 +357,120 @@ class TestResetDatabase:
         settings_response = await client.get("/api/settings/", headers=auth_headers)
         assert settings_response.status_code == 200
         assert settings_response.json()["association_name"] == "Mon Association"
+
+
+class TestSelectiveReset:
+    async def test_selective_reset_preview_and_apply_for_gestion(
+        self, client: AsyncClient, auth_headers: dict, db_session
+    ) -> None:
+        fiscal_year = FiscalYear(
+            name="2025",
+            start_date=date(2025, 8, 1),
+            end_date=date(2026, 7, 31),
+            status=FiscalYearStatus.OPEN,
+        )
+        imported_contact = Contact(nom="Lopes", type=ContactType.CLIENT)
+        db_session.add_all([fiscal_year, imported_contact])
+        await db_session.flush()
+
+        imported_invoice = Invoice(
+            number="2025-C-0100",
+            type=InvoiceType.CLIENT,
+            contact_id=imported_contact.id,
+            date=date(2025, 9, 12),
+            total_amount=Decimal("90.00"),
+            paid_amount=Decimal("0.00"),
+            status=InvoiceStatus.SENT,
+        )
+        db_session.add(imported_invoice)
+        await db_session.flush()
+
+        db_session.add(
+            ImportLog(
+                import_type=ImportLogType.GESTION,
+                status=ImportLogStatus.SUCCESS,
+                file_hash="gestion-preview-2025",
+                file_name="Gestion 2025.xlsx",
+                summary=json.dumps(
+                    {
+                        "created_objects": [
+                            {
+                                "sheet_name": "Factures",
+                                "kind": "contacts",
+                                "object_type": "contact",
+                                "object_id": imported_contact.id,
+                            },
+                            {
+                                "sheet_name": "Factures",
+                                "kind": "invoices",
+                                "object_type": "invoice",
+                                "object_id": imported_invoice.id,
+                            },
+                        ]
+                    },
+                    ensure_ascii=False,
+                ),
+            )
+        )
+        await db_session.commit()
+
+        payment = await payment_service.create_payment(
+            db_session,
+            PaymentCreate(
+                invoice_id=imported_invoice.id,
+                contact_id=imported_contact.id,
+                amount=Decimal("90.00"),
+                date=date(2025, 9, 20),
+                method=PaymentMethod.ESPECES,
+            ),
+        )
+        deposit = await bank_service.create_deposit(
+            db_session,
+            DepositCreate(
+                date=date(2025, 9, 28),
+                type="especes",
+                payment_ids=[payment.id],
+            ),
+        )
+        db_session.add(
+            AccountingEntry(
+                entry_number="000301",
+                date=payment.date,
+                account_number="530000",
+                label="Paiement derive API",
+                debit=Decimal("90.00"),
+                credit=Decimal("0.00"),
+                fiscal_year_id=fiscal_year.id,
+                source_type=EntrySourceType.PAYMENT,
+                source_id=payment.id,
+            )
+        )
+        await db_session.commit()
+
+        preview_response = await client.post(
+            "/api/settings/selective-reset/preview",
+            json={"import_type": "gestion", "fiscal_year_id": fiscal_year.id},
+            headers=auth_headers,
+        )
+
+        assert preview_response.status_code == 200
+        preview_payload = preview_response.json()
+        assert preview_payload["matched_import_logs"] == 1
+        assert preview_payload["delete_plan"]["invoice"] == 1
+        assert preview_payload["delete_plan"]["payment"] == 1
+        assert preview_payload["delete_plan"]["deposit"] == 1
+
+        apply_response = await client.post(
+            "/api/settings/selective-reset/apply",
+            json={"import_type": "gestion", "fiscal_year_id": fiscal_year.id},
+            headers=auth_headers,
+        )
+
+        assert apply_response.status_code == 200
+        assert (await db_session.get(Contact, imported_contact.id)) is None
+        assert (await db_session.get(Invoice, imported_invoice.id)) is None
+        assert (await db_session.get(type(deposit), deposit.id)) is None
+        assert (await db_session.execute(select(ImportLog))).scalars().all() == []
 
 
 class TestBootstrapAccountingSetup:

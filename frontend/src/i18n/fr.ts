@@ -676,6 +676,39 @@ export default {
     bootstrap_accounting_error: 'Erreur lors de la recréation du socle comptable.',
     reset_db_done: '{count} ligne(s) supprimée(s). La base est réinitialisée.',
     reset_db_error: 'Erreur lors de la réinitialisation.',
+    selective_reset_title: 'Reset sélectif de reprise',
+    selective_reset_subtitle:
+      'Supprime un périmètre d’import ciblé par filière et exercice sans effacer toute la base.',
+    selective_reset_type: 'Filière d’import',
+    selective_reset_fiscal_year: 'Exercice à nettoyer',
+    selective_reset_preview: 'Prévisualiser le reset',
+    selective_reset_apply: 'Appliquer le reset sélectif',
+    selective_reset_help:
+      'Utilisez ce reset seulement quand l’undo strict ne suffit pas ou quand l’import d’origine n’était pas réversible.',
+    selective_reset_missing_fiscal_year: 'Choisissez un exercice avant de lancer la prévisualisation.',
+    selective_reset_preview_ready: 'Plan de suppression prêt pour {type} {year}.',
+    selective_reset_preview_empty: 'Aucun objet correspondant trouvé pour ce périmètre.',
+    selective_reset_done: '{count} objet(s) et traces associées supprimés pour {type} {year}.',
+    selective_reset_error: 'Erreur lors du reset sélectif.',
+    selective_reset_confirm:
+      'Cette suppression ciblée est irréversible. Le périmètre prévisualisé va être supprimé avec ses dépendances métier. Confirmer ?',
+    selective_reset_confirm_header: 'Confirmer le reset sélectif',
+    selective_reset_apply_yes: 'Oui, supprimer ce périmètre',
+    selective_reset_import_type_gestion: 'Gestion',
+    selective_reset_import_type_comptabilite: 'Comptabilité',
+    selective_reset_root_objects: 'Objets importés repérés',
+    selective_reset_derived_objects: 'Objets dérivés ajoutés ensuite dans Solde',
+    selective_reset_delete_plan: 'Plan de suppression',
+    selective_reset_object_contact: 'Contacts',
+    selective_reset_object_invoice: 'Factures',
+    selective_reset_object_payment: 'Paiements',
+    selective_reset_object_salary: 'Salaires',
+    selective_reset_object_cash_register: 'Mouvements de caisse',
+    selective_reset_object_bank_transaction: 'Transactions bancaires',
+    selective_reset_object_accounting_entry: 'Écritures comptables',
+    selective_reset_object_deposit: 'Bordereaux de remise',
+    selective_reset_object_import_logs: 'Journaux d’import legacy',
+    selective_reset_object_import_runs: 'Runs d’import réversibles',
   },
   accounting: {
     account_types: {
@@ -1051,11 +1084,8 @@ export default {
     confirm_import: "Confirmer l'import",
     import_ready: 'La prévisualisation est valide. Vous pouvez lancer l’import.',
     run_not_executable: 'Cette préparation ne peut pas être exécutée dans son état actuel.',
-    warning_ack_label:
-      'J’ai vérifié les avertissements et je confirme que l’import peut continuer.',
-    warning_ack_help:
-      'Les avertissements signalent des lignes ignorées ou des adaptations automatiques. Une confirmation explicite est requise avant l’import.',
-    warning_ack_required: 'Confirmez explicitement les avertissements avant de lancer l’import.',
+    warning_review_hint:
+      'Des avertissements ont été détectés. L’import reste possible, mais vérifiez-les avant de continuer.',
     result_title: "Résultat de l'import",
     contacts_created: 'Contacts créés',
     invoices_created: 'Factures créées',
@@ -1072,6 +1102,7 @@ export default {
     no_warnings: 'Aucun avertissement.',
     success: 'Import terminé avec succès.',
     completed_with_issues: 'Import terminé avec remarques.',
+    failed: 'Import terminé en échec.',
     undo_run: 'Annuler ce run',
     redo_run: 'Rejouer ce run',
     undo_operation: 'Annuler l’opération',
@@ -1094,9 +1125,13 @@ export default {
     unknown_file: 'Fichier sans nom',
     result_persistent_hint:
       '{count} élément(s) créé(s), {ignored} ligne(s) ignorée(s) et {blocked} ligne(s) bloquantes. Le détail complet reste affiché ci-dessous.',
+    result_failed_hint:
+      'Le run a échoué après {count} création(s). {errors} erreur(s) sont listées ci-dessous.',
     file_required: 'Veuillez sélectionner un fichier.',
     request_timeout:
       'L’import prend plus de temps que prévu. Le traitement a peut-être continué côté serveur ; vérifiez le résultat puis relancez si nécessaire.',
+    request_timeout_refreshed:
+      'Le traitement a pu se terminer côté serveur. L’état affiché vient d’être rechargé.',
     result_sheets_title: 'Détail par feuille',
     sheet_ignored_rows: '{count} ligne(s) ignorée(s)',
     sheet_blocked_rows: '{count} ligne(s) bloquante(s)',

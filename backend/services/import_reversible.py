@@ -67,6 +67,7 @@ from backend.services.excel_import_policy import (
     ENTRY_COVERED_BY_SOLDE_MESSAGE,
     ENTRY_EXISTING_MESSAGE,
     ENTRY_NEAR_EXISTING_MANUAL_MESSAGE,
+    EXISTING_GESTION_ROW_MESSAGE,
     EXISTING_SALARY_MESSAGE,
     filter_duplicate_contact_rows,
     filter_duplicate_invoice_rows,
@@ -139,6 +140,10 @@ _IGNORED_FINGERPRINT_COLUMNS: dict[str, set[str]] = {
     "accounting_entry": {"created_at"},
 }
 
+_DUPLICATE_WORKBOOK_PAYMENT_MESSAGE = (
+    "paiement deja couvert par une autre ligne du fichier, ligne ignoree"
+)
+
 
 _ENTITY_MODELS: dict[str, type[Any]] = {
     "contact": Contact,
@@ -170,6 +175,47 @@ def _jsonable(value: Any) -> Any:
     if hasattr(value, "value") and value.__class__.__module__.startswith("backend.models"):
         return value.value
     return value
+
+
+def _canonical_decimal_string(value: Any) -> str:
+    text = format(Decimal(str(value)), "f")
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    if text in {"", "-0"}:
+        return "0"
+    return text
+
+
+def _normalize_snapshot_for_fingerprint(
+    entity_type: str,
+    snapshot: dict[str, Any],
+) -> dict[str, Any]:
+    model_cls = _ENTITY_MODELS.get(entity_type)
+    if model_cls is None:
+        return snapshot
+
+    normalized = dict(snapshot)
+    for column in sa_inspect(model_cls).columns:
+        if column.key not in normalized:
+            continue
+        value = normalized[column.key]
+        if value is None:
+            continue
+        if isinstance(column.type, Numeric):
+            normalized[column.key] = _canonical_decimal_string(value)
+    return normalized
+
+
+def _filtered_snapshot_for_fingerprint(
+    entity_type: str,
+    snapshot: dict[str, Any],
+) -> dict[str, Any]:
+    normalized_snapshot = _normalize_snapshot_for_fingerprint(entity_type, snapshot)
+    return {
+        key: value
+        for key, value in normalized_snapshot.items()
+        if key not in _IGNORED_FINGERPRINT_COLUMNS.get(entity_type, set())
+    }
 
 
 def _deserialize_column_value(column: Any, value: Any) -> Any:
@@ -205,11 +251,7 @@ def _serialize_instance(instance: Any) -> dict[str, Any]:
 def _snapshot_fingerprint(entity_type: str, snapshot: dict[str, Any] | None) -> str | None:
     if snapshot is None:
         return None
-    filtered = {
-        key: value
-        for key, value in snapshot.items()
-        if key not in _IGNORED_FINGERPRINT_COLUMNS.get(entity_type, set())
-    }
+    filtered = _filtered_snapshot_for_fingerprint(entity_type, snapshot)
     return sha256(_json_dumps(filtered).encode("utf-8")).hexdigest()
 
 
@@ -574,6 +616,19 @@ def _build_run_summary(run: ImportRun) -> dict[str, Any]:
                 sheet["errors"].extend(diagnostics)
             continue
 
+        if operation.status == ImportOperationStatus.FAILED:
+            failure_messages = [message for message in diagnostics if message]
+            if operation.error_message:
+                failure_messages.append(operation.error_message)
+            formatted_messages = [
+                f"{operation.title} — {message}" if operation.title else message
+                for message in dict.fromkeys(failure_messages)
+            ]
+            summary["errors"].extend(formatted_messages)
+            if sheet is not None:
+                sheet["errors"].extend(formatted_messages)
+            continue
+
         if operation.status != ImportOperationStatus.APPLIED:
             continue
 
@@ -817,6 +872,8 @@ async def _prepare_gestion_specs(
     existing_salary_keys = await legacy_excel_import._load_existing_salary_keys(db)
     planned_invoice_candidates: list[PaymentMatchCandidate] = []
     deferred_payment_sheets: list[tuple[str, list[NormalizedPaymentRow]]] = []
+    planned_payment_signatures: set[tuple[str, str, str, str]] = set()
+    existing_payment_signatures = await legacy_excel_import._load_existing_payment_signatures(db)
 
     for sheet_name in workbook.sheetnames:
         ws = workbook[sheet_name]
@@ -1019,6 +1076,7 @@ async def _prepare_gestion_specs(
                         payload={"reason": issue.message, "row": _row_to_payload(salary_row)},
                     )
                     continue
+                existing_salary_keys.add(salary_key)
                 rows_by_month.setdefault(salary_row.month, []).append(salary_row)
             for month, month_rows in sorted(rows_by_month.items()):
                 _append_spec(
@@ -1085,6 +1143,70 @@ async def _prepare_gestion_specs(
                     },
                 )
             for bank_row in bank_rows:
+                if bank_row.amount > 0:
+                    supplier_candidate = (
+                        legacy_excel_import._supplier_invoice_candidate_from_bank_row(bank_row)
+                    )
+                    if supplier_candidate is None:
+                        invoice_reference = legacy_excel_import._single_client_invoice_reference(
+                            bank_row.reference,
+                            bank_row.description,
+                        )
+                        if invoice_reference is not None:
+                            resolution = await resolve_payment_match_with_database(
+                                db,
+                                legacy_excel_import._payment_row_from_bank_row(
+                                    bank_row,
+                                    invoice_reference=invoice_reference,
+                                ),
+                                planned_invoice_candidates,
+                            )
+                            if (
+                                resolution.status == "matched"
+                                and resolution.candidate is not None
+                                and resolution.candidate.invoice_id is not None
+                            ):
+                                payment_signature = legacy_excel_import._payment_signature(
+                                    invoice_id=resolution.candidate.invoice_id,
+                                    payment_date=bank_row.entry_date,
+                                    amount=bank_row.amount,
+                                    method=PaymentMethod.VIREMENT.value,
+                                )
+                                if payment_signature in existing_payment_signatures:
+                                    issue = RowIgnoredIssue(
+                                        source_row_number=bank_row.source_row_number,
+                                        message=EXISTING_GESTION_ROW_MESSAGE,
+                                    )
+                                    _append_spec(
+                                        specs,
+                                        operation_type="ignored_by_policy",
+                                        title=bank_row.reference or bank_row.description,
+                                        description="Ligne bancaire déjà présente dans Solde.",
+                                        source_sheet=sheet_name,
+                                        source_row_numbers=[bank_row.source_row_number],
+                                        decision=ImportOperationDecision.IGNORE,
+                                        diagnostics=[format_row_issue(issue)],
+                                        payload={
+                                            "reason": issue.message,
+                                            "row": _row_to_payload(bank_row),
+                                        },
+                                    )
+                                    continue
+                            if resolution.status == "matched" and resolution.candidate is not None:
+                                planned_payment_signatures.add(
+                                    legacy_excel_import._gestion_payment_comparison_signature(
+                                        reference=(
+                                            resolution.candidate.invoice_number or invoice_reference
+                                        ),
+                                        payment_date=bank_row.entry_date,
+                                        amount=bank_row.amount,
+                                        settlement_account=(
+                                            legacy_excel_import._client_settlement_account_from_method(
+                                                PaymentMethod.VIREMENT.value
+                                            )
+                                        ),
+                                    )
+                                )
                 _append_spec(
                     specs,
                     operation_type="bank_row_import",
@@ -1124,6 +1246,58 @@ async def _prepare_gestion_specs(
                     payload={"row": _row_to_payload(payment_row)},
                 )
                 continue
+            assert resolution.candidate is not None
+            workbook_payment_signature = legacy_excel_import._gestion_payment_comparison_signature(
+                reference=resolution.candidate.invoice_number or payment_row.invoice_ref,
+                payment_date=payment_row.payment_date,
+                amount=payment_row.amount,
+                settlement_account=legacy_excel_import._client_settlement_account_from_method(
+                    payment_row.method
+                ),
+            )
+            if workbook_payment_signature in planned_payment_signatures:
+                issue = RowIgnoredIssue(
+                    source_row_number=payment_row.source_row_number,
+                    message=_DUPLICATE_WORKBOOK_PAYMENT_MESSAGE,
+                )
+                _append_spec(
+                    specs,
+                    operation_type="ignored_by_policy",
+                    title=f"Paiement ligne {payment_row.source_row_number}",
+                    description="Paiement client déjà couvert par une autre ligne du fichier.",
+                    source_sheet=sheet_name,
+                    source_row_numbers=[payment_row.source_row_number],
+                    decision=ImportOperationDecision.IGNORE,
+                    diagnostics=[format_row_issue(issue)],
+                    payload={"reason": issue.message, "row": _row_to_payload(payment_row)},
+                )
+                continue
+            planned_payment_signatures.add(workbook_payment_signature)
+            if resolution.candidate.invoice_id is not None:
+                payment_signature = legacy_excel_import._payment_signature(
+                    invoice_id=resolution.candidate.invoice_id,
+                    payment_date=payment_row.payment_date,
+                    amount=payment_row.amount,
+                    method=payment_row.method,
+                )
+                if payment_signature in existing_payment_signatures:
+                    issue = RowIgnoredIssue(
+                        source_row_number=payment_row.source_row_number,
+                        message=EXISTING_GESTION_ROW_MESSAGE,
+                    )
+                    _append_spec(
+                        specs,
+                        operation_type="ignored_by_policy",
+                        title=f"Paiement ligne {payment_row.source_row_number}",
+                        description="Paiement client déjà présent dans Solde.",
+                        source_sheet=sheet_name,
+                        source_row_numbers=[payment_row.source_row_number],
+                        decision=ImportOperationDecision.IGNORE,
+                        diagnostics=[format_row_issue(issue)],
+                        payload={"reason": issue.message, "row": _row_to_payload(payment_row)},
+                    )
+                    continue
+                existing_payment_signatures.add(payment_signature)
             _append_spec(
                 specs,
                 operation_type="client_payment_row_import",
@@ -2315,6 +2489,9 @@ async def _execute_cash_row_import(db: AsyncSession, operation: ImportOperation)
                 await _query_generated_payment_entries(db, supplier_result.payment.id)
             )
 
+    if refreshed_invoice is not None:
+        await db.refresh(refreshed_invoice)
+
     if (
         supplier_result is not None
         and supplier_result.created_contact
@@ -2509,6 +2686,10 @@ async def _execute_bank_row_import(db: AsyncSession, operation: ImportOperation)
         )
     )
     await db.flush()
+
+    if refreshed_invoice is not None:
+        await db.refresh(refreshed_invoice)
+
     created_entries = await _query_generated_bank_entries(db, bank_entry.id) + [
         entry
         for entry in created_entries
@@ -2821,9 +3002,10 @@ async def execute_import_run(db: AsyncSession, run_id: int) -> ImportRun:
         if operation.status != ImportOperationStatus.PREPARED:
             continue
         try:
-            await _execute_operation(db, operation)
-            operation.status = ImportOperationStatus.APPLIED
-            operation.error_message = None
+            async with db.begin_nested():
+                await _execute_operation(db, operation)
+                operation.status = ImportOperationStatus.APPLIED
+                operation.error_message = None
         except Exception as exc:
             operation.status = ImportOperationStatus.FAILED
             operation.error_message = str(exc)
@@ -2863,7 +3045,10 @@ async def _ensure_effect_matches_state(
     current_snapshot = _serialize_instance(entity)
     current_fingerprint = _snapshot_fingerprint(effect.entity_type, current_snapshot)
     if current_fingerprint != fingerprint:
-        raise ValueError("L'état courant ne correspond plus à l'état attendu")
+        expected_filtered = _filtered_snapshot_for_fingerprint(effect.entity_type, snapshot)
+        current_filtered = _filtered_snapshot_for_fingerprint(effect.entity_type, current_snapshot)
+        if current_filtered != expected_filtered:
+            raise ValueError("L'état courant ne correspond plus à l'état attendu")
     return snapshot
 
 

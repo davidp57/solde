@@ -7,6 +7,8 @@ from decimal import Decimal as _Decimal
 
 from pydantic import BaseModel, field_validator
 
+from backend.models.import_log import ImportLogType
+
 
 class AppSettingsRead(BaseModel):
     """Settings returned by GET /api/settings.
@@ -88,3 +90,21 @@ class SystemOpeningUpdate(BaseModel):
 class TreasurySystemOpeningUpdate(BaseModel):
     bank: SystemOpeningUpdate
     cash: SystemOpeningUpdate
+
+
+class SelectiveResetRequest(BaseModel):
+    import_type: ImportLogType
+    fiscal_year_id: int
+
+
+class SelectiveResetPreviewRead(BaseModel):
+    import_type: ImportLogType
+    fiscal_year_id: int
+    fiscal_year_name: str
+    fiscal_year_start_date: _Date
+    fiscal_year_end_date: _Date
+    matched_import_logs: int
+    matched_import_runs: int
+    root_objects: dict[str, int]
+    derived_objects: dict[str, int]
+    delete_plan: dict[str, int]

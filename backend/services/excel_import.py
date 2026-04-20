@@ -4873,22 +4873,26 @@ async def _add_gestion_existing_rows_preview(
             parsed_sheet, salary_rows, _ = _parse_salary_sheet(ws)
             if parsed_sheet is None or parsed_sheet.missing_columns:
                 continue
-            ignored_issues = [
-                RowIgnoredIssue(
-                    source_row_number=salary_row.source_row_number,
-                    message=EXISTING_SALARY_MESSAGE,
-                )
-                for salary_row in salary_rows
-                if (salary_row.month, _salary_employee_key(salary_row.employee_name))
-                in existing_salary_keys
-            ]
-            for ignored_issue in ignored_issues:
+            salary_ignored_issues: list[RowIgnoredIssue] = []
+            seen_salary_keys = set(existing_salary_keys)
+            for salary_row in salary_rows:
+                salary_key = (salary_row.month, _salary_employee_key(salary_row.employee_name))
+                if salary_key in seen_salary_keys:
+                    salary_ignored_issues.append(
+                        RowIgnoredIssue(
+                            source_row_number=salary_row.source_row_number,
+                            message=EXISTING_SALARY_MESSAGE,
+                        )
+                    )
+                    continue
+                seen_salary_keys.add(salary_key)
+            for ignored_issue in salary_ignored_issues:
                 _append_preview_ignored_issue(
                     preview,
                     sheet_preview,
                     ignored_issue,
                 )
-            if ignored_count := len(ignored_issues):
+            if ignored_count := len(salary_ignored_issues):
                 sheet_preview["rows"] = max(0, sheet_preview["rows"] - ignored_count)
                 preview.estimated_salaries = max(0, preview.estimated_salaries - ignored_count)
 

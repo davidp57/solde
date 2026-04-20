@@ -183,10 +183,49 @@
                 :key="`${historyItem.id}-history-operation-${operation.id}`"
                 class="import-comparison-detail-item"
               >
-                <strong>{{ operation.title }}</strong>
-                <span class="import-comparison-detail-field">
-                  {{ t(`import.operation_status.${operation.status}`) }}
-                </span>
+                <div class="import-history-operation-item__header">
+                  <strong>{{ operation.title }}</strong>
+                  <span class="import-comparison-detail-field">
+                    {{ t(`import.operation_status.${operation.status}`) }}
+                  </span>
+                </div>
+                <p
+                  v-if="operation.error_message"
+                  class="import-history-operation-item__error"
+                >
+                  {{ operation.error_message }}
+                </p>
+                <ul v-if="operation.diagnostics.length" class="import-warnings">
+                  <li
+                    v-for="(diagnostic, index) in operation.diagnostics"
+                    :key="`${historyItem.id}-history-operation-${operation.id}-diagnostic-${index}`"
+                  >
+                    {{ diagnostic }}
+                  </li>
+                </ul>
+                <div
+                  v-if="operation.can_undo || operation.can_redo"
+                  class="app-form-actions import-inline-actions"
+                >
+                  <Button
+                    v-if="operation.can_undo"
+                    :data-testid="`history-operation-undo-${operation.id}`"
+                    :label="t('import.undo_operation')"
+                    severity="secondary"
+                    outlined
+                    :loading="busyOperationId === operation.id"
+                    @click="undoOperation(operation.id)"
+                  />
+                  <Button
+                    v-if="operation.can_redo"
+                    :data-testid="`history-operation-redo-${operation.id}`"
+                    :label="t('import.redo_operation')"
+                    severity="secondary"
+                    outlined
+                    :loading="busyOperationId === operation.id"
+                    @click="redoOperation(operation.id)"
+                  />
+                </div>
               </li>
             </ul>
           </div>
@@ -231,8 +270,10 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import {
+  redoImportOperationApi,
   listImportHistoryApi,
   redoImportRunApi,
+  undoImportOperationApi,
   type ImportHistoryItem,
   undoImportRunApi,
 } from '../api/accounting'
@@ -243,6 +284,7 @@ const router = useRouter()
 
 const importHistory = ref<ImportHistoryItem[]>([])
 const busyRunId = ref<number | null>(null)
+const busyOperationId = ref<number | null>(null)
 const loading = ref(false)
 const expandedSections = ref<string[]>([])
 
@@ -326,16 +368,27 @@ function getImportErrorSummary(error: unknown): string {
   return t('common.error.unknown')
 }
 
-async function loadImportHistory() {
+function isRequestTimeout(error: unknown): boolean {
+  return (error as { code?: string }).code === 'ECONNABORTED'
+}
+
+async function loadImportHistory(): Promise<ImportHistoryItem[]> {
   loading.value = true
   try {
     importHistory.value = await listImportHistoryApi()
+    return importHistory.value
   } catch (error: unknown) {
     importHistory.value = []
     toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
+    return []
   } finally {
     loading.value = false
   }
+}
+
+async function refreshHistoryAfterTimeout() {
+  await loadImportHistory()
+  toast.add({ severity: 'info', summary: t('import.request_timeout_refreshed'), life: 5000 })
 }
 
 async function undoRun(runId: number) {
@@ -344,6 +397,10 @@ async function undoRun(runId: number) {
     await undoImportRunApi(runId)
     await loadImportHistory()
   } catch (error: unknown) {
+    if (isRequestTimeout(error)) {
+      await refreshHistoryAfterTimeout()
+      return
+    }
     toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     busyRunId.value = null
@@ -356,9 +413,45 @@ async function redoRun(runId: number) {
     await redoImportRunApi(runId)
     await loadImportHistory()
   } catch (error: unknown) {
+    if (isRequestTimeout(error)) {
+      await refreshHistoryAfterTimeout()
+      return
+    }
     toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     busyRunId.value = null
+  }
+}
+
+async function undoOperation(operationId: number) {
+  busyOperationId.value = operationId
+  try {
+    await undoImportOperationApi(operationId)
+    await loadImportHistory()
+  } catch (error: unknown) {
+    if (isRequestTimeout(error)) {
+      await refreshHistoryAfterTimeout()
+      return
+    }
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
+  } finally {
+    busyOperationId.value = null
+  }
+}
+
+async function redoOperation(operationId: number) {
+  busyOperationId.value = operationId
+  try {
+    await redoImportOperationApi(operationId)
+    await loadImportHistory()
+  } catch (error: unknown) {
+    if (isRequestTimeout(error)) {
+      await refreshHistoryAfterTimeout()
+      return
+    }
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
+  } finally {
+    busyOperationId.value = null
   }
 }
 
@@ -471,6 +564,18 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+}
+
+.import-history-operation-item__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--app-space-2);
+}
+
+.import-history-operation-item__error {
+  margin: 0;
+  color: var(--p-red-300);
 }
 
 .import-comparison-detail-field {
