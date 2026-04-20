@@ -51,14 +51,12 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 ## Priorités proposées pour la prochaine discussion
 
 1. **BL-030** — définir une politique explicite de modification des objets métier déjà créés ou validés.
-2. **BL-004** — afficher un historique d'import exploitable dans l'UI avec type, date, compteurs, diagnostics et traçabilité suffisante.
-3. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
+2. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
 
 ## Récapitulatif des sujets ouverts
 
 | ID | Créé le | Type | Zone | Priorité proposée | Sujet |
 |---|---|---|---|---|---|
-| BL-004 | 2026-04-12 | Amélioration | Import Excel / Support | P2 | Afficher un historique d'import exploitable dans l'UI avec type, date, compteurs, diagnostics, et une traçabilité suffisamment fine des objets créés |
 | BL-006 | 2026-04-12 | Technique | API / Framework | P3 | Traiter les warnings de dépréciation `HTTP_422_UNPROCESSABLE_ENTITY` remontés par la suite de tests |
 | BL-015 | 2026-04-13 | Amélioration | Import Excel / Outillage | P2 | Ajouter un reset sélectif orienté reprise pour rejouer proprement un import par filière ou période sans repartir systématiquement d'un effacement global |
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
@@ -89,12 +87,24 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Résultat attendu** : une nouvelle passe de tests manuels structurés sur les fichiers historiques réels, avec une liste courte d'écarts résiduels.
 - **Livré parce que** : le rejeu réel sur base isolée a confirmé l'absence d'écart bloquant ; la procédure a seulement été ajustée pour refléter les nouveaux compteurs et le besoin de précharger les exercices couvrant toutes les dates utiles.
 
-### BL-004 — Historique d'import visible dans l'interface
+### BL-004 — Historique d'import réversible dans l'interface
 
-- **Dates** : `created=2026-04-12`
+- **Dates** : `created=2026-04-12`, `started=2026-04-20`, `completed=2026-04-20`
 - **Pourquoi** : l'application conserve déjà des traces techniques d'import, mais elles restent peu visibles pour l'utilisateur.
-- **Résultat attendu** : un écran ou panneau affichant les imports passés, leur type, leur date, leur résultat, les principales anomalies, et un niveau de traçabilité suffisant pour comprendre quels objets ont été créés.
-- **Point d'attention** : décider si le résumé sérialisé actuel dans `import_logs` suffit, ou si certains objets créés doivent être reliés explicitement à leur import source pour faciliter le support.
+- **Résultat attendu** : un écran ou panneau affichant les imports passés, leur type, leur date, leur résultat, les principales anomalies, et un niveau de traçabilité suffisant pour comprendre quelles opérations ont été préparées puis exécutées, quels objets elles ont créés ou modifiés, et permettre un `undo/redo` au niveau opération ou import complet.
+- **Cadrage produit acté** : un import doit d'abord analyser le fichier Excel et construire une liste ordonnée d'opérations métier persistées ; l'import réel consiste ensuite à exécuter ces opérations. Chaque opération doit porter son état initial, son état appliqué, sa logique `do`, sa logique `undo`, et pouvoir être rejouée tant que les préconditions strictes de cohérence sont respectées.
+- **Règles actées à ce stade** :
+	- l'annulation est `stricte` : on bloque `undo` ou `redo` si l'état courant d'un objet touché ne correspond plus à l'état attendu ;
+	- le `redo` porte sur les opérations persistées par Solde, pas sur le fichier source ;
+	- l'UI d'import doit pouvoir présenter la liste ordonnée des opérations préparées avant leur exécution, afin que l'utilisateur puisse relire ce qui va être joué ;
+	- la granularité visible d'une opération doit rester métier et source-centrée (ligne ou groupe de lignes Excel cohérent), et non se limiter à chaque objet SQL créé individuellement ;
+	- une opération visible peut produire plusieurs effets internes sur plusieurs objets (création, modification, régénération, lien, suppression logique), qui servent de base à l'exécution et à l'annulation ;
+	- l'UI doit permettre `undo` / `redo` d'une opération individuelle, `undo` de tout l'import, et idéalement `redo` complet d'un import entièrement annulé ;
+	- un import partiellement annulé doit apparaître avec un statut `partiellement annulé`, et un import totalement annulé avec un statut `annulé` ;
+	- le réimport du fichier Excel reste une action distincte, possible une fois l'import annulé, mais ce n'est pas le mécanisme de `redo`.
+- **Point d'attention** : le résumé sérialisé actuel dans `import_logs` ne suffira probablement pas ; la cible implique un vrai journal d'opérations réversibles avec ordre d'exécution, décision de preview (`apply`, `ignore`, `block`), effets détaillés par objet touché, état avant, état après et statut courant.
+- **Résultat livré** : le backend persiste désormais des `runs`, `operations` et `effects` réversibles, l'API expose le cycle `prepare -> execute -> undo/redo` ainsi qu'un historique unifié `runs + import_logs`, l'écran d'import permet de prévisualiser les opérations préparées, et l'historique dispose d'une page dédiée pour consulter, annuler ou rejouer les imports passés.
+- **Livré parce que** : les migrations, le moteur réversible, l'API, l'UI et les tests backend/frontend ciblés sont implémentés et validés localement le `2026-04-20`, y compris la stabilisation du cas où un paiement du même classeur doit se rapprocher d'une facture seulement préparée plus haut dans le run.
 
 ### BL-005 — Politique de coexistence import / écritures existantes
 
@@ -490,6 +500,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-001** — `created=2026-04-12`, `completed=2026-04-12` — Le backlog sert désormais de support de suivi versionné avec priorités, statuts et mises à jour explicites.
 - **BL-002** — `created=2026-04-12`, `completed=2026-04-12` — La documentation utilisateur import/reset a été rédigée dans `doc/user/import-excel-et-reinitialisation.md`.
 - **BL-003** — `created=2026-04-12`, `completed=2026-04-12` — La campagne de retest sur imports réels 2024/2025 a été rejouée sans écart bloquant.
+- **BL-004** — `created=2026-04-12`, `started=2026-04-20`, `completed=2026-04-20` — L'import Excel dispose maintenant d'un historique réversible avec opérations persistées, effets détaillés, exécution en deux temps `prepare -> execute`, et `undo/redo` par opération ou par import complet dans l'UI et l'API.
 - **BL-005** — `created=2026-04-12`, `started=2026-04-19`, `completed=2026-04-19` — La politique de coexistence effectivement implémentée pour les imports `Comptabilite` est désormais documentée, testée et intégrée dans `develop`, avec distinction explicite entre doublon exact, ligne déjà couverte par Solde et proximité non bloquante avec une écriture `MANUAL`.
 - **BL-007** — `created=2026-04-12`, `completed=2026-04-13` — La convention est arrêtée pour le mode de travail actuel : `doc/backlog.md` reste la source de vérité, sans synchronisation systématique avec des issues GitHub à ce stade.
 - **BL-008** — `created=2026-04-12`, `started=2026-04-18`, `completed=2026-04-18` — Le premier lot de convergence BL-008 est désormais intégré dans `develop` avec preview bidirectionnelle par domaine, détails `extra_in_solde`, filtre de période dédié à la comparaison et recette locale rejouable.
