@@ -1645,6 +1645,59 @@ async def test_reversible_import_operation_undo_redo_targets_single_prepared_eff
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_import_run_undo_rejects_manually_modified_object(
+    client: AsyncClient, auth_headers: dict, db_session
+) -> None:
+    """Undo must fail once an imported object diverged from the expected strict state."""
+    from backend.models.contact import Contact
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Contacts": (
+                ["Nom", "Email"],
+                [["Christine LOPES", "christine@example.test"]],
+            )
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+    run_id = prepare_response.json()["id"]
+
+    execute_response = await client.post(
+        f"/api/import/runs/{run_id}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+
+    imported_contact = (
+        await db_session.execute(select(Contact).where(Contact.nom == "LOPES"))
+    ).scalar_one()
+
+    update_response = await client.put(
+        f"/api/contacts/{imported_contact.id}",
+        json={"notes": "Retouche manuelle"},
+        headers=auth_headers,
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["notes"] == "Retouche manuelle"
+
+    undo_response = await client.post(
+        f"/api/import/runs/{run_id}/undo",
+        headers=auth_headers,
+    )
+
+    assert undo_response.status_code == 409
+    assert undo_response.json()["detail"] == "L'état courant ne correspond plus à l'état attendu"
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
 async def test_preview_and_import_gestion_accept_payment_matched_by_contact(
     client: AsyncClient, auth_headers: dict
 ) -> None:

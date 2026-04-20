@@ -4,10 +4,11 @@ from collections.abc import Sequence
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from sqlalchemy import extract, select
+from sqlalchemy import delete, extract, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.invoice import (
     Invoice,
     InvoiceLabel,
@@ -27,6 +28,10 @@ class InvoiceStatusError(Exception):
 
 class InvoiceDeleteError(Exception):
     """Raised when a non-draft invoice is deleted."""
+
+
+class InvoiceUpdateError(Exception):
+    """Raised when an invoice cannot be edited in its current business state."""
 
 
 # Valid transitions: from → set of allowed target statuses
@@ -230,6 +235,25 @@ async def list_invoices(
 
 async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpdate) -> Invoice:
     """Update invoice fields. Recalculates total if lines are provided."""
+    refreshed_invoice = await get_invoice(db, invoice.id)
+    if refreshed_invoice is None:
+        raise InvoiceUpdateError("Invoice not found")
+    invoice = refreshed_invoice
+
+    if invoice.status != InvoiceStatus.DRAFT and not (
+        invoice.status == InvoiceStatus.SENT and invoice.paid_amount == Decimal("0")
+    ):
+        raise InvoiceUpdateError(f"Invoice in status '{invoice.status}' cannot be edited")
+
+    should_regenerate_entries = invoice.status == InvoiceStatus.SENT
+    if should_regenerate_entries:
+        await db.execute(
+            delete(AccountingEntry).where(
+                AccountingEntry.source_type == EntrySourceType.INVOICE,
+                AccountingEntry.source_id == invoice.id,
+            )
+        )
+
     for field in (
         "contact_id",
         "date",
@@ -289,6 +313,11 @@ async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpd
     )
 
     invoice.updated_at = datetime.now(UTC)
+    if should_regenerate_entries:
+        from backend.services.accounting_engine import generate_entries_for_invoice  # noqa: PLC0415
+
+        await db.flush()
+        await generate_entries_for_invoice(db, invoice)
     invoice_id = invoice.id  # save before expire clears attributes
     await db.commit()
     db.expire(invoice)  # force selectinload to re-query lines from DB
