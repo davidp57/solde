@@ -532,6 +532,16 @@ export interface ImportResult {
   error_details: ImportIssueDetail[]
   warning_details: ImportIssueDetail[]
   sheets: ImportSheetResult[]
+  created_objects: ImportCreatedObject[]
+}
+
+export interface ImportCreatedObject {
+  sheet_name: string | null
+  kind: string | null
+  object_type: string
+  object_id: number | null
+  reference: string | null
+  details: Record<string, unknown>
 }
 
 export interface ImportIssueDetail {
@@ -796,9 +806,144 @@ export interface PreviewResult {
   comparison?: PreviewComparisonSummary
 }
 
+export interface ImportEffectRead {
+  id: number | null
+  entity_type: string
+  action: 'create' | 'update' | 'delete'
+  entity_id: number | null
+  entity_reference: string | null
+  details: Record<string, unknown>
+  status: 'planned' | 'applied' | 'undone'
+}
+
+export interface ImportOperationRead {
+  id: number
+  position: number
+  operation_type: string
+  title: string
+  description: string | null
+  source_sheet: string | null
+  source_row_numbers: number[]
+  decision: 'apply' | 'ignore' | 'block'
+  status: 'prepared' | 'ignored' | 'blocked' | 'applied' | 'undone' | 'failed'
+  diagnostics: string[]
+  error_message: string | null
+  can_undo: boolean
+  can_redo: boolean
+  effects: ImportEffectRead[]
+  planned_effects?: ImportEffectRead[]
+  source_data?: Record<string, unknown>[]
+}
+
+export interface ImportRunRead {
+  id: number
+  kind: 'run'
+  import_type: 'gestion' | 'comptabilite'
+  status: 'prepared' | 'blocked' | 'completed' | 'failed' | 'partially_reverted' | 'reverted'
+  file_name: string | null
+  file_hash: string
+  comparison_start_date: string | null
+  comparison_end_date: string | null
+  created_at: string | null
+  updated_at: string | null
+  preview: PreviewResult | null
+  summary: ImportResult | null
+  operations: ImportOperationRead[]
+  can_execute: boolean
+  can_undo: boolean
+  can_redo: boolean
+}
+
+export interface LegacyImportHistoryItem {
+  id: number
+  kind: 'legacy_log'
+  import_type: 'gestion' | 'comptabilite'
+  status: string
+  file_name: string | null
+  file_hash: string
+  comparison_start_date: string | null
+  comparison_end_date: string | null
+  created_at: string | null
+  updated_at: string | null
+  preview: null
+  summary: ImportResult | null
+  operations: []
+  can_execute: false
+  can_undo: false
+  can_redo: false
+}
+
+export type ImportHistoryItem = ImportRunRead | LegacyImportHistoryItem
+
 export interface PreviewComparisonWindow {
   comparison_start_date?: string
   comparison_end_date?: string
+}
+
+async function prepareImportRunApi(
+  path: string,
+  file: File,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<ImportRunRead> {
+  const form = new FormData()
+  form.append('file', file)
+  if (comparisonWindow.comparison_start_date) {
+    form.append('comparison_start_date', comparisonWindow.comparison_start_date)
+  }
+  if (comparisonWindow.comparison_end_date) {
+    form.append('comparison_end_date', comparisonWindow.comparison_end_date)
+  }
+  const response = await apiClient.post<ImportRunRead>(path, form, { timeout: 60000 })
+  return response.data
+}
+
+export async function prepareGestionRunApi(
+  file: File,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<ImportRunRead> {
+  return prepareImportRunApi('/api/import/runs/prepare/gestion', file, comparisonWindow)
+}
+
+export async function prepareComptabiliteRunApi(
+  file: File,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<ImportRunRead> {
+  return prepareImportRunApi('/api/import/runs/prepare/comptabilite', file, comparisonWindow)
+}
+
+export async function getImportRunApi(runId: number): Promise<ImportRunRead> {
+  const response = await apiClient.get<ImportRunRead>(`/api/import/runs/${runId}`)
+  return response.data
+}
+
+export async function executeImportRunApi(runId: number): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/execute`)
+  return response.data
+}
+
+export async function undoImportRunApi(runId: number): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/undo`)
+  return response.data
+}
+
+export async function redoImportRunApi(runId: number): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/redo`)
+  return response.data
+}
+
+export async function undoImportOperationApi(operationId: number): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(`/api/import/operations/${operationId}/undo`)
+  return response.data
+}
+
+export async function redoImportOperationApi(operationId: number): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(`/api/import/operations/${operationId}/redo`)
+  return response.data
+}
+
+export async function listImportHistoryApi(): Promise<ImportHistoryItem[]> {
+  const response = await apiClient.get<ImportHistoryItem[]>('/api/import/history')
+  return response.data
 }
 
 export async function previewGestionFileApi(

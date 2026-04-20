@@ -12,7 +12,7 @@ from backend.config import get_settings
 from backend.database import get_db
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
-from backend.services import excel_import
+from backend.services import excel_import, import_reversible
 
 router = APIRouter(prefix="/import", tags=["import"])
 
@@ -152,6 +152,14 @@ async def _run_test_import_shortcut(
     return result.to_dict()
 
 
+def _raise_import_run_error(exc: Exception) -> None:
+    if isinstance(exc, LookupError):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    if isinstance(exc, ValueError):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    raise exc
+
+
 @router.post("/excel/gestion", status_code=status.HTTP_200_OK)
 async def import_gestion(
     file: UploadFile,
@@ -236,6 +244,170 @@ async def preview_comptabilite(
         comparison_end_date=comparison_end_date,
     )
     return result.to_dict()
+
+
+@router.post("/runs/prepare/gestion", status_code=status.HTTP_200_OK)
+async def prepare_gestion_run(
+    file: UploadFile,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _WriteAccess,
+    comparison_start_date: date | None = Form(default=None),
+    comparison_end_date: date | None = Form(default=None),
+) -> dict[str, object]:
+    """Prepare a reversible import run for a Gestion workbook."""
+    _check_excel_extension(file.filename)
+    if (
+        comparison_start_date is not None
+        and comparison_end_date is not None
+        and comparison_start_date > comparison_end_date
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="La date de début doit être inférieure ou égale à la date de fin",
+        )
+    content = await _read_limited(file)
+    try:
+        run = await import_reversible.prepare_import_run(
+            db,
+            import_type="gestion",
+            file_bytes=content,
+            file_name=file.filename,
+            comparison_start_date=comparison_start_date,
+            comparison_end_date=comparison_end_date,
+        )
+    except Exception as exc:  # pragma: no cover - delegated mapping below
+        _raise_import_run_error(exc)
+    return import_reversible.serialize_run(run)
+
+
+@router.post("/runs/prepare/comptabilite", status_code=status.HTTP_200_OK)
+async def prepare_comptabilite_run(
+    file: UploadFile,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _WriteAccess,
+    comparison_start_date: date | None = Form(default=None),
+    comparison_end_date: date | None = Form(default=None),
+) -> dict[str, object]:
+    """Prepare a reversible import run for a Comptabilité workbook."""
+    _check_excel_extension(file.filename)
+    if (
+        comparison_start_date is not None
+        and comparison_end_date is not None
+        and comparison_start_date > comparison_end_date
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="La date de début doit être inférieure ou égale à la date de fin",
+        )
+    content = await _read_limited(file)
+    try:
+        run = await import_reversible.prepare_import_run(
+            db,
+            import_type="comptabilite",
+            file_bytes=content,
+            file_name=file.filename,
+            comparison_start_date=comparison_start_date,
+            comparison_end_date=comparison_end_date,
+        )
+    except Exception as exc:  # pragma: no cover - delegated mapping below
+        _raise_import_run_error(exc)
+    return import_reversible.serialize_run(run)
+
+
+@router.get("/runs/{run_id}", status_code=status.HTTP_200_OK)
+async def get_import_run(
+    run_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _WriteAccess,
+) -> dict[str, object]:
+    """Return one prepared or executed reversible import run."""
+    run = await import_reversible.get_import_run(db, run_id)
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Import run not found")
+    return import_reversible.serialize_run(run)
+
+
+@router.post("/runs/{run_id}/execute", status_code=status.HTTP_200_OK)
+async def execute_import_run(
+    run_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _WriteAccess,
+) -> dict[str, object]:
+    """Execute all prepared operations of a reversible import run."""
+    try:
+        run = await import_reversible.execute_import_run(db, run_id)
+    except Exception as exc:  # pragma: no cover - delegated mapping below
+        _raise_import_run_error(exc)
+    return import_reversible.serialize_run(run)
+
+
+@router.post("/runs/{run_id}/undo", status_code=status.HTTP_200_OK)
+async def undo_import_run(
+    run_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _WriteAccess,
+) -> dict[str, object]:
+    """Undo every applied operation of a reversible import run in reverse order."""
+    try:
+        run = await import_reversible.undo_import_run(db, run_id)
+    except Exception as exc:  # pragma: no cover - delegated mapping below
+        _raise_import_run_error(exc)
+    return import_reversible.serialize_run(run)
+
+
+@router.post("/runs/{run_id}/redo", status_code=status.HTTP_200_OK)
+async def redo_import_run(
+    run_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _WriteAccess,
+) -> dict[str, object]:
+    """Redo every undone operation of a reversible import run in forward order."""
+    try:
+        run = await import_reversible.redo_import_run(db, run_id)
+    except Exception as exc:  # pragma: no cover - delegated mapping below
+        _raise_import_run_error(exc)
+    return import_reversible.serialize_run(run)
+
+
+@router.post("/operations/{operation_id}/undo", status_code=status.HTTP_200_OK)
+async def undo_import_operation(
+    operation_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _WriteAccess,
+) -> dict[str, object]:
+    """Undo one reversible import operation."""
+    try:
+        operation = await import_reversible.undo_import_operation(db, operation_id)
+    except Exception as exc:  # pragma: no cover - delegated mapping below
+        _raise_import_run_error(exc)
+    run = await import_reversible.get_import_run(db, operation.run_id)
+    assert run is not None
+    return import_reversible.serialize_run(run)
+
+
+@router.post("/operations/{operation_id}/redo", status_code=status.HTTP_200_OK)
+async def redo_import_operation(
+    operation_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _WriteAccess,
+) -> dict[str, object]:
+    """Redo one reversible import operation."""
+    try:
+        operation = await import_reversible.redo_import_operation(db, operation_id)
+    except Exception as exc:  # pragma: no cover - delegated mapping below
+        _raise_import_run_error(exc)
+    run = await import_reversible.get_import_run(db, operation.run_id)
+    assert run is not None
+    return import_reversible.serialize_run(run)
+
+
+@router.get("/history", status_code=status.HTTP_200_OK)
+async def list_import_history(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _WriteAccess,
+) -> list[dict[str, object]]:
+    """List reversible import runs and legacy import logs in reverse chronological order."""
+    return await import_reversible.list_import_history(db)
 
 
 @router.get("/excel/test-shortcuts", status_code=status.HTTP_200_OK)

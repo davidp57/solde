@@ -35,6 +35,9 @@ from backend.models import (
     import_log as _import_log_module,
 )
 from backend.models import (
+    import_run as _import_run_module,
+)
+from backend.models import (
     invoice as _invoice_module,
 )
 from backend.models import (
@@ -59,6 +62,7 @@ _REGISTERED_MODEL_MODULES = (
     _contact_module,
     _fy_module,
     _import_log_module,
+    _import_run_module,
     _invoice_module,
     _payment_module,
     _salary_module,

@@ -2,7 +2,7 @@
 
 > Document de travail de suivi du chantier, maintenu dans le dépôt.
 >
-> Dernière mise à jour : 2026-04-11
+> Dernière mise à jour : 2026-04-20
 >
 > Branche active : `feat-enhance-excel-import`
 
@@ -40,6 +40,7 @@ Ce fichier doit être mis à jour après chaque tranche significative de travail
 - [x] IMP-09 — Couverture de tests renforcée
 - [x] IMP-10 — UX de confirmation durcie
 - [x] IMP-11 — Répétition sur fichiers réels et procédure opératoire
+- [x] IMP-12 — Historique d'import réversible et exécution en deux temps
 
 ### Résumé d'avancement
 
@@ -92,6 +93,8 @@ Ce fichier doit être mis à jour après chaque tranche significative de travail
 - [x] Les derniers diagnostics globaux structurés disposent maintenant aussi de catégories stables (`already-imported`, `comptabilite-coexistence-blocked`, `import-error`).
 - [x] L'UX frontend impose désormais une preview valide avant tout import, réinitialise cette confirmation quand le type de fichier change, conserve la preview affichée pendant l'import et exige une confirmation explicite des avertissements avant exécution.
 - [x] Validation globale avant persistance terminée pour les cas métier explicitement couverts par le contrat actuel.
+- [x] La chaîne d'import visible en UI repose désormais sur des runs réversibles persistés, avec exécution en deux temps `prepare -> execute`, effets détaillés par opération et historique dédié.
+- [x] La préparation `Gestion` sait désormais résoudre un paiement contre une facture déjà planifiée dans le même run, indépendamment de l'ordre des onglets `Factures` / `Paiements` du classeur.
 
 ### Dernière tranche terminée
 
@@ -147,11 +150,13 @@ Ce fichier doit être mis à jour après chaque tranche significative de travail
 - [x] IMP-01 a progressé avec la centralisation dans `excel_import_results` des messages stables `Impossible d'ouvrir le fichier` et `Erreur import ...`, réutilisés par les imports gestion, comptabilité et par les imports de feuilles.
 - [x] IMP-01 a progressé avec l'extraction dans `excel_import_preview_helpers` du branchement partagé `kind is None`, désormais mutualisé pour les previews gestion et comptabilité avec calcul commun de `status` et du warning optionnel.
 - [x] IMP-06 est désormais fermé : la coexistence avec des écritures comptables `MANUAL` est explicitement autorisée, tandis que seules les écritures auto-générées issues de la gestion bloquent preview/import comptabilité.
-- [x] IMP-07 est désormais fermé : la cible de traçabilité est explicitement figée au niveau `import_logs` + `created_objects` sérialisés, sans relation SQL dédiée par objet à ce stade.
+- [x] IMP-07 est désormais fermé dans son périmètre initial : la première traçabilité a bien reposé sur `import_logs` + `created_objects`, mais cette base a ensuite été dépassée par BL-004 et le journal réversible `import_runs` / `import_operations` / `import_effects`.
 - [x] IMP-05 est désormais fermé : les erreurs de flush attrapées localement dans les imports de feuilles provoquent aussi l'abandon de l'import global, le reset des compteurs et un log `failed`.
 - [x] IMP-04 est désormais fermé : les ambiguïtés restantes connues sont maintenant bloquées explicitement avant persistance, y compris la résolution `facture -> contact` quand plusieurs contacts existants correspondent exactement.
 - [x] IMP-01 est désormais fermé : les décisions métier stables et leurs diagnostics structurés sont maintenant centralisés, y compris la résolution stricte `facture -> contact` et les catégories globales résiduelles.
 - [x] Relecture PR 4 absorbée : les factures sans date valide sont désormais bloquées explicitement, le bandeau d'état preview n'apparaît qu'après une vraie prévisualisation, et l'entête du document ne prétend plus être "non commité".
+- [x] IMP-12 a livré un moteur réversible `import_runs` / `import_operations` / `import_effects`, de nouveaux endpoints `prepare`, `execute`, `undo`, `redo`, un historique dédié dans l'UI et des tests ciblés backend/frontend.
+- [x] IMP-12 a été stabilisé avec la résolution correcte des paiements qui pointent vers des factures seulement préparées dans le même run et avec des correctifs async sur l'exécution facture/paiement.
 
 ### Validations vertes connues
 
@@ -321,7 +326,7 @@ Ce fichier doit être mis à jour après chaque tranche significative de travail
 - [x] Ajouter un journal d'import, un hash ou une signature de fichier.
 - [x] Ajouter des garde-fous anti-réinjection.
 - [x] Journaliser dans le résumé d'import les objets créés pendant l'exécution.
-- [x] Décider que la traçabilité cible actuelle reste le journal d'import + `created_objects` sérialisés, sans relation SQL dédiée par objet à ce stade.
+- [x] Poser une première base de traçabilité avec `import_logs` + `created_objects`, ensuite dépassée par le journal réversible BL-004 (`import_runs` / `import_operations` / `import_effects`).
 
 ### IMP-08 — Améliorer le rapport de résultat et l'observabilité
 
@@ -381,6 +386,18 @@ Ce fichier doit être mis à jour après chaque tranche significative de travail
 - [x] Documenter la stratégie de secours.
 - [x] Centraliser cette première procédure dans `doc/dev/import-excel-procedure.md`.
 
+### IMP-12 — Historique d'import réversible et exécution en deux temps
+
+- [x] Ticket terminé
+- But : rendre l'import relisible, rejouable et annulable sans repasser par une restauration complète de base pour chaque essai.
+- [x] Persister un run d'import préparé avant exécution, avec ses opérations ordonnées et leur décision `apply` / `ignore` / `block`.
+- [x] Exposer côté API le cycle `prepare -> execute -> undo/redo` au niveau import complet et opération unitaire.
+- [x] Journaliser les effets détaillés de chaque opération sur les objets métier touchés.
+- [x] Afficher dans l'UI une synthèse courte, une table filtrable des opérations préparées, les avertissements, et une page dédiée pour l'historique des imports.
+- [x] Conserver la compatibilité de support avec les anciens `import_logs` via un historique unifié.
+- [x] Stabiliser la préparation `Gestion` pour accepter un paiement rapproché contre une facture seulement planifiée dans le même run.
+- [x] Couvrir le moteur réversible, l'historique et les régressions critiques par des tests backend/frontend ciblés.
+
 ## Fichiers actuellement concernés
 
 - `backend/services/excel_import.py`
@@ -390,13 +407,19 @@ Ce fichier doit être mis à jour après chaque tranche significative de travail
 - `backend/services/excel_import_preview_helpers.py`
 - `backend/services/excel_import_results.py`
 - `backend/services/excel_import_sheet_helpers.py`
+- `backend/services/import_reversible.py`
 - `backend/routers/excel_import.py`
 - `backend/models/import_log.py`
+- `backend/models/import_run.py`
 - `backend/alembic/versions/0011_add_import_logs.py`
+- `backend/alembic/versions/0020_add_reversible_import_runs.py`
 - `doc/dev/import-excel-contract.md`
 - `doc/dev/import-excel-procedure.md`
 - `frontend/src/api/accounting.ts`
+- `frontend/src/tests/views/ImportHistoryView.spec.ts`
 - `frontend/src/tests/views/ImportExcelView.spec.ts`
+- `frontend/src/tests/views/NavMenu.spec.ts`
+- `frontend/src/views/ImportHistoryView.vue`
 - `frontend/src/views/ImportExcelView.vue`
 - `frontend/src/i18n/fr.ts`
 - `tests/unit/test_excel_import_classification.py`
@@ -416,15 +439,23 @@ Ordre recommandé :
 1. [ ] formaliser les règles globales de validation par type de feuille dans une couche métier dédiée ;
 2. [ ] étendre encore la catégorisation stable au-delà du lot déjà couvert (`existing`, `duplicate`, `missing-columns`, erreurs de paiement, avertissements de feuille, `*-validation-error`) vers les derniers messages libres encore présents ;
 3. [ ] clarifier la stratégie de coexistence cible avec d'éventuelles écritures manuelles avant d'ouvrir la voie d'import `Comptabilite` en réel ;
-4. [ ] décider si la traçabilité actuelle via résumé de log suffit, ou si une relation dédiée par objet créé devient nécessaire.
+4. [ ] décider s'il faut enrichir encore la restitution UI des runs réversibles (filtres, exports, diagnostics) ou si le niveau actuel suffit pour le support courant.
 
 ## Questions ouvertes
 
 - Quelle politique exacte veut-on pour l'import comptable si des écritures auto-générées existent déjà côté gestion ?
 - Souhaite-t-on conserver un mode d'import partiel avec avertissements, ou viser un mode strictement bloquant dès qu'une feuille reconnue est incohérente ?
-- Faut-il rester sur une traçabilité journalisée dans le résumé d'import, ou faut-il lier explicitement chaque objet créé à un import source par une relation dédiée ?
+- Souhaite-t-on garder durablement le double historique `runs réversibles + import_logs legacy`, ou planifier une migration complète des anciens logs vers un format plus homogène ?
 
 ## Journal synthétique
+
+### 2026-04-20
+
+- BL-004 a ajouté un journal d'import réversible persistant avec `import_runs`, `import_operations` et `import_effects`.
+- L'API d'import expose désormais un cycle en deux temps `prepare -> execute -> undo/redo`, complété par un historique unifié `runs + import_logs`.
+- L'UI d'import a été réorganisée autour d'une synthèse courte, d'onglets dédiés, d'une table d'opérations filtrable et d'une page séparée pour l'historique.
+- La préparation `Gestion` sait maintenant accepter un paiement rapproché contre une facture seulement planifiée dans le même run, même si les onglets du classeur sont dans un ordre défavorable.
+- La stabilisation BL-004 a aussi supprimé des erreurs async sur le chemin d'exécution facture/paiement dans le moteur réversible.
 
 ### 2026-04-11
 

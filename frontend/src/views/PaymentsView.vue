@@ -392,7 +392,8 @@ const isClientPaymentMethodLocked = computed(
     (editingPayment.value.method === 'especes' || editingPayment.value.method === 'cheque'),
 )
 const isCashPaymentLocked = computed(
-  () => editingPayment.value?.invoice_type === 'client' && editingPayment.value.method === 'especes',
+  () =>
+    editingPayment.value?.invoice_type === 'client' && editingPayment.value.method === 'especes',
 )
 const yesNoOptions = computed(() => [
   { label: t('common.yes'), value: true },

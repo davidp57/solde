@@ -25,11 +25,12 @@ Cette procédure sert de check-list opératoire et de base pour les futures rép
 ## Check-list avant import
 
 1. Ouvrir la preview du fichier visé.
-2. Vérifier que `can_import` est vrai.
-3. Lire les avertissements feuille par feuille.
-4. Vérifier les compteurs `ignored_rows` et `blocked_rows`.
-5. Confirmer que les lignes ignorées correspondent bien à des cas attendus : doublons intra-fichier, données déjà présentes en base, feuilles auxiliaires.
-6. Si la preview est bloquée, ne pas forcer l'import : corriger la donnée ou la stratégie d'import d'abord.
+2. Vérifier que le run préparé est exécutable (`can_execute = true`).
+3. Relire l'onglet de détails des opérations préparées, surtout les lignes bloquantes ou ignorées.
+4. Lire les avertissements feuille par feuille.
+5. Vérifier les compteurs `ignored_rows` et `blocked_rows`.
+6. Confirmer que les lignes ignorées correspondent bien à des cas attendus : doublons intra-fichier, données déjà présentes en base, feuilles auxiliaires.
+7. Si la preview est bloquée, ne pas forcer l'import : corriger la donnée ou la stratégie d'import d'abord.
 
 ## Cas de blocage attendus
 
@@ -66,11 +67,12 @@ Cette procédure sert de check-list opératoire et de base pour les futures rép
 ## Contrôles après import
 
 1. Vérifier le résumé global : objets créés, lignes ignorées, lignes bloquées, avertissements.
-2. Relire le détail par feuille dans l'interface.
+2. Relire dans l'interface le détail par feuille et, si besoin, la liste des opérations exécutées dans l'historique des imports.
 3. Vérifier que les objets créés attendus sont visibles dans l'application.
 4. Vérifier que les écritures importées ou générées sont rattachées au bon exercice quand celui-ci existe déjà.
 5. Pour un import `Gestion`, vérifier qu'aucune erreur d'écriture comptable n'a été remontée en avertissement.
-6. Si un comportement inattendu apparaît, consulter le journal d'import en base pour récupérer le hash, le statut et le résumé sérialisé.
+6. Si un comportement inattendu apparaît mais que l'import est techniquement cohérent, utiliser d'abord l'`undo` du run ou de l'opération concernée avant d'envisager une restauration complète de base.
+7. Si un comportement inattendu apparaît, consulter l'historique des imports ou les tables `import_runs` / `import_operations` / `import_effects` pour récupérer le hash, le statut et les effets enregistrés ; les anciens `import_logs` restent utiles pour les imports legacy.
 
 ## Clôture des exercices historiques importés
 
@@ -86,12 +88,13 @@ Cette distinction évite de dupliquer dans Solde des écritures de clôture déj
 ## Stratégie de secours
 
 1. Si la preview est bloquée : ne rien importer et corriger la source ou la stratégie.
-2. Si l'import échoue en cours : considérer l'import comme annulé ; le rollback global doit empêcher les persistances partielles.
-3. Si l'import a réussi mais le résultat est métierment faux : restaurer la sauvegarde de base avant de recommencer avec une source corrigée.
-4. Si un doute persiste sur la coexistence gestion/comptabilité : repartir d'une base restaurée, rejouer `Gestion`, puis importer `Comptabilite` pour mesurer précisément les lignes nouvelles et les doublons exacts ignorés.
+2. Si l'import échoue en cours : considérer le run comme non exploitable ; l'exécution doit s'arrêter sur l'opération fautive et laisser un état diagnostiquable.
+3. Si l'import a réussi mais le résultat est métierment faux et que l'état courant n'a pas divergé : utiliser l'`undo` du run complet ou de l'opération ciblée.
+4. Si l'`undo` strict refuse de s'exécuter parce que les objets ont été modifiés après coup : restaurer la sauvegarde de base avant de recommencer avec une source corrigée.
+5. Si un doute persiste sur la coexistence gestion/comptabilité : repartir d'une base restaurée, rejouer `Gestion`, puis importer `Comptabilite` pour mesurer précisément les lignes nouvelles et les doublons exacts ignorés.
 
 ## Limitations connues
 
-- La traçabilité détaillée des objets créés est journalisée dans le résumé du log d'import, mais pas encore exposée par une relation dédiée en base.
+- Les imports legacy déjà présents avant BL-004 restent consultables via `import_logs`, mais ils ne sont pas réversibles au même niveau de détail que les nouveaux runs.
 - La coexistence repose sur une déduplication exacte de lignes comptables ; elle ne couvre pas encore les doublons "métier" proches mais non identiques.
 - Les exports historiques actuellement utilisés pour le rejeu couvrent un périmètre de dates plus large que leur seul nom de fichier ; il faut donc préparer tous les exercices réellement couverts avant de juger le rattachement comptable.
