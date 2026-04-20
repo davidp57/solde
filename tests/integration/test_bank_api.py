@@ -45,6 +45,104 @@ async def _make_payment(db_session: AsyncSession) -> int:
     return p.id
 
 
+async def _make_client_invoice(
+    db_session: AsyncSession,
+    *,
+    number: str = "F-2024-101",
+    total_amount: Decimal = Decimal("150.00"),
+) -> Invoice:
+    contact = Contact(type=ContactType.CLIENT, nom="Virement Client")
+    db_session.add(contact)
+    await db_session.flush()
+
+    invoice = Invoice(
+        number=number,
+        type=InvoiceType.CLIENT,
+        contact_id=contact.id,
+        date=date(2024, 3, 1),
+        total_amount=total_amount,
+        paid_amount=Decimal("0"),
+        status=InvoiceStatus.SENT,
+    )
+    db_session.add(invoice)
+    await db_session.commit()
+    await db_session.refresh(invoice)
+    return invoice
+
+
+async def _make_client_virement_payment(
+    db_session: AsyncSession,
+    *,
+    number: str = "F-2024-103",
+    amount: Decimal = Decimal("150.00"),
+) -> Payment:
+    invoice = await _make_client_invoice(
+        db_session,
+        number=number,
+        total_amount=amount,
+    )
+    payment = Payment(
+        invoice_id=invoice.id,
+        contact_id=invoice.contact_id,
+        amount=amount,
+        date=date(2024, 3, 14),
+        method=PaymentMethod.VIREMENT,
+        reference="LEGACY-VIR-001",
+        deposited=False,
+    )
+    db_session.add(payment)
+    await db_session.commit()
+    await db_session.refresh(payment)
+    return payment
+
+
+async def _make_supplier_invoice(
+    db_session: AsyncSession,
+    *,
+    number: str = "A-2024-001",
+    total_amount: Decimal = Decimal("200.00"),
+) -> Invoice:
+    contact = Contact(type=ContactType.FOURNISSEUR, nom="Fournisseur Test")
+    db_session.add(contact)
+    await db_session.flush()
+
+    invoice = Invoice(
+        number=number,
+        type=InvoiceType.FOURNISSEUR,
+        contact_id=contact.id,
+        date=date(2024, 3, 1),
+        total_amount=total_amount,
+        paid_amount=Decimal("0"),
+        status=InvoiceStatus.SENT,
+        reference="FAC-FOURN-001",
+    )
+    db_session.add(invoice)
+    await db_session.commit()
+    await db_session.refresh(invoice)
+    return invoice
+
+
+async def _make_supplier_virement_payment(
+    db_session: AsyncSession,
+    *,
+    amount: Decimal = Decimal("200.00"),
+) -> Payment:
+    invoice = await _make_supplier_invoice(db_session, total_amount=amount)
+    payment = Payment(
+        invoice_id=invoice.id,
+        contact_id=invoice.contact_id,
+        amount=amount,
+        date=date(2024, 3, 14),
+        method=PaymentMethod.VIREMENT,
+        reference="FOURN-VIR-001",
+        deposited=False,
+    )
+    db_session.add(payment)
+    await db_session.commit()
+    await db_session.refresh(payment)
+    return payment
+
+
 @pytest.mark.asyncio
 async def test_get_balance_empty(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     response = await client.get("/api/bank/balance", headers=auth_headers)
@@ -272,4 +370,418 @@ async def test_import_csv(client: AsyncClient, admin_user: User, auth_headers: d
     data = response.json()
     assert len(data) == 2
     assert data[0]["amount"] == "150.00"
+    assert data[0]["detected_category"] == "customer_payment"
     assert data[1]["amount"] == "-45.50"
+    assert data[1]["detected_category"] == "sepa_debit"
+
+
+@pytest.mark.asyncio
+async def test_create_client_payment_from_bank_transaction(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    invoice = await _make_client_invoice(db_session)
+
+    create_tx_response = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2024-03-15",
+            "amount": "150.00",
+            "description": "VIR DUPONT",
+            "reference": "VIR-2024-001",
+            "source": "import",
+        },
+        headers=auth_headers,
+    )
+    assert create_tx_response.status_code == 201
+    tx_id = create_tx_response.json()["id"]
+
+    reconcile_response = await client.post(
+        f"/api/bank/transactions/{tx_id}/create-client-payment",
+        json={"invoice_id": invoice.id},
+        headers=auth_headers,
+    )
+
+    assert reconcile_response.status_code == 201
+    data = reconcile_response.json()
+    assert data["reconciled"] is True
+    assert data["reconciled_with"] == invoice.number
+    assert data["payment_id"] is not None
+
+    payment = await db_session.get(Payment, data["payment_id"])
+    assert payment is not None
+    assert payment.invoice_id == invoice.id
+    assert payment.contact_id == invoice.contact_id
+    assert payment.amount == Decimal("150.00")
+    assert payment.date == date(2024, 3, 15)
+    assert payment.method == PaymentMethod.VIREMENT
+    assert payment.reference == "VIR-2024-001"
+
+
+@pytest.mark.asyncio
+async def test_create_client_payments_from_bank_transaction(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    contact = Contact(type=ContactType.CLIENT, nom="Virement Groupe")
+    db_session.add(contact)
+    await db_session.flush()
+
+    invoice_one = Invoice(
+        number="F-2024-301",
+        type=InvoiceType.CLIENT,
+        contact_id=contact.id,
+        date=date(2024, 3, 1),
+        total_amount=Decimal("70.00"),
+        paid_amount=Decimal("0"),
+        status=InvoiceStatus.SENT,
+    )
+    invoice_two = Invoice(
+        number="F-2024-302",
+        type=InvoiceType.CLIENT,
+        contact_id=contact.id,
+        date=date(2024, 3, 2),
+        total_amount=Decimal("50.00"),
+        paid_amount=Decimal("0"),
+        status=InvoiceStatus.SENT,
+    )
+    db_session.add_all([invoice_one, invoice_two])
+    await db_session.commit()
+    await db_session.refresh(invoice_one)
+    await db_session.refresh(invoice_two)
+
+    create_tx_response = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2024-03-15",
+            "amount": "120.00",
+            "description": "VIR CLIENT GROUPE",
+            "reference": "VIR-2024-002",
+            "source": "import",
+        },
+        headers=auth_headers,
+    )
+    assert create_tx_response.status_code == 201
+    tx_id = create_tx_response.json()["id"]
+
+    reconcile_response = await client.post(
+        f"/api/bank/transactions/{tx_id}/create-client-payments",
+        json={
+            "allocations": [
+                {"invoice_id": invoice_one.id, "amount": "70.00"},
+                {"invoice_id": invoice_two.id, "amount": "50.00"},
+            ]
+        },
+        headers=auth_headers,
+    )
+
+    assert reconcile_response.status_code == 201
+    data = reconcile_response.json()
+    assert data["reconciled"] is True
+    assert data["payment_id"] is None
+    assert len(data["payment_ids"]) == 2
+
+    payments = list(
+        (
+            await db_session.execute(
+                select(Payment)
+                .where(Payment.id.in_(data["payment_ids"]))
+                .order_by(Payment.id.asc())
+            )
+        ).scalars()
+    )
+    assert [payment.invoice_id for payment in payments] == [invoice_one.id, invoice_two.id]
+    assert all(payment.method == PaymentMethod.VIREMENT for payment in payments)
+    assert all(payment.deposited is True for payment in payments)
+    assert all(payment.deposit_date == date(2024, 3, 15) for payment in payments)
+
+    await db_session.refresh(invoice_one)
+    await db_session.refresh(invoice_two)
+    assert invoice_one.status == InvoiceStatus.PAID
+    assert invoice_two.status == InvoiceStatus.PAID
+
+
+@pytest.mark.asyncio
+async def test_create_client_payment_from_debit_transaction_is_rejected(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    invoice = await _make_client_invoice(
+        db_session,
+        number="F-2024-102",
+        total_amount=Decimal("45.50"),
+    )
+
+    create_tx_response = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2024-03-15",
+            "amount": "-45.50",
+            "description": "PRLV EDF",
+            "source": "import",
+        },
+        headers=auth_headers,
+    )
+    assert create_tx_response.status_code == 201
+    tx_id = create_tx_response.json()["id"]
+
+    reconcile_response = await client.post(
+        f"/api/bank/transactions/{tx_id}/create-client-payment",
+        json={"invoice_id": invoice.id},
+        headers=auth_headers,
+    )
+
+    assert reconcile_response.status_code == 422
+    assert (
+        reconcile_response.json()["detail"]
+        == "only positive bank transactions can create client payments"
+    )
+
+
+@pytest.mark.asyncio
+async def test_link_existing_client_payment_to_bank_transaction(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    payment = await _make_client_virement_payment(db_session)
+
+    create_tx_response = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2024-03-15",
+            "amount": "150.00",
+            "description": "VIR DUPONT",
+            "reference": "VIR-2024-001",
+            "source": "import",
+        },
+        headers=auth_headers,
+    )
+    assert create_tx_response.status_code == 201
+    tx_id = create_tx_response.json()["id"]
+
+    link_response = await client.post(
+        f"/api/bank/transactions/{tx_id}/link-client-payment",
+        json={"payment_id": payment.id},
+        headers=auth_headers,
+    )
+
+    assert link_response.status_code == 200
+    data = link_response.json()
+    assert data["reconciled"] is True
+    assert data["payment_id"] == payment.id
+
+    await db_session.refresh(payment)
+    assert payment.deposited is True
+    assert payment.deposit_date == date(2024, 3, 15)
+
+
+@pytest.mark.asyncio
+async def test_link_existing_client_payments_to_bank_transaction(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    payment_one = await _make_client_virement_payment(
+        db_session,
+        number="F-2024-104",
+        amount=Decimal("70.00"),
+    )
+    payment_two = await _make_client_virement_payment(
+        db_session,
+        number="F-2024-105",
+        amount=Decimal("50.00"),
+    )
+
+    create_tx_response = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2024-03-15",
+            "amount": "120.00",
+            "description": "VIR DUPONT GROUPE",
+            "reference": "VIR-2024-003",
+            "source": "import",
+        },
+        headers=auth_headers,
+    )
+    assert create_tx_response.status_code == 201
+    tx_id = create_tx_response.json()["id"]
+
+    link_response = await client.post(
+        f"/api/bank/transactions/{tx_id}/link-client-payments",
+        json={"payment_ids": [payment_one.id, payment_two.id]},
+        headers=auth_headers,
+    )
+
+    assert link_response.status_code == 200
+    data = link_response.json()
+    assert data["reconciled"] is True
+    assert data["payment_id"] is None
+    assert data["payment_ids"] == [payment_one.id, payment_two.id]
+
+    await db_session.refresh(payment_one)
+    await db_session.refresh(payment_two)
+    assert payment_one.deposited is True
+    assert payment_two.deposited is True
+    assert payment_one.deposit_date == date(2024, 3, 15)
+    assert payment_two.deposit_date == date(2024, 3, 15)
+
+
+@pytest.mark.asyncio
+async def test_link_existing_client_payments_rejects_amount_mismatch(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    payment = await _make_client_virement_payment(db_session, amount=Decimal("100.00"))
+
+    create_tx_response = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2024-03-15",
+            "amount": "120.00",
+            "description": "VIR DUPONT GROUPE",
+            "source": "import",
+        },
+        headers=auth_headers,
+    )
+    assert create_tx_response.status_code == 201
+    tx_id = create_tx_response.json()["id"]
+
+    link_response = await client.post(
+        f"/api/bank/transactions/{tx_id}/link-client-payments",
+        json={"payment_ids": [payment.id]},
+        headers=auth_headers,
+    )
+
+    assert link_response.status_code == 422
+    assert (
+        link_response.json()["detail"] == "linked payments total must match bank transaction amount"
+    )
+
+
+@pytest.mark.asyncio
+async def test_link_existing_client_payment_rejects_amount_mismatch(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    payment = await _make_client_virement_payment(db_session, amount=Decimal("120.00"))
+
+    create_tx_response = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2024-03-15",
+            "amount": "150.00",
+            "description": "VIR DUPONT",
+            "source": "import",
+        },
+        headers=auth_headers,
+    )
+    assert create_tx_response.status_code == 201
+    tx_id = create_tx_response.json()["id"]
+
+    link_response = await client.post(
+        f"/api/bank/transactions/{tx_id}/link-client-payment",
+        json={"payment_id": payment.id},
+        headers=auth_headers,
+    )
+
+    assert link_response.status_code == 422
+    assert link_response.json()["detail"] == "bank transaction amount must match payment amount"
+
+
+@pytest.mark.asyncio
+async def test_create_supplier_payment_from_bank_transaction(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    invoice = await _make_supplier_invoice(db_session)
+
+    create_tx_response = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2024-03-15",
+            "amount": "-200.00",
+            "description": "VIR FOURNISSEUR TEST",
+            "reference": "FOURN-2024-001",
+            "source": "import",
+        },
+        headers=auth_headers,
+    )
+    assert create_tx_response.status_code == 201
+    tx_id = create_tx_response.json()["id"]
+
+    reconcile_response = await client.post(
+        f"/api/bank/transactions/{tx_id}/create-supplier-payment",
+        json={"invoice_id": invoice.id},
+        headers=auth_headers,
+    )
+
+    assert reconcile_response.status_code == 201
+    data = reconcile_response.json()
+    assert data["reconciled"] is True
+    assert data["reconciled_with"] == invoice.number
+    assert data["payment_id"] is not None
+
+    payment = await db_session.get(Payment, data["payment_id"])
+    assert payment is not None
+    assert payment.invoice_id == invoice.id
+    assert payment.contact_id == invoice.contact_id
+    assert payment.amount == Decimal("200.00")
+    assert payment.date == date(2024, 3, 15)
+    assert payment.method == PaymentMethod.VIREMENT
+    assert payment.reference == "FOURN-2024-001"
+    assert payment.deposited is True
+    assert payment.deposit_date == date(2024, 3, 15)
+
+
+@pytest.mark.asyncio
+async def test_link_existing_supplier_payment_to_bank_transaction(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    payment = await _make_supplier_virement_payment(db_session)
+
+    create_tx_response = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2024-03-15",
+            "amount": "-200.00",
+            "description": "VIR FOURNISSEUR TEST",
+            "reference": "FOURN-2024-001",
+            "source": "import",
+        },
+        headers=auth_headers,
+    )
+    assert create_tx_response.status_code == 201
+    tx_id = create_tx_response.json()["id"]
+
+    link_response = await client.post(
+        f"/api/bank/transactions/{tx_id}/link-supplier-payment",
+        json={"payment_id": payment.id},
+        headers=auth_headers,
+    )
+
+    assert link_response.status_code == 200
+    data = link_response.json()
+    assert data["reconciled"] is True
+    assert data["payment_id"] == payment.id
+
+    await db_session.refresh(payment)
+    assert payment.deposited is True
+    assert payment.deposit_date == date(2024, 3, 15)

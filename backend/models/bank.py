@@ -22,6 +22,22 @@ class BankTransactionSource(StrEnum):
     SYSTEM_OPENING = "system_opening"
 
 
+class BankTransactionCategory(StrEnum):
+    UNCATEGORIZED = "uncategorized"
+    CUSTOMER_PAYMENT = "customer_payment"
+    CHEQUE_DEPOSIT = "cheque_deposit"
+    CASH_DEPOSIT = "cash_deposit"
+    SUPPLIER_PAYMENT = "supplier_payment"
+    SALARY = "salary"
+    SOCIAL_CHARGE = "social_charge"
+    BANK_FEE = "bank_fee"
+    INTERNAL_TRANSFER = "internal_transfer"
+    GRANT = "grant"
+    SEPA_DEBIT = "sepa_debit"
+    OTHER_CREDIT = "other_credit"
+    OTHER_DEBIT = "other_debit"
+
+
 class DepositType(StrEnum):
     CHEQUES = "cheques"
     ESPECES = "especes"
@@ -32,6 +48,15 @@ deposit_payments = Table(
     "deposit_payments",
     Base.metadata,
     SAColumn("deposit_id", ForeignKey("deposits.id"), primary_key=True),
+    SAColumn("payment_id", ForeignKey("payments.id"), primary_key=True),
+)
+
+
+# Association table: bank transaction ↔ payments
+bank_transaction_payments = Table(
+    "bank_transaction_payments",
+    Base.metadata,
+    SAColumn("transaction_id", ForeignKey("bank_transactions.id"), primary_key=True),
     SAColumn("payment_id", ForeignKey("payments.id"), primary_key=True),
 )
 
@@ -51,6 +76,12 @@ class BankTransaction(Base):
     reconciled_with: Mapped[str | None] = mapped_column(String(100), nullable=True)
     source: Mapped[BankTransactionSource] = mapped_column(
         String(10), nullable=False, default=BankTransactionSource.MANUAL
+    )
+    detected_category: Mapped[BankTransactionCategory] = mapped_column(
+        String(30), nullable=False, default=BankTransactionCategory.UNCATEGORIZED, index=True
+    )
+    payment_id: Mapped[int | None] = mapped_column(
+        ForeignKey("payments.id"), nullable=True, index=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()

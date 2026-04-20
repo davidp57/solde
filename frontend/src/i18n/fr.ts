@@ -500,11 +500,12 @@ export default {
     deposits_empty: 'Aucun bordereau ne correspond aux filtres actuels.',
     new_transaction: 'Nouvelle opération',
     new_deposit: 'Nouveau bordereau',
+    import_statement: 'Importer un relevé',
     import_csv: 'Importer CSV',
     transaction_intro:
       'Ajoutez une opération manuelle avec son solde après écriture pour garder un rapprochement lisible.',
     import_intro:
-      'Collez le relevé CSV exporté par la banque pour importer rapidement plusieurs opérations.',
+      'Chargez un relevé bancaire au format CSV, OFX ou QIF pour importer rapidement plusieurs opérations.',
     deposit_intro:
       'Constituez un bordereau propre en regroupant les paiements encore en attente de remise.',
     deposit_selection_title: 'Paiements à inclure',
@@ -517,6 +518,7 @@ export default {
     tx_description: 'Libellé',
     tx_reference: 'Référence',
     tx_balance: 'Solde après',
+    tx_category: 'Catégorie détectée',
     tx_reconciled: 'Rapproché',
     tx_source: 'Source',
     deposit_date: 'Date',
@@ -527,6 +529,69 @@ export default {
     deposit_payments: 'Paiements inclus',
     reconcile: 'Rapprocher',
     reconciled_with: 'Référence pointage',
+    create_client_payment: 'Créer un règlement client',
+    create_client_payment_title: 'Créer un règlement client depuis la banque',
+    create_client_payment_intro:
+      'Utilisez cette ligne créditrice pour créer un règlement client par virement et la rapprocher immédiatement.',
+    create_client_payment_invoice: 'Facture cliente à rattacher',
+    create_client_payment_allocations: 'Ventilation sur les factures clientes',
+    create_client_payment_allocated_amount: 'Montant affecté',
+    create_client_payment_remaining_to_allocate:
+      'Il reste {amount} à ventiler pour pouvoir enregistrer ce virement.',
+    create_client_payment_ready_to_save:
+      'La ventilation couvre exactement le montant du virement. Vous pouvez enregistrer le rapprochement.',
+    create_client_payment_tx_summary: 'Opération du {date} · {amount} · {description}',
+    remaining_amount: 'reste {amount}',
+    create_client_payment_no_invoice:
+      'Aucune facture client ouverte n’est disponible pour ce rattachement.',
+    create_client_payment_success:
+      '{count} règlement(s) client créé(s) et ligne bancaire rapprochée.',
+    link_client_payment: 'Lier un règlement existant',
+    link_client_payment_title: 'Confirmer un règlement déjà saisi',
+    link_client_payment_intro:
+      'Sélectionnez un virement client déjà saisi pour confirmer cette ligne bancaire sans recréer un second règlement.',
+    link_client_payment_payments: 'Règlements clients à confirmer',
+    link_client_payment_no_payment:
+      'Aucun règlement client par virement avec le même montant n’est disponible pour cette ligne bancaire.',
+    link_client_payment_remaining_to_match:
+      'Écart restant : {amount} pour atteindre exactement le montant du virement.',
+    link_client_payment_ready_to_confirm:
+      'La sélection correspond exactement au montant du virement. Vous pouvez confirmer le rapprochement.',
+    link_client_payment_success:
+      '{count} règlement(s) existant(s) confirmé(s) et ligne bancaire rapprochée.',
+    create_supplier_payment: 'Créer un règlement fournisseur',
+    create_supplier_payment_title: 'Créer un règlement fournisseur depuis la banque',
+    create_supplier_payment_intro:
+      'Utilisez ce débit bancaire pour créer un règlement fournisseur par virement et le rapprocher immédiatement.',
+    create_supplier_payment_invoice: 'Facture fournisseur à rattacher',
+    create_supplier_payment_no_invoice:
+      'Aucune facture fournisseur ouverte n’est disponible pour ce rattachement.',
+    create_supplier_payment_success: 'Règlement fournisseur créé et ligne bancaire rapprochée.',
+    link_supplier_payment: 'Lier un règlement fournisseur existant',
+    link_supplier_payment_title: 'Confirmer un règlement fournisseur déjà saisi',
+    link_supplier_payment_intro:
+      'Sélectionnez un virement fournisseur déjà saisi pour confirmer ce débit bancaire sans recréer un second règlement.',
+    link_supplier_payment_payment: 'Règlement fournisseur à confirmer',
+    link_supplier_payment_no_payment:
+      'Aucun règlement fournisseur par virement avec le même montant n’est disponible pour cette ligne bancaire.',
+    link_supplier_payment_success:
+      'Règlement fournisseur existant confirmé et ligne bancaire rapprochée.',
+    suggested_candidate_hint: 'La meilleure suggestion a été présélectionnée automatiquement.',
+    categories: {
+      uncategorized: 'À catégoriser',
+      customer_payment: 'Règlement client',
+      cheque_deposit: 'Remise de chèques',
+      cash_deposit: 'Dépôt d’espèces',
+      supplier_payment: 'Paiement fournisseur',
+      salary: 'Salaire',
+      social_charge: 'Charge sociale',
+      bank_fee: 'Frais bancaires',
+      internal_transfer: 'Virement interne',
+      grant: 'Subvention / don',
+      sepa_debit: 'Prélèvement',
+      other_credit: 'Autre crédit',
+      other_debit: 'Autre débit',
+    },
     sources: {
       manual: 'Manuel',
       import: 'Import',
@@ -536,8 +601,11 @@ export default {
       cheques: 'Chèques',
       especes: 'Espèces',
     },
-    import_dialog_title: 'Importer un relevé Crédit Mutuel',
-    import_paste_label: 'Coller le contenu CSV',
+    import_dialog_title: 'Importer un relevé bancaire',
+    import_file_label: 'Fichier',
+    import_pick_file: 'Choisir un fichier',
+    import_no_file: 'Aucun fichier sélectionné',
+    import_file_required: 'Sélectionnez un fichier de relevé avant l’import.',
     import_success: '{n} opération(s) importée(s).',
     metrics: {
       current_balance_caption: 'Toutes périodes confondues',
