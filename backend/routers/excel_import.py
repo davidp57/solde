@@ -135,6 +135,9 @@ def _get_test_import_shortcut_by_alias(alias: str) -> _TestImportShortcut:
 async def _run_test_import_shortcut(
     shortcut: _TestImportShortcut,
     db: AsyncSession,
+    *,
+    comparison_start_date: date | None = None,
+    comparison_end_date: date | None = None,
 ) -> dict[str, object]:
     if shortcut.file_path is None:
         raise HTTPException(
@@ -145,11 +148,22 @@ async def _run_test_import_shortcut(
     path = Path(shortcut.file_path)
     _check_excel_extension(path.name)
     content = _read_path_limited(path)
-    if shortcut.import_type == "gestion":
-        result = await excel_import.import_gestion_file(db, content, path.name)
-    else:
-        result = await excel_import.import_comptabilite_file(db, content, path.name)
-    return result.to_dict()
+    try:
+        run = await import_reversible.prepare_import_run(
+            db,
+            import_type=shortcut.import_type,
+            file_bytes=content,
+            file_name=path.name,
+            comparison_start_date=comparison_start_date,
+            comparison_end_date=comparison_end_date,
+        )
+        serialized_run = import_reversible.serialize_run(run)
+        if serialized_run["can_execute"]:
+            run = await import_reversible.execute_import_run(db, run.id)
+            serialized_run = import_reversible.serialize_run(run)
+    except Exception as exc:  # pragma: no cover - delegated mapping below
+        _raise_import_run_error(exc)
+    return serialized_run
 
 
 def _raise_import_run_error(exc: Exception) -> NoReturn:
@@ -427,8 +441,24 @@ async def run_test_import_shortcut(
     alias: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _WriteAccess,
+    comparison_start_date: date | None = None,
+    comparison_end_date: date | None = None,
 ) -> dict[str, object]:
     """Run a temporary dev-only import shortcut without preview confirmation."""
     _require_test_import_shortcuts_enabled()
+    if (
+        comparison_start_date is not None
+        and comparison_end_date is not None
+        and comparison_start_date > comparison_end_date
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="La date de début doit être inférieure ou égale à la date de fin",
+        )
     shortcut = _get_test_import_shortcut_by_alias(alias)
-    return await _run_test_import_shortcut(shortcut, db)
+    return await _run_test_import_shortcut(
+        shortcut,
+        db,
+        comparison_start_date=comparison_start_date,
+        comparison_end_date=comparison_end_date,
+    )

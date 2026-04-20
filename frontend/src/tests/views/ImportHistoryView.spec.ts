@@ -14,6 +14,10 @@ vi.mock('vue-router', () => ({
 }))
 
 const mockListImportHistoryApi = vi.spyOn(accountingApi, 'listImportHistoryApi')
+const mockUndoImportRunApi = vi.spyOn(accountingApi, 'undoImportRunApi')
+const mockRedoImportRunApi = vi.spyOn(accountingApi, 'redoImportRunApi')
+const mockUndoImportOperationApi = vi.spyOn(accountingApi, 'undoImportOperationApi')
+const mockRedoImportOperationApi = vi.spyOn(accountingApi, 'redoImportOperationApi')
 
 const ButtonStub = defineComponent({
   props: {
@@ -78,6 +82,28 @@ function buildImportHistoryItem(overrides: Record<string, unknown> = {}) {
   } satisfies accountingApi.ImportHistoryItem
 }
 
+function buildImportOperation(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 11,
+    position: 1,
+    operation_type: 'client_invoice_row_import',
+    title: '2025-0142',
+    description: null,
+    source_sheet: 'Factures',
+    source_row_numbers: [2],
+    decision: 'apply' as const,
+    status: 'applied' as const,
+    diagnostics: [],
+    error_message: null,
+    can_undo: true,
+    can_redo: false,
+    effects: [],
+    planned_effects: [],
+    source_data: [],
+    ...overrides,
+  } satisfies accountingApi.ImportOperationRead
+}
+
 async function flushView() {
   await Promise.resolve()
   await nextTick()
@@ -101,6 +127,10 @@ function mountView() {
 describe('ImportHistoryView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUndoImportRunApi.mockReset()
+    mockRedoImportRunApi.mockReset()
+    mockUndoImportOperationApi.mockReset()
+    mockRedoImportOperationApi.mockReset()
   })
 
   it('loads and displays import history with diagnostics and created objects', async () => {
@@ -180,5 +210,126 @@ describe('ImportHistoryView', () => {
 
     expect(wrapper.get('[data-testid="import-history"]').text()).toContain('Erreur 12')
     expect(wrapper.get('[data-testid="history-errors-toggle-1"]').text()).toContain('Réduire')
+  })
+
+  it('shows failed operation errors and allows per-operation undo from history', async () => {
+    mockListImportHistoryApi.mockResolvedValueOnce([
+      buildImportHistoryItem({
+        id: 7,
+        kind: 'run',
+        import_type: 'gestion',
+        status: 'failed',
+        can_undo: true,
+        summary: {
+          contacts_created: 0,
+          invoices_created: 1,
+          payments_created: 0,
+          salaries_created: 0,
+          entries_created: 0,
+          cash_created: 0,
+          bank_created: 0,
+          skipped: 0,
+          ignored_rows: 0,
+          blocked_rows: 0,
+          warnings: [],
+          errors: ['Banque ligne 267 — forced payment generation failure'],
+          warning_details: [],
+          error_details: [],
+          sheets: [],
+          created_objects: [],
+        },
+        operations: [
+          buildImportOperation({
+            id: 41,
+            title: '2025-0142',
+            can_undo: true,
+          }),
+          buildImportOperation({
+            id: 42,
+            title: 'Banque ligne 267',
+            status: 'failed',
+            error_message: 'forced payment generation failure',
+            can_undo: false,
+            diagnostics: ['Paiement client détecté'],
+          }),
+        ],
+      }),
+    ])
+    mockUndoImportOperationApi.mockResolvedValueOnce({} as accountingApi.ImportRunRead)
+    mockListImportHistoryApi.mockResolvedValueOnce([
+      buildImportHistoryItem({
+        id: 7,
+        kind: 'run',
+        import_type: 'gestion',
+        status: 'partially_reverted',
+        can_undo: false,
+        can_redo: true,
+        operations: [
+          buildImportOperation({
+            id: 41,
+            title: '2025-0142',
+            status: 'undone',
+            can_undo: false,
+            can_redo: true,
+          }),
+          buildImportOperation({
+            id: 42,
+            title: 'Banque ligne 267',
+            status: 'failed',
+            error_message: 'forced payment generation failure',
+            can_undo: false,
+          }),
+        ],
+      }),
+    ])
+
+    const wrapper = mountView()
+    await flushView()
+    await flushView()
+
+    expect(wrapper.get('[data-testid="import-history"]').text()).toContain(
+      'forced payment generation failure',
+    )
+    await wrapper.get('[data-testid="history-operation-undo-41"]').trigger('click')
+    await flushView()
+    await flushView()
+
+    expect(mockUndoImportOperationApi).toHaveBeenCalledWith(41)
+    expect(wrapper.get('[data-testid="import-history"]').text()).toContain('Partiellement annulé')
+  })
+
+  it('reloads history after a timeout while undoing a run', async () => {
+    mockListImportHistoryApi.mockResolvedValueOnce([
+      buildImportHistoryItem({
+        id: 9,
+        kind: 'run',
+        import_type: 'gestion',
+        status: 'failed',
+        can_undo: true,
+      }),
+    ])
+    mockUndoImportRunApi.mockRejectedValueOnce({ code: 'ECONNABORTED' })
+    mockListImportHistoryApi.mockResolvedValueOnce([
+      buildImportHistoryItem({
+        id: 9,
+        kind: 'run',
+        import_type: 'gestion',
+        status: 'reverted',
+        can_undo: false,
+        can_redo: true,
+      }),
+    ])
+
+    const wrapper = mountView()
+    await flushView()
+    await flushView()
+
+    await wrapper.findAll('button').find((button) => button.text() === 'Annuler ce run')?.trigger('click')
+    await flushView()
+    await flushView()
+
+    expect(mockUndoImportRunApi).toHaveBeenCalledWith(9)
+    expect(mockListImportHistoryApi).toHaveBeenCalledTimes(2)
+    expect(wrapper.get('[data-testid="import-history"]').text()).toContain('Annulé')
   })
 })
