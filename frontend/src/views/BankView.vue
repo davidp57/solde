@@ -1419,9 +1419,12 @@ const supplierPaymentInvoiceOptions = computed(() => {
       return right.date.localeCompare(left.date)
     })
     .map((invoice) => ({
-      label: `${invoice.number} · ${contactName(invoice.contact_id)} · ${t('bank.remaining_amount', {
-        amount: formatAmount(invoiceRemainingAmount(invoice)),
-      })}`,
+      label: `${invoice.number} · ${contactName(invoice.contact_id)} · ${t(
+        'bank.remaining_amount',
+        {
+          amount: formatAmount(invoiceRemainingAmount(invoice)),
+        },
+      )}`,
       value: invoice.id,
     }))
 })

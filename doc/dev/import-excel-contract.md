@@ -54,6 +54,7 @@ Ambigu :
 Accepté :
 - paiement avec référence de facture résolue sans ambiguïté ;
 - ou paiement sans référence mais rapprochable de façon unique via le contact.
+- en mode réversible, une preview `Gestion` peut rapprocher un paiement contre une facture déjà existante en base ou contre une facture préparée dans le même run, même si l'onglet `Paiements` apparaît avant l'onglet `Factures` dans le classeur.
 
 Ignoré :
 - aucun cas explicite actuellement.
@@ -124,7 +125,9 @@ Ambigu :
 
 Accepté :
 - seules les feuilles reconnues et valides alimentent les compteurs d'import.
-- la traçabilité retenue passe par le journal d'import (`import_logs`) et la liste sérialisée des `created_objects`, sans relation SQL dédiée par objet à ce stade.
+- l'import visible côté produit suit désormais un cycle en deux temps `prepare -> execute` : la preview persistée construit des opérations ordonnées avec une décision `apply` / `ignore` / `block`, puis l'exécution rejoue seulement les opérations applicables.
+- la traçabilité opérationnelle principale passe désormais par `import_runs`, `import_operations` et `import_effects` ; les anciens `import_logs` restent utiles pour l'historique legacy et les résumés sérialisés.
+- `undo` / `redo` sont stricts : une opération ou un run ne peuvent être rejoués que si l'état courant des objets touchés correspond encore à l'état attendu.
 
 Ignoré :
 - feuilles auxiliaires, TODO, reporting, aide à la saisie.
@@ -142,3 +145,4 @@ Ambigu :
 
 - Une partie de l'orchestration preview/import reste dans `excel_import.py`, mais les décisions métier stables et les diagnostics normalisés sont désormais centralisés.
 - Les cas de lignes ignorables sûres restent plus avancés sur `Contacts` et `Factures` que sur les autres feuilles.
+- L'historique unifié mélange désormais deux niveaux de traçabilité : les nouveaux runs réversibles détaillés et les anciens `import_logs` non réversibles, qui restent affichés pour conserver la continuité du support.

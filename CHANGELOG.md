@@ -11,6 +11,12 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+**Import Excel réversible**
+- Journal d'import réversible persistant avec `import_runs`, `import_operations` et `import_effects`
+- Nouveaux endpoints API pour préparer, exécuter, annuler et rejouer un import ou une opération unitaire
+- Historique des imports dédié dans l'interface, séparé de l'écran de préparation
+- Prévisualisation détaillée des opérations préparées, de leurs effets prévus et des données source Excel associées
+
 **Gestion des utilisateurs**
 - Documentation de cadrage `doc/dev/gestion-utilisateurs-et-permissions.md` pour clarifier la cible produit des rôles et la matrice simplifiée des permissions
 - Administration des comptes réservée à l'administrateur avec liste, création, activation/désactivation et changement de rôle
@@ -47,6 +53,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 **Frontend — modernisation de l’interface**
 - Refonte des vues principales avec une présentation plus aérée et cohérente : tableau de bord, contacts, détail contact, factures clients et fournisseurs, paiements, banque, caisse, import Excel, exercices, salaires et écrans comptables (journal, balance, grand livre, résultat, bilan, règles, plan comptable)
 - Harmonisation des dialogues et formulaires métier avec une structure commune (introduction, sections, aides contextuelles) pour les comptes comptables, contacts, factures, salaires, dépôts bancaires, imports, opérations de caisse et saisie manuelle d’écritures
+- L'écran d'import Excel a été réorganisé autour d'une synthèse courte, d'onglets dédiés (`Détails`, `Synthèse complète`, `Avertissements`) et d'une table d'opérations filtrable
 
 **Frontend — mode sombre (dark mode)**
 - `AppLayout.vue`, `LoginView.vue`, `NavMenu.vue`, `SettingsView.vue` : fonds et couleurs rendus réactifs via `v-bind()` CSS couplé à des `computed` Vue (les tokens `--p-surface-N` du thème Aura sont absolus, non réactifs au mode)
@@ -65,6 +72,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `excel_import.py` : support des feuilles Caisse (`caisse`/`cash`) et Banque (`banque`/`bank`/`relev`) dans l'import Excel de gestion ; déduplication des numéros de factures dans le même batch ; création automatique du contact si absent (plutôt que saut de ligne silencieux)
 - sécurité et robustesse revues après commentaires de PR : secret JWT obligatoire hors dev/test, conversion propre des erreurs d'édition manuelle en réponses HTTP, metadata Alembic complétée pour l'autogénération
 - factures clients mixtes `cs+a` : quand la feuille `Factures` expose des montants distincts `cours` et `adhésion`, l'import historique crée les lignes de facture correspondantes et la génération comptable ventile désormais les produits sur les comptes dédiés au lieu d'un seul produit global
+- import réversible BL-004 stabilisé : un paiement préparé peut maintenant se rapprocher d'une facture du même classeur déjà planifiée dans le run, même si l'ordre des onglets est défavorable, et l'exécution facture/paiement ne déclenche plus d'erreurs async sur les snapshots enregistrés
 
 **Frontend — bugfixes interface**
 - `index.html` : correction de `<\/script>` → `</script>` (artefact d'échappement introduit lors de la création du fichier)
