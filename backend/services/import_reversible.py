@@ -2859,6 +2859,7 @@ async def _ensure_effect_matches_state(
     entity = await db.get(model_cls, effect.entity_id)
     if entity is None:
         raise ValueError("Objet introuvable pour vérification stricte")
+    await db.refresh(entity)
     current_snapshot = _serialize_instance(entity)
     current_fingerprint = _snapshot_fingerprint(effect.entity_type, current_snapshot)
     if current_fingerprint != fingerprint:
