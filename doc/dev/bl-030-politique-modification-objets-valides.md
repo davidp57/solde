@@ -23,12 +23,13 @@ La règle générale retenue est la suivante :
 
 - un paiement devient quasi immuable après création ;
 - les champs structurels (`montant`, `date`, `mode`, état de remise) ne sont plus modifiables ;
+- la suppression standard d'un paiement est interdite tant qu'aucun flux d'annulation métier dédié ne prend en charge proprement les effets de trésorerie et de comptabilité ;
 - seules des corrections mineures sans impact structurel restent autorisées : `reference`, `notes`, et `cheque_number` quand il s'agit d'un paiement par chèque.
 
 ## Imports réversibles
 
 - le `undo/redo` des imports réversibles reste strict ;
-- dès qu'un objet issu d'un import diverge manuellement de l'état attendu, le rejeu strict doit être bloqué ;
+- dès qu'un objet issu d'un import diverge manuellement de l'état attendu, y compris via l'API standard de l'objet, le rejeu strict doit être bloqué ;
 - la vérification stricte recharge explicitement l'instance ORM avant de calculer l'empreinte courante, afin d'éviter les faux comportements liés à des attributs expirés.
 
 ## Hors périmètre de ce lot

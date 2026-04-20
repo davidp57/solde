@@ -443,9 +443,11 @@ async def test_delete_payment_reverts_invoice(db_session: AsyncSession) -> None:
     await db_session.refresh(inv)
     assert inv.status == InvoiceStatus.PAID
 
-    await payment_service.delete_payment(db_session, p)
+    with pytest.raises(ValueError, match="payments cannot be deleted after creation"):
+        await payment_service.delete_payment(db_session, p)
+
     await db_session.refresh(inv)
-    assert inv.status == InvoiceStatus.SENT
+    assert inv.status == InvoiceStatus.PAID
 
 
 @pytest.mark.asyncio

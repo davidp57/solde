@@ -18,6 +18,10 @@ class InvoiceNotFoundError(LookupError):
     """Raised when a payment references an invoice that does not exist."""
 
 
+class PaymentDeleteError(ValueError):
+    """Raised when a payment deletion is not allowed in the standard workflow."""
+
+
 async def _attach_invoice_number(db: AsyncSession, payment: Payment) -> Payment:
     """Populate transient invoice metadata used by API responses."""
     result = await db.execute(
@@ -202,12 +206,8 @@ async def update_payment(db: AsyncSession, payment: Payment, payload: PaymentUpd
 
 
 async def delete_payment(db: AsyncSession, payment: Payment) -> None:
-    """Delete a payment and recalculate the invoice status."""
-    invoice_id = payment.invoice_id
-    await db.delete(payment)
-    await db.flush()
-    await _refresh_invoice_status(db, invoice_id)
-    await db.commit()
+    """Block payment deletion until a dedicated reversal workflow exists."""
+    raise PaymentDeleteError("payments cannot be deleted after creation")
 
 
 async def _get_invoice_type(db: AsyncSession, invoice_id: int) -> InvoiceType | None:

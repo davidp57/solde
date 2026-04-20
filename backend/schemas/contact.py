@@ -9,7 +9,7 @@ from pydantic import BaseModel, EmailStr, field_validator
 from backend.models.contact import ContactType
 
 
-class ContactBase(BaseModel):
+class ContactWriteBase(BaseModel):
     type: ContactType
     nom: str
     prenom: str | None = None
@@ -26,7 +26,7 @@ class ContactBase(BaseModel):
         return v.strip()
 
 
-class ContactCreate(ContactBase):
+class ContactCreate(ContactWriteBase):
     pass
 
 
@@ -50,8 +50,15 @@ class ContactUpdate(BaseModel):
         return v.strip() if v else v
 
 
-class ContactRead(ContactBase):
+class ContactRead(BaseModel):
     id: int
+    type: ContactType
+    nom: str
+    prenom: str | None = None
+    email: str | None = None
+    telephone: str | None = None
+    adresse: str | None = None
+    notes: str | None = None
     is_active: bool
     created_at: datetime
     updated_at: datetime
