@@ -133,6 +133,12 @@ const router = createRouter({
           meta: { requiresAccounting: true },
         },
         {
+          path: 'import/history',
+          name: 'import-history',
+          component: () => import('../views/ImportHistoryView.vue'),
+          meta: { requiresAccounting: true },
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('../views/SettingsView.vue'),

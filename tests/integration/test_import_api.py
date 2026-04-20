@@ -2,14 +2,21 @@
 
 import io
 import json
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from backend.models.import_log import ImportLog
+from backend.models.import_log import ImportLog, ImportLogStatus, ImportLogType
+from backend.models.import_run import (
+    ImportOperation,
+    ImportOperationDecision,
+    ImportOperationStatus,
+    ImportRun,
+    ImportRunStatus,
+)
 
 try:
     import openpyxl
@@ -20,6 +27,28 @@ except ImportError:
 
 
 _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _build_import_log_summary(**overrides: object) -> dict[str, object]:
+    return {
+        "contacts_created": 0,
+        "invoices_created": 0,
+        "payments_created": 0,
+        "salaries_created": 0,
+        "entries_created": 0,
+        "cash_created": 0,
+        "bank_created": 0,
+        "skipped": 0,
+        "ignored_rows": 0,
+        "blocked_rows": 0,
+        "warnings": [],
+        "errors": [],
+        "warning_details": [],
+        "error_details": [],
+        "sheets": [],
+        "created_objects": [],
+        **overrides,
+    }
 
 
 def _make_simple_xlsx(headers: list[str], rows: list[list]) -> bytes:
@@ -75,6 +104,196 @@ async def test_import_requires_auth(client: AsyncClient) -> None:
     """Import endpoints require authentication."""
     response = await client.post("/api/import/excel/gestion")
     assert response.status_code in (401, 422)
+
+
+@pytest.mark.asyncio
+async def test_import_history_requires_auth(client: AsyncClient) -> None:
+    """Import history endpoint requires authentication."""
+    response = await client.get("/api/import/history")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_import_history_lists_recent_logs_with_parsed_summary(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Import history should expose recent logs with parsed counters and traceability."""
+    older_log = ImportLog(
+        import_type=ImportLogType.GESTION,
+        status=ImportLogStatus.SUCCESS,
+        file_hash="a" * 64,
+        file_name="Gestion 2024.xlsx",
+        summary=json.dumps(
+            _build_import_log_summary(
+                contacts_created=1,
+                warnings=["Factures — Ligne ignorée"],
+                created_objects=[
+                    {
+                        "sheet_name": "Factures",
+                        "kind": "invoices",
+                        "object_type": "invoice",
+                        "object_id": 12,
+                        "reference": "FAC-2024-001",
+                        "details": {"contact_name": "Alice Martin"},
+                    }
+                ],
+            ),
+            ensure_ascii=False,
+        ),
+        created_at=date(2026, 4, 18),
+    )
+    newer_log = ImportLog(
+        import_type=ImportLogType.COMPTABILITE,
+        status=ImportLogStatus.FAILED,
+        file_hash="b" * 64,
+        file_name="Comptabilite 2025.xlsx",
+        summary=json.dumps(
+            _build_import_log_summary(
+                entries_created=4,
+                blocked_rows=2,
+                errors=["Journal — Compte manquant"],
+                sheets=[
+                    {
+                        "name": "Journal",
+                        "kind": "entries",
+                        "imported_rows": 4,
+                        "ignored_rows": 0,
+                        "blocked_rows": 2,
+                        "warnings": [],
+                        "errors": ["Compte manquant"],
+                    }
+                ],
+            ),
+            ensure_ascii=False,
+        ),
+        created_at=date(2026, 4, 20),
+    )
+    db_session.add_all([older_log, newer_log])
+    await db_session.commit()
+
+    response = await client.get("/api/import/history", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [item["file_name"] for item in data] == [
+        "Comptabilite 2025.xlsx",
+        "Gestion 2024.xlsx",
+    ]
+    assert data[0]["status"] == "failed"
+    assert data[0]["summary"]["entries_created"] == 4
+    assert data[0]["summary"]["blocked_rows"] == 2
+    assert data[0]["summary"]["errors"] == ["Journal — Compte manquant"]
+    assert data[0]["summary"]["sheets"][0]["name"] == "Journal"
+    assert data[1]["summary"]["contacts_created"] == 1
+    assert data[1]["summary"]["created_objects"][0]["reference"] == "FAC-2024-001"
+
+
+@pytest.mark.asyncio
+async def test_import_history_tolerates_invalid_serialized_summary(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Import history should not fail when a legacy log contains invalid JSON."""
+    db_session.add(
+        ImportLog(
+            import_type=ImportLogType.GESTION,
+            status=ImportLogStatus.BLOCKED,
+            file_hash="c" * 64,
+            file_name="Gestion legacy.xlsx",
+            summary="{invalid",
+            created_at=date(2026, 4, 19),
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/import/history", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data[0]["file_name"] == "Gestion legacy.xlsx"
+    assert data[0]["summary"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_import_run_exposes_source_data_for_blocked_operations(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Prepared runs should expose normalized Excel source data for blocked operations."""
+    run = ImportRun(
+        import_type="comptabilite",
+        status=ImportRunStatus.BLOCKED,
+        file_hash="d" * 64,
+        file_name="Comptabilite 2025.xlsx",
+        created_at=datetime(2026, 4, 20, 10, 0, 0),
+        updated_at=datetime(2026, 4, 20, 10, 0, 0),
+    )
+    db_session.add(run)
+    await db_session.flush()
+
+    db_session.add(
+        ImportOperation(
+            run_id=run.id,
+            position=1,
+            operation_type="blocked_by_validation",
+            title="Ligne 14",
+            description="Compte 706200 absent du plan comptable",
+            source_sheet="Journal",
+            source_row_numbers_json=json.dumps([14], ensure_ascii=False),
+            decision=ImportOperationDecision.BLOCK,
+            status=ImportOperationStatus.BLOCKED,
+            payload_json=json.dumps(
+                {
+                    "row": {
+                        "source_row_number": 14,
+                        "entry_date": "2025-09-15",
+                        "account_number": "706200",
+                        "label": "Cours septembre",
+                        "debit": "0",
+                        "credit": "85",
+                    }
+                },
+                ensure_ascii=False,
+            ),
+            diagnostics_json=json.dumps(
+                ["Journal — Ligne 14 : compte comptable introuvable"],
+                ensure_ascii=False,
+            ),
+            error_message="Compte comptable introuvable",
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get(f"/api/import/runs/{run.id}", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["operations"][0]["source_data"] == [
+        {
+            "source_row_number": 14,
+            "entry_date": "2025-09-15",
+            "account_number": "706200",
+            "label": "Cours septembre",
+            "debit": "0",
+            "credit": "85",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_get_import_run_returns_localized_404(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    """Missing reversible runs should return a localized not-found message."""
+    response = await client.get("/api/import/runs/999999", headers=auth_headers)
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Import préparé introuvable (id : 999999)"}
 
 
 @pytest.mark.asyncio
@@ -384,6 +603,120 @@ async def test_preview_gestion_comparison_summarizes_existing_missing_and_ignore
         "ignored_by_policy": 1,
         "blocked": 0,
     }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_prepare_run_keeps_source_data_for_ignored_operations(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+
+    contact = Contact(nom="LOPES", prenom="Christine", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+    db_session.add(
+        Invoice(
+            number="2025-0142",
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 8, 1),
+            total_amount=Decimal("55.00"),
+            paid_amount=Decimal("0.00"),
+            status=InvoiceStatus.DRAFT,
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [
+                    ["2025-08-01", "2025-0142", "Christine LOPES", 55],
+                    ["2025-08-02", "2025-0143", "Christine LOPES", 75],
+                    ["2025-08-02", "2025-0143", "Christine LOPES", 75],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    ignored_operations = [
+        operation for operation in data["operations"] if operation["decision"] == "ignore"
+    ]
+    assert ignored_operations
+    assert all(operation["source_data"] for operation in ignored_operations)
+    assert any(
+        source_row.get("invoice_number") == "2025-0142"
+        for operation in ignored_operations
+        for source_row in operation["source_data"]
+    )
+    assert any(
+        source_row.get("Réf facture") == "2025-0143"
+        for operation in ignored_operations
+        for source_row in operation["source_data"]
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_prepare_accepts_payment_matched_against_planned_invoice(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    """Prepared runs should accept payments matched to invoices planned in the same workbook."""
+    content = _make_multi_sheet_xlsx(
+        {
+            "Paiements": (
+                ["Réf facture", "Adhérent", "Montant", "Date paiement"],
+                [["2025-0142", "Christine LOPES", 55, "2025-08-02"]],
+            ),
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    prepared_run = prepare_response.json()
+    assert prepared_run["status"] == "prepared"
+    assert prepared_run["can_execute"] is True
+    assert [operation["operation_type"] for operation in prepared_run["operations"]] == [
+        "client_invoice_row_import",
+        "client_payment_row_import",
+    ]
+    assert all(operation["decision"] == "apply" for operation in prepared_run["operations"])
+
+    execute_response = await client.post(
+        f"/api/import/runs/{prepared_run['id']}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    assert executed_run["status"] == "completed"
+    assert executed_run["summary"]["contacts_created"] == 1
+    assert executed_run["summary"]["invoices_created"] == 1
+    assert executed_run["summary"]["payments_created"] == 1
+    assert all(operation["status"] == "applied" for operation in executed_run["operations"])
 
 
 @pytest.mark.asyncio
@@ -1081,6 +1414,230 @@ async def test_preview_and_import_gestion_accept_contacts_sheet_without_prenom(
 
     contacts = list((await db_session.execute(select(Contact).order_by(Contact.nom))).scalars())
     assert [(contact.nom, contact.prenom) for contact in contacts] == [
+        ("BE NGUYEN", "Thi"),
+        ("LOPES", "Christine"),
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_import_run_prepare_execute_undo_redo_cycle(
+    client: AsyncClient, auth_headers: dict, db_session
+) -> None:
+    """A prepared reversible run should execute, undo, and redo a simple contacts import."""
+    from backend.models.contact import Contact
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Contacts": (
+                ["Nom", "Email"],
+                [
+                    ["Christine LOPES", "christine@example.test"],
+                    ["Thi BE NGUYEN", "thi@example.test"],
+                ],
+            )
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    prepared_run = prepare_response.json()
+    run_id = prepared_run["id"]
+    assert prepared_run["status"] == "prepared"
+    assert prepared_run["can_execute"] is True
+    assert prepared_run["preview"]["estimated_contacts"] == 2
+    assert [operation["operation_type"] for operation in prepared_run["operations"]] == [
+        "contact_row_import",
+        "contact_row_import",
+    ]
+
+    execute_response = await client.post(
+        f"/api/import/runs/{run_id}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    assert executed_run["status"] == "completed"
+    assert executed_run["summary"]["contacts_created"] == 2
+    assert executed_run["can_undo"] is True
+    assert all(operation["status"] == "applied" for operation in executed_run["operations"])
+
+    contacts = list((await db_session.execute(select(Contact).order_by(Contact.nom))).scalars())
+    assert [(contact.nom, contact.prenom) for contact in contacts] == [
+        ("BE NGUYEN", "Thi"),
+        ("LOPES", "Christine"),
+    ]
+
+    history_response = await client.get("/api/import/history", headers=auth_headers)
+
+    assert history_response.status_code == 200
+    history = history_response.json()
+    assert history[0]["kind"] == "run"
+    assert history[0]["id"] == run_id
+    assert history[0]["status"] == "completed"
+    assert history[0]["summary"]["contacts_created"] == 2
+
+    undo_response = await client.post(
+        f"/api/import/runs/{run_id}/undo",
+        headers=auth_headers,
+    )
+
+    assert undo_response.status_code == 200
+    undone_run = undo_response.json()
+    assert undone_run["status"] == "reverted"
+    assert undone_run["can_redo"] is True
+    assert all(operation["status"] == "undone" for operation in undone_run["operations"])
+
+    contacts_after_undo = list(
+        (await db_session.execute(select(Contact).order_by(Contact.nom))).scalars()
+    )
+    assert contacts_after_undo == []
+
+    redo_response = await client.post(
+        f"/api/import/runs/{run_id}/redo",
+        headers=auth_headers,
+    )
+
+    assert redo_response.status_code == 200
+    redone_run = redo_response.json()
+    assert redone_run["status"] == "completed"
+    assert redone_run["can_undo"] is True
+    assert all(operation["status"] == "applied" for operation in redone_run["operations"])
+
+    contacts_after_redo = list(
+        (await db_session.execute(select(Contact).order_by(Contact.nom))).scalars()
+    )
+    assert [(contact.nom, contact.prenom) for contact in contacts_after_redo] == [
+        ("BE NGUYEN", "Thi"),
+        ("LOPES", "Christine"),
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_import_prepare_exposes_planned_effects_for_invoice_operation(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Prepared runs should expose detailed planned effects before execution."""
+    from backend.services.accounting_engine import seed_default_rules
+
+    await seed_default_rules(db_session)
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    prepared_run = prepare_response.json()
+    invoice_operation = next(
+        operation
+        for operation in prepared_run["operations"]
+        if operation["operation_type"] == "client_invoice_row_import"
+    )
+
+    invoice_effect_types = {
+        effect["entity_type"] for effect in invoice_operation["planned_effects"]
+    }
+    assert {"contact", "invoice", "invoice_line", "accounting_entry"} <= invoice_effect_types
+
+    accounting_effect = next(
+        effect
+        for effect in invoice_operation["planned_effects"]
+        if effect["entity_type"] == "accounting_entry"
+    )
+    assert accounting_effect["status"] == "planned"
+    assert accounting_effect["details"]["account_number"]
+    assert accounting_effect["details"]["date"] == "2025-08-01"
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_import_operation_undo_redo_targets_single_prepared_effect(
+    client: AsyncClient, auth_headers: dict, db_session
+) -> None:
+    """Per-operation undo/redo should only affect the selected imported object."""
+    from backend.models.contact import Contact
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Contacts": (
+                ["Nom", "Email"],
+                [
+                    ["Christine LOPES", "christine@example.test"],
+                    ["Thi BE NGUYEN", "thi@example.test"],
+                ],
+            )
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+    run_id = prepare_response.json()["id"]
+
+    execute_response = await client.post(
+        f"/api/import/runs/{run_id}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    operation_id = executed_run["operations"][0]["id"]
+
+    undo_operation_response = await client.post(
+        f"/api/import/operations/{operation_id}/undo",
+        headers=auth_headers,
+    )
+
+    assert undo_operation_response.status_code == 200
+    partially_undone_run = undo_operation_response.json()
+    assert partially_undone_run["status"] == "partially_reverted"
+    assert partially_undone_run["operations"][0]["status"] == "undone"
+    assert partially_undone_run["operations"][1]["status"] == "applied"
+
+    contacts_after_operation_undo = list(
+        (await db_session.execute(select(Contact).order_by(Contact.nom))).scalars()
+    )
+    assert [(contact.nom, contact.prenom) for contact in contacts_after_operation_undo] == [
+        ("BE NGUYEN", "Thi"),
+    ]
+
+    redo_operation_response = await client.post(
+        f"/api/import/operations/{operation_id}/redo",
+        headers=auth_headers,
+    )
+
+    assert redo_operation_response.status_code == 200
+    redone_run = redo_operation_response.json()
+    assert redone_run["status"] == "completed"
+    assert redone_run["operations"][0]["status"] == "applied"
+    assert redone_run["operations"][1]["status"] == "applied"
+
+    contacts_after_operation_redo = list(
+        (await db_session.execute(select(Contact).order_by(Contact.nom))).scalars()
+    )
+    assert [(contact.nom, contact.prenom) for contact in contacts_after_operation_redo] == [
         ("BE NGUYEN", "Thi"),
         ("LOPES", "Christine"),
     ]

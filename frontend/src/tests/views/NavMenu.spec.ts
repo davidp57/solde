@@ -106,6 +106,7 @@ describe('NavMenu', () => {
       'nav.accounting_accounts',
       'nav.accounting_rules',
       'nav.import_excel',
+      'nav.import_history',
     ])
   })
 
