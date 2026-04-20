@@ -918,4 +918,45 @@ describe('ImportExcelView', () => {
       'Factures — Ligne 4 : warning',
     )
   })
+
+  it('exposes localized accessible tab semantics on the preview tabs', async () => {
+    mockPrepareGestionRunApi.mockResolvedValueOnce(
+      buildImportRun({
+        operations: [
+          {
+            id: 601,
+            position: 1,
+            operation_type: 'client_invoice_row_import',
+            title: '2025-0101',
+            description: 'Facture test',
+            source_sheet: 'Factures',
+            source_row_numbers: [4],
+            decision: 'apply',
+            status: 'prepared',
+            diagnostics: [],
+            error_message: null,
+            can_undo: false,
+            can_redo: false,
+            effects: [],
+          },
+        ],
+      }),
+    )
+
+    const wrapper = mountView()
+    await selectFile(wrapper, 'Gestion 2025.xlsx')
+    await wrapper.get('[data-testid="preview-button"]').trigger('click')
+    await flushView()
+
+    const tabList = wrapper.get('[role="tablist"]')
+    expect(tabList.attributes('aria-label')).toBe('Onglets de prévisualisation')
+
+    const detailsTab = wrapper.get('[data-testid="preview-tab-details"]')
+    expect(detailsTab.attributes('role')).toBe('tab')
+    expect(detailsTab.attributes('aria-controls')).toBe('preview-tabpanel-details')
+
+    const detailsPanel = wrapper.get('[data-testid="preview-details-tab"]')
+    expect(detailsPanel.attributes('role')).toBe('tabpanel')
+    expect(detailsPanel.attributes('aria-labelledby')).toBe('preview-tab-details')
+  })
 })

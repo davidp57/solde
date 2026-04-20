@@ -994,6 +994,7 @@ export default {
     },
     comparison_ignored_by_policy: '{count} ignorée(s) par politique',
     comparison_blocked: '{count} bloquante(s)',
+    preview_tabs_aria_label: 'Onglets de prévisualisation',
     preview_tab_details: 'Détails des opérations',
     preview_tab_full_summary: 'Synthèse complète',
     preview_tab_warnings: 'Avertissements',

@@ -128,6 +128,21 @@ describe('ImportHistoryView', () => {
     )
   })
 
+  it('normalizes legacy success status to the translated completed label', async () => {
+    mockListImportHistoryApi.mockResolvedValueOnce([
+      buildImportHistoryItem({
+        status: 'success',
+      }),
+    ])
+
+    const wrapper = mountView()
+    await flushView()
+    await flushView()
+
+    expect(wrapper.get('[data-testid="import-history"]').text()).toContain('Terminé')
+    expect(wrapper.get('[data-testid="import-history"]').text()).not.toContain('success')
+  })
+
   it('truncates long diagnostics by default and expands them on demand', async () => {
     mockListImportHistoryApi.mockResolvedValueOnce([
       buildImportHistoryItem({

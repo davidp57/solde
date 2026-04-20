@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -152,7 +152,7 @@ async def _run_test_import_shortcut(
     return result.to_dict()
 
 
-def _raise_import_run_error(exc: Exception) -> None:
+def _raise_import_run_error(exc: Exception) -> NoReturn:
     if isinstance(exc, LookupError):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     if isinstance(exc, ValueError):
@@ -323,7 +323,10 @@ async def get_import_run(
     """Return one prepared or executed reversible import run."""
     run = await import_reversible.get_import_run(db, run_id)
     if run is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Import run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Import préparé introuvable (id : {run_id})",
+        )
     return import_reversible.serialize_run(run)
 
 

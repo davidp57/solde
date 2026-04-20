@@ -270,13 +270,21 @@
             />
           </div>
 
-          <div class="import-preview-tabs" role="tablist" aria-label="Preview tabs">
+          <div
+            class="import-preview-tabs"
+            role="tablist"
+            :aria-label="t('import.preview_tabs_aria_label')"
+          >
             <button
+              id="preview-tab-details"
               type="button"
+              role="tab"
               data-testid="preview-tab-details"
               class="import-preview-tab"
               :class="{ 'import-preview-tab--active': activePreviewTab === 'details' }"
+              aria-controls="preview-tabpanel-details"
               :aria-selected="activePreviewTab === 'details'"
+              :tabindex="activePreviewTab === 'details' ? 0 : -1"
               @click="activePreviewTab = 'details'"
             >
               {{ t('import.preview_tab_details') }}
@@ -285,21 +293,29 @@
               </span>
             </button>
             <button
+              id="preview-tab-full-summary"
               type="button"
+              role="tab"
               data-testid="preview-tab-full-summary"
               class="import-preview-tab"
               :class="{ 'import-preview-tab--active': activePreviewTab === 'full-summary' }"
+              aria-controls="preview-tabpanel-full-summary"
               :aria-selected="activePreviewTab === 'full-summary'"
+              :tabindex="activePreviewTab === 'full-summary' ? 0 : -1"
               @click="activePreviewTab = 'full-summary'"
             >
               {{ t('import.preview_tab_full_summary') }}
             </button>
             <button
+              id="preview-tab-warnings"
               type="button"
+              role="tab"
               data-testid="preview-tab-warnings"
               class="import-preview-tab"
               :class="{ 'import-preview-tab--active': activePreviewTab === 'warnings' }"
+              aria-controls="preview-tabpanel-warnings"
               :aria-selected="activePreviewTab === 'warnings'"
+              :tabindex="activePreviewTab === 'warnings' ? 0 : -1"
               @click="activePreviewTab = 'warnings'"
             >
               {{ t('import.preview_tab_warnings') }}
@@ -309,7 +325,13 @@
             </button>
           </div>
 
-          <div v-if="activePreviewTab === 'full-summary'" data-testid="preview-full-summary-tab">
+          <div
+            v-if="activePreviewTab === 'full-summary'"
+            id="preview-tabpanel-full-summary"
+            role="tabpanel"
+            aria-labelledby="preview-tab-full-summary"
+            data-testid="preview-full-summary-tab"
+          >
             <div class="import-summary-grid">
               <div class="import-summary-row">
                 <span>{{ t('import.estimated_contacts') }}</span>
@@ -548,7 +570,13 @@
             </div>
           </div>
 
-          <div v-else-if="activePreviewTab === 'details'" data-testid="preview-details-tab">
+          <div
+            v-else-if="activePreviewTab === 'details'"
+            id="preview-tabpanel-details"
+            role="tabpanel"
+            aria-labelledby="preview-tab-details"
+            data-testid="preview-details-tab"
+          >
             <div v-if="activeRun?.operations.length" class="import-operation-block">
               <div class="import-diagnostic-block__header">
                 <div>
@@ -959,7 +987,13 @@
             </div>
           </div>
 
-          <div v-else data-testid="preview-warnings-tab">
+          <div
+            v-else
+            id="preview-tabpanel-warnings"
+            role="tabpanel"
+            aria-labelledby="preview-tab-warnings"
+            data-testid="preview-warnings-tab"
+          >
             <div v-if="hasBlockingOperations" class="import-blocked-guidance">
               <div>
                 <p class="import-section-eyebrow">{{ t('import.blocked_title') }}</p>
