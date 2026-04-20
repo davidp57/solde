@@ -214,7 +214,7 @@
         <div class="app-form-grid">
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.date') }}</label>
-            <InputText v-model="paymentForm.date" type="date" :disabled="isCashPaymentLocked" />
+            <InputText v-model="paymentForm.date" type="date" disabled />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.amount') }}</label>
@@ -223,7 +223,7 @@
               type="number"
               step="0.01"
               min="0.01"
-              :disabled="isCashPaymentLocked"
+              disabled
             />
           </div>
           <div class="app-field">
@@ -233,7 +233,7 @@
               :options="editableMethodOptions"
               option-label="label"
               option-value="value"
-              :disabled="isClientPaymentMethodLocked"
+              disabled
             />
           </div>
           <div class="app-field">
@@ -386,15 +386,6 @@ const editableMethodOptions = computed(() => {
 
   return allMethodOptions.value
 })
-const isClientPaymentMethodLocked = computed(
-  () =>
-    editingPayment.value?.invoice_type === 'client' &&
-    (editingPayment.value.method === 'especes' || editingPayment.value.method === 'cheque'),
-)
-const isCashPaymentLocked = computed(
-  () =>
-    editingPayment.value?.invoice_type === 'client' && editingPayment.value.method === 'especes',
-)
 const yesNoOptions = computed(() => [
   { label: t('common.yes'), value: true },
   { label: t('common.no'), value: false },
@@ -432,9 +423,6 @@ async function savePayment() {
   saving.value = true
   try {
     await updatePayment(editingPayment.value.id, {
-      amount: paymentForm.value.amount,
-      date: paymentForm.value.date,
-      method: paymentForm.value.method,
       cheque_number:
         paymentForm.value.method === 'cheque'
           ? normalizeOptionalField(paymentForm.value.cheque_number)

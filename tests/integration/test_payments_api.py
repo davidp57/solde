@@ -177,9 +177,44 @@ async def test_update_payment(
         json={"amount": "80.00", "reference": "REF-2024-001"},
         headers=auth_headers,
     )
+    assert update_resp.status_code == 400
+    assert update_resp.json()["detail"] == "payments cannot change amount after creation"
+
+
+@pytest.mark.asyncio
+async def test_update_payment_allows_minor_fields(
+    client: AsyncClient, db_session: AsyncSession, admin_user: User, auth_headers: dict
+) -> None:
+    contact_id, invoice_id = await _setup_contact_invoice(db_session)
+    create_resp = await client.post(
+        "/api/payments/",
+        json={
+            "invoice_id": invoice_id,
+            "contact_id": contact_id,
+            "amount": "60.00",
+            "date": "2024-03-01",
+            "method": "cheque",
+            "cheque_number": "CHQ-001",
+        },
+        headers=auth_headers,
+    )
+    payment_id = create_resp.json()["id"]
+
+    update_resp = await client.put(
+        f"/api/payments/{payment_id}",
+        json={
+            "cheque_number": "CHQ-002",
+            "reference": "REF-2024-001",
+            "notes": "Correction mineure",
+        },
+        headers=auth_headers,
+    )
+
     assert update_resp.status_code == 200
-    assert update_resp.json()["amount"] == "80.00"
+    assert update_resp.json()["amount"] == "60.00"
+    assert update_resp.json()["cheque_number"] == "CHQ-002"
     assert update_resp.json()["reference"] == "REF-2024-001"
+    assert update_resp.json()["notes"] == "Correction mineure"
 
 
 @pytest.mark.asyncio
@@ -272,6 +307,34 @@ async def test_update_cash_payment_rejects_amount_change(
     assert (
         update_resp.json()["detail"] == "cash client payments cannot change amount after creation"
     )
+
+
+@pytest.mark.asyncio
+async def test_update_cheque_payment_rejects_date_change(
+    client: AsyncClient, db_session: AsyncSession, admin_user: User, auth_headers: dict
+) -> None:
+    contact_id, invoice_id = await _setup_contact_invoice(db_session)
+    create_resp = await client.post(
+        "/api/payments/",
+        json={
+            "invoice_id": invoice_id,
+            "contact_id": contact_id,
+            "amount": "60.00",
+            "date": "2024-03-01",
+            "method": "cheque",
+        },
+        headers=auth_headers,
+    )
+    payment_id = create_resp.json()["id"]
+
+    update_resp = await client.put(
+        f"/api/payments/{payment_id}",
+        json={"date": "2024-03-05"},
+        headers=auth_headers,
+    )
+
+    assert update_resp.status_code == 400
+    assert update_resp.json()["detail"] == "payments cannot change date after creation"
 
 
 @pytest.mark.asyncio

@@ -243,8 +243,9 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 - **Dates** : `created=2026-04-13`
 - **Pourquoi** : le reset global actuel est utile pour les essais complets, mais il reste trop brutal quand on veut simplement rejouer une filière d'import, un exercice ou une séquence de reprise précise.
-- **Résultat attendu** : proposer un reset plus fin, compréhensible et sûr, capable de supprimer uniquement le périmètre utile à rejouer tout en explicitant le traitement des journaux d'import et des dépendances métier.
-- **Point d'attention** : ce sujet ne doit pas fragiliser l'intégrité des données ; il faut privilégier des scénarios de reset explicitement cadrés plutôt qu'un outil générique trop puissant.
+- **Recadrage après BL-004** : le cycle `prepare -> execute -> undo/redo` couvre désormais le cas standard de rejeu sûr pour les nouveaux imports réversibles, au niveau d'une opération ou d'un run complet. `BL-015` ne vise donc plus à rejouer ces imports normaux, mais les cas où le journal réversible ne suffit pas ou n'existe pas.
+- **Résultat attendu** : proposer un reset plus fin, compréhensible et sûr, capable de supprimer uniquement le périmètre utile à rejouer tout en explicitant le traitement des journaux d'import et des dépendances métier, en particulier pour les imports legacy, les données modifiées après coup qui bloquent un `undo` strict, ou les nettoyages administratifs ciblés par filière, période ou exercice.
+- **Point d'attention** : ce sujet ne doit pas fragiliser l'intégrité des données ; il faut privilégier des scénarios de reset explicitement cadrés plutôt qu'un outil générique trop puissant, et éviter tout chevauchement fonctionnel inutile avec le journal réversible de `BL-004`.
 
 ### BL-016 — Harmonisation i18n et microcopie UI
 
@@ -475,9 +476,13 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-030 — Politique de modification des objets métier validés
 
-- **Dates** : `created=2026-04-16`
+- **Dates** : `created=2026-04-16`, `started=2026-04-20`, `completed=2026-04-20`
 - **Pourquoi** : plusieurs objets métier ont déjà un cycle de vie implicite (`draft`, `sent`, `paid`, écritures auto-générées, imports historiques), mais la règle cible de modification reste floue dès qu'un objet a déjà produit des effets comptables ou des dépendances fonctionnelles.
 - **Résultat attendu** : une politique explicite qui dit, selon le type d'objet et son statut, ce qui est modifiable directement, ce qui doit régénérer des effets dérivés, ce qui doit être historisé, et ce qui doit être interdit ou remplacé par une opération métier distincte.
+- **Arbitrages actés au 2026-04-20** :
+	- une facture `sent` non réglée reste éditable, mais seulement avec garde-fous explicites et régénération contrôlée des effets dérivés ;
+	- un paiement devient quasi immuable après création ; hors besoin contraire plus tard, seules des corrections mineures sans impact structurel doivent rester possibles ;
+	- un objet issu d'un import puis retouché manuellement sort du `rejeu strict` de l'import réversible ; l'historique d'import reste consultable, mais `undo/redo` peut alors être bloqué par divergence d'état.
 - **Questions à trancher** :
 	- peut-on modifier librement une facture `draft`, `sent` ou `paid` ;
 	- faut-il régénérer, annuler puis recréer, ou historiser les écritures comptables dérivées après modification ;
@@ -486,6 +491,12 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- qu'a-t-on le droit de réécrire automatiquement lorsqu'un import `Comptabilité` vient clarifier une facture créée plus tôt depuis `Gestion`.
 - **Critère d'acceptation** : pour chaque grande famille d'objets métier, un utilisateur et un développeur peuvent répondre sans ambiguïté à la question "que se passe-t-il si je modifie cet objet maintenant ?".
 - **Point d'attention** : la traçabilité et la cohérence comptable doivent primer sur la simplicité apparente d'une édition directe, y compris quand la modification vient d'un rapprochement automatique entre imports `Gestion` et `Comptabilité`.
+- **Livré** :
+	- l'API facture autorise désormais l'édition d'une facture `sent` non réglée, avec régénération transactionnelle des écritures `INVOICE` dérivées ;
+	- l'API paiement rend les paiements quasi immuables après création, en ne laissant éditables que les champs mineurs sans impact structurel ;
+	- l'UI des paiements reflète cette politique en verrouillant les champs structurels dans la boîte d'édition ;
+	- le rejeu strict des imports réversibles bloque bien `undo/redo` dès qu'un objet importé a divergé, avec un test d'intégration couvrant aussi le cas d'instance ORM expirée.
+- **Validation technique réalisée** : `ruff check .`, `ruff format --check .`, `mypy .`, `pytest tests/`, `npx vue-tsc --noEmit -p tsconfig.app.json`, `npx vue-tsc --noEmit`, `npx eslint src/` et `npx vitest run` sont passés localement sur la branche de travail.
 
 ## Prêt
 
@@ -519,4 +530,5 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-025** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13` — Le grand livre est maintenant borné à l'exercice choisi, sans option multi-exercices, avec un solde d'ouverture cohérent quand la période démarre en cours d'exercice.
 - **BL-026** — `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16` — Le ticket a livré un cadrage de recette et un constat exploitable sur la reprise `2024`, puis a été clos une fois les écarts résiduels requalifiés en différences de modélisation assumées ou en suites dédiées (`BL-008`, `BL-029`).
 - **BL-029** — `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-19` — La saisie des factures clients par lignes typées, le calcul dérivé du total et de la ventilation comptable, et les adaptations d'import `Gestion` / `Comptabilité` sont maintenant intégrés dans `develop` et validés côté recette métier utilisateur.
+- **BL-030** — `created=2026-04-16`, `started=2026-04-20`, `completed=2026-04-20` — La politique cadrée est désormais appliquée et testée : facture `sent` non réglée éditable avec régénération des écritures, paiements quasi immuables après création, et blocage du rejeu strict dès qu'un objet importé a divergé.
 - **BL-031** — `created=2026-04-19`, `started=2026-04-19`, `completed=2026-04-20` — La branche `feature/bl-031-bank-reconciliation` livre maintenant une vraie chaîne de rapprochement bancaire exploitable pour le MVP : import `CSV` / `OFX` / `QIF`, catégorisation initiale, suggestions de rapprochement, création ou confirmation de virements clients et fournisseurs depuis l'écran `Banque`, support des virements clients ventilés sur plusieurs règlements, traçabilité `transaction <-> payment(s)` et validation automatisée ciblée passée. Les écarts de recette encore observés, comme certains soldes banque, sont explicitement renvoyés à la recette finale de qualification MVP plutôt qu'à une suite bloquante de BL-031.

@@ -29,7 +29,7 @@ from backend.schemas.invoice import (
     InvoiceUpdate,
 )
 from backend.services import invoice as invoice_service
-from backend.services.invoice import InvoiceDeleteError, InvoiceStatusError
+from backend.services.invoice import InvoiceDeleteError, InvoiceStatusError, InvoiceUpdateError
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
@@ -108,7 +108,10 @@ async def update_invoice(
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
-    return await invoice_service.update_invoice(db, invoice, payload)  # type: ignore[return-value]
+    try:
+        return await invoice_service.update_invoice(db, invoice, payload)  # type: ignore[return-value]
+    except InvoiceUpdateError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
 
 @router.patch("/{invoice_id}/status", response_model=InvoiceRead)

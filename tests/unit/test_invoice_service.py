@@ -4,14 +4,19 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.contact import Contact, ContactType
 from backend.models.invoice import InvoiceLabel, InvoiceLineType, InvoiceStatus, InvoiceType
 from backend.schemas.invoice import InvoiceCreate, InvoiceLineCreate, InvoiceUpdate
+from backend.schemas.payment import PaymentCreate
+from backend.services.accounting_engine import seed_default_rules
 from backend.services.invoice import (
     InvoiceDeleteError,
     InvoiceStatusError,
+    InvoiceUpdateError,
     create_invoice,
     delete_invoice,
     duplicate_invoice,
@@ -20,6 +25,7 @@ from backend.services.invoice import (
     update_invoice,
     update_invoice_status,
 )
+from backend.services.payment import create_payment
 
 
 async def _make_contact(db: AsyncSession, nom: str = "Test") -> Contact:
@@ -373,6 +379,116 @@ class TestUpdateInvoice:
         )
 
         assert updated.has_explicit_breakdown is False
+
+    async def test_update_sent_invoice_regenerates_generated_entries(
+        self, db_session: AsyncSession
+    ):
+        await seed_default_rules(db_session)
+        contact = await _make_contact(db_session)
+        invoice = await create_invoice(
+            db_session,
+            InvoiceCreate(
+                type=InvoiceType.CLIENT,
+                contact_id=contact.id,
+                date=date(2025, 9, 1),
+                lines=[
+                    InvoiceLineCreate(
+                        description="Cours",
+                        quantity=Decimal("1"),
+                        unit_price=Decimal("130.00"),
+                    ),
+                    InvoiceLineCreate(
+                        description="Adhésion",
+                        quantity=Decimal("1"),
+                        unit_price=Decimal("30.00"),
+                    ),
+                ],
+            ),
+        )
+        await update_invoice_status(db_session, invoice, InvoiceStatus.SENT)
+
+        initial_entries = list(
+            (
+                await db_session.execute(
+                    select(AccountingEntry)
+                    .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                    .where(AccountingEntry.source_id == invoice.id)
+                    .order_by(AccountingEntry.entry_number.asc())
+                )
+            ).scalars()
+        )
+        assert len(initial_entries) == 3
+
+        updated = await update_invoice(
+            db_session,
+            invoice,
+            InvoiceUpdate(
+                lines=[
+                    InvoiceLineCreate(
+                        description="Cours",
+                        quantity=Decimal("1"),
+                        unit_price=Decimal("150.00"),
+                    )
+                ]
+            ),
+        )
+
+        regenerated_entries = list(
+            (
+                await db_session.execute(
+                    select(AccountingEntry)
+                    .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                    .where(AccountingEntry.source_id == invoice.id)
+                    .order_by(AccountingEntry.entry_number.asc())
+                )
+            ).scalars()
+        )
+
+        assert updated.status == InvoiceStatus.SENT
+        assert updated.total_amount == Decimal("150.00")
+        assert len(regenerated_entries) == 2
+        assert {entry.account_number for entry in regenerated_entries} == {"411100", "706110"}
+        assert any(entry.debit == Decimal("150.00") for entry in regenerated_entries)
+        assert any(entry.credit == Decimal("150.00") for entry in regenerated_entries)
+
+    async def test_update_paid_invoice_is_blocked(self, db_session: AsyncSession):
+        contact = await _make_contact(db_session)
+        invoice = await create_invoice(
+            db_session,
+            InvoiceCreate(
+                type=InvoiceType.CLIENT,
+                contact_id=contact.id,
+                date=date(2025, 9, 1),
+                lines=[
+                    InvoiceLineCreate(
+                        description="Cours",
+                        quantity=Decimal("1"),
+                        unit_price=Decimal("130.00"),
+                    )
+                ],
+            ),
+        )
+        await update_invoice_status(db_session, invoice, InvoiceStatus.SENT)
+        await create_payment(
+            db_session,
+            PaymentCreate(
+                invoice_id=invoice.id,
+                contact_id=contact.id,
+                amount=Decimal("130.00"),
+                date=date(2025, 9, 2),
+                method="cheque",
+            ),
+        )
+        refreshed = await get_invoice(db_session, invoice.id)
+        assert refreshed is not None
+        assert refreshed.status == InvoiceStatus.PAID
+
+        with pytest.raises(InvoiceUpdateError, match="cannot be edited"):
+            await update_invoice(
+                db_session,
+                refreshed,
+                InvoiceUpdate(description="Nouvelle description"),
+            )
 
 
 class TestStatusChange:
