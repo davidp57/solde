@@ -283,9 +283,17 @@ function historySectionToggleLabel(historyItemId: number, section: string, total
   })
 }
 
+function normalizeHistoryStatus(status: string) {
+  if (status === 'success') {
+    return 'completed'
+  }
+  return status
+}
+
 function historyStatusLabel(status: string) {
-  const translated = t(`import.run_status.${status}`)
-  return translated === `import.run_status.${status}` ? status : translated
+  const normalizedStatus = normalizeHistoryStatus(status)
+  const translated = t(`import.run_status.${normalizedStatus}`)
+  return translated === `import.run_status.${normalizedStatus}` ? normalizedStatus : translated
 }
 
 function formatDateTime(value: string) {

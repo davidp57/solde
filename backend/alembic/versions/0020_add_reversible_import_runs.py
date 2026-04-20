@@ -115,6 +115,23 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_index("ix_import_effects_status", table_name="import_effects")
+    op.drop_index("ix_import_effects_entity_id", table_name="import_effects")
+    op.drop_index("ix_import_effects_entity_type", table_name="import_effects")
+    op.drop_index("ix_import_effects_operation_id", table_name="import_effects")
+    op.drop_index("ix_import_effects_id", table_name="import_effects")
     op.drop_table("import_effects")
+
+    op.drop_index("ix_import_operations_status", table_name="import_operations")
+    op.drop_index("ix_import_operations_decision", table_name="import_operations")
+    op.drop_index("ix_import_operations_operation_type", table_name="import_operations")
+    op.drop_index("ix_import_operations_run_id", table_name="import_operations")
+    op.drop_index("ix_import_operations_id", table_name="import_operations")
     op.drop_table("import_operations")
+
+    op.drop_index("ix_import_runs_created_at", table_name="import_runs")
+    op.drop_index("ix_import_runs_file_hash", table_name="import_runs")
+    op.drop_index("ix_import_runs_status", table_name="import_runs")
+    op.drop_index("ix_import_runs_import_type", table_name="import_runs")
+    op.drop_index("ix_import_runs_id", table_name="import_runs")
     op.drop_table("import_runs")

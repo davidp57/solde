@@ -285,6 +285,18 @@ async def test_get_import_run_exposes_source_data_for_blocked_operations(
 
 
 @pytest.mark.asyncio
+async def test_get_import_run_returns_localized_404(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    """Missing reversible runs should return a localized not-found message."""
+    response = await client.get("/api/import/runs/999999", headers=auth_headers)
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Import préparé introuvable (id : 999999)"}
+
+
+@pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
 async def test_import_gestion_empty_sheet(client: AsyncClient, auth_headers: dict) -> None:
     """Uploading an xlsx with empty valid sheet returns a result dict."""
