@@ -31,11 +31,103 @@ async def _attach_invoice_number(db: AsyncSession, payment: Payment) -> Payment:
 
 async def create_payment(db: AsyncSession, payload: PaymentCreate) -> Payment:
     """Record a payment and update the invoice paid_amount and status."""
+    return await _create_payment(db, payload)
+
+
+async def create_bank_reconciled_client_payment(
+    db: AsyncSession,
+    *,
+    invoice_id: int,
+    amount: Decimal,
+    payment_date: date,
+    reference: str | None = None,
+    notes: str | None = None,
+    commit: bool = True,
+) -> Payment:
+    """Create a client virement originating from a reconciled bank transaction."""
+    invoice = await _get_invoice(db, invoice_id)
+    if invoice is None:
+        raise InvoiceNotFoundError("Invoice not found")
+    if invoice.type != InvoiceType.CLIENT:
+        raise ValueError("bank reconciliation can only create client payments")
+
+    payload = PaymentCreate(
+        invoice_id=invoice.id,
+        contact_id=invoice.contact_id,
+        amount=amount,
+        date=payment_date,
+        method=PaymentMethod.VIREMENT,
+        reference=reference,
+        notes=notes,
+    )
+    return await _create_payment(
+        db,
+        payload,
+        allow_client_virement=True,
+        deposited=True,
+        deposit_date=payment_date,
+        commit=commit,
+    )
+
+
+async def create_bank_reconciled_supplier_payment(
+    db: AsyncSession,
+    *,
+    invoice_id: int,
+    amount: Decimal,
+    payment_date: date,
+    reference: str | None = None,
+    notes: str | None = None,
+    commit: bool = True,
+) -> Payment:
+    """Create a supplier virement originating from a reconciled bank transaction."""
+    invoice = await _get_invoice(db, invoice_id)
+    if invoice is None:
+        raise InvoiceNotFoundError("Invoice not found")
+    if invoice.type != InvoiceType.FOURNISSEUR:
+        raise ValueError("bank reconciliation can only create supplier payments")
+
+    payload = PaymentCreate(
+        invoice_id=invoice.id,
+        contact_id=invoice.contact_id,
+        amount=amount,
+        date=payment_date,
+        method=PaymentMethod.VIREMENT,
+        reference=reference,
+        notes=notes,
+    )
+    return await _create_payment(
+        db,
+        payload,
+        deposited=True,
+        deposit_date=payment_date,
+        commit=commit,
+    )
+
+
+async def _create_payment(
+    db: AsyncSession,
+    payload: PaymentCreate,
+    *,
+    allow_client_virement: bool = False,
+    deposited: bool | None = None,
+    deposit_date: date | None = None,
+    commit: bool = True,
+) -> Payment:
+    """Persist a payment and all its side effects."""
     invoice = await _get_invoice(db, payload.invoice_id)
     if invoice is None:
         raise InvoiceNotFoundError("Invoice not found")
-    _validate_manual_client_payment_method(invoice, payload.method)
+    _validate_manual_client_payment_method(
+        invoice,
+        payload.method,
+        allow_client_virement=allow_client_virement,
+    )
     payment = Payment(**payload.model_dump())
+    if deposited is not None:
+        payment.deposited = deposited
+    if deposit_date is not None:
+        payment.deposit_date = deposit_date
     db.add(payment)
     await db.flush()
     await _refresh_invoice_status(db, payload.invoice_id)
@@ -46,8 +138,9 @@ async def create_payment(db: AsyncSession, payload: PaymentCreate) -> Payment:
     )
 
     await generate_entries_for_payment(db, payment, invoice.type)
-    await db.commit()
-    await db.refresh(payment)
+    if commit:
+        await db.commit()
+        await db.refresh(payment)
     return await _attach_invoice_number(db, payment)
 
 
@@ -134,9 +227,12 @@ def _validate_manual_client_payment_method(
     method: PaymentMethod,
     *,
     current_method: PaymentMethod | None = None,
+    allow_client_virement: bool = False,
 ) -> None:
     """Reject manual client virements until bank reconciliation owns that workflow."""
     if invoice is None or invoice.type != InvoiceType.CLIENT:
+        return
+    if allow_client_virement:
         return
     if method != PaymentMethod.VIREMENT:
         return

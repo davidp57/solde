@@ -5,12 +5,75 @@ from __future__ import annotations
 import csv
 import io
 import re
+import unicodedata
 from datetime import date
 from decimal import Decimal, InvalidOperation
+
+from backend.models.bank import BankTransactionCategory
 
 
 class BankImportError(ValueError):
     """Raised when a bank statement file cannot be parsed."""
+
+
+def _normalise_label(value: str) -> str:
+    normalised = unicodedata.normalize("NFKD", value)
+    ascii_value = normalised.encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"\s+", " ", ascii_value.upper()).strip()
+
+
+def detect_transaction_category(
+    *,
+    amount: Decimal,
+    description: str,
+    reference: str | None = None,
+) -> BankTransactionCategory:
+    """Return an initial category guess for a bank transaction."""
+    label = _normalise_label(description)
+    ref = _normalise_label(reference or "")
+    combined = f"{label} {ref}".strip()
+
+    if amount == 0:
+        return BankTransactionCategory.UNCATEGORIZED
+
+    if "REM CHQ" in combined or "REMISE CHEQUE" in combined:
+        return BankTransactionCategory.CHEQUE_DEPOSIT
+
+    if combined.startswith("VRST ") or "VERSEMENT" in combined or "REM ESP" in combined:
+        return BankTransactionCategory.CASH_DEPOSIT
+
+    if "URSSAF" in combined:
+        return BankTransactionCategory.SOCIAL_CHARGE
+
+    if "SALAIRE" in combined:
+        return BankTransactionCategory.SALARY
+
+    if "FACT SGT" in combined or (amount < 0 and combined.startswith("FACT ")):
+        return BankTransactionCategory.BANK_FEE
+
+    if "PRLV" in combined or "PRLV SEPA" in combined or "PRELEVEMENT" in combined:
+        return BankTransactionCategory.SEPA_DEBIT
+
+    if "VIR INT" in combined or "VIREMENT INTERNE" in combined:
+        return BankTransactionCategory.INTERNAL_TRANSFER
+
+    if amount < 0 and ("VIR INST FF-" in combined or "FF-" in combined or "FOURN" in combined):
+        return BankTransactionCategory.SUPPLIER_PAYMENT
+
+    if amount > 0 and (
+        "SUBVENTION" in combined or combined.startswith("DON ") or "DONATION" in combined
+    ):
+        return BankTransactionCategory.GRANT
+
+    if amount > 0 and (
+        combined.startswith("VIR") or "VIREMENT" in combined or re.match(r"^\d{4}-\d{4}", combined)
+    ):
+        return BankTransactionCategory.CUSTOMER_PAYMENT
+
+    if amount > 0:
+        return BankTransactionCategory.OTHER_CREDIT
+
+    return BankTransactionCategory.OTHER_DEBIT
 
 
 def parse_credit_mutuel_csv(content: str) -> list[dict[str, object]]:

@@ -50,9 +50,9 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## Priorités proposées pour la prochaine discussion
 
-1. **BL-031** — concevoir une vraie réconciliation bancaire bout en bout entre relevés importés, transactions détectées, catégorisation et création de paiements.
-2. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
-3. **BL-019** — refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker.
+1. **BL-030** — définir une politique explicite de modification des objets métier déjà créés ou validés.
+2. **BL-004** — afficher un historique d'import exploitable dans l'UI avec type, date, compteurs, diagnostics et traçabilité suffisante.
+3. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
 
 ## Récapitulatif des sujets ouverts
 
@@ -64,9 +64,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-021 | 2026-04-13 | Documentation | Utilisateur / Parcours | P1 | Rédiger un manuel utilisateur illustré et pas à pas aligné sur les écrans réellement disponibles |
-| BL-024 | 2026-04-13 | Correction | Paiements / Banque | P1 | Clarifier le workflow cible de saisie des paiements et corriger l'automatisme qui remet en banque les paiements `espèces` et `virement` dès leur encodage |
 | BL-030 | 2026-04-16 | Décision | Métier / Edition des données | P1 | Définir une politique explicite de modification des objets métier déjà créés ou validés (factures, paiements, achats, etc.) avec règles de recalcul, traçabilité et limites selon le statut |
-| BL-031 | 2026-04-19 | Amélioration | Banque / Rapprochement | P1 | Concevoir puis implémenter une vraie réconciliation bancaire entre relevés importés, transactions détectées, catégorisation et création ou rapprochement des paiements |
 
 ## Détail des sujets
 
@@ -358,9 +356,18 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-031 — Construire une vraie réconciliation bancaire bout en bout
 
-- **Dates** : `created=2026-04-19`
+- **Dates** : `created=2026-04-19`, `started=2026-04-19`, `completed=2026-04-20`
 - **Pourquoi** : le produit sait aujourd'hui importer ou saisir des opérations bancaires et les marquer comme `rapprochées`, mais ce rapprochement reste superficiel : il n'existe ni vrai lien métier entre une transaction bancaire et un paiement, ni workflow robuste pour partir d'un relevé et en déduire ou rattacher les paiements clients attendus, en particulier pour les virements.
 - **Résultat attendu** : disposer d'une chaîne cohérente de réconciliation bancaire couvrant l'import des relevés, la détection des transactions utiles, leur catégorisation, la proposition de rapprochements, et la création ou le rattachement des paiements et autres mouvements métier appropriés.
+- **Résultat livré** : l'écran `Banque` supporte désormais l'import `CSV` / `OFX` / `QIF`, une catégorisation initiale des transactions, la création ou la confirmation de virements clients et fournisseurs depuis le relevé, la gestion d'un virement client unique ou ventilé sur plusieurs factures, la confirmation de plusieurs règlements clients existants quand leur total correspond exactement à la ligne bancaire, et une traçabilité explicite via les liens `transaction <-> payment(s)`.
+- **Premier lot visé au démarrage** : rendre les relevés `OFX` et `QIF` réellement exploitables dans l'interface `Banque`, puis enrichir chaque transaction importée d'une première catégorisation détectée automatiquement pour préparer le vrai workflow de rapprochement.
+- **Avancement actuel sur la branche** : en plus de ce premier lot, l'écran `Banque` permet maintenant de traiter les virements clients et fournisseurs directement depuis les lignes du relevé : création d'un règlement à partir d'une facture ouverte ou confirmation d'un règlement déjà saisi en liant la transaction bancaire au paiement existant, avec une meilleure suggestion automatique du candidat le plus plausible selon le montant, la date, la référence, le numéro de pièce et le tiers. Pour les virements clients, une même ligne bancaire positive peut désormais soit créer plusieurs règlements ventilés sur plusieurs factures, soit confirmer plusieurs règlements clients déjà saisis quand leur total correspond exactement au montant du virement.
+- **Signalement utilisateur au 2026-04-20** : quelques écarts ont été observés en recette, notamment sur le solde banque, sans diagnostic encore tranché entre import, génération d'écritures ou autre logique transverse.
+- **Décision de pilotage actée** : ne pas ouvrir maintenant une chasse aux écarts isolés tant que les fonctionnalités MVP restantes ne sont pas terminées ; faire ensuite une recette bout en bout de qualification MVP et utiliser cette passe finale pour attribuer proprement chaque anomalie résiduelle à l'import, aux écritures générées ou à un autre composant.
+- **Cas métier existants explicités pendant la discussion** :
+	- un même virement ou chèque peut correspondre à plusieurs factures clientes ;
+	- une même facture peut être réglée en plusieurs fois, par exemple avec plusieurs chèques ;
+	- une même facture peut aussi être réglée par plusieurs moyens de paiement, par exemple `20 EUR` en espèces et `50 EUR` par chèque, ou `30 EUR` par chèque et `40 EUR` par virement.
 - **Périmètre visé** :
 	- import des relevés via les formats utiles (`QIF`, `OFX`, et si pertinent les extractions Excel ou CSV réellement utilisées) ;
 	- détection des mouvements créditeurs et débiteurs significatifs ;
@@ -501,3 +508,4 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-025** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13` — Le grand livre est maintenant borné à l'exercice choisi, sans option multi-exercices, avec un solde d'ouverture cohérent quand la période démarre en cours d'exercice.
 - **BL-026** — `created=2026-04-15`, `started=2026-04-15`, `completed=2026-04-16` — Le ticket a livré un cadrage de recette et un constat exploitable sur la reprise `2024`, puis a été clos une fois les écarts résiduels requalifiés en différences de modélisation assumées ou en suites dédiées (`BL-008`, `BL-029`).
 - **BL-029** — `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-19` — La saisie des factures clients par lignes typées, le calcul dérivé du total et de la ventilation comptable, et les adaptations d'import `Gestion` / `Comptabilité` sont maintenant intégrés dans `develop` et validés côté recette métier utilisateur.
+- **BL-031** — `created=2026-04-19`, `started=2026-04-19`, `completed=2026-04-20` — La branche `feature/bl-031-bank-reconciliation` livre maintenant une vraie chaîne de rapprochement bancaire exploitable pour le MVP : import `CSV` / `OFX` / `QIF`, catégorisation initiale, suggestions de rapprochement, création ou confirmation de virements clients et fournisseurs depuis l'écran `Banque`, support des virements clients ventilés sur plusieurs règlements, traçabilité `transaction <-> payment(s)` et validation automatisée ciblée passée. Les écarts de recette encore observés, comme certains soldes banque, sont explicitement renvoyés à la recette finale de qualification MVP plutôt qu'à une suite bloquante de BL-031.
