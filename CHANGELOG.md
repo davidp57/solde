@@ -40,6 +40,12 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+**Édition métier des factures, paiements et imports**
+- Une facture `sent` non réglée reste modifiable, mais toute modification régénère désormais ses écritures comptables auto-générées au lieu de laisser des écritures obsolètes en base
+- Une facture déjà consommée (`paid`, ou plus généralement hors cas `draft` / `sent` non réglée) ne peut plus être modifiée directement via l'API
+- Les paiements deviennent quasi immuables après création : seules les corrections mineures sans impact structurel (`référence`, `notes`, `n° de chèque`) restent éditables depuis l'écran `Paiements`, et la suppression standard est désormais bloquée en attendant un vrai flux d'annulation métier
+- Le rejeu strict des imports réversibles reste désormais explicitement protégé même après retouche manuelle d'un objet importé via l'API, y compris quand l'instance SQLAlchemy a été expirée entre-temps
+
 **Paiements et trésorerie**
 - Les règlements clients en `chèque` et `espèces` se saisissent désormais depuis la facture client et son historique, avec un parcours dédié pour enregistrer date, montant, mode, référence et note
 - Le journal `Caisse` affiche explicitement les mouvements issus d'un paiement client, et les bordereaux bancaires filtrent les paiements selon le type de remise choisi

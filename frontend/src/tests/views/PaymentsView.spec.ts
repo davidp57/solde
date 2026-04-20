@@ -136,6 +136,7 @@ const SelectStub = defineComponent({
     options: { type: Array, default: () => [] },
     optionLabel: { type: String, default: 'label' },
     optionValue: { type: String, default: 'value' },
+    disabled: { type: Boolean, default: false },
   },
   emits: ['update:modelValue', 'change'],
   setup(props, { attrs, emit }) {
@@ -145,6 +146,7 @@ const SelectStub = defineComponent({
         {
           'data-testid': attrs['data-testid'],
           value: props.modelValue ?? '',
+          disabled: props.disabled,
           onChange: (event: Event) => {
             const value = (event.target as HTMLSelectElement).value || undefined
             emit('update:modelValue', value)
@@ -338,14 +340,23 @@ describe('PaymentsView', () => {
 
     expect(mockUpdatePayment).toHaveBeenCalledWith(
       1,
-      expect.objectContaining({
-        amount: '60.00',
-        date: '2025-02-01',
-        method: 'cheque',
+      {
         cheque_number: 'CHQ-001',
         reference: 'REF-2025-002',
         notes: 'Premier reglement',
-      }),
+      },
     )
+  })
+
+  it('locks structural payment fields in the edit dialog', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    await wrapper.get('[data-testid="payment-edit-button"]').trigger('click')
+    await flushView()
+
+    expect(wrapper.get('input[type="date"]').element).toHaveProperty('disabled', true)
+    expect(wrapper.get('input[type="number"]').element).toHaveProperty('disabled', true)
+    expect(wrapper.get('select').element).toHaveProperty('disabled', true)
   })
 })

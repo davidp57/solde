@@ -187,13 +187,6 @@
               text
               @click="openEditDialog(data)"
             />
-            <Button
-              icon="pi pi-trash"
-              size="small"
-              severity="danger"
-              text
-              @click="confirmDelete(data)"
-            />
           </template>
         </Column>
         <template #empty>
@@ -201,9 +194,6 @@
         </template>
       </DataTable>
     </AppPanel>
-
-    <ConfirmDialog />
-
     <Dialog
       v-model:visible="dialogVisible"
       :header="t('payments.edit')"
@@ -214,7 +204,7 @@
         <div class="app-form-grid">
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.date') }}</label>
-            <InputText v-model="paymentForm.date" type="date" :disabled="isCashPaymentLocked" />
+            <InputText v-model="paymentForm.date" type="date" disabled />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.amount') }}</label>
@@ -223,7 +213,7 @@
               type="number"
               step="0.01"
               min="0.01"
-              :disabled="isCashPaymentLocked"
+              disabled
             />
           </div>
           <div class="app-field">
@@ -233,7 +223,7 @@
               :options="editableMethodOptions"
               option-label="label"
               option-value="value"
-              :disabled="isClientPaymentMethodLocked"
+              disabled
             />
           </div>
           <div class="app-field">
@@ -270,19 +260,16 @@
 <script setup lang="ts">
 import Button from 'primevue/button'
 import Column from 'primevue/column'
-import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import ToggleButton from 'primevue/togglebutton'
-import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  deletePayment,
   listPayments,
   updatePayment,
   type Payment,
@@ -308,7 +295,6 @@ import {
 } from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
-const confirm = useConfirm()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
@@ -386,15 +372,6 @@ const editableMethodOptions = computed(() => {
 
   return allMethodOptions.value
 })
-const isClientPaymentMethodLocked = computed(
-  () =>
-    editingPayment.value?.invoice_type === 'client' &&
-    (editingPayment.value.method === 'especes' || editingPayment.value.method === 'cheque'),
-)
-const isCashPaymentLocked = computed(
-  () =>
-    editingPayment.value?.invoice_type === 'client' && editingPayment.value.method === 'especes',
-)
 const yesNoOptions = computed(() => [
   { label: t('common.yes'), value: true },
   { label: t('common.no'), value: false },
@@ -432,9 +409,6 @@ async function savePayment() {
   saving.value = true
   try {
     await updatePayment(editingPayment.value.id, {
-      amount: paymentForm.value.amount,
-      date: paymentForm.value.date,
-      method: paymentForm.value.method,
       cheque_number:
         paymentForm.value.method === 'cheque'
           ? normalizeOptionalField(paymentForm.value.cheque_number)
@@ -466,21 +440,6 @@ async function loadPayments() {
   } finally {
     loading.value = false
   }
-}
-
-function confirmDelete(payment: Payment) {
-  confirm.require({
-    message: t('payments.confirm_delete', { amount: parseFloat(payment.amount).toFixed(2) }),
-    header: t('common.confirm'),
-    icon: 'pi pi-exclamation-triangle',
-    acceptProps: { severity: 'danger', label: t('common.delete') },
-    rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
-    accept: async () => {
-      await deletePayment(payment.id)
-      toast.add({ severity: 'success', summary: t('payments.deleted'), life: 2000 })
-      await loadPayments()
-    },
-  })
 }
 
 watch(

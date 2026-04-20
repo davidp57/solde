@@ -177,6 +177,129 @@ class TestUpdateInvoice:
         assert r.status_code == 200
         assert r.json()["description"] == "Updated"
 
+    async def test_update_sent_invoice_regenerates_accounting_entries(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        db_session,
+    ):
+        await seed_default_rules(db_session)
+        cid = await _create_contact(client, auth_headers)
+        created = await _create_invoice(
+            client,
+            auth_headers,
+            cid,
+            lines=[
+                {
+                    "description": "Cours de soutien",
+                    "line_type": "cours",
+                    "quantity": "1",
+                    "unit_price": "130.00",
+                },
+                {
+                    "description": "Adhesion annuelle",
+                    "line_type": "adhesion",
+                    "quantity": "1",
+                    "unit_price": "30.00",
+                },
+            ],
+        )
+        sent_response = await client.patch(
+            f"/api/invoices/{created['id']}/status",
+            json={"status": "sent"},
+            headers=auth_headers,
+        )
+        assert sent_response.status_code == 200
+
+        initial_entries = list(
+            (
+                await db_session.execute(
+                    select(AccountingEntry)
+                    .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                    .where(AccountingEntry.source_id == created["id"])
+                    .order_by(AccountingEntry.entry_number.asc())
+                )
+            ).scalars()
+        )
+        assert len(initial_entries) == 3
+
+        update_response = await client.put(
+            f"/api/invoices/{created['id']}",
+            json={
+                "lines": [
+                    {
+                        "description": "Cours de soutien",
+                        "line_type": "cours",
+                        "quantity": "1",
+                        "unit_price": "150.00",
+                    }
+                ]
+            },
+            headers=auth_headers,
+        )
+
+        assert update_response.status_code == 200
+        assert update_response.json()["total_amount"] == "150.00"
+
+        regenerated_entries = list(
+            (
+                await db_session.execute(
+                    select(AccountingEntry)
+                    .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                    .where(AccountingEntry.source_id == created["id"])
+                    .order_by(AccountingEntry.entry_number.asc())
+                )
+            ).scalars()
+        )
+        assert len(regenerated_entries) == 2
+        assert any(entry.debit == Decimal("150.00") for entry in regenerated_entries)
+        assert any(entry.credit == Decimal("150.00") for entry in regenerated_entries)
+
+    async def test_update_paid_invoice_returns_conflict(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+    ):
+        cid = await _create_contact(client, auth_headers)
+        created = await _create_invoice(
+            client,
+            auth_headers,
+            cid,
+            lines=[
+                {
+                    "description": "Cours de soutien",
+                    "line_type": "cours",
+                    "quantity": "1",
+                    "unit_price": "130.00",
+                }
+            ],
+        )
+        await client.patch(
+            f"/api/invoices/{created['id']}/status",
+            json={"status": "sent"},
+            headers=auth_headers,
+        )
+        payment_response = await client.post(
+            "/api/payments/",
+            json={
+                "invoice_id": created["id"],
+                "contact_id": cid,
+                "amount": "130.00",
+                "date": "2025-09-02",
+                "method": "cheque",
+            },
+            headers=auth_headers,
+        )
+        assert payment_response.status_code == 201
+
+        update_response = await client.put(
+            f"/api/invoices/{created['id']}",
+            json={"description": "Updated"},
+            headers=auth_headers,
+        )
+
+        assert update_response.status_code == 409
+
 
 class TestStatusChange:
     async def test_draft_to_sent(self, client: AsyncClient, auth_headers: dict):

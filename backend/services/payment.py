@@ -18,6 +18,10 @@ class InvoiceNotFoundError(LookupError):
     """Raised when a payment references an invoice that does not exist."""
 
 
+class PaymentDeleteError(ValueError):
+    """Raised when a payment deletion is not allowed in the standard workflow."""
+
+
 async def _attach_invoice_number(db: AsyncSession, payment: Payment) -> Payment:
     """Populate transient invoice metadata used by API responses."""
     result = await db.execute(
@@ -202,12 +206,8 @@ async def update_payment(db: AsyncSession, payment: Payment, payload: PaymentUpd
 
 
 async def delete_payment(db: AsyncSession, payment: Payment) -> None:
-    """Delete a payment and recalculate the invoice status."""
-    invoice_id = payment.invoice_id
-    await db.delete(payment)
-    await db.flush()
-    await _refresh_invoice_status(db, invoice_id)
-    await db.commit()
+    """Block payment deletion until a dedicated reversal workflow exists."""
+    raise PaymentDeleteError("payments cannot be deleted after creation")
 
 
 async def _get_invoice_type(db: AsyncSession, invoice_id: int) -> InvoiceType | None:
@@ -246,22 +246,39 @@ def _validate_treasury_managed_payment_update(
     payment: Payment,
     payload: PaymentUpdate,
 ) -> None:
-    """Keep treasury-linked client payments immutable on fields that would desync journals."""
-    if invoice is None or invoice.type != InvoiceType.CLIENT:
-        return
-
-    if (
-        payment.method in (PaymentMethod.CHEQUE, PaymentMethod.ESPECES)
-        and payload.method is not None
-        and payload.method != payment.method
-    ):
-        raise ValueError("client cheque and cash payments cannot change method after creation")
-
-    if payment.method == PaymentMethod.ESPECES:
-        if payload.amount is not None and payload.amount != payment.amount:
+    """Keep created payments quasi-immutable to avoid desynchronising treasury/accounting flows."""
+    if payload.amount is not None and payload.amount != payment.amount:
+        if (
+            invoice is not None
+            and invoice.type == InvoiceType.CLIENT
+            and payment.method == PaymentMethod.ESPECES
+        ):
             raise ValueError("cash client payments cannot change amount after creation")
-        if payload.date is not None and payload.date != payment.date:
+        raise ValueError("payments cannot change amount after creation")
+
+    if payload.date is not None and payload.date != payment.date:
+        if (
+            invoice is not None
+            and invoice.type == InvoiceType.CLIENT
+            and payment.method == PaymentMethod.ESPECES
+        ):
             raise ValueError("cash client payments cannot change date after creation")
+        raise ValueError("payments cannot change date after creation")
+
+    if payload.method is not None and payload.method != payment.method:
+        if (
+            invoice is not None
+            and invoice.type == InvoiceType.CLIENT
+            and payment.method in (PaymentMethod.CHEQUE, PaymentMethod.ESPECES)
+        ):
+            raise ValueError("client cheque and cash payments cannot change method after creation")
+        raise ValueError("payments cannot change method after creation")
+
+    if payload.deposited is not None and payload.deposited != payment.deposited:
+        raise ValueError("payments cannot change deposit state after creation")
+
+    if payload.deposit_date is not None and payload.deposit_date != payment.deposit_date:
+        raise ValueError("payments cannot change deposit date after creation")
 
 
 async def _create_treasury_entries_for_payment(
