@@ -356,10 +356,11 @@ async def test_delete_payment(
     payment_id = create_resp.json()["id"]
 
     del_resp = await client.delete(f"/api/payments/{payment_id}", headers=auth_headers)
-    assert del_resp.status_code == 204
+    assert del_resp.status_code == 409
+    assert del_resp.json()["detail"] == "payments cannot be deleted after creation"
 
     get_resp = await client.get(f"/api/payments/{payment_id}", headers=auth_headers)
-    assert get_resp.status_code == 404
+    assert get_resp.status_code == 200
 
 
 @pytest.mark.asyncio

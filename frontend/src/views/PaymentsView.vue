@@ -187,13 +187,6 @@
               text
               @click="openEditDialog(data)"
             />
-            <Button
-              icon="pi pi-trash"
-              size="small"
-              severity="danger"
-              text
-              @click="confirmDelete(data)"
-            />
           </template>
         </Column>
         <template #empty>
@@ -201,9 +194,6 @@
         </template>
       </DataTable>
     </AppPanel>
-
-    <ConfirmDialog />
-
     <Dialog
       v-model:visible="dialogVisible"
       :header="t('payments.edit')"
@@ -270,19 +260,16 @@
 <script setup lang="ts">
 import Button from 'primevue/button'
 import Column from 'primevue/column'
-import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import ToggleButton from 'primevue/togglebutton'
-import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
-  deletePayment,
   listPayments,
   updatePayment,
   type Payment,
@@ -308,7 +295,6 @@ import {
 } from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
-const confirm = useConfirm()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
@@ -454,21 +440,6 @@ async function loadPayments() {
   } finally {
     loading.value = false
   }
-}
-
-function confirmDelete(payment: Payment) {
-  confirm.require({
-    message: t('payments.confirm_delete', { amount: parseFloat(payment.amount).toFixed(2) }),
-    header: t('common.confirm'),
-    icon: 'pi pi-exclamation-triangle',
-    acceptProps: { severity: 'danger', label: t('common.delete') },
-    rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
-    accept: async () => {
-      await deletePayment(payment.id)
-      toast.add({ severity: 'success', summary: t('payments.deleted'), life: 2000 })
-      await loadPayments()
-    },
-  })
 }
 
 watch(

@@ -1678,8 +1678,14 @@ async def test_reversible_import_run_undo_rejects_manually_modified_object(
         await db_session.execute(select(Contact).where(Contact.nom == "LOPES"))
     ).scalar_one()
 
-    imported_contact.notes = "Retouche manuelle"
-    await db_session.commit()
+    update_response = await client.put(
+        f"/api/contacts/{imported_contact.id}",
+        json={"notes": "Retouche manuelle"},
+        headers=auth_headers,
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["notes"] == "Retouche manuelle"
 
     undo_response = await client.post(
         f"/api/import/runs/{run_id}/undo",

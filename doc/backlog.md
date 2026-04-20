@@ -493,9 +493,9 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Point d'attention** : la traçabilité et la cohérence comptable doivent primer sur la simplicité apparente d'une édition directe, y compris quand la modification vient d'un rapprochement automatique entre imports `Gestion` et `Comptabilité`.
 - **Livré** :
 	- l'API facture autorise désormais l'édition d'une facture `sent` non réglée, avec régénération transactionnelle des écritures `INVOICE` dérivées ;
-	- l'API paiement rend les paiements quasi immuables après création, en ne laissant éditables que les champs mineurs sans impact structurel ;
+	- l'API paiement rend les paiements quasi immuables après création, en ne laissant éditables que les champs mineurs sans impact structurel et en bloquant la suppression standard ;
 	- l'UI des paiements reflète cette politique en verrouillant les champs structurels dans la boîte d'édition ;
-	- le rejeu strict des imports réversibles bloque bien `undo/redo` dès qu'un objet importé a divergé, avec un test d'intégration couvrant aussi le cas d'instance ORM expirée.
+	- le rejeu strict des imports réversibles bloque bien `undo/redo` dès qu'un objet importé a divergé, y compris après une retouche via l'API contact, avec un test d'intégration couvrant aussi le cas d'instance ORM expirée.
 - **Validation technique réalisée** : `ruff check .`, `ruff format --check .`, `mypy .`, `pytest tests/`, `npx vue-tsc --noEmit -p tsconfig.app.json`, `npx vue-tsc --noEmit`, `npx eslint src/` et `npx vitest run` sont passés localement sur la branche de travail.
 
 ## Prêt

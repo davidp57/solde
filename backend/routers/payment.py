@@ -105,4 +105,7 @@ async def delete_payment(
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
-    await payment_service.delete_payment(db, payment)
+    try:
+        await payment_service.delete_payment(db, payment)
+    except payment_service.PaymentDeleteError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
