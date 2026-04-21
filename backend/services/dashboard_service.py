@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from calendar import monthrange
-from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
@@ -45,7 +44,7 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
     # --- Client invoices with a remaining amount (status can be stale after imports/edits) ---
     client_invoices_result = await db.execute(
         select(Invoice).where(
-            Invoice.type == "client",
+            Invoice.type == InvoiceType.CLIENT,
             Invoice.status != InvoiceStatus.DRAFT,
         )
     )
@@ -224,24 +223,6 @@ async def get_monthly_chart(
     ]
 
 
-def _remaining_amount_as_of(
-    invoice: Invoice,
-    *,
-    payment_totals_by_invoice_id: dict[int, list[tuple[date, Decimal]]],
-    period_end: date,
-) -> Decimal:
-    paid_amount = sum(
-        (
-            amount
-            for payment_date, amount in payment_totals_by_invoice_id.get(invoice.id, [])
-            if payment_date <= period_end
-        ),
-        Decimal("0"),
-    )
-    remaining_amount = Decimal(str(invoice.total_amount)) - paid_amount
-    return remaining_amount if remaining_amount > 0 else Decimal("0")
-
-
 async def get_resources_chart(
     db: AsyncSession,
     *,
@@ -250,69 +231,129 @@ async def get_resources_chart(
     from backend.services import bank_service, cash_service  # noqa: PLC0415
 
     windows = _rolling_month_windows(months)
+    if not windows:
+        return []
+
+    max_period_end = windows[-1][1]
     bank_series = await bank_service.get_monthly_funds_series(db, months=months)
     cash_series = await cash_service.get_monthly_funds_series(db, months=months)
     bank_by_month = {row["month"]: Decimal(str(row["total"])) for row in bank_series}
     cash_by_month = {row["month"]: Decimal(str(row["balance"])) for row in cash_series}
 
-    invoice_result = await db.execute(select(Invoice).where(Invoice.status != InvoiceStatus.DRAFT))
-    invoices = invoice_result.scalars().all()
+    invoice_result = await db.execute(
+        select(Invoice.id, Invoice.type, Invoice.date, Invoice.total_amount)
+        .where(
+            Invoice.status != InvoiceStatus.DRAFT,
+            Invoice.date <= max_period_end,
+        )
+        .order_by(Invoice.date.asc(), Invoice.id.asc())
+    )
+    invoices = [
+        (invoice_id, invoice_type, invoice_date, Decimal(str(total_amount)))
+        for invoice_id, invoice_type, invoice_date, total_amount in invoice_result.all()
+    ]
 
     payment_result = await db.execute(
-        select(Payment, Invoice.type).join(Invoice, Invoice.id == Payment.invoice_id)
-    )
-    payment_rows = payment_result.all()
-
-    payment_totals_by_invoice_id: dict[int, list[tuple[date, Decimal]]] = defaultdict(list)
-    cheque_rows: list[tuple[date, Decimal, date | None]] = []
-    for payment, invoice_type in payment_rows:
-        payment_totals_by_invoice_id[payment.invoice_id].append(
-            (payment.date, Decimal(str(payment.amount)))
+        select(
+            Payment.invoice_id,
+            Invoice.type,
+            Payment.date,
+            Payment.amount,
+            Payment.method,
+            Payment.deposit_date,
         )
-        if invoice_type == InvoiceType.CLIENT and payment.method == PaymentMethod.CHEQUE:
-            cheque_rows.append(
-                (
-                    payment.date,
-                    Decimal(str(payment.amount)),
-                    payment.deposit_date,
-                )
-            )
+        .join(Invoice, Invoice.id == Payment.invoice_id)
+        .where(
+            Invoice.status != InvoiceStatus.DRAFT,
+            Invoice.date <= max_period_end,
+            Payment.date <= max_period_end,
+        )
+        .order_by(Payment.date.asc(), Payment.id.asc())
+    )
+    payments = [
+        (
+            invoice_id,
+            invoice_type,
+            payment_date,
+            Decimal(str(amount)),
+            payment_method,
+            deposit_date,
+        )
+        for (
+            invoice_id,
+            invoice_type,
+            payment_date,
+            amount,
+            payment_method,
+            deposit_date,
+        ) in payment_result.all()
+    ]
+    cheque_deposit_events = sorted(
+        (deposit_date, amount)
+        for _, invoice_type, _, amount, payment_method, deposit_date in payments
+        if invoice_type == InvoiceType.CLIENT
+        and payment_method == PaymentMethod.CHEQUE
+        and deposit_date is not None
+    )
 
     rows: list[dict[str, Decimal | str]] = []
+    active_remaining_by_invoice_id: dict[int, Decimal] = {}
+    pending_paid_by_invoice_id: dict[int, Decimal] = {}
+    client_receivables = Decimal("0")
+    supplier_payables = Decimal("0")
+    undeposited_cheques = Decimal("0")
+    invoice_index = 0
+    payment_index = 0
+    cheque_deposit_index = 0
     for month_label, period_end in windows:
-        client_receivables = sum(
-            (
-                _remaining_amount_as_of(
-                    invoice,
-                    payment_totals_by_invoice_id=payment_totals_by_invoice_id,
-                    period_end=period_end,
+        while invoice_index < len(invoices) and invoices[invoice_index][2] <= period_end:
+            invoice_id, invoice_type, _, total_amount = invoices[invoice_index]
+            remaining_amount = total_amount - pending_paid_by_invoice_id.pop(
+                invoice_id,
+                Decimal("0"),
+            )
+            if remaining_amount < 0:
+                remaining_amount = Decimal("0")
+            active_remaining_by_invoice_id[invoice_id] = remaining_amount
+            if invoice_type == InvoiceType.CLIENT:
+                client_receivables += remaining_amount
+            elif invoice_type == InvoiceType.FOURNISSEUR:
+                supplier_payables += remaining_amount
+            invoice_index += 1
+
+        while payment_index < len(payments) and payments[payment_index][2] <= period_end:
+            invoice_id, invoice_type, _, amount, payment_method, _ = payments[payment_index]
+            active_remaining_amount = active_remaining_by_invoice_id.get(invoice_id)
+            if active_remaining_amount is None:
+                pending_paid_by_invoice_id[invoice_id] = (
+                    pending_paid_by_invoice_id.get(
+                        invoice_id,
+                        Decimal("0"),
+                    )
+                    + amount
                 )
-                for invoice in invoices
-                if invoice.type == InvoiceType.CLIENT and invoice.date <= period_end
-            ),
-            Decimal("0"),
-        )
-        supplier_payables = sum(
-            (
-                _remaining_amount_as_of(
-                    invoice,
-                    payment_totals_by_invoice_id=payment_totals_by_invoice_id,
-                    period_end=period_end,
+            else:
+                applied_amount = (
+                    amount if amount <= active_remaining_amount else active_remaining_amount
                 )
-                for invoice in invoices
-                if invoice.type == InvoiceType.FOURNISSEUR and invoice.date <= period_end
-            ),
-            Decimal("0"),
-        )
-        undeposited_cheques = sum(
-            (
-                amount
-                for payment_date, amount, deposit_date in cheque_rows
-                if payment_date <= period_end
-                and (deposit_date is None or deposit_date > period_end)
-            ),
-            Decimal("0"),
-        )
+                active_remaining_by_invoice_id[invoice_id] = (
+                    active_remaining_amount - applied_amount
+                )
+                if invoice_type == InvoiceType.CLIENT:
+                    client_receivables -= applied_amount
+                elif invoice_type == InvoiceType.FOURNISSEUR:
+                    supplier_payables -= applied_amount
+            if invoice_type == InvoiceType.CLIENT and payment_method == PaymentMethod.CHEQUE:
+                undeposited_cheques += amount
+            payment_index += 1
+
+        while (
+            cheque_deposit_index < len(cheque_deposit_events)
+            and cheque_deposit_events[cheque_deposit_index][0] <= period_end
+        ):
+            undeposited_cheques -= cheque_deposit_events[cheque_deposit_index][1]
+            cheque_deposit_index += 1
+
         liquidities = bank_by_month.get(month_label, Decimal("0")) + cash_by_month.get(
             month_label,
             Decimal("0"),
