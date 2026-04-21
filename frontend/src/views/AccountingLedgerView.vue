@@ -67,11 +67,11 @@
         <section class="app-stat-grid ledger-summary-grid">
           <AppStatCard
             :label="t('accounting.ledger.opening_balance')"
-            :value="ledger.opening_balance"
+            :value="formatAccountingAmount(ledger.opening_balance)"
           />
           <AppStatCard
             :label="t('accounting.ledger.closing_balance')"
-            :value="ledger.closing_balance"
+            :value="formatAccountingAmount(ledger.closing_balance)"
           />
           <AppStatCard :label="t('accounting.journal.title')" :value="ledger.entries.length" />
         </section>
@@ -175,6 +175,7 @@
             :show-filter-match-modes="false"
             :show-add-button="false"
           >
+            <template #body="{ data }">{{ formatAccountingAmount(data.running_balance_value) }}</template>
             <template #filter="{ filterModel }">
               <AppNumberRangeFilter v-model="filterModel.value" />
             </template>
@@ -212,7 +213,7 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useFiscalYearStore } from '../stores/fiscalYear'
-import { formatDisplayDate } from '@/utils/format'
+import { formatAccountingAmount, formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const fiscalYearStore = useFiscalYearStore()

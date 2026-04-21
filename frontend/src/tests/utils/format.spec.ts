@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  formatAccountingAmount,
   formatDateInputDraft,
   formatDisplayDate,
   formatDisplayMonth,
@@ -27,5 +28,23 @@ describe('format helpers', () => {
 
   it('formats stored ISO values back to a French draft for text inputs', () => {
     expect(formatDateInputDraft('2025-07-14')).toBe('14/07/2025')
+  })
+
+  it('formats positive accounting amounts without parentheses', () => {
+    const expected = new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(1234.5)
+
+    expect(formatAccountingAmount(1234.5)).toBe(expected)
+  })
+
+  it('formats negative accounting amounts with parentheses', () => {
+    const expected = new Intl.NumberFormat('fr-FR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(1234.5)
+
+    expect(formatAccountingAmount(-1234.5)).toBe(`(${expected})`)
   })
 })

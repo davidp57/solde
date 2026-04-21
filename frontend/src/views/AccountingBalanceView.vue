@@ -145,6 +145,9 @@
           :show-filter-match-modes="false"
           :show-add-button="false"
         >
+          <template #body="{ data }">
+            {{ formatAccountingAmount(data.solde_value) }}
+          </template>
           <template #filter="{ filterModel }">
             <AppNumberRangeFilter v-model="filterModel.value" />
           </template>
@@ -179,6 +182,7 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatAccountingAmount } from '../utils/format'
 
 const { t } = useI18n()
 const fiscalYearStore = useFiscalYearStore()
