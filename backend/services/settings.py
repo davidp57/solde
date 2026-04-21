@@ -575,6 +575,14 @@ async def get_settings(db: AsyncSession) -> AppSettings:
     return settings
 
 
+async def get_default_invoice_due_days(db: AsyncSession) -> int | None:
+    """Return the configured default invoice due delay without mutating the session."""
+    result = await db.execute(
+        select(AppSettings.default_invoice_due_days).where(AppSettings.id == _SETTINGS_ID)
+    )
+    return result.scalar_one_or_none()
+
+
 async def update_settings(db: AsyncSession, payload: AppSettingsUpdate) -> AppSettings:
     """Partially update settings with provided fields."""
     settings = await get_settings(db)

@@ -130,13 +130,13 @@ const router = createRouter({
           path: 'import/excel',
           name: 'import-excel',
           component: () => import('../views/ImportExcelView.vue'),
-          meta: { requiresAccounting: true },
+          meta: { requiresAdmin: true },
         },
         {
           path: 'import/history',
           name: 'import-history',
           component: () => import('../views/ImportHistoryView.vue'),
-          meta: { requiresAccounting: true },
+          meta: { requiresAdmin: true },
         },
         {
           path: 'settings',

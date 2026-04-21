@@ -37,6 +37,16 @@
       />
     </section>
 
+    <AppPanel :title="t('cash.funds_chart_title')" dense>
+      <p class="cash-chart-panel__intro">{{ t('cash.funds_chart_intro') }}</p>
+      <TrendLineChart
+        :data="fundsChartData"
+        :series="fundsChartSeries"
+        :empty-label="t('cash.funds_chart_empty')"
+        :ariaLabel="t('cash.funds_chart_title')"
+      />
+    </AppPanel>
+
     <AppPanel :title="t('cash.title')" dense>
       <div class="app-toolbar">
         <div class="app-filter-grid">
@@ -521,6 +531,9 @@ import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import TrendLineChart, {
+  type TrendLineChartSeries,
+} from '../components/charts/TrendLineChart.vue'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
@@ -534,11 +547,13 @@ import {
   addCashEntry,
   getCashEntry,
   getCashBalance,
+  getCashFundsChart,
   listCashCounts,
   listCashEntries,
   type CashCount,
   type CashCountCreate,
   type CashEntry,
+  type FundsChartRow as CashFundsChartRow,
   updateCashEntry,
 } from '@/api/cash'
 import { formatDisplayDate } from '@/utils/format'
@@ -555,6 +570,7 @@ const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
 const balance = ref('0')
+const fundsChartData = ref<CashFundsChartRow[]>([])
 const entries = ref<CashEntry[]>([])
 const counts = ref<CashCount[]>([])
 const loadingEntries = ref(false)
@@ -607,6 +623,15 @@ const displayedPeriodVariationTone = computed(() => {
   if (displayedPeriodVariation.value < 0) return 'danger'
   return 'warn'
 })
+
+const fundsChartSeries = computed<TrendLineChartSeries[]>(() => [
+  {
+    key: 'balance',
+    label: t('cash.funds_chart_balance'),
+    color: '#2563eb',
+    fill: true,
+  },
+])
 
 const {
   filters: entryTableFilters,
@@ -839,15 +864,18 @@ async function loadAll() {
       from_date: fiscalYearStore.selectedFiscalYear?.start_date,
       to_date: fiscalYearStore.selectedFiscalYear?.end_date,
     }
-    const [b, e, c] = await Promise.all([
+    const [b, e, c, chart] = await Promise.all([
       getCashBalance(),
       listCashEntries(dateRange),
       listCashCounts(dateRange),
+      getCashFundsChart(6),
     ])
     balance.value = b.balance
     entries.value = e
     counts.value = c
+    fundsChartData.value = chart
   } catch {
+    fundsChartData.value = []
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
     loadingEntries.value = false
@@ -921,6 +949,11 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.cash-chart-panel__intro {
+  margin: 0 0 var(--app-space-4);
+  color: var(--p-text-muted-color);
+}
+
 .cash-journal__actions {
   width: 8rem;
 }

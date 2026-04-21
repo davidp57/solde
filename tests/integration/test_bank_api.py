@@ -10,11 +10,29 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
 from backend.models.contact import Contact, ContactType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
 from backend.models.user import User
+
+
+def _shift_month(value: date, months: int) -> date:
+    year = value.year
+    month = value.month + months
+    while month <= 0:
+        year -= 1
+        month += 12
+    while month > 12:
+        year += 1
+        month -= 12
+    return date(year, month, 1)
+
+
+def _month_fixture(months_ago: int, day: int = 10) -> date:
+    month_start = _shift_month(date.today().replace(day=1), -months_ago)
+    return month_start.replace(day=day)
 
 
 async def _make_payment(db_session: AsyncSession) -> int:
@@ -229,6 +247,174 @@ async def test_list_transactions_filter_by_date_range(
     data = response.json()
     assert len(data) == 1
     assert data[0]["id"] == kept.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_bank_funds_chart_returns_last_six_month_closing_balances(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    fixtures = [
+        (_month_fixture(5, 5), "100.00"),
+        (_month_fixture(3, 8), "50.00"),
+        (_month_fixture(1, 12), "-20.00"),
+    ]
+    for tx_date, amount in fixtures:
+        response = await client.post(
+            "/api/bank/transactions",
+            json={"date": tx_date.isoformat(), "amount": amount},
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+
+    db_session.add_all(
+        [
+            AccountingEntry(
+                entry_number="BANK-SAV-001",
+                date=_month_fixture(4, 6),
+                account_number="512102",
+                label="Epargne ouverture",
+                debit=Decimal("80.00"),
+                credit=Decimal("0.00"),
+                fiscal_year_id=None,
+                source_type=EntrySourceType.MANUAL,
+            ),
+            AccountingEntry(
+                entry_number="BANK-SAV-002",
+                date=_month_fixture(1, 14),
+                account_number="512102",
+                label="Retrait epargne",
+                debit=Decimal("0.00"),
+                credit=Decimal("30.00"),
+                fiscal_year_id=None,
+                source_type=EntrySourceType.MANUAL,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/bank/chart/funds", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [row["month"] for row in data] == [
+        _shift_month(date.today().replace(day=1), offset).strftime("%Y-%m")
+        for offset in range(-5, 1)
+    ]
+    assert [Decimal(str(row["current_account"])) for row in data] == [
+        Decimal("100.00"),
+        Decimal("100.00"),
+        Decimal("150.00"),
+        Decimal("150.00"),
+        Decimal("130.00"),
+        Decimal("130.00"),
+    ]
+    assert [Decimal(str(row["savings_account"])) for row in data] == [
+        Decimal("0.00"),
+        Decimal("80.00"),
+        Decimal("80.00"),
+        Decimal("80.00"),
+        Decimal("50.00"),
+        Decimal("50.00"),
+    ]
+    assert [Decimal(str(row["total"])) for row in data] == [
+        Decimal("100.00"),
+        Decimal("180.00"),
+        Decimal("230.00"),
+        Decimal("230.00"),
+        Decimal("180.00"),
+        Decimal("180.00"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_bank_funds_chart_uses_latest_fiscal_year_opening_for_savings_balance(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    fixtures = [
+        (_month_fixture(5, 5), "100.00"),
+        (_month_fixture(3, 8), "50.00"),
+        (_month_fixture(1, 12), "-20.00"),
+    ]
+    for tx_date, amount in fixtures:
+        response = await client.post(
+            "/api/bank/transactions",
+            json={"date": tx_date.isoformat(), "amount": amount},
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+
+    db_session.add_all(
+        [
+            AccountingEntry(
+                entry_number="BANK-SAV-OPEN-2024",
+                date=_month_fixture(7, 2),
+                account_number="512102",
+                label="Ouverture de l'exercice comptable 2024",
+                debit=Decimal("100.00"),
+                credit=Decimal("0.00"),
+                fiscal_year_id=2,
+                source_type=EntrySourceType.MANUAL,
+            ),
+            AccountingEntry(
+                entry_number="BANK-SAV-INT-2024",
+                date=_month_fixture(6, 3),
+                account_number="512102",
+                label="Interets livret 2024",
+                debit=Decimal("20.00"),
+                credit=Decimal("0.00"),
+                fiscal_year_id=2,
+                source_type=EntrySourceType.MANUAL,
+            ),
+            AccountingEntry(
+                entry_number="BANK-SAV-OPEN-2025",
+                date=_month_fixture(4, 2),
+                account_number="512102",
+                label="Ouverture de l'exercice comptable 2025",
+                debit=Decimal("120.00"),
+                credit=Decimal("0.00"),
+                fiscal_year_id=3,
+                source_type=EntrySourceType.MANUAL,
+            ),
+            AccountingEntry(
+                entry_number="BANK-SAV-TRF-2026",
+                date=_month_fixture(1, 14),
+                account_number="512102",
+                label="Virement interne",
+                debit=Decimal("0.00"),
+                credit=Decimal("30.00"),
+                fiscal_year_id=3,
+                source_type=EntrySourceType.GESTION,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/bank/chart/funds", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [Decimal(str(row["savings_account"])) for row in data] == [
+        Decimal("120.00"),
+        Decimal("120.00"),
+        Decimal("120.00"),
+        Decimal("120.00"),
+        Decimal("90.00"),
+        Decimal("90.00"),
+    ]
+    assert [Decimal(str(row["total"])) for row in data] == [
+        Decimal("220.00"),
+        Decimal("220.00"),
+        Decimal("270.00"),
+        Decimal("270.00"),
+        Decimal("220.00"),
+        Decimal("220.00"),
+    ]
 
 
 @pytest.mark.asyncio

@@ -61,6 +61,7 @@ class TestGetSettings:
         assert settings.id == 1
         assert settings.association_name == "Mon Association"
         assert settings.fiscal_year_start_month == 8
+        assert settings.default_invoice_due_days is None
         assert settings.smtp_host is None
         assert settings.smtp_port == 587
         assert settings.smtp_use_tls is True
@@ -110,6 +111,12 @@ class TestUpdateSettings:
         payload = AppSettingsUpdate(fiscal_year_start_month=1)
         settings = await update_settings(db_session, payload)
         assert settings.fiscal_year_start_month == 1
+
+    async def test_update_default_invoice_due_days(self, db_session: AsyncSession):
+        payload = AppSettingsUpdate(default_invoice_due_days=30)
+        settings = await update_settings(db_session, payload)
+
+        assert settings.default_invoice_due_days == 30
 
     async def test_excludes_unset_fields(self, db_session: AsyncSession):
         # Set initial state

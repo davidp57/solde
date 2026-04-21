@@ -59,6 +59,18 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-021 | 2026-04-13 | Documentation | Utilisateur / Parcours | P1 | Rédiger un manuel utilisateur illustré et pas à pas aligné sur les écrans réellement disponibles |
+| BL-022 | 2026-04-21 | UX / Fonctionnel | Gestion / Synthèse | P2 | Afficher les créances adhérents dans les cartes de synthèse en distinguant clairement l'encours de l'exercice et les impayés historiques encore ouverts |
+| BL-033 | 2026-04-21 | Import / Fonctionnel | Gestion / Paiements | P1 | Clarifier la comparaison des chèques inter-exercices entre date de paiement et date de remise |
+| BL-034 | 2026-04-21 | Fonctionnel / Architecture | Banque / Multi-compte | P2 | Introduire un support multi-compte explicite pour la banque afin de distinguer proprement compte courant et compte épargne dans les données, les imports et les écrans |
+| BL-035 | 2026-04-21 | UX / Fonctionnel | Contacts | P2 | Séparer les contacts clients et fournisseurs dans deux onglets dédiés sur l'écran des contacts |
+| BL-036 | 2026-04-21 | UX / Fonctionnel | Factures client / Synthèse | P2 | Rendre la carte `restant en retard` cliquable pour ouvrir la liste des factures clientes concernées |
+| BL-037 | 2026-04-21 | UX / Navigation | Shell utilisateur | P3 | Remplacer l'entrée de menu `Mon profil` par un accès au profil via un clic sur le nom de l'utilisateur |
+| BL-038 | 2026-04-21 | UX / Produit | Application / Shell | P3 | Afficher un numéro de version discret mais visible dans l'interface de l'application |
+| BL-039 | 2026-04-21 | Qualité / Recette | Factures client / Email | P1 | Rejouer et fiabiliser les scénarios d'édition de facture client et d'envoi par e-mail avec validation explicite du comportement attendu |
+| BL-040 | 2026-04-21 | Import / Fonctionnel | Contacts client | P2 | Ajouter un import one-shot d'une liste d'adresses e-mail pour enrichir les contacts clients existants |
+| BL-041 | 2026-04-21 | UX / Fonctionnel | Paiements / Synthèse | P2 | Rendre la carte `non remis` cliquable pour ouvrir la liste des paiements concernés |
+| BL-042 | 2026-04-21 | UX / Cohérence | Tables / Filtres | P2 | Ajouter un bouton `reset` sur tous les filtres de toutes les tables pour revenir rapidement à l'état initial |
+| BL-043 | 2026-04-21 | UX / Fonctionnel | Comptabilité / Filtres | P2 | Remplacer les filtres de comptes comptables par des combos affichant numéro, nom et couleur des comptes suivis |
 
 ## Détail des sujets ouverts
 
@@ -115,6 +127,22 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- résultat attendu ;
 	- erreurs fréquentes ou points d'attention.
 - **Point d'attention** : ce manuel doit privilégier les parcours métier concrets, le vocabulaire simple et les écrans réels de l'application, plutôt qu'une description abstraite des fonctionnalités ; les captures doivent arriver en dernière étape pour éviter une maintenance inutile tant que l'UI continue d'évoluer.
+
+### BL-022 — Convention métier des créances adhérents dans les synthèses
+
+- **Dates** : `created=2026-04-21`
+- **Pourquoi** : la balance comptable des comptes tiers et le KPI `restant à payer` des factures ne racontent pas exactement la même histoire dès qu'il existe des impayés plus anciens encore ouverts, ce qui peut faire croire à un écart faux alors qu'il s'agit d'une différence de périmètre.
+- **Résultat attendu** : expliciter puis implémenter une convention produit stable distinguant au minimum `reste à payer des factures de l'exercice sélectionné` et `encours adhérents total incluant les impayés historiques encore ouverts`, avec des libellés suffisamment clairs pour éviter toute confusion métier.
+- **Point d'attention** : si une seule carte doit être conservée, son intitulé et son aide doivent refléter sans ambiguïté le périmètre retenu ; sinon, deux cartes séparées sont probablement plus sûres pour la lecture métier.
+
+### BL-033 — Comparaison des chèques inter-exercices dans les imports et validations
+
+- **Dates** : `created=2026-04-21`
+- **Pourquoi** : pour un chèque, la date de règlement réellement prise en compte peut appartenir à l'exercice précédent alors que la remise en banque intervient dans l'exercice courant ; la comparaison actuelle des paiements importés reste trop centrée sur `payment.date`, ce qui crée des écarts trompeurs entre Excel et Solde lors des validations `Gestion` / `Comptabilité` par exercice.
+- **Résultat attendu** : expliciter noir sur blanc la convention métier et technique retenue pour les chèques inter-exercices, puis aligner la comparaison d'import et la documentation sur cette convention afin qu'un chèque reçu en `N-1` mais remis en banque en `N` ne soit plus interprété comme un écart de paiement si le comportement est attendu.
+- **Avancement actuel** : les constats et écarts déjà expliqués sur la validation `Gestion/Comptabilité 2025` sont désormais suivis dans `doc/dev/bl-026-validation-2025-working-notes.md`, afin de maintenir une liste courte et vivante des deltas confirmés au fur et à mesure des tests.
+- **Point d'attention** : il faut conserver la séparation métier entre `date du paiement` et `date de remise`, sans réécrire artificiellement les dates pour faire coller les comparaisons ; si nécessaire, la validation doit raisonner différemment selon le domaine (`paiement`, `remise`, `banque`, `511200`) ou afficher explicitement les cas de report inter-exercices.
+
 
 ## Détail des sujets fermés
 

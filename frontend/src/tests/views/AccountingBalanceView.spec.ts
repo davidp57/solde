@@ -58,20 +58,32 @@ const CurrentRowKey = Symbol('current-balance-row')
 const DataTableRowStub = defineComponent({
   props: {
     row: { type: Object, required: true },
+    rowClass: { type: Function, default: undefined },
   },
   setup(props, { slots }) {
     provide(CurrentRowKey, props.row)
-    return () => h('div', slots.default ? slots.default() : [])
+    return () =>
+      h(
+        'div',
+        {
+          class: [
+            'data-table-row',
+            props.rowClass ? props.rowClass(props.row as Record<string, unknown>) : undefined,
+          ],
+        },
+        slots.default ? slots.default() : [],
+      )
   },
 })
 
 const DataTableStub = defineComponent({
   props: {
     value: { type: Array, default: () => [] },
+    rowClass: { type: Function, default: undefined },
   },
   components: { DataTableRowStub },
   template:
-    '<div><div class="table-header"><slot /></div><DataTableRowStub v-for="row in value" :key="row.account_number" :row="row"><slot /></DataTableRowStub></div>',
+    '<div><div class="table-header"><slot /></div><DataTableRowStub v-for="row in value" :key="row.account_number" :row="row" :row-class="rowClass"><slot /></DataTableRowStub></div>',
 })
 
 const ColumnStub = defineComponent({
@@ -130,12 +142,28 @@ describe('AccountingBalanceView', () => {
     fiscalYearStoreMock.initialize.mockResolvedValue(undefined)
     mockGetBalanceApi.mockResolvedValue([
       {
+        account_number: '411100',
+        account_label: 'Adhérents',
+        account_type: 'actif',
+        total_debit: '761.50',
+        total_credit: '0.00',
+        solde: '761.50',
+      },
+      {
         account_number: '401000',
         account_label: 'Fournisseurs',
         account_type: 'passif',
         total_debit: '100.00',
         total_credit: '142.12',
         solde: '-42.12',
+      },
+      {
+        account_number: '706110',
+        account_label: 'Cours de soutien',
+        account_type: 'produit',
+        total_debit: '0.00',
+        total_credit: '250.00',
+        solde: '-250.00',
       },
     ])
   })
@@ -151,5 +179,16 @@ describe('AccountingBalanceView', () => {
 
     expect(wrapper.text()).toContain(`(${expected})`)
     expect(wrapper.text()).not.toContain('-42.12')
+  })
+
+  it('highlights the key accounts in the balance table', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    expect(wrapper.text()).toContain('accounting.balance.focus_label')
+    expect(wrapper.find('.balance-row--focus-member_receivables').exists()).toBe(true)
+    expect(wrapper.find('.balance-row--focus-supplier_payables').exists()).toBe(true)
+    expect(wrapper.find('.balance-row--focus-current_account').exists()).toBe(false)
+    expect(wrapper.findAll('.data-table-row').at(-1)?.classes()).not.toContain('balance-row--focus')
   })
 })

@@ -13,6 +13,7 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import get_settings
+from backend.services import settings as settings_service
 from backend.services.excel_import_classification import (
     classify_comptabilite_sheet as _classify_comptabilite_sheet,
 )
@@ -201,6 +202,7 @@ from backend.services.excel_import_types import (
     RowValidationIssue,
     RowWarningIssue,
 )
+from backend.services.invoice import apply_default_due_date
 
 logger = logging.getLogger(__name__)
 
@@ -246,11 +248,7 @@ def _salary_month_label(month: str) -> str:
 
 def _salary_entry_date(month: str) -> date:
     year_value, month_value = month.split("-")
-    year_number = int(year_value)
-    month_number = int(month_value)
-    if month_number == 12:
-        return date(year_number + 1, 1, 1)
-    return date(year_number, month_number + 1, 1)
+    return date(int(year_value), int(month_value), 1)
 
 
 def _salary_employee_key(employee_name: str) -> str:
@@ -1014,12 +1012,14 @@ def _payment_signature(
     payment_date: date,
     amount: Decimal,
     method: str,
-) -> tuple[int, str, str, str]:
+    cheque_number: str | None = None,
+) -> tuple[int, str, str, str, str]:
     return (
         invoice_id,
         payment_date.isoformat(),
         format(amount.normalize(), "f"),
         _normalize_text(method),
+        _normalize_text(cheque_number or "") if _normalize_text(method) == "cheque" else "",
     )
 
 
@@ -1043,13 +1043,19 @@ def _payment_row_from_bank_row(
 
 async def _load_existing_payment_signatures(
     db: AsyncSession,
-) -> set[tuple[int, str, str, str]]:
+) -> set[tuple[int, str, str, str, str]]:
     from sqlalchemy import select  # noqa: PLC0415
 
     from backend.models.payment import Payment  # noqa: PLC0415
 
     result = await db.execute(
-        select(Payment.invoice_id, Payment.date, Payment.amount, Payment.method)
+        select(
+            Payment.invoice_id,
+            Payment.date,
+            Payment.amount,
+            Payment.method,
+            Payment.cheque_number,
+        )
     )
     return {
         _payment_signature(
@@ -1057,8 +1063,9 @@ async def _load_existing_payment_signatures(
             payment_date=payment_date,
             amount=amount,
             method=str(method),
+            cheque_number=cheque_number,
         )
-        for invoice_id, payment_date, amount, method in result.all()
+        for invoice_id, payment_date, amount, method, cheque_number in result.all()
     }
 
 
@@ -1150,12 +1157,18 @@ def _gestion_payment_comparison_signature(
     payment_date: date,
     amount: Decimal,
     settlement_account: str,
-) -> tuple[str, str, str, str]:
+    cheque_number: str | None = None,
+) -> tuple[str, str, str, str, str]:
     return (
         _normalize_text(reference),
         payment_date.isoformat(),
         _normalize_decimal_text(amount),
         _normalize_text(settlement_account),
+        (
+            _normalize_text(cheque_number or "")
+            if _normalize_text(settlement_account) == "511200"
+            else ""
+        ),
     )
 
 
@@ -1226,6 +1239,7 @@ def _make_gestion_payment_extra_detail(
     payment_date: date,
     amount: Decimal,
     settlement_account: str,
+    cheque_number: str | None,
     invoice_number: str | None,
     invoice_reference: str | None,
 ) -> dict[str, str]:
@@ -1245,6 +1259,8 @@ def _make_gestion_payment_extra_detail(
         "amount": amount_value,
         "settlement_account": settlement_account_value,
     }
+    if cheque_number:
+        detail["cheque_number"] = cheque_number.strip()
     if invoice_number:
         detail["invoice_number"] = invoice_number.strip()
     if invoice_reference:
@@ -1538,7 +1554,7 @@ async def _load_existing_client_payment_comparison_signatures(
     years: set[int],
     start_date: date | None = None,
     end_date: date | None = None,
-) -> set[tuple[str, str, str, str]]:
+) -> set[tuple[str, str, str, str, str]]:
     if not years:
         return set()
 
@@ -1548,13 +1564,20 @@ async def _load_existing_client_payment_comparison_signatures(
     from backend.models.payment import Payment  # noqa: PLC0415
 
     result = await db.execute(
-        select(Invoice.number, Invoice.reference, Payment.date, Payment.amount, Payment.method)
+        select(
+            Invoice.number,
+            Invoice.reference,
+            Payment.date,
+            Payment.amount,
+            Payment.method,
+            Payment.cheque_number,
+        )
         .join(Payment, Payment.invoice_id == Invoice.id)
         .where(Invoice.type == InvoiceType.CLIENT)
     )
 
-    signatures: set[tuple[str, str, str, str]] = set()
-    for number, reference, payment_date, amount, method in result.all():
+    signatures: set[tuple[str, str, str, str, str]] = set()
+    for number, reference, payment_date, amount, method, cheque_number in result.all():
         if payment_date.year not in years or not _is_within_date_bounds(
             payment_date,
             start_date,
@@ -1574,6 +1597,7 @@ async def _load_existing_client_payment_comparison_signatures(
                     payment_date=payment_date,
                     amount=amount,
                     settlement_account=settlement_account,
+                    cheque_number=cheque_number,
                 )
             )
     return signatures
@@ -1612,7 +1636,7 @@ async def _load_existing_client_payment_comparison_items(
     years: set[int],
     start_date: date | None = None,
     end_date: date | None = None,
-) -> dict[tuple[str, str, str, str], dict[str, str]]:
+) -> dict[tuple[str, str, str, str, str], dict[str, str]]:
     if not years:
         return {}
 
@@ -1622,13 +1646,20 @@ async def _load_existing_client_payment_comparison_items(
     from backend.models.payment import Payment  # noqa: PLC0415
 
     result = await db.execute(
-        select(Invoice.number, Invoice.reference, Payment.date, Payment.amount, Payment.method)
+        select(
+            Invoice.number,
+            Invoice.reference,
+            Payment.date,
+            Payment.amount,
+            Payment.method,
+            Payment.cheque_number,
+        )
         .join(Payment, Payment.invoice_id == Invoice.id)
         .where(Invoice.type == InvoiceType.CLIENT)
     )
 
-    details: dict[tuple[str, str, str, str], dict[str, str]] = {}
-    for number, reference, payment_date, amount, method in result.all():
+    details: dict[tuple[str, str, str, str, str], dict[str, str]] = {}
+    for number, reference, payment_date, amount, method, cheque_number in result.all():
         if payment_date.year not in years or not _is_within_date_bounds(
             payment_date,
             start_date,
@@ -1648,12 +1679,14 @@ async def _load_existing_client_payment_comparison_items(
                 payment_date=payment_date,
                 amount=amount,
                 settlement_account=settlement_account,
+                cheque_number=cheque_number,
             )
             details[signature] = _make_gestion_payment_extra_detail(
                 reference=candidate_reference,
                 payment_date=payment_date,
                 amount=amount,
                 settlement_account=settlement_account,
+                cheque_number=cheque_number,
                 invoice_number=number,
                 invoice_reference=reference,
             )
@@ -2127,7 +2160,7 @@ async def _build_gestion_preview_comparison_domains(
             )
             already_in_solde = 0
             blocked_validation = 0
-            workbook_payment_signatures: set[tuple[str, str, str, str]] = set()
+            workbook_payment_signatures: set[tuple[str, str, str, str, str]] = set()
             for payment_row in filtered_payment_rows:
                 resolution = await _resolve_payment_match(
                     db,
@@ -2151,6 +2184,7 @@ async def _build_gestion_preview_comparison_domains(
                     payment_date=payment_row.payment_date,
                     amount=payment_row.amount,
                     settlement_account=_client_settlement_account_from_method(payment_row.method),
+                    cheque_number=payment_row.cheque_number,
                 )
                 workbook_payment_signatures.add(payment_signature)
                 if payment_signature in existing_payment_signatures:
@@ -2629,7 +2663,7 @@ async def _collect_gestion_extra_in_solde_by_kind(
     import openpyxl  # noqa: PLC0415
 
     workbook_invoice_numbers: set[str] = set()
-    workbook_payment_signatures: set[tuple[str, str, str, str]] = set()
+    workbook_payment_signatures: set[tuple[str, str, str, str, str]] = set()
     workbook_salary_signatures: set[tuple[str, str, str, str]] = set()
     workbook_bank_signatures: set[tuple[str, str, str, str]] = set()
     workbook_cash_signatures: set[tuple[str, str, str, str, str]] = set()
@@ -2769,6 +2803,7 @@ async def _collect_gestion_extra_in_solde_by_kind(
                 payment_date=payment_row.payment_date,
                 amount=payment_row.amount,
                 settlement_account=_client_settlement_account_from_method(payment_row.method),
+                cheque_number=payment_row.cheque_number,
             )
         )
 
@@ -3119,7 +3154,7 @@ async def _queue_client_payment_from_bank_row(
     db: AsyncSession,
     *,
     bank_row: NormalizedBankRow,
-    existing_payment_signatures: set[tuple[int, str, str, str]],
+    existing_payment_signatures: set[tuple[int, str, str, str, str]],
     created_payments: list[tuple[Any, Any]],
     affected_invoice_ids: set[int],
     result: ImportResult,
@@ -3187,6 +3222,7 @@ async def _ensure_supplier_invoice_payment(
     existing_contacts_by_preview_key: dict[str, list[Any]],
     result: ImportResult,
     sheet_name: str,
+    default_invoice_due_days: int | None,
 ) -> tuple[int, int, int | None, bool]:
     from sqlalchemy import select  # noqa: PLC0415
 
@@ -3236,6 +3272,11 @@ async def _ensure_supplier_invoice_payment(
             type=InvoiceType.FOURNISSEUR,
             contact_id=contact.id,
             date=candidate.invoice_date,
+            due_date=apply_default_due_date(
+                candidate.invoice_date,
+                None,
+                default_invoice_due_days,
+            ),
             total_amount=candidate.amount,
             paid_amount=Decimal("0"),
             status=InvoiceStatus.SENT,
@@ -3647,6 +3688,7 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
     created_contacts: list[Contact] = []
     existing_contacts_by_preview_key = await _load_existing_contacts_by_preview_key(db)
     generated_number_index = 0
+    default_invoice_due_days = await settings_service.get_default_invoice_due_days(db)
     for invoice_row in normalized_rows:
         invoice_date = invoice_row.invoice_date
         total = invoice_row.amount
@@ -3717,6 +3759,7 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
             type=InvoiceType.CLIENT,
             contact_id=contact_id,
             date=invoice_date,
+            due_date=apply_default_due_date(invoice_date, None, default_invoice_due_days),
             total_amount=total,
             paid_amount=Decimal("0"),
             status=InvoiceStatus.SENT,
@@ -4145,6 +4188,7 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
     created_supplier_payment_ids: list[int] = []
     affected_invoice_ids: set[int] = set()
     existing_contacts_by_preview_key = await _load_existing_contacts_by_preview_key(db)
+    default_invoice_due_days = await settings_service.get_default_invoice_due_days(db)
     for cash_row in normalized_rows:
         contact_id: int | None = None
         payment_id: int | None = None
@@ -4161,6 +4205,7 @@ async def _import_cash_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
                 existing_contacts_by_preview_key=existing_contacts_by_preview_key,
                 result=result,
                 sheet_name=ws.title,
+                default_invoice_due_days=default_invoice_due_days,
             )
             affected_invoice_ids.add(invoice_id)
             created_supplier_payment_ids.append(payment_id)
@@ -4262,6 +4307,7 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
     affected_invoice_ids: set[int] = set()
     existing_contacts_by_preview_key = await _load_existing_contacts_by_preview_key(db)
     existing_payment_signatures = await _load_existing_payment_signatures(db)
+    default_invoice_due_days = await settings_service.get_default_invoice_due_days(db)
     for bank_row in normalized_rows:
         supplier_candidate = _supplier_invoice_candidate_from_bank_row(bank_row)
         if supplier_candidate is not None:
@@ -4271,6 +4317,7 @@ async def _import_bank_sheet(db: AsyncSession, ws: Any, result: ImportResult) ->
                 existing_contacts_by_preview_key=existing_contacts_by_preview_key,
                 result=result,
                 sheet_name=ws.title,
+                default_invoice_due_days=default_invoice_due_days,
             )
             affected_invoice_ids.add(invoice_id)
             created_supplier_payment_ids.append(payment_id)
@@ -4745,6 +4792,7 @@ async def _add_gestion_existing_rows_preview(
                     payment_date=payment_row.payment_date,
                     amount=payment_row.amount,
                     settlement_account=_client_settlement_account_from_method(payment_row.method),
+                    cheque_number=payment_row.cheque_number,
                 )
                 if payment_signature not in existing_payment_signatures:
                     continue

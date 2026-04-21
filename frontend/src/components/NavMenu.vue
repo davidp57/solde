@@ -83,8 +83,6 @@ const accountingItems = computed<MenuItem[]>(() => {
     },
     { to: '/accounting/accounts', icon: 'pi-database', label: t('nav.accounting_accounts') },
     { to: '/accounting/rules', icon: 'pi-sliders-h', label: t('nav.accounting_rules') },
-    { to: '/import/excel', icon: 'pi-file-excel', label: t('nav.import_excel') },
-    { to: '/import/history', icon: 'pi-history', label: t('nav.import_history') },
   ]
 })
 
@@ -96,6 +94,8 @@ const administrationItems = computed<MenuItem[]>(() => {
   return [
     { to: '/users', icon: 'pi-users', label: t('nav.users') },
     { to: '/settings', icon: 'pi-cog', label: t('nav.settings') },
+    { to: '/import/excel', icon: 'pi-file-excel', label: t('nav.import_excel') },
+    { to: '/import/history', icon: 'pi-history', label: t('nav.import_history') },
   ]
 })
 

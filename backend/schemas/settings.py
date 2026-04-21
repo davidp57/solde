@@ -21,6 +21,7 @@ class AppSettingsRead(BaseModel):
     association_siret: str
     association_logo_path: str
     fiscal_year_start_month: int
+    default_invoice_due_days: int | None
 
     smtp_host: str | None
     smtp_port: int
@@ -38,6 +39,7 @@ class AppSettingsUpdate(BaseModel):
     association_address: str | None = None
     association_siret: str | None = None
     fiscal_year_start_month: int | None = None
+    default_invoice_due_days: int | None = None
 
     smtp_host: str | None = None
     smtp_port: int | None = None
@@ -58,6 +60,13 @@ class AppSettingsUpdate(BaseModel):
     def validate_port(cls, v: int | None) -> int | None:
         if v is not None and not 1 <= v <= 65535:
             raise ValueError("smtp_port must be between 1 and 65535")
+        return v
+
+    @field_validator("default_invoice_due_days")
+    @classmethod
+    def validate_default_invoice_due_days(cls, v: int | None) -> int | None:
+        if v is not None and not 0 <= v <= 365:
+            raise ValueError("default_invoice_due_days must be between 0 and 365")
         return v
 
 

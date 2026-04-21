@@ -33,10 +33,12 @@ vi.mock('vue-router', () => ({
 
 const fiscalYearStoreMock = {
   fiscalYears: [{ id: 12, name: '2025', status: 'open' }],
-  selectedFiscalYearId: 12,
+  selectedFiscalYearId: 12 as number | undefined,
   initialized: true,
   initialize: vi.fn().mockResolvedValue(undefined),
-  setSelectedFiscalYear: vi.fn(),
+  setSelectedFiscalYear: vi.fn((value?: number) => {
+    fiscalYearStoreMock.selectedFiscalYearId = value
+  }),
 }
 
 vi.mock('../../stores/fiscalYear', () => ({
@@ -63,9 +65,56 @@ const AppStatCardStub = defineComponent({
 const ButtonStub = defineComponent({
   props: {
     label: { type: String, default: '' },
+    disabled: { type: Boolean, default: false },
+    title: { type: String, default: '' },
   },
   emits: ['click'],
-  template: '<button @click="$emit(\'click\')">{{ label }}</button>',
+  template:
+    '<button :disabled="disabled" :title="title" @click="$emit(\'click\')">{{ label || title }}</button>',
+})
+
+const InputTextStub = defineComponent({
+  props: {
+    modelValue: { type: String, default: '' },
+    placeholder: { type: String, default: '' },
+  },
+  emits: ['update:modelValue', 'keydown.enter'],
+  template:
+    '<input :value="modelValue" :placeholder="placeholder" @input="$emit(\'update:modelValue\', $event.target.value)" @keydown.enter="$emit(\'keydown.enter\')" />',
+})
+
+const SelectStub = defineComponent({
+  props: {
+    modelValue: { type: [String, Number], default: undefined },
+    options: { type: Array, default: () => [] },
+    optionLabel: { type: String, default: 'label' },
+    optionValue: { type: String, default: 'value' },
+    placeholder: { type: String, default: '' },
+  },
+  emits: ['update:modelValue'],
+  methods: {
+    optionValueOf(option: Record<string, unknown>) {
+      return option[this.optionValue] as string | number | undefined
+    },
+    optionLabelOf(option: Record<string, unknown>) {
+      return option[this.optionLabel] as string | number | undefined
+    },
+  },
+  template: `
+    <select
+      :value="modelValue == null ? '' : String(modelValue)"
+      @change="$emit('update:modelValue', $event.target.value || undefined)"
+    >
+      <option value="">{{ placeholder }}</option>
+      <option
+        v-for="option in options"
+        :key="String(optionValueOf(option))"
+        :value="String(optionValueOf(option) ?? '')"
+      >
+        {{ optionLabelOf(option) }}
+      </option>
+    </select>
+  `,
 })
 
 const TagStub = defineComponent({
@@ -127,8 +176,8 @@ function mountView() {
         Column: ColumnStub,
         DataTable: DataTableStub,
         Dialog: ContainerStub,
-        InputText: true,
-        Select: true,
+        InputText: InputTextStub,
+        Select: SelectStub,
         Tag: TagStub,
       },
     },
@@ -138,6 +187,7 @@ function mountView() {
 describe('AccountingJournalView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    fiscalYearStoreMock.selectedFiscalYearId = 12
     mockGetJournalGroupsApi.mockResolvedValue([
       {
         group_key: 'salary-import:2025-07:accrual',
@@ -180,6 +230,49 @@ describe('AccountingJournalView', () => {
 
     expect(wrapper.get('[data-testid="journal-source-tag"]').attributes('data-severity')).toBe(
       'secondary',
+    )
+  })
+
+  it('reloads when the source filter dropdown changes', async () => {
+    const wrapper = mountView()
+    await flushView()
+    mockGetJournalGroupsApi.mockClear()
+
+    const selects = wrapper.findAll('select')
+    await selects[0]?.setValue('salary')
+    await flushView()
+
+    expect(mockGetJournalGroupsApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source_type: 'salary',
+        fiscal_year_id: 12,
+      }),
+    )
+  })
+
+  it('resets remote filters and reloads the journal', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    const selects = wrapper.findAll('select')
+    await selects[0]?.setValue('salary')
+    await flushView()
+    mockGetJournalGroupsApi.mockClear()
+
+    const resetButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'common.reset_filters')
+
+    expect(resetButton?.attributes('disabled')).toBeUndefined()
+
+    await resetButton?.trigger('click')
+    await flushView()
+
+    expect(fiscalYearStoreMock.setSelectedFiscalYear).toHaveBeenCalledWith(undefined)
+    expect(mockGetJournalGroupsApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source_type: undefined,
+      }),
     )
   })
 })

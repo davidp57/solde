@@ -80,8 +80,23 @@ export interface DepositCreate {
   notes?: string | null
 }
 
+export interface FundsChartRow {
+  month: string
+  current_account: number
+  savings_account: number
+  total: number
+  balance: number
+}
+
 export async function getBankBalance(): Promise<{ balance: string }> {
   const response = await apiClient.get<{ balance: string }>('/api/bank/balance')
+  return response.data
+}
+
+export async function getBankFundsChart(months = 6): Promise<FundsChartRow[]> {
+  const response = await apiClient.get<FundsChartRow[]>('/api/bank/chart/funds', {
+    params: { months },
+  })
   return response.data
 }
 
