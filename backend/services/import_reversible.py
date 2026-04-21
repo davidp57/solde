@@ -44,6 +44,7 @@ from backend.models.invoice import (
 from backend.models.payment import Payment, PaymentMethod
 from backend.models.salary import Salary
 from backend.services import excel_import as legacy_excel_import
+from backend.services import settings as settings_service
 from backend.services.accounting_engine import (
     generate_entries_for_invoice,
     generate_entries_for_payment,
@@ -100,6 +101,7 @@ from backend.services.excel_import_types import (
     RowWarningIssue,
 )
 from backend.services.fiscal_year_service import find_fiscal_year_id_for_date
+from backend.services.invoice import apply_default_due_date
 from backend.services.payment import _refresh_invoice_status
 
 _JsonValue = TypeVar("_JsonValue")
@@ -186,6 +188,14 @@ def _canonical_decimal_string(value: Any) -> str:
     return text
 
 
+def _canonical_numeric_column_value(column: Any, value: Any) -> str:
+    decimal_value = Decimal(str(value))
+    scale = getattr(column.type, "scale", None)
+    if scale is not None:
+        decimal_value = decimal_value.quantize(Decimal("1").scaleb(-scale))
+    return _canonical_decimal_string(decimal_value)
+
+
 def _normalize_snapshot_for_fingerprint(
     entity_type: str,
     snapshot: dict[str, Any],
@@ -202,7 +212,7 @@ def _normalize_snapshot_for_fingerprint(
         if value is None:
             continue
         if isinstance(column.type, Numeric):
-            normalized[column.key] = _canonical_decimal_string(value)
+            normalized[column.key] = _canonical_numeric_column_value(column, value)
     return normalized
 
 
@@ -872,7 +882,7 @@ async def _prepare_gestion_specs(
     existing_salary_keys = await legacy_excel_import._load_existing_salary_keys(db)
     planned_invoice_candidates: list[PaymentMatchCandidate] = []
     deferred_payment_sheets: list[tuple[str, list[NormalizedPaymentRow]]] = []
-    planned_payment_signatures: set[tuple[str, str, str, str]] = set()
+    planned_payment_signatures: set[tuple[str, str, str, str, str]] = set()
     existing_payment_signatures = await legacy_excel_import._load_existing_payment_signatures(db)
 
     for sheet_name in workbook.sheetnames:
@@ -1254,6 +1264,7 @@ async def _prepare_gestion_specs(
                 settlement_account=legacy_excel_import._client_settlement_account_from_method(
                     payment_row.method
                 ),
+                cheque_number=payment_row.cheque_number,
             )
             if workbook_payment_signature in planned_payment_signatures:
                 issue = RowIgnoredIssue(
@@ -1279,6 +1290,7 @@ async def _prepare_gestion_specs(
                     payment_date=payment_row.payment_date,
                     amount=payment_row.amount,
                     method=payment_row.method,
+                    cheque_number=payment_row.cheque_number,
                 )
                 if payment_signature in existing_payment_signatures:
                     issue = RowIgnoredIssue(
@@ -2008,6 +2020,7 @@ async def _ensure_supplier_invoice_payment(
     *,
     candidate: Any,
     existing_contacts_by_preview_key: dict[str, list[Any]],
+    default_invoice_due_days: int | None,
 ) -> _SupplierOperationResult:
     invoice_result = await db.execute(
         select(Invoice).where(Invoice.number == candidate.invoice_number)
@@ -2043,6 +2056,11 @@ async def _ensure_supplier_invoice_payment(
             type=InvoiceType.FOURNISSEUR,
             contact_id=contact.id,
             date=candidate.invoice_date,
+            due_date=apply_default_due_date(
+                candidate.invoice_date,
+                None,
+                default_invoice_due_days,
+            ),
             total_amount=candidate.amount,
             paid_amount=Decimal("0"),
             status=InvoiceStatus.SENT,
@@ -2104,7 +2122,12 @@ async def _execute_contact_row_import(db: AsyncSession, operation: ImportOperati
     )
 
 
-async def _execute_client_invoice_row_import(db: AsyncSession, operation: ImportOperation) -> None:
+async def _execute_client_invoice_row_import(
+    db: AsyncSession,
+    operation: ImportOperation,
+    *,
+    default_invoice_due_days: int | None,
+) -> None:
     payload: dict[str, Any] = _deserialize_json(operation.payload_json, {})
     row = _payload_to_invoice_row(payload["row"])
     invoice_number = str(payload["invoice_number"])
@@ -2139,6 +2162,11 @@ async def _execute_client_invoice_row_import(db: AsyncSession, operation: Import
         type=InvoiceType.CLIENT,
         contact_id=matched_contact.id,
         date=row.invoice_date,
+        due_date=apply_default_due_date(
+            row.invoice_date,
+            None,
+            default_invoice_due_days,
+        ),
         total_amount=row.amount,
         paid_amount=Decimal("0"),
         status=InvoiceStatus.SENT,
@@ -2241,6 +2269,7 @@ async def _execute_client_payment_row_import(db: AsyncSession, operation: Import
         payment_date=row.payment_date,
         amount=row.amount,
         method=row.method,
+        cheque_number=row.cheque_number,
     )
     existing_payment_signatures = await legacy_excel_import._load_existing_payment_signatures(db)
     if payment_signature in existing_payment_signatures:
@@ -2433,6 +2462,7 @@ async def _execute_cash_row_import(db: AsyncSession, operation: ImportOperation)
     created_entries: list[AccountingEntry] = []
     effect_position = 1
     existing_contacts_by_key = await load_existing_contacts_by_preview_key(db)
+    default_invoice_due_days = await settings_service.get_default_invoice_due_days(db)
     supplier_candidate = legacy_excel_import._supplier_invoice_candidate_from_cash_row(row)
     supplier_result: _SupplierOperationResult | None = None
     refreshed_invoice: Invoice | None = None
@@ -2441,6 +2471,7 @@ async def _execute_cash_row_import(db: AsyncSession, operation: ImportOperation)
             db,
             candidate=supplier_candidate,
             existing_contacts_by_preview_key=existing_contacts_by_key,
+            default_invoice_due_days=default_invoice_due_days,
         )
     cash_entry = CashRegister(
         date=row.entry_date,
@@ -2588,6 +2619,7 @@ async def _execute_bank_row_import(db: AsyncSession, operation: ImportOperation)
     existing_contacts_by_key = await load_existing_contacts_by_preview_key(db)
     created_entries: list[AccountingEntry] = []
     effect_position = 1
+    default_invoice_due_days = await settings_service.get_default_invoice_due_days(db)
     supplier_result: _SupplierOperationResult | None = None
     refreshed_invoice: Invoice | None = None
     created_payment: Payment | None = None
@@ -2599,6 +2631,7 @@ async def _execute_bank_row_import(db: AsyncSession, operation: ImportOperation)
             db,
             candidate=supplier_candidate,
             existing_contacts_by_preview_key=existing_contacts_by_key,
+            default_invoice_due_days=default_invoice_due_days,
         )
     elif row.amount > 0:
         invoice_reference = legacy_excel_import._single_client_invoice_reference(
@@ -2961,12 +2994,21 @@ async def _execute_client_invoice_clarification(
         effect_position += 1
 
 
-async def _execute_operation(db: AsyncSession, operation: ImportOperation) -> None:
+async def _execute_operation(
+    db: AsyncSession,
+    operation: ImportOperation,
+    *,
+    default_invoice_due_days: int | None,
+) -> None:
     if operation.operation_type == "contact_row_import":
         await _execute_contact_row_import(db, operation)
         return
     if operation.operation_type == "client_invoice_row_import":
-        await _execute_client_invoice_row_import(db, operation)
+        await _execute_client_invoice_row_import(
+            db,
+            operation,
+            default_invoice_due_days=default_invoice_due_days,
+        )
         return
     if operation.operation_type == "client_payment_row_import":
         await _execute_client_payment_row_import(db, operation)
@@ -2996,6 +3038,8 @@ async def execute_import_run(db: AsyncSession, run_id: int) -> ImportRun:
     if not _can_run_execute(run):
         raise ValueError("Import run is not executable")
 
+    default_invoice_due_days = await settings_service.get_default_invoice_due_days(db)
+
     for operation in run.operations:
         if operation.decision != ImportOperationDecision.APPLY:
             continue
@@ -3003,7 +3047,11 @@ async def execute_import_run(db: AsyncSession, run_id: int) -> ImportRun:
             continue
         try:
             async with db.begin_nested():
-                await _execute_operation(db, operation)
+                await _execute_operation(
+                    db,
+                    operation,
+                    default_invoice_due_days=default_invoice_due_days,
+                )
                 operation.status = ImportOperationStatus.APPLIED
                 operation.error_message = None
         except Exception as exc:

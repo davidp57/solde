@@ -53,6 +53,7 @@
       <DataTable
         v-model:filters="tableFilters"
         :value="accountRows"
+        :row-class="rowClass"
         :loading="loading"
         class="app-data-table"
         filter-display="menu"
@@ -75,6 +76,9 @@
           :show-filter-match-modes="false"
           :show-add-button="false"
         >
+          <template #body="{ data }">
+            <span :class="{ 'account-number--focus': data.focus_key }">{{ data.number }}</span>
+          </template>
           <template #filter="{ filterModel }">
             <InputText v-model="filterModel.value" :placeholder="t('accounting.accounts.number')" />
           </template>
@@ -200,6 +204,7 @@ import {
   findSelectedFilterLabel,
 } from '../composables/activeFilterLabels'
 import { inFilter, textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
+import { getFocusAccountKey, type FocusAccountKey } from '../utils/focusAccounts'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -211,7 +216,7 @@ const typeFilter = ref<AccountType | undefined>(undefined)
 const dialogVisible = ref(false)
 const editingAccount = ref<AccountingAccount | null>(null)
 const accountRows = ref<
-  Array<AccountingAccount & { type_label: string; is_default_label: string }>
+  Array<AccountingAccount & { type_label: string; is_default_label: string; focus_key: FocusAccountKey | null }>
 >([])
 
 const typeOptions: Array<{ label: string; value: AccountType | undefined }> = [
@@ -268,12 +273,17 @@ async function loadAccounts(): Promise<void> {
       ...account,
       type_label: t(`accounting.account_types.${account.type}`),
       is_default_label: account.is_default ? t('common.yes') : t('common.no'),
+      focus_key: getFocusAccountKey(account.number),
     }))
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
     loading.value = false
   }
+}
+
+function rowClass(row: { focus_key: FocusAccountKey | null }): string[] {
+  return row.focus_key ? ['account-row--focus', `account-row--focus-${row.focus_key}`] : []
 }
 
 async function runSeed(): Promise<void> {
@@ -325,6 +335,18 @@ onMounted(loadAccounts)
   gap: var(--app-space-2);
   flex-wrap: wrap;
   margin-bottom: var(--app-space-4);
+}
+
+.account-number--focus {
+  font-weight: 700;
+}
+
+:deep(.account-row--focus-member_receivables),
+:deep(.account-row--focus-supplier_payables),
+:deep(.account-row--focus-cash),
+:deep(.account-row--focus-current_account),
+:deep(.account-row--focus-cheques_to_deposit) {
+  box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--app-surface-muted) 78%, transparent 22%);
 }
 
 .account-dialog :deep(.p-dialog-header) {

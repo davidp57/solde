@@ -59,8 +59,92 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-021 | 2026-04-13 | Documentation | Utilisateur / Parcours | P1 | Rédiger un manuel utilisateur illustré et pas à pas aligné sur les écrans réellement disponibles |
+| BL-022 | 2026-04-21 | UX / Fonctionnel | Gestion / Synthèse | P2 | Afficher les créances adhérents dans les cartes de synthèse en distinguant clairement l'encours de l'exercice et les impayés historiques encore ouverts |
+| BL-033 | 2026-04-21 | Import / Fonctionnel | Gestion / Paiements | P1 | Clarifier la comparaison des chèques inter-exercices entre date de paiement et date de remise |
+| BL-034 | 2026-04-21 | Fonctionnel / Architecture | Banque / Multi-compte | P2 | Introduire un support multi-compte explicite pour la banque afin de distinguer proprement compte courant et compte épargne dans les données, les imports et les écrans |
+| BL-035 | 2026-04-21 | UX / Fonctionnel | Contacts | P2 | Séparer les contacts clients et fournisseurs dans deux onglets dédiés sur l'écran des contacts |
+| BL-036 | 2026-04-21 | UX / Fonctionnel | Factures client / Synthèse | P2 | Rendre la carte `restant en retard` cliquable pour ouvrir la liste des factures clientes concernées |
+| BL-037 | 2026-04-21 | UX / Navigation | Shell utilisateur | P3 | Remplacer l'entrée de menu `Mon profil` par un accès au profil via un clic sur le nom de l'utilisateur |
+| BL-038 | 2026-04-21 | UX / Produit | Application / Shell | P3 | Afficher un numéro de version discret mais visible dans l'interface de l'application |
+| BL-039 | 2026-04-21 | Qualité / Recette | Factures client / Email | P1 | Rejouer et fiabiliser les scénarios d'édition de facture client et d'envoi par e-mail avec validation explicite du comportement attendu |
+| BL-040 | 2026-04-21 | Import / Fonctionnel | Contacts client | P2 | Ajouter un import one-shot d'une liste d'adresses e-mail pour enrichir les contacts clients existants |
+| BL-041 | 2026-04-21 | UX / Fonctionnel | Paiements / Synthèse | P2 | Rendre la carte `non remis` cliquable pour ouvrir la liste des paiements concernés |
+| BL-042 | 2026-04-21 | UX / Cohérence | Tables / Filtres | P2 | Ajouter un bouton `reset` sur tous les filtres de toutes les tables pour revenir rapidement à l'état initial |
+| BL-043 | 2026-04-21 | UX / Fonctionnel | Comptabilité / Filtres | P2 | Remplacer les filtres de comptes comptables par des combos affichant numéro, nom et couleur des comptes suivis |
 
-## Détail des sujets
+## Détail des sujets ouverts
+
+### BL-019 — README et documentation technique d'exploitation
+
+- **Dates** : `created=2026-04-13`, `started=2026-04-21`
+- **Pourquoi** : la documentation projet existe mais reste encore trop dispersée ou trop implicite pour quelqu'un qui doit installer, mettre à jour ou exploiter Solde sans relire tout le dépôt.
+- **Résultat attendu** : un README plus clair et une documentation technique structurée couvrant au minimum l'installation, la mise à jour, la pile technologique, la configuration, Docker, les volumes de données, les sauvegardes et les points d'exploitation courants.
+- **Avancement actuel** : le `README.md` est recentré comme page d'entrée synthétique `FR + EN`, une documentation technique dédiée `doc/dev/exploitation.md` couvre désormais en anglais la configuration, Docker, les volumes, les sauvegardes et les opérations courantes, un guide d'installation `FR + EN` est ajouté dans `doc/user/installation.md`, et `.env.example` documente explicitement les variables de bootstrap administrateur et les informations association.
+- **Reste à confirmer** : le ticket reste ouvert tant que ce socle documentaire n'a pas été entièrement revalidé en tests réels d'installation, de mise à jour et d'exploitation, avec corrections éventuelles à intégrer.
+- **Point d'attention** : distinguer ce qui relève du guide d'exploitation réel de ce qui relève des détails purement développeur, pour éviter un README surchargé.
+
+### BL-020 — Documentation de développement et contribution
+
+- **Dates** : `created=2026-04-13`, `started=2026-04-21`
+- **Pourquoi** : contribuer efficacement au projet suppose aujourd'hui de reconstituer les prérequis et les conventions depuis plusieurs fichiers, ce qui freine la reprise de contexte et la qualité des contributions.
+- **Résultat attendu** : une documentation développeur claire expliquant les prérequis, la mise en route locale, les commandes de build/test/lint, la qualité attendue, l'organisation du dépôt, le workflow de contribution et les attentes avant PR.
+- **Avancement actuel** : la nouvelle documentation `doc/dev/contribuer.md`, rédigée en anglais, centralise la mise en route locale, l'usage de `dev.ps1`, la matrice de checks backend/frontend, les conventions de code et de langue, le rôle du backlog et le workflow Git attendu avant PR ; les consignes du dépôt ont été alignées sur une politique de langue plus explicite pour distinguer docs techniques `EN` et docs utilisateur / installation `FR + EN`.
+- **Reste à confirmer** : le ticket reste ouvert tant que la documentation de contribution n'a pas été relue et validée sur le vrai cycle `setup -> checks -> PR`, avec ajustements éventuels après tests.
+- **Point d'attention** : cette documentation doit rester fidèle aux commandes réellement utilisées dans le dépôt, pas à un idéal théorique.
+
+### BL-021 — Manuel utilisateur illustré et pas à pas
+
+- **Dates** : `created=2026-04-13`, `started=2026-04-13`
+- **Pourquoi** : la documentation utilisateur est la plus critique pour l'adoption réelle de Solde, car les utilisateurs visés ne sont pas nécessairement informaticiens et ont besoin d'un guidage concret, rassurant et progressif.
+- **Résultat attendu** : un manuel utilisateur en français, très clair, illustré par des captures d'écran, couvrant pas à pas les actions principales comme saisir une facture client, enregistrer un paiement client, saisir un achat avec facture, gérer la caisse, consulter la banque, utiliser les imports et comprendre les principaux écrans comptables.
+- **Critère d'acceptation** : un utilisateur non technique doit pouvoir suivre le guide pour exécuter les scénarios métier essentiels sans aide orale complémentaire.
+- **Avancement actuel** : le manuel utilisateur FR/EN dispose maintenant d'une structure pas à pas consolidée avec orientation rapide par besoin, liens explicites vers les guides complémentaires et formulation homogénéisée sur les parcours principaux ; le lot restant porte surtout sur l'enrichissement visuel réel (captures annotées homogènes, puis éventuellement version imprimable).
+- **Priorisation proposée** : chantier éditorial majeur et prioritaire côté valeur utilisateur ; il faut l'attaquer tôt, mais avec une stratégie incrémentale plutôt qu'un objectif “manuel complet” monolithique.
+- **Séquence recommandée** : commencer par un socle de parcours essentiels (`facture client`, `paiement client`, `achat fournisseur`, `caisse`, `banque`, `import Excel`), puis enrichir ensuite avec les écrans comptables avancés et les cas plus rares.
+- **Table des matières cible** :
+	- introduction : à quoi sert Solde et à qui s'adresse l'application ;
+	- premiers pas : connexion, repères de navigation, vocabulaire simple, exercice courant ;
+	- gérer les contacts ;
+	- créer une facture client ;
+	- enregistrer un paiement client ;
+	- saisir un achat fournisseur avec sa facture ;
+	- gérer la caisse ;
+	- gérer la banque et les remises ;
+	- utiliser les imports Excel ;
+	- consulter les écrans comptables ;
+	- corriger une erreur fréquente ou revenir en arrière ;
+	- questions fréquentes et glossaire métier.
+- **Ordre de rédaction recommandé** :
+	- lot 1 : `connexion et repères`, `contacts`, `facture client`, `paiement client` ;
+	- lot 2 : `achat fournisseur`, `caisse`, `banque et remises` ;
+	- lot 3 : `import Excel`, `lecture des écrans comptables`, `FAQ`, `glossaire` ;
+	- lot 4 : stabilisation éditoriale et enrichissement visuel avec captures homogènes, encadrés d'alerte et version imprimable si utile.
+- **Format attendu par chapitre** :
+	- objectif simple ;
+	- prérequis éventuels ;
+	- étapes numérotées ;
+	- capture(s) annotée(s), ajoutées seulement en fin de chantier quand les écrans sont suffisamment stabilisés ;
+	- résultat attendu ;
+	- erreurs fréquentes ou points d'attention.
+- **Point d'attention** : ce manuel doit privilégier les parcours métier concrets, le vocabulaire simple et les écrans réels de l'application, plutôt qu'une description abstraite des fonctionnalités ; les captures doivent arriver en dernière étape pour éviter une maintenance inutile tant que l'UI continue d'évoluer.
+
+### BL-022 — Convention métier des créances adhérents dans les synthèses
+
+- **Dates** : `created=2026-04-21`
+- **Pourquoi** : la balance comptable des comptes tiers et le KPI `restant à payer` des factures ne racontent pas exactement la même histoire dès qu'il existe des impayés plus anciens encore ouverts, ce qui peut faire croire à un écart faux alors qu'il s'agit d'une différence de périmètre.
+- **Résultat attendu** : expliciter puis implémenter une convention produit stable distinguant au minimum `reste à payer des factures de l'exercice sélectionné` et `encours adhérents total incluant les impayés historiques encore ouverts`, avec des libellés suffisamment clairs pour éviter toute confusion métier.
+- **Point d'attention** : si une seule carte doit être conservée, son intitulé et son aide doivent refléter sans ambiguïté le périmètre retenu ; sinon, deux cartes séparées sont probablement plus sûres pour la lecture métier.
+
+### BL-033 — Comparaison des chèques inter-exercices dans les imports et validations
+
+- **Dates** : `created=2026-04-21`
+- **Pourquoi** : pour un chèque, la date de règlement réellement prise en compte peut appartenir à l'exercice précédent alors que la remise en banque intervient dans l'exercice courant ; la comparaison actuelle des paiements importés reste trop centrée sur `payment.date`, ce qui crée des écarts trompeurs entre Excel et Solde lors des validations `Gestion` / `Comptabilité` par exercice.
+- **Résultat attendu** : expliciter noir sur blanc la convention métier et technique retenue pour les chèques inter-exercices, puis aligner la comparaison d'import et la documentation sur cette convention afin qu'un chèque reçu en `N-1` mais remis en banque en `N` ne soit plus interprété comme un écart de paiement si le comportement est attendu.
+- **Avancement actuel** : les constats et écarts déjà expliqués sur la validation `Gestion/Comptabilité 2025` sont désormais suivis dans `doc/dev/bl-026-validation-2025-working-notes.md`, afin de maintenir une liste courte et vivante des deltas confirmés au fur et à mesure des tests.
+- **Point d'attention** : il faut conserver la séparation métier entre `date du paiement` et `date de remise`, sans réécrire artificiellement les dates pour faire coller les comparaisons ; si nécessaire, la validation doit raisonner différemment selon le domaine (`paiement`, `remise`, `banque`, `511200`) ou afficher explicitement les cas de report inter-exercices.
+
+
+## Détail des sujets fermés
 
 ### BL-001 — Stabiliser la méthode de triage du backlog
 
@@ -270,60 +354,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Livré parce que** : un socle DataTable partagé a été introduit pour les filtres texte, dates, intervalles numériques et multi-sélection, avec compteurs d'état harmonisés, tri/filtrage cohérents sur les principales vues de liste, prise en charge des saisies de date FR/ISO dans les filtres et retrait explicite du tri/filtrage sur les tableaux fixes `bilan` et `résultat`.
 - **Point d'attention** : éviter l'uniformisation aveugle ; certaines vues métier auront toujours besoin d'adaptations spécifiques.
 
-### BL-019 — README et documentation technique d'exploitation
-
-- **Dates** : `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21`
-- **Pourquoi** : la documentation projet existe mais reste encore trop dispersée ou trop implicite pour quelqu'un qui doit installer, mettre à jour ou exploiter Solde sans relire tout le dépôt.
-- **Résultat attendu** : un README plus clair et une documentation technique structurée couvrant au minimum l'installation, la mise à jour, la pile technologique, la configuration, Docker, les volumes de données, les sauvegardes et les points d'exploitation courants.
-- **Résultat livré** : le `README.md` est recentré comme page d'entrée synthétique `FR + EN`, une documentation technique dédiée `doc/dev/exploitation.md` couvre désormais en anglais la configuration, Docker, les volumes, les sauvegardes et les opérations courantes, un guide d'installation `FR + EN` est ajouté dans `doc/user/installation.md`, et `.env.example` documente explicitement les variables de bootstrap administrateur et les informations association.
-- **Livré parce que** : l'installation et l'exploitation courante peuvent maintenant être documentées sans relire les fichiers `Dockerfile`, `docker-compose.yml`, `.env.example`, `backend/main.py` et `backend/config.py`, tout en séparant mieux le point d'entrée bilingue, le guide d'installation bilingue et la documentation d'exploitation technique en anglais.
-- **Point d'attention** : distinguer ce qui relève du guide d'exploitation réel de ce qui relève des détails purement développeur, pour éviter un README surchargé.
-
-### BL-020 — Documentation de développement et contribution
-
-- **Dates** : `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21`
-- **Pourquoi** : contribuer efficacement au projet suppose aujourd'hui de reconstituer les prérequis et les conventions depuis plusieurs fichiers, ce qui freine la reprise de contexte et la qualité des contributions.
-- **Résultat attendu** : une documentation développeur claire expliquant les prérequis, la mise en route locale, les commandes de build/test/lint, la qualité attendue, l'organisation du dépôt, le workflow de contribution et les attentes avant PR.
-- **Résultat livré** : la nouvelle documentation `doc/dev/contribuer.md`, rédigée en anglais, centralise la mise en route locale, l'usage de `dev.ps1`, la matrice de checks backend/frontend, les conventions de code et de langue, le rôle du backlog et le workflow Git attendu avant PR ; les consignes du dépôt ont été alignées sur une politique de langue plus explicite pour distinguer docs techniques `EN` et docs utilisateur / installation `FR + EN`.
-- **Livré parce que** : un contributeur peut maintenant retrouver dans une seule page les prérequis, les commandes utiles et les règles de contribution réellement appliquées dans le dépôt, sans reconstituer le workflow à partir des consignes dispersées, et la convention documentaire est désormais explicitée à la source.
-- **Point d'attention** : cette documentation doit rester fidèle aux commandes réellement utilisées dans le dépôt, pas à un idéal théorique.
-
-### BL-021 — Manuel utilisateur illustré et pas à pas
-
-- **Dates** : `created=2026-04-13`, `started=2026-04-13`
-- **Pourquoi** : la documentation utilisateur est la plus critique pour l'adoption réelle de Solde, car les utilisateurs visés ne sont pas nécessairement informaticiens et ont besoin d'un guidage concret, rassurant et progressif.
-- **Résultat attendu** : un manuel utilisateur en français, très clair, illustré par des captures d'écran, couvrant pas à pas les actions principales comme saisir une facture client, enregistrer un paiement client, saisir un achat avec facture, gérer la caisse, consulter la banque, utiliser les imports et comprendre les principaux écrans comptables.
-- **Critère d'acceptation** : un utilisateur non technique doit pouvoir suivre le guide pour exécuter les scénarios métier essentiels sans aide orale complémentaire.
-- **Avancement actuel** : le manuel utilisateur FR/EN dispose maintenant d'une structure pas à pas consolidée avec orientation rapide par besoin, liens explicites vers les guides complémentaires et formulation homogénéisée sur les parcours principaux ; le lot restant porte surtout sur l'enrichissement visuel réel (captures annotées homogènes, puis éventuellement version imprimable).
-- **Priorisation proposée** : chantier éditorial majeur et prioritaire côté valeur utilisateur ; il faut l'attaquer tôt, mais avec une stratégie incrémentale plutôt qu'un objectif “manuel complet” monolithique.
-- **Séquence recommandée** : commencer par un socle de parcours essentiels (`facture client`, `paiement client`, `achat fournisseur`, `caisse`, `banque`, `import Excel`), puis enrichir ensuite avec les écrans comptables avancés et les cas plus rares.
-- **Table des matières cible** :
-	- introduction : à quoi sert Solde et à qui s'adresse l'application ;
-	- premiers pas : connexion, repères de navigation, vocabulaire simple, exercice courant ;
-	- gérer les contacts ;
-	- créer une facture client ;
-	- enregistrer un paiement client ;
-	- saisir un achat fournisseur avec sa facture ;
-	- gérer la caisse ;
-	- gérer la banque et les remises ;
-	- utiliser les imports Excel ;
-	- consulter les écrans comptables ;
-	- corriger une erreur fréquente ou revenir en arrière ;
-	- questions fréquentes et glossaire métier.
-- **Ordre de rédaction recommandé** :
-	- lot 1 : `connexion et repères`, `contacts`, `facture client`, `paiement client` ;
-	- lot 2 : `achat fournisseur`, `caisse`, `banque et remises` ;
-	- lot 3 : `import Excel`, `lecture des écrans comptables`, `FAQ`, `glossaire` ;
-	- lot 4 : stabilisation éditoriale et enrichissement visuel avec captures homogènes, encadrés d'alerte et version imprimable si utile.
-- **Format attendu par chapitre** :
-	- objectif simple ;
-	- prérequis éventuels ;
-	- étapes numérotées ;
-	- capture(s) annotée(s), ajoutées seulement en fin de chantier quand les écrans sont suffisamment stabilisés ;
-	- résultat attendu ;
-	- erreurs fréquentes ou points d'attention.
-- **Point d'attention** : ce manuel doit privilégier les parcours métier concrets, le vocabulaire simple et les écrans réels de l'application, plutôt qu'une description abstraite des fonctionnalités ; les captures doivent arriver en dernière étape pour éviter une maintenance inutile tant que l'UI continue d'évoluer.
-
 ### BL-022 — Gestion des utilisateurs, rôles et sécurité de compte
 
 - **Dates** : `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-19`
@@ -510,6 +540,8 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## En cours
 
+- **BL-019** — `created=2026-04-13`, `started=2026-04-21` — Le socle README + doc d'exploitation est livré, mais le ticket reste ouvert jusqu'à validation complète sur les vrais parcours d'installation, mise à jour et exploitation, avec corrections éventuelles.
+- **BL-020** — `created=2026-04-13`, `started=2026-04-21` — La documentation de contribution est structurée, mais le ticket reste ouvert jusqu'à relecture et validation sur un cycle réel `setup -> checks -> PR`, avec ajustements éventuels.
 - **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Le manuel utilisateur FR/EN a maintenant une structure pas à pas consolidée et un meilleur aiguillage vers les guides complémentaires ; l'enrichissement visuel réel reste à réaliser pour clôturer le ticket.
 
 ## Fait
@@ -532,8 +564,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-016** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les microcopies et états visibles les plus incohérents ont été harmonisés sur `Banque`, `Caisse` et `Salaires` via des clés i18n dédiées.
 - **BL-017** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — L'affichage des mois et périodes métier est maintenant uniformisé au format français sur `Salaires` et le `Dashboard` sans changer les formats d'échange ISO.
 - **BL-018** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les écrans de liste principaux partagent maintenant un socle commun de tri, filtres et compteurs d'état, avec filtres de date FR/ISO et exclusion explicite des tableaux fixes `bilan` / `résultat`.
-- **BL-019** — `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21` — Le `README.md` sert maintenant de point d'entrée synthétique `FR + EN`, l'installation dispose d'un guide bilingue dédié, et l'exploitation Docker est documentée en anglais dans `doc/dev/exploitation.md` avec configuration, volumes, mises à jour, sauvegardes et opérations courantes explicités.
-- **BL-020** — `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21` — Le dépôt dispose maintenant d'une documentation développeur centrale `doc/dev/contribuer.md` en anglais, d'une convention documentaire clarifiée, et d'un workflow de contribution mieux cadré pour la mise en route locale, les checks qualité et le workflow Git/PR.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-19` — La gestion des comptes couvre désormais l'administration, l'espace `Mon profil`, le changement de mot de passe utilisateur, la réinitialisation administrateur adaptée au contexte auto-hébergé et l'invalidation des anciennes sessions après changement de mot de passe.
 - **BL-023** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les rôles métier `Gestionnaire` / `Comptable` / `Administrateur` sont maintenant alignés entre docs, navigation, guards frontend et permissions backend, avec séparation visible `Gestion` / `Comptabilité` et couverture de test ciblée.
 - **BL-024** — `created=2026-04-13`, `started=2026-04-19`, `completed=2026-04-19` — Le workflow de paiement est désormais clarifié et fusionné dans `develop` : `chèque` et `espèces` restent saisis côté facture/paiement avec traitement de trésorerie cohérent, tandis que les `virements` sont explicitement renvoyés au futur flux `banque -> paiement` de `BL-031`.

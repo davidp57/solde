@@ -34,6 +34,7 @@ vi.mock('../../stores/fiscalYear', () => ({
 
 vi.mock('../../api/cash', () => ({
   getCashBalance: vi.fn(),
+  getCashFundsChart: vi.fn(),
   listCashEntries: vi.fn(),
   addCashEntry: vi.fn(),
   getCashEntry: vi.fn(),
@@ -43,9 +44,16 @@ vi.mock('../../api/cash', () => ({
 }))
 
 import CashView from '../../views/CashView.vue'
-import { getCashBalance, listCashEntries, listCashCounts, updateCashEntry } from '../../api/cash'
+import {
+  getCashBalance,
+  getCashFundsChart,
+  listCashEntries,
+  listCashCounts,
+  updateCashEntry,
+} from '../../api/cash'
 
 const mockGetCashBalance = vi.mocked(getCashBalance)
+const mockGetCashFundsChart = vi.mocked(getCashFundsChart)
 const mockListCashEntries = vi.mocked(listCashEntries)
 const mockListCashCounts = vi.mocked(listCashCounts)
 const mockUpdateCashEntry = vi.mocked(updateCashEntry)
@@ -289,6 +297,7 @@ function mountView() {
         Tabs: TabsStub,
         Tag: TagStub,
         Textarea: TextareaStub,
+        TrendLineChart: ContainerStub,
       },
     },
   })
@@ -306,6 +315,10 @@ describe('CashView', () => {
     }
     fiscalYearStoreMock.initialized = true
     mockGetCashBalance.mockResolvedValue({ balance: '145.00' })
+    mockGetCashFundsChart.mockResolvedValue([
+      { month: '2025-01', balance: 110 },
+      { month: '2025-02', balance: 145 },
+    ])
     mockListCashEntries.mockResolvedValue([cashEntryFixture])
     mockListCashCounts.mockResolvedValue([])
     mockUpdateCashEntry.mockResolvedValue({ ...cashEntryFixture, reference: 'CAISSE-2025-002' })
@@ -324,6 +337,7 @@ describe('CashView', () => {
       from_date: '2025-01-01',
       to_date: '2025-12-31',
     })
+    expect(mockGetCashFundsChart).toHaveBeenCalledWith(6)
   })
 
   it('displays a global current balance and the selected fiscal year variation', async () => {

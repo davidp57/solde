@@ -37,6 +37,7 @@ class TestGetSettings:
 
         assert data["association_name"] == "Mon Association"
         assert data["fiscal_year_start_month"] == 8
+        assert data["default_invoice_due_days"] is None
         assert data["smtp_host"] is None
         assert data["smtp_port"] == 587
         assert data["smtp_use_tls"] is True
@@ -98,6 +99,14 @@ class TestUpdateSettings:
         )
         assert response.status_code == 422
 
+    async def test_invalid_default_invoice_due_days(self, client: AsyncClient, auth_headers: dict):
+        response = await client.put(
+            "/api/settings/",
+            json={"default_invoice_due_days": 366},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422
+
     async def test_invalid_smtp_port(self, client: AsyncClient, auth_headers: dict):
         response = await client.put(
             "/api/settings/",
@@ -122,6 +131,15 @@ class TestUpdateSettings:
         data = response.json()
         assert data["smtp_host"] == "smtp.gmail.com"
         assert data["smtp_user"] == "test@gmail.com"
+
+    async def test_update_default_invoice_due_days(self, client: AsyncClient, auth_headers: dict):
+        response = await client.put(
+            "/api/settings/",
+            json={"default_invoice_due_days": 30},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["default_invoice_due_days"] == 30
 
 
 class TestTreasurySystemOpening:

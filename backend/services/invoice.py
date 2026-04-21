@@ -1,7 +1,7 @@
 """Invoice service — CRUD, numbering, status changes, duplication."""
 
 from collections.abc import Sequence
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import delete, extract, select
@@ -20,6 +20,7 @@ from backend.models.invoice import (
     infer_client_line_type,
 )
 from backend.schemas.invoice import InvoiceCreate, InvoiceLineCreate, InvoiceUpdate
+from backend.services import settings as settings_service
 
 
 class InvoiceStatusError(Exception):
@@ -119,6 +120,16 @@ def _has_user_entered_breakdown(
     return invoice_type == InvoiceType.CLIENT and line_count >= 2
 
 
+def apply_default_due_date(
+    invoice_date: date,
+    due_date: date | None,
+    default_invoice_due_days: int | None,
+) -> date | None:
+    if due_date is not None or default_invoice_due_days is None:
+        return due_date
+    return invoice_date + timedelta(days=default_invoice_due_days)
+
+
 async def _next_number(db: AsyncSession, invoice_type: InvoiceType, year: int) -> str:
     """Generate the next sequential invoice number for a given type and year.
 
@@ -141,6 +152,11 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
     """Create an invoice with auto-generated number and computed total."""
     year = payload.date.year
     number = await _next_number(db, payload.type, year)
+    resolved_due_date = apply_default_due_date(
+        payload.date,
+        payload.due_date,
+        await settings_service.get_default_invoice_due_days(db),
+    )
 
     # Compute total
     if payload.lines:
@@ -157,7 +173,7 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
         type=payload.type,
         contact_id=payload.contact_id,
         date=payload.date,
-        due_date=payload.due_date,
+        due_date=resolved_due_date,
         label=resolved_label,
         description=payload.description,
         reference=payload.reference,

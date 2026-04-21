@@ -6,15 +6,27 @@
     />
 
     <AppPanel :title="t('accounting.balance.title')" dense>
+      <div class="balance-focus-legend">
+        <span class="balance-focus-legend__label">{{ t('accounting.balance.focus_label') }}</span>
+        <span
+          v-for="focusAccount in focusAccounts"
+          :key="focusAccount.account_number"
+          class="balance-focus-chip"
+          :class="`balance-focus-chip--${focusAccount.key}`"
+        >
+          {{ focusAccount.account_number }} · {{ t(`accounting.balance.focus.${focusAccount.key}`) }}
+        </span>
+      </div>
+
       <div class="app-toolbar">
         <div class="app-filter-grid">
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_from') }}</label>
-            <AppDateInput v-model="fromDate" />
+            <AppDateInput v-model="fromDate" @keydown.enter="load" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_to') }}</label>
-            <AppDateInput v-model="toDate" />
+            <AppDateInput v-model="toDate" @keydown.enter="load" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_fiscal_year') }}</label>
@@ -24,11 +36,16 @@
               option-label="name"
               option-value="id"
               :placeholder="t('common.all')"
+              @change="load"
             />
           </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="globalFilter" :placeholder="t('common.filter_placeholder')" />
+            <InputText
+              v-model="globalFilter"
+              :placeholder="t('common.filter_placeholder')"
+              @keydown.enter="load"
+            />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('common.reset_filters') }}</label>
@@ -50,6 +67,7 @@
       <DataTable
         v-model:filters="tableFilters"
         :value="balanceRows"
+        :row-class="rowClass"
         :loading="loading"
         class="app-data-table"
         filter-display="menu"
@@ -70,6 +88,11 @@
         removable-sort
       >
         <Column field="account_number" :header="t('accounting.balance.account_number')" sortable>
+          <template #body="{ data }">
+            <span :class="{ 'balance-account-number--focus': data.focus_key }">
+              {{ data.account_number }}
+            </span>
+          </template>
           <template #filter="{ filterModel }">
             <InputText
               v-model="filterModel.value"
@@ -145,6 +168,9 @@
           :show-filter-match-modes="false"
           :show-add-button="false"
         >
+          <template #body="{ data }">
+            {{ formatAccountingAmount(data.solde_value) }}
+          </template>
           <template #filter="{ filterModel }">
             <AppNumberRangeFilter v-model="filterModel.value" />
           </template>
@@ -179,6 +205,16 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { focusAccounts, getFocusAccountKey, type FocusAccountKey } from '../utils/focusAccounts'
+import { formatAccountingAmount } from '../utils/format'
+
+type BalanceRowView = BalanceRow & {
+  account_type_label: string
+  total_debit_value: number
+  total_credit_value: number
+  solde_value: number
+  focus_key: FocusAccountKey | null
+}
 
 const { t } = useI18n()
 const fiscalYearStore = useFiscalYearStore()
@@ -193,15 +229,20 @@ const loading = ref(false)
 const fromDate = ref('')
 const toDate = ref('')
 
-const balanceRows = computed(() =>
+const balanceRows = computed<BalanceRowView[]>(() =>
   rows.value.map((row) => ({
     ...row,
     account_type_label: t(`accounting.account_types.${row.account_type}`),
     total_debit_value: parseFloat(row.total_debit),
     total_credit_value: parseFloat(row.total_credit),
     solde_value: parseFloat(row.solde),
+    focus_key: getFocusAccountKey(row.account_number),
   })),
 )
+
+function rowClass(row: BalanceRowView): string[] {
+  return row.focus_key ? ['balance-row--focus', `balance-row--focus-${row.focus_key}`] : []
+}
 
 const {
   filters: tableFilters,
@@ -251,3 +292,80 @@ onMounted(async () => {
   await load()
 })
 </script>
+
+<style scoped>
+.balance-focus-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+
+.balance-focus-legend__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--p-text-muted-color, #94a3b8);
+}
+
+.balance-focus-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--balance-focus-accent);
+  background: var(--balance-focus-bg);
+  color: var(--balance-focus-fg);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.balance-account-number--focus {
+  font-weight: 700;
+}
+
+.balance-focus-chip--member_receivables,
+:deep(.balance-row--focus-member_receivables) {
+  --balance-focus-bg: rgba(251, 191, 36, 0.14);
+  --balance-focus-accent: rgba(251, 191, 36, 0.45);
+  --balance-focus-fg: #ffefbf;
+}
+
+.balance-focus-chip--supplier_payables,
+:deep(.balance-row--focus-supplier_payables) {
+  --balance-focus-bg: rgba(56, 189, 248, 0.14);
+  --balance-focus-accent: rgba(56, 189, 248, 0.5);
+  --balance-focus-fg: #d7f0ff;
+}
+
+.balance-focus-chip--cash,
+:deep(.balance-row--focus-cash) {
+  --balance-focus-bg: rgba(74, 222, 128, 0.14);
+  --balance-focus-accent: rgba(74, 222, 128, 0.42);
+  --balance-focus-fg: #dbffe4;
+}
+
+.balance-focus-chip--current_account,
+:deep(.balance-row--focus-current_account) {
+  --balance-focus-bg: rgba(248, 113, 113, 0.14);
+  --balance-focus-accent: rgba(248, 113, 113, 0.4);
+  --balance-focus-fg: #ffe1e1;
+}
+
+.balance-focus-chip--cheques_to_deposit,
+:deep(.balance-row--focus-cheques_to_deposit) {
+  --balance-focus-bg: rgba(129, 140, 248, 0.14);
+  --balance-focus-accent: rgba(129, 140, 248, 0.42);
+  --balance-focus-fg: #e1e5ff;
+}
+
+:deep(.balance-row--focus > td) {
+  background: var(--balance-focus-bg) !important;
+  box-shadow: inset 4px 0 0 var(--balance-focus-accent);
+}
+
+:deep(.balance-row--focus:hover > td) {
+  filter: brightness(1.04);
+}
+</style>

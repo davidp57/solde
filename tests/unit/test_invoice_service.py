@@ -12,6 +12,7 @@ from backend.models.contact import Contact, ContactType
 from backend.models.invoice import InvoiceLabel, InvoiceLineType, InvoiceStatus, InvoiceType
 from backend.schemas.invoice import InvoiceCreate, InvoiceLineCreate, InvoiceUpdate
 from backend.schemas.payment import PaymentCreate
+from backend.schemas.settings import AppSettingsUpdate
 from backend.services.accounting_engine import seed_default_rules
 from backend.services.invoice import (
     InvoiceDeleteError,
@@ -26,6 +27,7 @@ from backend.services.invoice import (
     update_invoice_status,
 )
 from backend.services.payment import create_payment
+from backend.services.settings import update_settings
 
 
 async def _make_contact(db: AsyncSession, nom: str = "Test") -> Contact:
@@ -134,6 +136,49 @@ class TestCreateInvoice:
         assert invoice.total_amount == Decimal("250.00")
         assert invoice.reference == "INV-2025-123"
         assert invoice.paid_amount == Decimal("0")
+
+    async def test_uses_default_due_date_when_setting_is_configured(self, db_session: AsyncSession):
+        await update_settings(db_session, AppSettingsUpdate(default_invoice_due_days=30))
+        contact = await _make_contact(db_session)
+
+        payload = InvoiceCreate(
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 9, 1),
+            lines=[
+                InvoiceLineCreate(
+                    description="Cours maths",
+                    quantity=Decimal("1"),
+                    unit_price=Decimal("50.00"),
+                )
+            ],
+        )
+
+        invoice = await create_invoice(db_session, payload)
+
+        assert invoice.due_date == date(2025, 10, 1)
+
+    async def test_keeps_explicit_due_date_over_default(self, db_session: AsyncSession):
+        await update_settings(db_session, AppSettingsUpdate(default_invoice_due_days=30))
+        contact = await _make_contact(db_session)
+
+        payload = InvoiceCreate(
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 9, 1),
+            due_date=date(2025, 9, 15),
+            lines=[
+                InvoiceLineCreate(
+                    description="Cours maths",
+                    quantity=Decimal("1"),
+                    unit_price=Decimal("50.00"),
+                )
+            ],
+        )
+
+        invoice = await create_invoice(db_session, payload)
+
+        assert invoice.due_date == date(2025, 9, 15)
 
     async def test_default_status_is_draft(self, db_session: AsyncSession):
         invoice = await _make_invoice(db_session)

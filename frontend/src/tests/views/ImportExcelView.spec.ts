@@ -165,6 +165,7 @@ describe('ImportExcelView', () => {
       association_siret: '',
       association_logo_path: '',
       fiscal_year_start_month: 8,
+      default_invoice_due_days: null,
       smtp_host: null,
       smtp_port: 587,
       smtp_user: null,

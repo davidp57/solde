@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
 from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.models.accounting_entry import AccountingEntry
 from backend.models.bank import (
     BankTransaction,
     BankTransactionCategory,
@@ -28,6 +30,44 @@ from backend.schemas.bank import (
 )
 from backend.services import payment as payment_service
 from backend.services.bank_import import detect_transaction_category
+
+_CURRENT_ACCOUNT_NUMBER = "512100"
+_SAVINGS_ACCOUNT_NUMBER = "512102"
+_FISCAL_YEAR_OPENING_LABEL_PREFIX = "Ouverture de l'exercice comptable"
+
+
+def _shift_month(value: date, months: int) -> date:
+    year = value.year
+    month = value.month + months
+    while month <= 0:
+        year -= 1
+        month += 12
+    while month > 12:
+        year += 1
+        month -= 12
+    return date(year, month, 1)
+
+
+def _month_windows(months: int) -> list[tuple[str, date]]:
+    today = date.today()
+    current_month = today.replace(day=1)
+    first_month = _shift_month(current_month, -(months - 1))
+    windows: list[tuple[str, date]] = []
+    month_cursor = first_month
+    while month_cursor <= current_month:
+        month_end = month_cursor.replace(day=monthrange(month_cursor.year, month_cursor.month)[1])
+        windows.append(
+            (
+                month_cursor.strftime("%Y-%m"),
+                today if month_cursor == current_month else month_end,
+            )
+        )
+        month_cursor = _shift_month(month_cursor, 1)
+    return windows
+
+
+def _is_fiscal_year_opening_label(label: str) -> bool:
+    return label.startswith(_FISCAL_YEAR_OPENING_LABEL_PREFIX)
 
 
 def _require_transaction_direction(
@@ -244,6 +284,93 @@ async def list_transactions(
         query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def get_monthly_funds_series(
+    db: AsyncSession,
+    *,
+    months: int = 6,
+) -> list[dict[str, Decimal | str]]:
+    if await recompute_bank_balances(db):
+        await db.commit()
+
+    result = await db.execute(
+        select(BankTransaction.date, BankTransaction.balance_after).order_by(
+            BankTransaction.date.asc(), BankTransaction.id.asc()
+        )
+    )
+    current_account_points = [
+        (point_date, Decimal(str(balance_after))) for point_date, balance_after in result.all()
+    ]
+
+    windows = _month_windows(months)
+    max_period_end = windows[-1][1] if windows else date.today()
+
+    accounting_result = await db.execute(
+        select(
+            AccountingEntry.date,
+            AccountingEntry.account_number,
+            AccountingEntry.label,
+            AccountingEntry.debit,
+            AccountingEntry.credit,
+        )
+        .where(
+            AccountingEntry.account_number.in_([_CURRENT_ACCOUNT_NUMBER, _SAVINGS_ACCOUNT_NUMBER]),
+            AccountingEntry.date <= max_period_end,
+        )
+        .order_by(AccountingEntry.date.asc(), AccountingEntry.id.asc())
+    )
+    accounting_points = [
+        (
+            point_date,
+            account_number,
+            label,
+            Decimal(str(debit)) - Decimal(str(credit)),
+        )
+        for point_date, account_number, label, debit, credit in accounting_result.all()
+    ]
+
+    rows: list[dict[str, Decimal | str]] = []
+    transaction_current_balance = Decimal("0")
+    accounting_balances = {
+        _CURRENT_ACCOUNT_NUMBER: Decimal("0"),
+        _SAVINGS_ACCOUNT_NUMBER: Decimal("0"),
+    }
+    current_point_index = 0
+    accounting_point_index = 0
+    for month_label, period_end in windows:
+        while (
+            current_point_index < len(current_account_points)
+            and current_account_points[current_point_index][0] <= period_end
+        ):
+            transaction_current_balance = current_account_points[current_point_index][1]
+            current_point_index += 1
+        while (
+            accounting_point_index < len(accounting_points)
+            and accounting_points[accounting_point_index][0] <= period_end
+        ):
+            _, account_number, label, amount_delta = accounting_points[accounting_point_index]
+            if _is_fiscal_year_opening_label(label):
+                accounting_balances[account_number] = amount_delta
+            else:
+                accounting_balances[account_number] += amount_delta
+            accounting_point_index += 1
+        accounting_current_balance = accounting_balances[_CURRENT_ACCOUNT_NUMBER]
+        savings_account_balance = accounting_balances[_SAVINGS_ACCOUNT_NUMBER]
+        current_account_balance = (
+            transaction_current_balance if current_point_index > 0 else accounting_current_balance
+        )
+        total_balance = current_account_balance + savings_account_balance
+        rows.append(
+            {
+                "month": month_label,
+                "current_account": current_account_balance,
+                "savings_account": savings_account_balance,
+                "total": total_balance,
+                "balance": total_balance,
+            }
+        )
+    return rows
 
 
 async def update_transaction(

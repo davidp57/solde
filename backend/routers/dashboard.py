@@ -1,6 +1,5 @@
 """Dashboard API — KPIs and monthly chart data."""
 
-from datetime import datetime
 from decimal import Decimal
 from typing import Annotated
 
@@ -29,6 +28,15 @@ async def get_dashboard(
 async def get_monthly_chart(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _ReadAccess,
-    year: int = Query(default=datetime.now().year),
+    fiscal_year_id: int | None = Query(default=None),
 ) -> list[dict[str, Decimal | str]]:
-    return await dashboard_service.get_monthly_chart(db, year)
+    return await dashboard_service.get_monthly_chart(db, fiscal_year_id)
+
+
+@router.get("/chart/resources")
+async def get_resources_chart(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    months: int = Query(default=12, ge=1, le=36),
+) -> list[dict[str, Decimal | str]]:
+    return await dashboard_service.get_resources_chart(db, months=months)

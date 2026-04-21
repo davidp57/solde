@@ -134,3 +134,17 @@ export function formatDisplayMonth(value: string | Date | null | undefined): str
     year: 'numeric',
   }).format(parsed)
 }
+
+export function formatAccountingAmount(value: string | number | null | undefined): string {
+  if (value == null || value === '') return ''
+
+  const amount = typeof value === 'number' ? value : Number.parseFloat(value)
+  if (!Number.isFinite(amount)) return typeof value === 'string' ? value : ''
+
+  const formatted = Math.abs(amount).toLocaleString('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+
+  return amount < 0 ? `(${formatted})` : formatted
+}
