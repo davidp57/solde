@@ -52,11 +52,11 @@
             style="width: 9rem"
             class="app-money"
           >
-            <template #body="{ data }">{{ formatAmount(data.solde) }}</template>
+            <template #body="{ data }">{{ formatAccountingAmount(data.solde) }}</template>
           </Column>
         </DataTable>
         <div class="mt-3 flex justify-end font-semibold text-base border-t pt-2">
-          <span>{{ t('bilan.total_actif') }} : {{ formatAmount(bilan.total_actif) }} €</span>
+          <span>{{ t('bilan.total_actif') }} : {{ formatAccountingAmount(bilan.total_actif) }} €</span>
         </div>
       </AppPanel>
 
@@ -84,17 +84,17 @@
             style="width: 9rem"
             class="app-money"
           >
-            <template #body="{ data }">{{ formatAmount(data.solde) }}</template>
+            <template #body="{ data }">{{ formatAccountingAmount(data.solde) }}</template>
           </Column>
         </DataTable>
         <div class="mt-3 flex flex-col items-end gap-1 border-t pt-2">
           <span class="font-semibold text-base">
-            {{ t('bilan.total_passif') }} : {{ formatAmount(bilan.total_passif) }} €
+            {{ t('bilan.total_passif') }} : {{ formatAccountingAmount(bilan.total_passif) }} €
           </span>
           <span
             :class="['text-sm', Number(bilan.resultat) >= 0 ? 'text-green-600' : 'text-red-600']"
           >
-            {{ t('bilan.resultat') }} : {{ formatAmount(bilan.resultat) }} €
+            {{ t('bilan.resultat') }} : {{ formatAccountingAmount(bilan.resultat) }} €
           </span>
         </div>
       </AppPanel>
@@ -118,6 +118,7 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import { getBilanApi, getExportCsvUrl } from '../api/accounting'
 import type { BilanRead } from '../api/accounting'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatAccountingAmount } from '../utils/format'
 
 const { t } = useI18n()
 const fiscalYearStore = useFiscalYearStore()
@@ -129,10 +130,6 @@ const fiscalYearId = computed({
   get: () => fiscalYearStore.selectedFiscalYearId,
   set: (value: number | undefined) => fiscalYearStore.setSelectedFiscalYear(value),
 })
-
-function formatAmount(val: string | number): string {
-  return Number(val).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
 
 async function loadBilan() {
   loading.value = true
