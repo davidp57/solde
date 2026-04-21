@@ -1,121 +1,121 @@
-# BL-005 — Politique de coexistence entre imports et écritures existantes
+# BL-005 — Coexistence Policy Between Imports and Existing Entries
 
-## Objectif
+## Objective
 
-Rendre explicite la règle de coexistence actuelle entre :
+Make the current coexistence rules explicit between:
 
-- les imports `Gestion` ;
-- les imports `Comptabilite` ;
-- les objets métier déjà présents dans Solde ;
-- les écritures comptables déjà générées automatiquement ;
-- les écritures comptables saisies manuellement.
+- `Gestion` imports;
+- `Comptabilite` imports;
+- business objects already present in Solde;
+- accounting entries already generated automatically;
+- accounting entries created manually.
 
-Ce document formalise la politique actuellement retenue dans le code pour éviter les décisions implicites ou contradictoires pendant les reprises historiques et la convergence Excel/Solde.
+This document formalizes the policy currently implemented in code so that historical replay and Excel/Solde convergence do not rely on implicit or contradictory decisions.
 
-## Principes directeurs
+## Guiding principles
 
-1. La sûreté métier prime sur l'automatisation.
-2. Un import ne doit jamais réécrire silencieusement un objet ou une écriture existante sans règle explicite et sûre.
-3. En comptabilité, seul le doublon exact est dédupliqué automatiquement.
-4. Une ambiguïté de rapprochement métier doit être bloquée ou laissée à revue manuelle, jamais résolue arbitrairement.
-5. La coexistence avec des écritures `MANUAL` est autorisée tant qu'il n'existe pas de doublon exact.
+1. Business safety takes priority over automation.
+2. An import must never silently rewrite an existing object or entry without an explicit and safe rule.
+3. In accounting, only exact duplicates are deduplicated automatically.
+4. A business-level matching ambiguity must be blocked or left for manual review, never resolved arbitrarily.
+5. Coexistence with `MANUAL` entries is allowed as long as there is no exact duplicate.
 
-## Politique retenue
+## Adopted policy
 
-### Vue synthétique
+### Summary view
 
-| Cas | Preview | Import réel | Décision retenue |
+| Case | Preview | Real import | Adopted decision |
 |---|---|---|---|
-| Fichier déjà importé à hash identique | bloqué | bloqué | refuser le réimport exact |
-| Doublon exact d'objet `Gestion` déjà présent | ignoré | ignoré | ne pas recréer le même objet métier |
-| Doublon exact de ligne comptable déjà présente | ignoré | ignoré | ne pas recréer la même ligne comptable |
-| Groupe comptable déjà couvert par des écritures auto-générées Solde | avertissement global + lignes ignorées | lignes ignorées | conserver Solde comme source déjà suffisante pour ce groupe |
-| Écritures `MANUAL` déjà présentes sur la période sans doublon exact | autorisé | autorisé | importer les nouvelles lignes en plus |
-| Rapprochement métier ambigu | bloqué | bloqué | exiger une résolution humaine |
-| Clarification sûre d'une facture client existante depuis `Comptabilite` | ignoré comme nouvelle écriture + clarification métier | clarification appliquée | enrichir l'objet existant sans dupliquer les écritures |
-| Doublon proche non exact | signal implicite seulement via delta ou comportement normal | importé comme nouvelle écriture | ne pas fusionner automatiquement un cas ambigu |
+| File already imported with the same hash | blocked | blocked | reject exact re-import |
+| Exact duplicate of an existing `Gestion` object | ignored | ignored | do not recreate the same business object |
+| Exact duplicate of an existing accounting line | ignored | ignored | do not recreate the same accounting line |
+| Accounting group already covered by Solde-generated entries | global warning + ignored lines | ignored lines | keep Solde as the already-sufficient source for that group |
+| Existing `MANUAL` entries in the period without exact duplicates | allowed | allowed | import the new lines in addition |
+| Ambiguous business matching | blocked | blocked | require human resolution |
+| Safe clarification of an existing client invoice from `Comptabilite` | ignored as a new entry + business clarification | clarification applied | enrich the existing object without duplicating entries |
+| Near duplicate but not exact | only implicit signal through delta or normal behavior | imported as a new entry | do not auto-merge an ambiguous case |
 
-## Règles détaillées par famille de cas
+## Detailed rules by case family
 
-### 1. Idempotence par fichier
+### 1. File-level idempotence
 
-- Un fichier déjà importé avec succès, identifié par le même hash, est refusé.
-- Cette règle vaut pour `Gestion` comme pour `Comptabilite`.
-- Le diagnostic visible est `already-imported`.
+- A file already imported successfully, identified by the same hash, is rejected.
+- This rule applies to both `Gestion` and `Comptabilite`.
+- The visible diagnostic category is `already-imported`.
 
-### 2. Imports `Gestion`
+### 2. `Gestion` imports
 
-#### Contacts, factures, salaires déjà présents
+#### Contacts, invoices, salaries already present
 
-- Si l'objet existe déjà selon la signature métier actuellement retenue, la ligne est ignorée.
-- L'import ne tente pas de fusionner, compléter ou écraser l'objet existant.
+- If the object already exists according to the currently retained business signature, the row is ignored.
+- The import does not attempt to merge, complete, or overwrite the existing object.
 
-#### Paiements, banque, caisse déjà présents
+#### Payments, bank, cash already present
 
-- Si la signature de comparaison métier existe déjà dans Solde, la ligne est ignorée.
-- Le but est d'éviter le doublon fonctionnel, pas seulement le doublon technique de ligne.
+- If the business comparison signature already exists in Solde, the row is ignored.
+- The goal is to avoid functional duplicates, not only technical row duplicates.
 
-#### Cas ambigus côté `Gestion`
+#### Ambiguous `Gestion` cases
 
-- Si un contact client est ambigu, la facture est bloquée.
-- Si un paiement ne peut pas être rapproché de façon sûre, il est bloqué.
-- Si plusieurs candidats existent pour un même rapprochement, il est bloqué.
+- If a client contact is ambiguous, the invoice is blocked.
+- If a payment cannot be matched safely, it is blocked.
+- If several candidates exist for the same reconciliation, it is blocked.
 
-### 3. Imports `Comptabilite`
+### 3. `Comptabilite` imports
 
-#### Doublon exact de ligne comptable
+#### Exact duplicate of an accounting line
 
-- Une ligne `Journal` déjà présente avec la même signature `(date, compte, libellé normalisé, débit, crédit)` est ignorée.
-- Cette déduplication est volontairement stricte.
+- A `Journal` line already present with the same signature `(date, account, normalized label, debit, credit)` is ignored.
+- This deduplication is intentionally strict.
 
-#### Groupe déjà couvert par Solde
+#### Group already covered by Solde
 
-- Si un groupe d'écritures correspond déjà à un groupe auto-généré par Solde (`invoice`, `payment`, `deposit`, `salary`, `gestion`, `cloture`), il est ignoré ligne par ligne.
-- La preview ajoute un avertissement global de coexistence pour signaler qu'une partie du journal Excel recouvre des écritures déjà produites dans Solde.
-- Cet avertissement n'est pas bloquant.
+- If a group of entries is already represented by a Solde-generated group (`invoice`, `payment`, `deposit`, `salary`, `gestion`, `cloture`), it is ignored line by line.
+- Preview adds a global coexistence warning to indicate that part of the Excel journal overlaps with entries already produced in Solde.
+- This warning is non-blocking.
 
-#### Écritures `MANUAL` déjà existantes
+#### Existing `MANUAL` entries
 
-- La simple présence d'écritures `MANUAL` n'empêche pas l'import `Comptabilite`.
-- Si une nouvelle ligne comptable ne correspond pas à un doublon exact, elle est importée comme nouvelle écriture `MANUAL`.
-- La règle retenue est de ne pas surbloquer un import historique à cause d'une comptabilité manuelle existante, tout en conservant la déduplication stricte.
-- Quand une ligne importée partage la même date, le même compte et les mêmes montants qu'une écriture `MANUAL` sans être un doublon exact sur le libellé, Solde émet un avertissement non bloquant de proximité pour inviter à revue manuelle.
+- The mere presence of `MANUAL` entries does not prevent a `Comptabilite` import.
+- If a new accounting line is not an exact duplicate, it is imported as a new `MANUAL` entry.
+- The adopted rule is to avoid over-blocking historical imports because of existing manual bookkeeping while keeping strict deduplication.
+- When an imported line shares the same date, account, and amounts as a `MANUAL` entry without being an exact duplicate on the label, Solde emits a non-blocking proximity warning to invite manual review.
 
-#### Clarification d'une facture client existante
+#### Clarification of an existing client invoice
 
-- Si des écritures `Comptabilite` correspondent à une facture client déjà présente dans Solde, Solde ne crée pas de nouvelle écriture comptable manuelle pour la dupliquer.
-- Si la facture existante peut être clarifiée de façon sûre à partir des écritures, cette clarification est appliquée.
-- Sinon, les lignes sont ignorées comme déjà couvertes par l'existant.
+- If `Comptabilite` entries correspond to a client invoice already present in Solde, Solde does not create duplicate manual accounting entries.
+- If the existing invoice can be clarified safely from those entries, the clarification is applied.
+- Otherwise, the lines are ignored as already covered by the current data.
 
-### 4. Doublons proches et écarts ambigus
+### 4. Near duplicates and ambiguous differences
 
-- Un doublon proche mais non exact n'est pas automatiquement fusionné.
-- Exemple typique : même date, même compte et même montant, mais libellé différent sans preuve suffisante qu'il s'agit de la même écriture.
-- Dans ce cas, la règle retenue reste conservatrice : on préfère conserver deux écritures plutôt que supprimer ou fusionner à tort.
+- A near duplicate that is not exact is not merged automatically.
+- Typical example: same date, same account, same amount, but a different label without enough proof that it is the same entry.
+- In that case the policy remains conservative: it is preferable to keep two entries than to delete or merge incorrectly.
 
-## Traduction opérationnelle actuelle dans les diagnostics
+## Current operational translation in diagnostics
 
-Les catégories stables actuellement visibles ou dérivables sont notamment :
+Stable categories that are currently visible or derivable include:
 
-- `already-imported` pour le réimport exact d'un fichier ;
-- `entry-existing` pour une écriture comptable déjà présente ;
-- `entry-covered-by-solde` pour une ligne comptable déjà couverte par un groupe métier ou une opération existante dans Solde ;
-- `entry-near-manual` pour une ligne comptable proche d'une écriture `MANUAL` existante mais non strictement identique ;
-- `existing-row-in-solde` pour une ligne de gestion déjà représentée dans Solde ;
-- `comptabilite-coexistence` pour l'avertissement global de coexistence avec des écritures auto-générées ;
-- les catégories d'ambiguïté ou d'échec de rapprochement (`invoice-ambiguous-contact`, `payment-unmatched`, etc.) pour les cas à bloquer.
+- `already-imported` for exact file re-import attempts;
+- `entry-existing` for an accounting line already present;
+- `entry-covered-by-solde` for an accounting line already covered by a business group or existing Solde operation;
+- `entry-near-manual` for an accounting line close to an existing `MANUAL` entry but not strictly identical;
+- `existing-row-in-solde` for a `Gestion` line already represented in Solde;
+- `comptabilite-coexistence` for the global warning about coexistence with auto-generated entries;
+- ambiguity or matching-failure categories such as `invoice-ambiguous-contact`, `payment-unmatched`, and similar blocked cases.
 
-## Ce que BL-005 acte maintenant
+## What BL-005 establishes now
 
-BL-005 acte la politique suivante comme cible produit actuelle :
+BL-005 establishes the following as the current product target:
 
-- coexistence autorisée avec l'existant quand le cas est sûr et non destructif ;
-- déduplication automatique uniquement sur les doublons exacts ou les groupes explicitement reconnus comme déjà couverts par Solde ;
-- aucun blocage de principe sur la seule présence d'écritures `MANUAL` ;
-- signal non bloquant quand une ligne importée est proche d'une écriture `MANUAL` existante sans être strictement identique ;
-- aucun écrasement silencieux d'une donnée existante ;
-- blocage dès qu'un rapprochement métier devient ambigu.
+- coexistence with existing data is allowed when the case is safe and non-destructive;
+- automatic deduplication is limited to exact duplicates or groups explicitly recognized as already covered by Solde;
+- there is no principle-level block based solely on the presence of `MANUAL` entries;
+- a non-blocking signal is emitted when an imported line is close to an existing `MANUAL` entry without being strictly identical;
+- no existing data is ever overwritten silently;
+- matching becomes blocked as soon as it turns ambiguous at business level.
 
-## Suites éventuelles hors de ce cadrage initial
+## Possible follow-up work outside this initial scope
 
-- décider si certains autres doublons proches doivent un jour être signalés explicitement pour revue manuelle au-delà du cas `MANUAL` déjà couvert.
+- decide whether other kinds of near-duplicates should later be surfaced explicitly for manual review beyond the already covered `MANUAL` case.

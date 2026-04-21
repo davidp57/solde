@@ -1,11 +1,11 @@
 # Architecture — Solde ⚖️
 
-## Vue d'ensemble
+## Overview
 
-Solde est une application web monolithique modulaire déployée dans un seul conteneur Docker sur un NAS Synology. L'interface Vue.js 3 est servie comme fichiers statiques directement par FastAPI, ce qui élimine le besoin d'un reverse proxy ou d'un serveur web séparé.
+Solde is a modular monolithic web application deployed in a single Docker container on a Synology NAS. The Vue.js 3 frontend is served as static files directly by FastAPI, which removes the need for a separate reverse proxy or web server.
 
 ```
-Navigateur
+Browser
     │
     ▼
 Docker container (port 8080)
@@ -13,87 +13,87 @@ Docker container (port 8080)
     ├── Uvicorn (1 worker)
     │       │
     │       └── FastAPI
-    │               ├── /api/**  →  Routers Python
+    │               ├── /api/**  →  Python routers
     │               └── /*       →  StaticFiles (frontend/dist/)
     │
     └── Volume ./data/
             ├── solde.db          (SQLite WAL)
-            ├── uploads/          (factures fournisseurs)
-            └── pdfs/             (factures clients générées)
+            ├── uploads/          (supplier invoices)
+            └── pdfs/             (generated client invoices)
 ```
 
-**Budget RAM cible : ≤ 384 Mo sur NAS Synology**
+**Target RAM budget: ≤ 384 MB on Synology NAS**
 
-| Composant | RAM estimée |
+| Component | Estimated RAM |
 |---|---|
-| Uvicorn + FastAPI (idle) | ~50–80 Mo |
-| SQLite (pas en mémoire) | ~0 Mo |
-| Vue.js (fichiers statiques) | 0 Mo côté serveur |
-| WeasyPrint (pic génération PDF) | ~30–50 Mo |
-| **Total idle** | **~80–130 Mo** |
-| **Total pic** | **~180 Mo** |
+| Uvicorn + FastAPI (idle) | ~50–80 MB |
+| SQLite (file-based, not in memory) | ~0 MB |
+| Vue.js static assets | 0 MB on the server side |
+| WeasyPrint (PDF generation peak) | ~30–50 MB |
+| **Idle total** | **~80–130 MB** |
+| **Peak total** | **~180 MB** |
 
 ---
 
-## Stack technique
+## Technical stack
 
-| Couche | Technologie | Version | Justification |
+| Layer | Technology | Version | Rationale |
 |---|---|---|---|
-| Serveur API | FastAPI + Uvicorn | 0.115+ | Async natif, performances, documentation OpenAPI auto |
-| Base de données | SQLite (WAL mode) | — | Zéro configuration, adapté usage mono-instance NAS |
-| ORM | SQLAlchemy 2 async | 2.0+ | Sessions async, type safety, migrations Alembic |
-| Migrations | Alembic | — | Contrôle de version du schéma |
-| Authentification | python-jose (JWT) + bcrypt | — | JWT stateless ; bcrypt direct (passlib incompatible Python 3.13) |
-| Validation | Pydantic v2 | 2.0+ | Schemas d'entrée/sortie, Settings de configuration |
-| Génération PDF | WeasyPrint | — | Import à la demande pour économiser la RAM |
-| Envoi email | smtplib (stdlib) | — | Pas de dépendance externe |
-| Frontend | Vue.js 3 + Vite | 3.x | Composition API, TypeScript natif |
-| UI | PrimeVue 4 | 4.x | Composants riches, thème Aura CSS-only |
-| État | Pinia | 2.x | Léger, Composition API compatible |
-| Routeur | Vue Router | 4.x | Guards de navigation, lazy-loading |
-| i18n | vue-i18n | 11.x | Toutes les chaînes UI externalisées en français |
-| Client HTTP | axios | — | Intercepteurs JWT + auto-refresh 401 |
-| Tests backend | pytest + pytest-asyncio + httpx | — | Tests async, client ASGI en mémoire |
-| Tests frontend | Vitest | — | Natif Vite, compatible jsdom |
-| Linting/Format | ruff (Python) + ESLint + Prettier (JS) | — | Qualité uniforme |
+| API server | FastAPI + Uvicorn | 0.115+ | Native async, good performance, automatic OpenAPI docs |
+| Database | SQLite (WAL mode) | — | Zero configuration, fits a single-instance NAS deployment |
+| ORM | SQLAlchemy 2 async | 2.0+ | Async sessions, type safety, Alembic migrations |
+| Migrations | Alembic | — | Schema version control |
+| Authentication | python-jose (JWT) + bcrypt | — | Stateless JWTs; direct bcrypt because passlib is incompatible with Python 3.13 |
+| Validation | Pydantic v2 | 2.0+ | Input/output schemas, settings management |
+| PDF generation | WeasyPrint | — | Imported on demand to save RAM |
+| E-mail sending | smtplib (stdlib) | — | No external dependency |
+| Frontend | Vue.js 3 + Vite | 3.x | Composition API, native TypeScript support |
+| UI | PrimeVue 4 | 4.x | Rich components, Aura CSS-only theme |
+| State management | Pinia | 2.x | Lightweight, Composition API friendly |
+| Router | Vue Router | 4.x | Navigation guards, lazy loading |
+| i18n | vue-i18n | 11.x | All UI strings are externalized in French |
+| HTTP client | axios | — | JWT interceptors + automatic 401 refresh |
+| Backend tests | pytest + pytest-asyncio + httpx | — | Async tests, in-memory ASGI client |
+| Frontend tests | Vitest | — | Native Vite integration, jsdom-compatible |
+| Linting/formatting | ruff (Python) + ESLint + Prettier (JS) | — | Consistent quality tooling |
 
 ---
 
-## Structure du projet
+## Project structure
 
 ```
 solde/
 ├── backend/
 │   ├── __init__.py
-│   ├── main.py              # create_app(), lifespan, CORS, montage StaticFiles
-│   ├── config.py            # Pydantic Settings (JWT, SMTP, année fiscale)
-│   ├── database.py          # Engine async, WAL, get_db(), init_db()
-│   ├── models/              # Modèles SQLAlchemy (une table = un fichier)
-│   ├── routers/             # Routes FastAPI par domaine métier
-│   ├── services/            # Logique métier (indépendante de HTTP)
-│   ├── schemas/             # Pydantic : validation entrées, sérialisation sorties
-│   ├── templates/           # Templates Jinja2 pour les PDFs WeasyPrint
-│   └── alembic/             # Migrations Alembic
+│   ├── main.py              # create_app(), lifespan, CORS, StaticFiles mounting
+│   ├── config.py            # Pydantic settings (JWT, SMTP, fiscal year)
+│   ├── database.py          # Async engine, WAL, get_db(), init_db()
+│   ├── models/              # SQLAlchemy models (one table per file)
+│   ├── routers/             # FastAPI routes by business domain
+│   ├── services/            # Business logic (independent from HTTP)
+│   ├── schemas/             # Pydantic input validation and output serialization
+│   ├── templates/           # Jinja2 templates for WeasyPrint PDFs
+│   └── alembic/             # Alembic migrations
 ├── frontend/
 │   ├── src/
-│   │   ├── api/             # Fonctions d'appel API + client axios + types TypeScript
-│   │   ├── layouts/         # Layouts applicatifs (AppLayout responsive)
-│   │   ├── views/           # Pages Vue (une route = une vue)
-│   │   ├── components/      # Composants réutilisables
-│   │   ├── stores/          # Stores Pinia (auth, ...)
-│   │   ├── router/          # Définition des routes + guards
-│   │   └── i18n/            # Fichiers de traduction (fr.ts)
-│   ├── vite.config.ts       # Proxy /api → backend en dev
+│   │   ├── api/             # API calls, axios client, TypeScript types
+│   │   ├── layouts/         # Application layouts (responsive AppLayout)
+│   │   ├── views/           # Vue pages (one route = one view)
+│   │   ├── components/      # Reusable components
+│   │   ├── stores/          # Pinia stores (auth, ...)
+│   │   ├── router/          # Route definitions and guards
+│   │   └── i18n/            # Translation files (fr.ts)
+│   ├── vite.config.ts       # /api → backend proxy in dev mode
 │   └── vitest.config.ts
 ├── tests/
-│   ├── unit/                # Tests unitaires (services, config)
-│   ├── integration/         # Tests API (httpx AsyncClient)
-│   └── conftest.py          # Fixtures partagées (DB in-memory, client, admin_user)
-├── data/                    # Volume Docker (gitignore)
+│   ├── unit/                # Unit tests (services, config)
+│   ├── integration/         # API tests (httpx AsyncClient)
+│   └── conftest.py          # Shared fixtures (in-memory DB, client, admin_user)
+├── data/                    # Docker volume (gitignored)
 ├── doc/
-│   ├── plan.md              # Spécifications fonctionnelles et modèle de données
-│   ├── roadmap.md           # Avancement par phase et prochaines étapes
-│   └── architecture.md      # Ce document
+│   ├── plan.md              # Functional specifications and data model
+│   ├── roadmap.md           # Progress by phase and next steps
+│   └── architecture.md      # This document
 ├── Dockerfile
 ├── docker-compose.yml
 ├── pyproject.toml
@@ -102,64 +102,64 @@ solde/
 
 ---
 
-## Décisions d'architecture
+## Architecture decisions
 
-### SQLite plutôt que PostgreSQL
+### SQLite over PostgreSQL
 
-Usage mono-instance sur NAS domestique, quelques dizaines d'utilisateurs maximum. SQLite en mode WAL offre la concurrence lecture/écriture suffisante. Évite un second conteneur et ~50 Mo de RAM. Facilite les sauvegardes (copie d'un seul fichier).
+The target deployment is a single-instance application on a home NAS, with at most a few dozen users. SQLite in WAL mode provides sufficient read/write concurrency, avoids a second container and roughly 50 MB of additional RAM, and keeps backups simple because there is only one main file to copy.
 
-### Mono-container Docker
+### Single-container Docker deployment
 
-Un seul conteneur simplifie le déploiement sur Portainer (NAS Synology). Le build multi-stage (`node:22-alpine` → `python:3.13-slim`) produit une image unique qui sert à la fois l'API et les fichiers statiques.
+A single container simplifies deployment through Portainer on Synology NAS. The multi-stage build (`node:22-alpine` → `python:3.13-slim`) produces one image that serves both the API and the static frontend assets.
 
-### Frontend servi par FastAPI
+### Frontend served by FastAPI
 
-Élimine le besoin de Nginx ou d'un proxy inverse. FastAPI monte `frontend/dist/` via `StaticFiles` avec `html=True` pour le routing SPA (toutes les routes inconnues retournent `index.html`).
+This removes the need for Nginx or another reverse proxy. FastAPI mounts `frontend/dist/` through `StaticFiles` with `html=True` so SPA routes resolve back to `index.html`.
 
-### bcrypt direct (sans passlib)
+### Direct bcrypt usage without passlib
 
-`passlib` est incompatible avec `bcrypt >= 4.0` sur Python 3.13 (attribut `__about__` manquant). Solution : appel direct à `bcrypt.hashpw()` / `bcrypt.checkpw()`.
+`passlib` is incompatible with `bcrypt >= 4.0` on Python 3.13 because of the missing `__about__` attribute. The project therefore uses direct calls to `bcrypt.hashpw()` and `bcrypt.checkpw()`.
 
-### WeasyPrint importé à la demande
+### On-demand WeasyPrint import
 
-WeasyPrint charge ~30–50 Mo de bibliothèques au moment de l'import. Import différé dans le service de génération PDF pour ne pas pénaliser le démarrage.
+WeasyPrint loads roughly 30–50 MB of libraries when imported. Delaying the import inside the PDF generation service avoids penalizing application startup and idle memory usage.
 
-### Tokens JWT stateless
+### Stateless JWT tokens
 
-Pas de table de sessions en base. Le refresh token (durée longue) permet de renouveler l'access token (durée courte) sans re-authentification. La révocation n'est pas implémentée en Phase 1 (acceptable pour une appli interne avec peu d'utilisateurs).
+There is no session table in the database. The long-lived refresh token renews the short-lived access token without forcing a new login. Token revocation was not implemented in Phase 1 and was considered acceptable for a small internal application.
 
-### Rôles applicatifs
+### Application roles
 
-| Rôle | Périmètre |
+| Role | Scope |
 |---|---|
-| `ADMIN` | Tout, y compris gestion des utilisateurs et paramètres |
-| `TRESORIER` | Gestion complète + comptabilité (sans gestion utilisateurs) |
-| `SECRETAIRE` | Factures et paiements uniquement |
-| `READONLY` | Consultation seule, aucune modification |
+| `ADMIN` | Full access, including user management and settings |
+| `TRESORIER` | Full management + accounting, excluding user management |
+| `SECRETAIRE` | Invoices and payments only |
+| `READONLY` | Read-only access, no modifications |
 
 ---
 
-## Flux d'authentification
+## Authentication flow
 
 ```
-Navigateur                         API
+Browser                           API
     │                               │
     │  POST /api/auth/login         │
     │  (username + password)        │
     │ ─────────────────────────►   │
-    │                               │  Vérifie bcrypt
-    │  { access_token,              │  Génère JWT (15 min)
-    │    refresh_token }            │  Génère refresh (7 jours)
+    │                               │  Verifies bcrypt
+    │  { access_token,              │  Generates JWT (15 min)
+    │    refresh_token }            │  Generates refresh token (7 days)
     │ ◄─────────────────────────   │
     │                               │
     │  GET /api/...                 │
     │  Authorization: Bearer <jwt>  │
     │ ─────────────────────────►   │
-    │                               │  Décode JWT
-    │  Données                      │  Vérifie expiration + rôle
+    │                               │  Decodes JWT
+    │  Data                         │  Checks expiration + role
     │ ◄─────────────────────────   │
     │                               │
-    │  (JWT expiré → 401)           │
+    │  (JWT expired → 401)          │
     │  POST /api/auth/refresh       │
     │  { refresh_token }            │
     │ ─────────────────────────►   │
@@ -167,14 +167,14 @@ Navigateur                         API
     │ ◄─────────────────────────   │
 ```
 
-L'intercepteur axios dans `api/client.ts` gère automatiquement le rafraîchissement et met en file d'attente les requêtes concurrentes pendant le renouvellement du token.
+The axios interceptor in `api/client.ts` automatically handles refresh and queues concurrent requests while the token is being renewed.
 
 ---
 
-## Conventions de code
+## Code conventions
 
-- **Python** : annotations de type obligatoires sur toutes les fonctions publiques ; Pydantic v2 pour les schemas ; style SQLAlchemy 2 async
-- **Vue.js** : Composition API + syntaxe `<script setup>` ; Pinia pour l'état ; pas d'Options API
-- **SQL** : migrations Alembic pour tout changement de schéma ; jamais de modification directe de la base
-- **Sécurité** : validation de toutes les entrées aux frontières API ; pas de secrets dans le code (variables d'environnement) ; requêtes paramétrées uniquement (ORM SQLAlchemy, pas de SQL par concaténation)
-- **Monétaire** : `Decimal` Python (jamais `float`) pour tous les montants afin d'éviter les erreurs d'arrondi
+- **Python**: type annotations are required on all public functions; use Pydantic v2 for schemas; follow SQLAlchemy 2 async style.
+- **Vue.js**: use the Composition API with `<script setup>`; Pinia is the shared state solution; the Options API is not used.
+- **SQL**: every schema change must go through Alembic migrations; never modify the database directly.
+- **Security**: validate all inputs at the API boundary; keep secrets out of the codebase and in environment variables; use parameterized queries only through the ORM.
+- **Money**: always use Python `Decimal`, never `float`, for monetary amounts.

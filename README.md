@@ -1,109 +1,48 @@
 # Solde ⚖️
 
-Solde est une application web de gestion comptable pour une association loi 1901 de soutien scolaire.
-Elle remplace une gestion fragmentée dans Excel par une application unique couvrant la facturation, les paiements, la trésorerie, les imports de reprise et la comptabilité en partie double.
+Solde is a web application for bookkeeping and day-to-day financial management for a French loi 1901 non-profit.
 
-## Ce que couvre l'application
+## Français
 
-- factures clients et fournisseurs, génération PDF et envoi par e-mail ;
-- paiements clients, caisse, remises en banque et rapprochement bancaire ;
-- imports historiques `Gestion` / `Comptabilite`, preview, historique réversible et reset sélectif ;
-- comptabilité en partie double avec plan comptable, règles, journal, balance, grand livre, résultat et bilan ;
-- gestion multi-utilisateurs avec rôles, profil utilisateur et administration des comptes.
+Solde centralise la facturation, les paiements, la trésorerie, les imports historiques et la comptabilité en partie double dans une seule application.
 
-## Pile technique
+### Liens rapides
 
-- backend : FastAPI, SQLAlchemy async, SQLite, Alembic, Pydantic v2 ;
-- frontend : Vue 3, Vite, TypeScript, PrimeVue, Pinia ;
-- déploiement : image Docker unique servant l'API et le frontend compilé ;
-- stockage persistant : volume `data/` contenant base SQLite, pièces jointes, PDFs et logs.
+- Installation / premiers pas : [doc/user/installation.md](doc/user/installation.md)
+- Documentation utilisateur : [doc/user/README.md](doc/user/README.md)
+- Exploitation technique et opérations Docker : [doc/dev/exploitation.md](doc/dev/exploitation.md)
+- Contribution et développement local : [doc/dev/contribuer.md](doc/dev/contribuer.md)
+- Architecture et cadrage projet : [doc/architecture.md](doc/architecture.md), [doc/plan.md](doc/plan.md), [doc/roadmap.md](doc/roadmap.md) (migration EN encore à faire sur ces documents historiques)
+- Changelog : [CHANGELOG.md](CHANGELOG.md)
 
-## Démarrage rapide avec Docker
+## English
 
-Prérequis : Docker et Docker Compose.
+Solde brings invoicing, payments, treasury workflows, historical imports, and double-entry accounting into a single application.
 
-```bash
-git clone git@github.com:davidp57/solde.git
-cd solde
-```
+### Quick links
 
-Créer le fichier d'environnement :
+- Installation / getting started: [doc/user/installation.md](doc/user/installation.md)
+- User documentation: [doc/user/README.md](doc/user/README.md)
+- Technical operations and Docker runtime guide: [doc/dev/exploitation.md](doc/dev/exploitation.md)
+- Contribution and local development guide: [doc/dev/contribuer.md](doc/dev/contribuer.md)
+- Architecture and project planning: [doc/architecture.md](doc/architecture.md), [doc/plan.md](doc/plan.md), [doc/roadmap.md](doc/roadmap.md) (legacy French documents, English migration still pending)
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
 
-```powershell
-Copy-Item .env.example .env
-```
-
-```bash
-cp .env.example .env
-```
-
-Configurer au minimum `JWT_SECRET_KEY`. Si tu veux éviter les valeurs de bootstrap par défaut, renseigne aussi `ADMIN_USERNAME`, `ADMIN_PASSWORD` et `ADMIN_EMAIL`.
-
-Lancer l'application :
-
-```bash
-docker compose up -d --build
-```
-
-Puis ouvrir :
-
-- application : `http://localhost:8000`
-- documentation API : `http://localhost:8000/api/docs`
-
-Au premier démarrage, Solde applique automatiquement les migrations Alembic puis crée un compte administrateur s'il n'existe encore aucun utilisateur.
-
-## Démarrage rapide en local
-
-Prérequis : Python 3.11+ et Node.js 20+ (`22` recommandé pour coller à l'image Docker).
-
-### Backend
-
-```powershell
-python -m venv .venv
-.venv\Scripts\activate
-pip install -e ".[dev]"
-Copy-Item .env.example .env
-alembic upgrade head
-uvicorn backend.main:app --reload --port 8000
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### Raccourci Windows
-
-Sur Windows, `./dev.ps1` démarre le backend et le frontend dans la même session PowerShell et arrête les deux avec `Ctrl+C`.
-
-## Documentation
-
-- [Installation, configuration et exploitation Docker](doc/dev/exploitation.md)
-- [Guide de contribution et développement local](doc/dev/contribuer.md)
-- [Architecture technique](doc/architecture.md)
-- [Plan complet du projet](doc/plan.md)
-- [Roadmap et état d'avancement](doc/roadmap.md)
-- [Documentation utilisateur](doc/user/README.md)
-- [Changelog](CHANGELOG.md)
-
-## Structure du dépôt
+## Structure / Repository layout
 
 ```text
 solde/
-├── backend/        # API FastAPI, services métier, modèles SQLAlchemy, migrations
-├── frontend/       # application Vue.js 3 / Vite / TypeScript
-├── tests/          # tests backend pytest
-├── data/           # base SQLite, uploads, PDFs, logs et autres données persistées
-├── doc/            # documentation projet, technique et utilisateur
+├── backend/
+├── frontend/
+├── tests/
+├── data/
+├── doc/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── dev.ps1
 └── pyproject.toml
 ```
 
-## Licence
+## Licence / License
 
 [Elastic License 2.0 (ELv2)](LICENSE) — auto-hébergement libre, redistribution et offre SaaS commerciale réservées.

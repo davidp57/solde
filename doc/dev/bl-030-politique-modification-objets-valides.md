@@ -1,39 +1,39 @@
-# BL-030 — Politique de modification des objets métier validés
+# BL-030 — Policy for Editing Validated Business Objects
 
-## But
+## Purpose
 
-Formaliser les garde-fous d'édition quand un objet métier a déjà produit des effets dérivés.
+Formalize the editing safeguards that apply once a business object has already produced downstream effects.
 
-La règle générale retenue est la suivante :
+The general rule retained is the following:
 
-- édition libre tant qu'un objet reste préparatoire ;
-- édition encadrée avec régénération contrôlée quand l'objet a déjà déclenché des effets mais reste encore modifiable sans incohérence métier ;
-- interdiction d'édition directe quand l'objet a déjà été consommé par d'autres effets métier ou comptables.
+- free editing while an object is still in a preparatory state;
+- constrained editing with controlled regeneration when the object has already triggered effects but can still be modified without creating business inconsistency;
+- no direct editing once the object has already been consumed by other business or accounting effects.
 
-## Règles actuellement implémentées
+## Rules currently implemented
 
-### Factures
+### Invoices
 
-- une facture `draft` reste éditable librement ;
-- une facture `sent` non réglée reste éditable ;
-- quand une facture `sent` non réglée est modifiée, les écritures comptables auto-générées depuis cette facture sont supprimées puis régénérées dans le même flux transactionnel ;
-- une facture hors de ce périmètre (`paid`, `partial`, `overdue`, `disputed`) n'est plus modifiable directement.
+- a `draft` invoice remains freely editable;
+- a `sent` but unpaid invoice remains editable;
+- when a `sent` unpaid invoice is modified, accounting entries auto-generated from that invoice are deleted and regenerated inside the same transactional flow;
+- an invoice outside that perimeter (`paid`, `partial`, `overdue`, `disputed`) is no longer directly editable.
 
-## Paiements
+## Payments
 
-- un paiement devient quasi immuable après création ;
-- les champs structurels (`montant`, `date`, `mode`, état de remise) ne sont plus modifiables ;
-- la suppression standard d'un paiement est interdite tant qu'aucun flux d'annulation métier dédié ne prend en charge proprement les effets de trésorerie et de comptabilité ;
-- seules des corrections mineures sans impact structurel restent autorisées : `reference`, `notes`, et `cheque_number` quand il s'agit d'un paiement par chèque.
+- a payment becomes almost immutable after creation;
+- structural fields (`amount`, `date`, `method`, deposit state) are no longer editable;
+- standard deletion of a payment is forbidden until a dedicated business cancellation flow correctly handles treasury and accounting side effects;
+- only minor non-structural corrections remain allowed: `reference`, `notes`, and `cheque_number` when the payment method is cheque.
 
-## Imports réversibles
+## Reversible imports
 
-- le `undo/redo` des imports réversibles reste strict ;
-- dès qu'un objet issu d'un import diverge manuellement de l'état attendu, y compris via l'API standard de l'objet, le rejeu strict doit être bloqué ;
-- la vérification stricte recharge explicitement l'instance ORM avant de calculer l'empreinte courante, afin d'éviter les faux comportements liés à des attributs expirés.
+- `undo/redo` for reversible imports remains strict;
+- as soon as an object created from an import manually diverges from the expected state, including through the object's standard API, strict replay must be blocked;
+- strict verification explicitly reloads the ORM instance before computing the current fingerprint, to avoid false behavior caused by expired attributes.
 
-## Hors périmètre de ce lot
+## Out of scope for this delivery
 
-- mécanismes dédiés d'annulation métier (`avoir`, annulation comptable, reverse de paiement) ;
-- matrice complète par statut pour tous les objets métier ;
-- journal d'audit métier explicite des modifications.
+- dedicated business cancellation mechanisms such as credit notes, accounting reversals, or payment reversal flows;
+- a complete status matrix for every business object;
+- an explicit business audit log of modifications.
