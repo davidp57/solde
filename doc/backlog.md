@@ -272,22 +272,20 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-019 — README et documentation technique d'exploitation
 
-- **Dates** : `created=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21`
 - **Pourquoi** : la documentation projet existe mais reste encore trop dispersée ou trop implicite pour quelqu'un qui doit installer, mettre à jour ou exploiter Solde sans relire tout le dépôt.
 - **Résultat attendu** : un README plus clair et une documentation technique structurée couvrant au minimum l'installation, la mise à jour, la pile technologique, la configuration, Docker, les volumes de données, les sauvegardes et les points d'exploitation courants.
-- **État actuel** : le `README.md` couvre déjà le démarrage Docker/local, les variables d'environnement, la structure du dépôt et les liens de documentation ; il manque encore la documentation d'exploitation structurée attendue sur la mise à jour, les volumes de données, les sauvegardes et les opérations courantes.
-- **Priorisation proposée** : lot rapide et structurant ; c'est le meilleur point d'entrée documentation à livrer vite car il clarifie aussi le cadre pour les docs plus détaillées.
-- **Séquence recommandée** : commencer par clarifier le README, puis extraire les détails longs vers une doc technique dédiée plutôt que tout entasser en page d'accueil.
+- **Résultat livré** : le `README.md` est recentré comme page d'entrée concise, une documentation dédiée `doc/dev/exploitation.md` couvre désormais l'installation, la configuration, Docker, les volumes, les sauvegardes et les opérations courantes, et `.env.example` documente explicitement les variables de bootstrap administrateur et les informations association.
+- **Livré parce que** : l'installation et l'exploitation courante peuvent maintenant être documentées sans relire les fichiers `Dockerfile`, `docker-compose.yml`, `.env.example`, `backend/main.py` et `backend/config.py`, et le `CHANGELOG.md` mentionne ce nouveau lot documentaire.
 - **Point d'attention** : distinguer ce qui relève du guide d'exploitation réel de ce qui relève des détails purement développeur, pour éviter un README surchargé.
 
 ### BL-020 — Documentation de développement et contribution
 
-- **Dates** : `created=2026-04-13`
+- **Dates** : `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21`
 - **Pourquoi** : contribuer efficacement au projet suppose aujourd'hui de reconstituer les prérequis et les conventions depuis plusieurs fichiers, ce qui freine la reprise de contexte et la qualité des contributions.
 - **Résultat attendu** : une documentation développeur claire expliquant les prérequis, la mise en route locale, les commandes de build/test/lint, la qualité attendue, l'organisation du dépôt, le workflow de contribution et les attentes avant PR.
-- **État actuel** : le `README.md` fournit déjà une mise en route locale minimale et les commandes de base, et `doc/dev/gestion-utilisateurs-et-permissions.md` documente un sous-ensemble fonctionnel utile ; il manque encore une documentation développeur centrale sur le workflow de contribution, les commandes qualité réellement utilisées et les attentes avant PR.
-- **Priorisation proposée** : lot utile mais moins urgent ; à traiter après le cadrage README/doc technique et sans concurrencer le manuel utilisateur.
-- **Séquence recommandée** : s'appuyer sur les commandes et conventions déjà stabilisées dans le dépôt, puis documenter le workflow réel de contribution sans créer de nouvelle couche procédurale artificielle.
+- **Résultat livré** : la nouvelle documentation `doc/dev/contribuer.md` centralise la mise en route locale, l'usage de `dev.ps1`, la matrice de checks backend/frontend, les conventions de code et de langue, le rôle du backlog et le workflow Git attendu avant PR.
+- **Livré parce que** : un contributeur peut maintenant retrouver dans une seule page les prérequis, les commandes utiles et les règles de contribution réellement appliquées dans le dépôt, sans reconstituer le workflow à partir des consignes dispersées.
 - **Point d'attention** : cette documentation doit rester fidèle aux commandes réellement utilisées dans le dépôt, pas à un idéal théorique.
 
 ### BL-021 — Manuel utilisateur illustré et pas à pas
@@ -525,6 +523,8 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-016** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les microcopies et états visibles les plus incohérents ont été harmonisés sur `Banque`, `Caisse` et `Salaires` via des clés i18n dédiées.
 - **BL-017** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — L'affichage des mois et périodes métier est maintenant uniformisé au format français sur `Salaires` et le `Dashboard` sans changer les formats d'échange ISO.
 - **BL-018** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les écrans de liste principaux partagent maintenant un socle commun de tri, filtres et compteurs d'état, avec filtres de date FR/ISO et exclusion explicite des tableaux fixes `bilan` / `résultat`.
+- **BL-019** — `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21` — Le `README.md` sert maintenant de point d'entrée plus clair et l'exploitation Docker est documentée dans `doc/dev/exploitation.md`, avec configuration, volumes, mises à jour, sauvegardes et opérations courantes explicités.
+- **BL-020** — `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21` — Le dépôt dispose maintenant d'une documentation développeur centrale `doc/dev/contribuer.md` pour la mise en route locale, les checks qualité, les conventions de contribution et le workflow Git/PR.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-19` — La gestion des comptes couvre désormais l'administration, l'espace `Mon profil`, le changement de mot de passe utilisateur, la réinitialisation administrateur adaptée au contexte auto-hébergé et l'invalidation des anciennes sessions après changement de mot de passe.
 - **BL-023** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les rôles métier `Gestionnaire` / `Comptable` / `Administrateur` sont maintenant alignés entre docs, navigation, guards frontend et permissions backend, avec séparation visible `Gestion` / `Comptabilité` et couverture de test ciblée.
 - **BL-024** — `created=2026-04-13`, `started=2026-04-19`, `completed=2026-04-19` — Le workflow de paiement est désormais clarifié et fusionné dans `develop` : `chèque` et `espèces` restent saisis côté facture/paiement avec traitement de trésorerie cohérent, tandis que les `virements` sont explicitement renvoyés au futur flux `banque -> paiement` de `BL-031`.

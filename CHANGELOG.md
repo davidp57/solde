@@ -11,6 +11,11 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+**Documentation projet**
+- `README.md` recentré comme point d'entrée avec renvoi vers la documentation d'exploitation et de contribution
+- Nouvelle documentation `doc/dev/exploitation.md` pour l'installation, la configuration, Docker, les volumes, les sauvegardes et les opérations courantes
+- Nouvelle documentation `doc/dev/contribuer.md` pour la mise en route locale, les commandes qualité, les conventions de développement et le workflow de contribution
+
 **Import Excel réversible**
 - Journal d'import réversible persistant avec `import_runs`, `import_operations` et `import_effects`
 - Nouveaux endpoints API pour préparer, exécuter, annuler et rejouer un import ou une opération unitaire

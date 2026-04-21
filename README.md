@@ -1,162 +1,108 @@
 # Solde ⚖️
 
-Application web de gestion comptable pour une association loi 1901 (soutien scolaire).
-Remplace deux fichiers Excel par une solution intégrée : facturation, paiements, caisse, banque, comptabilité en partie double.
+Solde est une application web de gestion comptable pour une association loi 1901 de soutien scolaire.
+Elle remplace une gestion fragmentée dans Excel par une application unique couvrant la facturation, les paiements, la trésorerie, les imports de reprise et la comptabilité en partie double.
 
----
+## Ce que couvre l'application
 
-## Fonctionnalités
+- factures clients et fournisseurs, génération PDF et envoi par e-mail ;
+- paiements clients, caisse, remises en banque et rapprochement bancaire ;
+- imports historiques `Gestion` / `Comptabilite`, preview, historique réversible et reset sélectif ;
+- comptabilité en partie double avec plan comptable, règles, journal, balance, grand livre, résultat et bilan ;
+- gestion multi-utilisateurs avec rôles, profil utilisateur et administration des comptes.
 
-- **Facturation** clients et fournisseurs (PDF, envoi email)
-- **Paiements** multi-modes (espèces, chèque, virement)
-- **Caisse** avec comptage physique et rapprochement
-- **Banque** avec import CSV/OFX et rapprochement
-- **Comptabilité** en partie double avec moteur de règles configurable
-- **Multi-utilisateurs** avec rôles (Admin, Trésorier, Secrétaire, Lecture seule)
-- **Plan comptable** associatif simplifié pré-configuré
+## Pile technique
 
----
+- backend : FastAPI, SQLAlchemy async, SQLite, Alembic, Pydantic v2 ;
+- frontend : Vue 3, Vite, TypeScript, PrimeVue, Pinia ;
+- déploiement : image Docker unique servant l'API et le frontend compilé ;
+- stockage persistant : volume `data/` contenant base SQLite, pièces jointes, PDFs et logs.
 
-## Prérequis
+## Démarrage rapide avec Docker
 
-- [Docker](https://docs.docker.com/get-docker/) et Docker Compose
-- Ou pour le développement local : Python 3.11+ et Node.js 20+
-
----
-
-## Démarrage rapide (Docker)
+Prérequis : Docker et Docker Compose.
 
 ```bash
-# 1. Cloner le dépôt
 git clone git@github.com:davidp57/solde.git
 cd solde
-
-# 2. Configurer l'environnement
-cp .env.example .env
-# Éditer .env et renseigner JWT_SECRET_KEY (32+ caractères), paramètres SMTP, etc.
-
-# 3. Lancer
-docker-compose up -d
-
-# 4. Ouvrir dans le navigateur
-# http://localhost:8000
 ```
 
-Le premier démarrage crée automatiquement la base de données et un compte administrateur
-avec les identifiants définis dans `.env`.
+Créer le fichier d'environnement :
 
----
-
-## Développement local
-
-### Backend (Python)
+```powershell
+Copy-Item .env.example .env
+```
 
 ```bash
-# Créer et activer l'environnement virtuel
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-source .venv/bin/activate       # Linux/macOS
-
-# Installer les dépendances
-pip install -e ".[dev]"
-
-# Configurer l'environnement
 cp .env.example .env
-# Éditer .env (JWT_SECRET_KEY obligatoire)
+```
 
-# Appliquer les migrations
+Configurer au minimum `JWT_SECRET_KEY`. Si tu veux éviter les valeurs de bootstrap par défaut, renseigne aussi `ADMIN_USERNAME`, `ADMIN_PASSWORD` et `ADMIN_EMAIL`.
+
+Lancer l'application :
+
+```bash
+docker compose up -d --build
+```
+
+Puis ouvrir :
+
+- application : `http://localhost:8000`
+- documentation API : `http://localhost:8000/api/docs`
+
+Au premier démarrage, Solde applique automatiquement les migrations Alembic puis crée un compte administrateur s'il n'existe encore aucun utilisateur.
+
+## Démarrage rapide en local
+
+Prérequis : Python 3.11+ et Node.js 20+ (`22` recommandé pour coller à l'image Docker).
+
+### Backend
+
+```powershell
+python -m venv .venv
+.venv\Scripts\activate
+pip install -e ".[dev]"
+Copy-Item .env.example .env
 alembic upgrade head
-
-# Lancer le serveur de développement
 uvicorn backend.main:app --reload --port 8000
 ```
 
-### Frontend (Vue.js)
+### Frontend
 
 ```bash
 cd frontend
 npm install
 npm run dev
-# Ouvre http://localhost:5173
-# Le proxy Vite redirige /api vers le backend sur le port 8000
 ```
 
-### Tests
+### Raccourci Windows
 
-```bash
-# Backend
-pytest tests/ -v --cov=backend
-
-# Frontend
-cd frontend
-npm run test:unit
-```
-
----
-
-## Variables d'environnement
-
-Voir `.env.example` pour la liste complète. Variables obligatoires :
-
-| Variable | Description |
-|---|---|
-| `JWT_SECRET_KEY` | Clé secrète JWT (minimum 32 caractères) |
-| `DATABASE_URL` | Chemin vers la base SQLite (défaut : `sqlite+aiosqlite:///./data/solde.db`) |
-
-Variables optionnelles (email) :
-
-| Variable | Description |
-|---|---|
-| `SMTP_HOST` | Serveur SMTP pour l'envoi des factures |
-| `SMTP_PORT` | Port SMTP (défaut : 587) |
-| `SMTP_USER` | Identifiant SMTP |
-| `SMTP_PASSWORD` | Mot de passe SMTP |
-| `SMTP_FROM_EMAIL` | Adresse expéditeur |
-
----
-
-## Structure du projet
-
-```
-solde/
-├── backend/            # API FastAPI
-│   ├── main.py         # Point d'entrée
-│   ├── config.py       # Configuration Pydantic Settings
-│   ├── database.py     # SQLAlchemy async + SQLite WAL
-│   ├── models/         # Modèles SQLAlchemy
-│   ├── routers/        # Routes API par module
-│   ├── services/       # Logique métier
-│   ├── schemas/        # Validation Pydantic (entrées/sorties)
-│   └── templates/      # Templates Jinja2 pour les PDFs
-├── frontend/           # Application Vue.js 3
-│   └── src/
-│       ├── api/        # Client axios + types
-│       ├── layouts/    # AppLayout responsive
-│       ├── stores/     # État Pinia (auth, ...)
-│       ├── views/      # Pages
-│       └── i18n/       # Traductions françaises
-├── tests/              # Tests Python (pytest)
-├── data/               # Volume Docker : base SQLite + fichiers
-├── doc/                # Documentation technique
-│   ├── plan.md         # Architecture et décisions techniques
-│   ├── roadmap.md      # Avancement et prochaines étapes
-│   └── architecture.md # Diagrammes et choix d'architecture
-├── Dockerfile
-├── docker-compose.yml
-└── .env.example
-```
-
----
+Sur Windows, `./dev.ps1` démarre le backend et le frontend dans la même session PowerShell et arrête les deux avec `Ctrl+C`.
 
 ## Documentation
 
+- [Installation, configuration et exploitation Docker](doc/dev/exploitation.md)
+- [Guide de contribution et développement local](doc/dev/contribuer.md)
 - [Architecture technique](doc/architecture.md)
 - [Plan complet du projet](doc/plan.md)
 - [Roadmap et état d'avancement](doc/roadmap.md)
 - [Documentation utilisateur](doc/user/README.md)
 - [Changelog](CHANGELOG.md)
 
----
+## Structure du dépôt
+
+```text
+solde/
+├── backend/        # API FastAPI, services métier, modèles SQLAlchemy, migrations
+├── frontend/       # application Vue.js 3 / Vite / TypeScript
+├── tests/          # tests backend pytest
+├── data/           # base SQLite, uploads, PDFs, logs et autres données persistées
+├── doc/            # documentation projet, technique et utilisateur
+├── Dockerfile
+├── docker-compose.yml
+├── dev.ps1
+└── pyproject.toml
+```
 
 ## Licence
 
