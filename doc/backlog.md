@@ -56,7 +56,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 | ID | Créé le | Type | Zone | Priorité proposée | Sujet |
 |---|---|---|---|---|---|
-| BL-006 | 2026-04-12 | Technique | API / Framework | P3 | Traiter les warnings de dépréciation `HTTP_422_UNPROCESSABLE_ENTITY` remontés par la suite de tests |
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-021 | 2026-04-13 | Documentation | Utilisateur / Parcours | P1 | Rédiger un manuel utilisateur illustré et pas à pas aligné sur les écrans réellement disponibles |
@@ -114,9 +113,11 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ### BL-006 — Warnings de dépréciation FastAPI
 
-- **Dates** : `created=2026-04-12`
+- **Dates** : `created=2026-04-12`, `started=2026-04-21`, `completed=2026-04-21`
 - **Pourquoi** : la suite complète remonte encore des warnings autour de `HTTP_422_UNPROCESSABLE_ENTITY`.
 - **Résultat attendu** : éliminer ces warnings pour garder une base de tests propre et limiter le risque de casse lors des montées de version.
+- **Résultat livré** : les routes concernées utilisent désormais `HTTP_422_UNPROCESSABLE_CONTENT`, et la suite backend validée sur le dépôt courant ne remonte plus de warning de dépréciation lié à l'ancienne constante.
+- **Livré parce que** : la vérification du `2026-04-21` confirme l'absence d'occurrence restante de `HTTP_422_UNPROCESSABLE_ENTITY` dans le code Python du dépôt, et `pytest tests/ -W default::DeprecationWarning -q` passe sans warning de dépréciation FastAPI associé.
 
 ### BL-007 — Source de vérité backlog vs issues GitHub
 
@@ -511,6 +512,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-003** — `created=2026-04-12`, `completed=2026-04-12` — La campagne de retest sur imports réels 2024/2025 a été rejouée sans écart bloquant.
 - **BL-004** — `created=2026-04-12`, `started=2026-04-20`, `completed=2026-04-20` — L'import Excel dispose maintenant d'un historique réversible avec opérations persistées, effets détaillés, exécution en deux temps `prepare -> execute`, et `undo/redo` par opération ou par import complet dans l'UI et l'API.
 - **BL-005** — `created=2026-04-12`, `started=2026-04-19`, `completed=2026-04-19` — La politique de coexistence effectivement implémentée pour les imports `Comptabilite` est désormais documentée, testée et intégrée dans `develop`, avec distinction explicite entre doublon exact, ligne déjà couverte par Solde et proximité non bloquante avec une écriture `MANUAL`.
+- **BL-006** — `created=2026-04-12`, `started=2026-04-21`, `completed=2026-04-21` — Le ticket est clos après vérification de l'état réel du dépôt : les routes backend utilisent `HTTP_422_UNPROCESSABLE_CONTENT`, aucune occurrence de l'ancienne constante ne subsiste dans le code Python, et `pytest tests/ -W default::DeprecationWarning -q` ne remonte plus le warning FastAPI visé.
 - **BL-007** — `created=2026-04-12`, `completed=2026-04-13` — La convention est arrêtée pour le mode de travail actuel : `doc/backlog.md` reste la source de vérité, sans synchronisation systématique avec des issues GitHub à ce stade.
 - **BL-008** — `created=2026-04-12`, `started=2026-04-18`, `completed=2026-04-18` — Le premier lot de convergence BL-008 est désormais intégré dans `develop` avec preview bidirectionnelle par domaine, détails `extra_in_solde`, filtre de période dédié à la comparaison et recette locale rejouable.
 - **BL-009** — `created=2026-04-12`, `completed=2026-04-12` — Le plan comptable par défaut a été enrichi à partir des comptes réellement rencontrés dans les imports historiques.
