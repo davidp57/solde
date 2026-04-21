@@ -1,142 +1,142 @@
-# Contrat d'import Excel historique
+# Historical Excel Import Contract
 
-## But
+## Purpose
 
-Décrire explicitement ce que l'import Excel considère aujourd'hui comme :
+Explicitly describe what the Excel import currently considers:
 
-- accepté ;
-- ignoré ;
-- bloquant ;
-- ambigu.
+- accepted;
+- ignored;
+- blocking;
+- ambiguous.
 
-Ce document sert de référence de travail tant que les règles ne sont pas encore entièrement extraites dans une couche métier dédiée.
+This document acts as a working reference as long as the rules are not yet fully extracted into a dedicated business-policy layer.
 
-## Gestion
+## `Gestion`
 
 ### Contacts
 
-Accepté :
-- feuille reconnue avec colonne `Nom` ;
-- colonne `Prénom` facultative ;
-- colonne `Email` facultative.
+Accepted:
+- recognized sheet with a `Nom` column;
+- optional `Prénom` column;
+- optional `Email` column.
 
-Ignoré :
-- doublon intra-fichier sur le même contact ;
-- contact déjà présent en base.
+Ignored:
+- in-file duplicate for the same contact;
+- contact already present in the database.
 
-Bloquant :
-- ligne reconnue avec `Nom` manquant.
+Blocking:
+- recognized row with a missing `Nom` value.
 
-Ambigu :
-- aucun cas explicite actuellement.
+Ambiguous:
+- no explicit case at the moment.
 
-### Factures
+### Invoices
 
-Accepté :
-- feuille reconnue avec date, client, montant ;
-- numéro de facture facultatif, un identifiant technique est généré si absent ;
-- réutilisation d'un contact existant seulement en cas de match exact normalisé unique sur le nom client.
+Accepted:
+- recognized sheet with date, client, and amount;
+- invoice number is optional and a technical identifier is generated if missing;
+- reuse of an existing contact only when there is a unique normalized exact match on the client name.
 
-Ignoré :
-- doublon intra-fichier sur un même numéro de facture ;
-- facture déjà présente en base.
+Ignored:
+- in-file duplicate on the same invoice number;
+- invoice already present in the database.
 
-Bloquant :
-- client manquant ;
-- montant manquant, nul ou invalide ;
-- colonnes requises absentes.
+Blocking:
+- missing client;
+- missing, zero, or invalid amount;
+- missing required columns.
 
-Ambigu :
-- plusieurs contacts existants correspondent exactement au même nom client normalisé ; le fichier est alors bloqué explicitement.
+Ambiguous:
+- several existing contacts match exactly the same normalized client name; the file is then explicitly blocked.
 
-### Paiements
+### Payments
 
-Accepté :
-- paiement avec référence de facture résolue sans ambiguïté ;
-- ou paiement sans référence mais rapprochable de façon unique via le contact.
-- en mode réversible, une preview `Gestion` peut rapprocher un paiement contre une facture déjà existante en base ou contre une facture préparée dans le même run, même si l'onglet `Paiements` apparaît avant l'onglet `Factures` dans le classeur.
+Accepted:
+- payment whose invoice reference resolves unambiguously;
+- or payment without invoice reference but uniquely matchable through the contact;
+- in reversible mode, a `Gestion` preview may match a payment against an invoice already present in the database or against an invoice prepared earlier in the same run, even if the `Paiements` sheet appears before the `Factures` sheet in the workbook.
 
-Ignoré :
-- aucun cas explicite actuellement.
+Ignored:
+- no explicit case at the moment.
 
-Bloquant :
-- montant manquant, nul ou invalide ;
-- absence simultanée de référence facture et de contact ;
-- paiement impossible à rapprocher à une facture importée ou déjà présente en base.
+Blocking:
+- missing, zero, or invalid amount;
+- simultaneous absence of invoice reference and contact;
+- payment that cannot be matched to an imported invoice or one already present in the database.
 
-Ambigu :
-- plusieurs factures candidates par référence partielle ;
-- plusieurs factures candidates via le contact.
+Ambiguous:
+- several candidate invoices from a partial reference;
+- several candidate invoices through the contact.
 
-### Caisse
+### Cash
 
-Accepté :
-- feuille reconnue avec date et mouvement monétaire interprétable.
+Accepted:
+- recognized sheet with a date and an interpretable monetary movement.
 
-Ignoré :
-- aucun cas explicite actuellement.
+Ignored:
+- no explicit case at the moment.
 
-Bloquant :
-- date invalide ou absente ;
-- mouvement ou montant non interprétable.
+Blocking:
+- invalid or missing date;
+- movement or amount cannot be interpreted.
 
-Ambigu :
-- aucun cas explicite actuellement.
+Ambiguous:
+- no explicit case at the moment.
 
-### Banque
+### Bank
 
-Accepté :
-- feuille reconnue avec date et montant interprétable.
+Accepted:
+- recognized sheet with a date and an interpretable amount.
 
-Ignoré :
-- aucun cas explicite actuellement.
+Ignored:
+- no explicit case at the moment.
 
-Bloquant :
-- date invalide ou absente ;
-- montant absent, nul ou invalide.
+Blocking:
+- invalid or missing date;
+- missing, zero, or invalid amount.
 
-Ambigu :
-- aucun cas explicite actuellement.
+Ambiguous:
+- no explicit case at the moment.
 
-## Comptabilite
+## `Comptabilite`
 
 ### Journal
 
-Accepté :
-- feuille `Journal` reconnue avec compte et débit/crédit exploitables ;
-- coexistence autorisée avec des écritures déjà générées depuis la gestion ;
-- rattachement automatique à l'exercice couvrant la date de l'écriture quand cet exercice existe.
+Accepted:
+- recognized `Journal` sheet with usable account and debit/credit data;
+- coexistence allowed with entries already generated from the management flows;
+- automatic attachment to the fiscal year covering the entry date when such a year exists.
 
-Ignoré :
-- feuilles de reporting (`Grand Livre`, `Balance`, etc.) ;
-- `Journal (saisie)` ;
-- ligne `Journal` dont le débit et le crédit sont tous deux nuls ;
-- doublon exact d'une écriture déjà présente en base sur la signature `(date, compte, libellé normalisé, débit, crédit)`.
+Ignored:
+- reporting sheets (`Grand Livre`, `Balance`, etc.);
+- `Journal (saisie)`;
+- any `Journal` row where both debit and credit are zero;
+- exact duplicate of an existing accounting entry on the signature `(date, account, normalized label, debit, credit)`.
 
-Bloquant :
-- compte manquant ;
-- montants non interprétables ;
-- réimport exact d'un fichier déjà importé avec succès.
+Blocking:
+- missing account;
+- uninterpretable amounts;
+- exact re-import of a file already imported successfully.
 
-Ambigu :
-- aucun cas explicite actuellement.
+Ambiguous:
+- no explicit case at the moment.
 
-## Règles transverses
+## Cross-cutting rules
 
-Accepté :
-- seules les feuilles reconnues et valides alimentent les compteurs d'import.
-- l'import visible côté produit suit désormais un cycle en deux temps `prepare -> execute` : la preview persistée construit des opérations ordonnées avec une décision `apply` / `ignore` / `block`, puis l'exécution rejoue seulement les opérations applicables.
-- la traçabilité opérationnelle principale passe désormais par `import_runs`, `import_operations` et `import_effects` ; les anciens `import_logs` restent utiles pour l'historique legacy et les résumés sérialisés.
-- `undo` / `redo` sont stricts : une opération ou un run ne peuvent être rejoués que si l'état courant des objets touchés correspond encore à l'état attendu.
+Accepted:
+- only recognized and valid sheets contribute to import counters;
+- the user-visible import now follows a two-step `prepare -> execute` cycle: persisted preview builds ordered operations with an `apply` / `ignore` / `block` decision, then execution replays only applicable operations;
+- the main operational traceability now lives in `import_runs`, `import_operations`, and `import_effects`; older `import_logs` remain useful for legacy history and serialized summaries;
+- `undo` / `redo` are strict: an operation or run can only be replayed if the current state of the affected objects still matches the expected one.
 
-Ignoré :
-- feuilles auxiliaires, TODO, reporting, aide à la saisie.
+Ignored:
+- auxiliary sheets, TODO sheets, reporting sheets, and data-entry helper sheets.
 
-Bloquant :
-- toute erreur détectée sur une feuille reconnue empêche l'import complet ;
-- tout réimport exact d'un fichier déjà importé avec succès est refusé ;
-- les exercices comptables, le plan comptable et les règles comptables ne sont jamais créés automatiquement par l'import ;
-- la coexistence avec des écritures déjà présentes reste autorisée : en comptabilité, seuls les doublons exacts sont ignorés ligne à ligne.
+Blocking:
+- any error detected on a recognized sheet blocks the full import;
+- any exact re-import of a file already imported successfully is rejected;
+- fiscal years, the chart of accounts, and accounting rules are never created automatically by the import;
+- coexistence with existing entries remains allowed: in accounting, only exact duplicates are ignored line by line.
 
 Ambigu :
 - tout rapprochement métier donnant plusieurs candidats doit être bloqué, jamais résolu arbitrairement.

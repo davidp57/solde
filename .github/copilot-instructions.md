@@ -5,7 +5,13 @@
 - **Code and comments**: English only
 - **Communication with the user**: French only
 - **UI labels, messages, and user-facing text**: French (i18n-ready — use translation keys, never hardcode strings directly in components)
-- **Documentation**: **French only** — all docs (README, CHANGELOG, architecture, roadmap, plan, user docs, release notes, dev docs) are written in French. Exception: inline code comments stay in English.
+- **Documentation**:
+   - `README.md`: French + English
+   - user documentation and installation / how-to guides: French + English
+   - new or updated technical and developer documentation: English
+   - legacy technical documentation must be migrated to English progressively until alignment is complete
+   - `CHANGELOG.md`, release notes, backlog tracking: French
+   - Exception: inline code comments stay in English.
 
 ---
 
@@ -99,14 +105,15 @@ Keep the following documents up to date with every significant change:
 
 | Document | Langue | Emplacement | Déclencheur |
 |---|---|---|---|
-| `README.md` | **FR** | root | Chaque release |
-| Documentation utilisateur | **FR** | `doc/user/` | Fonctionnalité ajoutée ou modifiée |
-| Documentation développeur | **FR** | `doc/dev/` | Architecture ou API modifiée |
-| `doc/architecture.md` | **FR** | `doc/` | Décisions d'architecture |
+| `README.md` | **FR + EN** | root | Chaque release |
+| Documentation utilisateur | **FR + EN** | `doc/user/` | Fonctionnalité ajoutée ou modifiée |
+| Documentation d'installation / how-to | **FR + EN** | `doc/user/` ou root | Installation, exploitation ou premiers pas modifiés |
+| Documentation développeur | **EN** | `doc/dev/` | Architecture ou API modifiée |
+| Documentation technique historique | **Migration vers EN** | `doc/` | À traduire progressivement jusqu'à alignement complet |
 | `CHANGELOG.md` | **FR** | root | Chaque PR mergée vers `develop` |
 | Notes de release | **FR** | `doc/releases/` | Chaque release |
-| `doc/roadmap.md` | **FR** | `doc/` | Après chaque fin de phase |
-| `doc/plan.md` | **FR** | `doc/` | Décisions d'architecture mises à jour |
+| `doc/roadmap.md` | **EN à terme** | `doc/` | Après chaque fin de phase |
+| `doc/plan.md` | **EN à terme** | `doc/` | Décisions d'architecture mises à jour |
 
 `CHANGELOG.md` suit le format **Keep a Changelog** (sections Unreleased → version).
 

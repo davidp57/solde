@@ -1,16 +1,49 @@
-# Documentation utilisateur
+# User documentation / Documentation utilisateur
+
+## Français
 
 Cette section regroupe les guides destinés aux utilisateurs de Solde.
 
-Le manuel utilisateur est rédigé par lots pour rester aligné sur les écrans réels de l'application. Les captures d'écran seront ajoutées en fin de chantier, quand l'interface sera suffisamment stabilisée.
+Commencez par le guide qui correspond le mieux à votre besoin :
 
-## Guides disponibles
+- vous installez ou découvrez l'application : [installation.md](./installation.md) ;
+- vous cherchez un guide général du quotidien : [manuel-utilisateur.md](./manuel-utilisateur.md) ;
+- vous travaillez sur une reprise historique ou un retest d'import : [import-excel-et-reinitialisation.md](./import-excel-et-reinitialisation.md).
 
-- [Manuel utilisateur](./manuel-utilisateur.md)
-- [Import Excel et réinitialisation](./import-excel-et-reinitialisation.md)
+Guides disponibles :
 
-## Guides prévus ensuite
+- Installation et premiers pas : [installation.md](./installation.md)
+- Manuel utilisateur : [manuel-utilisateur.md](./manuel-utilisateur.md)
+- Guide import Excel et réinitialisation : [import-excel-et-reinitialisation.md](./import-excel-et-reinitialisation.md)
 
-- captures d'écran annotées ;
-- homogénéisation éditoriale du manuel complet ;
-- version imprimable si utile.
+Guides disponibles en anglais :
+
+- Installation and getting started: [installation.md](./installation.md)
+- User manual: [manuel-utilisateur.en.md](./manuel-utilisateur.en.md)
+- Excel import and reset guide: [import-excel-et-reinitialisation.en.md](./import-excel-et-reinitialisation.en.md)
+
+Le manuel utilisateur dispose maintenant d'une trame pas à pas consolidée pour les parcours du quotidien. Les captures d'écran annotées restent un lot spécifique qui sera ajouté quand l'interface sera suffisamment stabilisée.
+
+## English
+
+This section contains the user-facing guides for Solde.
+
+Start with the guide that best matches your need:
+
+- you are installing or discovering the application: [installation.md](./installation.md);
+- you want the main day-to-day guide: [manuel-utilisateur.en.md](./manuel-utilisateur.en.md);
+- you are replaying historical data or testing Excel imports: [import-excel-et-reinitialisation.en.md](./import-excel-et-reinitialisation.en.md).
+
+Available guides:
+
+- Installation and getting started: [installation.md](./installation.md)
+- User manual: [manuel-utilisateur.en.md](./manuel-utilisateur.en.md)
+- Excel import and reset guide: [import-excel-et-reinitialisation.en.md](./import-excel-et-reinitialisation.en.md)
+
+Available in French as well:
+
+- Installation et premiers pas: [installation.md](./installation.md)
+- Manuel utilisateur: [manuel-utilisateur.md](./manuel-utilisateur.md)
+- Guide import Excel et réinitialisation: [import-excel-et-reinitialisation.md](./import-excel-et-reinitialisation.md)
+
+The user manual now has a consolidated step-by-step structure for the main day-to-day workflows. Annotated screenshots remain a separate work item and will be added once the interface is stable enough.
