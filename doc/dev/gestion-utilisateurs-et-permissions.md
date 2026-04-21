@@ -1,122 +1,122 @@
-# Gestion des utilisateurs et des permissions
+# User and Permission Management
 
-## Objectif
+## Purpose
 
-BL-022 lots 1 et 2 ont introduit l'administration des comptes. BL-023 clarifie désormais la cible produit des rôles et la séparation visible entre `Gestion` et `Comptabilité`, sans renommer immédiatement les valeurs techniques déjà utilisées dans l'API et les autorisations backend.
+BL-022 lots 1 and 2 introduced account administration. BL-023 then clarified the target product model for roles and the visible split between `Management` and `Accounting`, without immediately renaming the technical role values already used in the API and backend authorization rules.
 
-L'objectif est double :
+The objective is twofold:
 
-1. rendre les rôles compréhensibles pour l'administrateur fonctionnel ;
-2. ajouter une administration des comptes cohérente avec les permissions déjà en place.
+1. make roles understandable for a functional administrator;
+2. introduce account administration that remains consistent with the permissions already implemented.
 
-## Principe retenu
+## Chosen principle
 
-Les valeurs techniques existantes restent inchangées dans ce lot :
+The existing technical values remain unchanged in this delivery:
 
 - `readonly`
 - `secretaire`
 - `tresorier`
 - `admin`
 
-En revanche, elles sont interprétées côté produit avec des libellés métier plus lisibles. La cible produit active repose désormais surtout sur trois rôles métier : `Gestionnaire`, `Comptable`, `Administrateur`.
+However, they are interpreted in the product using more readable business labels. The active product target now relies primarily on three business-facing roles: `Manager`, `Accountant`, and `Administrator`.
 
-## Correspondance rôles techniques / rôles métier
+## Mapping technical roles to product roles
 
-| Valeur technique | Libellé métier | Usage principal |
+| Technical value | Product label | Main usage |
 |---|---|---|
-| `readonly` | Consultation | Rôle legacy ou transitoire, sans utilité produit claire à ce stade |
-| `secretaire` | Gestionnaire | Gérer toute la partie gestion |
-| `tresorier` | Comptable | Gérer la partie comptable et toute la partie gestion |
-| `admin` | Administrateur | Gérer les comptes, les paramètres et l'ensemble de l'application |
+| `readonly` | Read-only | Legacy or transitional role, with no strong product value at this stage |
+| `secretaire` | Manager | Handles the whole management area |
+| `tresorier` | Accountant | Handles accounting and the full management area |
+| `admin` | Administrator | Manages users, settings, and the whole application |
 
-## Sections UI cibles
+## Target UI sections
 
-La navigation doit séparer visiblement au moins deux sections :
+Navigation should visibly separate at least two sections:
 
-### Gestion
+### Management
 
-- Tableau de bord
+- Dashboard
 - Contacts
-- Factures clients
-- Factures fournisseurs
-- Paiements
-- Banque
-- Caisse
+- Client invoices
+- Supplier invoices
+- Payments
+- Bank
+- Cash
 
-### Comptabilité
+### Accounting
 
-- Exercices
-- Plan comptable
-- Règles comptables
-- Bilan
-- Résultat
+- Fiscal years
+- Chart of accounts
+- Accounting rules
+- Balance sheet
+- Income statement
 - Journal
-- Balance
-- Grand livre
+- Trial balance
+- General ledger
 
-## Matrice simplifiée des permissions
+## Simplified permission matrix
 
-| Zone / action | Gestionnaire | Comptable | Administrateur |
+| Area / action | Manager | Accountant | Administrator |
 |---|---|---|---|
-| Partie gestion | Lecture + écriture | Lecture + écriture | Lecture + écriture |
-| Partie comptable | Non | Lecture + écriture ou lecture seule selon l'écran | Lecture + écriture ou lecture seule selon l'écran |
-| Utilisateurs | Non | Non | Lecture + écriture |
-| Paramètres de l'application | Non | Non | Lecture + écriture |
+| Management area | Read + write | Read + write | Read + write |
+| Accounting area | No | Read + write or read-only depending on the screen | Read + write or read-only depending on the screen |
+| Users | No | No | Read + write |
+| Application settings | No | No | Read + write |
 
-En pratique :
+In practice:
 
-- `Gestionnaire` voit et édite toute la partie `Gestion` ;
-- `Comptable` voit et édite toute la partie `Gestion`, et voit ou édite la partie `Comptabilité` selon l'écran concerné ;
-- `Administrateur` voit tout, édite tout et gère l'application ;
-- `readonly` n'est plus un rôle cible à mettre en avant dans le produit.
+- `Manager` can view and edit the full `Management` area.
+- `Accountant` can view and edit the full `Management` area and can view or edit the `Accounting` area depending on the screen.
+- `Administrator` can view everything, edit everything, and manage the application itself.
+- `readonly` is no longer a target role that should be emphasized in the product UI.
 
-Précisions d'implémentation utiles :
+Useful implementation notes:
 
-- le tableau de bord reste accessible via une section `Accueil` distincte de la section `Gestion`, y compris pour le rôle technique legacy `readonly` ;
-- le sélecteur global d'exercice reste visible pour les rôles métier actifs `Gestionnaire`, `Comptable` et `Administrateur`, car plusieurs écrans de gestion sont filtrés par exercice même hors section `Comptabilité` ;
-- l'écran de gestion des exercices reste réservé à `Comptable` et `Administrateur` ;
-- la carte `Exercice en cours` du tableau de bord suit la même logique que le sélecteur global : exercice ouvert couvrant la date du jour, sinon exercice ouvert le plus récent.
+- the dashboard remains available through a dedicated `Home` section separate from `Management`, including for the legacy `readonly` technical role;
+- the global fiscal year selector remains visible to the active business roles `Manager`, `Accountant`, and `Administrator`, because several management screens are filtered by fiscal year even outside the `Accounting` section;
+- fiscal year administration remains restricted to `Accountant` and `Administrator`;
+- the `Current fiscal year` card on the dashboard follows the same logic as the global selector: first prefer an open fiscal year covering today, otherwise use the most recent open year.
 
-## Portée des lots BL-022
+## Scope of BL-022 lots
 
-Le lot 2 ajoute l'administration des comptes avec les capacités suivantes :
+Lot 2 adds account administration with the following capabilities:
 
-- lister les comptes existants ;
-- créer un compte ;
-- changer le rôle d'un compte ;
-- activer ou désactiver un compte.
+- list existing accounts;
+- create an account;
+- change an account role;
+- activate or deactivate an account.
 
-Le lot 3 ajoute l'espace `Mon profil` avec les capacités suivantes :
+Lot 3 adds the `My profile` area with the following capabilities:
 
-- consulter son identifiant, son rôle métier effectif et la date de création du compte ;
-- modifier son e-mail de contact dans un périmètre maîtrisé ;
-- conserver un identifiant de connexion stable, non modifiable depuis l'interface.
+- display the username, effective business role, and account creation date;
+- allow controlled updates to the contact e-mail;
+- keep the login identifier stable and non-editable through the UI.
 
-Le lot 4 complète la sécurité de compte avec les capacités suivantes :
+Lot 4 completes account security with the following capabilities:
 
-- changer son mot de passe en fournissant le mot de passe actuel ;
-- invalider les anciens jetons JWT après changement de mot de passe ou réinitialisation ;
-- permettre à l'administrateur de définir un mot de passe temporaire pour un autre utilisateur, afin de couvrir la récupération d'accès dans un contexte associatif auto-hébergé.
+- change the password by providing the current password;
+- invalidate existing JWT access and refresh tokens after a password change or reset;
+- allow an administrator to define a temporary password for another user in order to support access recovery in a self-hosted association context.
 
-À ce stade, BL-022 ne couvre toujours pas l'alignement complet backend/frontend avec la nouvelle matrice BL-023.
+At this stage, BL-022 still does not cover a full backend/frontend alignment with the newer BL-023 matrix.
 
-## Procédure retenue pour la récupération d'accès
+## Chosen access recovery procedure
 
-Le ticket ne met pas en place de flux autonome `mot de passe oublié` par e-mail. La procédure retenue est volontairement plus simple et plus robuste pour le contexte cible :
+The ticket does not implement a self-service `forgot password` e-mail workflow. The chosen procedure is intentionally simpler and more robust for the target context:
 
-1. l'utilisateur qui ne peut plus se connecter contacte un administrateur ;
-2. l'administrateur ouvre `Utilisateurs` et définit un mot de passe temporaire ;
-3. l'utilisateur se reconnecte avec ce mot de passe temporaire ;
-4. l'utilisateur le change immédiatement depuis `Mon profil`.
+1. the user who can no longer sign in contacts an administrator;
+2. the administrator opens `Users` and sets a temporary password;
+3. the user signs in again with that temporary password;
+4. the user changes it immediately from `My profile`.
 
-Cette approche évite de rendre la récupération d'accès dépendante d'un SMTP correctement configuré, tout en gardant un processus explicite et sûr.
+This approach avoids making account recovery dependent on a correctly configured SMTP setup, while keeping the process explicit and safe.
 
-## Garde-fous retenus
+## Safeguards retained
 
-Pour éviter une perte d'accès administrative ou une persistance de session non voulue dans ce lot :
+To avoid administrative lockout or unintended session persistence in this delivery:
 
-- un administrateur ne peut pas se désactiver lui-même ;
-- un administrateur ne peut pas se retirer lui-même son rôle d'administration ;
-- le dernier administrateur actif ne peut pas être désactivé ni rétrogradé.
-- un changement de mot de passe ou une réinitialisation invalide les anciens jetons d'accès et de refresh ;
-- la réinitialisation administrateur reste séparée du changement de mot de passe utilisateur pour éviter de mélanger support et autonomie.
+- an administrator cannot deactivate their own account;
+- an administrator cannot remove their own administration role;
+- the last active administrator cannot be deactivated or downgraded;
+- a password change or reset invalidates previous access and refresh tokens;
+- administrator-triggered reset remains separate from user-driven password change so that support and autonomy do not get mixed together.

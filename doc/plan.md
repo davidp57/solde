@@ -1,274 +1,273 @@
-# Plan : Solde ⚖️ — Application de gestion comptable associative
+# Plan — Solde ⚖️ Association Accounting Application
 
 ## TL;DR
 
-Application web monolithique modulaire en Python (FastAPI + SQLite) pour gérer la comptabilité d'une association loi 1901 de soutien scolaire. Remplace deux fichiers Excel par une solution intégrée : facturation clients/fournisseurs, suivi des paiements multi-modes, gestion de caisse, rapprochement bancaire, et comptabilité en partie double avec génération automatique des écritures via un moteur de règles configurable. Déployée en Docker sur Synology (~384 Mo RAM max). Interface moderne responsive en Vue.js 3.
+Solde is a modular monolithic Python web application (FastAPI + SQLite) designed to manage the accounting of a French loi 1901 tutoring association. It replaces two Excel files with an integrated solution covering client and supplier invoicing, multi-method payment tracking, cash handling, bank reconciliation, and double-entry accounting with automatically generated entries driven by a configurable rules engine. It is deployed with Docker on Synology and targets roughly 384 MB of RAM at most. The UI is a modern responsive Vue.js 3 application.
 
 ---
 
-## Architecture technique
+## Technical architecture
 
 ### Stack
 
-| Composant | Choix | Justification RAM |
+| Component | Choice | RAM rationale |
 |---|---|---|
-| Backend | **FastAPI** + Uvicorn (1 worker) | ~50-80 Mo idle |
-| Base de données | **SQLite** (WAL mode) | ~0 Mo (fichier) |
-| Frontend | **Vue.js 3** + PrimeVue + Vite | 0 Mo serveur (fichiers statiques) |
-| ORM | **SQLAlchemy 2** (async) | Inclus dans le process Python |
-| Migrations | **Alembic** | CLI, pas de RAM runtime |
-| PDF | **WeasyPrint** | ~30-50 Mo pic pendant génération |
-| Email | **smtplib** (stdlib Python) | 0 Mo additionnel |
-| Auth | **JWT** (python-jose + passlib) | Inclus dans le process |
-| Conteneur | **Docker** mono-container | 1 seul process |
+| Backend | **FastAPI** + Uvicorn (1 worker) | ~50–80 MB idle |
+| Database | **SQLite** (WAL mode) | ~0 MB (file-based) |
+| Frontend | **Vue.js 3** + PrimeVue + Vite | 0 MB on the server side |
+| ORM | **SQLAlchemy 2** (async) | Included in the Python process |
+| Migrations | **Alembic** | CLI only, no runtime RAM cost |
+| PDF | **WeasyPrint** | ~30–50 MB peak during generation |
+| E-mail | **smtplib** (Python stdlib) | No extra memory cost |
+| Auth | **JWT** (`python-jose` + bcrypt) | Included in the Python process |
+| Container | **Single Docker container** | One service only |
 
-**Estimation RAM totale : ~80-130 Mo idle, ~180 Mo pic (génération PDF) — bien sous les 384 Mo.**
+**Estimated total RAM: ~80–130 MB idle, ~180 MB peak during PDF generation, well below the 384 MB budget.**
 
-### Structure du projet
+### Project structure
 
 ```
-comptasso/
+solde/
 ├── docker-compose.yml
 ├── Dockerfile
 ├── backend/
-│   ├── main.py                    # Point d'entrée FastAPI
-│   ├── config.py                  # Configuration (année comptable, SMTP, etc.)
-│   ├── database.py                # Session SQLite + engine
-│   ├── models/                    # Modèles SQLAlchemy
-│   │   ├── contact.py             # Contacts (adhérents, fournisseurs)
-│   │   ├── invoice.py             # Factures (clients + fournisseurs)
-│   │   ├── payment.py             # Paiements
-│   │   ├── cash_register.py       # Caisse
-│   │   ├── bank.py                # Banque
-│   │   ├── accounting.py          # Écritures, comptes, exercices
-│   │   ├── accounting_rule.py     # Règles comptables configurables
-│   │   ├── salary.py              # Salaires
-│   │   └── user.py                # Utilisateurs + rôles
-│   ├── routers/                   # Routes API par module
-│   ├── services/                  # Logique métier par module
-│   ├── schemas/                   # Pydantic schemas (validation)
-│   ├── templates/                 # Templates HTML pour PDF (Jinja2)
-│   └── alembic/                   # Migrations DB
+│   ├── main.py                    # FastAPI entry point
+│   ├── config.py                  # Configuration (fiscal year, SMTP, etc.)
+│   ├── database.py                # SQLite session + engine
+│   ├── models/                    # SQLAlchemy models
+│   │   ├── contact.py             # Contacts (members, suppliers)
+│   │   ├── invoice.py             # Invoices (clients + suppliers)
+│   │   ├── payment.py             # Payments
+│   │   ├── cash.py                # Cash movements and counts
+│   │   ├── bank.py                # Bank transactions and deposits
+│   │   ├── accounting_*.py        # Entries, accounts, fiscal years, rules
+│   │   ├── salary.py              # Salaries
+│   │   └── user.py                # Users and roles
+│   ├── routers/                   # API routes by module
+│   ├── services/                  # Business logic by module
+│   ├── schemas/                   # Pydantic schemas
+│   ├── templates/                 # HTML templates for PDF generation (Jinja2)
+│   └── alembic/                   # Database migrations
 ├── frontend/
 │   ├── src/
-│   │   ├── views/                 # Pages Vue.js
-│   │   ├── components/            # Composants réutilisables
-│   │   ├── composables/           # Logique partagée
+│   │   ├── views/                 # Vue pages
+│   │   ├── components/            # Reusable components
+│   │   ├── composables/           # Shared frontend logic
 │   │   ├── stores/                # Pinia stores
-│   │   └── api/                   # Client API (axios)
+│   │   └── api/                   # API client layer (axios)
 │   └── package.json
-├── data/                          # Volume Docker : SQLite + fichiers uploadés
+├── data/                          # Docker volume: SQLite + uploaded files
 └── tests/
 ```
 
-### Docker mono-container
+### Single-container Docker deployment
 
-- **1 seul Dockerfile** : build Vue.js → fichiers statiques servis par FastAPI (StaticFiles)
-- **1 volume** : `./data:/app/data` (DB SQLite + factures fournisseurs uploadées + PDFs générés)
-- **Portainer-compatible** : docker-compose.yml standard
+- **One Dockerfile only**: builds Vue.js and serves the static assets through FastAPI.
+- **One mounted volume**: `./data:/app/data` for SQLite, uploaded supplier invoices, and generated PDFs.
+- **Portainer-compatible**: standard `docker-compose.yml`.
 
 ---
 
-## Modèle de données
+## Data model
 
-### contacts
-`id, type (client|fournisseur|les_deux), nom, prenom, email, telephone, adresse, notes, created_at`
-- Un adhérent est un contact de type "client"
-- Un sous-traitant/fournisseur est de type "fournisseur"
+### `contacts`
+`id, type (client|supplier|both), last_name, first_name, email, phone, address, notes, created_at`
+- A member is represented as a `client` contact.
+- A subcontractor or supplier is represented as a `supplier` contact.
 
-### invoices (factures)
-`id, number (YYYY-NNNN), type (client|fournisseur), contact_id, date, due_date, label (cs|a|cs+a|general), description, total_amount, paid_amount (calculé), status (draft|sent|paid|partial|overdue|disputed), pdf_path, created_at`
+### `invoices`
+`id, number (YYYY-NNNN), type (client|supplier), contact_id, date, due_date, label (cs|a|cs+a|general), description, total_amount, paid_amount (computed), status (draft|sent|paid|partial|overdue|disputed), pdf_path, created_at`
 
-### invoice_lines (lignes de facture)
+### `invoice_lines`
 `id, invoice_id, description, quantity, unit_price, amount`
-- Permet des factures multi-lignes (ex: cours + adhésion sur même facture)
+- Supports multi-line invoices such as course fees plus membership fees on the same document.
 
-### payments
-`id, invoice_id, contact_id, amount, date, method (especes|cheque|virement), cheque_number, reference, deposited (bool), deposit_date, notes, created_at`
-- `deposited` : pour les chèques/espèces, indique si remis en banque
+### `payments`
+`id, invoice_id, contact_id, amount, date, method (cash|cheque|transfer), cheque_number, reference, deposited (bool), deposit_date, notes, created_at`
+- `deposited` indicates whether a cheque or a cash receipt has already been deposited in the bank.
 
-### cash_register (caisse)
+### `cash_register`
 `id, date, amount, type (in|out), contact_id, payment_id, reference, description, balance_after, created_at`
 
-### cash_counts (comptages caisse)
+### `cash_counts`
 `id, date, count_100, count_50, count_20, count_10, count_5, count_2, count_1, count_cents, total_counted, balance_expected, difference, notes`
 
-### bank_transactions
+### `bank_transactions`
 `id, date, amount, reference, description, balance_after, reconciled (bool), reconciled_with, source (manual|import), created_at`
 
-### deposits (bordereaux de remise)
-`id, date, type (cheques|especes), total_amount, bank_reference, notes`
-- Lié aux paiements via une table de liaison `deposit_payments`
+### `deposits`
+`id, date, type (cheques|cash), total_amount, bank_reference, notes`
+- Linked to payments through a `deposit_payments` join table.
 
-### accounting_accounts (plan comptable)
-`id, number (ex: 411100), label, type (actif|passif|charge|produit), parent_number, is_default (bool)`
-- Pré-rempli avec le plan comptable associatif simplifié
-- Extensible par l'utilisateur
+### `accounting_accounts`
+`id, number (e.g. 411100), label, type (asset|liability|expense|income), parent_number, is_default (bool)`
+- Pre-filled with a simplified non-profit chart of accounts.
+- Extendable by the user.
 
-### accounting_entries (écritures comptables)
-`id, entry_number, date, account_id, label, debit, credit, fiscal_year_id, source_type (facture|paiement|salaire|banque|manuel|cloture), source_id, created_at`
-- `source_type` + `source_id` : traçabilité vers l'opération d'origine
-- Immuable une fois l'exercice clôturé
+### `accounting_entries`
+`id, entry_number, date, account_id, label, debit, credit, fiscal_year_id, source_type (invoice|payment|salary|bank|manual|closing), source_id, created_at`
+- `source_type` + `source_id` keep a trace back to the originating business action.
+- Entries become immutable once the fiscal year is closed.
 
-### accounting_rules (règles comptables configurables)
-`id, name, trigger_type (invoice_client_cs|invoice_client_a|payment_especes|payment_cheque|payment_virement|deposit_especes|deposit_cheques|salary|subcontracting|bank_fees|manual), is_active (bool), priority, description`
+### `accounting_rules`
+`id, name, trigger_type (invoice_client_cs|invoice_client_a|payment_cash|payment_cheque|payment_transfer|deposit_cash|deposit_cheques|salary|subcontracting|bank_fees|manual), is_active (bool), priority, description`
 
-### accounting_rule_entries (détail des règles)
+### `accounting_rule_entries`
 `id, rule_id, account_number, side (debit|credit), amount_field (amount|gross_salary|net_salary|employer_charges|employee_charges), description_template`
-- Chaque règle a N entrées qui définissent les écritures à générer
-- `description_template` : template Jinja2 (ex: `{{invoice.number}} {{contact.nom}}`)
+- Each rule contains N entries defining the generated journal lines.
+- `description_template` uses Jinja2 syntax, for example `{{invoice.number}} {{contact.last_name}}`.
 
-### fiscal_years (exercices comptables)
+### `fiscal_years`
 `id, name, start_date, end_date, status (open|closing|closed), opening_balance_entry_id`
-- Défaut : août N → juillet N+1, configurable
+- Default range is August N to July N+1, and is configurable.
 
-### users
+### `users`
 `id, username, email, password_hash, role (admin|tresorier|secretaire|readonly), is_active, created_at`
 
-### salaries (suivi des salaires)
+### `salaries`
 `id, employee_id (→ contacts), month (YYYY-MM), hours, gross, employee_charges, employer_charges, tax, net_pay, created_at`
-- Données saisies manuellement depuis la plateforme CEA
-- Coût total calculé (gross + employer_charges)
+- Data is entered manually from the CEA payroll platform.
+- Total employer cost is computed as `gross + employer_charges`.
 
 ---
 
-## Fonctionnalités détaillées
+## Detailed features
 
-### Module 1 — Authentification & Configuration
-- Login JWT avec refresh token
-- Rôles : admin (tout), trésorier (gestion + compta), secrétaire (factures + paiements), readonly (consultation)
-- Page de configuration : année comptable (défaut août→juillet), infos asso (nom, SIRET, adresse pour en-tête factures), paramètres SMTP, logo
-- Configuration du plan comptable (ajouter/modifier des comptes)
+### Module 1 — Authentication & Settings
+- JWT login with refresh token
+- Roles: admin (full access), treasurer (management + accounting), secretary (invoices + payments), readonly (view only)
+- Settings page for fiscal year configuration (default August→July), association details (name, SIRET, address shown on invoices), SMTP settings, and logo
+- Chart of accounts configuration (add/update accounts)
 
 ### Module 2 — Contacts
-- CRUD contacts avec type (client, fournisseur, les deux)
-- Fiche contact : historique factures, paiements, solde dû
-- Recherche et filtres
-- Gestion des créances douteuses (marquage + transfert compte 416xxx)
+- Contacts CRUD with type (`client`, `supplier`, `both`)
+- Contact detail view with invoices, payments, and remaining balance
+- Search and filters
+- Bad debt handling with transfer to `416xxx` accounts
 
-### Module 3 — Factures clients
-- Création de facture : sélection contact, type (cs/a/cs+a/général), lignes de facture, calcul automatique du total
-- Numérotation automatique séquentielle YYYY-NNNN (configurable)
-- États : Brouillon → Émise → Payée partiellement → Payée / En litige
-- Génération PDF à partir d'un template HTML (logo, coordonnées asso, détail lignes, mentions légales « Association loi 1901, non assujettie à la TVA »)
-- Envoi par email (SMTP) avec PDF en pièce jointe
-- Duplication de facture (pour facturation récurrente)
-- **Déclenchement automatique** des écritures comptables via le moteur de règles
+### Module 3 — Client invoices
+- Invoice creation with contact selection, type (`cs`/`a`/`cs+a`/`general`), invoice lines, and automatic total calculation
+- Automatic sequential numbering in `YYYY-NNNN` format
+- Statuses: Draft → Sent → Partially paid → Paid / Disputed
+- PDF generation from an HTML template (logo, association details, line details, legal notice for non-VAT non-profit)
+- E-mail sending with PDF attachment
+- Invoice duplication for recurring billing
+- **Automatic triggering** of accounting entries through the rules engine
 
-### Module 4 — Factures fournisseurs
-- Enregistrement : date, fournisseur, montant, description, référence
-- Upload du fichier PDF/image de la facture
-- Suivi de l'état de paiement
-- Types : sous-traitance cours, fournitures, assurance, téléphone, frais divers
-- **Déclenchement automatique** des écritures comptables
+### Module 4 — Supplier invoices
+- Record date, supplier, amount, description, and reference
+- Upload PDF or image of the supplier invoice
+- Track payment status
+- Typical categories: subcontracting, supplies, insurance, telecom, miscellaneous fees
+- **Automatic triggering** of accounting entries
 
-### Module 5 — Paiements
-- Enregistrement d'un paiement sur une facture : montant, mode, date, N° chèque si applicable
-- Paiement partiel possible (plusieurs paiements pour une facture)
-- Mise à jour automatique du statut de la facture
-- Vue "paiements à encaisser" : chèques et espèces non encore déposés en banque
-- **Déclenchement automatique** des écritures comptables (selon le mode de paiement)
+### Module 5 — Payments
+- Record a payment on an invoice: amount, method, date, cheque number if needed
+- Partial payments are supported
+- Automatic invoice status update
+- "Payments to deposit" view for cheques and cash not yet deposited
+- **Automatic triggering** of accounting entries depending on payment method
 
-### Module 6 — Caisse (espèces)
-- Journal de caisse : liste chronologique des mouvements (entrées paiements espèces, sorties remises banque + achats)
-- Solde en temps réel
-- **Comptage physique** : interface de saisie par coupure (100€, 50€, 20€, 10€, 5€, 2€, 1€, centimes) avec calcul automatique du total
-- **Rapprochement** : comparaison solde comptable vs solde compté, affichage de la différence
-- Historique des comptages
+### Module 6 — Cash
+- Cash journal: chronological list of movements (cash collections, bank cash deposits, purchases)
+- Real-time balance
+- **Physical count** UI by denomination (100€, 50€, 20€, 10€, 5€, 2€, 1€, cents) with automatic total calculation
+- **Reconciliation** between expected balance and counted cash
+- Count history
 
-### Module 7 — Banque
-- Journal du compte bancaire : mouvements avec solde glissant
-- **Import de relevés** : CSV (format Crédit Mutuel), OFX/QIF
-- Parsing intelligent des libellés importés
-- Rapprochement bancaire : associer des transactions bancaires à des paiements/factures existants
-- Création de **bordereaux de remise** (chèques / espèces) : sélection des paiements à remettre, calcul du total, marquage comme déposé (suivi interne uniquement)
+### Module 7 — Bank
+- Bank journal with running balance
+- **Statement import**: CSV (Crédit Mutuel format), OFX/QIF
+- Smarter parsing of imported bank labels
+- Bank reconciliation with existing payments and invoices
+- **Deposit slip** creation for cheques and cash with payment selection, total calculation, and internal deposited flag
 
-### Module 8 — Moteur de règles comptables
-- **Règles par défaut** pré-configurées (toutes celles identifiées dans les Excel)
-- Interface d'édition : pour chaque type d'événement (facture cs, paiement espèces, etc.), définir les N écritures à générer
-- Chaque écriture : compte source, sens (débit/crédit), champ montant source, template de libellé
-- Possibilité de **désactiver/activer** une règle
-- Possibilité d'**ajouter de nouveaux types** d'événements
-- **Prévisualisation** : avant d'appliquer, montrer les écritures qui seraient générées
-- Les règles sont appliquées automatiquement à chaque action de gestion (création facture, enregistrement paiement, remise en banque, etc.)
+### Module 8 — Accounting rules engine
+- **Default rules** preconfigured from the Excel bookkeeping logic already identified
+- Editing UI: define N journal lines for each event type (course invoice, cash payment, etc.)
+- Each generated line defines source account, side (debit/credit), source amount field, and label template
+- Rules can be enabled or disabled
+- New trigger types can be added
+- **Preview** generated entries before applying them
+- Rules are applied automatically on each management action such as invoice creation, payment recording, and bank deposit creation
 
-### Module 9 — Comptabilité
-- **Journal général** : toutes les écritures, filtrable par date, compte, source
-- **Balance des comptes** : synthèse débit/crédit/solde par compte
-- **Grand livre** par compte (équivalent des extraits Clients, Caisse, Compte Courant actuels)
-- **État des factures** : vue pivot montrant le solde de chaque facture
-- Saisie manuelle d'écritures (pour les cas non couverts par les règles)
-- Vérification de cohérence : total débits = total crédits
-- Export des données (CSV, PDF)
+### Module 9 — Accounting
+- **General journal** with filters by date, account, and source
+- **Trial balance** with debit/credit/balance summary by account
+- **General ledger** per account, equivalent to current extracts for clients, cash, and current account
+- **Invoice status view** showing the balance of each invoice
+- Manual journal entry form for exceptional cases not covered by rules
+- Consistency check ensuring total debits equal total credits
+- CSV and PDF exports
 
-### Module 10 — Clôture comptable
-- Vérification pré-clôture : balance équilibrée, toutes les factures rapprochées
-- Calcul du résultat (produits - charges) → écriture 120000 ou 129000
-- Génération du bilan simplifié (actif/passif)
-- Génération du compte de résultat (charges/produits)
-- Report à nouveau → écriture 110000
-- Verrouillage de l'exercice (plus de modifications possibles)
-- Ouverture du nouvel exercice avec écritures d'à-nouveau
-- Consultation des exercices clôturés en lecture seule
+### Module 10 — Fiscal year close
+- Pre-close checks: balanced accounting and fully reconciled invoices
+- Result calculation (`income - expenses`) posted to account `120000` or `129000`
+- Simplified balance sheet generation
+- Income statement generation
+- Carry-forward entry to `110000`
+- Fiscal year lock after close
+- Open the next fiscal year with opening entries
+- Read-only consultation of closed years
 
-### Module 11 — Salaires
-- Saisie mensuelle par employé des données issues de la plateforme CEA : heures, brut, charges patronales, charges salariales, impôts, net
-- Calcul automatique du coût total (brut + charges patronales)
-- Pas de calcul automatique des charges (fait par le CEA)
-- Historique mensuel
-- Sous-traitance : lien avec les factures fournisseurs des auto-entrepreneurs
-- **Déclenchement automatique** des écritures comptables (641000, 645100, 421000, 431100, etc.)
+### Module 11 — Salaries
+- Monthly salary entry per employee from CEA data: hours, gross, employer charges, employee charges, tax, net
+- Automatic total employer cost calculation
+- No payroll calculation logic in Solde itself, because CEA remains the payroll source
+- Monthly history
+- Subcontracting link with supplier invoices for self-employed teachers
+- **Automatic triggering** of accounting entries (`641000`, `645100`, `421000`, `431100`, etc.)
 
-### Module 12 — Import des données existantes
-- Import des fichiers Excel actuels (Gestion 2025 + Comptabilité 2025)
-- Mapping automatique des colonnes connues
-- Validation et rapport d'erreurs avant import
-- Import des contacts, factures, paiements, écritures comptables
+### Module 12 — Existing data import
+- Import current Excel files (`Gestion 2025` + `Comptabilité 2025`)
+- Automatic mapping of known columns
+- Validation report before import
+- Import of contacts, invoices, payments, and accounting entries
 
 ### Module 13 — Dashboard
-- Vue d'ensemble : solde banque, solde caisse, factures impayées, résultat en cours
-- Graphiques simples : évolution des recettes/dépenses par mois
-- Alertes : factures en retard, caisse non rapprochée depuis X jours
+- Global view with bank balance, cash balance, unpaid invoices, and current result
+- Simple charts showing monthly income/expense evolution
+- Alerts for overdue invoices, stale cash reconciliation, and key deadlines
 
 ---
 
-## Règles comptables par défaut (pré-configurées)
+## Default accounting rules
 
-| Événement | Débit | Crédit |
+| Event | Debit | Credit |
 |---|---|---|
-| Facture client - cours (cs) | 411100 Adhérents | 706110 Cours de soutien |
-| Facture client - adhésion (a) | 411100 Adhérents | 756000 Cotisations |
-| Paiement reçu - espèces | 531000 Caisse | 411100 Adhérents |
-| Paiement reçu - chèque | 511200 Chèques à encaisser | 411100 Adhérents |
-| Paiement reçu - virement | 512100 Compte courant | 411100 Adhérents |
-| Remise espèces en banque | 512100 Compte courant | 531000 Caisse |
-| Remise chèques en banque | 512100 Compte courant | 511200 Chèques à encaisser |
-| Facture fournisseur - sous-traitance | 611100 Sous-traitance | 401xxx Fournisseur |
-| Paiement fournisseur - virement | 401xxx Fournisseur | 512100 Compte courant |
-| Facture fournisseur - fournitures | 602250 Fournitures | 401xxx ou 531000 |
-| Frais bancaires | 627000 Services bancaires | 512100 Compte courant |
-| Salaire brut | 641000 Rémunérations | 421000 Rémunérations dues |
-| Charges patronales | 645100 Cotisations URSSAF | 431100 URSSAF |
-| Paiement salaire | 421000 Rémunérations dues | 512100 Compte courant |
-| Paiement URSSAF | 431100 URSSAF | 512100 Compte courant |
+| Client invoice - course (`cs`) | `411100` Members | `706110` Tutoring income |
+| Client invoice - membership (`a`) | `411100` Members | `756000` Membership income |
+| Payment received - cash | `531000` Cash | `411100` Members |
+| Payment received - cheque | `511200` Cheques to deposit | `411100` Members |
+| Payment received - transfer | `512100` Current account | `411100` Members |
+| Cash deposit to bank | `512100` Current account | `531000` Cash |
+| Cheque deposit to bank | `512100` Current account | `511200` Cheques to deposit |
+| Supplier invoice - subcontracting | `611100` Subcontracting | `401xxx` Supplier |
+| Supplier payment - bank transfer | `401xxx` Supplier | `512100` Current account |
+| Supplier invoice - supplies | `602250` Supplies | `401xxx` or `531000` |
+| Bank fees | `627000` Banking services | `512100` Current account |
+| Gross salary | `641000` Salaries | `421000` Salaries payable |
+| Employer charges | `645100` Employer contributions | `431100` URSSAF |
+| Salary payment | `421000` Salaries payable | `512100` Current account |
+| URSSAF payment | `431100` URSSAF | `512100` Current account |
 
 ---
 
-## Fichiers clés à créer
+## Key files to create
 
 ### Backend
-- `backend/main.py` — Point d'entrée, montage des routers + StaticFiles
-- `backend/config.py` — Settings Pydantic (DB path, JWT secret, SMTP, année comptable)
-- `backend/database.py` — AsyncSession SQLite WAL
-- `backend/models/*.py` — 12 fichiers de modèles SQLAlchemy
-- `backend/routers/*.py` — 12 fichiers de routes (1 par module)
-- `backend/services/*.py` — 12 fichiers de logique métier
-- `backend/services/accounting_engine.py` — Moteur de règles comptables (le cœur)
-- `backend/services/pdf_generator.py` — Génération PDF via WeasyPrint
-- `backend/services/bank_import.py` — Parser CSV/OFX pour import relevés
-- `backend/services/excel_import.py` — Import des fichiers Excel existants
-- `backend/schemas/*.py` — Validation Pydantic
-- `backend/templates/invoice.html` — Template Jinja2 pour factures PDF
+- `backend/main.py` — entry point, router registration, StaticFiles mounting
+- `backend/config.py` — Pydantic settings (DB path, JWT secret, SMTP, fiscal year)
+- `backend/database.py` — async SQLite WAL session
+- `backend/models/*.py` — SQLAlchemy models
+- `backend/routers/*.py` — one router per module
+- `backend/services/*.py` — business logic modules
+- `backend/services/accounting_engine.py` — accounting rules engine (core of the accounting automation)
+- `backend/services/pdf_generator.py` — PDF generation with WeasyPrint
+- `backend/services/bank_import.py` — CSV/OFX statement parsers
+- `backend/services/excel_import.py` — import of legacy Excel files
+- `backend/schemas/*.py` — Pydantic validation
+- `backend/templates/invoice.html` — Jinja2 template for invoice PDFs
 
 ### Frontend
 - `frontend/src/views/Login.vue`
@@ -286,46 +285,46 @@ comptasso/
 - `frontend/src/views/Settings.vue`
 - `frontend/src/views/ImportExcel.vue`
 
-### Infra
-- `Dockerfile` — Multi-stage : build Vue.js + Python runtime
-- `docker-compose.yml` — 1 service, 1 volume, port mapping
-- `.env.example` — Variables d'environnement
+### Infrastructure
+- `Dockerfile` — multi-stage build: Vue.js build + Python runtime
+- `docker-compose.yml` — one service, one volume, one port mapping
+- `.env.example` — environment variables
 
 ---
 
-## Vérification globale
+## Global verification checklist
 
-1. **Tests unitaires** (pytest) : logique métier critique — moteur de règles, calculs salaires, numérotation factures, clôture comptable
-2. **Tests d'intégration** : workflows complets (facture → paiement → écriture → balance)
-3. **Test Docker** : `docker-compose up` depuis zéro → app fonctionnelle
-4. **Test RAM** : `docker stats` en charge → vérifier < 384 Mo
-5. **Test responsive** : vérifier toutes les vues sur mobile (Chrome DevTools)
-6. **Test import Excel** : importer les fichiers réels → vérifier cohérence
-7. **Test de clôture** : clôturer un exercice complet → vérifier bilan et compte de résultat
-8. **Test SMTP** : envoyer une facture par email
+1. **Unit tests** (`pytest`) for critical business logic such as the rules engine, salary calculations, invoice numbering, and fiscal year close.
+2. **Integration tests** for complete workflows (`invoice → payment → accounting entry → balance`).
+3. **Docker smoke test**: `docker-compose up` from scratch must produce a working application.
+4. **RAM test**: use `docker stats` under load and confirm usage stays below 384 MB.
+5. **Responsive test**: verify all views on mobile using Chrome DevTools.
+6. **Excel import test**: import the real files and verify coherence.
+7. **Fiscal year close test**: close a full year and verify the balance sheet and income statement.
+8. **SMTP test**: send an invoice by e-mail.
 
 ---
 
-## Décisions prises
+## Decisions already taken
 
-- **Monolithe modulaire** plutôt que microservices (priorité RAM)
-- **SQLite** plutôt que PostgreSQL (0 Mo RAM additionnel, suffisant pour le volume)
-- **Vue.js 3 + PrimeVue** pour le frontend (composants riches : DataTable, Calendar, Dialog — look SaaS moderne)
-- **Plan comptable associatif simplifié** (extensible)
-- **Import fichiers CSV/OFX** pour la banque (pas de connexion API DSP2 pour le MVP)
-- **Non assujetti TVA** : pas de gestion TVA
-- **Euros uniquement**
-- **Format YYYY-NNNN** pour la numérotation des factures
-- **Salaires** : saisie manuelle des données CEA (heures, brut, charges, impôts, net)
-- **Bordereaux de remise** : suivi interne uniquement, pas de PDF
-- **Exercices clôturés** : consultables en lecture seule
+- **Modular monolith** over microservices because RAM is the primary constraint.
+- **SQLite** over PostgreSQL because it adds no extra runtime memory and is sufficient for the expected volume.
+- **Vue.js 3 + PrimeVue** for the frontend because it offers rich components such as DataTable, Calendar, and Dialog with a modern application feel.
+- **Simplified non-profit chart of accounts** with extension capability.
+- **CSV/OFX statement import** for banking, with no DSP2/Open Banking connection in the MVP.
+- **No VAT management**, because the association is out of VAT scope.
+- **Euro-only** support.
+- **`YYYY-NNNN`** invoice numbering.
+- **Salaries** are entered manually from CEA data.
+- **Deposit slips** are tracked internally only, with no PDF output.
+- **Closed fiscal years** remain visible in read-only mode.
 
-## Scope explicitement exclu
+## Explicitly excluded scope
 
-- Connexion API bancaire (DSP2/Open Banking)
-- Gestion de la TVA
-- Multi-devises
-- Export FEC (Fichier des Écritures Comptables) — pourra être ajouté facilement
-- Gestion des subventions (module dédié)
-- Budget prévisionnel automatisé
-- Application mobile native
+- Bank API integration (DSP2/Open Banking)
+- VAT management
+- Multi-currency support
+- FEC export (`Fichier des Écritures Comptables`), which could be added later
+- Grants management as a dedicated module
+- Automated budget planning
+- Native mobile application
