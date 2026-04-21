@@ -59,7 +59,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-019 | 2026-04-13 | Documentation | Projet / Exploitation | P1 | Refaire le README et la documentation technique d'installation, mise à jour, pile techno, configuration et exploitation Docker |
 | BL-020 | 2026-04-13 | Documentation | Développement | P3 | Documenter clairement comment participer au projet : prérequis, environnement local, commandes utiles, qualité attendue et workflow PR |
 | BL-021 | 2026-04-13 | Documentation | Utilisateur / Parcours | P1 | Rédiger un manuel utilisateur illustré et pas à pas aligné sur les écrans réellement disponibles |
-| BL-022 | 2026-04-21 | UX / Fonctionnel | Gestion / Synthèse | P2 | Afficher les créances adhérents dans les cartes de synthèse en distinguant clairement l'encours de l'exercice et les impayés historiques encore ouverts |
 | BL-033 | 2026-04-21 | Import / Fonctionnel | Gestion / Paiements | P1 | Clarifier la comparaison des chèques inter-exercices entre date de paiement et date de remise |
 | BL-034 | 2026-04-21 | Fonctionnel / Architecture | Banque / Multi-compte | P2 | Introduire un support multi-compte explicite pour la banque afin de distinguer proprement compte courant et compte épargne dans les données, les imports et les écrans |
 | BL-035 | 2026-04-21 | UX / Fonctionnel | Contacts | P2 | Séparer les contacts clients et fournisseurs dans deux onglets dédiés sur l'écran des contacts |
@@ -127,13 +126,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- résultat attendu ;
 	- erreurs fréquentes ou points d'attention.
 - **Point d'attention** : ce manuel doit privilégier les parcours métier concrets, le vocabulaire simple et les écrans réels de l'application, plutôt qu'une description abstraite des fonctionnalités ; les captures doivent arriver en dernière étape pour éviter une maintenance inutile tant que l'UI continue d'évoluer.
-
-### BL-022 — Convention métier des créances adhérents dans les synthèses
-
-- **Dates** : `created=2026-04-21`
-- **Pourquoi** : la balance comptable des comptes tiers et le KPI `restant à payer` des factures ne racontent pas exactement la même histoire dès qu'il existe des impayés plus anciens encore ouverts, ce qui peut faire croire à un écart faux alors qu'il s'agit d'une différence de périmètre.
-- **Résultat attendu** : expliciter puis implémenter une convention produit stable distinguant au minimum `reste à payer des factures de l'exercice sélectionné` et `encours adhérents total incluant les impayés historiques encore ouverts`, avec des libellés suffisamment clairs pour éviter toute confusion métier.
-- **Point d'attention** : si une seule carte doit être conservée, son intitulé et son aide doivent refléter sans ambiguïté le périmètre retenu ; sinon, deux cartes séparées sont probablement plus sûres pour la lecture métier.
 
 ### BL-033 — Comparaison des chèques inter-exercices dans les imports et validations
 
@@ -431,6 +423,15 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Livré parce que** : un rescan ciblé de `doc/**/*.md` après traduction ne remonte plus de document technique historique restant en français, hors artefacts volontairement exclus par la convention comme le backlog, les notes de release et la documentation utilisateur bilingue.
 - **Point d'attention** : le backlog et les notes de release restent volontairement en français ; la migration ne devait donc viser que la documentation technique, pas les artefacts de pilotage projet explicitement exclus par la convention.
 
+### BL-044 — Convention métier des créances adhérents dans les synthèses
+
+- **Dates** : `created=2026-04-21`, `started=2026-04-21`, `completed=2026-04-21`
+- **Pourquoi** : la balance comptable des comptes tiers et le KPI `restant à payer` des factures ne racontaient pas exactement la même histoire dès qu'il existait des impayés plus anciens encore ouverts, ce qui pouvait faire croire à un écart faux alors qu'il s'agissait d'une différence de périmètre.
+- **Résultat attendu** : expliciter puis implémenter une convention produit stable distinguant au minimum `reste à payer des factures de l'exercice sélectionné` et `encours adhérents total incluant les impayés historiques encore ouverts`, avec des libellés suffisamment clairs pour éviter toute confusion métier.
+- **Résultat livré** : les synthèses factures client distinguent désormais clairement le `restant à payer de l'exercice` et l'`encours adhérents total`, avec un sous-texte explicite pour la part historique encore ouverte et des libellés i18n dédiés côté frontend.
+- **Livré parce que** : la PR mergée a intégré les calculs séparés et l'affichage associé dans l'écran `Factures client`, ainsi que la couverture de tests correspondante.
+- **Point d'attention** : si la lecture métier évolue encore, la convention devra rester alignée entre les cartes de synthèse, l'aide utilisateur et les contrôles de recette.
+
 ### BL-025 — Corriger le report à nouveau et les soldes du grand livre multi-exercices
 
 - **Dates** : `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-13`
@@ -572,3 +573,5 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-029** — `created=2026-04-16`, `started=2026-04-16`, `completed=2026-04-19` — La saisie des factures clients par lignes typées, le calcul dérivé du total et de la ventilation comptable, et les adaptations d'import `Gestion` / `Comptabilité` sont maintenant intégrés dans `develop` et validés côté recette métier utilisateur.
 - **BL-030** — `created=2026-04-16`, `started=2026-04-20`, `completed=2026-04-20` — La politique cadrée est désormais appliquée et testée : facture `sent` non réglée éditable avec régénération des écritures, paiements quasi immuables après création, et blocage du rejeu strict dès qu'un objet importé a divergé.
 - **BL-031** — `created=2026-04-19`, `started=2026-04-19`, `completed=2026-04-20` — La branche `feature/bl-031-bank-reconciliation` livre maintenant une vraie chaîne de rapprochement bancaire exploitable pour le MVP : import `CSV` / `OFX` / `QIF`, catégorisation initiale, suggestions de rapprochement, création ou confirmation de virements clients et fournisseurs depuis l'écran `Banque`, support des virements clients ventilés sur plusieurs règlements, traçabilité `transaction <-> payment(s)` et validation automatisée ciblée passée. Les écarts de recette encore observés, comme certains soldes banque, sont explicitement renvoyés à la recette finale de qualification MVP plutôt qu'à une suite bloquante de BL-031.
+- **BL-032** — `created=2026-04-21`, `started=2026-04-21`, `completed=2026-04-21` — La documentation technique historique restante a été migrée en anglais, en cohérence avec la convention documentaire du projet.
+- **BL-044** — `created=2026-04-21`, `started=2026-04-21`, `completed=2026-04-21` — Les synthèses factures client distinguent maintenant clairement l'encours de l'exercice et l'encours adhérents total, avec mise en évidence explicite du report historique encore ouvert.
