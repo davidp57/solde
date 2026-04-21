@@ -16,6 +16,7 @@
               option-label="name"
               option-value="id"
               :placeholder="t('common.all')"
+              @change="load"
             />
           </div>
           <div class="app-field">
@@ -43,7 +44,9 @@
               field="solde"
               :header="t('accounting.resultat.total_charges')"
               class="app-money"
-            />
+            >
+              <template #body="{ data }">{{ formatAccountingAmount(data.solde) }}</template>
+            </Column>
             <template #empty
               ><div class="app-empty-state">
                 {{ t('accounting.resultat.empty_charges') }}
@@ -52,7 +55,7 @@
           </DataTable>
           <div class="resultat-total">
             {{ t('accounting.resultat.total_charges') }} :
-            <strong>{{ resultat.total_charges }}</strong>
+            <strong>{{ formatAccountingAmount(resultat.total_charges) }}</strong>
           </div>
         </AppPanel>
 
@@ -73,7 +76,9 @@
               field="solde"
               :header="t('accounting.resultat.total_produits')"
               class="app-money"
-            />
+            >
+              <template #body="{ data }">{{ formatAccountingAmount(data.solde) }}</template>
+            </Column>
             <template #empty
               ><div class="app-empty-state">
                 {{ t('accounting.resultat.empty_produits') }}
@@ -82,7 +87,7 @@
           </DataTable>
           <div class="resultat-total">
             {{ t('accounting.resultat.total_produits') }} :
-            <strong>{{ resultat.total_produits }}</strong>
+            <strong>{{ formatAccountingAmount(resultat.total_produits) }}</strong>
           </div>
         </AppPanel>
       </div>
@@ -100,7 +105,7 @@
               : t('accounting.resultat.deficit')
           }}
           :
-          <strong>{{ resultat.resultat }}</strong>
+          <strong>{{ formatAccountingAmount(resultat.resultat) }}</strong>
         </span>
       </div>
     </AppPanel>
@@ -119,6 +124,7 @@ import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import { getResultatApi, type ResultatRead } from '../api/accounting'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatAccountingAmount } from '../utils/format'
 
 const { t } = useI18n()
 const fiscalYearStore = useFiscalYearStore()

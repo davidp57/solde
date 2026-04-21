@@ -34,6 +34,36 @@
         tone="success"
       />
       <AppStatCard
+        :label="t('invoices.client.metrics.remaining_exercise_amount')"
+        :value="formatAmount(receivableMetrics.exerciseAmount) + ' €'"
+        :caption="
+          selectedFiscalYearLabel
+            ? t('invoices.client.metrics.exercise_count', {
+                count: receivableMetrics.exerciseCount,
+                fiscal_year: selectedFiscalYearLabel,
+              })
+            : t('invoices.client.metrics.exercise_count_all', {
+                count: receivableMetrics.exerciseCount,
+              })
+        "
+        :tone="receivableMetrics.exerciseCount > 0 ? 'warn' : 'success'"
+      />
+      <AppStatCard
+        :label="t('invoices.client.metrics.total_receivables_amount')"
+        :value="formatAmount(receivableMetrics.totalAmount) + ' €'"
+        :caption="
+          receivableMetrics.historicalCount > 0
+            ? t('invoices.client.metrics.historical_carryover', {
+                count: receivableMetrics.historicalCount,
+                amount: formatAmount(receivableMetrics.historicalAmount),
+              })
+            : t('invoices.client.metrics.total_receivables_count', {
+                count: receivableMetrics.totalCount,
+              })
+        "
+        :tone="receivableMetrics.totalCount > 0 ? 'warn' : 'success'"
+      />
+      <AppStatCard
         :label="t('invoices.client.metrics.overdue_amount')"
         :value="formatAmount(portfolioMetrics.overdueAmount) + ' €'"
         :caption="
@@ -551,6 +581,7 @@ const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
 const invoices = ref<Invoice[]>([])
+const allClientInvoices = ref<Invoice[]>([])
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -626,13 +657,40 @@ const paymentRemaining = computed(() => {
   return remainingForInvoice(paymentInvoice.value)
 })
 
+const selectedFiscalYearLabel = computed(() => fiscalYearStore.selectedFiscalYear?.name ?? null)
+
+const receivableMetrics = computed(() => {
+  const openReceivables = allClientInvoices.value.filter(isOpenReceivableInvoice)
+  const fiscalYear = fiscalYearStore.selectedFiscalYear
+  const exerciseReceivables = fiscalYear
+    ? openReceivables.filter(
+        (invoice) => invoice.date >= fiscalYear.start_date && invoice.date <= fiscalYear.end_date,
+      )
+    : openReceivables
+  const historicalReceivables = fiscalYear
+    ? openReceivables.filter((invoice) => invoice.date < fiscalYear.start_date)
+    : []
+
+  return {
+    exerciseAmount: exerciseReceivables.reduce((sum, invoice) => sum + remainingForInvoice(invoice), 0),
+    exerciseCount: exerciseReceivables.length,
+    totalAmount: openReceivables.reduce((sum, invoice) => sum + remainingForInvoice(invoice), 0),
+    totalCount: openReceivables.length,
+    historicalAmount: historicalReceivables.reduce(
+      (sum, invoice) => sum + remainingForInvoice(invoice),
+      0,
+    ),
+    historicalCount: historicalReceivables.length,
+  }
+})
+
 const portfolioMetrics = computed(() => {
   const visible = displayedInvoices.value
   const totalAmount = visible.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0)
   const paidAmount = visible.reduce((sum, invoice) => sum + parseFloat(invoice.paid_amount), 0)
-  const overdueInvoices = visible.filter((invoice) => invoice.status === 'overdue')
+  const overdueInvoices = visible.filter(isOverdueInvoice)
   const overdueAmount = overdueInvoices.reduce((sum, invoice) => {
-    return sum + Math.max(0, parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount))
+    return sum + remainingForInvoice(invoice)
   }, 0)
   const partialCount = visible.filter((invoice) => invoice.status === 'partial').length
 
@@ -690,6 +748,19 @@ function remainingForInvoice(invoice: Invoice): number {
   return Math.max(0, parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount))
 }
 
+function isOpenReceivableInvoice(invoice: Invoice): boolean {
+  return invoice.status !== 'draft' && remainingForInvoice(invoice) > 0
+}
+
+function isOverdueInvoice(invoice: Invoice): boolean {
+  return Boolean(
+    invoice.status !== 'draft' &&
+      invoice.due_date &&
+      remainingForInvoice(invoice) > 0 &&
+      invoice.due_date < new Date().toISOString().slice(0, 10),
+  )
+}
+
 function canRecordPayment(invoice: Invoice | null): boolean {
   if (!invoice) return false
   return invoice.status !== 'draft' && remainingForInvoice(invoice) > 0
@@ -729,6 +800,14 @@ async function loadInvoices() {
   }
 }
 
+async function loadReceivablesSnapshot() {
+  allClientInvoices.value = await listInvoicesApi({ invoice_type: 'client' })
+}
+
+async function refreshInvoicesData() {
+  await Promise.all([loadInvoices(), loadReceivablesSnapshot()])
+}
+
 function openInvoiceFromQuery() {
   const rawInvoiceId = Array.isArray(route.query.invoiceId)
     ? route.query.invoiceId[0]
@@ -759,7 +838,7 @@ function openEditDialog(invoice: Invoice) {
 
 function onSaved() {
   dialogVisible.value = false
-  void loadInvoices()
+  void refreshInvoicesData()
 }
 
 function openPdf(invoice: Invoice) {
@@ -770,7 +849,7 @@ async function sendEmail(invoice: Invoice) {
   try {
     await sendInvoiceEmailApi(invoice.id)
     toast.add({ severity: 'success', summary: t('invoices.email_sent'), life: 3000 })
-    await loadInvoices()
+    await refreshInvoicesData()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   }
@@ -780,7 +859,7 @@ async function duplicate(invoice: Invoice) {
   try {
     await duplicateInvoiceApi(invoice.id)
     toast.add({ severity: 'success', summary: t('invoices.duplicated'), life: 3000 })
-    await loadInvoices()
+    await refreshInvoicesData()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   }
@@ -867,7 +946,7 @@ async function submitPayment() {
     paymentDialogVisible.value = false
     toast.add({ severity: 'success', summary: t('payments.created'), life: 3000 })
     const invoiceId = paymentInvoice.value.id
-    await loadInvoices()
+    await refreshInvoicesData()
     paymentInvoice.value = invoices.value.find((invoice) => invoice.id === invoiceId) ?? null
     if (historyVisible.value && historyInvoice.value?.id === invoiceId) {
       await loadHistoryPayments(invoiceId)
@@ -890,7 +969,7 @@ function confirmDelete(invoice: Invoice) {
       try {
         await deleteInvoiceApi(invoice.id)
         toast.add({ severity: 'success', summary: t('invoices.deleted'), life: 3000 })
-        await loadInvoices()
+        await refreshInvoicesData()
       } catch {
         toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
       }
@@ -902,7 +981,7 @@ watch(
   () => fiscalYearStore.selectedFiscalYearId,
   (newId, oldId) => {
     if (!fiscalYearStore.initialized || newId === oldId) return
-    void loadInvoices()
+    void refreshInvoicesData()
   },
 )
 
@@ -915,7 +994,7 @@ watch(
 
 onMounted(async () => {
   await fiscalYearStore.initialize()
-  await Promise.all([loadInvoices(), loadContacts()])
+  await Promise.all([refreshInvoicesData(), loadContacts()])
 })
 </script>
 

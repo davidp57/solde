@@ -105,9 +105,29 @@ describe('NavMenu', () => {
       'nav.accounting_fiscal_years',
       'nav.accounting_accounts',
       'nav.accounting_rules',
-      'nav.import_excel',
-      'nav.import_history',
     ])
+  })
+
+  it('shows imports only inside the administration section for an admin', () => {
+    const auth = useAuthStore()
+    auth.user = {
+      id: 4,
+      username: 'admin',
+      email: 'admin@example.com',
+      role: 'admin',
+      is_active: true,
+      created_at: '2025-01-01T00:00:00',
+    }
+
+    const wrapper = mountNavMenu()
+    const text = wrapper.text()
+    const links = wrapper.findAll('a').map((link) => link.text())
+
+    expect(text).toContain('nav.section_administration')
+    expect(links).toContain('nav.import_excel')
+    expect(links).toContain('nav.import_history')
+    expect(links).toContain('nav.users')
+    expect(links).toContain('nav.settings')
   })
 
   it('shows only the home section for a readonly user', () => {

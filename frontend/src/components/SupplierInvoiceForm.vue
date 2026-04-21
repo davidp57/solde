@@ -100,6 +100,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { Contact } from '../api/contacts'
 import { createInvoiceApi, updateInvoiceApi, type Invoice } from '../api/invoices'
+import { getSettingsApi } from '../api/settings'
 import { formatContactDisplayName } from '../utils/contact'
 
 const props = defineProps<{
@@ -115,6 +116,8 @@ const { t } = useI18n()
 const toast = useToast()
 const saving = ref(false)
 const isEditing = computed(() => props.invoice !== null)
+const defaultInvoiceDueDays = ref<number | null>(null)
+const suggestedDueDateIso = ref<string | null>(null)
 
 interface FormState {
   contact_id: number | null
@@ -148,6 +151,7 @@ function resetForm() {
   form.reference = ''
   form.total_amount = null
   form.description = ''
+  suggestedDueDateIso.value = null
 }
 
 function setFromInvoice(inv: Invoice) {
@@ -157,6 +161,7 @@ function setFromInvoice(inv: Invoice) {
   form.reference = inv.reference ?? ''
   form.total_amount = parseFloat(inv.total_amount)
   form.description = inv.description ?? ''
+  suggestedDueDateIso.value = inv.due_date
 }
 
 watch(
@@ -166,6 +171,38 @@ watch(
     else resetForm()
   },
   { immediate: true },
+)
+
+function toIsoDate(value: Date | null): string | null {
+  if (!value) {
+    return null
+  }
+  return value.toISOString().slice(0, 10)
+}
+
+function addDays(value: Date, days: number): Date {
+  const next = new Date(value)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function applySuggestedDueDate(): void {
+  if (isEditing.value || !form.date || defaultInvoiceDueDays.value === null) {
+    return
+  }
+  const currentDueDateIso = toIsoDate(form.due_date)
+  if (form.due_date !== null && currentDueDateIso !== suggestedDueDateIso.value) {
+    return
+  }
+  form.due_date = addDays(form.date, defaultInvoiceDueDays.value)
+  suggestedDueDateIso.value = toIsoDate(form.due_date)
+}
+
+watch(
+  () => [form.date, defaultInvoiceDueDays.value] as const,
+  () => {
+    applySuggestedDueDate()
+  },
 )
 
 function formatDate(d: Date): string {
@@ -197,6 +234,15 @@ async function submit() {
     saving.value = false
   }
 }
+
+void getSettingsApi()
+  .then((settings) => {
+    defaultInvoiceDueDays.value = settings.default_invoice_due_days
+    applySuggestedDueDate()
+  })
+  .catch(() => {
+    defaultInvoiceDueDays.value = null
+  })
 </script>
 
 <style scoped>

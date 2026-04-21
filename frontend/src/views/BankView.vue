@@ -47,6 +47,16 @@
       />
     </section>
 
+    <AppPanel :title="t('bank.funds_chart_title')" dense>
+      <p class="bank-chart-panel__intro">{{ t('bank.funds_chart_intro') }}</p>
+      <TrendLineChart
+        :data="fundsChartData"
+        :series="fundsChartSeries"
+        :empty-label="t('bank.funds_chart_empty')"
+        :ariaLabel="t('bank.funds_chart_title')"
+      />
+    </AppPanel>
+
     <AppPanel :title="t('bank.title')" dense>
       <div class="app-toolbar">
         <div class="app-filter-grid">
@@ -124,7 +134,7 @@
               <Column
                 field="amount_value"
                 :header="t('bank.tx_amount')"
-                class="app-money"
+                class="app-money bank-table__amount"
                 sortable
                 filter-field="amount_value"
                 data-type="numeric"
@@ -155,6 +165,7 @@
               <Column
                 field="reference"
                 :header="t('bank.tx_reference')"
+                class="bank-table__reference"
                 sortable
                 :show-filter-match-modes="false"
                 :show-add-button="false"
@@ -165,7 +176,8 @@
               </Column>
               <Column
                 field="balance_after_value"
-                :header="t('bank.tx_balance')"
+                :header="t('bank.tx_balance_short')"
+                class="bank-table__balance"
                 sortable
                 filter-field="balance_after_value"
                 data-type="numeric"
@@ -179,7 +191,7 @@
               </Column>
               <Column
                 field="reconciled_label"
-                :header="t('bank.tx_reconciled')"
+                :header="t('bank.tx_reconciled_short')"
                 class="bank-table__reconciled"
                 sortable
                 filter-field="reconciled"
@@ -209,7 +221,8 @@
               </Column>
               <Column
                 field="detected_category_label"
-                :header="t('bank.tx_category')"
+                :header="t('bank.tx_category_short')"
+                class="bank-table__category"
                 sortable
                 filter-field="detected_category"
                 :show-filter-match-modes="false"
@@ -217,8 +230,8 @@
               >
                 <template #body="{ data }">
                   <Tag
+                    class="bank-detected-category-tag"
                     :value="t(`bank.categories.${data.detected_category}`)"
-                    severity="contrast"
                   />
                 </template>
                 <template #filter="{ filterModel }">
@@ -235,7 +248,7 @@
               </Column>
               <Column
                 field="source_label"
-                :header="t('bank.tx_source')"
+                :header="t('bank.tx_source_short')"
                 class="bank-table__source"
                 sortable
                 filter-field="source"
@@ -260,7 +273,7 @@
                   />
                 </template>
               </Column>
-              <Column :header="t('common.actions')" style="width: 8.5rem">
+              <Column :header="t('common.actions')" style="width: 7.25rem">
                 <template #body="{ data }">
                   <Button
                     v-if="canLinkExistingSupplierPayment(data)"
@@ -979,6 +992,9 @@ import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { listContactsApi, type Contact } from '@/api/contacts'
+import TrendLineChart, {
+  type TrendLineChartSeries,
+} from '../components/charts/TrendLineChart.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
@@ -992,6 +1008,7 @@ import {
   createDeposit,
   createSupplierPaymentFromTransaction,
   getBankBalance,
+  getBankFundsChart,
   importBankStatement,
   linkClientPaymentToTransaction,
   linkClientPaymentsToTransaction,
@@ -1003,6 +1020,7 @@ import {
   type BankTransactionClientPaymentAllocation,
   type BankTransaction,
   type Deposit,
+  type FundsChartRow as BankFundsChartRow,
 } from '@/api/bank'
 import { listInvoicesApi, type Invoice } from '@/api/invoices'
 import { listPayments, type Payment } from '@/api/payments'
@@ -1023,6 +1041,7 @@ const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
 const balance = ref('0')
+const fundsChartData = ref<BankFundsChartRow[]>([])
 const transactions = ref<BankTransaction[]>([])
 const deposits = ref<Deposit[]>([])
 const undepositedPayments = ref<Payment[]>([])
@@ -1233,6 +1252,26 @@ const currentBalanceCaption = computed(() =>
     ? t('bank.metrics.visible_scope_caption')
     : t('bank.metrics.current_balance_caption'),
 )
+
+const fundsChartSeries = computed<TrendLineChartSeries[]>(() => [
+  {
+    key: 'total',
+    label: t('bank.funds_chart_total'),
+    color: '#0f766e',
+    fill: true,
+  },
+  {
+    key: 'current_account',
+    label: t('bank.funds_chart_current_account'),
+    color: '#2563eb',
+  },
+  {
+    key: 'savings_account',
+    label: t('bank.funds_chart_savings_account'),
+    color: '#ea580c',
+    dashed: true,
+  },
+])
 
 const periodVariationCaption = computed(() =>
   transactionHasActiveFilters.value
@@ -1686,8 +1725,21 @@ async function loadDeposits() {
   }
 }
 
+async function loadFundsChart() {
+  try {
+    fundsChartData.value = await getBankFundsChart(6)
+  } catch {
+    fundsChartData.value = []
+  }
+}
+
 async function loadAll() {
-  const [b] = await Promise.all([getBankBalance(), loadTransactions(), loadDeposits()])
+  const [b] = await Promise.all([
+    getBankBalance(),
+    loadTransactions(),
+    loadDeposits(),
+    loadFundsChart(),
+  ])
   balance.value = b.balance
 }
 
@@ -1939,10 +1991,7 @@ async function submitTransaction() {
       balance_after: String(txForm.value.balance_after),
     })
     txDialogVisible.value = false
-    await Promise.all([
-      getBankBalance().then((b) => (balance.value = b.balance)),
-      loadTransactions(),
-    ])
+    await loadAll()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -1970,10 +2019,7 @@ async function submitImport() {
       summary: t('bank.import_success', { n: imported.length }),
       life: 3000,
     })
-    await Promise.all([
-      getBankBalance().then((b) => (balance.value = b.balance)),
-      loadTransactions(),
-    ])
+    await loadAll()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -2003,7 +2049,7 @@ async function submitDeposit() {
       bank_reference: depositForm.value.bank_reference || null,
     })
     depositDialogVisible.value = false
-    await loadDeposits()
+    await loadAll()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -2033,20 +2079,59 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.bank-chart-panel__intro {
+  margin: 0 0 var(--app-space-4);
+  color: var(--p-text-muted-color);
+}
+
 .bank-panel-toolbar {
   margin-bottom: var(--app-space-4);
 }
 
 :deep(.bank-table__description) {
-  min-width: 18rem;
+  min-width: 20rem;
+}
+
+:deep(.bank-table__reference) {
+  min-width: 12rem;
+}
+
+:deep(.bank-table__amount) {
+  width: 8rem;
+}
+
+:deep(.bank-table__balance) {
+  width: 6.5rem;
 }
 
 :deep(.bank-table__reconciled) {
-  width: 7rem;
+  width: 5.5rem;
+}
+
+:deep(.bank-table__category) {
+  width: 7.5rem;
 }
 
 :deep(.bank-table__source) {
-  width: 6.5rem;
+  width: 5.25rem;
+}
+
+:deep(.bank-detected-category-tag) {
+  border: 1px solid color-mix(in srgb, var(--app-surface-border) 82%, transparent 18%);
+  background: color-mix(in srgb, var(--app-surface-muted) 84%, var(--app-surface-bg) 16%);
+  color: color-mix(in srgb, var(--p-text-muted-color) 78%, var(--p-text-color) 22%);
+}
+
+:deep(.bank-detected-category-tag .p-tag-label) {
+  white-space: nowrap;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+:global(html.dark-mode) .bank-detected-category-tag {
+  color: color-mix(in srgb, var(--p-surface-100) 82%, var(--p-text-color) 18%);
+  border-color: color-mix(in srgb, var(--app-surface-border) 70%, transparent 30%);
+  background: color-mix(in srgb, var(--app-surface-muted) 70%, var(--app-surface-bg) 30%);
 }
 
 .bank-import-file-row {

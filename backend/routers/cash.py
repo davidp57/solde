@@ -1,6 +1,7 @@
 """Cash register API router — journal entries, balance and cash counts."""
 
 from datetime import date
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -38,6 +39,15 @@ async def get_balance(
 ) -> CashBalanceRead:
     balance = await cash_service.get_cash_balance(db)
     return CashBalanceRead(balance=balance)
+
+
+@router.get("/chart/funds")
+async def get_funds_chart(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _ReadAccess,
+    months: int = Query(default=6, ge=1, le=24),
+) -> list[dict[str, Decimal | str]]:
+    return await cash_service.get_monthly_funds_series(db, months=months)
 
 
 @router.get("/entries", response_model=list[CashEntryRead])

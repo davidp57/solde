@@ -500,14 +500,31 @@ export interface MonthlyChartRow {
   produits: number
 }
 
+export interface DashboardResourcesChartRow {
+  month: string
+  funds: number
+  liquidities: number
+  client_receivables: number
+  undeposited_cheques: number
+  supplier_payables: number
+  net_resources: number
+}
+
 export async function getDashboardApi(): Promise<DashboardKPIs> {
   const response = await apiClient.get<DashboardKPIs>('/api/dashboard/')
   return response.data
 }
 
-export async function getMonthlyChartApi(year: number): Promise<MonthlyChartRow[]> {
+export async function getMonthlyChartApi(fiscalYearId: number): Promise<MonthlyChartRow[]> {
   const response = await apiClient.get<MonthlyChartRow[]>('/api/dashboard/chart/monthly', {
-    params: { year },
+    params: { fiscal_year_id: fiscalYearId },
+  })
+  return response.data
+}
+
+export async function getResourcesChartApi(months = 12): Promise<DashboardResourcesChartRow[]> {
+  const response = await apiClient.get<DashboardResourcesChartRow[]>('/api/dashboard/chart/resources', {
+    params: { months },
   })
   return response.data
 }

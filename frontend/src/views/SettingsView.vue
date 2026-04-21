@@ -59,6 +59,24 @@
               class="w-full"
             />
           </div>
+
+          <div class="app-field">
+            <label for="default_invoice_due_days" class="app-field__label">
+              {{ t('settings.default_invoice_due_days') }}
+            </label>
+            <InputNumber
+              id="default_invoice_due_days"
+              v-model="form.default_invoice_due_days"
+              :min="0"
+              :max="365"
+              :use-grouping="false"
+              show-buttons
+              class="w-full"
+            />
+            <small class="app-field__hint">
+              {{ t('settings.default_invoice_due_days_help') }}
+            </small>
+          </div>
         </div>
       </AppPanel>
 
@@ -506,6 +524,7 @@ interface SettingsForm {
   association_address: string
   association_siret: string
   fiscal_year_start_month: number
+  default_invoice_due_days: number | null
   smtp_host: string | null
   smtp_port: number
   smtp_user: string | null
@@ -536,6 +555,7 @@ const defaultForm = (): SettingsForm => ({
   association_address: '',
   association_siret: '',
   fiscal_year_start_month: 8,
+  default_invoice_due_days: null,
   smtp_host: null,
   smtp_port: 587,
   smtp_user: null,
@@ -686,6 +706,7 @@ async function load(): Promise<void> {
       association_address: data.association_address,
       association_siret: data.association_siret,
       fiscal_year_start_month: data.fiscal_year_start_month,
+      default_invoice_due_days: data.default_invoice_due_days,
       smtp_host: data.smtp_host,
       smtp_port: data.smtp_port,
       smtp_user: data.smtp_user,
@@ -708,6 +729,7 @@ async function save(): Promise<void> {
       association_address: form.value.association_address,
       association_siret: form.value.association_siret,
       fiscal_year_start_month: form.value.fiscal_year_start_month,
+      default_invoice_due_days: form.value.default_invoice_due_days,
       smtp_host: form.value.smtp_host,
       smtp_port: form.value.smtp_port,
       smtp_user: form.value.smtp_user,

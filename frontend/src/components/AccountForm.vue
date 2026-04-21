@@ -66,10 +66,16 @@
         <label for="af-parent" class="app-field__label">
           {{ t('accounting.accounts.parent_number') }}
         </label>
-        <InputText
+        <Select
           id="af-parent"
           v-model="form.parent_number"
+          :options="parentOptions"
+          option-label="label"
+          option-value="value"
           :placeholder="t('accounting.accounts.parent_number_placeholder')"
+          filter
+          editable
+          show-clear
         />
         <small class="account-form__hint">
           {{ t('accounting.accounts.parent_number_help') }}
@@ -98,14 +104,16 @@ import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Select from 'primevue/select'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   createAccountApi,
+  listAccountsApi,
   updateAccountApi,
   type AccountingAccount,
   type AccountType,
 } from '@/api/accounting'
+import { formatFocusedAccountLabel } from '@/utils/focusAccounts'
 
 const props = defineProps<{ account: AccountingAccount | null }>()
 const emit = defineEmits<{ saved: []; cancel: [] }>()
@@ -118,6 +126,7 @@ const typeOptions = [
   { label: t('accounting.account_types.charge'), value: 'charge' as AccountType },
   { label: t('accounting.account_types.produit'), value: 'produit' as AccountType },
 ]
+const parentOptions = ref<Array<{ label: string; value: string }>>([])
 
 interface FormState {
   number: string
@@ -147,6 +156,14 @@ watch(
     errorMessage.value = ''
   },
 )
+
+onMounted(async () => {
+  const accounts = await listAccountsApi(undefined, true)
+  parentOptions.value = accounts.map((account) => ({
+    label: formatFocusedAccountLabel(account.number, account.label, t),
+    value: account.number,
+  }))
+})
 
 async function submit(): Promise<void> {
   saving.value = true
