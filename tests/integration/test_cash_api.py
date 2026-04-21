@@ -13,6 +13,23 @@ from backend.models.cash import CashCount, CashMovementType, CashRegister
 from backend.models.user import User
 
 
+def _shift_month(value: date, months: int) -> date:
+    year = value.year
+    month = value.month + months
+    while month <= 0:
+        year -= 1
+        month += 12
+    while month > 12:
+        year += 1
+        month -= 12
+    return date(year, month, 1)
+
+
+def _month_fixture(months_ago: int, day: int = 10) -> date:
+    month_start = _shift_month(date.today().replace(day=1), -months_ago)
+    return month_start.replace(day=day)
+
+
 @pytest.mark.asyncio
 async def test_get_balance_empty(client: AsyncClient, admin_user: User, auth_headers: dict) -> None:
     response = await client.get("/api/cash/balance", headers=auth_headers)
@@ -327,3 +344,40 @@ async def test_list_cash_counts_filters_by_date_range(
     payload = response.json()
     assert len(payload) == 1
     assert payload[0]["total_counted"] == "20.00"
+
+
+@pytest.mark.asyncio
+async def test_cash_funds_chart_returns_last_six_month_closing_balances(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    fixtures = [
+        (_month_fixture(5, 4), "100.00", "in"),
+        (_month_fixture(3, 7), "40.00", "in"),
+        (_month_fixture(1, 15), "15.00", "out"),
+    ]
+    for entry_date, amount, movement_type in fixtures:
+        response = await client.post(
+            "/api/cash/entries",
+            json={"date": entry_date.isoformat(), "amount": amount, "type": movement_type},
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+
+    response = await client.get("/api/cash/chart/funds", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [row["month"] for row in data] == [
+        _shift_month(date.today().replace(day=1), offset).strftime("%Y-%m")
+        for offset in range(-5, 1)
+    ]
+    assert [Decimal(str(row["balance"])) for row in data] == [
+        Decimal("100.00"),
+        Decimal("100.00"),
+        Decimal("140.00"),
+        Decimal("140.00"),
+        Decimal("125.00"),
+        Decimal("125.00"),
+    ]

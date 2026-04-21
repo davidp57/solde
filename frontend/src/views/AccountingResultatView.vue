@@ -16,6 +16,7 @@
               option-label="name"
               option-value="id"
               :placeholder="t('common.all')"
+              @change="load"
             />
           </div>
           <div class="app-field">

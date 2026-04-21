@@ -90,6 +90,15 @@ async def get_balance(
     return BankBalanceRead(balance=balance)
 
 
+@router.get("/chart/funds")
+async def get_funds_chart(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _ReadAccess,
+    months: int = Query(default=6, ge=1, le=24),
+) -> list[dict[str, Decimal | str]]:
+    return await bank_service.get_monthly_funds_series(db, months=months)
+
+
 @router.get("/transactions", response_model=list[BankTransactionRead])
 async def list_transactions(
     db: Annotated[AsyncSession, Depends(get_db)],

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
 from datetime import date
 from decimal import Decimal
 
@@ -27,6 +28,36 @@ _DENOMINATIONS: dict[str, Decimal] = {
     "count_cents_2": Decimal("0.02"),
     "count_cents_1": Decimal("0.01"),
 }
+
+
+def _shift_month(value: date, months: int) -> date:
+    year = value.year
+    month = value.month + months
+    while month <= 0:
+        year -= 1
+        month += 12
+    while month > 12:
+        year += 1
+        month -= 12
+    return date(year, month, 1)
+
+
+def _month_windows(months: int) -> list[tuple[str, date]]:
+    today = date.today()
+    current_month = today.replace(day=1)
+    first_month = _shift_month(current_month, -(months - 1))
+    windows: list[tuple[str, date]] = []
+    month_cursor = first_month
+    while month_cursor <= current_month:
+        month_end = month_cursor.replace(day=monthrange(month_cursor.year, month_cursor.month)[1])
+        windows.append(
+            (
+                month_cursor.strftime("%Y-%m"),
+                today if month_cursor == current_month else month_end,
+            )
+        )
+        month_cursor = _shift_month(month_cursor, 1)
+    return windows
 
 
 async def _current_balance(db: AsyncSession) -> Decimal:
@@ -150,6 +181,34 @@ async def list_cash_entries(
         query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def get_monthly_funds_series(
+    db: AsyncSession,
+    *,
+    months: int = 6,
+) -> list[dict[str, Decimal | str]]:
+    if await recompute_cash_balances(db):
+        await db.commit()
+
+    result = await db.execute(
+        select(CashRegister.date, CashRegister.balance_after).order_by(
+            CashRegister.date.asc(), CashRegister.id.asc()
+        )
+    )
+    balance_points = [
+        (point_date, Decimal(str(balance_after))) for point_date, balance_after in result.all()
+    ]
+
+    rows: list[dict[str, Decimal | str]] = []
+    current_balance = Decimal("0")
+    point_index = 0
+    for month_label, period_end in _month_windows(months):
+        while point_index < len(balance_points) and balance_points[point_index][0] <= period_end:
+            current_balance = balance_points[point_index][1]
+            point_index += 1
+        rows.append({"month": month_label, "balance": current_balance})
+    return rows
 
 
 async def create_cash_count(db: AsyncSession, payload: CashCountCreate) -> CashCount:

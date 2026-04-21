@@ -92,6 +92,18 @@ const invoiceFixture = {
   lines: [],
 }
 
+const historicalInvoiceFixture = {
+  ...invoiceFixture,
+  id: 2,
+  number: 'F-2024-087',
+  date: '2024-11-18',
+  due_date: '2024-12-18',
+  total_amount: '80.00',
+  paid_amount: '0.00',
+  status: 'overdue' as const,
+  updated_at: '2024-11-18T00:00:00',
+}
+
 const ContainerStub = defineComponent({
   template: '<div><slot /><slot name="actions" /></div>',
 })
@@ -316,7 +328,12 @@ describe('ClientInvoicesView', () => {
     mockListContactsApi.mockResolvedValue([
       { id: 10, type: 'client', nom: 'Dupont', prenom: 'Alice', email: null, telephone: null },
     ] as never)
-    mockListInvoicesApi.mockResolvedValue([invoiceFixture] as never)
+    mockListInvoicesApi.mockImplementation(async (filters) => {
+      if (filters?.from_date === '2025-01-01' && filters?.to_date === '2025-12-31') {
+        return [invoiceFixture] as never
+      }
+      return [invoiceFixture, historicalInvoiceFixture] as never
+    })
     mockListPayments.mockResolvedValue([])
     mockCreatePayment.mockResolvedValue({
       id: 7,
@@ -372,5 +389,26 @@ describe('ClientInvoicesView', () => {
       reference: null,
       notes: null,
     })
+  })
+
+  it('shows separate exercise and total receivable metrics', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    expect(wrapper.text()).toContain('invoices.client.metrics.remaining_exercise_amount')
+    expect(wrapper.text()).toContain('100.00 €')
+    expect(wrapper.text()).toContain('invoices.client.metrics.exercise_count')
+    expect(wrapper.text()).toContain('invoices.client.metrics.total_receivables_amount')
+    expect(wrapper.text()).toContain('180.00 €')
+    expect(wrapper.text()).toContain('invoices.client.metrics.historical_carryover')
+  })
+
+  it('computes overdue metrics from due date and remaining amount, not only status', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    expect(wrapper.text()).toContain('invoices.client.metrics.overdue_amount')
+    expect(wrapper.text()).toContain('180.00 €')
+    expect(wrapper.text()).toContain('invoices.client.metrics.overdue_count')
   })
 })

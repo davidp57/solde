@@ -131,6 +131,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Contact } from '../api/contacts'
+import { getSettingsApi } from '../api/settings'
 import {
   createInvoiceApi,
   updateInvoiceApi,
@@ -152,6 +153,8 @@ const { t } = useI18n()
 const toast = useToast()
 const saving = ref(false)
 const isEditing = computed(() => props.invoice !== null)
+const defaultInvoiceDueDays = ref<number | null>(null)
+const suggestedDueDateIso = ref<string | null>(null)
 
 interface LineForm {
   line_type: InvoiceLineType | null
@@ -257,6 +260,7 @@ function resetForm() {
   form.due_date = null
   form.description = ''
   form.lines = []
+  suggestedDueDateIso.value = null
 }
 
 function setFromInvoice(inv: Invoice) {
@@ -270,6 +274,32 @@ function setFromInvoice(inv: Invoice) {
     quantity: parseFloat(l.quantity),
     unit_price: parseFloat(l.unit_price),
   }))
+  suggestedDueDateIso.value = inv.due_date ?? null
+}
+
+function toIsoDate(value: Date | null): string | null {
+  if (!value) {
+    return null
+  }
+  return value.toISOString().slice(0, 10)
+}
+
+function addDays(value: Date, days: number): Date {
+  const next = new Date(value)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function applySuggestedDueDate(): void {
+  if (isEditing.value || !form.date || defaultInvoiceDueDays.value === null) {
+    return
+  }
+  const currentDueDateIso = toIsoDate(form.due_date)
+  if (form.due_date !== null && currentDueDateIso !== suggestedDueDateIso.value) {
+    return
+  }
+  form.due_date = addDays(form.date, defaultInvoiceDueDays.value)
+  suggestedDueDateIso.value = toIsoDate(form.due_date)
 }
 
 watch(
@@ -282,6 +312,13 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  () => [form.date, defaultInvoiceDueDays.value] as const,
+  () => {
+    applySuggestedDueDate()
+  },
 )
 
 function formatDate(d: Date): string {
@@ -320,6 +357,14 @@ async function submit() {
 
 onMounted(() => {
   if (form.lines.length === 0 && !props.invoice) addLine()
+  void getSettingsApi()
+    .then((settings) => {
+      defaultInvoiceDueDays.value = settings.default_invoice_due_days
+      applySuggestedDueDate()
+    })
+    .catch(() => {
+      defaultInvoiceDueDays.value = null
+    })
 })
 </script>
 

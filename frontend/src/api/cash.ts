@@ -77,8 +77,20 @@ export interface CashCountCreate {
   notes?: string | null
 }
 
+export interface FundsChartRow {
+  month: string
+  balance: number
+}
+
 export async function getCashBalance(): Promise<{ balance: string }> {
   const response = await apiClient.get<{ balance: string }>('/api/cash/balance')
+  return response.data
+}
+
+export async function getCashFundsChart(months = 6): Promise<FundsChartRow[]> {
+  const response = await apiClient.get<FundsChartRow[]>('/api/cash/chart/funds', {
+    params: { months },
+  })
   return response.data
 }
 

@@ -18,6 +18,7 @@
               :placeholder="t('accounting.ledger.select_account')"
               filter
               editable
+              @change="load"
             />
           </div>
           <div class="app-field">
@@ -27,19 +28,24 @@
               :options="fiscalYears"
               option-label="name"
               option-value="id"
+              @change="load"
             />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_from') }}</label>
-            <AppDateInput v-model="fromDate" />
+            <AppDateInput v-model="fromDate" @keydown.enter="load" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_to') }}</label>
-            <AppDateInput v-model="toDate" />
+            <AppDateInput v-model="toDate" @keydown.enter="load" />
           </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="globalFilter" :placeholder="t('common.filter_placeholder')" />
+            <InputText
+              v-model="globalFilter"
+              :placeholder="t('common.filter_placeholder')"
+              @keydown.enter="load"
+            />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('common.reset_filters') }}</label>
@@ -213,6 +219,7 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatFocusedAccountLabel } from '../utils/focusAccounts'
 import { formatAccountingAmount, formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
@@ -296,7 +303,7 @@ onMounted(async () => {
     const accts = await listAccountsApi(undefined, false)
     accounts.value = accts.map((a) => ({
       number: a.number,
-      displayLabel: `${a.number} — ${a.label}`,
+      displayLabel: formatFocusedAccountLabel(a.number, a.label, t),
     }))
   } finally {
     initializing.value = false

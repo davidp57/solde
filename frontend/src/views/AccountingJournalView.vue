@@ -58,12 +58,13 @@
               t('accounting.journal.summary_search', { count: displayedGroups.length })
             }}</span>
             <Button
+              :label="t('common.reset_filters')"
               icon="pi pi-filter-slash"
               severity="secondary"
-              text
-              :disabled="!hasActiveFilters"
+              outlined
+              :disabled="!hasAnyFilters"
               :title="t('common.reset_filters')"
-              @click="resetFilters"
+              @click="resetAllFilters"
             />
           </div>
         </div>
@@ -71,17 +72,18 @@
         <div class="app-filter-grid journal-filters">
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_from') }}</label>
-            <AppDateInput v-model="filters.from_date" />
+            <AppDateInput v-model="filters.from_date" @keydown.enter="load" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_to') }}</label>
-            <AppDateInput v-model="filters.to_date" />
+            <AppDateInput v-model="filters.to_date" @keydown.enter="load" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_account') }}</label>
             <InputText
               v-model="filters.account_number"
               :placeholder="t('accounting.journal.account')"
+              @keydown.enter="load"
             />
           </div>
           <div class="app-field">
@@ -93,6 +95,7 @@
               option-value="value"
               :placeholder="t('common.all')"
               show-clear
+              @update:modelValue="onSourceTypeChange"
             />
           </div>
           <div class="app-field">
@@ -103,11 +106,16 @@
               option-label="name"
               option-value="id"
               :placeholder="t('common.all')"
+              @change="load"
             />
           </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="globalFilter" :placeholder="t('common.filter_placeholder')" />
+            <InputText
+              v-model="globalFilter"
+              :placeholder="t('common.filter_placeholder')"
+              @keydown.enter="load"
+            />
           </div>
           <div class="app-field journal-filters__action">
             <label class="app-field__label">{{ t('accounting.journal.apply_filters') }}</label>
@@ -742,6 +750,19 @@ const sourceTypeOptions = [
   { label: t('accounting.journal.sources.cloture'), value: 'cloture' },
 ]
 
+const hasRemoteFilters = computed(
+  () =>
+    Boolean(
+      filters.value.from_date ||
+        filters.value.to_date ||
+        filters.value.account_number ||
+        filters.value.source_type ||
+        selectedFiscalYearId.value,
+    ),
+)
+
+const hasAnyFilters = computed(() => hasActiveFilters.value || hasRemoteFilters.value)
+
 const summary = computed(() => {
   const visibleGroups = displayedGroups.value
   const totalDebit = visibleGroups.reduce((sum, group) => sum + parseFloat(group.total_debit), 0)
@@ -886,6 +907,23 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+function onSourceTypeChange(value: EntrySourceType | undefined) {
+  filters.value.source_type = value
+  void load()
+}
+
+function resetAllFilters() {
+  filters.value = {
+    from_date: '',
+    to_date: '',
+    account_number: '',
+    source_type: undefined,
+  }
+  selectedFiscalYearId.value = undefined
+  resetFilters()
+  void load()
 }
 
 async function saveManualEntry() {
