@@ -1,32 +1,32 @@
-# BL-023 — Cadrage des rôles et de la matrice d'accès
+# BL-023 — Role and Access Matrix Framing
 
-## Objectif
+## Objective
 
-Avant de modifier les permissions, il faut clarifier la cible produit des rôles et distinguer trois choses qui sont aujourd'hui mélangées :
+Before changing permissions, the product target for roles must be clarified and three things that are currently mixed together must be separated:
 
-- la matrice documentée dans `BL-022` ;
-- la matrice réellement appliquée par le backend ;
-- la visibilité réellement exposée par le frontend.
+- the matrix documented in `BL-022`;
+- the matrix actually enforced by the backend;
+- the visibility actually exposed by the frontend.
 
-Ce document sert de base de discussion pour décider la cible, puis encadrer une implémentation ultérieure sans corriger "au feeling" un symptôme à la fois.
+This document serves as the discussion baseline for deciding the target and then framing a later implementation, instead of fixing symptoms one by one by intuition.
 
-## Décisions produit validées le 2026-04-14
+## Product decisions validated on 2026-04-14
 
-Les arbitrages suivants sont désormais actés :
+The following arbitrations are now validated:
 
-- `admin` voit tout, édite tout et gère l'application, y compris `utilisateurs`, `paramètres` et les autres fonctions transverses ;
-- `tresorier` garde sa valeur technique actuelle mais doit être présenté comme `Comptable` dans le produit ;
-- `Comptable` voit et édite toute la partie `Gestion` et toute la partie `Comptabilité` ;
-- `secretaire` garde sa valeur technique actuelle mais doit être présenté comme `Gestionnaire` dans le produit ;
-- `Gestionnaire` voit et édite toute la partie `Gestion` ;
-- `readonly` n'a pas de vraie utilité produit à ce stade ; il peut rester comme valeur technique legacy ou transitoire, mais il n'entre plus dans la cible fonctionnelle active à mettre en avant dans l'interface et la matrice principale ;
-- l'interface doit séparer visiblement les zones `Gestion` et `Comptabilité`.
+- `admin` sees everything, edits everything, and manages the application, including `utilisateurs`, `paramètres`, and the other transversal capabilities;
+- `tresorier` keeps its current technical value but must be presented as `Comptable` in the product;
+- `Comptable` can view and edit the whole `Gestion` area and the whole `Comptabilité` area;
+- `secretaire` keeps its current technical value but must be presented as `Gestionnaire` in the product;
+- `Gestionnaire` can view and edit the whole `Gestion` area;
+- `readonly` has no real product value at this stage; it may remain as a legacy or transitional technical value, but it is no longer part of the active functional target to highlight in the UI and the main matrix;
+- the UI must visibly separate the `Gestion` and `Comptabilité` areas.
 
-## Structure UI validée
+## Validated UI structure
 
-La navigation cible doit être organisée au minimum en deux sections visuellement distinctes.
+Target navigation must be organized into at least two visually distinct sections.
 
-### Partie Gestion
+### `Gestion` section
 
 - `Tableau de bord`
 - `Contacts`
@@ -36,7 +36,7 @@ La navigation cible doit être organisée au minimum en deux sections visuelleme
 - `Banque`
 - `Caisse`
 
-### Partie Comptabilité
+### `Comptabilité` section
 
 - `Exercices`
 - `Plan comptable`
@@ -47,142 +47,142 @@ La navigation cible doit être organisée au minimum en deux sections visuelleme
 - `Balance`
 - `Grand livre`
 
-## État actuel vérifié
+## Verified current state
 
-### Rôles techniques existants
+### Existing technical roles
 
-Les rôles techniques actuellement utilisés dans le code sont :
+The technical roles currently used in code are:
 
 - `readonly`
 - `secretaire`
 - `tresorier`
 - `admin`
 
-Le document existant `doc/dev/gestion-utilisateurs-et-permissions.md` les présente déjà côté produit comme :
+The existing document `doc/dev/gestion-utilisateurs-et-permissions.md` already presents them on the product side as:
 
 - `readonly` -> `Consultation`
 - `secretaire` -> `Gestionnaire`
 - `tresorier` -> `Comptable`
 - `admin` -> `Administrateur`
 
-### Matrice effectivement appliquée par le backend
+### Matrix actually enforced by the backend
 
-Le backend applique aujourd'hui une règle simple par domaine :
+The backend currently applies a simple domain-based rule:
 
-| Zone backend | Lecture | Écriture |
+| Backend area | Read | Write |
 |---|---|---|
-| Contacts | tout utilisateur authentifié | `secretaire`, `tresorier`, `admin` |
-| Factures | tout utilisateur authentifié | `secretaire`, `tresorier`, `admin` |
-| Paiements | tout utilisateur authentifié | `secretaire`, `tresorier`, `admin` |
-| Banque | tout utilisateur authentifié | `tresorier`, `admin` |
-| Caisse | tout utilisateur authentifié | `tresorier`, `admin` |
-| Comptabilité (journal, balance, grand livre, comptes, règles, exercices) | tout utilisateur authentifié | `tresorier`, `admin` |
-| Imports Excel | pas de lecture dédiée aujourd'hui | `tresorier`, `admin` |
-| Salaires | tout utilisateur authentifié | `tresorier`, `admin` |
-| Paramètres | `admin` | `admin` |
-| Utilisateurs | `admin` | `admin` |
+| Contacts | every authenticated user | `secretaire`, `tresorier`, `admin` |
+| Invoices | every authenticated user | `secretaire`, `tresorier`, `admin` |
+| Payments | every authenticated user | `secretaire`, `tresorier`, `admin` |
+| Bank | every authenticated user | `tresorier`, `admin` |
+| Cash | every authenticated user | `tresorier`, `admin` |
+| Accounting (`journal`, `balance`, `grand livre`, accounts, rules, fiscal years) | every authenticated user | `tresorier`, `admin` |
+| Excel imports | no dedicated read access today | `tresorier`, `admin` |
+| Salaries | every authenticated user | `tresorier`, `admin` |
+| Settings | `admin` | `admin` |
+| Users | `admin` | `admin` |
 
-Conséquence directe : côté API, un utilisateur `readonly` peut déjà lire les écrans comptables, la banque, la caisse et les salaires si le frontend lui donne accès aux vues correspondantes.
+Direct consequence: at the API level, a `readonly` user can already read accounting screens, bank, cash, and salaries if the frontend exposes the corresponding views.
 
-### Visibilité effectivement appliquée par le frontend
+### Visibility actually applied by the frontend
 
-Le frontend est aujourd'hui plus permissif que la matrice produit documentée :
+The frontend is currently more permissive than the documented product matrix:
 
-- tous les utilisateurs authentifiés voient la quasi-totalité des entrées du menu principal ;
-- seuls `Utilisateurs` et `Paramètres` sont masqués aux non-admins ;
-- seules les routes `settings` et `users` sont explicitement gardées côté routeur via `requiresAdmin` ;
-- les autres vues sont donc accessibles par navigation directe tant que le backend autorise la lecture ;
-- la zone utilisateur du shell repose sur `auth.user` et fait apparaître un symptôme intermittent de disparition du nom d'utilisateur et du bouton de déconnexion.
+- all authenticated users see nearly all main menu entries;
+- only `Utilisateurs` and `Paramètres` are hidden from non-admin users;
+- only the `settings` and `users` routes are explicitly guarded in the router via `requiresAdmin`;
+- the other views therefore remain reachable through direct navigation as long as backend read access is allowed;
+- the user area in the shell relies on `auth.user` and shows an intermittent symptom where the username and logout button disappear.
 
-Conséquence directe : la matrice perçue par l'utilisateur dépend aujourd'hui plus du menu et des lectures backend implicites que d'une matrice de permissions explicitement décidée.
+Direct consequence: the permission matrix perceived by users currently depends more on the menu and implicit backend reads than on an explicitly decided permissions matrix.
 
-## Écart principal à traiter
+## Main gap to address
 
-Le document `BL-022` décrit une séparation produit intuitive :
+Document `BL-022` describes an intuitive product split:
 
-- `Consultation` lit sans modifier ;
-- `Gestionnaire` gère les flux métier `contacts`, `factures`, `paiements` ;
-- `Comptable` gère trésorerie, comptabilité, imports et salaires ;
-- `Administrateur` gère comptes et paramètres.
+- `Consultation` reads without modifying;
+- `Gestionnaire` manages business flows around `contacts`, `factures`, and `paiements`;
+- `Comptable` manages treasury, accounting, imports, and salaries;
+- `Administrateur` manages accounts and settings.
 
-Mais l'application actuelle ne traduit pas encore proprement cette cible :
+But the current application does not yet translate that target cleanly:
 
-- `readonly` lit aujourd'hui beaucoup plus que ce que laisse entendre le nom `Consultation` ;
-- `secretaire` voit actuellement de nombreuses entrées comptables dans le shell ;
-- la frontière exacte entre lecture comptable autorisée, lecture trésorerie autorisée et écriture métier n'est pas explicitement décidée ;
-- le shell global expose des éléments transverses `menu`, `sélecteur d'exercice`, `zone utilisateur` sans matrice de visibilité clairement définie.
+- `readonly` currently reads much more than the `Consultation` label suggests;
+- `secretaire` currently sees many accounting entries in the shell;
+- the exact boundary between allowed accounting read access, allowed treasury read access, and business write access has not been explicitly decided;
+- the global shell exposes transversal elements such as the `menu`, the `fiscal year selector`, and the `user area` without any clearly defined visibility matrix.
 
-## Cible produit validée
+## Validated product target
 
-### Principe directeur retenu
+### Retained guiding principle
 
-Le modèle cible s'appuie sur trois rôles produit actifs :
+The target model relies on three active product roles:
 
 - `Gestionnaire`
 - `Comptable`
 - `Administrateur`
 
-Le rôle technique `readonly` n'est pas retenu comme rôle produit utile dans la cible actuelle. Il peut être conservé techniquement tant que nécessaire pour éviter une migration brutale, mais il ne doit plus structurer la conception fonctionnelle principale.
+The technical `readonly` role is not retained as a useful product role in the current target. It may be kept technically for as long as needed to avoid a brutal migration, but it must no longer shape the main functional design.
 
-### Matrice cible validée
+### Validated target matrix
 
-| Zone / action | Gestionnaire | Comptable | Administrateur |
+| Area / action | Gestionnaire | Comptable | Administrateur |
 |---|---|---|---|
-| Tableau de bord | Lecture + écriture métier associée | Lecture + écriture métier associée | Lecture + écriture métier associée |
-| Contacts | Lecture + écriture | Lecture + écriture | Lecture + écriture |
-| Factures client / fournisseur | Lecture + écriture | Lecture + écriture | Lecture + écriture |
-| Paiements | Lecture + écriture | Lecture + écriture | Lecture + écriture |
-| Banque | Lecture + écriture | Lecture + écriture | Lecture + écriture |
-| Caisse | Lecture + écriture | Lecture + écriture | Lecture + écriture |
-| Exercices | Non | Lecture + écriture | Lecture + écriture |
-| Plan comptable | Non | Lecture + écriture | Lecture + écriture |
-| Règles comptables | Non | Lecture + écriture | Lecture + écriture |
-| Bilan | Non | Lecture | Lecture |
-| Résultat | Non | Lecture | Lecture |
-| Journal | Non | Lecture | Lecture |
-| Balance | Non | Lecture | Lecture |
-| Grand livre | Non | Lecture | Lecture |
-| Imports Excel | Non | Lecture + écriture | Lecture + écriture |
-| Salaires | Non | Lecture + écriture | Lecture + écriture |
-| Utilisateurs | Non | Non | Lecture + écriture |
-| Paramètres | Non | Non | Lecture + écriture |
+| Dashboard | Read + related business write access | Read + related business write access | Read + related business write access |
+| Contacts | Read + write | Read + write | Read + write |
+| Client / supplier invoices | Read + write | Read + write | Read + write |
+| Payments | Read + write | Read + write | Read + write |
+| Bank | Read + write | Read + write | Read + write |
+| Cash | Read + write | Read + write | Read + write |
+| Fiscal years | No | Read + write | Read + write |
+| Chart of accounts | No | Read + write | Read + write |
+| Accounting rules | No | Read + write | Read + write |
+| Balance sheet | No | Read | Read |
+| Income statement | No | Read | Read |
+| Journal | No | Read | Read |
+| Trial balance | No | Read | Read |
+| Ledger | No | Read | Read |
+| Excel imports | No | Read + write | Read + write |
+| Salaries | No | Read + write | Read + write |
+| Users | No | No | Read + write |
+| Settings | No | No | Read + write |
 
-### Conséquences explicites de cette décision
+### Explicit consequences of this decision
 
-- `Gestionnaire` couvre toute la partie `Gestion`, y compris `banque` et `caisse` ;
-- `Comptable` est un sur-ensemble fonctionnel du `Gestionnaire`, avec accès complet à la partie `Comptabilité` ;
-- `Administrateur` est un sur-ensemble du `Comptable` et porte en plus la gestion de l'application ;
-- la séparation UI `Gestion` / `Comptabilité` devient une exigence produit, pas seulement une préférence ergonomique ;
-- toute présence future de `readonly` devra être traitée comme un cas de compatibilité ou d'administration avancée, pas comme un rôle central de la cible métier.
+- `Gestionnaire` covers the whole `Gestion` area, including `banque` and `caisse`;
+- `Comptable` is a functional superset of `Gestionnaire`, with full access to the `Comptabilité` area;
+- `Administrateur` is a superset of `Comptable` and additionally owns application management;
+- the `Gestion` / `Comptabilité` UI split becomes a product requirement, not only an ergonomics preference;
+- any future presence of `readonly` must be treated as a compatibility or advanced administration case, not as a central role of the business target.
 
-## Questions restantes avant implémentation
+## Remaining questions before implementation
 
-Les arbitrages produit principaux étant maintenant faits, les points restants sont surtout d'implémentation :
+The main product arbitrations are now done, so the remaining points are mostly implementation details:
 
-1. faut-il masquer complètement `readonly` dans l'UI d'administration tant que son utilité produit n'est pas redéfinie ;
-2. comment structurer visuellement la navigation pour matérialiser `Gestion` et `Comptabilité` sans alourdir l'usage quotidien ;
-3. comment traiter exactement la zone utilisateur du shell et le sélecteur global d'exercice selon le rôle et la section courante.
+1. should `readonly` be completely hidden in the admin UI until its product utility is redefined;
+2. how should navigation be structured visually to materialize `Gestion` and `Comptabilité` without making daily use heavier;
+3. how should the shell user area and the global fiscal year selector behave depending on the role and the current section.
 
-## Principes d'implémentation à respecter ensuite
+## Implementation principles to enforce afterwards
 
-Quand la matrice sera validée, l'implémentation devra respecter ces règles :
+Once the matrix is validated, implementation must respect these rules:
 
-1. le backend reste la source de vérité des permissions ;
-2. le frontend masque les menus et routes non autorisés, mais ne remplace pas les contrôles backend ;
-3. les helpers frontend doivent exposer une matrice explicite par capacité, pas seulement `isAdmin` et `isTresorier` ;
-4. les tests backend doivent couvrir les refus `403` par rôle pour les zones sensibles ;
-5. les tests frontend doivent couvrir la visibilité du menu, des routes gardées, du sélecteur d'exercice et de la zone utilisateur du shell.
+1. the backend remains the source of truth for permissions;
+2. the frontend hides unauthorized menus and routes, but does not replace backend controls;
+3. frontend helpers must expose an explicit capability-based matrix, not only `isAdmin` and `isTresorier`;
+4. backend tests must cover `403` refusals by role on sensitive areas;
+5. frontend tests must cover menu visibility, guarded routes, fiscal year selector visibility, and stable rendering of the shell user area.
 
-## Découpage recommandé pour la suite
+## Recommended breakdown for next steps
 
-### Étape 1 — backend
+### Step 1 — backend
 
-Aligner les dépendances `require_role(...)` et compléter les tests d'autorisation par domaine.
+Align `require_role(...)` dependencies and complete authorization tests by domain.
 
-### Étape 2 — frontend
+### Step 2 — frontend
 
-Aligner le menu, les guards, les helpers d'autorisation, la visibilité du sélecteur d'exercice et le rendu stable de la zone utilisateur.
+Align the menu, guards, authorization helpers, fiscal year selector visibility, and stable rendering of the user area.
 
-### Étape 3 — documentation
+### Step 3 — documentation
 
-Mettre à jour `doc/dev/gestion-utilisateurs-et-permissions.md` pour refléter la matrice finale effectivement implémentée.
+Update `doc/dev/gestion-utilisateurs-et-permissions.md` so that it reflects the final matrix actually implemented.

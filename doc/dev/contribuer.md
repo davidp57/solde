@@ -1,29 +1,29 @@
-# Contribuer à Solde
+# Contributing to Solde
 
-## Objectif
+## Purpose
 
-Ce document centralise la mise en route locale, les commandes de qualité et les conventions de contribution du dépôt.
-Il complète le `README.md`, qui reste une page d'entrée plus courte orientée installation et navigation dans la documentation.
+This guide centralizes local setup, quality commands, and contribution conventions for the repository.
+It complements `README.md`, which is intentionally kept short and acts as a bilingual entry point.
 
-## Pile et prérequis
+## Stack and prerequisites
 
-### Outils
+### Tooling
 
-- Python `3.11+` ;
-- Node.js `20+` (`22` recommandé pour coller à l'image Docker) ;
-- npm ;
-- Docker si tu veux aussi reproduire le mode d'exécution conteneurisé ;
-- PowerShell recommandé sur Windows pour `dev.ps1`.
+- Python `3.11+`
+- Node.js `20+` (`22` recommended to match the Docker image)
+- npm
+- Docker if you also want to reproduce the containerized runtime
+- PowerShell on Windows if you want to use `dev.ps1`
 
-### Technologies du projet
+### Main technologies
 
-- backend : FastAPI, SQLAlchemy async, Alembic, Pydantic v2, SQLite ;
-- frontend : Vue 3, Vite, TypeScript, PrimeVue, Pinia ;
-- tests : pytest côté backend, Vitest côté frontend.
+- backend: FastAPI, async SQLAlchemy, Alembic, Pydantic v2, SQLite
+- frontend: Vue 3, Vite, TypeScript, PrimeVue, Pinia
+- tests: pytest on the backend, Vitest on the frontend
 
-## Mise en route locale
+## Local setup
 
-### 1. Cloner et préparer l'environnement backend
+### 1. Clone the repository and prepare the backend environment
 
 ```powershell
 git clone git@github.com:davidp57/solde.git
@@ -35,9 +35,9 @@ Copy-Item .env.example .env
 alembic upgrade head
 ```
 
-Sous Linux/macOS, adapter l'activation de l'environnement virtuel et la copie du fichier `.env`.
+On Linux or macOS, adapt the virtual environment activation and the `.env` copy step.
 
-### 2. Installer le frontend
+### 2. Install frontend dependencies
 
 ```bash
 cd frontend
@@ -45,21 +45,21 @@ npm install
 cd ..
 ```
 
-### 3. Lancer l'application
+### 3. Run the application locally
 
-Option la plus simple sous Windows :
+The easiest option on Windows is:
 
 ```powershell
 ./dev.ps1
 ```
 
-Ce script :
+This script:
 
-- démarre le backend et le frontend dans la même session ;
-- installe `frontend/node_modules` si nécessaire ;
-- arrête proprement les deux processus avec `Ctrl+C`.
+- starts backend and frontend in the same terminal session;
+- installs `frontend/node_modules` if needed;
+- stops both processes with `Ctrl+C`.
 
-Option manuelle :
+Manual option:
 
 ```powershell
 uvicorn backend.main:app --reload --port 8000
@@ -70,15 +70,15 @@ cd frontend
 npm run dev
 ```
 
-Accès utiles :
+Useful URLs:
 
-- frontend Vite : `http://localhost:5173`
-- application servie par FastAPI si le frontend est compilé : `http://localhost:8000`
-- docs API : `http://localhost:8000/api/docs`
+- Vite frontend: `http://localhost:5173`
+- FastAPI-served app when the frontend is built: `http://localhost:8000`
+- API docs: `http://localhost:8000/api/docs`
 
-## Commandes de qualité
+## Quality commands
 
-Les commandes ci-dessous correspondent aux attentes actuelles du dépôt avant ouverture d'une PR.
+These commands reflect the current repository expectations before opening a pull request.
 
 ### Backend
 
@@ -99,103 +99,108 @@ npx eslint src/
 npx vitest run
 ```
 
-### Conseils pratiques
+### Practical guidance
 
-- activer l'environnement virtuel Python avant les commandes backend ;
-- lancer toute la matrice avant une PR, même si le changement est concentré sur un sous-ensemble ;
-- pour une itération rapide, commencer par les tests ciblés puis rejouer la matrice complète avant commit final.
+- activate the Python virtual environment before backend commands;
+- run the full matrix before a PR, even if your change is scoped to a subset of files;
+- for fast iteration, start with focused checks and then replay the full matrix before the final commit.
 
-## Structure du dépôt
+## Repository structure
 
-- `backend/` : API, schémas, services, modèles, migrations ;
-- `frontend/` : application Vue.js ;
-- `tests/` : tests backend pytest ;
-- `doc/` : documentation projet, technique et utilisateur ;
-- `data/` : données persistées locales ou montées en Docker.
+- `backend/`: API, schemas, services, models, migrations
+- `frontend/`: Vue.js application
+- `tests/`: backend pytest suite
+- `doc/`: project, technical, and user documentation
+- `data/`: local or Docker-mounted persisted data
 
-## Conventions de développement
+## Development conventions
 
-### Langues
+### Languages
 
-- code, noms de symboles, commentaires et docstrings : anglais ;
-- interface utilisateur, documentation du dépôt et communication avec l'utilisateur : français.
+- code, symbol names, comments, and docstrings: English
+- user-facing UI text: French through i18n keys
+- communication with the user in agent sessions: French
+- documentation policy:
+	- `README.md`: French + English
+	- user documentation and installation guides: French + English
+	- technical and developer documentation: English
+	- backlog, changelog, release notes: French
 
 ### Backend
 
-- annotations de type requises sur les fonctions et méthodes publiques ;
-- schémas d'entrée/sortie en Pydantic v2 ;
-- SQLAlchemy 2 en mode async ;
-- migrations Alembic pour toute évolution de schéma ;
-- `Decimal` pour les montants monétaires ;
-- exceptions typées dans les services, conversion en réponses HTTP dans les routers.
+- type annotations are required on public functions and methods;
+- use Pydantic v2 for input/output schemas;
+- use SQLAlchemy 2 async style;
+- use Alembic migrations for every schema change;
+- use `Decimal` for monetary amounts;
+- raise typed exceptions in services and convert them to HTTP responses in routers.
 
 ### Frontend
 
-- Vue 3 Composition API avec `script setup` ;
-- Pinia pour l'état global ;
-- pas d'Options API ;
-- textes utilisateurs via les clés i18n, pas en dur dans les composants.
+- Vue 3 Composition API with `script setup`
+- Pinia for shared state
+- no Options API
+- no hardcoded user-facing strings in components; use i18n keys instead
 
-### Documentation et backlog
+### Documentation and backlog
 
-- toute documentation du dépôt est rédigée en français ;
-- `doc/backlog.md` est la source de vérité des sujets ouverts ou suivis hors roadmap ;
-- si un sujet démarre sur une branche, son statut et ses dates doivent être mis à jour dans le backlog ;
-- les documents impactés par un changement significatif doivent être mis à jour dans la même branche.
+- `doc/backlog.md` is the source of truth for tracked follow-up items outside the roadmap;
+- if a tracked item starts on a branch, update its status and dates in the backlog;
+- update the impacted docs in the same branch whenever a significant change is delivered.
 
-## Workflow Git
+## Git workflow
 
-Le projet suit un workflow de type git-flow :
+The project follows a git-flow-style workflow:
 
-- `main` : releases de production ;
-- `develop` : branche d'intégration ;
-- branches de travail dérivées de `develop`.
+- `main`: production-ready releases only
+- `develop`: integration branch
+- working branches must be created from `develop`
 
-Nommage attendu en priorité :
+Preferred branch prefixes:
 
-- `feature/*` pour une fonctionnalité ;
-- `fix/*` pour un correctif ;
-- `hotfix/*` pour une urgence en production ;
-- `release/*` pour une préparation de release.
+- `feature/*` for features
+- `fix/*` for bug fixes
+- `hotfix/*` for production urgencies
+- `release/*` for release preparation
 
-Pour une branche purement documentaire, utiliser un nom explicite convenu avec l'équipe tout en gardant une origine depuis `develop`.
+For documentation-only work, use an explicit branch name while still branching from `develop`.
 
-### Commits
+### Commit messages
 
-Utiliser les Conventional Commits en anglais :
+Use Conventional Commits in English:
 
 - `feat(import): add reversible run history`
 - `fix(settings): return 404 for unknown fiscal year`
 - `docs(readme): clarify Docker operations`
 
-## Attentes avant PR
+## Pull request expectations
 
-Avant d'ouvrir une PR :
+Before opening a PR:
 
-1. rebaser ou resynchroniser ta branche à partir de `develop` si nécessaire ;
-2. mettre à jour le backlog si le ticket est suivi dans `doc/backlog.md` ;
-3. mettre à jour le `README`, la doc technique, la doc utilisateur ou le `CHANGELOG.md` si le changement le justifie ;
-4. lancer la matrice de qualité pertinente ;
-5. préparer une description de PR concise en anglais avec résumé, changements clés et checks exécutés.
+1. resync your branch with `develop` if needed;
+2. update the backlog if the work is tracked in `doc/backlog.md`;
+3. update `README.md`, technical docs, user docs, or `CHANGELOG.md` when the change justifies it;
+4. run the relevant quality matrix;
+5. prepare a concise English PR description with summary, key changes, and checks performed.
 
-## TDD et niveau d'exigence attendu
+## TDD and expected quality level
 
-Le dépôt vise une approche TDD :
+The repository aims for a TDD workflow:
 
-1. écrire ou adapter un test qui décrit le comportement attendu ;
-2. implémenter le minimum pour le faire passer ;
-3. refactorer en gardant les tests verts.
+1. write or adjust a test describing the expected behavior;
+2. implement the minimum change to make it pass;
+3. refactor while keeping tests green.
 
-Objectifs rappelés dans les consignes du dépôt :
+Coverage targets referenced by the repository instructions:
 
-- services métier backend : couverture `>= 90 %` ;
-- endpoints API : couverture `>= 80 %` ;
-- composables frontend : couverture `>= 70 %`.
+- backend business services: `>= 90 %`
+- API endpoints: `>= 80 %`
+- frontend composables: `>= 70 %`
 
-## Docs utiles à relire selon le sujet
+## Useful docs to revisit depending on the task
 
-- `README.md` pour l'entrée projet ;
-- `doc/dev/exploitation.md` pour le fonctionnement Docker et les données persistées ;
-- `doc/plan.md` pour la cible d'architecture ;
-- `doc/roadmap.md` pour la séquence de livraison ;
-- `doc/user/` pour l'impact utilisateur des fonctionnalités existantes.
+- `README.md` for the project entry point
+- `doc/dev/exploitation.md` for Docker runtime and persisted data
+- `doc/plan.md` for the architecture target
+- `doc/roadmap.md` for delivery sequencing
+- `doc/user/` for user-facing behavior and workflows

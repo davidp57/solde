@@ -275,8 +275,8 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Dates** : `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21`
 - **Pourquoi** : la documentation projet existe mais reste encore trop dispersée ou trop implicite pour quelqu'un qui doit installer, mettre à jour ou exploiter Solde sans relire tout le dépôt.
 - **Résultat attendu** : un README plus clair et une documentation technique structurée couvrant au minimum l'installation, la mise à jour, la pile technologique, la configuration, Docker, les volumes de données, les sauvegardes et les points d'exploitation courants.
-- **Résultat livré** : le `README.md` est recentré comme page d'entrée concise, une documentation dédiée `doc/dev/exploitation.md` couvre désormais l'installation, la configuration, Docker, les volumes, les sauvegardes et les opérations courantes, et `.env.example` documente explicitement les variables de bootstrap administrateur et les informations association.
-- **Livré parce que** : l'installation et l'exploitation courante peuvent maintenant être documentées sans relire les fichiers `Dockerfile`, `docker-compose.yml`, `.env.example`, `backend/main.py` et `backend/config.py`, et le `CHANGELOG.md` mentionne ce nouveau lot documentaire.
+- **Résultat livré** : le `README.md` est recentré comme page d'entrée synthétique `FR + EN`, une documentation technique dédiée `doc/dev/exploitation.md` couvre désormais en anglais la configuration, Docker, les volumes, les sauvegardes et les opérations courantes, un guide d'installation `FR + EN` est ajouté dans `doc/user/installation.md`, et `.env.example` documente explicitement les variables de bootstrap administrateur et les informations association.
+- **Livré parce que** : l'installation et l'exploitation courante peuvent maintenant être documentées sans relire les fichiers `Dockerfile`, `docker-compose.yml`, `.env.example`, `backend/main.py` et `backend/config.py`, tout en séparant mieux le point d'entrée bilingue, le guide d'installation bilingue et la documentation d'exploitation technique en anglais.
 - **Point d'attention** : distinguer ce qui relève du guide d'exploitation réel de ce qui relève des détails purement développeur, pour éviter un README surchargé.
 
 ### BL-020 — Documentation de développement et contribution
@@ -284,8 +284,8 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Dates** : `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21`
 - **Pourquoi** : contribuer efficacement au projet suppose aujourd'hui de reconstituer les prérequis et les conventions depuis plusieurs fichiers, ce qui freine la reprise de contexte et la qualité des contributions.
 - **Résultat attendu** : une documentation développeur claire expliquant les prérequis, la mise en route locale, les commandes de build/test/lint, la qualité attendue, l'organisation du dépôt, le workflow de contribution et les attentes avant PR.
-- **Résultat livré** : la nouvelle documentation `doc/dev/contribuer.md` centralise la mise en route locale, l'usage de `dev.ps1`, la matrice de checks backend/frontend, les conventions de code et de langue, le rôle du backlog et le workflow Git attendu avant PR.
-- **Livré parce que** : un contributeur peut maintenant retrouver dans une seule page les prérequis, les commandes utiles et les règles de contribution réellement appliquées dans le dépôt, sans reconstituer le workflow à partir des consignes dispersées.
+- **Résultat livré** : la nouvelle documentation `doc/dev/contribuer.md`, rédigée en anglais, centralise la mise en route locale, l'usage de `dev.ps1`, la matrice de checks backend/frontend, les conventions de code et de langue, le rôle du backlog et le workflow Git attendu avant PR ; les consignes du dépôt ont été alignées sur une politique de langue plus explicite pour distinguer docs techniques `EN` et docs utilisateur / installation `FR + EN`.
+- **Livré parce que** : un contributeur peut maintenant retrouver dans une seule page les prérequis, les commandes utiles et les règles de contribution réellement appliquées dans le dépôt, sans reconstituer le workflow à partir des consignes dispersées, et la convention documentaire est désormais explicitée à la source.
 - **Point d'attention** : cette documentation doit rester fidèle aux commandes réellement utilisées dans le dépôt, pas à un idéal théorique.
 
 ### BL-021 — Manuel utilisateur illustré et pas à pas
@@ -294,7 +294,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Pourquoi** : la documentation utilisateur est la plus critique pour l'adoption réelle de Solde, car les utilisateurs visés ne sont pas nécessairement informaticiens et ont besoin d'un guidage concret, rassurant et progressif.
 - **Résultat attendu** : un manuel utilisateur en français, très clair, illustré par des captures d'écran, couvrant pas à pas les actions principales comme saisir une facture client, enregistrer un paiement client, saisir un achat avec facture, gérer la caisse, consulter la banque, utiliser les imports et comprendre les principaux écrans comptables.
 - **Critère d'acceptation** : un utilisateur non technique doit pouvoir suivre le guide pour exécuter les scénarios métier essentiels sans aide orale complémentaire.
-- **Avancement actuel** : les lots 1 à 3 texte sont rédigés dans `doc/user/README.md` et `doc/user/manuel-utilisateur.md`, avec un périmètre volontairement calé sur les écrans réellement disponibles aujourd'hui et un renvoi complémentaire vers `doc/user/import-excel-et-reinitialisation.md` pour l'import Excel ; le lot 4 de stabilisation éditoriale et d'enrichissement visuel reste à faire.
+- **Avancement actuel** : le manuel utilisateur FR/EN dispose maintenant d'une structure pas à pas consolidée avec orientation rapide par besoin, liens explicites vers les guides complémentaires et formulation homogénéisée sur les parcours principaux ; le lot restant porte surtout sur l'enrichissement visuel réel (captures annotées homogènes, puis éventuellement version imprimable).
 - **Priorisation proposée** : chantier éditorial majeur et prioritaire côté valeur utilisateur ; il faut l'attaquer tôt, mais avec une stratégie incrémentale plutôt qu'un objectif “manuel complet” monolithique.
 - **Séquence recommandée** : commencer par un socle de parcours essentiels (`facture client`, `paiement client`, `achat fournisseur`, `caisse`, `banque`, `import Excel`), puis enrichir ensuite avec les écrans comptables avancés et les cas plus rares.
 - **Table des matières cible** :
@@ -391,6 +391,15 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- comment gérer les cas ambigus ou composites (virement groupé, paiement partiel, un virement pour plusieurs factures, référence absente ou bruitée).
 - **Critère d'acceptation** : depuis un relevé importé, un utilisateur peut identifier les lignes bancaires à traiter, voir des suggestions de catégorisation et de rapprochement, confirmer le bon rattachement, puis obtenir une trace explicite entre l'opération bancaire et le paiement ou mouvement métier créé.
 - **Point d'attention** : ce ticket touche au coeur du modèle de trésorerie ; il faudra éviter d'empiler un second workflow implicite par-dessus le booléen `reconciled` actuel sans refonte explicite du concept de rapprochement.
+
+### BL-032 — Migrer en anglais la documentation technique historique restante
+
+- **Dates** : `created=2026-04-21`, `started=2026-04-21`, `completed=2026-04-21`
+- **Pourquoi** : la convention documentaire a été clarifiée, mais plusieurs documents techniques historiques restaient encore en français alors que les nouvelles docs techniques sont désormais rédigées en anglais.
+- **Résultat attendu** : disposer d'une base documentaire technique cohérente en anglais pour les docs projet et techniques historiques réellement utiles au développement, à l'exploitation et au cadrage fonctionnel.
+- **Résultat livré** : les documents techniques historiques restants ont été migrés en anglais sur la branche en cours, y compris `doc/architecture.md`, `doc/plan.md`, `doc/roadmap.md`, `doc/import-excel-plan.md`, `doc/plan-reprise-post-imp.md`, `doc/dev/gestion-utilisateurs-et-permissions.md`, `doc/dev/bl-005-politique-coexistence-imports.md`, `doc/dev/bl-008-recette-convergence.md`, `doc/dev/bl-023-cadrage-roles-et-matrice-acces.md`, `doc/dev/bl-026-cadrage-validation-imports-excel.md`, `doc/dev/bl-026-constat-validation-imports.md`, `doc/dev/bl-030-politique-modification-objets-valides.md`, `doc/dev/import-excel-contract.md` et `doc/dev/import-excel-procedure.md`.
+- **Livré parce que** : un rescan ciblé de `doc/**/*.md` après traduction ne remonte plus de document technique historique restant en français, hors artefacts volontairement exclus par la convention comme le backlog, les notes de release et la documentation utilisateur bilingue.
+- **Point d'attention** : le backlog et les notes de release restent volontairement en français ; la migration ne devait donc viser que la documentation technique, pas les artefacts de pilotage projet explicitement exclus par la convention.
 
 ### BL-025 — Corriger le report à nouveau et les soldes du grand livre multi-exercices
 
@@ -501,7 +510,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## En cours
 
-- **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Les lots 1 à 3 du manuel utilisateur sont livrés, mais le lot 4 reste à réaliser pour finaliser la stabilisation éditoriale et l'enrichissement visuel.
+- **BL-021** — `created=2026-04-13`, `started=2026-04-13` — Le manuel utilisateur FR/EN a maintenant une structure pas à pas consolidée et un meilleur aiguillage vers les guides complémentaires ; l'enrichissement visuel réel reste à réaliser pour clôturer le ticket.
 
 ## Fait
 
@@ -523,8 +532,8 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **BL-016** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les microcopies et états visibles les plus incohérents ont été harmonisés sur `Banque`, `Caisse` et `Salaires` via des clés i18n dédiées.
 - **BL-017** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — L'affichage des mois et périodes métier est maintenant uniformisé au format français sur `Salaires` et le `Dashboard` sans changer les formats d'échange ISO.
 - **BL-018** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les écrans de liste principaux partagent maintenant un socle commun de tri, filtres et compteurs d'état, avec filtres de date FR/ISO et exclusion explicite des tableaux fixes `bilan` / `résultat`.
-- **BL-019** — `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21` — Le `README.md` sert maintenant de point d'entrée plus clair et l'exploitation Docker est documentée dans `doc/dev/exploitation.md`, avec configuration, volumes, mises à jour, sauvegardes et opérations courantes explicités.
-- **BL-020** — `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21` — Le dépôt dispose maintenant d'une documentation développeur centrale `doc/dev/contribuer.md` pour la mise en route locale, les checks qualité, les conventions de contribution et le workflow Git/PR.
+- **BL-019** — `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21` — Le `README.md` sert maintenant de point d'entrée synthétique `FR + EN`, l'installation dispose d'un guide bilingue dédié, et l'exploitation Docker est documentée en anglais dans `doc/dev/exploitation.md` avec configuration, volumes, mises à jour, sauvegardes et opérations courantes explicités.
+- **BL-020** — `created=2026-04-13`, `started=2026-04-21`, `completed=2026-04-21` — Le dépôt dispose maintenant d'une documentation développeur centrale `doc/dev/contribuer.md` en anglais, d'une convention documentaire clarifiée, et d'un workflow de contribution mieux cadré pour la mise en route locale, les checks qualité et le workflow Git/PR.
 - **BL-022** — `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-19` — La gestion des comptes couvre désormais l'administration, l'espace `Mon profil`, le changement de mot de passe utilisateur, la réinitialisation administrateur adaptée au contexte auto-hébergé et l'invalidation des anciennes sessions après changement de mot de passe.
 - **BL-023** — `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14` — Les rôles métier `Gestionnaire` / `Comptable` / `Administrateur` sont maintenant alignés entre docs, navigation, guards frontend et permissions backend, avec séparation visible `Gestion` / `Comptabilité` et couverture de test ciblée.
 - **BL-024** — `created=2026-04-13`, `started=2026-04-19`, `completed=2026-04-19` — Le workflow de paiement est désormais clarifié et fusionné dans `develop` : `chèque` et `espèces` restent saisis côté facture/paiement avec traitement de trésorerie cohérent, tandis que les `virements` sont explicitement renvoyés au futur flux `banque -> paiement` de `BL-031`.

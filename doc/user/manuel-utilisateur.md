@@ -1,10 +1,34 @@
-# Manuel utilisateur - version texte lots 1 à 3
+# Manuel utilisateur - guide pas à pas
 
 ## Objectif du guide
 
-Cette version texte du manuel utilisateur couvre désormais les lots 1 à 3 prévus pour BL-021. Elle aide à prendre en main Solde pour les parcours du quotidien, de la connexion jusqu'à la consultation des écrans comptables, en passant par les factures fournisseurs, la caisse, la banque et l'import Excel.
+Cette version texte consolidée du manuel utilisateur couvre les parcours quotidiens les plus utiles dans Solde. Elle aide à prendre en main l'application, depuis la connexion jusqu'à la consultation des principaux écrans comptables, en passant par les contacts, les factures, les paiements, la caisse, la banque et l'import Excel.
 
-Ce document décrit les écrans actuellement disponibles. Les captures d'écran seront ajoutées dans une phase ultérieure, quand l'interface sera stabilisée.
+Ce document décrit les écrans actuellement disponibles. Les captures d'écran annotées restent un lot distinct qui sera ajouté quand l'interface sera suffisamment stable pour éviter une maintenance documentaire inutile.
+
+## Comment utiliser ce manuel
+
+Lisez ce guide de deux façons possibles :
+
+1. de bout en bout si vous découvrez Solde pour la première fois ;
+2. chapitre par chapitre si vous cherchez seulement à accomplir une tâche précise.
+
+Pour chaque chapitre, vous trouverez :
+
+- l'objectif de l'écran ou du parcours ;
+- les prérequis utiles ;
+- les étapes à suivre ;
+- le résultat attendu ;
+- les points d'attention à vérifier avant de passer à la suite.
+
+## Parcours rapides selon votre besoin
+
+- Vous démarrez dans Solde : lisez `Se connecter`, `Se repérer dans l'application` puis `Gérer les contacts`.
+- Vous voulez facturer un client : lisez `Gérer les contacts`, puis `Créer et suivre une facture client`, puis `Consulter et suivre les paiements clients`.
+- Vous voulez saisir un achat : allez directement à `Saisir et suivre une facture fournisseur`.
+- Vous voulez vérifier la trésorerie : lisez `Gérer la caisse` et `Gérer la banque et les remises`.
+- Vous voulez reprendre un historique Excel : lisez ce chapitre, puis le guide complémentaire [Import Excel et réinitialisation](./import-excel-et-reinitialisation.md).
+- Vous voulez comprendre un chiffre comptable : allez à `Consulter les écrans comptables`.
 
 ## Périmètre de cette version
 
@@ -23,9 +47,14 @@ Cette version couvre :
 11. une FAQ courte ;
 12. un glossaire métier simple.
 
-Ce document ne couvre pas encore les captures d'écran annotées ni la version finale mise en page pour impression.
+Ce document ne couvre pas encore les captures d'écran annotées ni une version finale mise en page pour impression.
 
 ## Avant de commencer
+
+### Guides complémentaires utiles
+
+- Pour installer l'application ou retrouver les prérequis de base, consultez [installation.md](./installation.md).
+- Pour les imports historiques, les resets, l'historique réversible et les contrôles avant rejeu, consultez [import-excel-et-reinitialisation.md](./import-excel-et-reinitialisation.md).
 
 ### Ce qu'il vous faut
 
