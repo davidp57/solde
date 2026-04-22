@@ -3,6 +3,7 @@
 import json
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -288,11 +289,19 @@ class TestNonAdminAccess:
 
 
 class TestResetDatabase:
+    async def test_reset_db_blocked_when_debug_is_false(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        response = await client.post("/api/settings/reset-db", headers=auth_headers)
+        assert response.status_code == 403
+        assert "debug" in response.json()["detail"].lower()
+
     async def test_reset_db_deletes_everything_except_users(
         self, client: AsyncClient, auth_headers: dict, db_session
     ) -> None:
         from datetime import date
 
+        from backend.config import Settings, get_settings
         from backend.models.accounting_account import AccountingAccount, AccountType
         from backend.models.accounting_rule import (
             AccountingRule,
@@ -353,7 +362,9 @@ class TestResetDatabase:
         await db_session.commit()
         user_count = len((await db_session.execute(select(User))).scalars().all())
 
-        response = await client.post("/api/settings/reset-db", headers=auth_headers)
+        debug_settings = Settings(debug=True, jwt_secret_key=get_settings().jwt_secret_key)
+        with patch("backend.routers.settings.get_app_config", new=lambda: debug_settings):
+            response = await client.post("/api/settings/reset-db", headers=auth_headers)
 
         assert response.status_code == 200
         assert response.json()["contacts"] == 1
