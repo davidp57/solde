@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +28,7 @@ from backend.services.auth import (
     hash_password,
     verify_password,
 )
+from backend.services.rate_limiter import login_limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -149,20 +150,31 @@ async def _validate_admin_user_update(
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
+    request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TokenResponse:
     """Authenticate with username + password, return JWT tokens."""
+    client_ip = request.client.host if request.client else "unknown"
+
+    if login_limiter.is_rate_limited(client_ip):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Please try again later.",
+        )
+
     result = await db.execute(
         select(User).where(User.username == form_data.username, User.is_active)
     )
     user = result.scalar_one_or_none()
     if user is None or not verify_password(form_data.password, user.password_hash):
+        login_limiter.record_attempt(client_ip)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    login_limiter.reset(client_ip)
     return TokenResponse(
         access_token=create_access_token(data={"sub": user.username}),
         refresh_token=create_refresh_token(user.username),
