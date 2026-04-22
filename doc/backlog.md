@@ -72,14 +72,14 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-041 | 2026-04-21 | UX / Fonctionnel | Paiements / Synthèse | P2 | Rendre la carte `non remis` cliquable pour ouvrir la liste des paiements concernés |
 | BL-042 | 2026-04-21 | UX / Cohérence | Tables / Filtres | P2 | Ajouter un bouton `reset` sur tous les filtres de toutes les tables pour revenir rapidement à l'état initial |
 | BL-043 | 2026-04-21 | UX / Fonctionnel | Comptabilité / Filtres | P2 | Remplacer les filtres de comptes comptables par des combos affichant numéro, nom et couleur des comptes suivis |
-| BL-045 | 2026-04-22 | Sécurité | Authentification | P1 | Ajouter un rate limiting sur `/auth/login` pour bloquer le brute force |
+| BL-045 | 2026-04-22 | Sécurité | Authentification | P1 | ~~Ajouter un rate limiting sur `/auth/login` pour bloquer le brute force~~ — **Fait** |
 | BL-046 | 2026-04-22 | Sécurité | Authentification / Tokens | P1 | Migrer le refresh token vers un cookie HttpOnly au lieu de localStorage |
-| BL-047 | 2026-04-22 | Sécurité | HTTP / Infrastructure | P1 | Ajouter les en-têtes de sécurité HTTP (CSP, HSTS, X-Content-Type-Options, X-Frame-Options) |
+| BL-047 | 2026-04-22 | Sécurité | HTTP / Infrastructure | P1 | ~~Ajouter les en-têtes de sécurité HTTP (CSP, HSTS, X-Content-Type-Options, X-Frame-Options)~~ — **Fait** |
 | BL-048 | 2026-04-22 | Qualité / Tests | Backend / Tests unitaires | P1 | ~~Corriger les 11 tests en échec et la 1 erreur dans la suite backend~~ — **Fait** (environnemental, pas de bug de code) |
 | BL-049 | 2026-04-22 | Qualité / Tests | Backend + Frontend | P1 | Remonter la couverture de test de 29 % vers les objectifs (services ≥ 90 %, API ≥ 80 %, composables ≥ 70 %) |
 | BL-050 | 2026-04-22 | Dette technique | Services / Import Excel | P1 | Refactorer `excel_import.py` (5 038 lignes) en package avec modules < 500 lignes |
 | BL-051 | 2026-04-22 | Fiabilité / Comptabilité | Écritures comptables | P1 | Corriger la numérotation des écritures comptables (COUNT non thread-safe → MAX + lock) |
-| BL-052 | 2026-04-22 | Sécurité | Administration / Données | P1 | Désactiver ou protéger l'endpoint `POST /settings/reset-db` en production |
+| BL-052 | 2026-04-22 | Sécurité | Administration / Données | P1 | ~~Désactiver ou protéger l'endpoint `POST /settings/reset-db` en production~~ — **Fait** |
 | BL-053 | 2026-04-22 | Sécurité | Authentification / Bootstrap | P1 | Forcer le changement du mot de passe admin au premier login |
 | BL-054 | 2026-04-22 | DevOps / Docker | Déploiement | P2 | Séparer les migrations Alembic du démarrage Uvicorn dans le Dockerfile |
 | BL-055 | 2026-04-22 | Sécurité / Config | CORS | P2 | Configurer les origines CORS pour la production au lieu de `allow_origins=[]` |
@@ -89,11 +89,11 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-059 | 2026-04-22 | Sécurité / API | Endpoints de liste | P2 | Ajouter des limites de pagination par défaut (100) et maximum (1 000) sur tous les endpoints de liste |
 | BL-060 | 2026-04-22 | Fiabilité / DB | Schéma | P2 | Retirer `Base.metadata.create_all` de `init_db()` et se reposer uniquement sur Alembic pour le schéma |
 | BL-061 | 2026-04-22 | DevOps / Docker | Monitoring | P2 | Ajouter un HEALTHCHECK Docker pour la supervision Synology |
-| BL-062 | 2026-04-22 | Qualité / Projet | Versions | P2 | Synchroniser les versions frontend (`0.0.0`) et backend (`0.1.0`) |
+| BL-062 | 2026-04-22 | Qualité / Projet | Versions | P2 | ~~Synchroniser les versions frontend (`0.0.0`) et backend (`0.1.0`)~~ — **Fait** |
 | BL-063 | 2026-04-22 | RGPD / Données | Plan comptable | P3 | Retirer les noms de personnes réelles du plan comptable par défaut dans le code source |
-| BL-064 | 2026-04-22 | Qualité / Frontend | Code mort | P3 | Supprimer `stores/counter.ts` (scaffolding Vue non utilisé) |
+| BL-064 | 2026-04-22 | Qualité / Frontend | Code mort | P3 | ~~Supprimer `stores/counter.ts` (scaffolding Vue non utilisé)~~ — **Fait** |
 | BL-065 | 2026-04-22 | Qualité / Backend | Modèles | P3 | Éliminer `__allow_unmapped__` du modèle Payment et utiliser un DTO séparé |
-| BL-066 | 2026-04-22 | Qualité / Backend | Config | P3 | Utiliser `@lru_cache` pour le singleton Settings au lieu du pattern global mutable |
+| BL-066 | 2026-04-22 | Qualité / Backend | Config | P3 | ~~Utiliser `@lru_cache` pour le singleton Settings au lieu du pattern global mutable~~ — **Fait** |
 
 ## Détail des sujets ouverts
 
@@ -159,14 +159,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Avancement actuel** : les constats et écarts déjà expliqués sur la validation `Gestion/Comptabilité 2025` sont désormais suivis dans `doc/dev/bl-026-validation-2025-working-notes.md`, afin de maintenir une liste courte et vivante des deltas confirmés au fur et à mesure des tests.
 - **Point d'attention** : il faut conserver la séparation métier entre `date du paiement` et `date de remise`, sans réécrire artificiellement les dates pour faire coller les comparaisons ; si nécessaire, la validation doit raisonner différemment selon le domaine (`paiement`, `remise`, `banque`, `511200`) ou afficher explicitement les cas de report inter-exercices.
 
-### BL-045 — Rate limiting sur `/auth/login`
-
-- **Dates** : `created=2026-04-22`
-- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S1).
-- **Pourquoi** : l'endpoint de connexion n'a aucun mécanisme de limitation de débit. Un attaquant peut effectuer un nombre illimité de tentatives de mot de passe.
-- **Résultat attendu** : ajouter un rate limiting (ex. `slowapi` ou middleware custom) limitant à 5 tentatives par minute par IP sur `/auth/login`, avec un code `429 Too Many Requests` en retour.
-- **Point d'attention** : ne pas bloquer les tests automatisés ; prévoir un bypass configurable pour l'environnement de test.
-
 ### BL-046 — Migrer le refresh token vers un cookie HttpOnly
 
 - **Dates** : `created=2026-04-22`
@@ -174,14 +166,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Pourquoi** : le refresh token est actuellement stocké en `localStorage`, accessible par n'importe quel JavaScript de la page. Si une dépendance tierce est compromise (XSS supply-chain), l'attaquant récupère le token directement.
 - **Résultat attendu** : stocker le refresh token dans un cookie `HttpOnly`, `Secure`, `SameSite=Strict`. L'access token peut rester en mémoire JavaScript (variable réactive) avec rafraîchissement automatique. Adapter l'intercepteur Axios et le backend pour lire le refresh token depuis le cookie.
 - **Point d'attention** : ce changement impacte le flow d'auth frontend (`stores/auth.ts`), l'intercepteur 401 (`api/client.ts`), et l'endpoint `/auth/refresh` côté backend.
-
-### BL-047 — En-têtes de sécurité HTTP
-
-- **Dates** : `created=2026-04-22`
-- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S3).
-- **Pourquoi** : aucun en-tête de sécurité HTTP n'est configuré (CSP, HSTS, X-Content-Type-Options, X-Frame-Options). En mode mono-conteneur sans reverse proxy, c'est la responsabilité de l'application.
-- **Résultat attendu** : ajouter un middleware FastAPI injectant au minimum `Content-Security-Policy: default-src 'self'; script-src 'self'`, `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`.
-- **Point d'attention** : tester que la CSP ne casse pas le chargement des assets PrimeVue (fonts, CSS inline éventuels).
 
 ### BL-049 — Remonter la couverture de test
 
@@ -206,14 +190,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Pourquoi** : `_next_entry_number()` utilise `SELECT COUNT(*)` pour générer le numéro séquentiel suivant. Deux requêtes concurrentes peuvent produire le même numéro. Avec 1 worker Uvicorn et SQLite, le risque est faible mais viole le principe de fiabilité comptable.
 - **Résultat attendu** : remplacer `COUNT(*)` par `SELECT MAX(entry_number)` avec un verrou approprié, ou utiliser une séquence SQLite (`INSERT` + `last_insert_rowid`). La solution doit garantir l'unicité même en cas de requêtes async concurrentes.
 - **Point d'attention** : vérifier que le changement n'impacte pas les tests existants qui supposent une numérotation consécutive.
-
-### BL-052 — Désactiver ou protéger `reset-db` en production
-
-- **Dates** : `created=2026-04-22`
-- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S5).
-- **Pourquoi** : `POST /api/settings/reset-db` efface toutes les données applicatives et n'est protégé que par le rôle ADMIN. Pas de confirmation supplémentaire, pas de log d'audit, et l'endpoint est actif en production.
-- **Résultat attendu** : au minimum, désactiver cet endpoint quand `debug=False`. Idéalement, ajouter une double confirmation (re-saisie du mot de passe admin) même en mode debug.
-- **Point d'attention** : le reset sélectif de `BL-015` offre déjà une alternative plus ciblée ; `reset-db` ne devrait servir qu'en environnement de test.
 
 ### BL-053 — Forcer le changement du mot de passe admin au premier login
 
@@ -281,13 +257,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Pourquoi** : ni le Dockerfile ni le docker-compose ne déclarent de health check. Le NAS Synology ne peut pas savoir si l'application est fonctionnelle après un redémarrage.
 - **Résultat attendu** : ajouter un `HEALTHCHECK` dans le Dockerfile ciblant un endpoint léger (ex. `/api/docs` ou un `/api/health` dédié) et un `healthcheck:` correspondant dans `docker-compose.yml`.
 
-### BL-062 — Synchroniser les versions frontend / backend
-
-- **Dates** : `created=2026-04-22`
-- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point F3).
-- **Pourquoi** : `pyproject.toml` indique version `0.1.0` alors que `package.json` affiche `0.0.0`. Les versions doivent être synchronisées pour la traçabilité des releases.
-- **Résultat attendu** : aligner `package.json` sur `0.1.0` et s'assurer que le processus de release (documenté dans les instructions Copilot) met à jour les deux fichiers systématiquement.
-
 ### BL-063 — Retirer les noms personnels du plan comptable par défaut (RGPD)
 
 - **Dates** : `created=2026-04-22`
@@ -296,13 +265,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Résultat attendu** : remplacer ces noms par des libellés génériques (« Client litigieux 1 », « Client litigieux 2 ») ou supprimer ces sous-comptes du plan par défaut.
 - **Point d'attention** : ces comptes sont marqués `is_active=False` et `is_default=True` ; ils existent probablement déjà en base pour les imports historiques. La migration doit préserver les données existantes.
 
-### BL-064 — Supprimer `stores/counter.ts` (code mort)
-
-- **Dates** : `created=2026-04-22`
-- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point O3).
-- **Pourquoi** : fichier `stores/counter.ts` généré automatiquement par le scaffolding Vue.js `create-vue`, non utilisé dans l'application.
-- **Résultat attendu** : supprimer le fichier.
-
 ### BL-065 — Éliminer `__allow_unmapped__` du modèle Payment
 
 - **Dates** : `created=2026-04-22`
@@ -310,15 +272,20 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Pourquoi** : le modèle `Payment` utilise `__allow_unmapped__ = True` pour porter des attributs transients (`invoice_number`, `invoice_type`) qui ne sont pas des colonnes. Ce pattern mélange données persistées et données calculées sur le même objet ORM, rendant le modèle ambigu.
 - **Résultat attendu** : déplacer ces attributs vers le schéma Pydantic `PaymentRead` ou un DTO dédié, et retirer `__allow_unmapped__`.
 
-### BL-066 — Settings singleton avec `@lru_cache`
-
-- **Dates** : `created=2026-04-22`
-- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C6).
-- **Pourquoi** : le singleton `get_settings()` utilise un pattern `global _settings` mutable. Avec 1 worker Uvicorn le risque est nul, mais un simple `@lru_cache` serait plus idiomatique et thread-safe.
-- **Résultat attendu** : remplacer le pattern actuel par `@lru_cache` sur `get_settings()`, comme recommandé par la documentation FastAPI.
-
 
 ## Détail des sujets fermés
+
+### BL-045 — Rate limiting sur `/auth/login`
+
+- **Dates** : `created=2026-04-22`, `started=2026-04-22`, `completed=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S1).
+- **Livré parce que** : rate limiter in-memory ajouté (`backend/services/rate_limiter.py`). 5 tentatives échouées par IP dans une fenêtre de 5 minutes déclenchent un HTTP 429. Le compteur se réinitialise après un login réussi. Tests unitaires et d'intégration inclus.
+
+### BL-047 — En-têtes de sécurité HTTP
+
+- **Dates** : `created=2026-04-22`, `started=2026-04-22`, `completed=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S3).
+- **Livré parce que** : middleware HTTP dans `backend/main.py` ajoutant `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection`, `Referrer-Policy` sur toutes les réponses. En production (`debug=False`), HSTS et CSP sont également injectés. Tests d'intégration inclus.
 
 ### BL-048 — Corriger les tests en échec
 
@@ -329,6 +296,30 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 	- Les **11 échecs de parsers** (`test_excel_import_parsers.py`, `test_excel_import_parsing.py`) étaient **transitoires** : relancés isolément, les tests passent tous. Cause probable : cache pytest corrompu (`.pytest_cache`).
 	- L'**erreur sur `test_test_import_shortcuts_list_and_run_configured_file`** était un `PermissionError` Windows : le dossier `C:\Users\…\Temp\pytest-of-*` avait été créé avec des permissions restrictives (SYSTEM + Administrators uniquement, sans accès utilisateur courant). Corrigé par `icacls /grant`.
 - **Livré parce que** : suite complète 739 passed, 0 failed, 0 errors après nettoyage des permissions. Pas de changement de code nécessaire.
+
+### BL-052 — Désactiver ou protéger `reset-db` en production
+
+- **Dates** : `created=2026-04-22`, `started=2026-04-22`, `completed=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S5).
+- **Livré parce que** : l'endpoint `POST /settings/reset-db` retourne maintenant HTTP 403 quand `debug=False` (production). Le test existant a été adapté pour patcher `debug=True`, et un nouveau test vérifie le blocage en production.
+
+### BL-062 — Synchroniser les versions frontend / backend
+
+- **Dates** : `created=2026-04-22`, `started=2026-04-22`, `completed=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point F3).
+- **Livré parce que** : `frontend/package.json` aligné sur `0.1.0` comme `pyproject.toml`.
+
+### BL-064 — Supprimer `stores/counter.ts` (code mort)
+
+- **Dates** : `created=2026-04-22`, `started=2026-04-22`, `completed=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point O3).
+- **Livré parce que** : fichier supprimé. Aucune référence dans le codebase.
+
+### BL-066 — Settings singleton avec `@lru_cache`
+
+- **Dates** : `created=2026-04-22`, `started=2026-04-22`, `completed=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C6).
+- **Livré parce que** : `get_settings()` utilise maintenant `@lru_cache` au lieu du pattern `global _settings`. Le test qui manipulait directement `_settings` a été migré vers `unittest.mock.patch`.
 
 ### BL-001 — Stabiliser la méthode de triage du backlog
 
