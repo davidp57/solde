@@ -69,7 +69,7 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
     },
     {
         "number": "416001",
-        "label": "Client litigieux : Riad ALIOUCHE",
+        "label": "Client litigieux 1",
         "type": "actif",
         "parent_number": "416000",
         "description": "Sous-compte historique conservé pour les imports Excel.",
@@ -78,7 +78,7 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
     },
     {
         "number": "416002",
-        "label": "Client litigieux : Fatou NDOYE/AST",
+        "label": "Client litigieux 2",
         "type": "actif",
         "parent_number": "416000",
         "description": "Sous-compte historique conservé pour les imports Excel.",
