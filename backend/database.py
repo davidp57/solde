@@ -42,29 +42,15 @@ _async_session_factory = async_sessionmaker(
 
 
 async def init_db() -> None:
-    """Create all tables and enable WAL mode. Called at application startup."""
+    """Enable WAL mode and foreign key constraints. Called at application startup.
+
+    Table creation is handled exclusively by Alembic migrations; this function
+    only configures SQLite connection-level PRAGMAs.
+    """
     async with _engine.begin() as conn:
         # Enable WAL mode for better concurrent read performance
         await conn.exec_driver_sql("PRAGMA journal_mode=WAL")
         await conn.exec_driver_sql("PRAGMA foreign_keys=ON")
-        from backend.models import (  # noqa: F401
-            accounting_account,
-            accounting_entry,
-            accounting_rule,
-            app_settings,
-            bank,
-            cash,
-            contact,
-            fiscal_year,
-            import_log,
-            import_run,
-            invoice,
-            payment,
-            salary,
-            user,
-        )
-
-        await conn.run_sync(Base.metadata.create_all)
 
     await _bootstrap_admin()
 
