@@ -50,7 +50,9 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## Priorités proposées pour la prochaine discussion
 
-1. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
+1. **BL-045 à BL-049** — corriger les failles de sécurité critiques (rate limiting, stockage des tokens, en-têtes HTTP) et remettre les tests au vert.
+2. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
+3. **BL-050 à BL-053** — fiabiliser le moteur comptable (numérotation thread-safe), protéger `reset-db`, forcer le changement du mot de passe admin, et planifier le refactoring du god module `excel_import.py`.
 
 ## Récapitulatif des sujets ouverts
 
@@ -70,6 +72,28 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-041 | 2026-04-21 | UX / Fonctionnel | Paiements / Synthèse | P2 | Rendre la carte `non remis` cliquable pour ouvrir la liste des paiements concernés |
 | BL-042 | 2026-04-21 | UX / Cohérence | Tables / Filtres | P2 | Ajouter un bouton `reset` sur tous les filtres de toutes les tables pour revenir rapidement à l'état initial |
 | BL-043 | 2026-04-21 | UX / Fonctionnel | Comptabilité / Filtres | P2 | Remplacer les filtres de comptes comptables par des combos affichant numéro, nom et couleur des comptes suivis |
+| BL-045 | 2026-04-22 | Sécurité | Authentification | P1 | Ajouter un rate limiting sur `/auth/login` pour bloquer le brute force |
+| BL-046 | 2026-04-22 | Sécurité | Authentification / Tokens | P1 | Migrer le refresh token vers un cookie HttpOnly au lieu de localStorage |
+| BL-047 | 2026-04-22 | Sécurité | HTTP / Infrastructure | P1 | Ajouter les en-têtes de sécurité HTTP (CSP, HSTS, X-Content-Type-Options, X-Frame-Options) |
+| BL-048 | 2026-04-22 | Qualité / Tests | Backend / Tests unitaires | P1 | Corriger les 11 tests en échec et la 1 erreur dans la suite backend |
+| BL-049 | 2026-04-22 | Qualité / Tests | Backend + Frontend | P1 | Remonter la couverture de test de 29 % vers les objectifs (services ≥ 90 %, API ≥ 80 %, composables ≥ 70 %) |
+| BL-050 | 2026-04-22 | Dette technique | Services / Import Excel | P1 | Refactorer `excel_import.py` (5 038 lignes) en package avec modules < 500 lignes |
+| BL-051 | 2026-04-22 | Fiabilité / Comptabilité | Écritures comptables | P1 | Corriger la numérotation des écritures comptables (COUNT non thread-safe → MAX + lock) |
+| BL-052 | 2026-04-22 | Sécurité | Administration / Données | P1 | Désactiver ou protéger l'endpoint `POST /settings/reset-db` en production |
+| BL-053 | 2026-04-22 | Sécurité | Authentification / Bootstrap | P1 | Forcer le changement du mot de passe admin au premier login |
+| BL-054 | 2026-04-22 | DevOps / Docker | Déploiement | P2 | Séparer les migrations Alembic du démarrage Uvicorn dans le Dockerfile |
+| BL-055 | 2026-04-22 | Sécurité / Config | CORS | P2 | Configurer les origines CORS pour la production au lieu de `allow_origins=[]` |
+| BL-056 | 2026-04-22 | Sécurité / Traçabilité | Audit | P2 | Ajouter un journal d'audit structuré pour les actions sensibles (connexions, rôles, suppressions) |
+| BL-057 | 2026-04-22 | Dette technique | Backend / ORM | P2 | Créer un TypeDecorator SQLAlchemy pour Decimal afin d'éliminer les ~30 occurrences de `Decimal(str(...))` |
+| BL-058 | 2026-04-22 | Dette technique | Services / Import Excel | P2 | Typer les exceptions dans l'import Excel (remplacer les `except Exception` généralisés) |
+| BL-059 | 2026-04-22 | Sécurité / API | Endpoints de liste | P2 | Ajouter des limites de pagination par défaut (100) et maximum (1 000) sur tous les endpoints de liste |
+| BL-060 | 2026-04-22 | Fiabilité / DB | Schéma | P2 | Retirer `Base.metadata.create_all` de `init_db()` et se reposer uniquement sur Alembic pour le schéma |
+| BL-061 | 2026-04-22 | DevOps / Docker | Monitoring | P2 | Ajouter un HEALTHCHECK Docker pour la supervision Synology |
+| BL-062 | 2026-04-22 | Qualité / Projet | Versions | P2 | Synchroniser les versions frontend (`0.0.0`) et backend (`0.1.0`) |
+| BL-063 | 2026-04-22 | RGPD / Données | Plan comptable | P3 | Retirer les noms de personnes réelles du plan comptable par défaut dans le code source |
+| BL-064 | 2026-04-22 | Qualité / Frontend | Code mort | P3 | Supprimer `stores/counter.ts` (scaffolding Vue non utilisé) |
+| BL-065 | 2026-04-22 | Qualité / Backend | Modèles | P3 | Éliminer `__allow_unmapped__` du modèle Payment et utiliser un DTO séparé |
+| BL-066 | 2026-04-22 | Qualité / Backend | Config | P3 | Utiliser `@lru_cache` pour le singleton Settings au lieu du pattern global mutable |
 
 ## Détail des sujets ouverts
 
@@ -134,6 +158,183 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Résultat attendu** : expliciter noir sur blanc la convention métier et technique retenue pour les chèques inter-exercices, puis aligner la comparaison d'import et la documentation sur cette convention afin qu'un chèque reçu en `N-1` mais remis en banque en `N` ne soit plus interprété comme un écart de paiement si le comportement est attendu.
 - **Avancement actuel** : les constats et écarts déjà expliqués sur la validation `Gestion/Comptabilité 2025` sont désormais suivis dans `doc/dev/bl-026-validation-2025-working-notes.md`, afin de maintenir une liste courte et vivante des deltas confirmés au fur et à mesure des tests.
 - **Point d'attention** : il faut conserver la séparation métier entre `date du paiement` et `date de remise`, sans réécrire artificiellement les dates pour faire coller les comparaisons ; si nécessaire, la validation doit raisonner différemment selon le domaine (`paiement`, `remise`, `banque`, `511200`) ou afficher explicitement les cas de report inter-exercices.
+
+### BL-045 — Rate limiting sur `/auth/login`
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S1).
+- **Pourquoi** : l'endpoint de connexion n'a aucun mécanisme de limitation de débit. Un attaquant peut effectuer un nombre illimité de tentatives de mot de passe.
+- **Résultat attendu** : ajouter un rate limiting (ex. `slowapi` ou middleware custom) limitant à 5 tentatives par minute par IP sur `/auth/login`, avec un code `429 Too Many Requests` en retour.
+- **Point d'attention** : ne pas bloquer les tests automatisés ; prévoir un bypass configurable pour l'environnement de test.
+
+### BL-046 — Migrer le refresh token vers un cookie HttpOnly
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S2).
+- **Pourquoi** : le refresh token est actuellement stocké en `localStorage`, accessible par n'importe quel JavaScript de la page. Si une dépendance tierce est compromise (XSS supply-chain), l'attaquant récupère le token directement.
+- **Résultat attendu** : stocker le refresh token dans un cookie `HttpOnly`, `Secure`, `SameSite=Strict`. L'access token peut rester en mémoire JavaScript (variable réactive) avec rafraîchissement automatique. Adapter l'intercepteur Axios et le backend pour lire le refresh token depuis le cookie.
+- **Point d'attention** : ce changement impacte le flow d'auth frontend (`stores/auth.ts`), l'intercepteur 401 (`api/client.ts`), et l'endpoint `/auth/refresh` côté backend.
+
+### BL-047 — En-têtes de sécurité HTTP
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S3).
+- **Pourquoi** : aucun en-tête de sécurité HTTP n'est configuré (CSP, HSTS, X-Content-Type-Options, X-Frame-Options). En mode mono-conteneur sans reverse proxy, c'est la responsabilité de l'application.
+- **Résultat attendu** : ajouter un middleware FastAPI injectant au minimum `Content-Security-Policy: default-src 'self'; script-src 'self'`, `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`.
+- **Point d'attention** : tester que la CSP ne casse pas le chargement des assets PrimeVue (fonts, CSS inline éventuels).
+
+### BL-048 — Corriger les tests en échec
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point T1).
+- **Pourquoi** : la suite backend comporte 11 tests en échec et 1 erreur. Cela indique des régressions non corrigées ou du code qui a évolué sans mise à jour des tests. Situation incompatible avec la discipline TDD prescrite.
+- **Résultat attendu** : tous les tests passent au vert. Les tests cassés concernent principalement le parsing Excel (`test_excel_import_parsers.py`, `test_excel_import_parsing.py`) et l'API d'import de test.
+- **Tests en échec identifiés** :
+	- `test_parse_invoice_sheet_extracts_optional_cs_a_components`
+	- `test_parse_invoice_sheet_accepts_zero_value_cs_a_component`
+	- `test_parse_invoice_sheet_blocks_inconsistent_explicit_cs_a_components`
+	- `test_parse_payment_sheet_normalizes_payment_fields`
+	- `test_parse_cash_sheet_ignores_safe_rows_and_parses_signed_amount`
+	- `test_parse_bank_sheet_ignores_balance_description_and_parses_credit_debit`
+	- `test_parse_entries_sheet_ignores_zero_rows_and_reports_invalid_amounts`
+	- `test_parse_entries_sheet_keeps_change_num_marker`
+	- `test_parse_date_handles_datetime_and_string_formats`
+	- 2 autres échecs dans la même famille
+	- 1 erreur sur `test_test_import_shortcuts_list_and_run_configured_file`
+
+### BL-049 — Remonter la couverture de test
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point T2).
+- **Pourquoi** : la couverture de test backend est à 29 %, loin des objectifs fixés par le projet (services métier ≥ 90 %, API ≥ 80 %, composables frontend ≥ 70 %). Certains services critiques sont à peine couverts (`settings.py` 21 %, `salary_service.py` 25 %).
+- **Résultat attendu** : monter la couverture de manière incrémentale ; viser un palier intermédiaire réaliste de 60 % global avant d'attaquer les cibles finales. Prioriser les services métier critiques (accounting engine, fiscal year, payment, invoice).
+- **Point d'attention** : ce ticket est un chantier continu ; chaque nouvelle fonctionnalité doit respecter les cibles de couverture dès la livraison.
+
+### BL-050 — Refactorer `excel_import.py` en package
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point P1).
+- **Pourquoi** : `services/excel_import.py` fait 5 038 lignes. C'est un god module ingérable qui concentre plus de 15 blocs `except Exception` et rend la revue de code, le test ciblé et la maintenance pratiquement impossibles.
+- **Résultat attendu** : transformer `services/excel_import.py` en un package `services/excel_import/` avec des sous-modules dédiés (orchestrateur, contacts, factures, paiements, comptabilité, salaires), chacun sous les 500 lignes. Conserver les mêmes interfaces publiques pour ne pas casser les routeurs ni les tests existants.
+- **Point d'attention** : ce refactoring doit être purement structurel, sans changement de comportement. Les tests existants doivent rester au vert tout au long du processus. `import_reversible.py` (3 030 lignes) est un candidat similaire pour un second lot.
+
+### BL-051 — Numérotation des écritures comptables thread-safe
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C1).
+- **Pourquoi** : `_next_entry_number()` utilise `SELECT COUNT(*)` pour générer le numéro séquentiel suivant. Deux requêtes concurrentes peuvent produire le même numéro. Avec 1 worker Uvicorn et SQLite, le risque est faible mais viole le principe de fiabilité comptable.
+- **Résultat attendu** : remplacer `COUNT(*)` par `SELECT MAX(entry_number)` avec un verrou approprié, ou utiliser une séquence SQLite (`INSERT` + `last_insert_rowid`). La solution doit garantir l'unicité même en cas de requêtes async concurrentes.
+- **Point d'attention** : vérifier que le changement n'impacte pas les tests existants qui supposent une numérotation consécutive.
+
+### BL-052 — Désactiver ou protéger `reset-db` en production
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S5).
+- **Pourquoi** : `POST /api/settings/reset-db` efface toutes les données applicatives et n'est protégé que par le rôle ADMIN. Pas de confirmation supplémentaire, pas de log d'audit, et l'endpoint est actif en production.
+- **Résultat attendu** : au minimum, désactiver cet endpoint quand `debug=False`. Idéalement, ajouter une double confirmation (re-saisie du mot de passe admin) même en mode debug.
+- **Point d'attention** : le reset sélectif de `BL-015` offre déjà une alternative plus ciblée ; `reset-db` ne devrait servir qu'en environnement de test.
+
+### BL-053 — Forcer le changement du mot de passe admin au premier login
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S6).
+- **Pourquoi** : le bootstrap crée un admin avec le mot de passe `changeme`. Si l'administrateur ne le change pas, l'application reste accessible avec des credentials triviaux indéfiniment.
+- **Résultat attendu** : ajouter un flag `must_change_password` au modèle `User`. L'activer au bootstrap et après chaque reset administrateur. L'application doit rediriger vers un écran de changement de mot de passe tant que ce flag est actif, et bloquer l'accès aux autres fonctionnalités.
+- **Point d'attention** : ne pas casser le flow de test automatisé ; le flag doit pouvoir être désactivé en fixture de test.
+
+### BL-054 — Séparer les migrations Alembic du démarrage Uvicorn
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point K1).
+- **Pourquoi** : le `CMD` Docker fait `alembic upgrade head && uvicorn ...`. Si la migration échoue, le `&&` shell masque la cause. De plus, les migrations s'exécutent à chaque redémarrage du conteneur.
+- **Résultat attendu** : utiliser un script `entrypoint.sh` dédié avec gestion d'erreurs explicite, ou séparer la migration dans un step `docker-compose` distinct.
+
+### BL-055 — Configurer les origines CORS pour la production
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S4).
+- **Pourquoi** : en mode production (`debug=False`), `allow_origins=[]` bloque toute origine. Le frontend servi depuis le même conteneur fonctionne (même origine), mais un accès via reverse proxy ou sous-domaine serait bloqué silencieusement.
+- **Résultat attendu** : ajouter un paramètre `cors_allowed_origins` dans les settings pour la production, ou ne pas configurer CORS du tout si le frontend est toujours servi du même domaine (ce qui est le cas dans l'architecture mono-conteneur actuelle).
+
+### BL-056 — Journal d'audit structuré
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S8).
+- **Pourquoi** : les échecs de connexion, les changements de rôle, les suppressions de données et les accès aux endpoints dangereux ne sont pas tracés dans un journal d'audit structuré. Le log applicatif standard ne suffit pas pour un contexte associatif gérant des données financières.
+- **Résultat attendu** : implémenter un journal d'audit minimal (table dédiée ou log structuré JSON) traçant au minimum les connexions réussies/échouées, les changements de rôle et d'activation, les réinitialisations de mot de passe, et les opérations de suppression massive.
+
+### BL-057 — TypeDecorator Decimal pour l'ORM
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C2).
+- **Pourquoi** : environ 30 occurrences de `Decimal(str(e.debit))` et similaires sont éparpillées dans les services. Les colonnes `Numeric` de SQLAlchemy avec `aiosqlite` retournent parfois des `float` au lieu de `Decimal`. Le contournement fonctionne mais est fragile et verbeux.
+- **Résultat attendu** : créer un `TypeDecorator` SQLAlchemy personnalisé qui garantit le retour en `Decimal` nativement, puis éliminer les conversions manuelles.
+- **Point d'attention** : vérifier la compatibilité avec les migrations Alembic existantes ; le type stocké ne doit pas changer.
+
+### BL-058 — Typer les exceptions dans l'import Excel
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C3).
+- **Pourquoi** : plus de 15 blocs `except Exception` dans `excel_import.py` et les routeurs associés. Ce pattern attrape tout, y compris des erreurs de programmation, et masque les problèmes.
+- **Résultat attendu** : remplacer les `except Exception` par des exceptions métier typées (`ImportParseError`, `ImportValidationError`, etc.) et ne garder les catches génériques qu'au point d'entrée du routeur, avec un log explicite.
+- **Point d'attention** : ce ticket dépend logiquement de `BL-050` (refactoring du module) ; il peut être traité en même temps ou juste après.
+
+### BL-059 — Pagination bornée par défaut
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C4).
+- **Pourquoi** : tous les endpoints de liste (`/invoices/`, `/contacts/`, `/payments/`, etc.) ont `limit=None` par défaut. Un client peut récupérer la totalité de la base en une seule requête, ce qui est un risque de déni de service.
+- **Résultat attendu** : ajouter un `limit` par défaut de 100 et un `max_limit` de 1 000 sur tous les endpoints de liste. Adapter le frontend si nécessaire pour paginer.
+
+### BL-060 — Retirer `create_all` de `init_db()`
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point D1).
+- **Pourquoi** : `init_db()` appelle `Base.metadata.create_all` en plus des migrations Alembic. Si une migration est oubliée, `create_all` masque le problème en dev mais pas en production. C'est une source classique de divergence de schéma.
+- **Résultat attendu** : retirer `create_all` de `init_db()` et se reposer uniquement sur Alembic. Conserver `create_all` uniquement dans la fixture de test (`conftest.py`).
+
+### BL-061 — Docker HEALTHCHECK
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point K2).
+- **Pourquoi** : ni le Dockerfile ni le docker-compose ne déclarent de health check. Le NAS Synology ne peut pas savoir si l'application est fonctionnelle après un redémarrage.
+- **Résultat attendu** : ajouter un `HEALTHCHECK` dans le Dockerfile ciblant un endpoint léger (ex. `/api/docs` ou un `/api/health` dédié) et un `healthcheck:` correspondant dans `docker-compose.yml`.
+
+### BL-062 — Synchroniser les versions frontend / backend
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point F3).
+- **Pourquoi** : `pyproject.toml` indique version `0.1.0` alors que `package.json` affiche `0.0.0`. Les versions doivent être synchronisées pour la traçabilité des releases.
+- **Résultat attendu** : aligner `package.json` sur `0.1.0` et s'assurer que le processus de release (documenté dans les instructions Copilot) met à jour les deux fichiers systématiquement.
+
+### BL-063 — Retirer les noms personnels du plan comptable par défaut (RGPD)
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point D3).
+- **Pourquoi** : le plan comptable par défaut dans `models/accounting_account.py` contient des noms de personnes réelles en dur (« Riad ALIOUCHE », « Fatou NDOYE/AST »). Ces données personnelles ne doivent pas figurer dans le code source d'un dépôt potentiellement public.
+- **Résultat attendu** : remplacer ces noms par des libellés génériques (« Client litigieux 1 », « Client litigieux 2 ») ou supprimer ces sous-comptes du plan par défaut.
+- **Point d'attention** : ces comptes sont marqués `is_active=False` et `is_default=True` ; ils existent probablement déjà en base pour les imports historiques. La migration doit préserver les données existantes.
+
+### BL-064 — Supprimer `stores/counter.ts` (code mort)
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point O3).
+- **Pourquoi** : fichier `stores/counter.ts` généré automatiquement par le scaffolding Vue.js `create-vue`, non utilisé dans l'application.
+- **Résultat attendu** : supprimer le fichier.
+
+### BL-065 — Éliminer `__allow_unmapped__` du modèle Payment
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point P3).
+- **Pourquoi** : le modèle `Payment` utilise `__allow_unmapped__ = True` pour porter des attributs transients (`invoice_number`, `invoice_type`) qui ne sont pas des colonnes. Ce pattern mélange données persistées et données calculées sur le même objet ORM, rendant le modèle ambigu.
+- **Résultat attendu** : déplacer ces attributs vers le schéma Pydantic `PaymentRead` ou un DTO dédié, et retirer `__allow_unmapped__`.
+
+### BL-066 — Settings singleton avec `@lru_cache`
+
+- **Dates** : `created=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C6).
+- **Pourquoi** : le singleton `get_settings()` utilise un pattern `global _settings` mutable. Avec 1 worker Uvicorn le risque est nul, mais un simple `@lru_cache` serait plus idiomatique et thread-safe.
+- **Résultat attendu** : remplacer le pattern actuel par `@lru_cache` sur `get_settings()`, comme recommandé par la documentation FastAPI.
 
 
 ## Détail des sujets fermés
