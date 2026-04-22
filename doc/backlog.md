@@ -54,6 +54,74 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 2. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
 3. **BL-050 à BL-053** — fiabiliser le moteur comptable (numérotation thread-safe), protéger `reset-db`, forcer le changement du mot de passe admin, et planifier le refactoring du god module `excel_import.py`.
 
+## Review Claude — Plan d'action BL-045 à BL-066 (2026-04-22)
+
+Plan issu de la revue de l'audit technique du 22/04/2026 avec estimations en mode autopilot (implémentation + tests + quality gates).
+
+### Lot 1 — Quick wins P3 — ~45 min
+
+| Ticket | Estimation | Détail |
+|--------|-----------|--------|
+| BL-064 | 5 min | Supprimer un fichier + vérifier qu'il n'est pas importé |
+| BL-062 | 5 min | Changer une string dans `package.json` |
+| BL-066 | 20 min | Remplacer le pattern `global` par `@lru_cache`, vérifier les tests |
+| BL-063 | 15 min | Remplacer 2 noms dans les fixtures + migration Alembic si nécessaire |
+
+### Lot 2 — Tests au vert (BL-048) — ~2h
+
+11 échecs dans `excel_import_parsers` / `excel_import_parsing` + 1 erreur sur l'API de test. Diagnostic préalable (30 min) + corrections ciblées (1h30). Bloquant pour tout le reste.
+
+### Lot 3 — Sécurité sans impact structurel — ~2h30
+
+| Ticket | Estimation | Détail |
+|--------|-----------|--------|
+| BL-047 | 30 min | Middleware FastAPI (5 en-têtes) + test CSP sur assets PrimeVue |
+| BL-052 | 20 min | Conditionner l'endpoint sur `settings.debug` + test |
+| BL-055 | 20 min | Paramètre `cors_allowed_origins` + comportement par défaut |
+| BL-060 | 30 min | Retirer `create_all` de `init_db()`, garder dans `conftest.py` |
+| BL-051 | 50 min | `MAX(entry_number)` + lock + migration + tests de concurrence |
+
+### Lot 4 — Qualité backend sans impact API — ~4h30
+
+| Ticket | Estimation | Détail |
+|--------|-----------|--------|
+| BL-065 | 1h | Déplacer `invoice_number`/`invoice_type` vers `PaymentRead`, retirer `__allow_unmapped__` |
+| BL-057 | 2h | Créer le `TypeDecorator`, repasser sur ~30 occurrences, valider les tests |
+| BL-059 | 1h30 | `limit=100` / `max=1000` sur tous les endpoints de liste (backend + adapter frontend si besoin) |
+
+### Lot 5 — Sécurité auth (frontend + backend couplés) — ~7h
+
+| Ticket | Estimation | Détail |
+|--------|-----------|--------|
+| BL-045 | 1h | Intégrer `slowapi` + décorateur sur `/auth/login` + bypass test |
+| BL-053 | 2h | Migration `must_change_password` + endpoint + guard frontend + fixture test |
+| BL-046 | 4h | Cookie `HttpOnly` backend + intercepteur Axios + store auth + `/auth/refresh` — impact full-stack |
+
+### Lot 6 — DevOps Docker — ~1h
+
+| Ticket | Estimation | Détail |
+|--------|-----------|--------|
+| BL-054 | 40 min | `entrypoint.sh` avec gestion d'erreur explicite + mise à jour `Dockerfile` |
+| BL-061 | 20 min | `HEALTHCHECK` dans `Dockerfile` + `docker-compose.yml` |
+
+### Lot 7 — Refactoring structurel — ~8h
+
+| Ticket | Estimation | Détail |
+|--------|-----------|--------|
+| BL-050 | 6h | Éclater `excel_import.py` (5 038 L) en package — risque élevé, tests continus |
+| BL-058 | 2h | Typer les 15+ `except Exception` (après BL-050) |
+
+### Lot 8 — Chantiers longs — ~15h+
+
+| Ticket | Estimation | Détail |
+|--------|-----------|--------|
+| BL-056 | 3-4h | Table d'audit + middleware + 4 types d'événements tracés |
+| BL-049 | 10-15h | Palier 29 % → 60 % sur les services critiques (chantier continu) |
+
+**Total estimé : ~40h.** Ordre recommandé : Lot 1 + Lot 2 (base saine, ~3h), puis Lot 3 (sécurité sans casse), puis Lots 4-6 en parallèle selon disponibilité, enfin Lots 7-8.
+
+---
+
 ## Récapitulatif des sujets ouverts
 
 | ID | Créé le | Type | Zone | Priorité proposée | Sujet |
