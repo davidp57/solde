@@ -39,6 +39,7 @@ class _Reconcilable(Protocol):
 
     id: int
 
+
 _CURRENT_ACCOUNT_NUMBER = "512100"
 _SAVINGS_ACCOUNT_NUMBER = "512102"
 _FISCAL_YEAR_OPENING_LABEL_PREFIX = "Ouverture de l'exercice comptable"
@@ -118,9 +119,7 @@ async def _require_linkable_payment(
     if payment.method != PaymentMethod.VIREMENT:
         invoice_kind = "client" if invoice_type == InvoiceType.CLIENT else "supplier"
         raise ValueError(f"only existing {invoice_kind} virement payments can be linked")
-    inv_result = await db.execute(
-        select(Invoice.type).where(Invoice.id == payment.invoice_id)
-    )
+    inv_result = await db.execute(select(Invoice.type).where(Invoice.id == payment.invoice_id))
     actual_type = inv_result.scalar_one_or_none()
     if actual_type != invoice_type:
         invoice_kind = "client" if invoice_type == InvoiceType.CLIENT else "supplier"
@@ -199,7 +198,7 @@ async def _finalize_payment_links(
     expected_amount: Decimal,
     error_message: str,
 ) -> BankTransaction:
-    payments_total = sum((Decimal(str(payment.amount)) for payment in payments), start=Decimal("0"))
+    payments_total = sum((payment.amount for payment in payments), start=Decimal("0"))
     if payments_total != expected_amount:
         raise ValueError(error_message)
 
@@ -229,7 +228,7 @@ async def recompute_bank_balances(db: AsyncSession) -> bool:
     running_balance = Decimal("0")
     changed = False
     for entry in result.scalars().all():
-        running_balance += Decimal(str(entry.amount))
+        running_balance += entry.amount
         if entry.balance_after != running_balance:
             entry.balance_after = running_balance
             changed = True
@@ -295,7 +294,7 @@ async def list_transactions(
     to_date: date | None = None,
     unreconciled_only: bool = False,
     skip: int = 0,
-    limit: int | None = None,
+    limit: int = 100,
 ) -> list[BankTransaction]:
     query = select(BankTransaction)
     if from_date is not None:
@@ -306,8 +305,7 @@ async def list_transactions(
         query = query.where(BankTransaction.reconciled == False)  # noqa: E712
     query = query.order_by(BankTransaction.date.desc(), BankTransaction.id.desc())
     query = query.offset(skip)
-    if limit is not None:
-        query = query.limit(limit)
+    query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -427,7 +425,7 @@ async def create_client_payment_from_transaction(
     payment = await payment_service.create_bank_reconciled_client_payment(
         db,
         invoice_id=invoice_id,
-        amount=Decimal(str(tx.amount)),
+        amount=tx.amount,
         payment_date=tx.date,
         reference=tx.reference,
         notes=tx.description or None,
@@ -453,9 +451,9 @@ async def create_client_payments_from_transaction(
     _require_transaction_direction(tx, positive=True, purpose="create client payments")
     await _require_unreconciled_transaction(db, tx)
 
-    expected_amount = Decimal(str(tx.amount))
+    expected_amount = tx.amount
     allocated_amount = sum(
-        (Decimal(str(allocation.amount)) for allocation in payload.allocations),
+        (allocation.amount for allocation in payload.allocations),
         start=Decimal("0"),
     )
     if allocated_amount != expected_amount:
@@ -466,7 +464,7 @@ async def create_client_payments_from_transaction(
         payment = await payment_service.create_bank_reconciled_client_payment(
             db,
             invoice_id=allocation.invoice_id,
-            amount=Decimal(str(allocation.amount)),
+            amount=allocation.amount,
             payment_date=tx.date,
             reference=tx.reference,
             notes=tx.description or None,
@@ -497,7 +495,7 @@ async def create_supplier_payment_from_transaction(
     payment = await payment_service.create_bank_reconciled_supplier_payment(
         db,
         invoice_id=invoice_id,
-        amount=abs(Decimal(str(tx.amount))),
+        amount=abs(tx.amount),
         payment_date=tx.date,
         reference=tx.reference,
         notes=tx.description or None,
@@ -536,7 +534,7 @@ async def link_client_payment_to_transaction(
         db,
         tx=tx,
         payment=payment,
-        expected_amount=Decimal(str(tx.amount)),
+        expected_amount=tx.amount,
     )
 
 
@@ -570,7 +568,7 @@ async def link_client_payments_to_transaction(
         db,
         tx=tx,
         payments=payments,
-        expected_amount=Decimal(str(tx.amount)),
+        expected_amount=tx.amount,
         error_message="linked payments total must match bank transaction amount",
     )
 
@@ -601,7 +599,7 @@ async def link_supplier_payment_to_transaction(
         db,
         tx=tx,
         payment=payment,
-        expected_amount=abs(Decimal(str(tx.amount))),
+        expected_amount=abs(tx.amount),
     )
 
 
@@ -632,7 +630,7 @@ async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
     if invalid_payment is not None:
         raise ValueError("deposit payments must match the selected deposit type")
 
-    total_amount = sum((Decimal(str(payment.amount)) for payment in payments), Decimal("0"))
+    total_amount = sum((payment.amount for payment in payments), Decimal("0"))
 
     deposit = Deposit(
         date=payload.date,
@@ -732,7 +730,7 @@ async def list_deposits(
     from_date: date | None = None,
     to_date: date | None = None,
     skip: int = 0,
-    limit: int | None = None,
+    limit: int = 100,
 ) -> list[Deposit]:
     query = select(Deposit)
     if from_date is not None:
@@ -740,8 +738,7 @@ async def list_deposits(
     if to_date is not None:
         query = query.where(Deposit.date <= to_date)
     query = query.order_by(Deposit.date.desc(), Deposit.id.desc()).offset(skip)
-    if limit is not None:
-        query = query.limit(limit)
+    query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 

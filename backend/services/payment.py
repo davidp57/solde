@@ -170,7 +170,7 @@ async def list_payments(
     to_date: date | None = None,
     undeposited_only: bool = False,
     skip: int = 0,
-    limit: int | None = None,
+    limit: int = 100,
 ) -> list[PaymentRead]:
     query = select(Payment)
     if invoice_id is not None:
@@ -188,8 +188,7 @@ async def list_payments(
     if undeposited_only:
         query = query.where(Payment.deposited == False)  # noqa: E712
     query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip)
-    if limit is not None:
-        query = query.limit(limit)
+    query = query.limit(limit)
     result = await db.execute(query)
     payments_orm = list(result.scalars().all())
     return [await _to_payment_read(db, p) for p in payments_orm]
@@ -305,7 +304,7 @@ async def _create_treasury_entries_for_payment(
         await create_cash_entry_record(
             db,
             date=payment.date,
-            amount=Decimal(str(payment.amount)),
+            amount=payment.amount,
             type=CashMovementType.IN,
             contact_id=payment.contact_id,
             payment_id=payment.id,

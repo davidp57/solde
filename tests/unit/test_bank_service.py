@@ -113,7 +113,6 @@ async def test_list_transactions_filter_by_date_range(db_session: AsyncSession) 
         db_session,
         from_date=date(2024, 8, 1),
         to_date=date(2025, 7, 31),
-        limit=None,
     )
 
     assert [tx.id for tx in txs] == [kept.id]
@@ -846,7 +845,6 @@ async def test_list_deposits_filter_by_date_range(db_session: AsyncSession) -> N
         db_session,
         from_date=date(2024, 8, 1),
         to_date=date(2025, 7, 31),
-        limit=None,
     )
 
     assert [deposit.id for deposit in deposits] == [kept.id]

@@ -81,7 +81,7 @@ async def _query_journal_entries(
     source_type: EntrySourceType | None = None,
     fiscal_year_id: int | None = None,
     skip: int = 0,
-    limit: int | None = None,
+    limit: int = 100,
 ) -> list[AccountingEntry]:
     query = select(AccountingEntry)
     if from_date:
@@ -96,8 +96,7 @@ async def _query_journal_entries(
         query = query.where(AccountingEntry.fiscal_year_id == fiscal_year_id)
     query = query.order_by(AccountingEntry.date.asc(), AccountingEntry.id.asc())
     query = query.offset(skip)
-    if limit is not None:
-        query = query.limit(limit)
+    query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -276,8 +275,8 @@ async def _enrich_journal_entries(
                 account_number=entry.account_number,
                 account_label=account_labels.get(entry.account_number, entry.account_number),
                 label=entry.label,
-                debit=Decimal(str(entry.debit)),
-                credit=Decimal(str(entry.credit)),
+                debit=entry.debit,
+                credit=entry.credit,
                 fiscal_year_id=entry.fiscal_year_id,
                 source_type=entry.source_type,
                 source_id=entry.source_id,
@@ -375,7 +374,7 @@ async def get_journal(
     source_type: EntrySourceType | None = None,
     fiscal_year_id: int | None = None,
     skip: int = 0,
-    limit: int | None = None,
+    limit: int = 100,
 ) -> list[AccountingEntryRead]:
     entries = await _query_journal_entries(
         db,
@@ -399,7 +398,7 @@ async def get_grouped_journal(
     source_type: EntrySourceType | None = None,
     fiscal_year_id: int | None = None,
     skip: int = 0,
-    limit: int | None = None,
+    limit: int = 100,
 ) -> list[AccountingEntryGroupRead]:
     matched_entries = await _query_journal_entries(
         db,
@@ -451,8 +450,7 @@ async def get_grouped_journal(
 
     if skip:
         groups = groups[skip:]
-    if limit is not None:
-        groups = groups[:limit]
+    groups = groups[:limit]
     return groups
 
 
@@ -483,8 +481,8 @@ async def get_balance(
         acct = e.account_number
         if acct not in totals:
             totals[acct] = {"debit": Decimal("0"), "credit": Decimal("0")}
-        totals[acct]["debit"] += Decimal(str(e.debit))
-        totals[acct]["credit"] += Decimal(str(e.credit))
+        totals[acct]["debit"] += e.debit
+        totals[acct]["credit"] += e.credit
 
     # Look up account labels
     account_map: dict[str, AccountingAccount] = {}
@@ -564,15 +562,15 @@ async def get_ledger(
     running = opening
     ledger_entries: list[LedgerEntry] = []
     for e in entries:
-        running += Decimal(str(e.debit)) - Decimal(str(e.credit))
+        running += e.debit - e.credit
         ledger_entries.append(
             LedgerEntry(
                 id=e.id,
                 entry_number=e.entry_number,
                 date=e.date,
                 label=e.label,
-                debit=Decimal(str(e.debit)),
-                credit=Decimal(str(e.credit)),
+                debit=e.debit,
+                credit=e.credit,
                 running_balance=running,
             )
         )
@@ -615,15 +613,11 @@ async def _compute_resultat(
             continue
         if acct.type == AccountType.CHARGE:
             charges[e.account_number] = (
-                charges.get(e.account_number, Decimal("0"))
-                + Decimal(str(e.debit))
-                - Decimal(str(e.credit))
+                charges.get(e.account_number, Decimal("0")) + e.debit - e.credit
             )
         elif acct.type == AccountType.PRODUIT:
             produits[e.account_number] = (
-                produits.get(e.account_number, Decimal("0"))
-                + Decimal(str(e.credit))
-                - Decimal(str(e.debit))
+                produits.get(e.account_number, Decimal("0")) + e.credit - e.debit
             )
 
     return sum(charges.values(), Decimal("0")), sum(produits.values(), Decimal("0"))
@@ -649,15 +643,11 @@ async def get_resultat(db: AsyncSession, fiscal_year_id: int | None = None) -> R
             continue
         if acct.type == AccountType.CHARGE:
             charge_totals[e.account_number] = (
-                charge_totals.get(e.account_number, Decimal("0"))
-                + Decimal(str(e.debit))
-                - Decimal(str(e.credit))
+                charge_totals.get(e.account_number, Decimal("0")) + e.debit - e.credit
             )
         elif acct.type == AccountType.PRODUIT:
             produit_totals[e.account_number] = (
-                produit_totals.get(e.account_number, Decimal("0"))
-                + Decimal(str(e.credit))
-                - Decimal(str(e.debit))
+                produit_totals.get(e.account_number, Decimal("0")) + e.credit - e.debit
             )
 
     charges_rows = [
@@ -761,7 +751,7 @@ async def update_manual_entry(
     if primary_entry.id == counterpart_entry.id:
         raise ValueError("manual entry pair must contain two distinct lines")
 
-    debit_entry = primary_entry if Decimal(str(primary_entry.debit)) > 0 else counterpart_entry
+    debit_entry = primary_entry if primary_entry.debit > 0 else counterpart_entry
     credit_entry = counterpart_entry if debit_entry is primary_entry else primary_entry
     manual_group_id = (
         debit_entry.source_id or credit_entry.source_id or min(debit_entry.id, credit_entry.id)
