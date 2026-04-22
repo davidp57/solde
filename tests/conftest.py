@@ -1,10 +1,24 @@
 """Shared pytest fixtures for all tests."""
 
+# ---------------------------------------------------------------------------
+# Speed up bcrypt in tests: reduce rounds from 12 (default, ~250 ms/op) to 4
+# (minimum, ~4 ms/op).  Must run before any module calls bcrypt.gensalt().
+# ---------------------------------------------------------------------------
+import bcrypt as _bcrypt_module
+
+_original_gensalt = _bcrypt_module.gensalt
+_bcrypt_module.gensalt = lambda rounds=4, prefix=b"2b": _original_gensalt(
+    rounds=rounds, prefix=prefix
+)
+# ---------------------------------------------------------------------------
+
 from collections.abc import AsyncGenerator
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import StaticPool
 
 from backend.database import Base, get_db
 from backend.models import (
@@ -69,10 +83,16 @@ _REGISTERED_MODEL_MODULES = (
     _user_module,
 )
 
-# In-memory SQLite for tests
+# In-memory SQLite for tests — StaticPool keeps a single connection alive
+# so the database persists across the session-scoped event loop.
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-_test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+_test_engine = create_async_engine(
+    TEST_DATABASE_URL,
+    echo=False,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
 _test_session_factory = async_sessionmaker(
     _test_engine,
     class_=AsyncSession,
@@ -81,14 +101,26 @@ _test_session_factory = async_sessionmaker(
 )
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def setup_test_db() -> AsyncGenerator[None, None]:
-    """Create all tables before each test and drop them after."""
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def _create_test_schema() -> AsyncGenerator[None, None]:
+    """Create all tables once for the entire test session."""
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with _test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    await _test_engine.dispose()
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def _cleanup_test_data() -> AsyncGenerator[None, None]:
+    """Truncate all tables after each test (much faster than DDL create/drop)."""
+    yield
+    async with _test_engine.begin() as conn:
+        await conn.execute(text("PRAGMA foreign_keys=OFF"))
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(table.delete())
+        await conn.execute(text("PRAGMA foreign_keys=ON"))
 
 
 @pytest_asyncio.fixture
