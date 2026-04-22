@@ -5,6 +5,7 @@ from typing import Annotated, NoReturn
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.config import get_settings as get_app_config
 from backend.database import get_db
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
@@ -80,7 +81,13 @@ async def reset_db(
     """Delete all application data except users. Admin only.
 
     Intended for demos and user-acceptance testing.
+    Disabled in production (debug=False).
     """
+    if not get_app_config().debug:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Database reset is only available in debug mode",
+        )
     return await settings_service.reset_data(db)
 
 
