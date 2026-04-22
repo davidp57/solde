@@ -49,7 +49,7 @@ async def list_payments(
         skip=skip,
         limit=limit,
     )
-    return payments  # type: ignore[return-value]
+    return payments
 
 
 @router.post("/", response_model=PaymentRead, status_code=status.HTTP_201_CREATED)
@@ -64,7 +64,7 @@ async def create_payment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return payment  # type: ignore[return-value]
+    return payment
 
 
 @router.get("/{payment_id}", response_model=PaymentRead)
@@ -76,7 +76,7 @@ async def get_payment(
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
-    return payment  # type: ignore[return-value]
+    return payment
 
 
 @router.put("/{payment_id}", response_model=PaymentRead)
@@ -86,14 +86,13 @@ async def update_payment(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _WriteAccess,
 ) -> PaymentRead:
-    payment = await payment_service.get_payment(db, payment_id)
-    if payment is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
     try:
-        updated = await payment_service.update_payment(db, payment, payload)
+        updated = await payment_service.update_payment(db, payment_id, payload)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return updated  # type: ignore[return-value]
+    return updated
 
 
 @router.delete("/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -106,6 +105,6 @@ async def delete_payment(
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
     try:
-        await payment_service.delete_payment(db, payment)
+        await payment_service.delete_payment(db, payment_id)
     except payment_service.PaymentDeleteError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
