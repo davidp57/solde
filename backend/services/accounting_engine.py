@@ -52,9 +52,7 @@ async def _next_entry_number(db: AsyncSession) -> str:
     SQLite serialises all writes on a single connection, so a separate
     exclusive lock is not required with the single-worker deployment target.
     """
-    result = await db.execute(
-        select(func.max(AccountingEntry.entry_number))
-    )
+    result = await db.execute(select(func.max(AccountingEntry.entry_number)))
     current_max: str | None = result.scalar_one_or_none()
     if current_max is None:
         next_num = 1
@@ -182,10 +180,10 @@ async def _generate_split_client_invoice_entries(
     }
     for line in invoice.lines:
         component_type = _resolve_client_invoice_line_type(line, invoice.label)
-        grouped_amounts[component_type] += Decimal(str(line.amount))
+        grouped_amounts[component_type] += line.amount
 
     total_amount = sum(grouped_amounts.values(), Decimal("0"))
-    if total_amount != Decimal(str(invoice.total_amount)):
+    if total_amount != invoice.total_amount:
         return None
     if total_amount <= 0:
         return []
@@ -348,7 +346,7 @@ async def generate_entries_for_invoice(
     entries = await _apply_rule(
         db,
         rule,
-        Decimal(str(invoice.total_amount)),
+        invoice.total_amount,
         invoice.date,
         context,
         EntrySourceType.INVOICE,
@@ -400,7 +398,7 @@ async def generate_entries_for_payment(
     entries = await _apply_rule(
         db,
         rule,
-        Decimal(str(payment.amount)),
+        payment.amount,
         payment.date,
         context,
         EntrySourceType.PAYMENT,
@@ -439,7 +437,7 @@ async def generate_entries_for_deposit(
     entries = await _apply_rule(
         db,
         rule,
-        Decimal(str(deposit.total_amount)),
+        deposit.total_amount,
         deposit.date,
         context,
         EntrySourceType.DEPOSIT,
@@ -492,11 +490,11 @@ async def generate_entries_for_salary(
 
     # 1. Gross salary
     rule_gross = await _get_rule(db, TriggerType.SALARY_GROSS)
-    if rule_gross and Decimal(str(salary.gross)) > 0:
+    if rule_gross and salary.gross > 0:
         entries = await _apply_rule(
             db,
             rule_gross,
-            Decimal(str(salary.gross)),
+            salary.gross,
             entry_date,
             context,
             EntrySourceType.SALARY,
@@ -516,7 +514,7 @@ async def generate_entries_for_salary(
     )
 
     # 2. Employee charges
-    employee_charges_amount = Decimal(str(salary.employee_charges))
+    employee_charges_amount = salary.employee_charges
     rule_employee_charges = await _get_rule(db, TriggerType.SALARY_EMPLOYEE_CHARGES)
     if rule_employee_charges and employee_charges_amount > 0:
         entries = await _apply_rule(
@@ -547,7 +545,7 @@ async def generate_entries_for_salary(
         all_entries.extend(entries)
 
     # 3. Employer charges
-    employer_charges_amount = Decimal(str(salary.employer_charges))
+    employer_charges_amount = salary.employer_charges
     rule_employer_charges = await _get_rule(db, TriggerType.SALARY_EMPLOYER_CHARGES)
     if rule_employer_charges and employer_charges_amount > 0:
         entries = await _apply_rule(
@@ -564,7 +562,7 @@ async def generate_entries_for_salary(
         all_entries.extend(entries)
 
     # 4. Withholding tax
-    withholding_tax_amount = Decimal(str(salary.tax))
+    withholding_tax_amount = salary.tax
     rule_withholding_tax = await _get_rule(db, TriggerType.SALARY_WITHHOLDING_TAX)
     if rule_withholding_tax and withholding_tax_amount > 0:
         entries = await _apply_rule(
@@ -596,11 +594,11 @@ async def generate_entries_for_salary(
 
     # 5. Net payment
     rule_payment = await _get_rule(db, TriggerType.SALARY_PAYMENT)
-    if rule_payment and Decimal(str(salary.net_pay)) > 0:
+    if rule_payment and salary.net_pay > 0:
         entries = await _apply_rule(
             db,
             rule_payment,
-            Decimal(str(salary.net_pay)),
+            salary.net_pay,
             entry_date,
             context,
             EntrySourceType.SALARY,

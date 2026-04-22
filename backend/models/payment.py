@@ -6,10 +6,11 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
+from backend.models.types import DecimalType
 
 _Date = date
 _Decimal = Decimal
@@ -27,7 +28,7 @@ class Payment(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), nullable=False, index=True)
     contact_id: Mapped[int] = mapped_column(ForeignKey("contacts.id"), nullable=False, index=True)
-    amount: Mapped[_Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    amount: Mapped[_Decimal] = mapped_column(DecimalType(10, 2), nullable=False)
     date: Mapped[_Date] = mapped_column(Date, nullable=False, index=True)
     method: Mapped[PaymentMethod] = mapped_column(String(20), nullable=False, index=True)
     cheque_number: Mapped[str | None] = mapped_column(String(50), nullable=True)

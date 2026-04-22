@@ -82,9 +82,9 @@ async def recompute_cash_balances(db: AsyncSession) -> bool:
     changed = False
     for entry in result.scalars().all():
         if entry.type == CashMovementType.IN:
-            running_balance += Decimal(str(entry.amount))
+            running_balance += entry.amount
         else:
-            running_balance -= Decimal(str(entry.amount))
+            running_balance -= entry.amount
         if entry.balance_after != running_balance:
             entry.balance_after = running_balance
             changed = True
@@ -166,7 +166,7 @@ async def list_cash_entries(
     from_date: date | None = None,
     to_date: date | None = None,
     skip: int = 0,
-    limit: int | None = None,
+    limit: int = 100,
 ) -> list[CashRegister]:
     if await recompute_cash_balances(db):
         await db.commit()
@@ -177,8 +177,7 @@ async def list_cash_entries(
         query = query.where(CashRegister.date <= to_date)
     query = query.order_by(CashRegister.date.desc(), CashRegister.id.desc())
     query = query.offset(skip)
-    if limit is not None:
-        query = query.limit(limit)
+    query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -237,7 +236,7 @@ async def list_cash_counts(
     from_date: date | None = None,
     to_date: date | None = None,
     skip: int = 0,
-    limit: int | None = None,
+    limit: int = 100,
 ) -> list[CashCount]:
     query = select(CashCount)
     if from_date is not None:
@@ -246,8 +245,7 @@ async def list_cash_counts(
         query = query.where(CashCount.date <= to_date)
     query = query.order_by(CashCount.date.desc(), CashCount.id.desc())
     query = query.offset(skip)
-    if limit is not None:
-        query = query.limit(limit)
+    query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 

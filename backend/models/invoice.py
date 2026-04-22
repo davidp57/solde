@@ -6,10 +6,11 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, false, func
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text, false, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database import Base
+from backend.models.types import DecimalType
 
 # Type aliases to avoid name shadowing within class bodies
 _Date = date
@@ -116,10 +117,10 @@ class Invoice(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     total_amount: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False, default=Decimal("0")
+        DecimalType(10, 2), nullable=False, default=Decimal("0")
     )
     paid_amount: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False, default=Decimal("0")
+        DecimalType(10, 2), nullable=False, default=Decimal("0")
     )
     has_explicit_breakdown: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=false()
@@ -148,10 +149,14 @@ class InvoiceLine(Base):
     invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), nullable=False, index=True)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     line_type: Mapped[InvoiceLineType | None] = mapped_column(String(20), nullable=True)
-    quantity: Mapped[_Decimal] = mapped_column(Numeric(10, 3), nullable=False, default=Decimal("1"))
-    unit_price: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False, default=Decimal("0")
+    quantity: Mapped[_Decimal] = mapped_column(
+        DecimalType(10, 3), nullable=False, default=Decimal("1")
     )
-    amount: Mapped[_Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0"))
+    unit_price: Mapped[_Decimal] = mapped_column(
+        DecimalType(10, 2), nullable=False, default=Decimal("0")
+    )
+    amount: Mapped[_Decimal] = mapped_column(
+        DecimalType(10, 2), nullable=False, default=Decimal("0")
+    )
 
     invoice: Mapped[Invoice] = relationship("Invoice", back_populates="lines")
