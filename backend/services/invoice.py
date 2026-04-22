@@ -226,7 +226,7 @@ async def list_invoices(
     to_date: date | None = None,
     year: int | None = None,
     skip: int = 0,
-    limit: int | None = None,
+    limit: int = 100,
 ) -> list[Invoice]:
     """List invoices with optional filters."""
     query = select(Invoice).options(selectinload(Invoice.lines))
@@ -243,8 +243,7 @@ async def list_invoices(
     if year is not None:
         query = query.where(extract("year", Invoice.date) == year)
     query = query.order_by(Invoice.date.desc(), Invoice.id.desc()).offset(skip)
-    if limit is not None:
-        query = query.limit(limit)
+    query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 

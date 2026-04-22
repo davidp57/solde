@@ -57,7 +57,7 @@ async def list_entries(
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[CashEntryRead]:
     return await cash_service.list_cash_entries(
         db,
@@ -109,7 +109,7 @@ async def list_counts(
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[CashCountRead]:
     return await cash_service.list_cash_counts(
         db,

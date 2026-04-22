@@ -107,7 +107,7 @@ async def list_transactions(
     to_date: date | None = Query(default=None),
     unreconciled_only: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
-    limit: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[BankTransactionRead]:
     txs = await bank_service.list_transactions(
         db,
@@ -428,7 +428,7 @@ async def list_deposits(
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[DepositRead]:
     deposits = await bank_service.list_deposits(
         db,
