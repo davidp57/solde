@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from calendar import monthrange
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
+from typing import Protocol
 
 from sqlalchemy import func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +22,7 @@ from backend.models.bank import (
     deposit_payments,
 )
 from backend.models.cash import CashEntrySource, CashMovementType
-from backend.models.invoice import InvoiceType
+from backend.models.invoice import Invoice, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
 from backend.schemas.bank import (
     BankTransactionClientPaymentsCreate,
@@ -30,6 +32,12 @@ from backend.schemas.bank import (
 )
 from backend.services import payment as payment_service
 from backend.services.bank_import import detect_transaction_category
+
+
+class _Reconcilable(Protocol):
+    """Minimal protocol for objects that carry a payment id for reconciliation links."""
+
+    id: int
 
 _CURRENT_ACCOUNT_NUMBER = "512100"
 _SAVINGS_ACCOUNT_NUMBER = "512102"
@@ -103,10 +111,18 @@ async def _require_linkable_payment(
     payment_id: int,
     invoice_type: InvoiceType,
 ) -> Payment:
-    payment = await payment_service.get_payment(db, payment_id)
+    result = await db.execute(select(Payment).where(Payment.id == payment_id))
+    payment = result.scalar_one_or_none()
     if payment is None:
         raise LookupError("Payment not found")
-    if payment.invoice_type != invoice_type or payment.method != PaymentMethod.VIREMENT:
+    if payment.method != PaymentMethod.VIREMENT:
+        invoice_kind = "client" if invoice_type == InvoiceType.CLIENT else "supplier"
+        raise ValueError(f"only existing {invoice_kind} virement payments can be linked")
+    inv_result = await db.execute(
+        select(Invoice.type).where(Invoice.id == payment.invoice_id)
+    )
+    actual_type = inv_result.scalar_one_or_none()
+    if actual_type != invoice_type:
         invoice_kind = "client" if invoice_type == InvoiceType.CLIENT else "supplier"
         raise ValueError(f"only existing {invoice_kind} virement payments can be linked")
 
@@ -125,28 +141,38 @@ async def _require_linkable_payment(
     return payment
 
 
-def _build_reconciled_with_value(payments: list[Payment]) -> str | None:
-    if not payments:
+def _build_reconciled_with_value(
+    payment_ids: Sequence[int], invoice_numbers: dict[int, str | None]
+) -> str | None:
+    if not payment_ids:
         return None
-    if len(payments) == 1:
-        return payments[0].invoice_number or payments[0].reference
-    first_label = payments[0].invoice_number or payments[0].reference or f"payment-{payments[0].id}"
-    return f"{first_label} +{len(payments) - 1}"
+    if len(payment_ids) == 1:
+        return invoice_numbers.get(payment_ids[0])
+    first_label = invoice_numbers.get(payment_ids[0]) or f"payment-{payment_ids[0]}"
+    return f"{first_label} +{len(payment_ids) - 1}"
 
 
 async def _store_transaction_payment_links(
     db: AsyncSession,
     *,
     tx: BankTransaction,
-    payments: list[Payment],
+    payments: Sequence[_Reconcilable],
 ) -> None:
+    payment_ids = [p.id for p in payments]
     await db.execute(
         insert(bank_transaction_payments),
-        [{"transaction_id": tx.id, "payment_id": payment.id} for payment in payments],
+        [{"transaction_id": tx.id, "payment_id": pid} for pid in payment_ids],
     )
+    # Fetch invoice numbers for the reconciled_with label
+    inv_rows = await db.execute(
+        select(Payment.id, Invoice.number)
+        .join(Invoice, Invoice.id == Payment.invoice_id)
+        .where(Payment.id.in_(payment_ids))
+    )
+    invoice_numbers: dict[int, str | None] = {row[0]: row[1] for row in inv_rows}
     tx.reconciled = True
-    tx.reconciled_with = _build_reconciled_with_value(payments)
-    tx.payment_id = payments[0].id if len(payments) == 1 else None
+    tx.reconciled_with = _build_reconciled_with_value(payment_ids, invoice_numbers)
+    tx.payment_id = payment_ids[0] if len(payment_ids) == 1 else None
 
 
 async def _finalize_payment_link(
@@ -435,7 +461,7 @@ async def create_client_payments_from_transaction(
     if allocated_amount != expected_amount:
         raise ValueError("allocated amount must match bank transaction amount")
 
-    payments: list[Payment] = []
+    payments: list[_Reconcilable] = []
     for allocation in payload.allocations:
         payment = await payment_service.create_bank_reconciled_client_payment(
             db,

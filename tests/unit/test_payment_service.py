@@ -13,7 +13,7 @@ from backend.models.bank import BankTransaction
 from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
 from backend.models.contact import Contact, ContactType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
-from backend.models.payment import PaymentMethod
+from backend.models.payment import Payment, PaymentMethod
 from backend.schemas.payment import PaymentCreate, PaymentUpdate
 from backend.services import payment as payment_service
 
@@ -206,7 +206,7 @@ async def test_update_cash_payment_rejects_amount_change(db_session: AsyncSessio
     ):
         await payment_service.update_payment(
             db_session,
-            payment,
+            payment.id,
             PaymentUpdate(amount=Decimal("50.00")),
         )
 
@@ -234,7 +234,7 @@ async def test_update_client_payment_rejects_method_change_between_cheque_and_ca
     ):
         await payment_service.update_payment(
             db_session,
-            payment,
+            payment.id,
             PaymentUpdate(method=PaymentMethod.ESPECES),
         )
 
@@ -329,8 +329,10 @@ async def test_list_payments_undeposited_only(db_session: AsyncSession) -> None:
             method=PaymentMethod.CHEQUE,
         ),
     )
-    # manually mark one as deposited
-    p1.deposited = True
+    # manually mark one as deposited via ORM
+    orm_p1 = await db_session.get(Payment, p1.id)
+    assert orm_p1 is not None
+    orm_p1.deposited = True
     await db_session.commit()
 
     await payment_service.create_payment(
@@ -364,7 +366,9 @@ async def test_update_payment(db_session: AsyncSession) -> None:
         ),
     )
     with pytest.raises(ValueError, match="payments cannot change amount after creation"):
-        await payment_service.update_payment(db_session, p, PaymentUpdate(amount=Decimal("100.00")))
+        await payment_service.update_payment(
+            db_session, p.id, PaymentUpdate(amount=Decimal("100.00"))
+        )
 
 
 @pytest.mark.asyncio
@@ -387,7 +391,7 @@ async def test_update_payment_allows_minor_reference_and_notes_changes(
 
     updated = await payment_service.update_payment(
         db_session,
-        p,
+        p.id,
         PaymentUpdate(
             cheque_number="CHQ-002",
             reference="REF-2024-001",
@@ -421,7 +425,7 @@ async def test_update_cheque_payment_rejects_date_change(db_session: AsyncSessio
     with pytest.raises(ValueError, match="payments cannot change date after creation"):
         await payment_service.update_payment(
             db_session,
-            payment,
+            payment.id,
             PaymentUpdate(date=date(2024, 2, 5)),
         )
 
@@ -444,7 +448,7 @@ async def test_delete_payment_reverts_invoice(db_session: AsyncSession) -> None:
     assert inv.status == InvoiceStatus.PAID
 
     with pytest.raises(ValueError, match="payments cannot be deleted after creation"):
-        await payment_service.delete_payment(db_session, p)
+        await payment_service.delete_payment(db_session, p.id)
 
     await db_session.refresh(inv)
     assert inv.status == InvoiceStatus.PAID
