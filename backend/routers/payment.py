@@ -36,7 +36,7 @@ async def list_payments(
     to_date: date | None = Query(default=None),
     undeposited_only: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
-    limit: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[PaymentRead]:
     payments = await payment_service.list_payments(
         db,

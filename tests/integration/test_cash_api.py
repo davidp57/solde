@@ -103,7 +103,7 @@ async def test_list_entries(client: AsyncClient, admin_user: User, auth_headers:
 
 
 @pytest.mark.asyncio
-async def test_list_entries_returns_all_rows_when_limit_is_omitted(
+async def test_list_entries_default_limit_is_100(
     client: AsyncClient,
     admin_user: User,
     auth_headers: dict,
@@ -126,7 +126,7 @@ async def test_list_entries_returns_all_rows_when_limit_is_omitted(
     response = await client.get("/api/cash/entries", headers=auth_headers)
 
     assert response.status_code == 200
-    assert len(response.json()) == 101
+    assert len(response.json()) == 100
 
 
 @pytest.mark.asyncio
@@ -279,7 +279,7 @@ async def test_list_cash_counts(client: AsyncClient, admin_user: User, auth_head
 
 
 @pytest.mark.asyncio
-async def test_list_cash_counts_returns_all_rows_when_limit_is_omitted(
+async def test_list_cash_counts_default_limit_is_100(
     client: AsyncClient,
     admin_user: User,
     auth_headers: dict,
@@ -293,7 +293,7 @@ async def test_list_cash_counts_returns_all_rows_when_limit_is_omitted(
                 balance_expected=Decimal("0.00"),
                 difference=Decimal("0.00"),
             )
-            for _ in range(51)
+            for _ in range(101)
         ]
     )
     await db_session.commit()
@@ -301,7 +301,7 @@ async def test_list_cash_counts_returns_all_rows_when_limit_is_omitted(
     response = await client.get("/api/cash/counts", headers=auth_headers)
 
     assert response.status_code == 200
-    assert len(response.json()) == 51
+    assert len(response.json()) == 100
 
 
 @pytest.mark.asyncio
