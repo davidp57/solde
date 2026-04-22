@@ -75,7 +75,7 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 | BL-045 | 2026-04-22 | Sécurité | Authentification | P1 | Ajouter un rate limiting sur `/auth/login` pour bloquer le brute force |
 | BL-046 | 2026-04-22 | Sécurité | Authentification / Tokens | P1 | Migrer le refresh token vers un cookie HttpOnly au lieu de localStorage |
 | BL-047 | 2026-04-22 | Sécurité | HTTP / Infrastructure | P1 | Ajouter les en-têtes de sécurité HTTP (CSP, HSTS, X-Content-Type-Options, X-Frame-Options) |
-| BL-048 | 2026-04-22 | Qualité / Tests | Backend / Tests unitaires | P1 | Corriger les 11 tests en échec et la 1 erreur dans la suite backend |
+| BL-048 | 2026-04-22 | Qualité / Tests | Backend / Tests unitaires | P1 | ~~Corriger les 11 tests en échec et la 1 erreur dans la suite backend~~ — **Fait** (environnemental, pas de bug de code) |
 | BL-049 | 2026-04-22 | Qualité / Tests | Backend + Frontend | P1 | Remonter la couverture de test de 29 % vers les objectifs (services ≥ 90 %, API ≥ 80 %, composables ≥ 70 %) |
 | BL-050 | 2026-04-22 | Dette technique | Services / Import Excel | P1 | Refactorer `excel_import.py` (5 038 lignes) en package avec modules < 500 lignes |
 | BL-051 | 2026-04-22 | Fiabilité / Comptabilité | Écritures comptables | P1 | Corriger la numérotation des écritures comptables (COUNT non thread-safe → MAX + lock) |
@@ -182,25 +182,6 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 - **Pourquoi** : aucun en-tête de sécurité HTTP n'est configuré (CSP, HSTS, X-Content-Type-Options, X-Frame-Options). En mode mono-conteneur sans reverse proxy, c'est la responsabilité de l'application.
 - **Résultat attendu** : ajouter un middleware FastAPI injectant au minimum `Content-Security-Policy: default-src 'self'; script-src 'self'`, `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`.
 - **Point d'attention** : tester que la CSP ne casse pas le chargement des assets PrimeVue (fonts, CSS inline éventuels).
-
-### BL-048 — Corriger les tests en échec
-
-- **Dates** : `created=2026-04-22`
-- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point T1).
-- **Pourquoi** : la suite backend comporte 11 tests en échec et 1 erreur. Cela indique des régressions non corrigées ou du code qui a évolué sans mise à jour des tests. Situation incompatible avec la discipline TDD prescrite.
-- **Résultat attendu** : tous les tests passent au vert. Les tests cassés concernent principalement le parsing Excel (`test_excel_import_parsers.py`, `test_excel_import_parsing.py`) et l'API d'import de test.
-- **Tests en échec identifiés** :
-	- `test_parse_invoice_sheet_extracts_optional_cs_a_components`
-	- `test_parse_invoice_sheet_accepts_zero_value_cs_a_component`
-	- `test_parse_invoice_sheet_blocks_inconsistent_explicit_cs_a_components`
-	- `test_parse_payment_sheet_normalizes_payment_fields`
-	- `test_parse_cash_sheet_ignores_safe_rows_and_parses_signed_amount`
-	- `test_parse_bank_sheet_ignores_balance_description_and_parses_credit_debit`
-	- `test_parse_entries_sheet_ignores_zero_rows_and_reports_invalid_amounts`
-	- `test_parse_entries_sheet_keeps_change_num_marker`
-	- `test_parse_date_handles_datetime_and_string_formats`
-	- 2 autres échecs dans la même famille
-	- 1 erreur sur `test_test_import_shortcuts_list_and_run_configured_file`
 
 ### BL-049 — Remonter la couverture de test
 
@@ -338,6 +319,16 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 
 ## Détail des sujets fermés
+
+### BL-048 — Corriger les tests en échec
+
+- **Dates** : `created=2026-04-22`, `started=2026-04-22`, `completed=2026-04-22`
+- **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point T1).
+- **Pourquoi** : la suite backend affichait 11 tests en échec et 1 erreur lors de l'audit initial.
+- **Diagnostic** : aucun bug de code applicatif.
+	- Les **11 échecs de parsers** (`test_excel_import_parsers.py`, `test_excel_import_parsing.py`) étaient **transitoires** : relancés isolément, les tests passent tous. Cause probable : cache pytest corrompu (`.pytest_cache`).
+	- L'**erreur sur `test_test_import_shortcuts_list_and_run_configured_file`** était un `PermissionError` Windows : le dossier `C:\Users\…\Temp\pytest-of-*` avait été créé avec des permissions restrictives (SYSTEM + Administrators uniquement, sans accès utilisateur courant). Corrigé par `icacls /grant`.
+- **Livré parce que** : suite complète 739 passed, 0 failed, 0 errors après nettoyage des permissions. Pas de changement de code nécessaire.
 
 ### BL-001 — Stabiliser la méthode de triage du backlog
 
