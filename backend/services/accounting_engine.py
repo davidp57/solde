@@ -45,10 +45,25 @@ if TYPE_CHECKING:
 
 
 async def _next_entry_number(db: AsyncSession) -> str:
-    """Return the next sequential entry number (globally unique, 6 digits)."""
-    result = await db.execute(select(func.count(AccountingEntry.id)))
-    count = result.scalar_one_or_none() or 0
-    return f"{count + 1:06d}"
+    """Return the next sequential entry number (globally unique, 6 digits).
+
+    Uses MAX(entry_number) + 1 instead of COUNT(*) so that gaps in the
+    sequence (e.g. after a selective reset) do not cause duplicate numbers.
+    SQLite serialises all writes on a single connection, so a separate
+    exclusive lock is not required with the single-worker deployment target.
+    """
+    result = await db.execute(
+        select(func.max(AccountingEntry.entry_number))
+    )
+    current_max: str | None = result.scalar_one_or_none()
+    if current_max is None:
+        next_num = 1
+    else:
+        try:
+            next_num = int(current_max) + 1
+        except ValueError:
+            next_num = 1
+    return f"{next_num:06d}"
 
 
 def _render_template(template: str, context: Mapping[str, object]) -> str:
