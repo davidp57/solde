@@ -4,6 +4,7 @@ import io
 import json
 from datetime import date, datetime
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
@@ -349,7 +350,7 @@ async def test_test_import_shortcuts_list_and_run_configured_file(
     tmp_path,
 ) -> None:
     """Configured test shortcuts should create and execute a reversible import run."""
-    from backend import config as config_module
+    from backend.config import Settings, get_settings
 
     shortcut_file = tmp_path / "Gestion 2024.xlsx"
     shortcut_file.write_bytes(
@@ -366,13 +367,12 @@ async def test_test_import_shortcuts_list_and_run_configured_file(
         )
     )
 
-    original_settings = config_module._settings
-    config_module._settings = config_module.Settings(
-        jwt_secret_key=original_settings.jwt_secret_key,
+    test_settings = Settings(
+        jwt_secret_key=get_settings().jwt_secret_key,
         enable_test_import_shortcuts=True,
         test_import_gestion_2024_path=str(shortcut_file),
     )
-    try:
+    with patch("backend.routers.excel_import.get_settings", return_value=test_settings):
         shortcuts_response = await client.get(
             "/api/import/excel/test-shortcuts",
             headers=auth_headers,
@@ -402,8 +402,6 @@ async def test_test_import_shortcuts_list_and_run_configured_file(
         assert data["summary"]["contacts_created"] == 2
         assert data["summary"]["entries_created"] == 0
         assert data["can_undo"] is True
-    finally:
-        config_module._settings = original_settings
 
 
 @pytest.mark.asyncio

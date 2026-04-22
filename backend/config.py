@@ -1,6 +1,7 @@
 """Application configuration — loaded from environment variables or .env file."""
 
 import sys
+from functools import lru_cache
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -86,12 +87,7 @@ class Settings(BaseSettings):
         raise ValueError("jwt_secret_key must be configured outside debug/test environments")
 
 
+@lru_cache
 def get_settings() -> Settings:
-    """Return application settings singleton."""
-    global _settings
-    if _settings is None:
-        _settings = Settings()
-    return _settings
-
-
-_settings: Settings | None = None
+    """Return application settings singleton (cached after first call)."""
+    return Settings()
