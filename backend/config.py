@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     smtp_from_email: str | None = None
     smtp_use_tls: bool = True
 
+    # CORS — allowed origins (comma-separated in env: CORS_ALLOWED_ORIGINS=http://a.com,http://b.com)
+    # Empty list → ["*"] in debug mode, [] in production
+    cors_allowed_origins: list[str] = []
+
     @field_validator("fiscal_year_start_month")
     @classmethod
     def validate_fiscal_year_month(cls, v: int) -> int:

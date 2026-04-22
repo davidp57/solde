@@ -112,10 +112,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS — in production this should be restricted to the frontend origin
+    # CORS — use CORS_ALLOWED_ORIGINS in production; falls back to ["*"] in debug mode
+    _cors_origins = cfg.cors_allowed_origins or (["*"] if cfg.debug else [])
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"] if cfg.debug else [],
+        allow_origins=_cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
