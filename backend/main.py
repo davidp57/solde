@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -120,6 +120,29 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Security headers
+    @app.middleware("http")
+    async def add_security_headers(request: Request, call_next: object) -> Response:
+        response: Response = await call_next(request)  # type: ignore[misc]
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        if not cfg.debug:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=63072000; includeSubDomains"
+            )
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; "
+                "font-src 'self' data:; "
+                "connect-src 'self'; "
+                "frame-ancestors 'none'"
+            )
+        return response
 
     # API routers
     app.include_router(auth.router, prefix="/api")
