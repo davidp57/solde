@@ -6,10 +6,11 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
+from backend.models.types import DecimalType
 
 _Date = date
 _Decimal = Decimal
@@ -37,7 +38,7 @@ class CashRegister(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     date: Mapped[_Date] = mapped_column(Date, nullable=False, index=True)
-    amount: Mapped[_Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    amount: Mapped[_Decimal] = mapped_column(DecimalType(10, 2), nullable=False)
     type: Mapped[CashMovementType] = mapped_column(String(5), nullable=False, index=True)
     contact_id: Mapped[int | None] = mapped_column(
         ForeignKey("contacts.id"), nullable=True, index=True
@@ -51,7 +52,7 @@ class CashRegister(Base):
         String(20), nullable=False, index=True, default=CashEntrySource.MANUAL
     )
     balance_after: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False, default=Decimal("0")
+        DecimalType(10, 2), nullable=False, default=Decimal("0")
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
@@ -86,13 +87,13 @@ class CashCount(Base):
     count_cents_1: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     # Résultats
     total_counted: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False, default=Decimal("0")
+        DecimalType(10, 2), nullable=False, default=Decimal("0")
     )
     balance_expected: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False, default=Decimal("0")
+        DecimalType(10, 2), nullable=False, default=Decimal("0")
     )
     difference: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False, default=Decimal("0")
+        DecimalType(10, 2), nullable=False, default=Decimal("0")
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

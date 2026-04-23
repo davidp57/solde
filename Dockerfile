@@ -40,14 +40,21 @@ COPY alembic.ini ./
 
 # Copy built Vue.js frontend from stage 1
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Ensure data directory exists and is owned by solde user
 RUN mkdir -p /app/data/pdfs /app/data/uploads \
     && chown -R solde:solde /app/data
 
+# Copy entrypoint script
+COPY entrypoint.sh ./
 USER solde
 
 EXPOSE 8000
 
-# Run Alembic migrations then start Uvicorn
-CMD ["sh", "-c", "python -m alembic upgrade head && python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 1"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8000/api/health || exit 1
+
+ENTRYPOINT ["sh", "entrypoint.sh"]

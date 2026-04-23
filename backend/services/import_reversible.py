@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.inspection import inspect as sa_inspect
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql.sqltypes import Boolean, Date, DateTime, Integer, Numeric
+from sqlalchemy.sql.type_api import TypeDecorator
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.accounting_rule import AccountingRule, TriggerType
@@ -190,7 +191,10 @@ def _canonical_decimal_string(value: Any) -> str:
 
 def _canonical_numeric_column_value(column: Any, value: Any) -> str:
     decimal_value = Decimal(str(value))
-    scale = getattr(column.type, "scale", None)
+    col_type = column.type
+    if isinstance(col_type, TypeDecorator):
+        col_type = col_type.impl
+    scale = getattr(col_type, "scale", None)
     if scale is not None:
         decimal_value = decimal_value.quantize(Decimal("1").scaleb(-scale))
     return _canonical_decimal_string(decimal_value)
@@ -211,7 +215,10 @@ def _normalize_snapshot_for_fingerprint(
         value = normalized[column.key]
         if value is None:
             continue
-        if isinstance(column.type, Numeric):
+        col_type = column.type
+        if isinstance(col_type, TypeDecorator):
+            col_type = col_type.impl
+        if isinstance(col_type, Numeric):
             normalized[column.key] = _canonical_numeric_column_value(column, value)
     return normalized
 
@@ -231,7 +238,10 @@ def _filtered_snapshot_for_fingerprint(
 def _deserialize_column_value(column: Any, value: Any) -> Any:
     if value is None:
         return None
-    if isinstance(column.type, Numeric):
+    col_type = column.type
+    if isinstance(col_type, TypeDecorator):
+        col_type = col_type.impl
+    if isinstance(col_type, Numeric):
         return Decimal(str(value))
     if isinstance(column.type, DateTime):
         return datetime.fromisoformat(str(value))

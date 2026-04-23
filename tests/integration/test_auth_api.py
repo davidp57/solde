@@ -22,8 +22,9 @@ async def test_login_success(client: AsyncClient, admin_user: User) -> None:
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
-    assert "refresh_token" in data
+    assert "refresh_token" not in data  # now sent as HttpOnly cookie
     assert data["token_type"] == "bearer"
+    assert response.cookies.get("refresh_token") is not None
 
 
 @pytest.mark.asyncio
@@ -223,16 +224,17 @@ async def test_get_me_unauthenticated(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_refresh_token(client: AsyncClient, admin_user: User) -> None:
-    """Valid refresh token returns new token pair."""
+    """Valid refresh token (from cookie) returns new access token."""
     login_response = await client.post(
         "/api/auth/login",
         data={"username": "admin", "password": "adminpassword123"},
     )
-    refresh_token = login_response.json()["refresh_token"]
+    refresh_cookie = login_response.cookies.get("refresh_token")
+    assert refresh_cookie is not None
 
     response = await client.post(
         "/api/auth/refresh",
-        json={"refresh_token": refresh_token},
+        cookies={"refresh_token": refresh_cookie},
     )
     assert response.status_code == 200
     assert "access_token" in response.json()
@@ -243,7 +245,7 @@ async def test_refresh_token_invalid(client: AsyncClient) -> None:
     """Invalid refresh token returns 401."""
     response = await client.post(
         "/api/auth/refresh",
-        json={"refresh_token": "not.a.valid.token"},
+        cookies={"refresh_token": "not.a.valid.token"},
     )
     assert response.status_code == 401
 

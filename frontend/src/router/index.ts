@@ -185,6 +185,11 @@ router.beforeEach(async (to) => {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
+  // Force password change: only allow access to the profile page
+  if (auth.mustChangePassword && to.name !== 'profile') {
+    return { name: 'profile' }
+  }
+
   if (to.meta.requiresAccounting && !auth.canAccessAccounting) {
     return { name: 'dashboard' }
   }

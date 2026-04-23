@@ -11,6 +11,41 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+**Qualité / Sécurité (audit 2026-04-22)**
+- `backend/routers/auth.py` : le refresh token est désormais transmis via un cookie `HttpOnly`, `Secure`, `SameSite=Strict` au lieu du corps JSON — `/auth/login` et `/auth/refresh` posent le cookie, nouvel endpoint `POST /auth/logout` (204) l'efface (BL-046)
+- Frontend : `refreshApi()` et `logoutApi()` utilisent le cookie automatiquement (`withCredentials: true`), le store auth ne stocke plus le refresh token en `localStorage` (BL-046)
+- `entrypoint.sh` : script d'entrée Docker dédié avec `set -e` — les migrations Alembic échouent explicitement au lieu d'être masquées par le `&&` shell (BL-054)
+- `GET /api/health` : endpoint de health check léger (200, `{"status": "ok"}`) + `HEALTHCHECK` Docker + `healthcheck:` docker-compose pour la supervision Synology (BL-061)
+- `backend/models/user.py` : champ `must_change_password` obligeant l'utilisateur à changer son mot de passe avant d'accéder à l'application — activé au bootstrap admin, à la réinitialisation de mot de passe par un administrateur, et désactivé automatiquement après changement effectif (BL-053)
+- `backend/main.py` : middleware `MustChangePasswordMiddleware` bloquant (HTTP 403) toute requête API hors `/api/auth/` quand le JWT porte le flag `mcp=True` (BL-053)
+- Frontend : redirection automatique vers la page Profil avec bannière d'avertissement lorsque `must_change_password` est actif ; le router guard empêche la navigation vers d'autres pages (BL-053)
+- `backend/config.py` : `get_settings()` utilise désormais `@lru_cache` au lieu d'un pattern `global` mutable — plus idiomatique et thread-safe (BL-066)
+- `backend/main.py` : middleware `SecurityHeadersMiddleware` ajoutant `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security` et `Referrer-Policy` sur toutes les réponses (BL-047)
+- `backend/config.py` : paramètre `cors_allowed_origins` (liste, variable d'environnement `CORS_ALLOWED_ORIGINS`) permettant de configurer explicitement les origines CORS autorisées en production — wildcard `*` seulement en mode debug sans origines configurées (BL-055)
+- `frontend/public/dark-mode-init.js` : script d'initialisation du mode sombre extrait inline vers un fichier statique dédié pour respecter la politique `script-src 'self'` de la CSP (BL-047)
+- Endpoints de liste : paramètre `limit` désormais borné (`default=100`, `le=1000`) sur tous les routers de liste — caisse, banque, paiements, factures, contacts, salaires, écritures — pour limiter le volume de données retourné en une seule requête (BL-059)
+- `backend/models/types.py` : nouveau `TypeDecorator` `DecimalType` (wrapping `Numeric`) garantissant que SQLAlchemy renvoie toujours un `Decimal` pour les colonnes monétaires au lieu d'un `float` SQLite — élimine les quelque 60 casts `Decimal(str(obj.attr))` répartis dans les services (BL-057)
+- `backend/models/payment.py` : suppression de `__allow_unmapped__` et des attributs transients `invoice_number` / `invoice_type` — ces champs sont désormais calculés à la lecture dans `PaymentRead` via une requête ciblée sur `Invoice` (BL-065)
+- `backend/models/audit_log.py` : table `audit_logs` + service `record_audit` + enum `AuditAction` pour le journal d'audit structuré — traçabilité des connexions (succès/échec), déconnexions, changements de mot de passe, création/modification d'utilisateurs, réinitialisations de mot de passe admin, et opérations de reset base. Migration Alembic `0023` (BL-056)
+- Tests : +44 tests unitaires (812 → 856) pour les services critiques — `fiscal_year_service` (pre_close_checks, report à nouveau), `contact` (historique, créance douteuse), `dashboard_service` (KPIs, alertes, graphiques), `salary_service` (update, filtre par mois), `accounting_rule_service` (CRUD, preview, template). Couverture globale backend ~71 % (BL-049)
+
+### Refactorisé
+
+**Qualité / Sécurité (audit 2026-04-22)**
+- `backend/services/excel_import.py` : monolith de 5 567 lignes éclaté en package `backend/services/excel_import/` avec 16 sous-modules thématiques (`_constants`, `_salary`, `_invoices`, `_loaders`, `_comparison`, `_comparison_loaders`, `_comparison_domains`, `_entry_groups`, `_sheet_wrappers`, `_orchestrator`, `_import_contacts_invoices`, `_import_payments_salaries`, `_import_cash_bank`, `_import_entries`, `_preview_existing`, `_preview_sheets`) — refactoring purement structurel, interfaces publiques inchangées, zéro dépendance circulaire (BL-050)
+- `backend/services/excel_import/_exceptions.py` : introduction de `ImportFileOpenError` et `ImportSheetError` en remplacement des `except Exception` généralisés — `_ImportSheetFailure(RuntimeError)` remplacé par alias vers `ImportSheetError`, orchestrateur avec catch séparés par type, routeur avec mapping HTTP typé (BL-058)
+
+### Corrigé
+
+**Qualité / Sécurité (audit 2026-04-22)**
+- `frontend/src/stores/counter.ts` : suppression du fichier de scaffolding Vue non utilisé (BL-064)
+- `frontend/package.json` : version alignée sur `0.1.0` pour correspondre au backend (BL-062)
+- `backend/models/accounting_account.py` : remplacement des noms de personnes réelles dans le plan comptable par défaut par des libellés génériques (`Client litigieux 1`, `Client litigieux 2`) — conformité RGPD (BL-063)
+- `tests/integration/test_import_api.py` : adaptation du test `test_test_import_shortcuts_list_and_run_configured_file` pour utiliser `unittest.mock.patch` au lieu d'accéder directement au singleton `_settings` supprimé (BL-066)
+- `backend/routers/settings.py` : endpoint `POST /settings/reset-db` désormais protégé — retourne HTTP 403 si `settings.debug` est `False`, évitant une remise à zéro accidentelle en production (BL-052)
+- `backend/database.py` : suppression de `Base.metadata.create_all` de `init_db()` — le schéma est exclusivement géré par les migrations Alembic ; `init_db()` ne configure plus que les PRAGMAs SQLite (BL-060)
+- `backend/services/accounting_engine.py` : `_next_entry_number` utilise désormais `SELECT MAX(entry_number)` au lieu de `SELECT COUNT(*)` pour éviter les collisions de numéros après suppressions ou imports partiels (BL-051)
+
 **Documentation projet**
 - `README.md` recentré comme point d'entrée synthétique bilingue `FR + EN` avec renvoi vers les guides détaillés
 - Nouvelle documentation technique `doc/dev/exploitation.md` rédigée en anglais pour l'exploitation Docker, la configuration, les volumes, les sauvegardes et les opérations courantes

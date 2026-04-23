@@ -699,3 +699,44 @@ class TestSeedDefaultRules:
         inv = await _make_invoice(db_session, label=InvoiceLabel.CS)
         entries = await generate_entries_for_invoice(db_session, inv)
         assert entries == []
+
+
+class TestNextEntryNumber:
+    """BL-051: _next_entry_number must use MAX+1 and never return duplicates."""
+
+    @pytest.mark.asyncio
+    async def test_first_entry_is_000001(self, db_session: AsyncSession) -> None:
+        from backend.services.accounting_engine import _next_entry_number
+
+        num = await _next_entry_number(db_session)
+        assert num == "000001"
+
+    @pytest.mark.asyncio
+    async def test_increments_based_on_max(self, db_session: AsyncSession) -> None:
+        from backend.models.accounting_entry import AccountingEntry
+        from backend.services.accounting_engine import _next_entry_number
+
+        # Insert a sparse set of entry_numbers (gaps intentional to verify MAX not COUNT)
+        for n in ("000001", "000005", "000003"):
+            entry = AccountingEntry(
+                entry_number=n,
+                date=date(2025, 1, 1),
+                account_number="706110",
+                label="test",
+                debit=Decimal("0"),
+                credit=Decimal("100"),
+                source_type=EntrySourceType.MANUAL,
+            )
+            db_session.add(entry)
+        await db_session.flush()
+
+        num = await _next_entry_number(db_session)
+        assert num == "000006"
+
+    @pytest.mark.asyncio
+    async def test_zero_pads_to_6_digits(self, db_session: AsyncSession) -> None:
+        from backend.services.accounting_engine import _next_entry_number
+
+        num = await _next_entry_number(db_session)
+        assert len(num) == 6
+        assert num.isdigit()
