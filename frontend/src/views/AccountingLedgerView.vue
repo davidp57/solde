@@ -287,7 +287,11 @@ async function load() {
 
 function onAccountChange(value: string | null) {
   accountNumber.value = value
-  if (value) void load()
+  if (value) {
+    void load()
+  } else {
+    ledger.value = null
+  }
 }
 
 watch(
