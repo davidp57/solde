@@ -481,7 +481,7 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 - **Dates** : `created=2026-04-23`
 - **Origine** : revue de projet du `2026-04-23`.
 - **Pourquoi** : le catch-all `/:pathMatch(.*)*` redirige vers `/dashboard`. L'utilisateur ne sait pas qu'il a atteint une page qui n'existe pas, ce qui est déroutant si l'URL vient d'un bookmark périmé.
-- **Résultat attendu** : une page « Non trouvé » claire avec un lien de retour vers le dashboard.
+- **Résultat attendu** : une page « Non trouvée » claire avec un lien de retour vers le dashboard.
 
 ### BL-071 — Skeleton loaders au lieu de spinners
 
@@ -587,7 +587,7 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 - **Dates** : `created=2026-04-23`
 - **Origine** : revue de projet du `2026-04-23`.
 - **Pourquoi** : pas de contrainte visible sur la longueur/complexité du mot de passe au-delà du changement initial obligatoire. Un mot de passe faible reste accepté.
-- **Résultat attendu** : imposer un minimum de 8 caractères avec au moins une majuscule et un chiffre, validé côté backend (schema Pydantic) et côté frontend (formulaire de changement de mot de passe).
+- **Résultat attendu** : imposer un minimum de 8 caractères avec au moins une majuscule et un chiffre, validé côté backend (schéma Pydantic) et côté frontend (formulaire de changement de mot de passe).
 
 
 ## Détail des sujets fermés
