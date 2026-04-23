@@ -199,9 +199,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # --- Global exception handler: added LAST so it's outermost user middleware ---
-    app.add_middleware(UnhandledExceptionMiddleware)
-
     app.add_middleware(MustChangePasswordMiddleware)
 
     # CORS — use CORS_ALLOWED_ORIGINS in production; falls back to ["*"] in debug mode
@@ -216,8 +213,10 @@ def create_app() -> FastAPI:
 
     # Security headers
     @app.middleware("http")
-    async def add_security_headers(request: Request, call_next: object) -> Response:
-        response: Response = await call_next(request)  # type: ignore[operator]
+    async def add_security_headers(
+        request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
+        response: Response = await call_next(request)
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -260,6 +259,9 @@ def create_app() -> FastAPI:
     frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
     if frontend_dist.exists():
         app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+
+    # --- Global exception handler: added LAST so it's outermost user middleware ---
+    app.add_middleware(UnhandledExceptionMiddleware)
 
     return app
 

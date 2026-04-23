@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 import pytest_asyncio
+from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,8 +14,8 @@ from backend.database import get_db
 from backend.main import create_app
 
 
-def _build_app_with_broken_route(db_session: AsyncSession | None = None) -> tuple:
-    """Return (app, client_factory) with a /api/test-explosion route that always raises."""
+def _build_app_with_broken_route(db_session: AsyncSession | None = None) -> FastAPI:
+    """Return an app with a /api/test-explosion route that always raises."""
     app = create_app()
 
     async def _explode() -> None:
