@@ -199,7 +199,7 @@
       modal
       class="app-dialog app-dialog--medium"
     >
-      <ContactForm :contact="editingContact" @saved="onSaved" @cancel="dialogVisible = false" />
+      <ContactForm ref="contactFormRef" :contact="editingContact" @saved="onSaved" @cancel="dialogVisible = false" />
     </Dialog>
 
     <ConfirmDialog />
@@ -228,6 +228,7 @@ import AppStatCard from '@/components/ui/AppStatCard.vue'
 import { deleteContactApi, listContactsApi, type Contact } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'
+import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import {
   collectActiveFilterLabels,
   findSelectedFilterLabel,
@@ -243,6 +244,7 @@ const loading = ref(false)
 const search = ref('')
 const typeFilter = ref<ContactType | undefined>(undefined)
 const dialogVisible = ref(false)
+const contactFormRef = ref<InstanceType<typeof ContactForm> | null>(null)
 const editingContact = ref<Contact | null>(null)
 const contactRows = computed(() =>
   contacts.value.map((contact) => ({
@@ -339,6 +341,18 @@ function onSaved(): void {
   dialogVisible.value = false
   void loadContacts()
 }
+
+useKeyboardShortcuts({
+  onNew: () => {
+    if (!dialogVisible.value) openCreateDialog()
+  },
+  onSave: () => {
+    if (dialogVisible.value) void contactFormRef.value?.submit()
+  },
+  onClose: () => {
+    if (dialogVisible.value) dialogVisible.value = false
+  },
+})
 
 function confirmDelete(contact: Contact): void {
   confirm.require({

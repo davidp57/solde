@@ -11,6 +11,11 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- `frontend/src/composables/useKeyboardShortcuts.ts` : composable Vue 3 gérant les raccourcis clavier Ctrl/Cmd+N (nouveau), Ctrl/Cmd+S (sauvegarder) et Escape (fermer) avec gestion du focus (Ctrl+N ignoré dans les champs de saisie) et nettoyage automatique au démontage (BL-073)
+- `frontend/src/components/ui/AppStatCard.vue` : prop optionnelle `to` (route Vue Router) rendant la carte KPI cliquable via `<RouterLink>` avec animation hover et focus-visible accessible (BL-075)
+- `frontend/src/views/DashboardView.vue` : tous les KPI (solde banque, caisse, factures impayées/en retard, chèques non déposés, exercice courant, résultat) sont désormais cliquables vers les vues filtrées correspondantes (BL-075)
+- `frontend/src/views/ClientInvoicesView.vue` + `PaymentsView.vue` : support des query params URL (`status=overdue`, `undeposited=1`) pour pré-filtrer les listes depuis le dashboard (BL-075)
+- `frontend/src/views/ClientInvoicesView.vue` + `ContactsView.vue` : intégration de `useKeyboardShortcuts` pour Ctrl+N / Ctrl+S / Escape dans les vues avec dialogue (BL-073)
 - `doc/user/migration.md` + `doc/user/migration.en.md` : guide de migration / montée de version bilingue FR + EN pour les déploiements Docker sur Synology NAS — couvre la préparation, la mise à jour, la vérification, le rollback et les bonnes pratiques (BL-083)
 - `frontend/src/assets/print.css` : styles `@media print` pour l'impression des vues comptables (journal, balance, grand livre, bilan, résultat) — masque la sidebar, les filtres et les boutons ; optimise les tables en noir et blanc A4 paysage pour impression AG (BL-076)
 - `backend/main.py` : middleware ASGI `UnhandledExceptionMiddleware` interceptant toutes les exceptions non gérées pour renvoyer un JSON structuré `{"detail": ..., "code": "INTERNAL_SERVER_ERROR"}` au lieu d'un 500 HTML avec stack trace — log complet côté serveur (BL-067)

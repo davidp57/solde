@@ -311,6 +311,7 @@
       class="app-dialog app-dialog--large"
     >
       <ClientInvoiceForm
+        ref="invoiceFormRef"
         :invoice="editingInvoice"
         :contacts="contacts"
         @saved="onSaved"
@@ -550,6 +551,7 @@ import {
 } from '../api/invoices'
 import { createPayment, listPayments, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
+import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
 import AppListState from '../components/ui/AppListState.vue'
@@ -585,6 +587,7 @@ const allClientInvoices = ref<Invoice[]>([])
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
+const invoiceFormRef = ref<InstanceType<typeof ClientInvoiceForm> | null>(null)
 const editingInvoice = ref<Invoice | null>(null)
 const statusFilter = ref<InvoiceStatus | null>(null)
 
@@ -841,6 +844,18 @@ function onSaved() {
   void refreshInvoicesData()
 }
 
+useKeyboardShortcuts({
+  onNew: () => {
+    if (!dialogVisible.value) openCreateDialog()
+  },
+  onSave: () => {
+    if (dialogVisible.value) void invoiceFormRef.value?.submit()
+  },
+  onClose: () => {
+    if (dialogVisible.value) dialogVisible.value = false
+  },
+})
+
 function openPdf(invoice: Invoice) {
   window.open(getInvoicePdfUrl(invoice.id), '_blank')
 }
@@ -992,8 +1007,22 @@ watch(
   },
 )
 
+watch(
+  () => route.query.status,
+  (newStatus) => {
+    const status = Array.isArray(newStatus) ? newStatus[0] : newStatus
+    statusFilter.value = status ? (status as InvoiceStatus) : null
+  },
+)
+
 onMounted(async () => {
   await fiscalYearStore.initialize()
+  const queryStatus = Array.isArray(route.query.status)
+    ? route.query.status[0]
+    : route.query.status
+  if (queryStatus) {
+    statusFilter.value = queryStatus as InvoiceStatus
+  }
   await Promise.all([refreshInvoicesData(), loadContacts()])
 })
 </script>

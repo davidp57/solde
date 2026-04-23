@@ -366,6 +366,8 @@ onMounted(() => {
       defaultInvoiceDueDays.value = null
     })
 })
+
+defineExpose({ submit })
 </script>
 
 <style scoped>

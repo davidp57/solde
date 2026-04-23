@@ -277,6 +277,7 @@ import Tag from 'primevue/tag'
 import ToggleButton from 'primevue/togglebutton'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
   listPayments,
@@ -304,6 +305,7 @@ import {
 } from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
+const route = useRoute()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
@@ -478,8 +480,18 @@ watch(
   },
 )
 
+watch(
+  () => route.query.undeposited,
+  (newValue) => {
+    undepositedOnly.value = newValue === '1'
+  },
+)
+
 onMounted(async () => {
   await fiscalYearStore.initialize()
+  if (route.query.undeposited === '1') {
+    undepositedOnly.value = true
+  }
   await loadPayments()
 })
 </script>

@@ -198,6 +198,8 @@ async function submit(): Promise<void> {
     saving.value = false
   }
 }
+
+defineExpose({ submit })
 </script>
 
 <style scoped>
