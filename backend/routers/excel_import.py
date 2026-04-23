@@ -13,6 +13,7 @@ from backend.database import get_db
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.services import excel_import, import_reversible
+from backend.services.excel_import import ImportFileOpenError, ImportSheetError
 
 router = APIRouter(prefix="/import", tags=["import"])
 
@@ -167,6 +168,16 @@ async def _run_test_import_shortcut(
 
 
 def _raise_import_run_error(exc: Exception) -> NoReturn:
+    if isinstance(exc, ImportFileOpenError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    if isinstance(exc, ImportSheetError):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
     if isinstance(exc, LookupError):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     if isinstance(exc, ValueError):

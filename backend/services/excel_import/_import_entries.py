@@ -294,4 +294,4 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
         logger.error("Entries flush failed: %s", exc, exc_info=True)
         result.add_import_error("écritures", exc)
         await db.rollback()
-        raise _ImportSheetFailure from exc
+        raise _ImportSheetFailure(str(exc), sheet_name=ws.title) from exc
