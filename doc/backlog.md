@@ -155,8 +155,8 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | BL-070 | UX / Frontend | Navigation | P2 | B | ~30 min | Page 404 dédiée | ✅ Fait |
 | BL-072 | UX / Frontend | Navigation | P2 | B | ~1h | Fil d'Ariane (Breadcrumb PrimeVue) | ✅ Fait |
 | BL-074 | UX / Frontend | Réseau | P2 | B | ~45 min | Bandeau « Connexion perdue » | ✅ Fait |
-| BL-075 | UX / Fonctionnel | Dashboard | P2 | C | ~2h | KPI cliquables (absorbe BL-036, BL-041) | ⬜ Prêt |
-| BL-073 | UX / Frontend | Productivité | P2 | C | ~1h | Raccourcis clavier (Ctrl+N/S, Esc) | ⬜ Prêt |
+| BL-075 | UX / Fonctionnel | Dashboard | P2 | C | ~2h | KPI cliquables (absorbe BL-036, BL-041) | ✅ Fait |
+| BL-073 | UX / Frontend | Productivité | P2 | C | ~1h | Raccourcis clavier (Ctrl+N/S, Esc) | ✅ Fait |
 | BL-071 | UX / Frontend | Chargement | P2 | D | ~1h30 | Skeleton loaders PrimeVue | ⬜ Prêt |
 | BL-043 | UX / Fonctionnel | Comptabilité / Filtres | P2 | D | ~1h30 | Combos comptes comptables couleur | ⬜ Prêt |
 | BL-035 | UX / Fonctionnel | Contacts | P2 | E | ~2h | Onglets clients / fournisseurs | ⬜ Prêt |
@@ -174,7 +174,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 |---|---|---|---|---|
 | **A** | Backend rapide | BL-085 | ~30 min | — |
 | **B** | UX quick wins | BL-070, BL-072, BL-074, BL-084, BL-042 | ~4h | ✅ Fait 2026-04-23 |
-| **C** | Dashboard interactif | BL-075, BL-073 | ~3h | — |
+| **C** | Dashboard interactif | BL-075, BL-073 | ~3h | ✅ Fait 2026-04-23 |
 | **D** | Polish UI | BL-071, BL-043 | ~3h | — |
 | **E** | Contacts & import | BL-035, BL-040 | ~4h | — |
 | **F** | Tests | BL-079, BL-080, BL-081 | ~5h | Setup Playwright pour BL-080 |
@@ -233,9 +233,9 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | BL-070 | 2026-04-23 | UX / Frontend | Navigation | ✅ Fait | Ajouter une page 404 dédiée au lieu de rediriger silencieusement les URLs inconnues vers le dashboard |
 | BL-071 | 2026-04-23 | UX / Frontend | Chargement | P2 | Remplacer les ProgressSpinner par des Skeleton loaders PrimeVue pour réduire le temps de chargement perçu |
 | BL-072 | 2026-04-23 | UX / Frontend | Navigation | ✅ Fait | Ajouter un fil d'Ariane (Breadcrumb PrimeVue) pour faciliter la navigation dans les 23 routes imbriquées |
-| BL-073 | 2026-04-23 | UX / Frontend | Productivité | P2 | Ajouter des raccourcis clavier (Ctrl+N nouveau, Ctrl+S sauvegarder, Escape fermer) pour les utilisateurs quotidiens |
+| BL-073 | 2026-04-23 | UX / Frontend | Productivité | ✅ Fait | Ajouter des raccourcis clavier (Ctrl+N nouveau, Ctrl+S sauvegarder, Escape fermer) pour les utilisateurs quotidiens |
 | BL-074 | 2026-04-23 | UX / Frontend | Réseau | ✅ Fait | Afficher un bandeau « Connexion perdue » quand l'API est injoignable (intercepteur Axios sur Network Error) |
-| BL-075 | 2026-04-23 | UX / Fonctionnel | Dashboard | P2 | Rendre tous les KPI du dashboard cliquables vers les listes filtrées correspondantes (complète BL-036 et BL-041) |
+| BL-075 | 2026-04-23 | UX / Fonctionnel | Dashboard | ✅ Fait | Rendre tous les KPI du dashboard cliquables vers les listes filtrées correspondantes (complète BL-036 et BL-041) |
 | BL-076 | 2026-04-23 | UX / Frontend | Comptabilité / Impression | ✅ Fait | Ajouter des styles `@media print` sur les vues comptables (journal, balance, grand livre, bilan, résultat) pour l'impression AG |
 | BL-077 | 2026-04-23 | Dette technique | Frontend / Vues | P2 | Refactorer les vues volumineuses (`ImportExcelView` 2 873 L, `BankView` 2 215 L, `SettingsView` 1 077 L) en sous-composants |
 | BL-078 | 2026-04-23 | Qualité / Frontend | i18n | P3 | Créer un squelette `en.ts` pour préparer la localisation anglaise et assurer la cohérence avec la documentation bilingue |

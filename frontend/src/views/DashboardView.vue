@@ -11,31 +11,41 @@
         <AppStatCard
           :label="t('dashboard.bank_balance')"
           :value="kpis ? formatAmount(kpis.bank_balance) : '—'"
+          :to="{ name: 'bank' }"
         />
         <AppStatCard
           :label="t('dashboard.cash_balance')"
           :value="kpis ? formatAmount(kpis.cash_balance) : '—'"
+          :to="{ name: 'cash' }"
         />
         <AppStatCard
           :label="t('dashboard.unpaid_invoices')"
           :value="kpis ? kpis.unpaid_count : '—'"
           :caption="kpis ? formatAmount(kpis.unpaid_total) : '—'"
+          :to="{ name: 'invoices-client' }"
         />
         <AppStatCard
           :label="t('dashboard.overdue_invoices')"
           :value="kpis ? kpis.overdue_count : '—'"
           :caption="kpis ? formatAmount(kpis.overdue_total) : '—'"
           :tone="(kpis?.overdue_count ?? 0) > 0 ? 'danger' : 'warn'"
+          :to="{ name: 'invoices-client', query: { status: 'overdue' } }"
         />
         <AppStatCard
           :label="t('dashboard.undeposited')"
           :value="kpis ? kpis.undeposited_count : '—'"
+          :to="{ name: 'payments', query: { undeposited: '1' } }"
         />
-        <AppStatCard :label="t('dashboard.current_fy')" :value="kpis?.current_fy_name ?? '—'" />
+        <AppStatCard
+          :label="t('dashboard.current_fy')"
+          :value="kpis?.current_fy_name ?? '—'"
+          :to="{ name: 'accounting-fiscal-years' }"
+        />
         <AppStatCard
           :label="t('dashboard.resultat')"
           :value="kpis?.current_resultat != null ? formatAmount(kpis.current_resultat) : '—'"
           :tone="(kpis?.current_resultat ?? 0) < 0 ? 'danger' : 'success'"
+          :to="{ name: 'accounting-resultat' }"
         />
       </section>
 
