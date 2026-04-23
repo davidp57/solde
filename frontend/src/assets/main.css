@@ -492,6 +492,40 @@ html.dark-mode .app-chip {
   gap: var(--app-space-1);
 }
 
+/* --- AppTableSkeleton --- */
+.app-table-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.app-table-skeleton__row {
+  display: grid;
+  gap: 0.5rem;
+}
+
+/* --- AppAccountSelect --- */
+.account-select-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.account-select-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--account-select-dot-bg, var(--p-text-muted-color));
+}
+
+.account-select-dot--member_receivables { --account-select-dot-bg: rgba(251, 191, 36, 0.9); }
+.account-select-dot--supplier_payables  { --account-select-dot-bg: rgba(56, 189, 248, 0.9); }
+.account-select-dot--cash               { --account-select-dot-bg: rgba(74, 222, 128, 0.9); }
+.account-select-dot--current_account    { --account-select-dot-bg: rgba(248, 113, 113, 0.9); }
+.account-select-dot--cheques_to_deposit { --account-select-dot-bg: rgba(129, 140, 248, 0.9); }
+
 .app-dialog-section__title {
   margin: 0;
   font-size: 0.98rem;

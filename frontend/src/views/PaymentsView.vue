@@ -64,7 +64,9 @@
         </div>
       </div>
 
+      <AppTableSkeleton v-if="loading && !payments.length" :rows="8" :cols="5" />
       <DataTable
+        v-else
         v-model:filters="tableFilters"
         :value="paymentRows"
         :loading="loading"
@@ -293,6 +295,7 @@ import AppNumberRangeFilter from '@/components/ui/AppNumberRangeFilter.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
+import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
 import { collectActiveFilterLabels } from '../composables/activeFilterLabels'
