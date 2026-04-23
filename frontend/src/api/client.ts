@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
+import { markNetworkError } from '../composables/useNetworkStatus'
 
 const apiClient = axios.create({
   baseURL: '',
@@ -39,6 +40,11 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
+
+    // Detect network-level errors (server unreachable)
+    if (!error.response && error.request) {
+      markNetworkError()
+    }
 
     if (error.response?.status !== 401 || !original || original._retry) {
       return Promise.reject(error)

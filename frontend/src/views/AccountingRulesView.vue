@@ -21,6 +21,15 @@
             :loading="loading"
             :search-text="filterText"
           />
+          <Button
+            :label="t('common.reset_filters')"
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            outlined
+            size="small"
+            :disabled="!hasActiveFilters"
+            @click="resetFilters"
+          />
         </div>
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
@@ -181,6 +190,8 @@ const {
   globalFilter: filterText,
   displayedRows: displayedRules,
   syncDisplayedRows: syncDisplayedRules,
+  resetFilters,
+  hasActiveFilters,
 } = useDataTableFilters(ruleRows, {
   global: textFilter(''),
   trigger_type: inFilter(),

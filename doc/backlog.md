@@ -50,9 +50,10 @@ Tout sujet concret qui doit survivre au-delà de la séance en cours doit être 
 
 ## Priorités proposées pour la prochaine discussion
 
-1. **BL-045 à BL-049** — corriger les failles de sécurité critiques (rate limiting, stockage des tokens, en-têtes HTTP) et remettre les tests au vert.
-2. **BL-021** — finaliser le manuel utilisateur illustré avec stabilisation éditoriale et enrichissement visuel.
-3. **BL-050 à BL-053** — fiabiliser le moteur comptable (numérotation thread-safe), protéger `reset-db`, forcer le changement du mot de passe admin, et planifier le refactoring du god module `excel_import.py`.
+1. **BL-021** — finaliser le manuel utilisateur illustré (enrichissement visuel, captures annotées homogènes).
+2. **BL-033** — clarifier la comparaison des chèques inter-exercices entre date de paiement et date de remise.
+3. **BL-039** — revalider les scénarios d'édition de facture client et d'envoi par e-mail avec validation explicite.
+4. **Lot B** (BL-042, BL-070, BL-072, BL-074, BL-084) — UX quick wins navigation et session (~4h).
 
 ## Review Claude — Plan d'action BL-045 à BL-066 (2026-04-22)
 
@@ -83,7 +84,7 @@ _Révision : overhead quality gates (~10 min/commit × 5 tickets = 50 min), adap
 | ~~BL-060~~ | 30 min | **45 min** | ~30 min | ~~Retirer `create_all` de `init_db()`, garder dans `conftest.py`~~ — sous l'estimation, changement ciblé |
 | ~~BL-051~~ | 50 min | **1h15** | ~50 min | ~~`MAX(entry_number)` + lock + migration + tests de concurrence~~ — surcoût : `entry_date` keyword invalide dans le test, erreur `BEGIN EXCLUSIVE within transaction` (2 itérations de fix) |
 
-### Lot 4 — Qualité backend sans impact API — ~~4h30~~ ~6h
+### ~~Lot 4 — Qualité backend sans impact API — ~6h~~ ✅ Fait (2026-04-22)
 
 _Révision : BL-057 (~30 occurrences Decimal + tests de régression) et BL-059 (tous les endpoints + adaptation frontend) sont plus larges que l'estimation initiale ne le suggère._
 
@@ -93,7 +94,7 @@ _Révision : BL-057 (~30 occurrences Decimal + tests de régression) et BL-059 (
 | ~~BL-057~~ | 2h | **2h30** | ~3h30 | ~~Créer le `TypeDecorator`, repasser sur ~63 occurrences, valider les tests~~ — surcoût : régression dans `import_reversible.py` (`isinstance(Numeric)` non-applicable sur `TypeDecorator`), nécessité d'étendre la normalisation des snapshots |
 | ~~BL-059~~ | 1h30 | **2h** | ~45 min | ~~`limit=100` / `max=1000` sur tous les endpoints de liste (backend + adapter frontend si besoin)~~ — sous l'estimation, remplacement automatisé simple |
 
-### Lot 5 — Sécurité auth (frontend + backend couplés) — ~~7h~~ ~10h
+### ~~Lot 5 — Sécurité auth (frontend + backend couplés) — ~10h~~ ✅ Fait (2026-04-22)
 
 _Révision : BL-046 est le changement le plus risqué (auth full-stack, plusieurs surfaces de test). BL-053 nécessite migration + 2 guards distincts (backend 403 + frontend redirect). Ajouter 50-100% sur tout ce qui touche les tests d'intégration auth._
 
@@ -101,34 +102,34 @@ _Révision : BL-046 est le changement le plus risqué (auth full-stack, plusieur
 |--------|--------------------|--------------------|--------|
 | ~~BL-045~~ | 1h | **1h30** | ~1h | ~~Intégrer `slowapi` + décorateur sur `/auth/login` + bypass test~~ — implémentation fluide, cherry-picked depuis branche locale |
 | ~~BL-053~~ | 2h | **3h** | ~1h30 | ~~Migration `must_change_password` + endpoint + guard frontend + fixture test~~ — middleware JWT léger, pas de modification de chaque routeur |
-| BL-046 | 4h | **5h30** | Cookie `HttpOnly` backend + intercepteur Axios + store auth + `/auth/refresh` — impact full-stack |
+| ~~BL-046~~ | 4h | **5h30** | ~~Cookie `HttpOnly` backend + intercepteur Axios + store auth + `/auth/refresh` — impact full-stack~~ |
 
-### Lot 6 — DevOps Docker — ~1h30
+### ~~Lot 6 — DevOps Docker — ~1h30~~ ✅ Fait (2026-04-22)
 
 _Révision légère : BL-054 peut surprendre si les migrations Alembic en entrypoint nécessitent une gestion async particulière._
 
 | Ticket | Estimation initiale | Estimation révisée | Détail |
 |--------|--------------------|--------------------|--------|
-| BL-054 | 40 min | **50 min** | `entrypoint.sh` avec gestion d'erreur explicite + mise à jour `Dockerfile` |
-| BL-061 | 20 min | **20 min** | `HEALTHCHECK` dans `Dockerfile` + `docker-compose.yml` |
+| ~~BL-054~~ | 40 min | **50 min** | ~~`entrypoint.sh` avec gestion d'erreur explicite + mise à jour `Dockerfile`~~ |
+| ~~BL-061~~ | 20 min | **20 min** | ~~`HEALTHCHECK` dans `Dockerfile` + `docker-compose.yml`~~ |
 
-### Lot 7 — Refactoring structurel — ~~8h~~ ~12h
+### ~~Lot 7 — Refactoring structurel — ~12h~~ ✅ Fait (2026-04-22)
 
 _Révision : BL-050 est le refactoring le plus risqué du backlog. 5 038 lignes avec des imports croisés, des dépendances implicites et 739 tests à maintenir au vert. Chaque déplacement de fonction peut casser des imports. Prévoir une marge de risque de 50%._
 
 | Ticket | Estimation initiale | Estimation révisée | Détail |
 |--------|--------------------|--------------------|--------|
-| BL-050 | 6h | **9h** | Éclater `excel_import.py` (5 038 L) en package — risque élevé, tests continus |
+| ~~BL-050~~ | 6h | **9h** | ~~Éclater `excel_import.py` (5 038 L) en package — risque élevé, tests continus~~ |
 | BL-058 | 2h | **1h** | Typer les 15+ `except Exception` (après BL-050) — **Fait** |
 
-### Lot 8 — Chantiers longs — ~15h+
+### ~~Lot 8 — Chantiers longs~~ ✅ Fait (2026-04-22)
 
 _Pas révisé : ces estimations étaient déjà larges et représentent des chantiers ouverts par nature._
 
 | Ticket | Estimation initiale | Estimation révisée | Détail |
 |--------|--------------------|--------------------|--------|
-| BL-056 | 3-4h | **2h** | Table d'audit + middleware + 4 types d'événements tracés — **Fait** |
-| BL-049 | 10-15h | **12-20h** | Palier 34 % → 60 % sur les services critiques (chantier continu) |
+| ~~BL-056~~ | 3-4h | **2h** | ~~Table d'audit + middleware + 4 types d'événements tracés~~ |
+| ~~BL-049~~ | 10-15h | **12-20h** | ~~Palier 34 % → 60 % sur les services critiques~~ |
 
 **Total estimé initial : ~40h. Total révisé : ~55h.** Les principaux postes de dérapage identifiés : quality gates (~10 min/commit), adaptation des tests d'intégration, migrations Alembic, et refactoring BL-050.
 
@@ -152,31 +153,28 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | BL-076 | UX / Frontend | Comptabilité / Impression | ~~P1~~ | — | ~1h | Styles `@media print` vues comptables | ✅ Fait |
 | BL-083 | Documentation | Exploitation / Migration | ~~P1~~ | — | ~1h | Guide de migration Synology FR+EN | ✅ Fait |
 | BL-085 | Sécurité / Backend | Auth / MDP | P2 | A | ~30 min | Politique de complexité MDP | ✅ Fait |
-| BL-070 | UX / Frontend | Navigation | P2 | B | ~30 min | Page 404 dédiée | ⬜ Prêt |
-| BL-072 | UX / Frontend | Navigation | P2 | B | ~1h | Fil d'Ariane (Breadcrumb PrimeVue) | ⬜ Prêt |
-| BL-074 | UX / Frontend | Réseau | P2 | B | ~45 min | Bandeau « Connexion perdu~~Ajouter un gestionnaire d'erreurs global FastAPI renvoyant du JSON structuré au lieu d'un 500 HTML~~ **Fait** |
-| BL-068 | 2026-04-23 | Sécurité / API | OpenAPI / Swagger | ~~P1~~ **Fait** | ~~Désactiver `/api/docs` et `/api/redoc` en production (conditionner à `debug=True`)~~ **Fait** |
-| BL-069 | 2026-04-23 | Opérationnel / Backend | Administration / Backup | ~~P1~~ **Fait** | ~~Ajouter un endpoint admin `POST /api/settings/backup` utilisant `sqlite3.backup()` avec rotation des 5 derniers fichiers~~ **Fait**
+| BL-070 | UX / Frontend | Navigation | P2 | B | ~30 min | Page 404 dédiée | ✅ Fait |
+| BL-072 | UX / Frontend | Navigation | P2 | B | ~1h | Fil d'Ariane (Breadcrumb PrimeVue) | ✅ Fait |
+| BL-074 | UX / Frontend | Réseau | P2 | B | ~45 min | Bandeau « Connexion perdue » | ✅ Fait |
 | BL-075 | UX / Fonctionnel | Dashboard | P2 | C | ~2h | KPI cliquables (absorbe BL-036, BL-041) | ⬜ Prêt |
 | BL-073 | UX / Frontend | Productivité | P2 | C | ~1h | Raccourcis clavier (Ctrl+N/S, Esc) | ⬜ Prêt |
 | BL-071 | UX / Frontend | Chargement | P2 | D | ~1h30 | Skeleton loaders PrimeVue | ⬜ Prêt |
 | BL-043 | UX / Fonctionnel | Comptabilité / Filtres | P2 | D | ~1h30 | Combos comptes comptables couleur | ⬜ Prêt |
 | BL-035 | UX / Fonctionnel | Contacts | P2 | E | ~2h | Onglets clients / fournisseurs | ⬜ Prêt |
 | BL-040 | Import / Fonctionnel | Contacts client | P2 | E | ~2h | Import one-shot emails contacts | ⬜ Prêt |
-| BL-079 | Qualité / Tests | Frontend / Composables | P2 | F | ~1h30~~P1~~ **Fait** | ~~Ajouter des styles `@media print` sur les vues comptables (journal, balance, grand livre, bilan, résultat) pour l'impression AG~~ **Fait**
+| BL-079 | Qualité / Tests | Frontend / Composables | P2 | F | ~1h30 | Tests unitaires composables | ⬜ Prêt |
 | BL-080 | Qualité / Tests | E2E | P2 | F | ~2h | Smoke test Playwright | ⬜ Prêt |
 | BL-081 | Qualité / Tests | Backend / Intégration | P2 | F | ~1h30 | Tests intégration API manquants | ⬜ Prêt |
 | BL-077 | Dette technique | Frontend / Vues | P2 | G | ~5h | Refactoring vues volumineuses | ⬜ Prêt |
 | BL-034 | Fonctionnel / Architecture | Banque / Multi-compte | P2 | H | ~6h+ | Support multi-compte banque | ⬜ Prêt |
 | BL-078 | Qualité / Frontend | i18n | P3 | — | ~30 min | Squelette localisation `en.ts` | ⬜ Prêt |
 | BL-082 | Documentation | API / OpenAPI | P3 | — | ~1h | Descriptions Swagger enrichies | ⬜ Prêt |
-~~P1~~ **Fait** | ~~Rédiger un guide de migration/montée de version pour les déploiements Synology sans expert technique~~ **Fait**
+
 ### Détail des lots
-~~P2~~ **Fait** | ~~Ajouter une politique de complexité de mot de passe (min 8 caractères, majuscule + chiffre)~~ **Fait**
 | Lot | Nom | Tickets | Estimation totale | Prérequis |
 |---|---|---|---|---|
 | **A** | Backend rapide | BL-085 | ~30 min | — |
-| **B** | UX quick wins | BL-070, BL-072, BL-074, BL-084, BL-042 | ~4h | — |
+| **B** | UX quick wins | BL-070, BL-072, BL-074, BL-084, BL-042 | ~4h | ✅ Fait 2026-05-03 |
 | **C** | Dashboard interactif | BL-075, BL-073 | ~3h | — |
 | **D** | Polish UI | BL-071, BL-043 | ~3h | — |
 | **E** | Contacts & import | BL-035, BL-040 | ~4h | — |
@@ -206,49 +204,49 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | BL-039 | 2026-04-21 | Qualité / Recette | Factures client / Email | P1 | Rejouer et fiabiliser les scénarios d'édition de facture client et d'envoi par e-mail avec validation explicite du comportement attendu |
 | BL-040 | 2026-04-21 | Import / Fonctionnel | Contacts client | P2 | Ajouter un import one-shot d'une liste d'adresses e-mail pour enrichir les contacts clients existants |
 | BL-041 | 2026-04-21 | UX / Fonctionnel | Paiements / Synthèse | P2 | Rendre la carte `non remis` cliquable pour ouvrir la liste des paiements concernés |
-| BL-042 | 2026-04-21 | UX / Cohérence | Tables / Filtres | P2 | Ajouter un bouton `reset` sur tous les filtres de toutes les tables pour revenir rapidement à l'état initial |
+| BL-042 | 2026-04-21 | UX / Cohérence | Tables / Filtres | ~~P2~~ **Fait** | ~~Ajouter un bouton `reset` sur tous les filtres de toutes les tables pour revenir rapidement à l'état initial~~ |
 | BL-043 | 2026-04-21 | UX / Fonctionnel | Comptabilité / Filtres | P2 | Remplacer les filtres de comptes comptables par des combos affichant numéro, nom et couleur des comptes suivis |
-| BL-067 | 2026-04-23 | Technique / Backend | API / Erreurs | ~~P1~~ **Fait** | Ajouter un gestionnaire d'erreurs global FastAPI renvoyant du JSON structuré au lieu d'un 500 HTML |
-| BL-068 | 2026-04-23 | Sécurité / API | OpenAPI / Swagger | P1 | Désactiver `/api/docs` et `/api/redoc` en production (conditionner à `debug=True`) |
-| BL-069 | 2026-04-23 | Opérationnel / Backend | Administration / Backup | P1 | Ajouter un endpoint admin `POST /api/settings/backup` utilisant `sqlite3.backup()` avec rotation des 5 derniers fichiers |
+| BL-045 | 2026-04-22 | Sécurité | Authentification | ~~P1~~ **Fait** | ~~Ajouter un rate limiting sur `/auth/login` pour bloquer le brute force~~ |
+| BL-046 | 2026-04-22 | Sécurité | Authentification / Tokens | ~~P1~~ **Fait** | ~~Migrer le refresh token vers un cookie HttpOnly au lieu de localStorage~~ |
+| BL-047 | 2026-04-22 | Sécurité | HTTP / Infrastructure | ~~P1~~ **Fait** | ~~Ajouter les en-têtes de sécurité HTTP (CSP, HSTS, X-Content-Type-Options, X-Frame-Options)~~ |
+| BL-048 | 2026-04-22 | Qualité / Tests | Backend / Tests unitaires | ~~P1~~ **Fait** | ~~Corriger les 11 tests en échec et la 1 erreur dans la suite backend~~ |
+| BL-049 | 2026-04-22 | Qualité / Tests | Backend + Frontend | ~~P1~~ **Fait** | ~~Remonter la couverture de test de 29 % vers les objectifs (services ≥ 90 %, API ≥ 80 %, composables ≥ 70 %)~~ |
+| BL-050 | 2026-04-22 | Dette technique | Services / Import Excel | ~~P1~~ **Fait** | ~~Refactorer `excel_import.py` (5 038 lignes) en package avec modules < 500 lignes~~ |
+| BL-051 | 2026-04-22 | Fiabilité / Comptabilité | Écritures comptables | ~~P1~~ **Fait** | ~~Corriger la numérotation des écritures comptables (COUNT non thread-safe → MAX + lock)~~ |
+| BL-052 | 2026-04-22 | Sécurité | Administration / Données | ~~P1~~ **Fait** | ~~Désactiver ou protéger l'endpoint `POST /settings/reset-db` en production~~ |
+| BL-053 | 2026-04-22 | Sécurité | Authentification / Bootstrap | ~~P1~~ **Fait** | ~~Forcer le changement du mot de passe admin au premier login~~ |
+| BL-054 | 2026-04-22 | DevOps / Docker | Déploiement | ~~P2~~ **Fait** | ~~Séparer les migrations Alembic du démarrage Uvicorn dans le Dockerfile~~ |
+| BL-055 | 2026-04-22 | Sécurité / Config | CORS | ~~P2~~ **Fait** | ~~Configurer les origines CORS pour la production au lieu de `allow_origins=[]`~~ |
+| BL-056 | 2026-04-22 | Sécurité / Traçabilité | Audit | ~~P2~~ **Fait** | ~~Ajouter un journal d'audit structuré pour les actions sensibles (connexions, rôles, suppressions)~~ |
+| BL-057 | 2026-04-22 | Dette technique | Backend / ORM | ~~P2~~ **Fait** | ~~Créer un TypeDecorator SQLAlchemy pour Decimal afin d'éliminer les ~30 occurrences de `Decimal(str(...))`~~ |
+| BL-058 | 2026-04-22 | Dette technique | Services / Import Excel | ~~P2~~ **Fait** | ~~Typer les exceptions dans l'import Excel (remplacer les `except Exception` généralisés)~~ |
+| BL-059 | 2026-04-22 | Sécurité / API | Endpoints de liste | ~~P2~~ **Fait** | ~~Ajouter des limites de pagination par défaut (100) et maximum (1 000) sur tous les endpoints de liste~~ |
+| BL-060 | 2026-04-22 | Fiabilité / DB | Schéma | ~~P2~~ **Fait** | ~~Retirer `Base.metadata.create_all` de `init_db()` et se reposer uniquement sur Alembic pour le schéma~~ |
+| BL-061 | 2026-04-22 | DevOps / Docker | Monitoring | ~~P2~~ **Fait** | ~~Ajouter un HEALTHCHECK Docker pour la supervision Synology~~ |
+| BL-062 | 2026-04-22 | Qualité / Projet | Versions | ~~P2~~ **Fait** | ~~Synchroniser les versions frontend (`0.0.0`) et backend (`0.1.0`)~~ |
+| BL-063 | 2026-04-22 | RGPD / Données | Plan comptable | ~~P3~~ **Fait** | ~~Retirer les noms de personnes réelles du plan comptable par défaut dans le code source~~ |
+| BL-064 | 2026-04-22 | Qualité / Frontend | Code mort | ~~P3~~ **Fait** | ~~Supprimer `stores/counter.ts` (scaffolding Vue non utilisé)~~ |
+| BL-065 | 2026-04-22 | Qualité / Backend | Modèles | ~~P3~~ **Fait** | ~~Éliminer `__allow_unmapped__` du modèle Payment et utiliser un DTO séparé~~ |
+| BL-066 | 2026-04-22 | Qualité / Backend | Config | ~~P3~~ **Fait** | ~~Utiliser `@lru_cache` pour le singleton Settings au lieu du pattern global mutable~~ |
+| BL-067 | 2026-04-23 | Technique / Backend | API / Erreurs | ~~P1~~ **Fait** | ~~Ajouter un gestionnaire d'erreurs global FastAPI renvoyant du JSON structuré au lieu d'un 500 HTML~~ |
+| BL-068 | 2026-04-23 | Sécurité / API | OpenAPI / Swagger | ~~P1~~ **Fait** | ~~Désactiver `/api/docs` et `/api/redoc` en production (conditionner à `debug=True`)~~ |
+| BL-069 | 2026-04-23 | Opérationnel / Backend | Administration / Backup | ~~P1~~ **Fait** | ~~Ajouter un endpoint admin `POST /api/settings/backup` utilisant `sqlite3.backup()` avec rotation des 5 derniers fichiers~~ |
 | BL-070 | 2026-04-23 | UX / Frontend | Navigation | P2 | Ajouter une page 404 dédiée au lieu de rediriger silencieusement les URLs inconnues vers le dashboard |
 | BL-071 | 2026-04-23 | UX / Frontend | Chargement | P2 | Remplacer les ProgressSpinner par des Skeleton loaders PrimeVue pour réduire le temps de chargement perçu |
 | BL-072 | 2026-04-23 | UX / Frontend | Navigation | P2 | Ajouter un fil d'Ariane (Breadcrumb PrimeVue) pour faciliter la navigation dans les 23 routes imbriquées |
 | BL-073 | 2026-04-23 | UX / Frontend | Productivité | P2 | Ajouter des raccourcis clavier (Ctrl+N nouveau, Ctrl+S sauvegarder, Escape fermer) pour les utilisateurs quotidiens |
 | BL-074 | 2026-04-23 | UX / Frontend | Réseau | P2 | Afficher un bandeau « Connexion perdue » quand l'API est injoignable (intercepteur Axios sur Network Error) |
 | BL-075 | 2026-04-23 | UX / Fonctionnel | Dashboard | P2 | Rendre tous les KPI du dashboard cliquables vers les listes filtrées correspondantes (complète BL-036 et BL-041) |
-| BL-076 | 2026-04-23 | UX / Frontend | Comptabilité / Impression | P1 | Ajouter des styles `@media print` sur les vues comptables (journal, balance, grand livre, bilan, résultat) pour l'impression AG |
+| BL-076 | 2026-04-23 | UX / Frontend | Comptabilité / Impression | ~~P1~~ **Fait** | ~~Ajouter des styles `@media print` sur les vues comptables (journal, balance, grand livre, bilan, résultat) pour l'impression AG~~ |
 | BL-077 | 2026-04-23 | Dette technique | Frontend / Vues | P2 | Refactorer les vues volumineuses (`ImportExcelView` 2 873 L, `BankView` 2 215 L, `SettingsView` 1 077 L) en sous-composants |
 | BL-078 | 2026-04-23 | Qualité / Frontend | i18n | P3 | Créer un squelette `en.ts` pour préparer la localisation anglaise et assurer la cohérence avec la documentation bilingue |
 | BL-079 | 2026-04-23 | Qualité / Tests | Frontend / Composables | P2 | Ajouter des tests unitaires pour les composables `useDarkMode`, `useTableFilter` et `activeFilterLabels` |
 | BL-080 | 2026-04-23 | Qualité / Tests | E2E | P2 | Ajouter un smoke test E2E (Playwright) couvrant le circuit login → dashboard → contact → facture → paiement |
 | BL-081 | 2026-04-23 | Qualité / Tests | Backend / Intégration | P2 | Compléter les tests d'intégration API manquants (salary, accounting_rule, fiscal_year, dashboard) |
 | BL-082 | 2026-04-23 | Documentation | API / OpenAPI | P3 | Enrichir le Swagger avec des descriptions et exemples sur les endpoints principaux |
-| BL-083 | 2026-04-23 | Documentation | Exploitation / Migration | P1 | Rédiger un guide de migration/montée de version pour les déploiements Synology sans expert technique |
-| BL-084 | 2026-04-23 | UX / Frontend | Session / Auth | P2 | Afficher une notification « Session bientôt expirée » 5 minutes avant l'expiration du JWT |
-| BL-085 | 2026-04-23 | Sécurité / Backend | Authentification / Mots de passe | P2 | Ajouter une politique de complexité de mot de passe (min 8 caractères, majuscule + chiffre) |
-| BL-045 | 2026-04-22 | Sécurité | Authentification | P1 | ~~Ajouter un rate limiting sur `/auth/login` pour bloquer le brute force~~ **Fait** |
-| BL-046 | 2026-04-22 | Sécurité | Authentification / Tokens | P1 | ~~Migrer le refresh token vers un cookie HttpOnly au lieu de localStorage~~ **Fait** |
-| BL-047 | 2026-04-22 | Sécurité | HTTP / Infrastructure | P1 | ~~Ajouter les en-têtes de sécurité HTTP (CSP, HSTS, X-Content-Type-Options, X-Frame-Options)~~ **Fait** |
-| BL-048 | 2026-04-22 | Qualité / Tests | Backend / Tests unitaires | P1 | ~~Corriger les 11 tests en échec et la 1 erreur dans la suite backend~~ **Fait** |
-| BL-049 | 2026-04-22 | Qualité / Tests | Backend + Frontend | P1 | ~~Remonter la couverture de test de 29 % vers les objectifs (services ≥ 90 %, API ≥ 80 %, composables ≥ 70 %)~~ **Fait** |
-| BL-050 | 2026-04-22 | Dette technique | Services / Import Excel | P1 | ~~Refactorer `excel_import.py` (5 038 lignes) en package avec modules < 500 lignes~~ **Fait** |
-| BL-051 | 2026-04-22 | Fiabilité / Comptabilité | Écritures comptables | P1 | ~~Corriger la numérotation des écritures comptables (COUNT non thread-safe → MAX + lock)~~ **Fait** |
-| BL-052 | 2026-04-22 | Sécurité | Administration / Données | P1 | ~~Désactiver ou protéger l'endpoint `POST /settings/reset-db` en production~~ **Fait** |
-| BL-053 | 2026-04-22 | Sécurité | Authentification / Bootstrap | P1 | ~~Forcer le changement du mot de passe admin au premier login~~ **Fait** |
-| BL-054 | 2026-04-22 | DevOps / Docker | Déploiement | P2 | ~~Séparer les migrations Alembic du démarrage Uvicorn dans le Dockerfile~~ **Fait** |
-| BL-055 | 2026-04-22 | Sécurité / Config | CORS | P2 | ~~Configurer les origines CORS pour la production au lieu de `allow_origins=[]`~~ **Fait** |
-| BL-056 | 2026-04-22 | Sécurité / Traçabilité | Audit | P2 | ~~Ajouter un journal d'audit structuré pour les actions sensibles (connexions, rôles, suppressions)~~ **Fait** |
-| BL-057 | 2026-04-22 | Dette technique | Backend / ORM | P2 | ~~Créer un TypeDecorator SQLAlchemy pour Decimal afin d'éliminer les ~30 occurrences de `Decimal(str(...))`~~ **Fait** |
-| BL-058 | 2026-04-22 | Dette technique | Services / Import Excel | P2 | ~~Typer les exceptions dans l'import Excel (remplacer les `except Exception` généralisés)~~ **Fait** |
-| BL-059 | 2026-04-22 | Sécurité / API | Endpoints de liste | P2 | ~~Ajouter des limites de pagination par défaut (100) et maximum (1 000) sur tous les endpoints de liste~~ **Fait** |
-| BL-060 | 2026-04-22 | Fiabilité / DB | Schéma | P2 | ~~Retirer `Base.metadata.create_all` de `init_db()` et se reposer uniquement sur Alembic pour le schéma~~ **Fait** |
-| BL-061 | 2026-04-22 | DevOps / Docker | Monitoring | P2 | ~~Ajouter un HEALTHCHECK Docker pour la supervision Synology~~ **Fait** |
-| BL-062 | 2026-04-22 | Qualité / Projet | Versions | P2 | ~~Synchroniser les versions frontend (`0.0.0`) et backend (`0.1.0`)~~ **Fait** |
-| BL-063 | 2026-04-22 | RGPD / Données | Plan comptable | P3 | ~~Retirer les noms de personnes réelles du plan comptable par défaut dans le code source~~ **Fait** |
-| BL-064 | 2026-04-22 | Qualité / Frontend | Code mort | P3 | ~~Supprimer `stores/counter.ts` (scaffolding Vue non utilisé)~~ **Fait** |
-| BL-065 | 2026-04-22 | Qualité / Backend | Modèles | P3 | ~~Éliminer `__allow_unmapped__` du modèle Payment et utiliser un DTO séparé~~ **Fait** |
-| BL-066 | 2026-04-22 | Qualité / Backend | Config | P3 | ~~Utiliser `@lru_cache` pour le singleton Settings au lieu du pattern global mutable~~ **Fait** |
+| BL-083 | 2026-04-23 | Documentation | Exploitation / Migration | ~~P1~~ **Fait** | ~~Rédiger un guide de migration/montée de version pour les déploiements Synology sans expert technique~~ |
+| BL-084 | 2026-04-23 | UX / Frontend | Session / Auth | ~~P2~~ **Fait** | ~~Afficher une notification « Session bientôt expirée » 5 minutes avant l'expiration du JWT~~ |
+| BL-085 | 2026-04-23 | Sécurité / Backend | Authentification / Mots de passe | ~~P2~~ **Fait** | ~~Ajouter une politique de complexité de mot de passe (min 8 caractères, majuscule + chiffre)~~ |
 
 ## Détail des sujets ouverts
 
@@ -325,7 +323,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-046 — Migrer le refresh token vers un cookie HttpOnly
 
-- **Dates** : `created=2026-04-22`, `completed=2026-07-19`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S2).
 - **Pourquoi** : le refresh token est actuellement stocké en `localStorage`, accessible par n'importe quel JavaScript de la page. Si une dépendance tierce est compromise (XSS supply-chain), l'attaquant récupère le token directement.
 - **Résultat attendu** : stocker le refresh token dans un cookie `HttpOnly`, `Secure`, `SameSite=Strict`. L'access token peut rester en mémoire JavaScript (variable réactive) avec rafraîchissement automatique. Adapter l'intercepteur Axios et le backend pour lire le refresh token depuis le cookie.
@@ -336,7 +334,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-047 — En-têtes de sécurité HTTP
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S3).
 - **Pourquoi** : aucun en-tête de sécurité HTTP n'est configuré (CSP, HSTS, X-Content-Type-Options, X-Frame-Options). En mode mono-conteneur sans reverse proxy, c'est la responsabilité de l'application.
 - **Résultat attendu** : ajouter un middleware FastAPI injectant au minimum `Content-Security-Policy: default-src 'self'; script-src 'self'`, `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`.
@@ -364,7 +362,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-049 — Remonter la couverture de test
 
-- **Dates** : `created=2026-04-22`, `completed=2026-07-24`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point T2).
 - **Pourquoi** : la couverture de test backend est à 29 %, loin des objectifs fixés par le projet (services métier ≥ 90 %, API ≥ 80 %, composables frontend ≥ 70 %). Certains services critiques sont à peine couverts (`settings.py` 21 %, `salary_service.py` 25 %).
 - **Résultat attendu** : monter la couverture de manière incrémentale ; viser un palier intermédiaire réaliste de 60 % global avant d'attaquer les cibles finales. Prioriser les services métier critiques (accounting engine, fiscal year, payment, invoice).
@@ -373,7 +371,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-050 — Refactorer `excel_import.py` en package
 
-- **Dates** : `created=2026-04-22`, `completed=2026-07-23`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point P1).
 - **Pourquoi** : `services/excel_import.py` fait 5 038 lignes. C'est un god module ingérable qui concentre plus de 15 blocs `except Exception` et rend la revue de code, le test ciblé et la maintenance pratiquement impossibles.
 - **Résultat attendu** : transformer `services/excel_import.py` en un package `services/excel_import/` avec des sous-modules dédiés (orchestrateur, contacts, factures, paiements, comptabilité, salaires), chacun sous les 500 lignes. Conserver les mêmes interfaces publiques pour ne pas casser les routeurs ni les tests existants.
@@ -381,7 +379,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-051 — Numérotation des écritures comptables thread-safe
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C1).
 - **Pourquoi** : `_next_entry_number()` utilise `SELECT COUNT(*)` pour générer le numéro séquentiel suivant. Deux requêtes concurrentes peuvent produire le même numéro. Avec 1 worker Uvicorn et SQLite, le risque est faible mais viole le principe de fiabilité comptable.
 - **Résultat attendu** : remplacer `COUNT(*)` par `SELECT MAX(entry_number)` avec un verrou approprié, ou utiliser une séquence SQLite (`INSERT` + `last_insert_rowid`). La solution doit garantir l'unicité même en cas de requêtes async concurrentes.
@@ -389,7 +387,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-052 — Désactiver ou protéger `reset-db` en production
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S5).
 - **Pourquoi** : `POST /api/settings/reset-db` efface toutes les données applicatives et n'est protégé que par le rôle ADMIN. Pas de confirmation supplémentaire, pas de log d'audit, et l'endpoint est actif en production.
 - **Résultat attendu** : au minimum, désactiver cet endpoint quand `debug=False`. Idéalement, ajouter une double confirmation (re-saisie du mot de passe admin) même en mode debug.
@@ -406,7 +404,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-054 — Séparer les migrations Alembic du démarrage Uvicorn
 
-- **Dates** : `created=2026-04-22`, `completed=2026-07-19`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point K1).
 - **Pourquoi** : le `CMD` Docker fait `alembic upgrade head && uvicorn ...`. Si la migration échoue, le `&&` shell masque la cause. De plus, les migrations s'exécutent à chaque redémarrage du conteneur.
 - **Résultat attendu** : utiliser un script `entrypoint.sh` dédié avec gestion d'erreurs explicite, ou séparer la migration dans un step `docker-compose` distinct.
@@ -414,7 +412,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-055 — Configurer les origines CORS pour la production
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S4).
 - **Pourquoi** : en mode production (`debug=False`), `allow_origins=[]` bloque toute origine. Le frontend servi depuis le même conteneur fonctionne (même origine), mais un accès via reverse proxy ou sous-domaine serait bloqué silencieusement.
 - **Résultat attendu** : ajouter un paramètre `cors_allowed_origins` dans les settings pour la production, ou ne pas configurer CORS du tout si le frontend est toujours servi du même domaine (ce qui est le cas dans l'architecture mono-conteneur actuelle).
@@ -429,7 +427,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-057 — TypeDecorator Decimal pour l'ORM
 
-- **Dates** : `created=2026-04-22`, `completed=2026-05-21`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C2).
 - **Pourquoi** : environ 30 occurrences de `Decimal(str(e.debit))` et similaires sont éparpillées dans les services. Les colonnes `Numeric` de SQLAlchemy avec `aiosqlite` retournent parfois des `float` au lieu de `Decimal`. Le contournement fonctionne mais est fragile et verbeux.
 - **Résultat attendu** : créer un `TypeDecorator` SQLAlchemy personnalisé qui garantit le retour en `Decimal` nativement, puis éliminer les conversions manuelles.
@@ -438,7 +436,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-058 — Typer les exceptions dans l'import Excel
 
-- **Dates** : `created=2026-04-22`, `completed=2026-05-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C3).
 - **Pourquoi** : plus de 15 blocs `except Exception` dans `excel_import.py` et les routeurs associés. Ce pattern attrape tout, y compris des erreurs de programmation, et masque les problèmes.
 - **Résultat attendu** : remplacer les `except Exception` par des exceptions métier typées (`ImportFileOpenError`, `ImportSheetError`) et ne garder les catches génériques qu'au point d'entrée du routeur, avec un log explicite.
@@ -446,7 +444,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-059 — Pagination bornée par défaut
 
-- **Dates** : `created=2026-04-22`, `completed=2026-05-21`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C4).
 - **Pourquoi** : tous les endpoints de liste (`/invoices/`, `/contacts/`, `/payments/`, etc.) ont `limit=None` par défaut. Un client peut récupérer la totalité de la base en une seule requête, ce qui est un risque de déni de service.
 - **Résultat attendu** : ajouter un `limit` par défaut de 100 et un `max_limit` de 1 000 sur tous les endpoints de liste. Adapter le frontend si nécessaire pour paginer.
@@ -454,14 +452,14 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-060 — Retirer `create_all` de `init_db()`
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point D1).
 - **Pourquoi** : `init_db()` appelle `Base.metadata.create_all` en plus des migrations Alembic. Si une migration est oubliée, `create_all` masque le problème en dev mais pas en production. C'est une source classique de divergence de schéma.
 - **Résultat attendu** : retirer `create_all` de `init_db()` et se reposer uniquement sur Alembic. Conserver `create_all` uniquement dans la fixture de test (`conftest.py`).
 
 ### BL-061 — Docker HEALTHCHECK
 
-- **Dates** : `created=2026-04-22`, `completed=2026-07-19`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point K2).
 - **Pourquoi** : ni le Dockerfile ni le docker-compose ne déclarent de health check. Le NAS Synology ne peut pas savoir si l'application est fonctionnelle après un redémarrage.
 - **Résultat attendu** : ajouter un `HEALTHCHECK` dans le Dockerfile ciblant un endpoint léger (ex. `/api/docs` ou un `/api/health` dédié) et un `healthcheck:` correspondant dans `docker-compose.yml`.
@@ -494,7 +492,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-065 — Éliminer `__allow_unmapped__` du modèle Payment
 
-- **Dates** : `created=2026-04-22`, `completed=2026-05-21`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point P3).
 - **Pourquoi** : le modèle `Payment` utilise `__allow_unmapped__ = True` pour porter des attributs transients (`invoice_number`, `invoice_type`) qui ne sont pas des colonnes. Ce pattern mélange données persistées et données calculées sur le même objet ORM, rendant le modèle ambigu.
 - **Résultat attendu** : déplacer ces attributs vers le schéma Pydantic `PaymentRead` ou un DTO dédié, et retirer `__allow_unmapped__`.
@@ -532,10 +530,10 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-070 — Page 404 dédiée
 
-- **Dates** : `created=2026-04-23`
+- **Dates** : `created=2026-04-23`, `started=2026-04-22`, `completed=2026-05-03`
 - **Origine** : revue de projet du `2026-04-23`.
 - **Pourquoi** : le catch-all `/:pathMatch(.*)*` redirige vers `/dashboard`. L'utilisateur ne sait pas qu'il a atteint une page qui n'existe pas, ce qui est déroutant si l'URL vient d'un bookmark périmé.
-- **Résultat attendu** : une page « Non trouvée » claire avec un lien de retour vers le dashboard.
+- **Résultat** : page `NotFoundView.vue` dédiée avec icône, titre i18n, et bouton retour. Catch-all router remplace la redirection silencieuse.
 
 ### BL-071 — Skeleton loaders au lieu de spinners
 
@@ -546,10 +544,10 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-072 — Fil d'Ariane (Breadcrumb)
 
-- **Dates** : `created=2026-04-23`
+- **Dates** : `created=2026-04-23`, `started=2026-04-22`, `completed=2026-05-03`
 - **Origine** : revue de projet du `2026-04-23`.
-- **Pourquoi** : avec 23 routes et des chemins imbriqués (`/accounting/journal`, `/contacts/:id/history`), un fil d'Ariane aiderait les utilisateurs à se repérer et revenir en arrière.
-- **Résultat attendu** : intégrer le composant `Breadcrumb` PrimeVue dans `AppLayout.vue`, alimenté dynamiquement par les meta de route.
+- **Pourquoi** : avec 23 routes et des chemins imbriqués (`/accounting/journal`, `/contacts/:id/history`), un fil d'Ariane aide les utilisateurs à se repérer et revenir en arrière.
+- **Résultat** : composable `useBreadcrumb` + `<Breadcrumb>` PrimeVue dans `AppLayout.vue`, alimenté par les meta `label` et `breadcrumbParent` sur chaque route.
 
 ### BL-073 — Raccourcis clavier
 
@@ -560,10 +558,10 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-074 — Bandeau connexion perdue
 
-- **Dates** : `created=2026-04-23`
+- **Dates** : `created=2026-04-23`, `started=2026-04-22`, `completed=2026-05-03`
 - **Origine** : revue de projet du `2026-04-23`.
 - **Pourquoi** : aucune gestion de perte de connexion réseau. Les soumissions de formulaires peuvent être perdues silencieusement si le NAS Synology est temporairement injoignable.
-- **Résultat attendu** : afficher un bandeau persistant « Connexion perdue » quand l'API est injoignable (intercepteur Axios sur `Network Error`), avec disparition automatique quand la connexion revient.
+- **Résultat** : composable `useNetworkStatus` + composant `AppOfflineBanner.vue` fixé en bas d'écran. Détection via événements `window.online/offline` et intercepteur Axios sur `!error.response`.
 
 ### BL-075 — Dashboard KPI cliquables
 
@@ -631,10 +629,10 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-084 — Notification d'expiration de session
 
-- **Dates** : `created=2026-04-23`
+- **Dates** : `created=2026-04-23`, `started=2026-04-22`, `completed=2026-05-03`
 - **Origine** : revue de projet du `2026-04-23`.
 - **Pourquoi** : l'access token JWT expire mais l'utilisateur n'est pas prévenu. Il peut perdre une saisie en cours si la session expire pendant l'édition d'un formulaire.
-- **Résultat attendu** : afficher une notification « Session bientôt expirée » 5 minutes avant l'expiration, avec un bouton pour prolonger (déclenche un refresh).
+- **Résultat** : composable `useSessionExpiry` (décode l'expiry JWT, planifie avertissement à T−5 min) + composant `AppSessionWarning.vue` avec bouton « Prolonger la session ».
 
 ### BL-085 — Politique de complexité de mot de passe
 
