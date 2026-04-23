@@ -117,7 +117,7 @@ class TestAdminUserManagementAudit:
             json={
                 "username": "newuser",
                 "email": "new@test.com",
-                "password": "password123",
+                "password": "Password123",
                 "role": "readonly",
             },
             headers={"Authorization": f"Bearer {token}"},
@@ -149,7 +149,7 @@ class TestAdminUserManagementAudit:
             json={
                 "username": "target",
                 "email": "target@test.com",
-                "password": "password123",
+                "password": "Password123",
                 "role": "readonly",
             },
             headers={"Authorization": f"Bearer {token}"},

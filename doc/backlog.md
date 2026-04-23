@@ -136,6 +136,60 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 
 ---
 
+## Audit UX / technique — 23/04/2026 (BL-067 → BL-085)
+
+Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec estimations et regroupement par lot.
+
+> **Règle** : ce tableau doit être mis à jour après chaque ticket livré.
+
+### Vue d'ensemble
+
+| ID | Type | Zone | Prio | Lot | Estimation | Sujet | Statut |
+|---|---|---|---|---|---|---|---|
+| BL-067 | Technique / Backend | API / Erreurs | ~~P1~~ | — | ~45 min | Gestionnaire d'erreurs global JSON | ✅ Fait |
+| BL-068 | Sécurité / API | OpenAPI / Swagger | ~~P1~~ | — | ~30 min | Désactiver Swagger/ReDoc en prod | ✅ Fait |
+| BL-069 | Opérationnel / Backend | Admin / Backup | ~~P1~~ | — | ~1h30 | Endpoint backup SQLite avec rotation | ✅ Fait |
+| BL-076 | UX / Frontend | Comptabilité / Impression | ~~P1~~ | — | ~1h | Styles `@media print` vues comptables | ✅ Fait |
+| BL-083 | Documentation | Exploitation / Migration | ~~P1~~ | — | ~1h | Guide de migration Synology FR+EN | ✅ Fait |
+| BL-085 | Sécurité / Backend | Auth / MDP | P2 | A | ~30 min | Politique complexité MDP | ⬜ Prêt |
+| BL-070 | UX / Frontend | Navigation | P2 | B | ~30 min | Page 404 dédiée | ⬜ Prêt |
+| BL-072 | UX / Frontend | Navigation | P2 | B | ~1h | Fil d'Ariane (Breadcrumb PrimeVue) | ⬜ Prêt |
+| BL-074 | UX / Frontend | Réseau | P2 | B | ~45 min | Bandeau « Connexion perdue » | ⬜ Prêt |
+| BL-084 | UX / Frontend | Session / Auth | P2 | B | ~45 min | Notification session expirée | ⬜ Prêt |
+| BL-042 | UX / Cohérence | Tables / Filtres | P2 | B | ~1h | Bouton reset sur tous les filtres | ⬜ Prêt |
+| BL-075 | UX / Fonctionnel | Dashboard | P2 | C | ~2h | KPI cliquables (absorbe BL-036, BL-041) | ⬜ Prêt |
+| BL-073 | UX / Frontend | Productivité | P2 | C | ~1h | Raccourcis clavier (Ctrl+N/S, Esc) | ⬜ Prêt |
+| BL-071 | UX / Frontend | Chargement | P2 | D | ~1h30 | Skeleton loaders PrimeVue | ⬜ Prêt |
+| BL-043 | UX / Fonctionnel | Comptabilité / Filtres | P2 | D | ~1h30 | Combos comptes comptables couleur | ⬜ Prêt |
+| BL-035 | UX / Fonctionnel | Contacts | P2 | E | ~2h | Onglets clients / fournisseurs | ⬜ Prêt |
+| BL-040 | Import / Fonctionnel | Contacts client | P2 | E | ~2h | Import one-shot emails contacts | ⬜ Prêt |
+| BL-079 | Qualité / Tests | Frontend / Composables | P2 | F | ~1h30 | Tests composables vitest | ⬜ Prêt |
+| BL-080 | Qualité / Tests | E2E | P2 | F | ~2h | Smoke test Playwright | ⬜ Prêt |
+| BL-081 | Qualité / Tests | Backend / Intégration | P2 | F | ~1h30 | Tests intégration API manquants | ⬜ Prêt |
+| BL-077 | Dette technique | Frontend / Vues | P2 | G | ~5h | Refactoring vues volumineuses | ⬜ Prêt |
+| BL-034 | Fonctionnel / Architecture | Banque / Multi-compte | P2 | H | ~6h+ | Support multi-compte banque | ⬜ Prêt |
+| BL-078 | Qualité / Frontend | i18n | P3 | — | ~30 min | Squelette localisation `en.ts` | ⬜ Prêt |
+| BL-082 | Documentation | API / OpenAPI | P3 | — | ~1h | Descriptions Swagger enrichies | ⬜ Prêt |
+
+### Détail des lots
+
+| Lot | Nom | Tickets | Estimation totale | Prérequis |
+|---|---|---|---|---|
+| **A** | Backend rapide | BL-085 | ~30 min | — |
+| **B** | UX quick wins | BL-070, BL-072, BL-074, BL-084, BL-042 | ~4h | — |
+| **C** | Dashboard interactif | BL-075, BL-073 | ~3h | — |
+| **D** | Polish UI | BL-071, BL-043 | ~3h | — |
+| **E** | Contacts & import | BL-035, BL-040 | ~4h | — |
+| **F** | Tests | BL-079, BL-080, BL-081 | ~5h | Setup Playwright pour BL-080 |
+| **G** | Refactoring frontend | BL-077 | ~5h | — |
+| **H** | Architecture multi-compte | BL-034 | ~6h+ | Décisions métier nécessaires |
+
+**Ordre recommandé** : A → B → C → D → E → F → G → H
+
+**Total P2 estimé : ~30h.** P3 hors lots : ~1h30.
+
+---
+
 ## Récapitulatif des sujets ouverts
 
 | ID | Créé le | Type | Zone | Priorité proposée | Sujet |
