@@ -15,6 +15,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `frontend/src/assets/print.css` : styles `@media print` pour l'impression des vues comptables (journal, balance, grand livre, bilan, résultat) — masque la sidebar, les filtres et les boutons ; optimise les tables en noir et blanc A4 paysage pour impression AG (BL-076)
 - `backend/main.py` : middleware ASGI `UnhandledExceptionMiddleware` interceptant toutes les exceptions non gérées pour renvoyer un JSON structuré `{"detail": ..., "code": "INTERNAL_SERVER_ERROR"}` au lieu d'un 500 HTML avec stack trace — log complet côté serveur (BL-067)
 - `backend/main.py` : `/api/docs`, `/api/redoc` et `/api/openapi.json` désormais désactivés quand `debug=False` — réduit la surface d'attaque en production (BL-068)
+- `backend/services/backup_service.py` + `POST /api/settings/backup` : endpoint admin de sauvegarde SQLite utilisant `sqlite3.backup()` avec rotation automatique (5 derniers backups), téléchargement direct du fichier en réponse (BL-069)
 
 **Qualité / Sécurité (audit 2026-04-22)**
 - `backend/routers/auth.py` : le refresh token est désormais transmis via un cookie `HttpOnly`, `Secure`, `SameSite=Strict` au lieu du corps JSON — `/auth/login` et `/auth/refresh` posent le cookie, nouvel endpoint `POST /auth/logout` (204) l'efface (BL-046)
