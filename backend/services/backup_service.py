@@ -4,6 +4,8 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
+import anyio
+
 
 async def create_backup(
     *,
@@ -16,13 +18,27 @@ async def create_backup(
     Returns the path to the new backup file.  Older backups beyond
     *max_backups* are deleted automatically (FIFO).
     """
+    if max_backups < 1:
+        raise ValueError("max_backups must be >= 1")
+
     backup_path = Path(backup_dir)
     backup_path.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
     dest_file = backup_path / f"solde_backup_{timestamp}.db"
 
-    # sqlite3.backup() is synchronous — safe on a single-writer SQLite WAL DB.
+    # Run blocking sqlite3 I/O in a worker thread to avoid blocking the event loop.
+    await anyio.to_thread.run_sync(
+        lambda: _do_backup(db_path, dest_file)
+    )
+
+    _rotate_backups(backup_path, max_backups)
+
+    return dest_file
+
+
+def _do_backup(db_path: str, dest_file: Path) -> None:
+    """Perform the actual sqlite3.backup() (synchronous, called from a thread)."""
     src_conn = sqlite3.connect(db_path)
     dst_conn = sqlite3.connect(str(dest_file))
     try:
@@ -30,10 +46,6 @@ async def create_backup(
     finally:
         dst_conn.close()
         src_conn.close()
-
-    _rotate_backups(backup_path, max_backups)
-
-    return dest_file
 
 
 def _rotate_backups(backup_dir: Path, max_backups: int) -> None:

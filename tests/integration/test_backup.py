@@ -100,9 +100,25 @@ async def test_backup_filename_contains_timestamp(tmp_path: Path) -> None:
         max_backups=5,
     )
 
-    # Format: solde_backup_YYYYMMDD_HHMMSS.db
+    # Format: solde_backup_YYYYMMDD_HHMMSS_ffffff.db
     assert result.name.startswith("solde_backup_")
     assert len(result.stem) > len("solde_backup_")
+
+
+@pytest.mark.asyncio
+async def test_create_backup_rejects_invalid_max_backups(tmp_path: Path) -> None:
+    """create_backup must reject max_backups < 1."""
+    import aiosqlite
+
+    src_db = tmp_path / "source.db"
+    async with aiosqlite.connect(str(src_db)) as db:
+        await db.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+        await db.commit()
+
+    from backend.services.backup_service import create_backup
+
+    with pytest.raises(ValueError, match="max_backups must be >= 1"):
+        await create_backup(db_path=str(src_db), backup_dir=str(tmp_path / "backups"), max_backups=0)
 
 
 # ---------------------------------------------------------------------------
@@ -181,3 +197,16 @@ async def test_backup_endpoint_creates_backup_on_disk(
 
     backups = list(backup_dir.glob("*.db"))
     assert len(backups) == 1
+
+
+@pytest.mark.asyncio
+async def test_backup_endpoint_db_not_found(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """POST /api/settings/backup must return 500 when the DB file is missing."""
+    with patch("backend.routers.settings._get_db_path", return_value="/nonexistent/solde.db"):
+        resp = await client.post("/api/settings/backup", headers=auth_headers)
+
+    assert resp.status_code == 500
+    assert resp.json()["detail"] == "Database file not found on disk."

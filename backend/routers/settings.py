@@ -148,9 +148,15 @@ _MAX_BACKUPS = 5
 
 def _get_db_path() -> str:
     """Resolve the SQLite file path from the database URL."""
-    url = get_app_config().database_url
-    # "sqlite+aiosqlite:///data/solde.db" → "data/solde.db"
-    return url.split("///", 1)[-1]
+    from sqlalchemy.engine import make_url
+
+    url = make_url(get_app_config().database_url)
+    if url.get_backend_name() != "sqlite":
+        raise RuntimeError(f"Backup only supports SQLite, got: {url.get_backend_name()}")
+    # make_url().database returns the filesystem path for SQLite URLs
+    if not url.database:
+        raise RuntimeError("Cannot determine database file path from URL.")
+    return url.database
 
 
 def _get_backup_dir() -> str:
