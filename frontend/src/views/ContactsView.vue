@@ -40,6 +40,15 @@
             :search-text="search"
             :active-filters="activeFilterLabels"
           />
+          <Button
+            :label="t('common.reset_filters')"
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            outlined
+            size="small"
+            :disabled="!hasAnyFilters"
+            @click="resetAllFilters"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -245,6 +254,8 @@ const {
   filters: tableFilters,
   displayedRows: displayedContacts,
   syncDisplayedRows: syncDisplayedContacts,
+  resetFilters,
+  hasActiveFilters,
 } = useDataTableFilters(contactRows, {
   global: textFilter(''),
   nom: textFilter(),
@@ -287,6 +298,17 @@ let _debounceTimer: ReturnType<typeof setTimeout> | undefined
 function debouncedLoad(): void {
   clearTimeout(_debounceTimer)
   _debounceTimer = setTimeout(loadContacts, 300)
+}
+
+const hasAnyFilters = computed(
+  () => hasActiveFilters.value || Boolean(search.value) || typeFilter.value !== undefined,
+)
+
+function resetAllFilters(): void {
+  resetFilters()
+  search.value = ''
+  typeFilter.value = undefined
+  void loadContacts()
 }
 
 async function loadContacts(): Promise<void> {

@@ -36,6 +36,15 @@
             :search-text="filterText"
             :active-filters="activeFilterLabels"
           />
+          <Button
+            :label="t('common.reset_filters')"
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            outlined
+            size="small"
+            :disabled="!hasAnyFilters"
+            @click="resetAllFilters"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -326,6 +335,8 @@ const {
   globalFilter: filterText,
   displayedRows: filtered,
   syncDisplayedRows: syncDisplayedPayments,
+  resetFilters,
+  hasActiveFilters,
 } = useDataTableFilters(paymentRows, {
   global: textFilter(''),
   date: dateRangeFilter(),
@@ -424,6 +435,14 @@ async function savePayment() {
   } finally {
     saving.value = false
   }
+}
+
+const hasAnyFilters = computed(() => hasActiveFilters.value || undepositedOnly.value)
+
+function resetAllFilters(): void {
+  resetFilters()
+  undepositedOnly.value = false
+  void loadPayments()
 }
 
 async function loadPayments() {

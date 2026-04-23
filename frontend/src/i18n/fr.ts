@@ -24,6 +24,8 @@ export default {
     light_mode: 'Mode clair',
     me: 'Mon compte',
     session_active: 'Session active',
+    session_expiring_soon: 'Votre session expire dans 5 minutes.',
+    session_extend: 'Prolonger la session',
   },
   nav: {
     section_home: 'Accueil',
@@ -1385,5 +1387,14 @@ export default {
       collection_eyebrow: 'Suivi operationnel',
       accounting_eyebrow: 'Pilotage comptable',
     },
+  },
+  not_found: {
+    title: 'Page non trouvée',
+    subtitle: "La page que vous demandez n'existe pas ou a été déplacée.",
+    back: 'Retour au tableau de bord',
+  },
+  offline: {
+    title: 'Connexion perdue',
+    subtitle: 'Le serveur est temporairement injoignable. Vos données ne sont pas affectées.',
   },
 }

@@ -42,6 +42,15 @@
             :search-text="filterText"
             :active-filters="activeFilterLabels"
           />
+          <Button
+            :label="t('common.reset_filters')"
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            outlined
+            size="small"
+            :disabled="!hasAnyFilters"
+            @click="resetAllFilters"
+          />
         </div>
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
@@ -242,6 +251,8 @@ const {
   globalFilter: filterText,
   displayedRows: displayedAccounts,
   syncDisplayedRows: syncDisplayedAccounts,
+  resetFilters,
+  hasActiveFilters,
 } = useDataTableFilters(accountRows, {
   global: textFilter(''),
   number: textFilter(),
@@ -252,6 +263,14 @@ const {
 
 function applyTypeFilter(nextType: AccountType | undefined): void {
   typeFilter.value = nextType
+  void loadAccounts()
+}
+
+const hasAnyFilters = computed(() => hasActiveFilters.value || typeFilter.value !== undefined)
+
+function resetAllFilters(): void {
+  resetFilters()
+  typeFilter.value = undefined
   void loadAccounts()
 }
 
