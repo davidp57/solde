@@ -1007,6 +1007,14 @@ watch(
   },
 )
 
+watch(
+  () => route.query.status,
+  (newStatus) => {
+    const status = Array.isArray(newStatus) ? newStatus[0] : newStatus
+    statusFilter.value = status ? (status as InvoiceStatus) : null
+  },
+)
+
 onMounted(async () => {
   await fiscalYearStore.initialize()
   const queryStatus = Array.isArray(route.query.status)

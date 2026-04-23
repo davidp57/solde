@@ -480,6 +480,13 @@ watch(
   },
 )
 
+watch(
+  () => route.query.undeposited,
+  (newValue) => {
+    undepositedOnly.value = newValue === '1'
+  },
+)
+
 onMounted(async () => {
   await fiscalYearStore.initialize()
   if (route.query.undeposited === '1') {
