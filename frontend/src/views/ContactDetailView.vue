@@ -7,7 +7,10 @@
     </AppPageHeader>
 
     <div v-if="loading" class="contact-detail-loading">
-      <ProgressSpinner />
+      <section class="app-stat-grid">
+        <Skeleton v-for="n in 3" :key="n" height="132px" border-radius="8px" />
+      </section>
+      <AppTableSkeleton :rows="10" :cols="4" style="margin-top: 1.5rem" />
     </div>
 
     <template v-else-if="history">
@@ -283,7 +286,7 @@ import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
-import ProgressSpinner from 'primevue/progressspinner'
+import Skeleton from 'primevue/skeleton'
 import Tag from 'primevue/tag'
 import Toast from 'primevue/toast'
 import { useConfirm } from 'primevue/useconfirm'
@@ -295,6 +298,7 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
+import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import { getContactHistoryApi, markCreanceDouteuse } from '../api/accounting'
 import type { ContactHistory } from '../api/accounting'
 import {
@@ -445,8 +449,8 @@ onMounted(loadHistory)
 <style scoped>
 .contact-detail-loading {
   display: flex;
-  justify-content: center;
-  padding: 4rem 0;
+  flex-direction: column;
+  gap: 0;
 }
 
 .contact-detail-actions {

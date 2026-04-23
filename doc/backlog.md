@@ -157,8 +157,8 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | BL-074 | UX / Frontend | Réseau | P2 | B | ~45 min | Bandeau « Connexion perdue » | ✅ Fait |
 | BL-075 | UX / Fonctionnel | Dashboard | P2 | C | ~2h | KPI cliquables (absorbe BL-036, BL-041) | ✅ Fait |
 | BL-073 | UX / Frontend | Productivité | P2 | C | ~1h | Raccourcis clavier (Ctrl+N/S, Esc) | ✅ Fait |
-| BL-071 | UX / Frontend | Chargement | P2 | D | ~1h30 | Skeleton loaders PrimeVue | ⬜ Prêt |
-| BL-043 | UX / Fonctionnel | Comptabilité / Filtres | P2 | D | ~1h30 | Combos comptes comptables couleur | ⬜ Prêt |
+| BL-071 | UX / Frontend | Chargement | P2 | D | ~1h30 | Skeleton loaders PrimeVue | ✅ Fait |
+| BL-043 | UX / Fonctionnel | Comptabilité / Filtres | P2 | D | ~1h30 | Combos comptes comptables couleur | ✅ Fait |
 | BL-035 | UX / Fonctionnel | Contacts | P2 | E | ~2h | Onglets clients / fournisseurs | ⬜ Prêt |
 | BL-040 | Import / Fonctionnel | Contacts client | P2 | E | ~2h | Import one-shot emails contacts | ⬜ Prêt |
 | BL-079 | Qualité / Tests | Frontend / Composables | P2 | F | ~1h30 | Tests unitaires composables | ⬜ Prêt |
@@ -175,7 +175,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | **A** | Backend rapide | BL-085 | ~30 min | — |
 | **B** | UX quick wins | BL-070, BL-072, BL-074, BL-084, BL-042 | ~4h | ✅ Fait 2026-04-23 |
 | **C** | Dashboard interactif | BL-075, BL-073 | ~3h | ✅ Fait 2026-04-23 |
-| **D** | Polish UI | BL-071, BL-043 | ~3h | — |
+| **D** | Polish UI | BL-071, BL-043 | ~3h | ✅ Terminé |
 | **E** | Contacts & import | BL-035, BL-040 | ~4h | — |
 | **F** | Tests | BL-079, BL-080, BL-081 | ~5h | Setup Playwright pour BL-080 |
 | **G** | Refactoring frontend | BL-077 | ~5h | — |

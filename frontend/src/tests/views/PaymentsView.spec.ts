@@ -250,6 +250,7 @@ const ColumnStub = defineComponent({
 
 async function flushView() {
   await Promise.resolve()
+  await Promise.resolve()
   await nextTick()
 }
 
@@ -270,6 +271,7 @@ function mountView() {
         Select: SelectStub,
         Tag: TagStub,
         ToggleButton: ToggleButtonStub,
+        AppTableSkeleton: { template: '<div />' },
       },
     },
   })

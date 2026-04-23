@@ -75,7 +75,9 @@
         </div>
       </div>
 
+      <AppTableSkeleton v-if="loading && !contacts.length" :rows="8" :cols="5" />
       <DataTable
+        v-else
         v-model:filters="tableFilters"
         :value="contactRows"
         :loading="loading"
@@ -225,6 +227,7 @@ import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
+import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
 import { deleteContactApi, listContactsApi, type Contact } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'

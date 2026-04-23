@@ -23,9 +23,7 @@
       </template>
     </AppPageHeader>
 
-    <div v-if="loading" class="bilan-loading">
-      <ProgressSpinner />
-    </div>
+    <AppTableSkeleton v-if="loading" :rows="10" :cols="3" />
 
     <div v-else-if="bilan" class="bilan-grid">
       <!-- Actif -->
@@ -110,8 +108,8 @@ import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
-import ProgressSpinner from 'primevue/progressspinner'
 import Select from 'primevue/select'
+import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
@@ -162,12 +160,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.bilan-loading {
-  display: flex;
-  justify-content: center;
-  padding: 4rem 0;
-}
-
 .bilan-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
