@@ -189,6 +189,10 @@ def create_app() -> FastAPI:
             )
         return response
 
+    # Health check (no auth required, used by Docker HEALTHCHECK)
+    @app.get("/api/health", tags=["health"])
+    async def health() -> dict[str, str]:
+        return {"status": "ok"}
     # API routers
     app.include_router(auth.router, prefix="/api")
     app.include_router(contact.router, prefix="/api")

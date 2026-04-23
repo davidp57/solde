@@ -163,14 +163,14 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 | BL-051 | 2026-04-22 | Fiabilité / Comptabilité | Écritures comptables | P1 | ~~Corriger la numérotation des écritures comptables (COUNT non thread-safe → MAX + lock)~~ **Fait** |
 | BL-052 | 2026-04-22 | Sécurité | Administration / Données | P1 | ~~Désactiver ou protéger l'endpoint `POST /settings/reset-db` en production~~ **Fait** |
 | BL-053 | 2026-04-22 | Sécurité | Authentification / Bootstrap | P1 | ~~Forcer le changement du mot de passe admin au premier login~~ **Fait** |
-| BL-054 | 2026-04-22 | DevOps / Docker | Déploiement | P2 | Séparer les migrations Alembic du démarrage Uvicorn dans le Dockerfile |
+| BL-054 | 2026-04-22 | DevOps / Docker | Déploiement | P2 | ~~Séparer les migrations Alembic du démarrage Uvicorn dans le Dockerfile~~ **Fait** |
 | BL-055 | 2026-04-22 | Sécurité / Config | CORS | P2 | ~~Configurer les origines CORS pour la production au lieu de `allow_origins=[]`~~ **Fait** |
 | BL-056 | 2026-04-22 | Sécurité / Traçabilité | Audit | P2 | Ajouter un journal d'audit structuré pour les actions sensibles (connexions, rôles, suppressions) |
 | BL-057 | 2026-04-22 | Dette technique | Backend / ORM | P2 | ~~Créer un TypeDecorator SQLAlchemy pour Decimal afin d'éliminer les ~30 occurrences de `Decimal(str(...))`~~ **Fait** |
 | BL-058 | 2026-04-22 | Dette technique | Services / Import Excel | P2 | Typer les exceptions dans l'import Excel (remplacer les `except Exception` généralisés) |
 | BL-059 | 2026-04-22 | Sécurité / API | Endpoints de liste | P2 | ~~Ajouter des limites de pagination par défaut (100) et maximum (1 000) sur tous les endpoints de liste~~ **Fait** |
 | BL-060 | 2026-04-22 | Fiabilité / DB | Schéma | P2 | ~~Retirer `Base.metadata.create_all` de `init_db()` et se reposer uniquement sur Alembic pour le schéma~~ **Fait** |
-| BL-061 | 2026-04-22 | DevOps / Docker | Monitoring | P2 | Ajouter un HEALTHCHECK Docker pour la supervision Synology |
+| BL-061 | 2026-04-22 | DevOps / Docker | Monitoring | P2 | ~~Ajouter un HEALTHCHECK Docker pour la supervision Synology~~ **Fait** |
 | BL-062 | 2026-04-22 | Qualité / Projet | Versions | P2 | ~~Synchroniser les versions frontend (`0.0.0`) et backend (`0.1.0`)~~ **Fait** |
 | BL-063 | 2026-04-22 | RGPD / Données | Plan comptable | P3 | ~~Retirer les noms de personnes réelles du plan comptable par défaut dans le code source~~ **Fait** |
 | BL-064 | 2026-04-22 | Qualité / Frontend | Code mort | P3 | ~~Supprimer `stores/counter.ts` (scaffolding Vue non utilisé)~~ **Fait** |
@@ -332,10 +332,11 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 
 ### BL-054 — Séparer les migrations Alembic du démarrage Uvicorn
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-07-19`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point K1).
 - **Pourquoi** : le `CMD` Docker fait `alembic upgrade head && uvicorn ...`. Si la migration échoue, le `&&` shell masque la cause. De plus, les migrations s'exécutent à chaque redémarrage du conteneur.
 - **Résultat attendu** : utiliser un script `entrypoint.sh` dédié avec gestion d'erreurs explicite, ou séparer la migration dans un step `docker-compose` distinct.
+- **Livré parce que** : `entrypoint.sh` créé avec `set -e` pour échouer explicitement si la migration rate, Dockerfile mis à jour avec `ENTRYPOINT`.
 
 ### BL-055 — Configurer les origines CORS pour la production
 
@@ -385,10 +386,11 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 
 ### BL-061 — Docker HEALTHCHECK
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-07-19`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point K2).
 - **Pourquoi** : ni le Dockerfile ni le docker-compose ne déclarent de health check. Le NAS Synology ne peut pas savoir si l'application est fonctionnelle après un redémarrage.
 - **Résultat attendu** : ajouter un `HEALTHCHECK` dans le Dockerfile ciblant un endpoint léger (ex. `/api/docs` ou un `/api/health` dédié) et un `healthcheck:` correspondant dans `docker-compose.yml`.
+- **Livré parce que** : endpoint `GET /api/health` (200, `{"status": "ok"}`), `HEALTHCHECK` dans Dockerfile et `healthcheck:` dans docker-compose.yml.
 
 ### BL-062 — Synchroniser les versions frontend / backend
 
