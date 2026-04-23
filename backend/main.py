@@ -193,9 +193,9 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=cfg.app_name,
         version=cfg.app_version,
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
+        docs_url="/api/docs" if cfg.debug else None,
+        redoc_url="/api/redoc" if cfg.debug else None,
+        openapi_url="/api/openapi.json" if cfg.debug else None,
         lifespan=lifespan,
     )
 
