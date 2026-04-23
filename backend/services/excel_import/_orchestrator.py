@@ -12,6 +12,7 @@ from backend.services.excel_import._constants import (
     _ImportSheetFailure,
     logger,
 )
+from backend.services.excel_import._exceptions import ImportFileOpenError
 from backend.services.excel_import_classification import (
     classify_comptabilite_sheet as _classify_comptabilite_sheet,
 )
@@ -61,7 +62,8 @@ async def import_gestion_file(
 
         wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
     except Exception as exc:
-        result.add_open_file_error(exc)
+        open_err = ImportFileOpenError(str(exc), file_name=file_name)
+        result.add_open_file_error(open_err)
         await _record_import_log(
             db,
             import_type="gestion",
@@ -94,12 +96,24 @@ async def import_gestion_file(
                     await _pkg._import_cash_sheet(db, ws, result)
                 elif kind == "bank":
                     await _pkg._import_bank_sheet(db, ws, result)
+        except _ImportSheetFailure:
+            logger.error("Gestion import aborted during %s (sheet failure)", kind, exc_info=True)
+            await db.rollback()
+            result.reset_persisted_counts()
+            await _record_import_log(
+                db,
+                import_type="gestion",
+                status="failed",
+                file_hash=file_hash,
+                file_name=file_name,
+                result=result,
+            )
+            return result
         except Exception as exc:
             logger.error("Gestion import aborted during %s: %s", kind, exc, exc_info=True)
             await db.rollback()
             result.reset_persisted_counts()
-            if not isinstance(exc, _ImportSheetFailure):
-                result.add_import_error("gestion", exc)
+            result.add_import_error("gestion", exc)
             await _record_import_log(
                 db,
                 import_type="gestion",
@@ -152,7 +166,8 @@ async def import_comptabilite_file(
 
         wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
     except Exception as exc:
-        result.add_open_file_error(exc)
+        open_err = ImportFileOpenError(str(exc), file_name=file_name)
+        result.add_open_file_error(open_err)
         await _record_import_log(
             db,
             import_type="comptabilite",
@@ -169,12 +184,24 @@ async def import_comptabilite_file(
             kind, _ = _classify_comptabilite_sheet(sheet_name)
             if kind == "entries":
                 await _pkg._import_entries_sheet(db, ws, result)
+    except _ImportSheetFailure:
+        logger.error("Comptabilite import aborted (sheet failure)", exc_info=True)
+        await db.rollback()
+        result.reset_persisted_counts()
+        await _record_import_log(
+            db,
+            import_type="comptabilite",
+            status="failed",
+            file_hash=file_hash,
+            file_name=file_name,
+            result=result,
+        )
+        return result
     except Exception as exc:
         logger.error("Comptabilite import aborted: %s", exc, exc_info=True)
         await db.rollback()
         result.reset_persisted_counts()
-        if not isinstance(exc, _ImportSheetFailure):
-            result.add_import_error("comptabilite", exc)
+        result.add_import_error("comptabilite", exc)
         await _record_import_log(
             db,
             import_type="comptabilite",

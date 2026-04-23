@@ -9,6 +9,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TypeVar
 
+from backend.services.excel_import._exceptions import ImportSheetError
 from backend.services.excel_import_state import (
     load_existing_generated_accounting_group_signatures,
 )
@@ -18,6 +19,8 @@ from backend.services.excel_import_types import (
 )
 
 logger = logging.getLogger(__name__)
+
+_ImportSheetFailure = ImportSheetError
 
 _load_existing_generated_accounting_group_signatures = (
     load_existing_generated_accounting_group_signatures
@@ -34,10 +37,6 @@ _SALARY_PAYMENT_ACCOUNT_PREFIXES = ("421", "512")
 _CLIENT_INVOICE_CLARIFIED_MESSAGE = (
     "Facture client existante clarifiee a partir des ecritures comptables"
 )
-
-
-class _ImportSheetFailure(RuntimeError):
-    """Internal marker used to abort the global import after a sheet-local failure."""
 
 
 @dataclass(slots=True)

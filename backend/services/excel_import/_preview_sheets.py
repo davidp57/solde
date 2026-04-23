@@ -17,6 +17,7 @@ from backend.services.excel_import._entry_groups import (
     _supplier_invoice_candidate_from_bank_row,
     _supplier_invoice_candidate_from_cash_row,
 )
+from backend.services.excel_import._exceptions import ImportFileOpenError
 from backend.services.excel_import._invoices import _single_client_invoice_reference
 from backend.services.excel_import._preview_existing import (
     _add_comptabilite_existing_rows_preview,
@@ -371,7 +372,8 @@ def _preview_gestion_file(file_bytes: bytes) -> PreviewResult:
     try:
         wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
     except Exception as exc:
-        _append_preview_open_error(preview, exc)
+        open_err = ImportFileOpenError(str(exc))
+        _append_preview_open_error(preview, open_err)
         return preview
 
     for sheet_name in wb.sheetnames:
@@ -435,7 +437,8 @@ async def preview_comptabilite_file(
     try:
         wb = openpyxl.load_workbook(BytesIO(file_bytes), read_only=True, data_only=True)
     except Exception as exc:
-        _append_preview_open_error(preview, exc)
+        open_err = ImportFileOpenError(str(exc))
+        _append_preview_open_error(preview, open_err)
         return preview
 
     for sheet_name in wb.sheetnames:

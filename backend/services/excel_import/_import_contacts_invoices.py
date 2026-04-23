@@ -104,7 +104,7 @@ async def _import_contacts_sheet(db: AsyncSession, ws: Any, result: ImportResult
         logger.error("Contacts flush failed: %s", exc, exc_info=True)
         result.add_import_error("contacts", exc)
         await db.rollback()
-        raise _ImportSheetFailure from exc
+        raise _ImportSheetFailure(str(exc), sheet_name=ws.title) from exc
 
 
 async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult) -> None:
@@ -315,4 +315,4 @@ async def _import_invoices_sheet(db: AsyncSession, ws: Any, result: ImportResult
         logger.error("Invoices flush failed: %s", exc, exc_info=True)
         result.add_import_error("factures", exc)
         await db.rollback()
-        raise _ImportSheetFailure from exc
+        raise _ImportSheetFailure(str(exc), sheet_name=ws.title) from exc

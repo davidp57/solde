@@ -191,6 +191,12 @@ from backend.services.excel_import._entry_groups import (
 from backend.services.excel_import._entry_groups import (
     _supplier_invoice_candidate_from_cash_row as _supplier_invoice_candidate_from_cash_row,
 )
+from backend.services.excel_import._exceptions import (  # noqa: F401
+    ImportFileOpenError as ImportFileOpenError,
+)
+from backend.services.excel_import._exceptions import (
+    ImportSheetError as ImportSheetError,
+)
 from backend.services.excel_import._import_cash_bank import (  # noqa: F401
     _import_bank_sheet as _import_bank_sheet,
 )
@@ -401,6 +407,8 @@ __all__ = [
     "import_comptabilite_file",
     "preview_gestion_file",
     "preview_comptabilite_file",
+    "ImportFileOpenError",
     "ImportResult",
+    "ImportSheetError",
     "PreviewResult",
 ]

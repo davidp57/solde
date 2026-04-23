@@ -119,7 +119,7 @@ _Révision : BL-050 est le refactoring le plus risqué du backlog. 5 038 lignes 
 | Ticket | Estimation initiale | Estimation révisée | Détail |
 |--------|--------------------|--------------------|--------|
 | BL-050 | 6h | **9h** | Éclater `excel_import.py` (5 038 L) en package — risque élevé, tests continus |
-| BL-058 | 2h | **3h** | Typer les 15+ `except Exception` (après BL-050) |
+| BL-058 | 2h | **1h** | Typer les 15+ `except Exception` (après BL-050) — **Fait** |
 
 ### Lot 8 — Chantiers longs — ~15h+
 
@@ -167,7 +167,7 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 | BL-055 | 2026-04-22 | Sécurité / Config | CORS | P2 | ~~Configurer les origines CORS pour la production au lieu de `allow_origins=[]`~~ **Fait** |
 | BL-056 | 2026-04-22 | Sécurité / Traçabilité | Audit | P2 | Ajouter un journal d'audit structuré pour les actions sensibles (connexions, rôles, suppressions) |
 | BL-057 | 2026-04-22 | Dette technique | Backend / ORM | P2 | ~~Créer un TypeDecorator SQLAlchemy pour Decimal afin d'éliminer les ~30 occurrences de `Decimal(str(...))`~~ **Fait** |
-| BL-058 | 2026-04-22 | Dette technique | Services / Import Excel | P2 | Typer les exceptions dans l'import Excel (remplacer les `except Exception` généralisés) |
+| BL-058 | 2026-04-22 | Dette technique | Services / Import Excel | P2 | ~~Typer les exceptions dans l'import Excel (remplacer les `except Exception` généralisés)~~ **Fait** |
 | BL-059 | 2026-04-22 | Sécurité / API | Endpoints de liste | P2 | ~~Ajouter des limites de pagination par défaut (100) et maximum (1 000) sur tous les endpoints de liste~~ **Fait** |
 | BL-060 | 2026-04-22 | Fiabilité / DB | Schéma | P2 | ~~Retirer `Base.metadata.create_all` de `init_db()` et se reposer uniquement sur Alembic pour le schéma~~ **Fait** |
 | BL-061 | 2026-04-22 | DevOps / Docker | Monitoring | P2 | ~~Ajouter un HEALTHCHECK Docker pour la supervision Synology~~ **Fait** |
@@ -363,11 +363,11 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 
 ### BL-058 — Typer les exceptions dans l'import Excel
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-05-22`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point C3).
 - **Pourquoi** : plus de 15 blocs `except Exception` dans `excel_import.py` et les routeurs associés. Ce pattern attrape tout, y compris des erreurs de programmation, et masque les problèmes.
-- **Résultat attendu** : remplacer les `except Exception` par des exceptions métier typées (`ImportParseError`, `ImportValidationError`, etc.) et ne garder les catches génériques qu'au point d'entrée du routeur, avec un log explicite.
-- **Point d'attention** : ce ticket dépend logiquement de `BL-050` (refactoring du module) ; il peut être traité en même temps ou juste après.
+- **Résultat attendu** : remplacer les `except Exception` par des exceptions métier typées (`ImportFileOpenError`, `ImportSheetError`) et ne garder les catches génériques qu'au point d'entrée du routeur, avec un log explicite.
+- **Livré parce que** : création de `_exceptions.py` avec `ImportFileOpenError` et `ImportSheetError`. `_ImportSheetFailure(RuntimeError)` remplacé par alias vers `ImportSheetError`. Orchestrateur : catch séparés `_ImportSheetFailure` / `Exception`. File open : wrapping en `ImportFileOpenError`. Routeur : mapping typé dans `_raise_import_run_error`. 10 tests ajoutés, 798 tests passent.
 
 ### BL-059 — Pagination bornée par défaut
 
