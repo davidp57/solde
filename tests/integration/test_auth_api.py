@@ -110,7 +110,7 @@ async def test_change_my_password_requires_current_password(
         headers=auth_headers,
         json={
             "current_password": "wrongpassword",
-            "new_password": "newsecurepassword123",
+            "new_password": "NewSecurePass123",
         },
     )
 
@@ -133,7 +133,7 @@ async def test_change_my_password_invalidates_existing_access_token(
         headers=auth_headers,
         json={
             "current_password": "adminpassword123",
-            "new_password": "newsecurepassword123",
+            "new_password": "NewSecurePass123",
         },
     )
 
@@ -144,7 +144,7 @@ async def test_change_my_password_invalidates_existing_access_token(
 
     login_response = await client.post(
         "/api/auth/login",
-        data={"username": "admin", "password": "newsecurepassword123"},
+        data={"username": "admin", "password": "NewSecurePass123"},
     )
     assert login_response.status_code == 200
 
@@ -181,7 +181,7 @@ async def test_admin_can_reset_user_password(
     response = await client.post(
         f"/api/auth/users/{readonly_user.id}/reset-password",
         headers=auth_headers,
-        json={"new_password": "temporaryreset123"},
+        json={"new_password": "TemporaryReset123"},
     )
 
     assert response.status_code == 204
@@ -194,7 +194,7 @@ async def test_admin_can_reset_user_password(
 
     new_login = await client.post(
         "/api/auth/login",
-        data={"username": "readonly", "password": "temporaryreset123"},
+        data={"username": "readonly", "password": "TemporaryReset123"},
     )
     assert new_login.status_code == 200
 
@@ -209,7 +209,7 @@ async def test_reset_user_password_requires_admin(
     response = await client.post(
         f"/api/auth/users/{admin_user.id}/reset-password",
         headers=readonly_auth_headers,
-        json={"new_password": "temporaryreset123"},
+        json={"new_password": "TemporaryReset123"},
     )
 
     assert response.status_code == 403
@@ -260,7 +260,7 @@ async def test_create_user_as_admin(
         json={
             "username": "newuser",
             "email": "new@test.com",
-            "password": "securepassword123",
+            "password": "SecurePass123",
             "role": "tresorier",
         },
         headers=auth_headers,
@@ -272,7 +272,7 @@ async def test_create_user_as_admin(
 
     login_response = await client.post(
         "/api/auth/login",
-        data={"username": "newuser", "password": "securepassword123"},
+        data={"username": "newuser", "password": "SecurePass123"},
     )
     assert login_response.status_code == 200
 
@@ -287,7 +287,7 @@ async def test_create_user_duplicate(
         json={
             "username": "admin",
             "email": "other@test.com",
-            "password": "securepassword123",
+            "password": "SecurePass123",
             "role": "readonly",
         },
         headers=auth_headers,
