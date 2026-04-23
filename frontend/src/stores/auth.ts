@@ -31,6 +31,7 @@ export const useAuthStore = defineStore('auth', () => {
     () => user.value?.role === 'tresorier' || user.value?.role === 'admin',
   )
   const canManageApplication = computed(() => user.value?.role === 'admin')
+  const mustChangePassword = computed(() => user.value?.must_change_password === true)
 
   function saveTokens(access: string, refresh: string): void {
     accessToken.value = access
@@ -154,6 +155,7 @@ export const useAuthStore = defineStore('auth', () => {
     canAccessManagement,
     canAccessAccounting,
     canManageApplication,
+    mustChangePassword,
     initFromStorage,
     login,
     logout,

@@ -161,6 +161,8 @@ export default {
     password_mismatch: 'La confirmation ne correspond pas au nouveau mot de passe.',
     change_password: 'Changer le mot de passe',
     password_changed: 'Mot de passe modifié. Veuillez vous reconnecter.',
+    must_change_password_banner:
+      "Vous devez changer votre mot de passe avant de pouvoir accéder à l'application.",
     stats: {
       role: 'Rôle actif',
       role_caption: 'Permission actuellement appliquée',

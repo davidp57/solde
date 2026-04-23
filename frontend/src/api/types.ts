@@ -7,6 +7,7 @@ export interface TokenResponse {
   access_token: string
   refresh_token: string
   token_type: string
+  must_change_password: boolean
 }
 
 export type UserRole = 'readonly' | 'secretaire' | 'tresorier' | 'admin'
@@ -16,6 +17,7 @@ export interface UserRead {
   username: string
   email: string
   role: UserRole
+  must_change_password: boolean
   is_active: boolean
   created_at: string
 }

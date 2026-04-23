@@ -94,8 +94,12 @@ async function handleSubmit(): Promise<void> {
   if (!username.value || !password.value) return
   await auth.login(username.value, password.value)
   if (auth.isAuthenticated) {
-    const redirect = (route.query.redirect as string) || '/dashboard'
-    await router.push(redirect)
+    if (auth.mustChangePassword) {
+      await router.push('/profile')
+    } else {
+      const redirect = (route.query.redirect as string) || '/dashboard'
+      await router.push(redirect)
+    }
   }
 }
 </script>

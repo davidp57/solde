@@ -75,6 +75,7 @@ async def _bootstrap_admin() -> None:
             password_hash=hash_password(cfg.admin_password),
             role=UserRole.ADMIN,
             is_active=True,
+            must_change_password=True,
         )
         session.add(user)
         logging.getLogger(__name__).warning(

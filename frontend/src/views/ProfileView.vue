@@ -6,6 +6,10 @@
       :subtitle="t('profile.subtitle')"
     />
 
+    <Message v-if="auth.mustChangePassword" severity="warn" :closable="false" class="mb-4">
+      {{ t('profile.must_change_password_banner') }}
+    </Message>
+
     <section class="app-stat-grid">
       <AppStatCard
         :label="t('profile.stats.role')"

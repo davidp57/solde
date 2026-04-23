@@ -32,6 +32,7 @@ class User(Base):
         nullable=False,
         default=lambda: datetime.now(UTC),
     )
+    must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     role: Mapped[UserRole] = mapped_column(String(20), nullable=False, default=UserRole.READONLY)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
