@@ -119,7 +119,9 @@
         </div>
       </div>
 
+      <AppTableSkeleton v-if="loading && !invoices.length" :rows="8" :cols="5" />
       <DataTable
+        v-else
         v-model:filters="tableFilters"
         :value="invoiceRows"
         :loading="loading"
@@ -367,9 +369,7 @@
           </div>
         </div>
 
-        <div v-if="historyLoading" class="history-dialog__loading">
-          <ProgressSpinner style="width: 32px; height: 32px" />
-        </div>
+        <AppTableSkeleton v-if="historyLoading" :rows="5" :cols="3" />
         <div v-else-if="historyPayments.length === 0" class="app-empty-state">
           {{ t('invoices.no_payments') }}
         </div>
@@ -529,7 +529,6 @@ import DatePicker from 'primevue/datepicker'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
-import ProgressSpinner from 'primevue/progressspinner'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
@@ -560,6 +559,7 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
+import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import {
   dateRangeFilter,
   inFilter,
@@ -1079,12 +1079,6 @@ onMounted(async () => {
 
 .history-dialog__value--warn {
   color: var(--p-orange-500);
-}
-
-.history-dialog__loading {
-  display: flex;
-  justify-content: center;
-  padding: var(--app-space-5) 0;
 }
 
 @media (max-width: 767px) {

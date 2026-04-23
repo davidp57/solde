@@ -80,10 +80,11 @@
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('accounting.journal.filter_account') }}</label>
-            <InputText
-              v-model="filters.account_number"
+            <AppAccountSelect
+              :model-value="filters.account_number || null"
+              :accounts="journalAccounts"
               :placeholder="t('accounting.journal.account')"
-              @keydown.enter="load"
+              @update:model-value="onAccountFilterChange"
             />
           </div>
           <div class="app-field">
@@ -124,7 +125,9 @@
         </div>
       </div>
 
+      <AppTableSkeleton v-if="loading && !groups.length" :rows="8" :cols="5" />
       <DataTable
+        v-else
         v-model:filters="tableFilters"
         :value="journalRows"
         :loading="loading"
@@ -622,6 +625,8 @@ import {
   createManualEntryApi,
   getExportCsvUrl,
   getJournalGroupsApi,
+  listAccountsApi,
+  type AccountingAccount,
   type AccountingEntryGroupRead,
   type AccountingEntryRead,
   type EntrySourceType,
@@ -637,6 +642,8 @@ import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
+import AppAccountSelect from '../components/ui/AppAccountSelect.vue'
+import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import {
   dateRangeFilter,
   inFilter,
@@ -662,6 +669,7 @@ const router = useRouter()
 const fiscalYearStore = useFiscalYearStore()
 
 const groups = ref<AccountingEntryGroupRead[]>([])
+const journalAccounts = ref<AccountingAccount[]>([])
 const fiscalYears = computed(() => fiscalYearStore.fiscalYears)
 const selectedFiscalYearId = computed({
   get: () => fiscalYearStore.selectedFiscalYearId,
@@ -843,6 +851,11 @@ function accountsSummary(group: AccountingEntryGroupRead): string {
   return `${group.account_numbers.slice(0, 3).join(', ')} +${group.account_numbers.length - 3}`
 }
 
+function onAccountFilterChange(value: string | null) {
+  filters.value.account_number = value ?? ''
+  void load()
+}
+
 function findEditableEntry(group: AccountingEntryGroupRead): AccountingEntryRead | null {
   return (
     group.lines.find((line) => line.editable && Number.parseFloat(line.debit) > 0) ||
@@ -977,7 +990,8 @@ watch(
 
 onMounted(async () => {
   await fiscalYearStore.initialize()
-  await load()
+  const [, accts] = await Promise.all([load(), listAccountsApi(undefined, false)])
+  journalAccounts.value = accts
 })
 </script>
 
