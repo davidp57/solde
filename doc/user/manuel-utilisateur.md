@@ -84,6 +84,20 @@ Accéder à l'application avec votre compte utilisateur.
 
 Si les informations sont correctes, Solde ouvre le tableau de bord.
 
+### Changement de mot de passe imposé
+
+Si vous vous connectez pour la première fois, ou si un administrateur a réinitialisé votre mot de passe, Solde vous redirige automatiquement vers l'écran `Mon profil` avec un message d'avertissement :
+
+> **Vous devez changer votre mot de passe avant de continuer.**
+
+Tant que le changement n'est pas effectué :
+
+- Vous ne pouvez pas accéder aux autres écrans de l'application.
+- Toute tentative de navigation est redirigée vers `Mon profil`.
+- Les appels API sont bloqués (HTTP 403) en dehors des endpoints d'authentification.
+
+Pour débloquer l'accès : saisissez un nouveau mot de passe dans le formulaire `Mon profil` et confirmez.
+
 ### En cas de problème
 
 - Si un message indique que l'identifiant ou le mot de passe est incorrect, vérifiez la saisie puis recommencez.
@@ -609,7 +623,7 @@ Utilisez l'écran `Mon profil`, accessible depuis le menu principal. Vous pouvez
 
 ### J'ai oublié mon mot de passe, que faire ?
 
-Demandez à un administrateur de réinitialiser temporairement votre accès depuis l'écran `Utilisateurs`. Une fois reconnecté, changez immédiatement ce mot de passe temporaire depuis `Mon profil`.
+Demandez à un administrateur de réinitialiser temporairement votre accès depuis l'écran `Utilisateurs`. Une fois reconnecté, Solde vous redirige automatiquement vers `Mon profil` et vous impose de changer ce mot de passe temporaire avant d'accéder à l'application.
 
 ### Pourquoi une facture n'apparaît pas comme payée ?
 
