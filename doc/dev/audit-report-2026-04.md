@@ -493,6 +493,61 @@ Fichier `stores/counter.ts` généré par le scaffolding Vue.js, non utilisé. C
 
 ---
 
+## 11. Suivi des corrections — Sprint 2026-04-22
+
+Toutes les recommandations prioritaires (critique, haute, modérée) ont été implémentées dans la branche `chore-review-claude-opus`, mergée dans `develop` le 2026-04-23.
+
+### ✅ Priorité critique — Corrigé
+
+| # | Action | Ticket | Date |
+|---|--------|--------|------|
+| S1 | Rate limiting sur `/auth/login` (slowapi, 5 req/min) | BL-045 | 2026-04-22 |
+| S2 | Refresh token migré vers cookie `HttpOnly`/`Secure`/`SameSite=Strict` | BL-046 | 2026-04-22 |
+| S3 | En-têtes de sécurité HTTP (CSP, HSTS, X-Frame-Options, etc.) | BL-047 | 2026-04-22 |
+| T1 | 11 tests en échec corrigés + 1 erreur API | BL-048 | 2026-04-22 |
+| T2 | Couverture remontée à ~71 % (+44 tests unitaires) | BL-049 | 2026-04-22 |
+
+### ✅ Priorité haute — Corrigé
+
+| # | Action | Ticket | Date |
+|---|--------|--------|------|
+| P1 | `excel_import.py` (5 567 L) éclaté en package 16 sous-modules | BL-050 | 2026-04-22 |
+| C1 | Numérotation des écritures : `MAX+1` au lieu de `COUNT` | BL-051 | 2026-04-22 |
+| S5 | `reset-db` protégé : HTTP 403 si `debug=False` | BL-052 | 2026-04-22 |
+| S6 | Changement de mot de passe forcé au premier login / reset admin | BL-053 | 2026-04-22 |
+| K1 | `entrypoint.sh` séparant migrations et démarrage Uvicorn | BL-054 | 2026-04-22 |
+
+### ✅ Priorité modérée — Corrigé
+
+| # | Action | Ticket | Date |
+|---|--------|--------|------|
+| S4 | CORS configurables via `CORS_ALLOWED_ORIGINS` | BL-055 | 2026-04-22 |
+| S8 | Journal d'audit structuré (table `audit_logs`, 7 types d'événements) | BL-056 | 2026-04-22 |
+| C2 | `DecimalType` TypeDecorator — élimination des `Decimal(str(...))` | BL-057 | 2026-04-22 |
+| C3 | Exceptions typées dans l'import Excel | BL-058 | 2026-04-22 |
+| C4 | `limit=100`/`max=1000` sur tous les endpoints de liste | BL-059 | 2026-04-22 |
+| D1 | `create_all` retiré de `init_db()` — Alembic seul | BL-060 | 2026-04-22 |
+| K2 | `HEALTHCHECK` Docker + `docker-compose.yml` | BL-061 | 2026-04-22 |
+| F3 | Versions frontend/backend synchronisées à `0.1.0` | BL-062 | 2026-04-22 |
+
+### ✅ Priorité faible — Corrigé
+
+| # | Action | Ticket | Date |
+|---|--------|--------|------|
+| D3 | Noms de personnes retirés du plan comptable par défaut (RGPD) | BL-063 | 2026-04-22 |
+| F1 | `stores/counter.ts` supprimé | BL-064 | 2026-04-22 |
+| P3 | `__allow_unmapped__` éliminé du modèle Payment | BL-065 | 2026-04-22 |
+| C6 | `@lru_cache` pour le singleton Settings | BL-066 | 2026-04-22 |
+
+### 🔵 Ouvert
+
+| # | Action | Raison |
+|---|--------|--------|
+| K3 | `.env.example` | Non planifié dans ce sprint |
+| O2 | Documentation développeur des flux métier | Chantier long terme |
+
+---
+
 ## Conclusion
 
 Le projet montre un **bon niveau de conception architecturale** — la séparation des responsabilités, le choix des technologies, la gestion de l'i18n et le système de comptabilité en partie double témoignent d'une compréhension solide du domaine.

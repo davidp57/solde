@@ -84,6 +84,20 @@ Access the application with your user account.
 
 If the credentials are valid, Solde opens the dashboard.
 
+### Forced password change
+
+If you are signing in for the first time, or if an administrator has reset your password, Solde automatically redirects you to the `Mon profil` screen with a warning:
+
+> **You must change your password before continuing.**
+
+Until the password is changed:
+
+- You cannot access any other screen in the application.
+- Any navigation attempt is redirected back to `Mon profil`.
+- API calls are blocked (HTTP 403) outside the authentication endpoints.
+
+To unlock access: enter a new password in the `Mon profil` form and confirm.
+
 ### If there is a problem
 
 - If a message says that the username or password is incorrect, check your input and try again.
