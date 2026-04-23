@@ -23,6 +23,23 @@
 
     <AppPanel :title="t('salary.title')" dense>
       <div class="app-toolbar">
+        <div class="app-toolbar__meta">
+          <AppListState
+            :displayed-count="filteredSalaries.length"
+            :total-count="salaries.length"
+            :loading="loading"
+            :search-text="filterText"
+          />
+          <Button
+            :label="t('common.reset_filters')"
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            outlined
+            size="small"
+            :disabled="!hasAnyFilters"
+            @click="resetAllFilters"
+          />
+        </div>
         <div class="app-filter-grid">
           <div class="app-field">
             <label class="app-field__label">{{ t('salary.filter_employee') }}</label>
@@ -416,6 +433,7 @@ import Toast from 'primevue/toast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
+import AppListState from '../components/ui/AppListState.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
@@ -475,6 +493,8 @@ const {
   globalFilter: salaryGlobalFilter,
   displayedRows: filteredSalaries,
   syncDisplayedRows: syncDisplayedSalaries,
+  resetFilters: resetSalaryFilters,
+  hasActiveFilters: hasActiveSalaryFilters,
 } = useDataTableFilters(salaryRows, {
   global: textFilter(''),
   employee_name: inFilter(),
@@ -488,6 +508,7 @@ const {
   filters: summaryTableFilters,
   globalFilter: summaryGlobalFilter,
   syncDisplayedRows: syncDisplayedSummary,
+  resetFilters: resetSummaryFilters,
 } = useDataTableFilters(summaryRows, {
   global: textFilter(''),
   month: inFilter(),
@@ -504,6 +525,21 @@ const filterText = computed({
     summaryGlobalFilter.value = value
   },
 })
+
+const hasAnyFilters = computed(
+  () =>
+    hasActiveSalaryFilters.value ||
+    Boolean(filterEmployee.value) ||
+    Boolean(filterMonth.value),
+)
+
+function resetAllFilters(): void {
+  resetSalaryFilters()
+  resetSummaryFilters()
+  filterEmployee.value = undefined
+  filterMonth.value = ''
+  void loadSalaries()
+}
 function toSalaryNumber(value: number | string | null | undefined): number {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : 0
