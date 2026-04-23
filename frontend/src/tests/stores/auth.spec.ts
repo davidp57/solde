@@ -13,6 +13,7 @@ const mockUser = {
   username: 'admin',
   email: 'admin@example.com',
   role: 'admin' as const,
+  must_change_password: false,
   is_active: true,
   created_at: '2025-01-01T00:00:00',
 }
@@ -21,6 +22,7 @@ const mockTokens = {
   access_token: 'access.token.value',
   refresh_token: 'refresh.token.value',
   token_type: 'bearer',
+  must_change_password: false,
 }
 
 describe('useAuthStore', () => {
@@ -220,5 +222,26 @@ describe('useAuthStore', () => {
     await store.login('readonly', 'password')
 
     expect(sessionStorage.getItem('dev_auto_login_suppressed')).toBeNull()
+  })
+
+  it('mustChangePassword is true when user.must_change_password is true', async () => {
+    const mustChangeUser = { ...mockUser, must_change_password: true }
+    mockLoginApi.mockResolvedValueOnce({ ...mockTokens, must_change_password: true })
+    mockGetMeApi.mockResolvedValueOnce(mustChangeUser)
+
+    const store = useAuthStore()
+    await store.login('admin', 'password')
+
+    expect(store.mustChangePassword).toBe(true)
+  })
+
+  it('mustChangePassword is false for normal user', async () => {
+    mockLoginApi.mockResolvedValueOnce(mockTokens)
+    mockGetMeApi.mockResolvedValueOnce(mockUser)
+
+    const store = useAuthStore()
+    await store.login('admin', 'password')
+
+    expect(store.mustChangePassword).toBe(false)
   })
 })

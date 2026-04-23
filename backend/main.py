@@ -9,6 +9,8 @@ from pathlib import Path
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.responses import JSONResponse
 
 from backend.config import get_settings
 from backend.database import init_db
@@ -35,6 +37,45 @@ from backend.routers import (
 
 LOG_DIR = Path("data/logs")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+# Paths exempt from the must-change-password gate
+_PASSWORD_GATE_EXEMPT = frozenset(
+    {
+        "/api/auth/login",
+        "/api/auth/refresh",
+        "/api/auth/me",
+        "/api/auth/me/change-password",
+    }
+)
+
+
+class MustChangePasswordMiddleware(BaseHTTPMiddleware):
+    """Block API access (403) when the JWT carries ``mcp=True`` (must change password).
+
+    Only ``/api/auth/`` endpoints needed for the password change flow are allowed through.
+    """
+
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        path = request.url.path.rstrip("/")
+
+        # Only gate API requests that are not in the exempt set
+        if path.startswith("/api/") and path not in _PASSWORD_GATE_EXEMPT:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+                from backend.services.auth import decode_access_token
+
+                payload = decode_access_token(token)
+                if payload and payload.get("mcp") is True:
+                    return JSONResponse(
+                        status_code=403,
+                        content={
+                            "detail": "Password change required before accessing this resource",
+                        },
+                    )
+
+        return await call_next(request)
+
 
 logging.config.dictConfig(
     {
@@ -111,6 +152,8 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
         lifespan=lifespan,
     )
+
+    app.add_middleware(MustChangePasswordMiddleware)
 
     # CORS — use CORS_ALLOWED_ORIGINS in production; falls back to ["*"] in debug mode
     _cors_origins = cfg.cors_allowed_origins or (["*"] if cfg.debug else [])

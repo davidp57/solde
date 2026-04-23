@@ -176,8 +176,11 @@ async def login(
         )
     login_limiter.reset(client_ip)
     return TokenResponse(
-        access_token=create_access_token(data={"sub": user.username}),
+        access_token=create_access_token(
+            data={"sub": user.username, "mcp": user.must_change_password},
+        ),
         refresh_token=create_refresh_token(user.username),
+        must_change_password=user.must_change_password,
     )
 
 
@@ -199,8 +202,11 @@ async def refresh_token(
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return TokenResponse(
-        access_token=create_access_token(data={"sub": user.username}),
+        access_token=create_access_token(
+            data={"sub": user.username, "mcp": user.must_change_password},
+        ),
         refresh_token=create_refresh_token(user.username),
+        must_change_password=user.must_change_password,
     )
 
 
@@ -262,6 +268,7 @@ async def change_my_password(
 
     current_user.password_hash = hash_password(body.new_password)
     current_user.password_changed_at = datetime.now(UTC)
+    current_user.must_change_password = False
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -367,5 +374,6 @@ async def reset_user_password(
 
     user.password_hash = hash_password(body.new_password)
     user.password_changed_at = datetime.now(UTC)
+    user.must_change_password = True
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
