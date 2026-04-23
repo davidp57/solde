@@ -94,11 +94,14 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
             format_row_issue(ignored_issue),
         )
 
-    # Pre-compute next entry number offset to avoid per-row DB queries
-    count_result = await db.execute(select(func.count(AccountingEntry.id)))
-    base_count = count_result.scalar_one_or_none() or 0
+    # Pre-compute next entry number using MAX to avoid duplicates after deletions
+    max_result = await db.execute(select(func.max(AccountingEntry.entry_number)))
+    current_max: str | None = max_result.scalar_one_or_none()
+    try:
+        next_entry_num = int(current_max) + 1 if current_max is not None else 1
+    except ValueError:
+        next_entry_num = 1
     entries_to_add: list[AccountingEntry] = []
-    next_offset = 0
     entry_groups = _build_entry_row_groups(normalized_rows)
     index = 0
     while index < len(entry_groups):
@@ -254,9 +257,8 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                     ),
                 )
 
-            next_offset += 1
             entry = AccountingEntry(
-                entry_number=f"{base_count + next_offset:06d}",
+                entry_number=f"{next_entry_num:06d}",
                 date=entry_row.entry_date,
                 account_number=entry_row.account_number,
                 label=entry_row.label,
@@ -267,6 +269,7 @@ async def _import_entries_sheet(db: AsyncSession, ws: Any, result: ImportResult)
                 group_key=group_key,
             )
             entries_to_add.append(entry)
+            next_entry_num += 1
             existing_entry_signatures.add(signature)
             result.add_imported_row(ws.title, "entries")
 
