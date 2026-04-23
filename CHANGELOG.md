@@ -14,6 +14,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 **Qualité / Sécurité (audit 2026-04-22)**
 - `backend/routers/auth.py` : le refresh token est désormais transmis via un cookie `HttpOnly`, `Secure`, `SameSite=Strict` au lieu du corps JSON — `/auth/login` et `/auth/refresh` posent le cookie, nouvel endpoint `POST /auth/logout` (204) l'efface (BL-046)
 - Frontend : `refreshApi()` et `logoutApi()` utilisent le cookie automatiquement (`withCredentials: true`), le store auth ne stocke plus le refresh token en `localStorage` (BL-046)
+- `entrypoint.sh` : script d'entrée Docker dédié avec `set -e` — les migrations Alembic échouent explicitement au lieu d'être masquées par le `&&` shell (BL-054)
+- `GET /api/health` : endpoint de health check léger (200, `{"status": "ok"}`) + `HEALTHCHECK` Docker + `healthcheck:` docker-compose pour la supervision Synology (BL-061)
 - `backend/models/user.py` : champ `must_change_password` obligeant l'utilisateur à changer son mot de passe avant d'accéder à l'application — activé au bootstrap admin, à la réinitialisation de mot de passe par un administrateur, et désactivé automatiquement après changement effectif (BL-053)
 - `backend/main.py` : middleware `MustChangePasswordMiddleware` bloquant (HTTP 403) toute requête API hors `/api/auth/` quand le JWT porte le flag `mcp=True` (BL-053)
 - Frontend : redirection automatique vers la page Profil avec bannière d'avertissement lorsque `must_change_password` est actif ; le router guard empêche la navigation vers d'autres pages (BL-053)
