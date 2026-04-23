@@ -154,25 +154,25 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | BL-085 | Sécurité / Backend | Auth / MDP | P2 | A | ~30 min | Politique de complexité MDP | ✅ Fait |
 | BL-070 | UX / Frontend | Navigation | P2 | B | ~30 min | Page 404 dédiée | ⬜ Prêt |
 | BL-072 | UX / Frontend | Navigation | P2 | B | ~1h | Fil d'Ariane (Breadcrumb PrimeVue) | ⬜ Prêt |
-| BL-074 | UX / Frontend | Réseau | P2 | B | ~45 min | Bandeau « Connexion perdue » | ⬜ Prêt |
-| BL-084 | UX / Frontend | Session / Auth | P2 | B | ~45 min | Notification session expirée | ⬜ Prêt |
-| BL-042 | UX / Cohérence | Tables / Filtres | P2 | B | ~1h | Bouton reset sur tous les filtres | ⬜ Prêt |
+| BL-074 | UX / Frontend | Réseau | P2 | B | ~45 min | Bandeau « Connexion perdu~~Ajouter un gestionnaire d'erreurs global FastAPI renvoyant du JSON structuré au lieu d'un 500 HTML~~ **Fait** |
+| BL-068 | 2026-04-23 | Sécurité / API | OpenAPI / Swagger | ~~P1~~ **Fait** | ~~Désactiver `/api/docs` et `/api/redoc` en production (conditionner à `debug=True`)~~ **Fait** |
+| BL-069 | 2026-04-23 | Opérationnel / Backend | Administration / Backup | ~~P1~~ **Fait** | ~~Ajouter un endpoint admin `POST /api/settings/backup` utilisant `sqlite3.backup()` avec rotation des 5 derniers fichiers~~ **Fait**
 | BL-075 | UX / Fonctionnel | Dashboard | P2 | C | ~2h | KPI cliquables (absorbe BL-036, BL-041) | ⬜ Prêt |
 | BL-073 | UX / Frontend | Productivité | P2 | C | ~1h | Raccourcis clavier (Ctrl+N/S, Esc) | ⬜ Prêt |
 | BL-071 | UX / Frontend | Chargement | P2 | D | ~1h30 | Skeleton loaders PrimeVue | ⬜ Prêt |
 | BL-043 | UX / Fonctionnel | Comptabilité / Filtres | P2 | D | ~1h30 | Combos comptes comptables couleur | ⬜ Prêt |
 | BL-035 | UX / Fonctionnel | Contacts | P2 | E | ~2h | Onglets clients / fournisseurs | ⬜ Prêt |
 | BL-040 | Import / Fonctionnel | Contacts client | P2 | E | ~2h | Import one-shot emails contacts | ⬜ Prêt |
-| BL-079 | Qualité / Tests | Frontend / Composables | P2 | F | ~1h30 | Tests composables vitest | ⬜ Prêt |
+| BL-079 | Qualité / Tests | Frontend / Composables | P2 | F | ~1h30~~P1~~ **Fait** | ~~Ajouter des styles `@media print` sur les vues comptables (journal, balance, grand livre, bilan, résultat) pour l'impression AG~~ **Fait**
 | BL-080 | Qualité / Tests | E2E | P2 | F | ~2h | Smoke test Playwright | ⬜ Prêt |
 | BL-081 | Qualité / Tests | Backend / Intégration | P2 | F | ~1h30 | Tests intégration API manquants | ⬜ Prêt |
 | BL-077 | Dette technique | Frontend / Vues | P2 | G | ~5h | Refactoring vues volumineuses | ⬜ Prêt |
 | BL-034 | Fonctionnel / Architecture | Banque / Multi-compte | P2 | H | ~6h+ | Support multi-compte banque | ⬜ Prêt |
 | BL-078 | Qualité / Frontend | i18n | P3 | — | ~30 min | Squelette localisation `en.ts` | ⬜ Prêt |
 | BL-082 | Documentation | API / OpenAPI | P3 | — | ~1h | Descriptions Swagger enrichies | ⬜ Prêt |
-
+~~P1~~ **Fait** | ~~Rédiger un guide de migration/montée de version pour les déploiements Synology sans expert technique~~ **Fait**
 ### Détail des lots
-
+~~P2~~ **Fait** | ~~Ajouter une politique de complexité de mot de passe (min 8 caractères, majuscule + chiffre)~~ **Fait**
 | Lot | Nom | Tickets | Estimation totale | Prérequis |
 |---|---|---|---|---|
 | **A** | Backend rapide | BL-085 | ~30 min | — |
