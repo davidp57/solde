@@ -1,7 +1,7 @@
 <template>
   <div class="not-found-page">
     <div class="not-found-content">
-      <i class="pi pi-exclamation-circle not-found-icon" />
+      <i class="pi pi-exclamation-circle not-found-icon" aria-hidden="true" />
       <h1 class="not-found-title">{{ t('not_found.title') }}</h1>
       <p class="not-found-subtitle">{{ t('not_found.subtitle') }}</p>
       <Button :label="t('not_found.back')" icon="pi pi-home" @click="router.push('/dashboard')" />

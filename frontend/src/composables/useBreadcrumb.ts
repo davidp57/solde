@@ -3,19 +3,14 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { MenuItem } from 'primevue/menuitem'
 
-export interface BreadcrumbHome {
-  icon: string
-  route: string
-}
-
 export function useBreadcrumb(): {
-  home: BreadcrumbHome
+  home: MenuItem
   items: ComputedRef<MenuItem[]>
 } {
   const route = useRoute()
   const { t } = useI18n()
 
-  const home: BreadcrumbHome = { icon: 'pi pi-home', route: '/dashboard' }
+  const home: MenuItem = { icon: 'pi pi-home', to: '/dashboard' }
 
   const items = computed<MenuItem[]>(() => {
     const { label, breadcrumbParent } = route.meta
@@ -27,7 +22,7 @@ export function useBreadcrumb(): {
     if (breadcrumbParent) {
       result.push({
         label: t(breadcrumbParent.labelKey),
-        route: breadcrumbParent.to,
+        to: breadcrumbParent.to,
       })
     }
     result.push({ label: t(label) })

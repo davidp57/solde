@@ -3,11 +3,20 @@ import { useAuthStore } from '../stores/auth'
 
 const WARNING_BEFORE_MS = 5 * 60 * 1000 // 5 minutes
 
+function decodeBase64Url(value: string): string {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/')
+  const paddingLength = (4 - (base64.length % 4)) % 4
+  if (paddingLength === 3) {
+    throw new Error('Invalid Base64URL string length')
+  }
+  return atob(base64.padEnd(base64.length + paddingLength, '='))
+}
+
 function getTokenExpiry(token: string): number | null {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null
-    const payload = JSON.parse(atob((parts[1] ?? '').replace(/-/g, '+').replace(/_/g, '/')))
+    const payload = JSON.parse(decodeBase64Url(parts[1] ?? ''))
     return typeof payload.exp === 'number' ? payload.exp * 1000 : null
   } catch {
     return null
