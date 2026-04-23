@@ -10,15 +10,11 @@
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('accounting.journal.filter_account') }}</label>
-            <Select
+            <AppAccountSelect
               v-model="accountNumber"
-              :options="accounts"
-              option-label="displayLabel"
-              option-value="number"
+              :accounts="accounts"
               :placeholder="t('accounting.ledger.select_account')"
-              filter
-              editable
-              @change="load"
+              @update:model-value="onAccountChange"
             />
           </div>
           <div class="app-field">
@@ -203,7 +199,7 @@ import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
-import Select from 'primevue/select'
+import AppAccountSelect from '../components/ui/AppAccountSelect.vue'
 import AppDateInput from '../components/ui/AppDateInput.vue'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
@@ -211,7 +207,7 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
-import { getLedgerApi, listAccountsApi, type LedgerRead } from '../api/accounting'
+import { getLedgerApi, listAccountsApi, type AccountingAccount, type LedgerRead } from '../api/accounting'
 import {
   dateRangeFilter,
   numericRangeFilter,
@@ -219,20 +215,19 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useFiscalYearStore } from '../stores/fiscalYear'
-import { formatFocusedAccountLabel } from '../utils/focusAccounts'
 import { formatAccountingAmount, formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const fiscalYearStore = useFiscalYearStore()
 
 const ledger = ref<LedgerRead | null>(null)
-const accounts = ref<Array<{ number: string; displayLabel: string }>>([])
+const accounts = ref<AccountingAccount[]>([])
 const fiscalYears = computed(() => fiscalYearStore.fiscalYears)
 const fiscalYearId = computed({
   get: () => fiscalYearStore.selectedFiscalYearId,
   set: (value: number | undefined) => fiscalYearStore.setSelectedFiscalYear(value),
 })
-const accountNumber = ref('')
+const accountNumber = ref<string | null>(null)
 const fromDate = ref('')
 const toDate = ref('')
 const loading = ref(false)
@@ -276,16 +271,26 @@ const emptyStateMessage = computed(() => {
 })
 
 async function load() {
-  if (!accountNumber.value || !fiscalYearStore.selectedFiscalYearId) return
+  const acctNum = accountNumber.value
+  if (!acctNum || !fiscalYearStore.selectedFiscalYearId) return
   loading.value = true
   try {
-    ledger.value = await getLedgerApi(accountNumber.value, {
+    ledger.value = await getLedgerApi(acctNum, {
       from_date: fromDate.value || undefined,
       to_date: toDate.value || undefined,
       fiscal_year_id: fiscalYearId.value,
     })
   } finally {
     loading.value = false
+  }
+}
+
+function onAccountChange(value: string | null) {
+  accountNumber.value = value
+  if (value) {
+    void load()
+  } else {
+    ledger.value = null
   }
 }
 
@@ -300,11 +305,7 @@ watch(
 onMounted(async () => {
   try {
     await fiscalYearStore.initialize()
-    const accts = await listAccountsApi(undefined, false)
-    accounts.value = accts.map((a) => ({
-      number: a.number,
-      displayLabel: formatFocusedAccountLabel(a.number, a.label, t),
-    }))
+    accounts.value = await listAccountsApi(undefined, false)
   } finally {
     initializing.value = false
   }

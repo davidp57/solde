@@ -11,6 +11,20 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- `frontend/src/components/ui/AppTableSkeleton.vue` : composant de skeleton réutilisable (grille de cellules PrimeVue `Skeleton`, props `rows`/`cols` avec valeurs par défaut 8×4) remplaçant les `ProgressSpinner` dans toutes les vues de liste au premier chargement (BL-071)
+- `frontend/src/components/ui/AppAccountSelect.vue` : composant combo comptes comptables avec point coloré pour les 5 comptes de suivi (créances membres, fournisseurs, caisse, courant, chèques à déposer) via `AppAccountSelect` wrappant PrimeVue `Select` avec slots `#option` et `#value` (BL-043)
+- `frontend/src/assets/main.css` : classes globales `.app-table-skeleton`, `.app-table-skeleton__row`, `.account-select-option`, `.account-select-dot` et variantes couleur par compte de suivi
+
+### Modifié
+
+- `frontend/src/views/DashboardView.vue` : remplacement du `ProgressSpinner` central par 7 `<Skeleton height="132px">` dans la grille KPI au chargement — cohérence visuelle avec le layout final (BL-071)
+- `frontend/src/views/AccountingBilanView.vue` : remplacement du `ProgressSpinner` par `AppTableSkeleton :rows="10" :cols="3"` (BL-071)
+- `frontend/src/views/ContactDetailView.vue` : remplacement du `ProgressSpinner` par une grille de 3 `Skeleton` de stat + `AppTableSkeleton` (BL-071)
+- `frontend/src/views/ClientInvoicesView.vue` : skeleton sur la liste principale (`loading && !invoices.length`) et dans le dialogue historique (BL-071)
+- `frontend/src/views/ContactsView.vue` + `PaymentsView.vue` : skeleton sur liste principale au premier chargement (`loading && !*.length`) (BL-071)
+- `frontend/src/views/AccountingJournalView.vue` : skeleton liste + filtre compte remplacé par `AppAccountSelect` avec rechargement automatique à la sélection (BL-071, BL-043)
+- `frontend/src/views/AccountingLedgerView.vue` : select compte remplacé par `AppAccountSelect` avec points colorés (BL-043)
+
 - `frontend/src/composables/useKeyboardShortcuts.ts` : composable Vue 3 gérant les raccourcis clavier Ctrl/Cmd+N (nouveau), Ctrl/Cmd+S (sauvegarder) et Escape (fermer) avec gestion du focus (Ctrl+N ignoré dans les champs de saisie) et nettoyage automatique au démontage (BL-073)
 - `frontend/src/components/ui/AppStatCard.vue` : prop optionnelle `to` (route Vue Router) rendant la carte KPI cliquable via `<RouterLink>` avec animation hover et focus-visible accessible (BL-075)
 - `frontend/src/views/DashboardView.vue` : tous les KPI (solde banque, caisse, factures impayées/en retard, chèques non déposés, exercice courant, résultat) sont désormais cliquables vers les vues filtrées correspondantes (BL-075)

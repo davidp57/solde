@@ -2,9 +2,9 @@
   <AppPage width="wide">
     <AppPageHeader :eyebrow="t('ui.page.collection_eyebrow')" :title="t('dashboard.title')" />
 
-    <div v-if="loading" class="dashboard-loading">
-      <ProgressSpinner />
-    </div>
+    <section v-if="loading" class="app-stat-grid" aria-busy="true">
+      <Skeleton v-for="n in 7" :key="n" height="132px" border-radius="8px" />
+    </section>
 
     <template v-else>
       <section class="app-stat-grid">
@@ -133,7 +133,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Message from 'primevue/message'
-import ProgressSpinner from 'primevue/progressspinner'
+import Skeleton from 'primevue/skeleton'
 import Select from 'primevue/select'
 import TrendLineChart, {
   type TrendLineChartSeries,
@@ -277,12 +277,6 @@ onMounted(async () => {
 .dashboard-panel-intro {
   margin: 0 0 var(--app-space-4);
   color: var(--p-text-muted-color);
-}
-
-.dashboard-loading {
-  display: flex;
-  justify-content: center;
-  padding: 4rem 0;
 }
 
 .dashboard-grid {

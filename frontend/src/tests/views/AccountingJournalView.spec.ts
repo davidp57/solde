@@ -21,6 +21,7 @@ vi.mock('../../api/accounting', () => ({
   createManualEntryApi: vi.fn(),
   updateManualEntryApi: vi.fn(),
   getExportCsvUrl: vi.fn(() => '/journal.csv'),
+  listAccountsApi: vi.fn().mockResolvedValue([]),
 }))
 
 const routerPush = vi.fn()
@@ -179,6 +180,8 @@ function mountView() {
         InputText: InputTextStub,
         Select: SelectStub,
         Tag: TagStub,
+        AppAccountSelect: { template: '<div />' },
+        AppTableSkeleton: { template: '<div />' },
       },
     },
   })
