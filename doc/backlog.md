@@ -159,7 +159,7 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 | BL-047 | 2026-04-22 | Sécurité | HTTP / Infrastructure | P1 | ~~Ajouter les en-têtes de sécurité HTTP (CSP, HSTS, X-Content-Type-Options, X-Frame-Options)~~ **Fait** |
 | BL-048 | 2026-04-22 | Qualité / Tests | Backend / Tests unitaires | P1 | ~~Corriger les 11 tests en échec et la 1 erreur dans la suite backend~~ **Fait** |
 | BL-049 | 2026-04-22 | Qualité / Tests | Backend + Frontend | P1 | Remonter la couverture de test de 29 % vers les objectifs (services ≥ 90 %, API ≥ 80 %, composables ≥ 70 %) |
-| BL-050 | 2026-04-22 | Dette technique | Services / Import Excel | P1 | Refactorer `excel_import.py` (5 038 lignes) en package avec modules < 500 lignes |
+| BL-050 | 2026-04-22 | Dette technique | Services / Import Excel | P1 | ~~Refactorer `excel_import.py` (5 038 lignes) en package avec modules < 500 lignes~~ **Fait** |
 | BL-051 | 2026-04-22 | Fiabilité / Comptabilité | Écritures comptables | P1 | ~~Corriger la numérotation des écritures comptables (COUNT non thread-safe → MAX + lock)~~ **Fait** |
 | BL-052 | 2026-04-22 | Sécurité | Administration / Données | P1 | ~~Désactiver ou protéger l'endpoint `POST /settings/reset-db` en production~~ **Fait** |
 | BL-053 | 2026-04-22 | Sécurité | Authentification / Bootstrap | P1 | ~~Forcer le changement du mot de passe admin au premier login~~ **Fait** |
@@ -299,11 +299,11 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 
 ### BL-050 — Refactorer `excel_import.py` en package
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-07-23`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point P1).
 - **Pourquoi** : `services/excel_import.py` fait 5 038 lignes. C'est un god module ingérable qui concentre plus de 15 blocs `except Exception` et rend la revue de code, le test ciblé et la maintenance pratiquement impossibles.
 - **Résultat attendu** : transformer `services/excel_import.py` en un package `services/excel_import/` avec des sous-modules dédiés (orchestrateur, contacts, factures, paiements, comptabilité, salaires), chacun sous les 500 lignes. Conserver les mêmes interfaces publiques pour ne pas casser les routeurs ni les tests existants.
-- **Point d'attention** : ce refactoring doit être purement structurel, sans changement de comportement. Les tests existants doivent rester au vert tout au long du processus. `import_reversible.py` (3 030 lignes) est un candidat similaire pour un second lot.
+- **Livré parce que** : monolith de 5 567 lignes éclaté en 16 sous-modules (`_constants`, `_salary`, `_invoices`, `_loaders`, `_comparison`, `_comparison_loaders`, `_comparison_domains`, `_entry_groups`, `_sheet_wrappers`, `_orchestrator`, `_import_contacts_invoices`, `_import_payments_salaries`, `_import_cash_bank`, `_import_entries`, `_preview_existing`, `_preview_sheets`) + `__init__.py` re-export. Aucune dépendance circulaire. Compatibilité monkeypatch préservée. 788 tests au vert, mypy et ruff clean.
 
 ### BL-051 — Numérotation des écritures comptables thread-safe
 

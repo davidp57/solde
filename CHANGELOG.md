@@ -27,6 +27,11 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `backend/models/types.py` : nouveau `TypeDecorator` `DecimalType` (wrapping `Numeric`) garantissant que SQLAlchemy renvoie toujours un `Decimal` pour les colonnes monétaires au lieu d'un `float` SQLite — élimine les quelque 60 casts `Decimal(str(obj.attr))` répartis dans les services (BL-057)
 - `backend/models/payment.py` : suppression de `__allow_unmapped__` et des attributs transients `invoice_number` / `invoice_type` — ces champs sont désormais calculés à la lecture dans `PaymentRead` via une requête ciblée sur `Invoice` (BL-065)
 
+### Refactorisé
+
+**Qualité / Sécurité (audit 2026-04-22)**
+- `backend/services/excel_import.py` : monolith de 5 567 lignes éclaté en package `backend/services/excel_import/` avec 16 sous-modules thématiques (`_constants`, `_salary`, `_invoices`, `_loaders`, `_comparison`, `_comparison_loaders`, `_comparison_domains`, `_entry_groups`, `_sheet_wrappers`, `_orchestrator`, `_import_contacts_invoices`, `_import_payments_salaries`, `_import_cash_bank`, `_import_entries`, `_preview_existing`, `_preview_sheets`) — refactoring purement structurel, interfaces publiques inchangées, zéro dépendance circulaire (BL-050)
+
 ### Corrigé
 
 **Qualité / Sécurité (audit 2026-04-22)**
