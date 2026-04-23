@@ -7,6 +7,7 @@ import { useAuthStore } from '../../stores/auth'
 const mockLoginApi = vi.spyOn(authApi, 'loginApi')
 const mockRefreshApi = vi.spyOn(authApi, 'refreshApi')
 const mockGetMeApi = vi.spyOn(authApi, 'getMeApi')
+const mockLogoutApi = vi.spyOn(authApi, 'logoutApi')
 
 const mockUser = {
   id: 1,
@@ -20,7 +21,6 @@ const mockUser = {
 
 const mockTokens = {
   access_token: 'access.token.value',
-  refresh_token: 'refresh.token.value',
   token_type: 'bearer',
   must_change_password: false,
 }
@@ -29,11 +29,11 @@ describe('useAuthStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     localStorage.removeItem('access_token')
-    localStorage.removeItem('refresh_token')
     sessionStorage.removeItem('dev_auto_login_suppressed')
     mockLoginApi.mockReset()
     mockRefreshApi.mockReset()
     mockGetMeApi.mockReset()
+    mockLogoutApi.mockReset()
   })
 
   afterEach(() => {
@@ -43,7 +43,6 @@ describe('useAuthStore', () => {
   it('has correct initial state when localStorage is empty', () => {
     const store = useAuthStore()
     expect(store.accessToken).toBeNull()
-    expect(store.refreshToken).toBeNull()
     expect(store.user).toBeNull()
     expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
@@ -100,7 +99,6 @@ describe('useAuthStore', () => {
     await store.login('admin', 'password')
 
     expect(store.accessToken).toBe(mockTokens.access_token)
-    expect(store.refreshToken).toBe(mockTokens.refresh_token)
     expect(store.user).toEqual(mockUser)
     expect(store.error).toBeNull()
     expect(store.loading).toBe(false)
@@ -114,7 +112,6 @@ describe('useAuthStore', () => {
     await store.login('admin', 'password')
 
     expect(localStorage.getItem('access_token')).toBe(mockTokens.access_token)
-    expect(localStorage.getItem('refresh_token')).toBe(mockTokens.refresh_token)
   })
 
   it('login failure sets error and clears tokens', async () => {
@@ -130,26 +127,24 @@ describe('useAuthStore', () => {
   })
 
   it('logout clears state and localStorage', () => {
+    mockLogoutApi.mockResolvedValueOnce(undefined)
     const store = useAuthStore()
     store.accessToken = mockTokens.access_token
-    store.refreshToken = mockTokens.refresh_token
     store.user = mockUser
     localStorage.setItem('access_token', mockTokens.access_token)
-    localStorage.setItem('refresh_token', mockTokens.refresh_token)
 
     store.logout()
 
     expect(store.accessToken).toBeNull()
-    expect(store.refreshToken).toBeNull()
     expect(store.user).toBeNull()
     expect(localStorage.getItem('access_token')).toBeNull()
-    expect(localStorage.getItem('refresh_token')).toBeNull()
   })
 
   it('manual logout suppresses dev auto login for the current session', async () => {
     vi.stubEnv('VITE_DEV_AUTO_LOGIN', 'true')
     vi.stubEnv('VITE_DEV_AUTO_LOGIN_USERNAME', 'admin')
     vi.stubEnv('VITE_DEV_AUTO_LOGIN_PASSWORD', 'changeme')
+    mockLogoutApi.mockResolvedValueOnce(undefined)
 
     const store = useAuthStore()
     store.logout({ preventDevAutoLogin: true })
@@ -160,15 +155,13 @@ describe('useAuthStore', () => {
     expect(mockLoginApi).not.toHaveBeenCalled()
   })
 
-  it('initFromStorage restores tokens from localStorage', () => {
+  it('initFromStorage restores access token from localStorage', () => {
     localStorage.setItem('access_token', mockTokens.access_token)
-    localStorage.setItem('refresh_token', mockTokens.refresh_token)
 
     const store = useAuthStore()
     store.initFromStorage()
 
     expect(store.accessToken).toBe(mockTokens.access_token)
-    expect(store.refreshToken).toBe(mockTokens.refresh_token)
   })
 
   it('refreshAccessToken updates accessToken on success', async () => {
@@ -179,7 +172,6 @@ describe('useAuthStore', () => {
     })
 
     const store = useAuthStore()
-    store.refreshToken = mockTokens.refresh_token
     const result = await store.refreshAccessToken()
 
     expect(result).toBe(true)
@@ -189,9 +181,9 @@ describe('useAuthStore', () => {
 
   it('refreshAccessToken calls logout on failure', async () => {
     mockRefreshApi.mockRejectedValueOnce(new Error('expired'))
+    mockLogoutApi.mockResolvedValueOnce(undefined)
 
     const store = useAuthStore()
-    store.refreshToken = 'expired.token'
     const result = await store.refreshAccessToken()
 
     expect(result).toBe(false)

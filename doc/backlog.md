@@ -155,7 +155,7 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 | BL-042 | 2026-04-21 | UX / Cohérence | Tables / Filtres | P2 | Ajouter un bouton `reset` sur tous les filtres de toutes les tables pour revenir rapidement à l'état initial |
 | BL-043 | 2026-04-21 | UX / Fonctionnel | Comptabilité / Filtres | P2 | Remplacer les filtres de comptes comptables par des combos affichant numéro, nom et couleur des comptes suivis |
 | BL-045 | 2026-04-22 | Sécurité | Authentification | P1 | ~~Ajouter un rate limiting sur `/auth/login` pour bloquer le brute force~~ **Fait** |
-| BL-046 | 2026-04-22 | Sécurité | Authentification / Tokens | P1 | Migrer le refresh token vers un cookie HttpOnly au lieu de localStorage |
+| BL-046 | 2026-04-22 | Sécurité | Authentification / Tokens | P1 | ~~Migrer le refresh token vers un cookie HttpOnly au lieu de localStorage~~ **Fait** |
 | BL-047 | 2026-04-22 | Sécurité | HTTP / Infrastructure | P1 | ~~Ajouter les en-têtes de sécurité HTTP (CSP, HSTS, X-Content-Type-Options, X-Frame-Options)~~ **Fait** |
 | BL-048 | 2026-04-22 | Qualité / Tests | Backend / Tests unitaires | P1 | ~~Corriger les 11 tests en échec et la 1 erreur dans la suite backend~~ **Fait** |
 | BL-049 | 2026-04-22 | Qualité / Tests | Backend + Frontend | P1 | Remonter la couverture de test de 29 % vers les objectifs (services ≥ 90 %, API ≥ 80 %, composables ≥ 70 %) |
@@ -252,11 +252,14 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 
 ### BL-046 — Migrer le refresh token vers un cookie HttpOnly
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-07-19`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S2).
 - **Pourquoi** : le refresh token est actuellement stocké en `localStorage`, accessible par n'importe quel JavaScript de la page. Si une dépendance tierce est compromise (XSS supply-chain), l'attaquant récupère le token directement.
 - **Résultat attendu** : stocker le refresh token dans un cookie `HttpOnly`, `Secure`, `SameSite=Strict`. L'access token peut rester en mémoire JavaScript (variable réactive) avec rafraîchissement automatique. Adapter l'intercepteur Axios et le backend pour lire le refresh token depuis le cookie.
-- **Point d'attention** : ce changement impacte le flow d'auth frontend (`stores/auth.ts`), l'intercepteur 401 (`api/client.ts`), et l'endpoint `/auth/refresh` côté backend.
+- **Changements réalisés** :
+  - Backend : `/auth/login` et `/auth/refresh` posent le refresh token en cookie `HttpOnly`/`Secure`/`SameSite=Strict`, plus de `refresh_token` dans le JSON. Nouvel endpoint `POST /auth/logout` (204) qui efface le cookie.
+  - Frontend : `refreshApi()` sans body (cookie envoyé automatiquement), `logoutApi()` ajouté, store auth simplifié (plus de `refreshToken` en localStorage), intercepteur Axios avec `withCredentials: true`.
+  - Tests : 6 tests d'intégration dédiés (`test_refresh_token_cookie.py`), tests existants adaptés.
 
 ### BL-047 — En-têtes de sécurité HTTP
 

@@ -9,11 +9,11 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.config import get_settings
 from backend.database import get_db
 from backend.models.user import User, UserRole
 from backend.schemas.auth import (
     PasswordChangeRequest,
-    RefreshRequest,
     TokenResponse,
     UserAdminUpdate,
     UserCreate,
@@ -33,6 +33,33 @@ from backend.services.rate_limiter import login_limiter
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 _oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+_REFRESH_COOKIE = "refresh_token"
+_REFRESH_COOKIE_PATH = "/api/auth"
+
+
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    """Set the refresh token as an HttpOnly cookie on the response."""
+    settings = get_settings()
+    response.set_cookie(
+        key=_REFRESH_COOKIE,
+        value=token,
+        httponly=True,
+        secure=not settings.debug,
+        samesite="strict",
+        path=_REFRESH_COOKIE_PATH,
+        max_age=settings.jwt_refresh_token_expire_days * 86400,
+    )
+
+
+def _clear_refresh_cookie(response: Response) -> None:
+    """Expire the refresh token cookie."""
+    response.delete_cookie(
+        key=_REFRESH_COOKIE,
+        httponly=True,
+        samesite="strict",
+        path=_REFRESH_COOKIE_PATH,
+    )
 
 
 async def get_current_user(
@@ -151,10 +178,14 @@ async def _validate_admin_user_update(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     request: Request,
+    response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TokenResponse:
-    """Authenticate with username + password, return JWT tokens."""
+    """Authenticate with username + password, return JWT access token.
+
+    The refresh token is set as an HttpOnly cookie.
+    """
     client_ip = request.client.host if request.client else "unknown"
 
     if login_limiter.is_rate_limited(client_ip):
@@ -175,22 +206,29 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
     login_limiter.reset(client_ip)
+    _set_refresh_cookie(response, create_refresh_token(user.username))
     return TokenResponse(
         access_token=create_access_token(
             data={"sub": user.username, "mcp": user.must_change_password},
         ),
-        refresh_token=create_refresh_token(user.username),
         must_change_password=user.must_change_password,
     )
 
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
-    body: RefreshRequest,
+    request: Request,
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TokenResponse:
-    """Exchange a valid refresh token for new access + refresh tokens."""
-    payload = decode_access_token(body.refresh_token)
+    """Exchange a valid refresh token (from cookie) for new access + refresh tokens."""
+    cookie_token = request.cookies.get(_REFRESH_COOKIE)
+    if not cookie_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing refresh token",
+        )
+    payload = decode_access_token(cookie_token)
     if payload is None or payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -201,11 +239,11 @@ async def refresh_token(
     user = result.scalar_one_or_none()
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    _set_refresh_cookie(response, create_refresh_token(user.username))
     return TokenResponse(
         access_token=create_access_token(
             data={"sub": user.username, "mcp": user.must_change_password},
         ),
-        refresh_token=create_refresh_token(user.username),
         must_change_password=user.must_change_password,
     )
 
@@ -216,6 +254,15 @@ async def get_me(
 ) -> User:
     """Return the currently authenticated user's profile."""
     return current_user
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    response: Response,
+    _current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    """Clear the refresh token cookie."""
+    _clear_refresh_cookie(response)
 
 
 @router.patch("/me", response_model=UserRead)

@@ -43,6 +43,7 @@ _PASSWORD_GATE_EXEMPT = frozenset(
     {
         "/api/auth/login",
         "/api/auth/refresh",
+        "/api/auth/logout",
         "/api/auth/me",
         "/api/auth/me/change-password",
     }
