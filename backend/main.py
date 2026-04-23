@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from backend.config import get_settings
 from backend.database import init_db
@@ -30,6 +31,50 @@ from backend.routers import (
     salary,
     settings,
 )
+
+logger = logging.getLogger("backend")
+
+_INTERNAL_ERROR_DETAIL = (
+    "An unexpected error occurred. Please try again or contact the administrator."
+)
+
+
+class UnhandledExceptionMiddleware:
+    """Catch-all ASGI middleware for unhandled exceptions.
+
+    Returns a structured JSON 500 response instead of an HTML traceback,
+    and logs the full exception server-side for debugging.
+    Must be added **after** all other middleware so it sits outermost
+    (just inside Starlette's built-in ServerErrorMiddleware).
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        try:
+            await self.app(scope, receive, send)
+        except Exception as exc:
+            request = Request(scope)
+            logger.error(
+                "Unhandled exception on %s %s: %s",
+                request.method,
+                request.url.path,
+                exc,
+                exc_info=exc,
+            )
+            response = JSONResponse(
+                status_code=500,
+                content={
+                    "detail": _INTERNAL_ERROR_DETAIL,
+                    "code": "INTERNAL_SERVER_ERROR",
+                },
+            )
+            await response(scope, receive, send)
+
 
 # ---------------------------------------------------------------------------
 # Logging configuration
@@ -154,6 +199,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # --- Global exception handler: added LAST so it's outermost user middleware ---
+    app.add_middleware(UnhandledExceptionMiddleware)
+
     app.add_middleware(MustChangePasswordMiddleware)
 
     # CORS — use CORS_ALLOWED_ORIGINS in production; falls back to ["*"] in debug mode
@@ -169,15 +217,13 @@ def create_app() -> FastAPI:
     # Security headers
     @app.middleware("http")
     async def add_security_headers(request: Request, call_next: object) -> Response:
-        response: Response = await call_next(request)  # type: ignore[misc]
+        response: Response = await call_next(request)  # type: ignore[operator]
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         if not cfg.debug:
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=63072000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
                 "script-src 'self'; "
@@ -193,6 +239,7 @@ def create_app() -> FastAPI:
     @app.get("/api/health", tags=["health"])
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
     # API routers
     app.include_router(auth.router, prefix="/api")
     app.include_router(contact.router, prefix="/api")
