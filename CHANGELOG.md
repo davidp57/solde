@@ -12,6 +12,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ### Ajouté
 
 - `doc/user/migration.md` + `doc/user/migration.en.md` : guide de migration / montée de version bilingue FR + EN pour les déploiements Docker sur Synology NAS — couvre la préparation, la mise à jour, la vérification, le rollback et les bonnes pratiques (BL-083)
+- `frontend/src/assets/print.css` : styles `@media print` pour l'impression des vues comptables (journal, balance, grand livre, bilan, résultat) — masque la sidebar, les filtres et les boutons ; optimise les tables en noir et blanc A4 paysage pour impression AG (BL-076)
 
 **Qualité / Sécurité (audit 2026-04-22)**
 - `backend/routers/auth.py` : le refresh token est désormais transmis via un cookie `HttpOnly`, `Secure`, `SameSite=Strict` au lieu du corps JSON — `/auth/login` et `/auth/refresh` posent le cookie, nouvel endpoint `POST /auth/logout` (204) l'efface (BL-046)
