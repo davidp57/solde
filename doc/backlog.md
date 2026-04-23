@@ -154,6 +154,25 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 | BL-041 | 2026-04-21 | UX / Fonctionnel | Paiements / Synthèse | P2 | Rendre la carte `non remis` cliquable pour ouvrir la liste des paiements concernés |
 | BL-042 | 2026-04-21 | UX / Cohérence | Tables / Filtres | P2 | Ajouter un bouton `reset` sur tous les filtres de toutes les tables pour revenir rapidement à l'état initial |
 | BL-043 | 2026-04-21 | UX / Fonctionnel | Comptabilité / Filtres | P2 | Remplacer les filtres de comptes comptables par des combos affichant numéro, nom et couleur des comptes suivis |
+| BL-067 | 2026-04-23 | Technique / Backend | API / Erreurs | ~~P1~~ **Fait** | Ajouter un gestionnaire d'erreurs global FastAPI renvoyant du JSON structuré au lieu d'un 500 HTML |
+| BL-068 | 2026-04-23 | Sécurité / API | OpenAPI / Swagger | P1 | Désactiver `/api/docs` et `/api/redoc` en production (conditionner à `debug=True`) |
+| BL-069 | 2026-04-23 | Opérationnel / Backend | Administration / Backup | P1 | Ajouter un endpoint admin `POST /api/settings/backup` utilisant `sqlite3.backup()` avec rotation des 5 derniers fichiers |
+| BL-070 | 2026-04-23 | UX / Frontend | Navigation | P2 | Ajouter une page 404 dédiée au lieu de rediriger silencieusement les URLs inconnues vers le dashboard |
+| BL-071 | 2026-04-23 | UX / Frontend | Chargement | P2 | Remplacer les ProgressSpinner par des Skeleton loaders PrimeVue pour réduire le temps de chargement perçu |
+| BL-072 | 2026-04-23 | UX / Frontend | Navigation | P2 | Ajouter un fil d'Ariane (Breadcrumb PrimeVue) pour faciliter la navigation dans les 23 routes imbriquées |
+| BL-073 | 2026-04-23 | UX / Frontend | Productivité | P2 | Ajouter des raccourcis clavier (Ctrl+N nouveau, Ctrl+S sauvegarder, Escape fermer) pour les utilisateurs quotidiens |
+| BL-074 | 2026-04-23 | UX / Frontend | Réseau | P2 | Afficher un bandeau « Connexion perdue » quand l'API est injoignable (intercepteur Axios sur Network Error) |
+| BL-075 | 2026-04-23 | UX / Fonctionnel | Dashboard | P2 | Rendre tous les KPI du dashboard cliquables vers les listes filtrées correspondantes (complète BL-036 et BL-041) |
+| BL-076 | 2026-04-23 | UX / Frontend | Comptabilité / Impression | P1 | Ajouter des styles `@media print` sur les vues comptables (journal, balance, grand livre, bilan, résultat) pour l'impression AG |
+| BL-077 | 2026-04-23 | Dette technique | Frontend / Vues | P2 | Refactorer les vues volumineuses (`ImportExcelView` 2 873 L, `BankView` 2 215 L, `SettingsView` 1 077 L) en sous-composants |
+| BL-078 | 2026-04-23 | Qualité / Frontend | i18n | P3 | Créer un squelette `en.ts` pour préparer la localisation anglaise et assurer la cohérence avec la documentation bilingue |
+| BL-079 | 2026-04-23 | Qualité / Tests | Frontend / Composables | P2 | Ajouter des tests unitaires pour les composables `useDarkMode`, `useTableFilter` et `activeFilterLabels` |
+| BL-080 | 2026-04-23 | Qualité / Tests | E2E | P2 | Ajouter un smoke test E2E (Playwright) couvrant le circuit login → dashboard → contact → facture → paiement |
+| BL-081 | 2026-04-23 | Qualité / Tests | Backend / Intégration | P2 | Compléter les tests d'intégration API manquants (salary, accounting_rule, fiscal_year, dashboard) |
+| BL-082 | 2026-04-23 | Documentation | API / OpenAPI | P3 | Enrichir le Swagger avec des descriptions et exemples sur les endpoints principaux |
+| BL-083 | 2026-04-23 | Documentation | Exploitation / Migration | P1 | Rédiger un guide de migration/montée de version pour les déploiements Synology sans expert technique |
+| BL-084 | 2026-04-23 | UX / Frontend | Session / Auth | P2 | Afficher une notification « Session bientôt expirée » 5 minutes avant l'expiration du JWT |
+| BL-085 | 2026-04-23 | Sécurité / Backend | Authentification / Mots de passe | P2 | Ajouter une politique de complexité de mot de passe (min 8 caractères, majuscule + chiffre) |
 | BL-045 | 2026-04-22 | Sécurité | Authentification | P1 | ~~Ajouter un rate limiting sur `/auth/login` pour bloquer le brute force~~ **Fait** |
 | BL-046 | 2026-04-22 | Sécurité | Authentification / Tokens | P1 | ~~Migrer le refresh token vers un cookie HttpOnly au lieu de localStorage~~ **Fait** |
 | BL-047 | 2026-04-22 | Sécurité | HTTP / Infrastructure | P1 | ~~Ajouter les en-têtes de sécurité HTTP (CSP, HSTS, X-Content-Type-Options, X-Frame-Options)~~ **Fait** |
@@ -434,6 +453,141 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 - **Pourquoi** : le singleton `get_settings()` utilise un pattern `global _settings` mutable. Avec 1 worker Uvicorn le risque est nul, mais un simple `@lru_cache` serait plus idiomatique et thread-safe.
 - **Résultat attendu** : remplacer le pattern actuel par `@lru_cache` sur `get_settings()`, comme recommandé par la documentation FastAPI.
 - **Livré parce que** : `get_settings()` utilise désormais `@lru_cache(maxsize=1)` ; la variable globale `_settings` a été supprimée. Le test `test_test_import_shortcuts_list_and_run_configured_file` a été adapté pour utiliser `unittest.mock.patch` au lieu d'accéder directement à `_settings`.
+
+### BL-067 — Gestionnaire d'erreurs global FastAPI
+
+- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : aucun `@app.exception_handler` n'est déclaré. Une erreur SQLAlchemy ou ValueError non attrapée renvoie un 500 avec stack trace en HTML, ce qui expose des détails internes et ne respecte pas le contrat JSON de l'API.
+- **Résultat attendu** : un handler centralisé renvoyant du JSON structuré (`{"detail": ..., "code": ...}`) et loguant l'erreur côté serveur, sans exposer la stack trace au client.
+- **Livré parce que** : middleware ASGI `UnhandledExceptionMiddleware` ajouté dans `backend/main.py` — intercepte toute exception non gérée, renvoie `{"detail": "...", "code": "INTERNAL_SERVER_ERROR"}` en JSON 500, logue l'erreur complète côté serveur. 5 tests d'intégration couvrent les cas 500, 422, 404 et la vérification du log.
+
+### BL-068 — Désactiver Swagger/ReDoc en production
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : `/api/docs` et `/api/redoc` sont exposés même en production. Un attaquant y voit toute la surface d'attaque de l'API.
+- **Résultat attendu** : conditionner `docs_url`, `redoc_url` et `openapi_url` à `cfg.debug` dans `create_app()`.
+
+### BL-069 — Endpoint de sauvegarde SQLite
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : aucun mécanisme de backup n'existe. Sur un Synology NAS sans accès SSH garanti, l'administrateur de l'association n'a aucun moyen de sauvegarder la base de données depuis l'interface.
+- **Résultat attendu** : un endpoint admin `POST /api/settings/backup` utilisant `sqlite3.backup()` pour copier la DB dans `data/backups/` avec rotation automatique (garder les 5 derniers fichiers). Optionnellement, un bouton dans les paramètres pour déclencher et télécharger le backup.
+
+### BL-070 — Page 404 dédiée
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : le catch-all `/:pathMatch(.*)*` redirige vers `/dashboard`. L'utilisateur ne sait pas qu'il a atteint une page qui n'existe pas, ce qui est déroutant si l'URL vient d'un bookmark périmé.
+- **Résultat attendu** : une page « Non trouvé » claire avec un lien de retour vers le dashboard.
+
+### BL-071 — Skeleton loaders au lieu de spinners
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : les écrans utilisent `ProgressSpinner` pendant le chargement. Les skeletons montrent la structure de la page à venir et réduisent le temps de chargement perçu.
+- **Résultat attendu** : remplacer les `ProgressSpinner` par des `<Skeleton>` PrimeVue sur les écrans de liste principaux (contacts, factures, paiements, journal comptable).
+
+### BL-072 — Fil d'Ariane (Breadcrumb)
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : avec 23 routes et des chemins imbriqués (`/accounting/journal`, `/contacts/:id/history`), un fil d'Ariane aiderait les utilisateurs à se repérer et revenir en arrière.
+- **Résultat attendu** : intégrer le composant `Breadcrumb` PrimeVue dans `AppLayout.vue`, alimenté dynamiquement par les meta de route.
+
+### BL-073 — Raccourcis clavier
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : pour une app de comptabilité utilisée quotidiennement par la secrétaire ou le trésorier, les raccourcis (Ctrl+N, Ctrl+S, Escape) améliorent significativement la productivité.
+- **Résultat attendu** : implémenter un composable `useKeyboardShortcuts` avec au minimum `Ctrl+N` (nouveau), `Ctrl+S` (sauvegarder), `Escape` (fermer dialog).
+
+### BL-074 — Bandeau connexion perdue
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : aucune gestion de perte de connexion réseau. Les soumissions de formulaires peuvent être perdues silencieusement si le NAS Synology est temporairement injoignable.
+- **Résultat attendu** : afficher un bandeau persistant « Connexion perdue » quand l'API est injoignable (intercepteur Axios sur `Network Error`), avec disparition automatique quand la connexion revient.
+
+### BL-075 — Dashboard KPI cliquables
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : les KPI du dashboard (factures en retard, paiements non déposés, etc.) ne sont pas cliquables. L'utilisateur doit naviguer manuellement vers la liste filtrée.
+- **Résultat attendu** : rendre chaque carte KPI cliquable vers la liste filtrée correspondante. Complète BL-036 (factures en retard) et BL-041 (paiements non remis).
+
+### BL-076 — Styles d'impression comptable
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : les vues comptables n'ont pas de styles `@media print`. Pour une association, imprimer le grand livre, la balance ou le bilan pour l'assemblée générale est un cas d'usage réel et fréquent.
+- **Résultat attendu** : ajouter des styles `@media print` sur les vues journal, balance, grand livre, bilan et résultat — masquer la sidebar, les filtres interactifs et les boutons d'action, afficher un en-tête imprimable avec nom de l'association et date.
+
+### BL-077 — Refactorer les vues volumineuses
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : `ImportExcelView.vue` (2 873 lignes), `BankView.vue` (2 215 lignes) et `SettingsView.vue` (1 077 lignes) sont des god-components difficiles à maintenir et à tester.
+- **Résultat attendu** : extraire les sous-sections en composants dédiés (ex. `BankReconciliationPanel.vue`, `BankDepositPanel.vue`, `ImportPreviewPanel.vue`), en ciblant < 500 lignes par composant.
+
+### BL-078 — Squelette i18n anglais
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : une seule locale (`fr.ts`) existe. L'architecture vue-i18n est en place mais sans fichier anglais. Incohérent avec la documentation bilingue FR+EN du projet.
+- **Résultat attendu** : créer un fichier `en.ts` squelette avec les clés structurelles, facilitant une future localisation complète.
+
+### BL-079 — Tests composables frontend
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : seul `useDataTableFilters` a un test. Les composables `useDarkMode`, `useTableFilter` et `activeFilterLabels` ne sont pas couverts, en dessous de l'objectif de 70 %.
+- **Résultat attendu** : ajouter des tests Vitest pour chaque composable non couvert.
+
+### BL-080 — Smoke test E2E
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : aucun test E2E n'existe (ni Playwright ni Cypress). Les tests unitaires et d'intégration ne vérifient pas le circuit complet utilisateur.
+- **Résultat attendu** : un smoke test Playwright couvrant login → dashboard → créer contact → facture → paiement. Même un seul test E2E sur le happy path apporterait beaucoup de confiance.
+- **Point d'attention** : ne pas dépendre d'un service SMTP pour le test ; mocker ou ignorer l'envoi d'e-mail.
+
+### BL-081 — Tests d'intégration API manquants
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : certains routers n'ont pas de tests d'intégration (salary, accounting_rule, fiscal_year, dashboard au-delà du smoke).
+- **Résultat attendu** : ajouter des tests d'intégration API couvrant les cas nominaux et les erreurs pour chaque router non couvert.
+
+### BL-082 — Enrichir le Swagger avec descriptions et exemples
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : le Swagger auto-généré existe mais sans descriptions enrichies. L'onboarding développeur est freiné.
+- **Résultat attendu** : ajouter des `description=` et `response_description=` aux endpoints principaux (auth, invoices, payments, accounting entries).
+
+### BL-083 — Guide de migration / montée de version
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : pas de documentation sur comment passer d'une version à la suivante. Les migrations Alembic sont automatiques mais les breaking changes potentiels ne sont pas documentés. Critique pour un déploiement Synology sans expert technique.
+- **Résultat attendu** : un guide clair dans `doc/user/` (FR+EN) couvrant la procédure de mise à jour Docker, la vérification post-migration, et les cas de rollback.
+
+### BL-084 — Notification d'expiration de session
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : l'access token JWT expire mais l'utilisateur n'est pas prévenu. Il peut perdre une saisie en cours si la session expire pendant l'édition d'un formulaire.
+- **Résultat attendu** : afficher une notification « Session bientôt expirée » 5 minutes avant l'expiration, avec un bouton pour prolonger (déclenche un refresh).
+
+### BL-085 — Politique de complexité de mot de passe
+
+- **Dates** : `created=2026-04-23`
+- **Origine** : revue de projet du `2026-04-23`.
+- **Pourquoi** : pas de contrainte visible sur la longueur/complexité du mot de passe au-delà du changement initial obligatoire. Un mot de passe faible reste accepté.
+- **Résultat attendu** : imposer un minimum de 8 caractères avec au moins une majuscule et un chiffre, validé côté backend (schema Pydantic) et côté frontend (formulaire de changement de mot de passe).
 
 
 ## Détail des sujets fermés
