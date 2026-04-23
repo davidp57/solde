@@ -23,7 +23,7 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
     today = date.today()
 
     def remaining_amount(invoice: Invoice) -> Decimal:
-        return Decimal(str(invoice.total_amount)) - Decimal(str(invoice.paid_amount))
+        return invoice.total_amount - invoice.paid_amount
 
     # --- Bank balance (last transaction balance_after) ---
     bank_result = await db.execute(
@@ -209,9 +209,9 @@ async def get_monthly_chart(
         if month_key not in months:
             continue
         if acct.type == AccountType.CHARGE:
-            months[month_key]["charges"] += Decimal(str(e.debit)) - Decimal(str(e.credit))
+            months[month_key]["charges"] += e.debit - e.credit
         elif acct.type == AccountType.PRODUIT:
-            months[month_key]["produits"] += Decimal(str(e.credit)) - Decimal(str(e.debit))
+            months[month_key]["produits"] += e.credit - e.debit
 
     return [
         {

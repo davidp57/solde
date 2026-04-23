@@ -596,7 +596,7 @@ async def update_settings(db: AsyncSession, payload: AppSettingsUpdate) -> AppSe
 def _to_signed_cash_amount(entry: CashRegister | None) -> Decimal | None:
     if entry is None:
         return None
-    amount = Decimal(str(entry.amount))
+    amount = entry.amount
     return amount if entry.type == CashMovementType.IN else -amount
 
 
@@ -635,7 +635,7 @@ async def get_treasury_system_opening(db: AsyncSession) -> TreasurySystemOpening
         bank=SystemOpeningRead(
             configured=bank_entry is not None,
             date=bank_entry.date if bank_entry is not None else None,
-            amount=Decimal(str(bank_entry.amount)) if bank_entry is not None else None,
+            amount=bank_entry.amount if bank_entry is not None else None,
             reference=bank_entry.reference if bank_entry is not None else None,
         ),
         cash=SystemOpeningRead(

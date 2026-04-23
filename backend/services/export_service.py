@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import io
 from datetime import date
-from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,8 +50,8 @@ async def export_journal_csv(
             e.date.strftime("%d/%m/%Y"),
             e.account_number,
             e.label,
-            f"{Decimal(str(e.debit)):.2f}".replace(".", ","),
-            f"{Decimal(str(e.credit)):.2f}".replace(".", ","),
+            f"{e.debit:.2f}".replace(".", ","),
+            f"{e.credit:.2f}".replace(".", ","),
             e.source_type or "",
         ]
         for e in entries

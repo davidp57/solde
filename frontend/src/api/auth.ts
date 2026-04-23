@@ -16,15 +16,23 @@ export async function loginApi(request: LoginRequest): Promise<TokenResponse> {
 
   const response = await axios.post<TokenResponse>('/api/auth/login', form, {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    withCredentials: true,
   })
   return response.data
 }
 
-export async function refreshApi(refreshToken: string): Promise<TokenResponse> {
-  const response = await axios.post<TokenResponse>('/api/auth/refresh', {
-    refresh_token: refreshToken,
+export async function refreshApi(): Promise<TokenResponse> {
+  const response = await axios.post<TokenResponse>('/api/auth/refresh', null, {
+    withCredentials: true,
   })
   return response.data
+}
+
+export async function logoutApi(accessToken: string): Promise<void> {
+  await axios.post('/api/auth/logout', null, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    withCredentials: true,
+  })
 }
 
 export async function getMeApi(accessToken: string): Promise<UserRead> {

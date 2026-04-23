@@ -41,7 +41,7 @@ async def list_contacts(
     search: str | None = None,
     active_only: bool = True,
     skip: int = 0,
-    limit: int | None = None,
+    limit: int = 100,
 ) -> list[Contact]:
     query = select(Contact)
     if active_only:
@@ -58,8 +58,7 @@ async def list_contacts(
             )
         )
     query = query.order_by(Contact.nom, Contact.prenom).offset(skip)
-    if limit is not None:
-        query = query.limit(limit)
+    query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -107,9 +106,9 @@ async def get_contact_history(db: AsyncSession, contact_id: int) -> ContactHisto
             date=inv.date,
             due_date=inv.due_date,
             status=inv.status,
-            total_amount=Decimal(str(inv.total_amount)),
-            paid_amount=Decimal(str(inv.paid_amount)),
-            balance_due=Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount)),
+            total_amount=inv.total_amount,
+            paid_amount=inv.paid_amount,
+            balance_due=inv.total_amount - inv.paid_amount,
         )
         for inv in invoices_raw
     ]
@@ -125,8 +124,8 @@ async def get_contact_history(db: AsyncSession, contact_id: int) -> ContactHisto
         for row in payments_raw
     ]
 
-    total_invoiced = sum((Decimal(str(inv.total_amount)) for inv in invoices_raw), Decimal("0"))
-    total_paid_inv = sum((Decimal(str(inv.paid_amount)) for inv in invoices_raw), Decimal("0"))
+    total_invoiced = sum((inv.total_amount for inv in invoices_raw), Decimal("0"))
+    total_paid_inv = sum((inv.paid_amount for inv in invoices_raw), Decimal("0"))
 
     contact_read = ContactRead.model_validate(contact)
 

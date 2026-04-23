@@ -37,7 +37,7 @@ async def list_contacts(
     search: str | None = Query(default=None, max_length=100),
     active_only: bool = Query(default=True),
     skip: int = Query(default=0, ge=0),
-    limit: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[ContactRead]:
     """List contacts with optional filters."""
     return await contact_service.list_contacts(

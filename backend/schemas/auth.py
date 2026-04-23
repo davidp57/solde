@@ -26,8 +26,8 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
+    must_change_password: bool = False
 
 
 class RefreshRequest(BaseModel):
@@ -58,6 +58,7 @@ class UserRead(OrmReadModel):
     username: str
     email: str
     role: UserRole
+    must_change_password: bool
     is_active: bool
     created_at: datetime
 
