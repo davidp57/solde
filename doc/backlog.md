@@ -158,7 +158,7 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 | BL-046 | 2026-04-22 | Sécurité | Authentification / Tokens | P1 | ~~Migrer le refresh token vers un cookie HttpOnly au lieu de localStorage~~ **Fait** |
 | BL-047 | 2026-04-22 | Sécurité | HTTP / Infrastructure | P1 | ~~Ajouter les en-têtes de sécurité HTTP (CSP, HSTS, X-Content-Type-Options, X-Frame-Options)~~ **Fait** |
 | BL-048 | 2026-04-22 | Qualité / Tests | Backend / Tests unitaires | P1 | ~~Corriger les 11 tests en échec et la 1 erreur dans la suite backend~~ **Fait** |
-| BL-049 | 2026-04-22 | Qualité / Tests | Backend + Frontend | P1 | Remonter la couverture de test de 29 % vers les objectifs (services ≥ 90 %, API ≥ 80 %, composables ≥ 70 %) |
+| BL-049 | 2026-04-22 | Qualité / Tests | Backend + Frontend | P1 | ~~Remonter la couverture de test de 29 % vers les objectifs (services ≥ 90 %, API ≥ 80 %, composables ≥ 70 %)~~ **Fait** |
 | BL-050 | 2026-04-22 | Dette technique | Services / Import Excel | P1 | ~~Refactorer `excel_import.py` (5 038 lignes) en package avec modules < 500 lignes~~ **Fait** |
 | BL-051 | 2026-04-22 | Fiabilité / Comptabilité | Écritures comptables | P1 | ~~Corriger la numérotation des écritures comptables (COUNT non thread-safe → MAX + lock)~~ **Fait** |
 | BL-052 | 2026-04-22 | Sécurité | Administration / Données | P1 | ~~Désactiver ou protéger l'endpoint `POST /settings/reset-db` en production~~ **Fait** |
@@ -291,10 +291,11 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 
 ### BL-049 — Remonter la couverture de test
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-07-24`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point T2).
 - **Pourquoi** : la couverture de test backend est à 29 %, loin des objectifs fixés par le projet (services métier ≥ 90 %, API ≥ 80 %, composables frontend ≥ 70 %). Certains services critiques sont à peine couverts (`settings.py` 21 %, `salary_service.py` 25 %).
 - **Résultat attendu** : monter la couverture de manière incrémentale ; viser un palier intermédiaire réaliste de 60 % global avant d'attaquer les cibles finales. Prioriser les services métier critiques (accounting engine, fiscal year, payment, invoice).
+- **Livré parce que** : +44 tests (812 → 856), couverture globale passée de ~29 % à ~71 %. Tests unitaires ajoutés pour : `fiscal_year_service` (pre_close_checks, open_new_fiscal_year, report à nouveau), `contact` (historique, créance douteuse), `dashboard_service` (KPIs, alertes, graphiques mensuels/ressources), `salary_service` (update, filtre par mois, display name), `accounting_rule_service` (CRUD complet, preview, template rendering). Services critiques atteints ou proches de 90 % : accounting_engine 92 %, invoice 93 %, payment 90 %, fiscal_year ~95 %, salary ~95 %.
 - **Point d'attention** : ce ticket est un chantier continu ; chaque nouvelle fonctionnalité doit respecter les cibles de couverture dès la livraison.
 
 ### BL-050 — Refactorer `excel_import.py` en package

@@ -22,6 +22,8 @@ from backend.services.fiscal_year_service import (
     get_current_fiscal_year,
     get_fiscal_year,
     list_fiscal_years,
+    open_new_fiscal_year,
+    pre_close_checks,
 )
 
 
@@ -280,3 +282,208 @@ class TestAdministrativeCloseFiscalYear:
 
         with pytest.raises(FiscalYearError):
             await administrative_close_fiscal_year(db_session, fy)
+
+
+class TestPreCloseChecks:
+    @pytest.mark.asyncio
+    async def test_returns_empty_for_balanced_open_fy(self, db_session: AsyncSession) -> None:
+        fy = await _create_fy(db_session)
+        # Balanced entry pair
+        db_session.add(
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2024, 6, 1),
+                account_number="512000",
+                label="Debit",
+                debit=Decimal("100.00"),
+                credit=Decimal("0"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.MANUAL,
+            )
+        )
+        db_session.add(
+            AccountingEntry(
+                entry_number="000002",
+                date=date(2024, 6, 1),
+                account_number="411000",
+                label="Credit",
+                debit=Decimal("0"),
+                credit=Decimal("100.00"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.MANUAL,
+            )
+        )
+        await db_session.commit()
+
+        warnings = await pre_close_checks(db_session, fy)
+        assert warnings == []
+
+    @pytest.mark.asyncio
+    async def test_warns_on_unbalanced_entries(self, db_session: AsyncSession) -> None:
+        fy = await _create_fy(db_session)
+        db_session.add(
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2024, 6, 1),
+                account_number="512000",
+                label="Debit only",
+                debit=Decimal("200.00"),
+                credit=Decimal("0"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.MANUAL,
+            )
+        )
+        await db_session.commit()
+
+        warnings = await pre_close_checks(db_session, fy)
+        assert any("déséquilibrée" in w.lower() or "Balance" in w for w in warnings)
+
+    @pytest.mark.asyncio
+    async def test_warns_on_orphan_entries(self, db_session: AsyncSession) -> None:
+        fy = await _create_fy(db_session)
+        db_session.add(
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2024, 6, 1),
+                account_number="512000",
+                label="Orphan",
+                debit=Decimal("100.00"),
+                credit=Decimal("0"),
+                fiscal_year_id=None,
+                source_type=EntrySourceType.MANUAL,
+            )
+        )
+        await db_session.commit()
+
+        warnings = await pre_close_checks(db_session, fy)
+        assert any("sans exercice" in w for w in warnings)
+
+    @pytest.mark.asyncio
+    async def test_returns_warning_if_fy_not_open(self, db_session: AsyncSession) -> None:
+        fy = await _create_fy(db_session, status=FiscalYearStatus.CLOSED)
+        warnings = await pre_close_checks(db_session, fy)
+        assert len(warnings) == 1
+        assert "pas ouvert" in warnings[0]
+
+
+class TestOpenNewFiscalYear:
+    @pytest.mark.asyncio
+    async def test_requires_closed_source_fy(self, db_session: AsyncSession) -> None:
+        fy = await _create_fy(db_session)
+        payload = FiscalYearCreate(
+            name="2025", start_date=date(2025, 1, 1), end_date=date(2025, 12, 31)
+        )
+        with pytest.raises(FiscalYearError, match="CLOSED"):
+            await open_new_fiscal_year(db_session, fy, payload)
+
+    @pytest.mark.asyncio
+    async def test_creates_new_fy_with_ran_entries(self, db_session: AsyncSession) -> None:
+        from sqlalchemy import select
+
+        from backend.models.accounting_account import AccountingAccount, AccountType
+
+        fy = await _create_fy(db_session, status=FiscalYearStatus.CLOSED)
+
+        # Create an actif account
+        acct = AccountingAccount(
+            number="512000", label="Banque", type=AccountType.ACTIF, is_active=True
+        )
+        db_session.add(acct)
+        await db_session.flush()
+
+        # Add entries in the closed FY with a net debit balance
+        db_session.add(
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2024, 3, 1),
+                account_number="512000",
+                label="Deposit",
+                debit=Decimal("1000.00"),
+                credit=Decimal("0"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.MANUAL,
+            )
+        )
+        db_session.add(
+            AccountingEntry(
+                entry_number="000002",
+                date=date(2024, 6, 1),
+                account_number="512000",
+                label="Withdrawal",
+                debit=Decimal("0"),
+                credit=Decimal("300.00"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.MANUAL,
+            )
+        )
+        await db_session.commit()
+
+        payload = FiscalYearCreate(
+            name="2025", start_date=date(2025, 1, 1), end_date=date(2025, 12, 31)
+        )
+        new_fy = await open_new_fiscal_year(db_session, fy, payload)
+
+        assert new_fy.status == FiscalYearStatus.OPEN
+        assert new_fy.name == "2025"
+
+        # Check RAN entry was created for the new FY
+        result = await db_session.execute(
+            select(AccountingEntry).where(
+                AccountingEntry.fiscal_year_id == new_fy.id,
+                AccountingEntry.source_type == EntrySourceType.CLOTURE,
+            )
+        )
+        ran_entries = result.scalars().all()
+        assert len(ran_entries) == 1
+        assert ran_entries[0].account_number == "512000"
+        assert ran_entries[0].debit == Decimal("700.00")  # 1000 - 300
+        assert ran_entries[0].credit == Decimal("0")
+
+    @pytest.mark.asyncio
+    async def test_no_ran_for_zero_balance_accounts(self, db_session: AsyncSession) -> None:
+        from sqlalchemy import select
+
+        from backend.models.accounting_account import AccountingAccount, AccountType
+
+        fy = await _create_fy(db_session, status=FiscalYearStatus.CLOSED)
+
+        acct = AccountingAccount(
+            number="512000", label="Banque", type=AccountType.ACTIF, is_active=True
+        )
+        db_session.add(acct)
+        # Balanced entries → zero balance
+        db_session.add(
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2024, 3, 1),
+                account_number="512000",
+                label="In",
+                debit=Decimal("500.00"),
+                credit=Decimal("0"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.MANUAL,
+            )
+        )
+        db_session.add(
+            AccountingEntry(
+                entry_number="000002",
+                date=date(2024, 6, 1),
+                account_number="512000",
+                label="Out",
+                debit=Decimal("0"),
+                credit=Decimal("500.00"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.MANUAL,
+            )
+        )
+        await db_session.commit()
+
+        payload = FiscalYearCreate(
+            name="2025", start_date=date(2025, 1, 1), end_date=date(2025, 12, 31)
+        )
+        new_fy = await open_new_fiscal_year(db_session, fy, payload)
+
+        result = await db_session.execute(
+            select(AccountingEntry).where(AccountingEntry.fiscal_year_id == new_fy.id)
+        )
+        assert result.scalars().all() == []

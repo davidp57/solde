@@ -212,3 +212,72 @@ async def test_month_validator_invalid(db_session: AsyncSession) -> None:
             tax=Decimal("0.00"),
             net_pay=Decimal("900.00"),
         )
+
+
+@pytest.mark.asyncio
+async def test_list_salaries_filter_by_month(db_session: AsyncSession) -> None:
+    """list_salaries can filter by exact month."""
+    from backend.services.salary_service import create_salary, list_salaries
+
+    employee = await _make_employee(db_session, "Dupont", "Paul")
+    for m in ["2025-01", "2025-02"]:
+        await create_salary(
+            db_session,
+            SalaryCreate(
+                employee_id=employee.id,
+                month=m,
+                hours=Decimal("100.00"),
+                gross=Decimal("1500.00"),
+                employee_charges=Decimal("200.00"),
+                employer_charges=Decimal("600.00"),
+                tax=Decimal("0.00"),
+                net_pay=Decimal("1300.00"),
+            ),
+        )
+
+    result = await list_salaries(db_session, month="2025-01")
+    assert len(result) == 1
+    assert result[0].month == "2025-01"
+
+
+@pytest.mark.asyncio
+async def test_update_salary(db_session: AsyncSession) -> None:
+    """update_salary modifies only provided fields."""
+    from backend.schemas.salary import SalaryUpdate
+    from backend.services.salary_service import create_salary, update_salary
+
+    employee = await _make_employee(db_session, "Dupont", "Paul")
+    salary = await create_salary(
+        db_session,
+        SalaryCreate(
+            employee_id=employee.id,
+            month="2025-03",
+            hours=Decimal("100.00"),
+            gross=Decimal("1500.00"),
+            employee_charges=Decimal("200.00"),
+            employer_charges=Decimal("600.00"),
+            tax=Decimal("0.00"),
+            net_pay=Decimal("1300.00"),
+        ),
+    )
+
+    updated = await update_salary(
+        db_session,
+        salary,
+        SalaryUpdate(gross=Decimal("2000.00"), net_pay=Decimal("1700.00")),
+    )
+    assert updated.gross == Decimal("2000.00")
+    assert updated.net_pay == Decimal("1700.00")
+    assert updated.hours == Decimal("100.00")  # unchanged
+
+
+@pytest.mark.asyncio
+async def test_employee_display_name() -> None:
+    """_employee_display_name returns prenom + nom."""
+    from backend.services.salary_service import _employee_display_name
+
+    assert _employee_display_name(None) is None
+    c = Contact(type=ContactType.CLIENT, nom="Dupont", prenom="Jean")
+    assert _employee_display_name(c) == "Jean Dupont"
+    c2 = Contact(type=ContactType.CLIENT, nom="Solo", prenom=None)
+    assert _employee_display_name(c2) == "Solo"
