@@ -34,6 +34,9 @@ from backend.models import (
     app_settings,
 )
 from backend.models import (
+    audit_log as _audit_log_module,
+)
+from backend.models import (
     bank as _bank_module,
 )
 from backend.models import (
@@ -71,6 +74,7 @@ _REGISTERED_MODEL_MODULES = (
     _entry_module,
     _rule_module,
     app_settings,
+    _audit_log_module,
     _bank_module,
     _cash_module,
     _contact_module,

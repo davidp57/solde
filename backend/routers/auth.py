@@ -21,6 +21,7 @@ from backend.schemas.auth import (
     UserRead,
     UserSelfUpdate,
 )
+from backend.services.audit_service import AuditAction, record_audit
 from backend.services.auth import (
     create_access_token,
     create_refresh_token,
@@ -200,12 +201,24 @@ async def login(
     user = result.scalar_one_or_none()
     if user is None or not verify_password(form_data.password, user.password_hash):
         login_limiter.record_attempt(client_ip)
+        await record_audit(
+            db,
+            action=AuditAction.LOGIN_FAILURE,
+            detail={"attempted_username": form_data.username, "ip": client_ip},
+        )
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     login_limiter.reset(client_ip)
+    await record_audit(
+        db,
+        action=AuditAction.LOGIN_SUCCESS,
+        actor=user,
+        detail={"ip": client_ip},
+    )
     _set_refresh_cookie(response, create_refresh_token(user.username))
     return TokenResponse(
         access_token=create_access_token(
@@ -260,8 +273,10 @@ async def get_me(
 async def logout(
     response: Response,
     _current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
     """Clear the refresh token cookie."""
+    await record_audit(db, action=AuditAction.LOGOUT, actor=_current_user)
     _clear_refresh_cookie(response)
 
 
@@ -316,6 +331,7 @@ async def change_my_password(
     current_user.password_hash = hash_password(body.new_password)
     current_user.password_changed_at = datetime.now(UTC)
     current_user.must_change_password = False
+    await record_audit(db, action=AuditAction.PASSWORD_CHANGED, actor=current_user)
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -324,11 +340,11 @@ async def change_my_password(
     "/users",
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(UserRole.ADMIN))],
 )
 async def create_user(
     body: UserCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role(UserRole.ADMIN))],
 ) -> User:
     """Create a new user (admin only)."""
     existing = await db.execute(
@@ -346,6 +362,15 @@ async def create_user(
         role=body.role,
     )
     db.add(user)
+    await db.flush()
+    await record_audit(
+        db,
+        action=AuditAction.USER_CREATED,
+        actor=current_user,
+        target_id=user.id,
+        target_type="user",
+        detail={"target_username": user.username, "role": user.role},
+    )
     await db.commit()
     await db.refresh(user)
     return user
@@ -394,20 +419,29 @@ async def update_user(
     if body.is_active is not None:
         user.is_active = body.is_active
 
+    changes = body.model_dump(exclude_unset=True)
     await db.commit()
     await db.refresh(user)
+    await record_audit(
+        db,
+        action=AuditAction.USER_UPDATED,
+        actor=current_user,
+        target_id=user.id,
+        target_type="user",
+        detail={"target_username": user.username, "changes": changes},
+    )
     return user
 
 
 @router.post(
     "/users/{user_id}/reset-password",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_role(UserRole.ADMIN))],
 )
 async def reset_user_password(
     user_id: int,
     body: UserPasswordReset,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(require_role(UserRole.ADMIN))],
 ) -> Response:
     """Reset a user's password through an admin-managed procedure."""
     result = await db.execute(select(User).where(User.id == user_id))
@@ -422,5 +456,13 @@ async def reset_user_password(
     user.password_hash = hash_password(body.new_password)
     user.password_changed_at = datetime.now(UTC)
     user.must_change_password = True
+    await record_audit(
+        db,
+        action=AuditAction.PASSWORD_RESET_BY_ADMIN,
+        actor=current_user,
+        target_id=user.id,
+        target_type="user",
+        detail={"target_username": user.username},
+    )
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
