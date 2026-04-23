@@ -214,6 +214,30 @@ html.dark-mode .app-stat-card--danger {
   background: color-mix(in srgb, rgba(239, 68, 68, 0.16) 78%, var(--app-surface-bg) 22%);
 }
 
+a.app-stat-card {
+  color: var(--p-text-color);
+  text-decoration: none;
+}
+
+.app-stat-card--link {
+  cursor: pointer;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.app-stat-card--link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--p-primary-color) 20%, transparent);
+  border-color: var(--p-primary-color);
+}
+
+.app-stat-card--link:focus-visible {
+  outline: 2px solid var(--p-primary-color);
+  outline-offset: 2px;
+}
+
 .app-stat-card__label {
   margin: 0;
   color: var(--p-text-muted-color);

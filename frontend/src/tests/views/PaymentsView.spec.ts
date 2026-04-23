@@ -61,6 +61,10 @@ vi.mock('../../stores/fiscalYear', () => ({
   useFiscalYearStore: () => fiscalYearStoreMock,
 }))
 
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {} }),
+}))
+
 import PaymentsView from '../../views/PaymentsView.vue'
 import { listPayments, updatePayment } from '../../api/payments'
 
