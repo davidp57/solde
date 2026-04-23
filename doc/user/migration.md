@@ -10,9 +10,9 @@ Ce guide explique comment mettre à jour Solde vers une nouvelle version sur un 
 
 ## Avant de commencer
 
-- **Sauvegardez votre base de données** avant toute mise à jour.
-  - Depuis l'interface : **Paramètres → Sauvegarder la base** (télécharge un fichier `.db`).
-  - Depuis le NAS : copiez le dossier `data/` entier vers un emplacement sûr.
+- **Sauvegardez vos données** avant toute mise à jour.
+  - Copiez le dossier `data/` entier vers un emplacement sûr.
+  - Idéalement, arrêtez d’abord le conteneur pour éviter de copier des fichiers en cours d’écriture.
 - **Notez la version actuelle** affichée dans l'en-tête ou via `GET /api/health`.
 - **Consultez les notes de version** dans `doc/releases/` pour identifier d'éventuels changements importants (breaking changes).
 
@@ -22,9 +22,12 @@ Ce guide explique comment mettre à jour Solde vers une nouvelle version sur un 
 
 ### 1. Télécharger la nouvelle version
 
+Remplacez `v<x.y.z>` par la version cible à déployer (par exemple `v1.4.2`).
+
 ```bash
 cd /chemin/vers/solde
-git pull origin main
+git fetch --tags
+git checkout v<x.y.z>
 ```
 
 Ou, sur Synology sans git :
@@ -70,33 +73,36 @@ Les migrations de base de données (Alembic) s'exécutent automatiquement au dé
 ### Restaurer un backup
 
 1. Arrêtez l'application : `docker compose down`
-2. Remplacez le fichier `data/solde.db` par votre backup :
+2. Supprimez les fichiers SQLite actuels pour éviter une restauration incohérente (SQLite WAL) :
+   ```bash
+   rm -f data/solde.db data/solde.db-wal data/solde.db-shm
+   ```
+3. Restaurez votre backup comme nouveau fichier `data/solde.db` :
    ```bash
    cp /chemin/vers/backup/solde_backup_XXXXXXXX_XXXXXX.db data/solde.db
    ```
-3. Pour revenir à la version précédente de l'application :
+4. Pour revenir à la version précédente de l'application et la redémarrer :
    ```bash
    git checkout v<version-précédente>
    docker compose up -d --build
    ```
-4. Redémarrez : `docker compose up -d`
 
 ### Restaurer depuis Synology sans SSH
 
 1. Dans **File Station**, naviguez vers le dossier Docker du projet (`docker/solde/data/`).
-2. Supprimez (ou renommez) `solde.db`.
-3. Copiez votre fichier de backup et renommez-le en `solde.db`.
+2. Supprimez (ou renommez) `solde.db`, `solde.db-wal` et `solde.db-shm`.
+3. Copiez votre fichier de backup dans ce dossier et renommez-le en `solde.db`.
 4. Redémarrez le conteneur dans **Container Manager**.
 
 ---
 
 ## Bonnes pratiques
 
-- **Sauvegardez systématiquement** avant chaque mise à jour — depuis l'interface ou en copiant `data/`.
+- **Sauvegardez systématiquement** avant chaque mise à jour en copiant le dossier `data/`.
 - **Lisez les notes de version** (`doc/releases/vX.Y.Z.md`) pour connaître les changements.
 - **Testez rapidement** après la mise à jour : connexion, tableau de bord, liste des factures.
 - **Ne modifiez jamais** les fichiers dans `data/` directement — utilisez l'interface ou l'API.
-- **Conservez plusieurs backups** (le système en garde 5 automatiquement dans `data/backups/`).
+- **Conservez plusieurs backups manuels** dans un emplacement sûr (par exemple hors du serveur ou du NAS).
 
 ---
 
@@ -107,7 +113,7 @@ Solde suit le [versionnage sémantique](https://semver.org/lang/fr/) :
 | Type | Format | Signification |
 |---|---|---|
 | **Patch** | `0.1.1` → `0.1.2` | Corrections de bugs, aucun changement fonctionnel |
-| **Mineur** | `0.1.x` → `0.2.0` | Nouvelles fonctionnalités, rétro-compatible |
+| **Mineur** | `0.1.x` → `0.2.0` | Nouvelles fonctionnalités, rétrocompatible |
 | **Majeur** | `0.x.x` → `1.0.0` | Changements incompatibles (nécessite attention particulière) |
 
 Pour les versions mineures et patch, la mise à jour est normalement transparente. Pour une version majeure, lisez attentivement les notes de migration dans les release notes.

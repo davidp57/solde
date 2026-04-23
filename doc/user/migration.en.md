@@ -10,9 +10,9 @@ This guide explains how to upgrade Solde to a new version on a Docker deployment
 
 ## Before you start
 
-- **Back up your database** before any upgrade.
-  - From the UI: **Settings → Back up database** (downloads a `.db` file).
-  - From the NAS: copy the entire `data/` directory to a safe location.
+- **Back up your data** before any upgrade.
+  - Copy the entire `data/` directory to a safe location.
+  - Ideally, stop the container first to avoid copying files mid-write.
 - **Note the current version** shown in the header or via `GET /api/health`.
 - **Read the release notes** in `doc/releases/` to check for breaking changes.
 
@@ -22,9 +22,12 @@ This guide explains how to upgrade Solde to a new version on a Docker deployment
 
 ### 1. Download the new version
 
+Replace `v<x.y.z>` with the target version to deploy (e.g. `v1.4.2`).
+
 ```bash
 cd /path/to/solde
-git pull origin main
+git fetch --tags
+git checkout v<x.y.z>
 ```
 
 Or, on Synology without git:
@@ -70,33 +73,36 @@ Database migrations (Alembic) run automatically on startup. No manual action nee
 ### Restoring a backup
 
 1. Stop the application: `docker compose down`
-2. Replace `data/solde.db` with your backup:
+2. Remove the current SQLite files to avoid an inconsistent restore (SQLite WAL):
+   ```bash
+   rm -f data/solde.db data/solde.db-wal data/solde.db-shm
+   ```
+3. Restore your backup as the new `data/solde.db`:
    ```bash
    cp /path/to/backup/solde_backup_XXXXXXXX_XXXXXX.db data/solde.db
    ```
-3. To revert to the previous application version:
+4. To revert to the previous application version and restart:
    ```bash
    git checkout v<previous-version>
    docker compose up -d --build
    ```
-4. Restart: `docker compose up -d`
 
 ### Restoring from Synology without SSH
 
 1. In **File Station**, navigate to the Docker project folder (`docker/solde/data/`).
-2. Delete (or rename) `solde.db`.
-3. Copy your backup file and rename it to `solde.db`.
+2. Delete (or rename) `solde.db`, `solde.db-wal` and `solde.db-shm`.
+3. Copy your backup file into the folder and rename it to `solde.db`.
 4. Restart the container in **Container Manager**.
 
 ---
 
 ## Best practices
 
-- **Always back up** before each upgrade — from the UI or by copying `data/`.
+- **Always back up** before each upgrade by copying the `data/` directory.
 - **Read the release notes** (`doc/releases/vX.Y.Z.md`) to learn about changes.
-- **Test quickly** after upgrading: login, dashboard, invoice list.
+- **Test quickly** after upgrading: log in, dashboard, invoice list.
 - **Never modify** files in `data/` directly — use the UI or the API.
-- **Keep multiple backups** (the system automatically keeps the last 5 in `data/backups/`).
+- **Keep multiple manual backups** in a safe location (for example outside the server or NAS).
 
 ---
 
