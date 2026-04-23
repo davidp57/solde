@@ -344,7 +344,11 @@ const paymentMethodOptions = computed(() =>
     }),
   ),
 )
-const { filters: invoiceTableFilters, resetFilters: resetInvoiceFilters, hasActiveFilters: hasActiveInvoiceFilters } = useDataTableFilters(invoiceRows, {
+const {
+  filters: invoiceTableFilters,
+  resetFilters: resetInvoiceFilters,
+  hasActiveFilters: hasActiveInvoiceFilters,
+} = useDataTableFilters(invoiceRows, {
   global: textFilter(''),
   number: textFilter(),
   date: dateRangeFilter(),
@@ -352,7 +356,11 @@ const { filters: invoiceTableFilters, resetFilters: resetInvoiceFilters, hasActi
   total_amount_value: numericRangeFilter(),
   balance_due_value: numericRangeFilter(),
 })
-const { filters: paymentTableFilters, resetFilters: resetPaymentFilters, hasActiveFilters: hasActivePaymentFilters } = useDataTableFilters(paymentRows, {
+const {
+  filters: paymentTableFilters,
+  resetFilters: resetPaymentFilters,
+  hasActiveFilters: hasActivePaymentFilters,
+} = useDataTableFilters(paymentRows, {
   global: textFilter(''),
   date: dateRangeFilter(),
   invoice_number: textFilter(),

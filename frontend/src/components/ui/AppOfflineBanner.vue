@@ -1,7 +1,7 @@
 <template>
   <Transition name="offline-banner">
     <div v-if="isOffline" class="offline-banner" role="status" aria-live="polite">
-      <i class="pi pi-wifi offline-banner__icon" />
+      <i class="pi pi-wifi offline-banner__icon" aria-hidden="true" />
       <span class="offline-banner__text">
         <strong>{{ t('offline.title') }}</strong>
         {{ t('offline.subtitle') }}

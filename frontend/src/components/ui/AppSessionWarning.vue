@@ -1,7 +1,7 @@
 <template>
   <Transition name="session-warning">
     <div v-if="isExpiringSoon" class="session-warning" role="alert" aria-live="polite">
-      <i class="pi pi-clock session-warning__icon" />
+      <i class="pi pi-clock session-warning__icon" aria-hidden="true" />
       <span class="session-warning__text">{{ t('auth.session_expiring_soon') }}</span>
       <Button
         :label="t('auth.session_extend')"

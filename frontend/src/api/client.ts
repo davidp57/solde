@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
-import { markNetworkError } from '../composables/useNetworkStatus'
+import { markNetworkError, markNetworkOk } from '../composables/useNetworkStatus'
 
 const apiClient = axios.create({
   baseURL: '',
@@ -37,12 +37,16 @@ function processQueueError(error: unknown): void {
 
 // Handle 401: refresh token then retry, or logout
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Clear offline state on any successful response
+    markNetworkOk()
+    return response
+  },
   async (error) => {
     const original = error.config
 
-    // Detect network-level errors (server unreachable)
-    if (!error.response && error.request) {
+    // Detect network-level errors only (avoids false positives on timeouts/cancellations)
+    if (axios.isAxiosError(error) && error.code === 'ERR_NETWORK') {
       markNetworkError()
     }
 

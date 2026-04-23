@@ -16,6 +16,11 @@ export function markNetworkError(): void {
   isOffline.value = true
 }
 
+/** Called from the Axios response interceptor when the backend is reachable again. */
+export function markNetworkOk(): void {
+  isOffline.value = false
+}
+
 export function useNetworkStatus(): { isOffline: Readonly<typeof isOffline> } {
   return { isOffline: readonly(isOffline) }
 }
