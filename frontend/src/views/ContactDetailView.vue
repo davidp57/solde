@@ -54,6 +54,17 @@
       </AppPanel>
 
       <AppPanel :title="t('contact_history.invoices_section')" dense>
+        <template #actions>
+          <Button
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            text
+            size="small"
+            :disabled="!hasActiveInvoiceFilters"
+            :title="t('common.reset_filters')"
+            @click="resetInvoiceFilters"
+          />
+        </template>
         <DataTable
           v-if="history.invoices.length"
           v-model:filters="invoiceTableFilters"
@@ -163,6 +174,17 @@
       </AppPanel>
 
       <AppPanel :title="t('contact_history.payments_section')" dense>
+        <template #actions>
+          <Button
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            text
+            size="small"
+            :disabled="!hasActivePaymentFilters"
+            :title="t('common.reset_filters')"
+            @click="resetPaymentFilters"
+          />
+        </template>
         <DataTable
           v-if="history.payments.length"
           v-model:filters="paymentTableFilters"
@@ -322,7 +344,11 @@ const paymentMethodOptions = computed(() =>
     }),
   ),
 )
-const { filters: invoiceTableFilters } = useDataTableFilters(invoiceRows, {
+const {
+  filters: invoiceTableFilters,
+  resetFilters: resetInvoiceFilters,
+  hasActiveFilters: hasActiveInvoiceFilters,
+} = useDataTableFilters(invoiceRows, {
   global: textFilter(''),
   number: textFilter(),
   date: dateRangeFilter(),
@@ -330,7 +356,11 @@ const { filters: invoiceTableFilters } = useDataTableFilters(invoiceRows, {
   total_amount_value: numericRangeFilter(),
   balance_due_value: numericRangeFilter(),
 })
-const { filters: paymentTableFilters } = useDataTableFilters(paymentRows, {
+const {
+  filters: paymentTableFilters,
+  resetFilters: resetPaymentFilters,
+  hasActiveFilters: hasActivePaymentFilters,
+} = useDataTableFilters(paymentRows, {
   global: textFilter(''),
   date: dateRangeFilter(),
   invoice_number: textFilter(),

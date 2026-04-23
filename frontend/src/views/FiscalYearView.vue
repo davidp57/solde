@@ -22,6 +22,15 @@
             :loading="loading"
             :search-text="filterText"
           />
+          <Button
+            :label="t('common.reset_filters')"
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            outlined
+            size="small"
+            :disabled="!hasActiveFilters"
+            @click="resetFilters"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -239,6 +248,8 @@ const {
   globalFilter: filterText,
   displayedRows: displayedFiscalYears,
   syncDisplayedRows: syncDisplayedFiscalYears,
+  resetFilters,
+  hasActiveFilters,
 } = useDataTableFilters(fiscalYearRows, {
   global: textFilter(''),
   name: textFilter(),

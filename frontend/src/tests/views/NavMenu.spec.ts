@@ -41,6 +41,7 @@ describe('NavMenu', () => {
       email: 'gestionnaire@example.com',
       role: 'secretaire',
       is_active: true,
+      must_change_password: false,
       created_at: '2025-01-01T00:00:00',
     }
 
@@ -75,6 +76,7 @@ describe('NavMenu', () => {
       email: 'comptable@example.com',
       role: 'tresorier',
       is_active: true,
+      must_change_password: false,
       created_at: '2025-01-01T00:00:00',
     }
 
@@ -116,6 +118,7 @@ describe('NavMenu', () => {
       email: 'admin@example.com',
       role: 'admin',
       is_active: true,
+      must_change_password: false,
       created_at: '2025-01-01T00:00:00',
     }
 
@@ -138,6 +141,7 @@ describe('NavMenu', () => {
       email: 'readonly@example.com',
       role: 'readonly',
       is_active: true,
+      must_change_password: false,
       created_at: '2025-01-01T00:00:00',
     }
 
