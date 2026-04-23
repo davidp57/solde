@@ -1,6 +1,5 @@
 /* Global styles — PrimeVue handles component theming via CSS variables */
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
-@import './print.css';
 
 :root {
   --app-page-max-width: 1320px;
