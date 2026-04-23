@@ -151,7 +151,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | BL-069 | Opérationnel / Backend | Admin / Backup | ~~P1~~ | — | ~1h30 | Endpoint backup SQLite avec rotation | ✅ Fait |
 | BL-076 | UX / Frontend | Comptabilité / Impression | ~~P1~~ | — | ~1h | Styles `@media print` vues comptables | ✅ Fait |
 | BL-083 | Documentation | Exploitation / Migration | ~~P1~~ | — | ~1h | Guide de migration Synology FR+EN | ✅ Fait |
-| BL-085 | Sécurité / Backend | Auth / MDP | P2 | A | ~30 min | Politique complexité MDP | ⬜ Prêt |
+| BL-085 | Sécurité / Backend | Auth / MDP | P2 | A | ~30 min | Politique de complexité MDP | ✅ Fait |
 | BL-070 | UX / Frontend | Navigation | P2 | B | ~30 min | Page 404 dédiée | ⬜ Prêt |
 | BL-072 | UX / Frontend | Navigation | P2 | B | ~1h | Fil d'Ariane (Breadcrumb PrimeVue) | ⬜ Prêt |
 | BL-074 | UX / Frontend | Réseau | P2 | B | ~45 min | Bandeau « Connexion perdue » | ⬜ Prêt |
@@ -638,10 +638,11 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-085 — Politique de complexité de mot de passe
 
-- **Dates** : `created=2026-04-23`
+- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
 - **Origine** : revue de projet du `2026-04-23`.
 - **Pourquoi** : pas de contrainte visible sur la longueur/complexité du mot de passe au-delà du changement initial obligatoire. Un mot de passe faible reste accepté.
 - **Résultat attendu** : imposer un minimum de 8 caractères avec au moins une majuscule et un chiffre, validé côté backend (schéma Pydantic) et côté frontend (formulaire de changement de mot de passe).
+- **Livré parce que** : validateur `_validate_password_complexity` dans `backend/schemas/auth.py` appliqué sur `UserCreate`, `PasswordChangeRequest`, `UserPasswordReset`. Vérification ASCII-only (A–Z, 0–9). 14 tests unitaires + adaptation des tests d'intégration existants.
 
 
 ## Détail des sujets fermés
