@@ -1,8 +1,10 @@
 """Settings API router — GET/PUT /api/settings (admin only)."""
 
+from pathlib import Path
 from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import get_settings as get_app_config
@@ -134,3 +136,58 @@ async def bootstrap_accounting(
 ) -> dict[str, int]:
     """Recreate the default accounting setup used during replay/testing."""
     return await settings_service.bootstrap_accounting_setup(db)
+
+
+# ---------------------------------------------------------------------------
+# Database backup (BL-069)
+# ---------------------------------------------------------------------------
+
+_BACKUP_DIR = "data/backups"
+_MAX_BACKUPS = 5
+
+
+def _get_db_path() -> str:
+    """Resolve the SQLite file path from the database URL."""
+    from sqlalchemy.engine import make_url
+
+    url = make_url(get_app_config().database_url)
+    if url.get_backend_name() != "sqlite":
+        raise RuntimeError(f"Backup only supports SQLite, got: {url.get_backend_name()}")
+    # make_url().database returns the filesystem path for SQLite URLs
+    if not url.database:
+        raise RuntimeError("Cannot determine database file path from URL.")
+    return url.database
+
+
+def _get_backup_dir() -> str:
+    """Return the backup directory path."""
+    return _BACKUP_DIR
+
+
+@router.post("/backup")
+async def create_backup(
+    _current_user: _AdminRequired,
+) -> FileResponse:
+    """Create a SQLite backup and return it as a downloadable file (admin only)."""
+    from backend.services.backup_service import create_backup as do_backup
+
+    db_path = _get_db_path()
+    backup_dir = _get_backup_dir()
+
+    if not Path(db_path).exists():
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Database file not found on disk.",
+        )
+
+    backup_file = await do_backup(
+        db_path=db_path,
+        backup_dir=backup_dir,
+        max_backups=_MAX_BACKUPS,
+    )
+
+    return FileResponse(
+        path=str(backup_file),
+        filename=backup_file.name,
+        media_type="application/octet-stream",
+    )
