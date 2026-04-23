@@ -1,0 +1,230 @@
+/* Print styles for accounting views (BL-076)
+ * Used for AG (assemblée générale) printing: journal, balance,
+ * grand livre, bilan, compte de résultat.
+ */
+
+@media print {
+  /* ------------------------------------------------------------------ */
+  /* 1. Hide non-essential UI elements                                  */
+  /* ------------------------------------------------------------------ */
+
+  /* Sidebar / navigation / topbar */
+  .sidebar,
+  .topbar,
+  .app-drawer,
+  .topbar-menu-btn {
+    display: none !important;
+  }
+
+  /* Layout: full width, no padding constraints */
+  .layout-body {
+    display: block !important;
+  }
+
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .app-page {
+    max-width: 100% !important;
+    padding: 0 !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Filters, toolbars, interactive controls */
+  .app-toolbar,
+  .app-filter-grid,
+  .journal-filters,
+  .app-page-header__actions,
+  .balance-focus-legend {
+    display: none !important;
+  }
+
+  /* Action buttons (new entry, export CSV, filter reset, etc.) */
+  .p-button,
+  .p-button-outlined,
+  .p-paginator,
+  .p-datatable-header {
+    display: none !important;
+  }
+
+  /* Stat cards — hide in print (summary is in tables) */
+  .app-stat-grid {
+    display: none !important;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 2. Print-friendly header                                           */
+  /* ------------------------------------------------------------------ */
+
+  .app-page-header {
+    text-align: center;
+    margin-bottom: 0.5rem;
+    padding: 0;
+    border-bottom: 2px solid #000;
+  }
+
+  .app-page-header__eyebrow {
+    font-size: 10pt;
+    color: #666;
+  }
+
+  .app-page-header__title {
+    font-size: 16pt;
+    font-weight: 700;
+    color: #000;
+    margin: 0.25rem 0;
+  }
+
+  .app-page-header__subtitle {
+    font-size: 10pt;
+    color: #666;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 3. Panel styling                                                   */
+  /* ------------------------------------------------------------------ */
+
+  .app-panel {
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    break-inside: avoid;
+  }
+
+  .app-panel__header {
+    padding: 0.25rem 0 !important;
+    border-bottom: 1px solid #ccc;
+  }
+
+  .app-panel__body {
+    padding: 0 !important;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 4. DataTable print optimization                                    */
+  /* ------------------------------------------------------------------ */
+
+  .app-data-table,
+  .p-datatable {
+    font-size: 9pt !important;
+    border-collapse: collapse !important;
+  }
+
+  .p-datatable-table {
+    width: 100% !important;
+  }
+
+  .p-datatable-thead > tr > th {
+    background: #f5f5f5 !important;
+    color: #000 !important;
+    border-bottom: 2px solid #333 !important;
+    padding: 4px 6px !important;
+    font-weight: 700 !important;
+    font-size: 8pt !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .p-datatable-tbody > tr > td {
+    border-bottom: 1px solid #ddd !important;
+    padding: 3px 6px !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  .p-datatable-tbody > tr:nth-child(even) > td {
+    background: #fafafa !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Money columns — right-align */
+  .app-money {
+    text-align: right !important;
+  }
+
+  /* Remove row hover effect */
+  .p-datatable-tbody > tr:hover > td {
+    background: inherit !important;
+  }
+
+  /* Remove filter icons from column headers */
+  .p-datatable-column-filter,
+  .p-datatable-sortable-column .p-datatable-sort-icon,
+  .p-datatable-filter-overlay,
+  .p-column-filter-menu-button {
+    display: none !important;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 5. Bilan / Résultat specific                                       */
+  /* ------------------------------------------------------------------ */
+
+  .bilan-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .bilan-loading {
+    display: none !important;
+  }
+
+  .resultat-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .resultat-bottom {
+    text-align: center !important;
+    font-size: 14pt !important;
+    font-weight: 700;
+    margin-top: 1rem;
+    border-top: 2px solid #000;
+    padding-top: 0.5rem;
+  }
+
+  .resultat-total {
+    text-align: right;
+    font-weight: 600;
+    border-top: 1px solid #999;
+    padding-top: 0.25rem;
+    margin-top: 0.25rem;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 6. Page settings                                                   */
+  /* ------------------------------------------------------------------ */
+
+  @page {
+    size: A4 landscape;
+    margin: 1.5cm;
+  }
+
+  /* Force black text everywhere */
+  * {
+    color: #000 !important;
+  }
+
+  /* Restore colored amounts */
+  .resultat-excedent {
+    color: #16a34a !important;
+  }
+
+  .resultat-deficit {
+    color: #dc2626 !important;
+  }
+
+  /* Allow tables to break across pages */
+  .p-datatable-tbody > tr {
+    break-inside: avoid;
+  }
+}
