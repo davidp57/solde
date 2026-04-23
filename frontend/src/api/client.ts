@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth'
 const apiClient = axios.create({
   baseURL: '',
   timeout: 15000,
+  withCredentials: true,
 })
 
 // Inject Authorization header on every request
@@ -45,7 +46,7 @@ apiClient.interceptors.response.use(
 
     const auth = useAuthStore()
 
-    if (!auth.refreshToken) {
+    if (!auth.isAuthenticated) {
       auth.logout()
       return Promise.reject(error)
     }
