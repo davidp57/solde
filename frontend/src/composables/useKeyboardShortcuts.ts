@@ -19,11 +19,20 @@ export interface KeyboardShortcutHandlers {
  */
 export function useKeyboardShortcuts(handlers: KeyboardShortcutHandlers): void {
   function handleKeydown(event: KeyboardEvent): void {
-    const target = event.target as HTMLElement
+    if (event.defaultPrevented) {
+      return
+    }
+
+    const target = event.target
     const isEditing =
-      target.tagName === 'INPUT' ||
-      target.tagName === 'TEXTAREA' ||
-      target.isContentEditable
+      target instanceof HTMLElement && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable ||
+        target.getAttribute('contenteditable') === 'true' ||
+        target.getAttribute('contenteditable') === ''
+      )
 
     if (event.key === 'Escape') {
       handlers.onClose?.()

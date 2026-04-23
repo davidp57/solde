@@ -208,7 +208,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | BL-045 | 2026-04-22 | Sécurité | Authentification | ✅ Fait | Ajouter un rate limiting sur `/auth/login` pour bloquer le brute force |
 | BL-046 | 2026-04-22 | Sécurité | Authentification / Tokens | ✅ Fait | Migrer le refresh token vers un cookie HttpOnly au lieu de localStorage |
 | BL-047 | 2026-04-22 | Sécurité | HTTP / Infrastructure | ✅ Fait | Ajouter les en-têtes de sécurité HTTP (CSP, HSTS, X-Content-Type-Options, X-Frame-Options) |
-| BL-048 | 2026-04-22 | Qualité / Tests | Backend / Tests unitaires | ✅ Fait | Corriger les 11 tests en échec et la 1 erreur dans la suite backend |
+| BL-048 | 2026-04-22 | Qualité / Tests | Backend / Tests unitaires | ✅ Fait | Corriger les 11 tests en échec et l'erreur dans la suite backend |
 | BL-049 | 2026-04-22 | Qualité / Tests | Backend + Frontend | ✅ Fait | Remonter la couverture de test de 29 % vers les objectifs (services ≥ 90 %, API ≥ 80 %, composables ≥ 70 %) |
 | BL-050 | 2026-04-22 | Dette technique | Services / Import Excel | ✅ Fait | Refactorer `excel_import.py` (5 038 lignes) en package avec modules < 500 lignes |
 | BL-051 | 2026-04-22 | Fiabilité / Comptabilité | Écritures comptables | ✅ Fait | Corriger la numérotation des écritures comptables (COUNT non thread-safe → MAX + lock) |
