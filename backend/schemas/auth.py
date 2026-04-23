@@ -9,9 +9,14 @@ from backend.models.user import UserRole
 PASSWORD_MIN_LENGTH = 8
 
 
-def _validate_password_min_length(value: str) -> str:
+def _validate_password_complexity(value: str) -> str:
+    """Enforce password policy: min 8 chars, ≥ 1 ASCII uppercase, ≥ 1 ASCII digit."""
     if len(value) < PASSWORD_MIN_LENGTH:
         raise ValueError(f"Password must be at least {PASSWORD_MIN_LENGTH} characters")
+    if not any(c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" for c in value):
+        raise ValueError("Password must contain at least one uppercase letter")
+    if not any(c in "0123456789" for c in value):
+        raise ValueError("Password must contain at least one digit")
     return value
 
 
@@ -42,8 +47,8 @@ class UserCreate(BaseModel):
 
     @field_validator("password")
     @classmethod
-    def password_min_length(cls, v: str) -> str:
-        return _validate_password_min_length(v)
+    def password_complexity(cls, v: str) -> str:
+        return _validate_password_complexity(v)
 
     @field_validator("username")
     @classmethod
@@ -78,8 +83,8 @@ class PasswordChangeRequest(BaseModel):
 
     @field_validator("new_password")
     @classmethod
-    def password_min_length(cls, v: str) -> str:
-        return _validate_password_min_length(v)
+    def password_complexity(cls, v: str) -> str:
+        return _validate_password_complexity(v)
 
 
 class UserPasswordReset(BaseModel):
@@ -87,5 +92,5 @@ class UserPasswordReset(BaseModel):
 
     @field_validator("new_password")
     @classmethod
-    def password_min_length(cls, v: str) -> str:
-        return _validate_password_min_length(v)
+    def password_complexity(cls, v: str) -> str:
+        return _validate_password_complexity(v)

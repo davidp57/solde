@@ -16,6 +16,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `backend/main.py` : middleware ASGI `UnhandledExceptionMiddleware` interceptant toutes les exceptions non gérées pour renvoyer un JSON structuré `{"detail": ..., "code": "INTERNAL_SERVER_ERROR"}` au lieu d'un 500 HTML avec stack trace — log complet côté serveur (BL-067)
 - `backend/main.py` : `/api/docs`, `/api/redoc` et `/api/openapi.json` désormais désactivés quand `debug=False` — réduit la surface d'attaque en production (BL-068)
 - `backend/services/backup_service.py` + `POST /api/settings/backup` : endpoint admin de sauvegarde SQLite utilisant `sqlite3.backup()` avec rotation automatique (5 derniers backups), téléchargement direct du fichier en réponse (BL-069)
+- `backend/schemas/auth.py` : politique de complexité de mot de passe — minimum 8 caractères, au moins une majuscule et un chiffre, appliquée sur la création utilisateur, le changement et le reset de mot de passe (BL-085)
 
 **Qualité / Sécurité (audit 2026-04-22)**
 - `backend/routers/auth.py` : le refresh token est désormais transmis via un cookie `HttpOnly`, `Secure`, `SameSite=Strict` au lieu du corps JSON — `/auth/login` et `/auth/refresh` posent le cookie, nouvel endpoint `POST /auth/logout` (204) l'efface (BL-046)
