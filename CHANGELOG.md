@@ -26,6 +26,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - Endpoints de liste : paramètre `limit` désormais borné (`default=100`, `le=1000`) sur tous les routers de liste — caisse, banque, paiements, factures, contacts, salaires, écritures — pour limiter le volume de données retourné en une seule requête (BL-059)
 - `backend/models/types.py` : nouveau `TypeDecorator` `DecimalType` (wrapping `Numeric`) garantissant que SQLAlchemy renvoie toujours un `Decimal` pour les colonnes monétaires au lieu d'un `float` SQLite — élimine les quelque 60 casts `Decimal(str(obj.attr))` répartis dans les services (BL-057)
 - `backend/models/payment.py` : suppression de `__allow_unmapped__` et des attributs transients `invoice_number` / `invoice_type` — ces champs sont désormais calculés à la lecture dans `PaymentRead` via une requête ciblée sur `Invoice` (BL-065)
+- `backend/models/audit_log.py` : table `audit_logs` + service `record_audit` + enum `AuditAction` pour le journal d'audit structuré — traçabilité des connexions (succès/échec), déconnexions, changements de mot de passe, création/modification d'utilisateurs, réinitialisations de mot de passe admin, et opérations de reset base. Migration Alembic `0023` (BL-056)
 
 ### Refactorisé
 

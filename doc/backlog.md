@@ -127,7 +127,7 @@ _Pas révisé : ces estimations étaient déjà larges et représentent des chan
 
 | Ticket | Estimation initiale | Estimation révisée | Détail |
 |--------|--------------------|--------------------|--------|
-| BL-056 | 3-4h | **4-5h** | Table d'audit + middleware + 4 types d'événements tracés |
+| BL-056 | 3-4h | **2h** | Table d'audit + middleware + 4 types d'événements tracés — **Fait** |
 | BL-049 | 10-15h | **12-20h** | Palier 34 % → 60 % sur les services critiques (chantier continu) |
 
 **Total estimé initial : ~40h. Total révisé : ~55h.** Les principaux postes de dérapage identifiés : quality gates (~10 min/commit), adaptation des tests d'intégration, migrations Alembic, et refactoring BL-050.
@@ -165,7 +165,7 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 | BL-053 | 2026-04-22 | Sécurité | Authentification / Bootstrap | P1 | ~~Forcer le changement du mot de passe admin au premier login~~ **Fait** |
 | BL-054 | 2026-04-22 | DevOps / Docker | Déploiement | P2 | ~~Séparer les migrations Alembic du démarrage Uvicorn dans le Dockerfile~~ **Fait** |
 | BL-055 | 2026-04-22 | Sécurité / Config | CORS | P2 | ~~Configurer les origines CORS pour la production au lieu de `allow_origins=[]`~~ **Fait** |
-| BL-056 | 2026-04-22 | Sécurité / Traçabilité | Audit | P2 | Ajouter un journal d'audit structuré pour les actions sensibles (connexions, rôles, suppressions) |
+| BL-056 | 2026-04-22 | Sécurité / Traçabilité | Audit | P2 | ~~Ajouter un journal d'audit structuré pour les actions sensibles (connexions, rôles, suppressions)~~ **Fait** |
 | BL-057 | 2026-04-22 | Dette technique | Backend / ORM | P2 | ~~Créer un TypeDecorator SQLAlchemy pour Decimal afin d'éliminer les ~30 occurrences de `Decimal(str(...))`~~ **Fait** |
 | BL-058 | 2026-04-22 | Dette technique | Services / Import Excel | P2 | ~~Typer les exceptions dans l'import Excel (remplacer les `except Exception` généralisés)~~ **Fait** |
 | BL-059 | 2026-04-22 | Sécurité / API | Endpoints de liste | P2 | ~~Ajouter des limites de pagination par défaut (100) et maximum (1 000) sur tous les endpoints de liste~~ **Fait** |
@@ -347,10 +347,11 @@ Ordre recommandé : ~~Lot 1 + Lot 2~~ ✅, puis Lot 3 (sécurité sans casse), p
 
 ### BL-056 — Journal d'audit structuré
 
-- **Dates** : `created=2026-04-22`
+- **Dates** : `created=2026-04-22`, `completed=2026-04-23`
 - **Origine** : audit technique du `2026-04-22` (`doc/dev/audit-report-2026-04.md`, point S8).
 - **Pourquoi** : les échecs de connexion, les changements de rôle, les suppressions de données et les accès aux endpoints dangereux ne sont pas tracés dans un journal d'audit structuré. Le log applicatif standard ne suffit pas pour un contexte associatif gérant des données financières.
 - **Résultat attendu** : implémenter un journal d'audit minimal (table dédiée ou log structuré JSON) traçant au minimum les connexions réussies/échouées, les changements de rôle et d'activation, les réinitialisations de mot de passe, et les opérations de suppression massive.
+- **Livré parce que** : modèle `AuditLog` (table `audit_logs`) + service `record_audit` + migration Alembic `0023`. Événements tracés : `auth.login.success`, `auth.login.failure`, `auth.logout`, `auth.password.change`, `admin.user.create`, `admin.user.update`, `admin.user.password_reset`, `admin.reset_db`, `admin.selective_reset`. 14 tests (8 unitaires + 6 intégration), 812 tests passent.
 
 ### BL-057 — TypeDecorator Decimal pour l'ORM
 

@@ -18,6 +18,7 @@ from backend.schemas.settings import (
     TreasurySystemOpeningUpdate,
 )
 from backend.services import settings as settings_service
+from backend.services.audit_service import AuditAction, record_audit
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -76,7 +77,7 @@ async def update_system_opening(
 @router.post("/reset-db", response_model=dict[str, int])
 async def reset_db(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _AdminRequired,
+    current_user: _AdminRequired,
 ) -> dict[str, int]:
     """Delete all application data except users. Admin only.
 
@@ -88,7 +89,9 @@ async def reset_db(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Database reset is only available in debug mode",
         )
-    return await settings_service.reset_data(db)
+    result = await settings_service.reset_data(db)
+    await record_audit(db, action=AuditAction.DB_RESET, actor=current_user, detail=result)
+    return result
 
 
 @router.post("/selective-reset/preview", response_model=SelectiveResetPreviewRead)
@@ -108,13 +111,20 @@ async def preview_selective_reset(
 async def apply_selective_reset(
     payload: SelectiveResetRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _AdminRequired,
+    current_user: _AdminRequired,
 ) -> SelectiveResetPreviewRead:
     """Apply a selective import reset for one import type and one fiscal year."""
     try:
-        return await settings_service.apply_selective_reset(db, payload)
+        result = await settings_service.apply_selective_reset(db, payload)
     except Exception as exc:  # pragma: no cover - delegated mapping below
         _raise_selective_reset_error(exc)
+    await record_audit(
+        db,
+        action=AuditAction.SELECTIVE_RESET,
+        actor=current_user,
+        detail={"import_type": payload.import_type, "fiscal_year_id": payload.fiscal_year_id},
+    )
+    return result
 
 
 @router.post("/bootstrap-accounting", response_model=dict[str, int])
