@@ -275,6 +275,7 @@ async def test_get_salary_by_id(
         "net_pay": 1215.0,
     }
     create_resp = await client.post("/api/salaries/", json=payload, headers=auth_headers)
+    assert create_resp.status_code == 201
     salary_id = create_resp.json()["id"]
 
     response = await client.get(f"/api/salaries/{salary_id}", headers=auth_headers)
@@ -312,6 +313,7 @@ async def test_update_salary(
         "net_pay": 1458.0,
     }
     create_resp = await client.post("/api/salaries/", json=payload, headers=auth_headers)
+    assert create_resp.status_code == 201
     salary_id = create_resp.json()["id"]
 
     update_resp = await client.put(

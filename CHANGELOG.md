@@ -13,8 +13,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
-- `frontend/src/tests/composables/useDarkMode.spec.ts` : tests unitaires Vitest pour le composable `useDarkMode` — toggle, persistance localStorage, classe CSS `dark-mode` (BL-079)
-- `frontend/src/tests/composables/useTableFilter.spec.ts` : tests unitaires Vitest pour `applyFilter` et `useTableFilter` — filtrage fuzzy, réactivité, cas limites null/undefined (BL-079)
+- `frontend/src/tests/composables/useDarkMode.spec.ts` : tests unitaires Vitest pour le composable `useDarkMode` — toggle, persistance dans localStorage, classe CSS `dark-mode` (BL-079)
+- `frontend/src/tests/composables/useTableFilter.spec.ts` : tests unitaires Vitest pour `applyFilter` et `useTableFilter` — filtrage par sous-chaîne insensible à la casse, réactivité, cas limites null/undefined (BL-079)
 - `frontend/src/tests/composables/activeFilterLabels.spec.ts` : tests unitaires Vitest pour `findSelectedFilterLabel` et `collectActiveFilterLabels` — matching, valeurs nulles, types numériques (BL-079)
 - `frontend/e2e/smoke.spec.ts` : smoke test E2E Playwright couvrant login → changement de mot de passe obligatoire → dashboard → contacts → factures clients → paiements (BL-080)
 - `frontend/playwright.config.ts` : configuration Playwright avec webServer auto-start (backend Uvicorn + frontend Vite) et DB E2E dédiée (BL-080)

@@ -4,7 +4,11 @@ import { defineConfig } from '@playwright/test'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const rootDir = path.resolve(__dirname, '..')
-const pythonExe = path.join(rootDir, '.venv', 'Scripts', 'python.exe')
+const venvScriptsDir = process.platform === 'win32' ? 'Scripts' : 'bin'
+const venvPythonName = process.platform === 'win32' ? 'python.exe' : 'python'
+const pythonExe =
+  process.env.PLAYWRIGHT_PYTHON ??
+  path.join(rootDir, '.venv', venvScriptsDir, venvPythonName)
 
 export default defineConfig({
   testDir: './e2e',
@@ -30,7 +34,7 @@ export default defineConfig({
       reuseExistingServer: true,
       timeout: 30_000,
       env: {
-        DATABASE_URL: 'sqlite+aiosqlite:///data/e2e-test.db',
+        DATABASE_URL: 'sqlite+aiosqlite:///./data/e2e-test.db',
         DEBUG: 'true',
         JWT_SECRET_KEY: 'e2e-test-secret-key-at-least-32-characters-long',
       },
