@@ -16,1192 +16,47 @@
       </template>
     </AppPageHeader>
 
-    <AppPanel :title="t('import.type_label')" :subtitle="t('import.preview_subtitle')">
-      <div class="import-form">
-        <!-- File type selection -->
-        <div class="app-field">
-          <label class="app-field__label">{{ t('import.type_label') }}</label>
-          <div class="import-type-row">
-            <div class="import-radio-item">
-              <RadioButton v-model="importType" input-id="type-gestion" value="gestion" />
-              <label for="type-gestion">{{ t('import.type_gestion') }}</label>
-            </div>
-            <div class="import-radio-item">
-              <RadioButton v-model="importType" input-id="type-compta" value="comptabilite" />
-              <label for="type-compta">{{ t('import.type_comptabilite') }}</label>
-            </div>
-          </div>
-        </div>
+    <ImportExcelFormPanel
+      ref="formPanelRef"
+      v-model:import-type="importType"
+      v-model:comparison-start-date="comparisonStartDate"
+      v-model:comparison-end-date="comparisonEndDate"
+      :selected-file="selectedFile"
+      :preview="preview"
+      :result="result"
+      :active-run="activeRun"
+      :importing="importing"
+      :previewing="previewing"
+      @file-selected="onFileSelected"
+      @preview-click="doPreview"
+      @import-click="doImport"
+    />
 
-        <div class="import-guidance">
-          <article class="import-guidance-card">
-            <h3 class="import-guidance-card__title">{{ t('import.guidance_common_title') }}</h3>
-            <ul class="import-guidance-card__list">
-              <li>{{ t('import.guidance_common_exercise') }}</li>
-              <li>{{ t('import.guidance_common_seed_accounts') }}</li>
-              <li>{{ t('import.guidance_common_seed_rules') }}</li>
-            </ul>
-          </article>
-          <article class="import-guidance-card">
-            <h3 class="import-guidance-card__title">
-              {{
-                importType === 'gestion' ? t('import.type_gestion') : t('import.type_comptabilite')
-              }}
-            </h3>
-            <ul v-if="importType === 'gestion'" class="import-guidance-card__list">
-              <li>{{ t('import.guidance_gestion_scope') }}</li>
-              <li>{{ t('import.guidance_gestion_fiscal_year') }}</li>
-              <li>{{ t('import.guidance_gestion_supplier') }}</li>
-            </ul>
-            <ul v-else class="import-guidance-card__list">
-              <li>{{ t('import.guidance_compta_scope') }}</li>
-              <li>{{ t('import.guidance_compta_coexistence') }}</li>
-              <li>{{ t('import.guidance_compta_chart') }}</li>
-            </ul>
-          </article>
-        </div>
-
-        <!-- File picker -->
-        <div class="app-field">
-          <label class="app-field__label">{{ t('import.file_label') }}</label>
-          <input ref="fileInput" type="file" accept=".xlsx,.xls" hidden @change="onFileChange" />
-          <p v-if="selectedFile && preview" class="import-preview-state" :class="previewStateClass">
-            {{ previewStateMessage }}
-          </p>
-          <div class="import-file-row">
-            <Button
-              :label="t('import.choose_file')"
-              icon="pi pi-upload"
-              severity="secondary"
-              outlined
-              @click="fileInput?.click()"
-            />
-            <span v-if="selectedFile" class="import-file-name">{{ selectedFile.name }}</span>
-            <span v-else class="import-file-name import-file-name--empty">—</span>
-          </div>
-        </div>
-
-        <div v-if="selectedFile" class="import-comparison-window-card">
-          <div>
-            <p class="import-section-eyebrow">{{ t('import.comparison_window_label') }}</p>
-            <h3 class="import-guidance-card__title">{{ t('import.comparison_window_title') }}</h3>
-            <p class="import-action-hint">{{ t('import.comparison_window_subtitle') }}</p>
-          </div>
-          <div class="import-comparison-window-grid">
-            <div class="app-field">
-              <label for="comparison-start-date" class="app-field__label">
-                {{ t('import.comparison_window_start') }}
-              </label>
-              <input
-                id="comparison-start-date"
-                data-testid="comparison-start-date"
-                v-model="comparisonStartDate"
-                type="date"
-                class="app-input"
-              />
-            </div>
-            <div class="app-field">
-              <label for="comparison-end-date" class="app-field__label">
-                {{ t('import.comparison_window_end') }}
-              </label>
-              <input
-                id="comparison-end-date"
-                data-testid="comparison-end-date"
-                v-model="comparisonEndDate"
-                type="date"
-                class="app-input"
-              />
-            </div>
-          </div>
-        </div>
-
-        <!-- Submit / Preview buttons -->
-        <div class="app-form-actions">
-          <Button
-            data-testid="preview-button"
-            :label="t('import.preview')"
-            icon="pi pi-eye"
-            severity="secondary"
-            outlined
-            :loading="previewing"
-            :disabled="!selectedFile"
-            @click="doPreview"
-          />
-          <Button
-            data-testid="primary-import-button"
-            :label="t('import.submit')"
-            icon="pi pi-check"
-            :loading="importing"
-            :disabled="!canConfirmImport || !activeRun?.can_execute"
-            @click="doImport"
-          />
-        </div>
-        <p
-          class="import-action-hint"
-          :class="{ 'import-action-hint--warning': hasPreviewWarnings && preview?.can_import }"
-        >
-          {{ importActionHint }}
-        </p>
-        <div
-          v-if="result"
-          data-testid="import-result-banner"
-          class="import-result-banner"
-          :class="
-            resultHasIssues ? 'import-result-banner--warning' : 'import-result-banner--success'
-          "
-        >
-          <strong>{{ resultStateMessage }}</strong>
-          <p>{{ resultStateDetail }}</p>
-          <div
-            v-if="activeRun?.status === 'failed' && result.errors.length"
-            data-testid="import-result-banner-errors"
-            class="import-result-banner-errors"
-          >
-            <ul class="import-errors">
-              <li v-for="(err, idx) in result.errors" :key="`banner-error-${idx}`">{{ err }}</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </AppPanel>
-
-    <AppPanel
+    <ImportExcelShortcutsPanel
       v-if="testShortcuts.length"
-      :title="t('import.test_shortcuts_title')"
-      :subtitle="t('import.test_shortcuts_subtitle')"
-      dense
-    >
-      <p class="import-action-hint">{{ t('import.test_shortcuts_hint') }}</p>
-      <div class="import-shortcuts-grid">
-        <article
-          v-for="shortcut in testShortcuts"
-          :key="shortcut.alias"
-          class="import-shortcut-card"
-        >
-          <div class="import-shortcut-card__body">
-            <div>
-              <h3 class="import-shortcut-card__title">{{ shortcut.label }}</h3>
-              <p class="import-shortcut-card__meta">
-                {{ shortcut.file_name ?? t('import.test_shortcuts_missing_file') }}
-              </p>
-            </div>
-            <p v-if="shortcut.message" class="import-shortcut-card__message">
-              {{ shortcut.message }}
-            </p>
-          </div>
-          <Button
-            :data-testid="`quick-import-${shortcut.alias}`"
-            :label="t('import.test_shortcuts_run', { label: shortcut.label })"
-            icon="pi pi-bolt"
-            severity="contrast"
-            outlined
-            :disabled="!shortcut.available || importing"
-            :loading="runningShortcutAlias === shortcut.alias"
-            @click="runTestShortcut(shortcut.alias)"
-          />
-        </article>
-      </div>
-    </AppPanel>
+      :test-shortcuts="testShortcuts"
+      :importing="importing"
+      :running-shortcut-alias="runningShortcutAlias"
+      @run-shortcut="runTestShortcut"
+    />
 
     <div v-if="preview || result" class="import-surface-shell">
       <div v-if="preview" ref="previewPanel">
-        <AppPanel :title="t('import.preview_title')" dense>
-          <div class="import-preview-overview" data-testid="preview-quick-summary">
-            <article class="import-preview-overview-card">
-              <span class="import-preview-overview-card__label">{{
-                t('import.estimated_contacts')
-              }}</span>
-              <strong class="import-preview-overview-card__value">{{
-                preview.estimated_contacts
-              }}</strong>
-            </article>
-            <article class="import-preview-overview-card">
-              <span class="import-preview-overview-card__label">{{
-                t('import.estimated_invoices')
-              }}</span>
-              <strong class="import-preview-overview-card__value">{{
-                preview.estimated_invoices
-              }}</strong>
-            </article>
-            <article class="import-preview-overview-card">
-              <span class="import-preview-overview-card__label">{{
-                t('import.estimated_payments')
-              }}</span>
-              <strong class="import-preview-overview-card__value">{{
-                preview.estimated_payments
-              }}</strong>
-            </article>
-            <article class="import-preview-overview-card">
-              <span class="import-preview-overview-card__label">{{
-                t('import.estimated_entries')
-              }}</span>
-              <strong class="import-preview-overview-card__value">{{
-                preview.estimated_entries
-              }}</strong>
-            </article>
-            <article class="import-preview-overview-card">
-              <span class="import-preview-overview-card__label">{{
-                t('import.operations_title')
-              }}</span>
-              <strong class="import-preview-overview-card__value">{{
-                operationDecisionStats.total
-              }}</strong>
-            </article>
-          </div>
-
-          <div class="import-preview-overview-meta">
-            <p class="import-preview-state" :class="previewStateClass">
-              {{ previewStateMessage }}
-            </p>
-            <div class="import-operation-metrics import-operation-metrics--inline">
-              <span class="import-operation-metric import-operation-metric--success">
-                {{ t('import.operation_decision.apply') }}: {{ operationDecisionStats.apply }}
-              </span>
-              <span class="import-operation-metric import-operation-metric--muted">
-                {{ t('import.operation_decision.ignore') }}: {{ operationDecisionStats.ignore }}
-              </span>
-              <span class="import-operation-metric import-operation-metric--danger">
-                {{ t('import.operation_decision.block') }}: {{ operationDecisionStats.block }}
-              </span>
-              <span class="import-operation-metric import-operation-metric--danger">
-                {{ t('import.operation_status.failed') }}: {{ operationDecisionStats.failed }}
-              </span>
-            </div>
-          </div>
-
-          <div
-            v-if="hasBlockingOperations"
-            class="import-preview-inline-alert"
-            data-testid="preview-blocked-guidance"
-          >
-            <div>
-              <strong>{{ t('import.blocked_heading') }}</strong>
-              <p class="import-action-hint">{{ t('import.blocked_subtitle_short') }}</p>
-            </div>
-            <Button
-              data-testid="show-blocked-operations"
-              :label="t('import.blocked_cta_show')"
-              severity="secondary"
-              outlined
-              @click="showBlockedOperations()"
-            />
-          </div>
-
-          <div
-            class="import-preview-tabs"
-            role="tablist"
-            :aria-label="t('import.preview_tabs_aria_label')"
-          >
-            <button
-              id="preview-tab-details"
-              type="button"
-              role="tab"
-              data-testid="preview-tab-details"
-              class="import-preview-tab"
-              :class="{ 'import-preview-tab--active': activePreviewTab === 'details' }"
-              aria-controls="preview-tabpanel-details"
-              :aria-selected="activePreviewTab === 'details'"
-              :tabindex="activePreviewTab === 'details' ? 0 : -1"
-              @click="activePreviewTab = 'details'"
-            >
-              {{ t('import.preview_tab_details') }}
-              <span v-if="operationDecisionStats.total" class="import-preview-tab__count">
-                {{ operationDecisionStats.total }}
-              </span>
-            </button>
-            <button
-              id="preview-tab-full-summary"
-              type="button"
-              role="tab"
-              data-testid="preview-tab-full-summary"
-              class="import-preview-tab"
-              :class="{ 'import-preview-tab--active': activePreviewTab === 'full-summary' }"
-              aria-controls="preview-tabpanel-full-summary"
-              :aria-selected="activePreviewTab === 'full-summary'"
-              :tabindex="activePreviewTab === 'full-summary' ? 0 : -1"
-              @click="activePreviewTab = 'full-summary'"
-            >
-              {{ t('import.preview_tab_full_summary') }}
-            </button>
-            <button
-              id="preview-tab-warnings"
-              type="button"
-              role="tab"
-              data-testid="preview-tab-warnings"
-              class="import-preview-tab"
-              :class="{ 'import-preview-tab--active': activePreviewTab === 'warnings' }"
-              aria-controls="preview-tabpanel-warnings"
-              :aria-selected="activePreviewTab === 'warnings'"
-              :tabindex="activePreviewTab === 'warnings' ? 0 : -1"
-              @click="activePreviewTab = 'warnings'"
-            >
-              {{ t('import.preview_tab_warnings') }}
-              <span v-if="previewIssueCount" class="import-preview-tab__count">
-                {{ previewIssueCount }}
-              </span>
-            </button>
-          </div>
-
-          <div
-            v-if="activePreviewTab === 'full-summary'"
-            id="preview-tabpanel-full-summary"
-            role="tabpanel"
-            aria-labelledby="preview-tab-full-summary"
-            data-testid="preview-full-summary-tab"
-          >
-            <div class="import-summary-grid">
-              <div class="import-summary-row">
-                <span>{{ t('import.estimated_contacts') }}</span>
-                <span class="font-medium">{{ preview.estimated_contacts }}</span>
-              </div>
-              <div class="import-summary-row">
-                <span>{{ t('import.estimated_invoices') }}</span>
-                <span class="font-medium">{{ preview.estimated_invoices }}</span>
-              </div>
-              <div class="import-summary-row">
-                <span>{{ t('import.estimated_payments') }}</span>
-                <span class="font-medium">{{ preview.estimated_payments }}</span>
-              </div>
-              <div class="import-summary-row">
-                <span>{{ t('import.estimated_salaries') }}</span>
-                <span class="font-medium">{{ preview.estimated_salaries }}</span>
-              </div>
-              <div class="import-summary-row">
-                <span>{{ t('import.estimated_entries') }}</span>
-                <span class="font-medium">{{ preview.estimated_entries }}</span>
-              </div>
-            </div>
-
-            <div v-if="previewComparison" class="import-comparison-block">
-              <div class="import-comparison-block__header">
-                <div>
-                  <p class="import-section-eyebrow">
-                    {{ t('import.preview_comparison_section_title') }}
-                  </p>
-                  <h3 class="import-sheet-list__title">{{ comparisonTitle }}</h3>
-                  <p class="import-action-hint">{{ comparisonSubtitle }}</p>
-                </div>
-                <div class="import-sheet-card__stats">
-                  <strong class="import-sheet-card__rows">
-                    {{
-                      t('import.comparison_file_rows', {
-                        count: previewComparison.totals.file_rows,
-                      })
-                    }}
-                  </strong>
-                  <span class="import-sheet-card__stat import-sheet-card__stat--success">
-                    {{
-                      t('import.comparison_already_in_solde', {
-                        count: previewComparison.totals.already_in_solde,
-                      })
-                    }}
-                  </span>
-                  <span class="import-sheet-card__stat">
-                    {{
-                      t('import.comparison_missing_in_solde', {
-                        count: previewComparison.totals.missing_in_solde,
-                      })
-                    }}
-                  </span>
-                  <span class="import-sheet-card__stat import-sheet-card__stat--warning">
-                    {{
-                      t('import.comparison_extra_in_solde', {
-                        count: previewComparison.totals.extra_in_solde,
-                      })
-                    }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="import-comparison-grid">
-                <article
-                  v-for="domain in previewComparison.domains"
-                  :key="`comparison-${domain.kind}`"
-                  class="import-comparison-card"
-                >
-                  <h4 class="import-sheet-card__title">{{ previewSheetKindLabel(domain.kind) }}</h4>
-                  <div class="import-summary-grid import-summary-grid--compact">
-                    <div class="import-summary-row">
-                      <span>{{
-                        t('import.comparison_file_rows', { count: domain.file_rows })
-                      }}</span>
-                      <strong>{{ domain.file_rows }}</strong>
-                    </div>
-                    <div class="import-summary-row">
-                      <span>{{
-                        t('import.comparison_already_in_solde', { count: domain.already_in_solde })
-                      }}</span>
-                      <strong>{{ domain.already_in_solde }}</strong>
-                    </div>
-                    <div class="import-summary-row">
-                      <span>{{
-                        t('import.comparison_missing_in_solde', { count: domain.missing_in_solde })
-                      }}</span>
-                      <strong>{{ domain.missing_in_solde }}</strong>
-                    </div>
-                    <div class="import-summary-row">
-                      <span>{{
-                        t('import.comparison_extra_in_solde', { count: domain.extra_in_solde })
-                      }}</span>
-                      <strong>{{ domain.extra_in_solde }}</strong>
-                    </div>
-                    <div class="import-summary-row">
-                      <span>{{
-                        t('import.comparison_ignored_by_policy', {
-                          count: domain.ignored_by_policy,
-                        })
-                      }}</span>
-                      <strong>{{ domain.ignored_by_policy }}</strong>
-                    </div>
-                    <div class="import-summary-row">
-                      <span>{{ t('import.comparison_blocked', { count: domain.blocked }) }}</span>
-                      <strong>{{ domain.blocked }}</strong>
-                    </div>
-                  </div>
-                  <div
-                    v-if="domain.extra_in_solde_details?.length"
-                    class="import-comparison-detail-block"
-                  >
-                    <span class="app-field__label">
-                      {{
-                        t('import.comparison_extra_details_title', {
-                          count: domain.extra_in_solde_details.length,
-                        })
-                      }}
-                    </span>
-                    <ul class="import-comparison-detail-list">
-                      <li
-                        v-for="(detail, detailIndex) in domain.extra_in_solde_details"
-                        :key="`comparison-${domain.kind}-detail-${detailIndex}`"
-                        class="import-comparison-detail-item"
-                      >
-                        <strong>{{ detail.summary }}</strong>
-                        <div
-                          v-if="previewComparisonExtraDetailFields(detail).length"
-                          class="import-comparison-detail-fields"
-                        >
-                          <span
-                            v-for="field in previewComparisonExtraDetailFields(detail)"
-                            :key="`${detail.summary}-${field.key}`"
-                            class="import-comparison-detail-field"
-                          >
-                            {{ t(`import.comparison_detail_fields.${field.key}`) }}:
-                            {{ field.value }}
-                          </span>
-                        </div>
-                      </li>
-                    </ul>
-                  </div>
-                </article>
-              </div>
-            </div>
-
-            <div v-if="preview.sheets.length" class="import-diagnostic-block">
-              <div class="import-diagnostic-block__header">
-                <div>
-                  <p class="import-section-eyebrow">
-                    {{ t('import.preview_diagnostic_section_title') }}
-                  </p>
-                  <h3 class="import-sheet-list__title">
-                    {{ t('import.preview_diagnostic_title') }}
-                  </h3>
-                  <p class="import-action-hint">{{ t('import.preview_diagnostic_subtitle') }}</p>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="preview.sheets.length" class="import-sheet-list">
-              <h3 class="import-sheet-list__title">{{ t('import.sheets_title') }}</h3>
-              <article v-for="sheet in preview.sheets" :key="sheet.name" class="import-sheet-card">
-                <div class="import-sheet-card__header">
-                  <div>
-                    <h4 class="import-sheet-card__title">{{ sheet.name }}</h4>
-                    <p class="import-sheet-card__meta">
-                      {{ previewSheetKindLabel(sheet.kind) }} ·
-                      {{ previewSheetStatusLabel(sheet.status) }}
-                    </p>
-                  </div>
-                  <div class="import-sheet-card__stats">
-                    <strong class="import-sheet-card__rows">{{
-                      t('import.sheet_rows', { count: sheet.rows })
-                    }}</strong>
-                    <span
-                      v-if="sheet.ignored_rows"
-                      class="import-sheet-card__stat import-sheet-card__stat--warning"
-                    >
-                      {{ t('import.sheet_ignored_rows', { count: sheet.ignored_rows }) }}
-                    </span>
-                    <span
-                      v-if="sheet.blocked_rows"
-                      class="import-sheet-card__stat import-sheet-card__stat--danger"
-                    >
-                      {{ t('import.sheet_blocked_rows', { count: sheet.blocked_rows }) }}
-                    </span>
-                  </div>
-                </div>
-
-                <div v-if="sheet.detected_columns.length" class="import-sheet-card__section">
-                  <span class="app-field__label">{{ t('import.detected_columns') }}</span>
-                  <div class="import-chip-row">
-                    <span
-                      v-for="column in sheet.detected_columns"
-                      :key="column"
-                      class="import-chip"
-                      >{{ column }}</span
-                    >
-                  </div>
-                </div>
-
-                <div v-if="sheet.missing_columns.length" class="import-sheet-card__section">
-                  <span class="app-field__label">{{ t('import.missing_columns') }}</span>
-                  <div class="import-chip-row">
-                    <span
-                      v-for="column in sheet.missing_columns"
-                      :key="column"
-                      class="import-chip import-chip--danger"
-                      >{{ column }}</span
-                    >
-                  </div>
-                </div>
-
-                <ul v-if="sheet.warnings.length" class="import-warnings">
-                  <li
-                    v-for="(warning, idx) in previewIssueMessages(
-                      sheet.warnings,
-                      sheet.warning_details,
-                    )"
-                    :key="`${sheet.name}-warning-${idx}`"
-                  >
-                    {{ warning }}
-                  </li>
-                </ul>
-                <ul v-if="sheet.errors.length" class="import-errors">
-                  <li
-                    v-for="(error, idx) in previewIssueMessages(sheet.errors, sheet.error_details)"
-                    :key="`${sheet.name}-error-${idx}`"
-                  >
-                    {{ error }}
-                  </li>
-                </ul>
-              </article>
-            </div>
-          </div>
-
-          <div
-            v-else-if="activePreviewTab === 'details'"
-            id="preview-tabpanel-details"
-            role="tabpanel"
-            aria-labelledby="preview-tab-details"
-            data-testid="preview-details-tab"
-          >
-            <div v-if="activeRun?.operations.length" class="import-operation-block">
-              <div class="import-diagnostic-block__header">
-                <div>
-                  <p class="import-section-eyebrow">{{ t('import.operations_title') }}</p>
-                  <h3 class="import-sheet-list__title">{{ t('import.operations_table_title') }}</h3>
-                  <p class="import-action-hint">{{ t('import.operations_table_subtitle') }}</p>
-                </div>
-                <div class="import-operation-metrics">
-                  <span class="import-operation-metric">
-                    <strong>{{ operationDecisionStats.total }}</strong>
-                    {{ t('import.operations_count', { count: operationDecisionStats.total }) }}
-                  </span>
-                  <span class="import-operation-metric import-operation-metric--success">
-                    {{ t('import.operation_decision.apply') }}: {{ operationDecisionStats.apply }}
-                  </span>
-                  <span class="import-operation-metric import-operation-metric--muted">
-                    {{ t('import.operation_decision.ignore') }}: {{ operationDecisionStats.ignore }}
-                  </span>
-                  <span class="import-operation-metric import-operation-metric--danger">
-                    {{ t('import.operation_decision.block') }}: {{ operationDecisionStats.block }}
-                  </span>
-                  <span class="import-operation-metric import-operation-metric--danger">
-                    {{ t('import.operation_status.failed') }}: {{ operationDecisionStats.failed }}
-                  </span>
-                </div>
-              </div>
-
-              <div class="import-operation-toolbar">
-                <div class="app-field import-operation-toolbar__search">
-                  <label for="operations-search" class="app-field__label">
-                    {{ t('import.operations_filter_label') }}
-                  </label>
-                  <input
-                    id="operations-search"
-                    v-model.trim="operationSearch"
-                    data-testid="operations-search"
-                    type="search"
-                    class="app-input"
-                    :placeholder="t('import.operations_filter_placeholder')"
-                  />
-                </div>
-
-                <div class="app-field">
-                  <label for="operations-type-filter" class="app-field__label">
-                    {{ t('import.operations_filter_type') }}
-                  </label>
-                  <select
-                    id="operations-type-filter"
-                    v-model="operationTypeFilter"
-                    data-testid="operations-type-filter"
-                    class="app-input"
-                  >
-                    <option value="all">{{ t('import.operations_filter_all_types') }}</option>
-                    <option
-                      v-for="option in operationTypeOptions"
-                      :key="`operation-type-${option.value}`"
-                      :value="option.value"
-                    >
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </div>
-
-                <div class="app-field">
-                  <label for="operations-status-filter" class="app-field__label">
-                    {{ t('import.operations_filter_status') }}
-                  </label>
-                  <select
-                    id="operations-status-filter"
-                    v-model="operationStatusFilter"
-                    data-testid="operations-status-filter"
-                    class="app-input"
-                  >
-                    <option value="all">{{ t('import.operations_filter_all_statuses') }}</option>
-                    <option
-                      v-for="option in operationStatusOptions"
-                      :key="`operation-status-${option.value}`"
-                      :value="option.value"
-                    >
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </div>
-              </div>
-
-              <div
-                v-if="filteredOperationGroups.length === 0"
-                class="app-empty-state import-empty-inline"
-              >
-                {{ t('import.operations_no_match') }}
-              </div>
-
-              <div v-else data-testid="operations-table" class="import-operation-table-wrap">
-                <table class="import-operation-table">
-                  <thead>
-                    <tr>
-                      <th class="import-operation-table__expander-column"></th>
-                      <th>
-                        <button
-                          type="button"
-                          class="import-operation-sort"
-                          @click="setOperationSort('summary')"
-                        >
-                          <span>{{ t('import.operations_column_summary') }}</span>
-                          <span class="import-operation-sort__indicator">{{
-                            operationSortIndicator('summary')
-                          }}</span>
-                        </button>
-                      </th>
-                      <th>
-                        <button
-                          type="button"
-                          class="import-operation-sort"
-                          @click="setOperationSort('sourceSheet')"
-                        >
-                          <span>{{ t('import.operations_column_sheet') }}</span>
-                          <span class="import-operation-sort__indicator">{{
-                            operationSortIndicator('sourceSheet')
-                          }}</span>
-                        </button>
-                      </th>
-                      <th>
-                        <button
-                          type="button"
-                          class="import-operation-sort"
-                          @click="setOperationSort('sourceRowCount')"
-                        >
-                          <span>{{ t('import.operations_column_rows') }}</span>
-                          <span class="import-operation-sort__indicator">{{
-                            operationSortIndicator('sourceRowCount')
-                          }}</span>
-                        </button>
-                      </th>
-                      <th>
-                        <button
-                          type="button"
-                          class="import-operation-sort"
-                          @click="setOperationSort('status')"
-                        >
-                          <span>{{ t('import.operations_column_status') }}</span>
-                          <span class="import-operation-sort__indicator">{{
-                            operationSortIndicator('status')
-                          }}</span>
-                        </button>
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody
-                    v-for="group in filteredOperationGroups"
-                    :key="`operation-group-${group.key}`"
-                  >
-                    <tr class="import-operation-group-row">
-                      <th colspan="5">
-                        <div class="import-operation-group-row__content">
-                          <span>{{ group.label }}</span>
-                          <span class="import-operation-group-row__count">
-                            {{ t('import.operations_group_count', { count: group.rows.length }) }}
-                          </span>
-                        </div>
-                      </th>
-                    </tr>
-
-                    <template v-for="row in group.rows" :key="`operation-row-${row.id}`">
-                      <tr :data-testid="`operation-row-${row.id}`" class="import-operation-row">
-                        <td class="import-operation-table__expander-column">
-                          <button
-                            type="button"
-                            class="import-operation-toggle"
-                            :data-testid="`toggle-operation-${row.id}`"
-                            :aria-expanded="isOperationExpanded(row.id)"
-                            @click="toggleOperationExpanded(row.id)"
-                          >
-                            {{
-                              isOperationExpanded(row.id)
-                                ? t('import.operation_detail_hide')
-                                : t('import.operation_detail_show')
-                            }}
-                          </button>
-                        </td>
-                        <td class="import-operation-table__summary-cell">
-                          <div class="import-operation-summary-cell">
-                            <strong>{{ row.summary }}</strong>
-                            <span class="import-operation-summary-cell__meta"
-                              >#{{ row.operation.position }}</span
-                            >
-                          </div>
-                        </td>
-                        <td>{{ row.sourceSheetLabel }}</td>
-                        <td :title="row.sourceRowsLabel">{{ row.sourceRowCount }}</td>
-                        <td>
-                          <div class="import-operation-status-stack">
-                            <span
-                              class="import-operation-badge"
-                              :class="operationStatusBadgeClass(row.operation.status)"
-                            >
-                              {{ row.statusLabel }}
-                            </span>
-                            <span class="import-operation-status-stack__meta">
-                              {{ row.decisionLabel }}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-
-                      <tr
-                        v-if="isOperationExpanded(row.id)"
-                        :data-testid="`operation-detail-${row.id}`"
-                        class="import-operation-detail-row"
-                      >
-                        <td colspan="5">
-                          <div class="import-operation-detail-card">
-                            <div>
-                              <span class="app-field__label">{{
-                                t('import.operation_detail_summary_label')
-                              }}</span>
-                              <h4 class="import-operation-detail-card__title">{{ row.summary }}</h4>
-                            </div>
-                            <div class="import-operation-detail-grid">
-                              <div>
-                                <span class="app-field__label">{{
-                                  t('import.operation_source_rows_label')
-                                }}</span>
-                                <p class="import-action-hint">{{ row.sourceRowsLabel }}</p>
-                              </div>
-                              <div v-if="row.operation.description">
-                                <span class="app-field__label">{{
-                                  t('import.operation_description_label')
-                                }}</span>
-                                <p class="import-action-hint">{{ row.operation.description }}</p>
-                              </div>
-                              <div v-if="row.operation.error_message">
-                                <span class="app-field__label">{{ t('import.errors') }}</span>
-                                <p class="import-action-hint import-operation-detail-card__error">
-                                  {{ row.operation.error_message }}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div
-                              v-if="operationSourceRows(row.operation).length"
-                              class="import-sheet-card__section"
-                            >
-                              <span class="app-field__label">{{
-                                t('import.operation_source_data_label')
-                              }}</span>
-                              <ul class="import-comparison-detail-list">
-                                <li
-                                  v-for="(sourceRow, index) in operationSourceRows(row.operation)"
-                                  :key="`${row.id}-source-row-${index}`"
-                                  class="import-comparison-detail-item"
-                                >
-                                  <strong>{{ operationSourceRowLabel(sourceRow, index) }}</strong>
-                                  <div
-                                    v-if="operationSourceFields(sourceRow).length"
-                                    class="import-comparison-detail-fields"
-                                  >
-                                    <span
-                                      v-for="field in operationSourceFields(sourceRow)"
-                                      :key="`${row.id}-source-row-${index}-${field.key}`"
-                                      class="import-comparison-detail-field"
-                                    >
-                                      {{ operationSourceFieldLabel(field.key) }}: {{ field.value }}
-                                    </span>
-                                  </div>
-                                </li>
-                              </ul>
-                            </div>
-
-                            <ul v-if="row.operation.diagnostics.length" class="import-warnings">
-                              <li
-                                v-for="(diagnostic, index) in row.operation.diagnostics"
-                                :key="`${row.id}-diagnostic-${index}`"
-                              >
-                                {{ diagnostic }}
-                              </li>
-                            </ul>
-
-                            <div class="import-sheet-card__section">
-                              <span class="app-field__label">{{
-                                t('import.operation_business_effects')
-                              }}</span>
-                              <ul
-                                v-if="operationBusinessEffects(row.operation).length"
-                                class="import-comparison-detail-list"
-                              >
-                                <li
-                                  v-for="(effect, index) in operationBusinessEffects(row.operation)"
-                                  :key="`${row.id}-business-effect-${effect.id ?? `planned-${index}`}`"
-                                  class="import-comparison-detail-item"
-                                >
-                                  <strong>{{ operationEffectLabel(effect) }}</strong>
-                                  <span
-                                    v-if="effect.entity_reference"
-                                    class="import-comparison-detail-field"
-                                  >
-                                    {{ effect.entity_reference }}
-                                  </span>
-                                  <div
-                                    v-if="operationEffectDetailFields(effect).length"
-                                    class="import-comparison-detail-fields"
-                                  >
-                                    <span
-                                      v-for="field in operationEffectDetailFields(effect)"
-                                      :key="`${row.id}-business-effect-${effect.id ?? `planned-${index}`}-${field.key}`"
-                                      class="import-comparison-detail-field"
-                                    >
-                                      {{ operationEffectFieldLabel(field.key) }}: {{ field.value }}
-                                    </span>
-                                  </div>
-                                </li>
-                              </ul>
-                              <p v-else class="import-action-hint">
-                                {{ t('import.operation_business_effects_empty') }}
-                              </p>
-                            </div>
-
-                            <div class="import-sheet-card__section">
-                              <span class="app-field__label">{{
-                                t('import.operation_accounting_effects')
-                              }}</span>
-                              <ul
-                                v-if="operationAccountingEffects(row.operation).length"
-                                class="import-comparison-detail-list"
-                              >
-                                <li
-                                  v-for="(effect, index) in operationAccountingEffects(
-                                    row.operation,
-                                  )"
-                                  :key="`${row.id}-accounting-effect-${effect.id ?? `planned-${index}`}`"
-                                  class="import-comparison-detail-item"
-                                >
-                                  <strong>{{ operationEffectLabel(effect) }}</strong>
-                                  <span
-                                    v-if="effect.entity_reference"
-                                    class="import-comparison-detail-field"
-                                  >
-                                    {{ effect.entity_reference }}
-                                  </span>
-                                  <div
-                                    v-if="operationEffectDetailFields(effect).length"
-                                    class="import-comparison-detail-fields"
-                                  >
-                                    <span
-                                      v-for="field in operationEffectDetailFields(effect)"
-                                      :key="`${row.id}-accounting-effect-${effect.id ?? `planned-${index}`}-${field.key}`"
-                                      class="import-comparison-detail-field"
-                                    >
-                                      {{ operationEffectFieldLabel(field.key) }}: {{ field.value }}
-                                    </span>
-                                  </div>
-                                </li>
-                              </ul>
-                              <p v-else class="import-action-hint">
-                                {{ t('import.operation_accounting_effects_empty') }}
-                              </p>
-                            </div>
-
-                            <div
-                              v-if="row.operation.effects.length"
-                              class="import-sheet-card__section"
-                            >
-                              <span class="app-field__label">{{
-                                t('import.operation_effects')
-                              }}</span>
-                              <ul class="import-comparison-detail-list">
-                                <li
-                                  v-for="(effect, index) in row.operation.effects"
-                                  :key="`${row.id}-effect-${effect.id ?? `planned-${index}`}`"
-                                  class="import-comparison-detail-item"
-                                >
-                                  <strong>{{ operationEffectLabel(effect) }}</strong>
-                                  <span
-                                    v-if="effect.entity_reference"
-                                    class="import-comparison-detail-field"
-                                  >
-                                    {{ effect.entity_reference }}
-                                  </span>
-                                </li>
-                              </ul>
-                            </div>
-
-                            <div
-                              v-if="row.operation.can_undo || row.operation.can_redo"
-                              class="app-form-actions import-inline-actions"
-                            >
-                              <Button
-                                v-if="row.operation.can_undo"
-                                :label="t('import.undo_operation')"
-                                severity="secondary"
-                                outlined
-                                :loading="busyOperationId === row.operation.id"
-                                @click="undoOperation(row.operation.id)"
-                              />
-                              <Button
-                                v-if="row.operation.can_redo"
-                                :label="t('import.redo_operation')"
-                                severity="secondary"
-                                outlined
-                                :loading="busyOperationId === row.operation.id"
-                                @click="redoOperation(row.operation.id)"
-                              />
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    </template>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div
-            v-else
-            id="preview-tabpanel-warnings"
-            role="tabpanel"
-            aria-labelledby="preview-tab-warnings"
-            data-testid="preview-warnings-tab"
-          >
-            <div v-if="hasBlockingOperations" class="import-blocked-guidance">
-              <div>
-                <p class="import-section-eyebrow">{{ t('import.blocked_title') }}</p>
-                <h3 class="import-sheet-list__title">{{ t('import.blocked_heading') }}</h3>
-                <p class="import-action-hint">{{ t('import.blocked_subtitle') }}</p>
-              </div>
-              <ul class="import-blocked-guidance__steps">
-                <li>{{ t('import.blocked_step_open') }}</li>
-                <li>{{ t('import.blocked_step_fix') }}</li>
-                <li>{{ t('import.blocked_step_retry') }}</li>
-              </ul>
-            </div>
-
-            <div v-if="preview.warnings.length" class="import-warnings-block">
-              <span class="app-field__label">{{ t('import.warnings') }}</span>
-              <ul class="import-warnings">
-                <li
-                  v-for="(warning, idx) in previewIssueMessages(
-                    preview.warnings,
-                    preview.warning_details,
-                  )"
-                  :key="`warning-${idx}`"
-                >
-                  {{ warning }}
-                </li>
-              </ul>
-            </div>
-
-            <div v-if="preview.errors.length" class="import-errors">
-              <span class="app-field__label">{{ t('import.errors') }}</span>
-              <ul>
-                <li
-                  v-for="(err, idx) in previewIssueMessages(preview.errors, preview.error_details)"
-                  :key="idx"
-                >
-                  {{ err }}
-                </li>
-              </ul>
-            </div>
-
-            <div
-              v-if="previewIssueCount === 0 && !hasBlockingOperations"
-              class="app-empty-state import-empty-inline"
-            >
-              {{ t('import.no_preview_alerts') }}
-            </div>
-          </div>
-
-          <div class="app-form-actions import-confirm">
-            <Button
-              data-testid="confirm-import-button"
-              :label="t('import.confirm_import')"
-              icon="pi pi-check"
-              :loading="importing"
-              :disabled="!canConfirmImport || !activeRun?.can_execute"
-              @click="doImport"
-            />
-            <Button
-              v-if="activeRun?.can_undo"
-              :label="t('import.undo_run')"
-              icon="pi pi-undo"
-              severity="secondary"
-              outlined
-              :loading="importing"
-              @click="undoRun(activeRun.id)"
-            />
-            <Button
-              v-if="activeRun?.can_redo"
-              :label="t('import.redo_run')"
-              icon="pi pi-refresh"
-              severity="secondary"
-              outlined
-              :loading="importing"
-              @click="redoRun(activeRun.id)"
-            />
-          </div>
-          <p
-            v-if="hasPreviewWarnings && preview.can_import"
-            data-testid="confirm-import-warning"
-            class="import-action-hint import-action-hint--warning"
-          >
-            {{ t('import.warning_review_hint') }}
-          </p>
-        </AppPanel>
+        <ImportExcelPreviewPanel
+          :preview="preview"
+          :active-run="activeRun"
+          :importing="importing"
+          :busy-run-id="busyRunId"
+          :busy-operation-id="busyOperationId"
+          :can-confirm-import="canConfirmImport"
+          @undo-operation="undoOperation"
+          @redo-operation="redoOperation"
+          @undo-run="undoRun"
+          @redo-run="redoRun"
+          @do-import="doImport"
+        />
       </div>
-
-      <AppPanel v-if="result" :title="t('import.result_title')" dense>
-        <div class="import-result-list">
-          <div class="import-summary-row">
-            <span>{{ t('import.contacts_created') }}</span>
-            <span class="font-medium">{{ result.contacts_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.invoices_created') }}</span>
-            <span class="font-medium">{{ result.invoices_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.payments_created') }}</span>
-            <span class="font-medium">{{ result.payments_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.salaries_created') }}</span>
-            <span class="font-medium">{{ result.salaries_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.entries_created') }}</span>
-            <span class="font-medium">{{ result.entries_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.cash_created') }}</span>
-            <span class="font-medium">{{ result.cash_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.bank_created') }}</span>
-            <span class="font-medium">{{ result.bank_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.ignored_rows') }}</span>
-            <span class="font-medium">{{ result.ignored_rows }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.blocked_rows') }}</span>
-            <span class="font-medium">{{ result.blocked_rows }}</span>
-          </div>
-
-          <div v-if="result.warnings.length" class="import-warnings-block">
-            <span class="app-field__label">{{ t('import.warnings') }}</span>
-            <ul class="import-warnings">
-              <li v-for="(warning, idx) in result.warnings" :key="`result-warning-${idx}`">
-                {{ warning }}
-              </li>
-            </ul>
-          </div>
-
-          <div class="import-errors-block">
-            <span class="app-field__label">{{ t('import.errors') }}</span>
-            <div v-if="result.errors.length === 0" class="app-empty-state import-empty-inline">
-              {{ t('import.no_errors') }}
-            </div>
-            <ul v-else class="import-errors">
-              <li v-for="(err, idx) in result.errors" :key="idx">{{ err }}</li>
-            </ul>
-          </div>
-
-          <div v-if="result.sheets.length" class="import-sheet-list">
-            <h3 class="import-sheet-list__title">{{ t('import.result_sheets_title') }}</h3>
-            <article v-for="sheet in result.sheets" :key="sheet.name" class="import-sheet-card">
-              <div class="import-sheet-card__header">
-                <div>
-                  <h4 class="import-sheet-card__title">{{ sheet.name }}</h4>
-                  <p class="import-sheet-card__meta">{{ importSheetKindLabel(sheet.kind) }}</p>
-                </div>
-                <div class="import-sheet-card__stats">
-                  <span class="import-sheet-card__stat import-sheet-card__stat--success">
-                    {{ t('import.sheet_imported_rows', { count: sheet.imported_rows }) }}
-                  </span>
-                  <span
-                    v-if="sheet.ignored_rows"
-                    class="import-sheet-card__stat import-sheet-card__stat--warning"
-                  >
-                    {{ t('import.sheet_ignored_rows', { count: sheet.ignored_rows }) }}
-                  </span>
-                  <span
-                    v-if="sheet.blocked_rows"
-                    class="import-sheet-card__stat import-sheet-card__stat--danger"
-                  >
-                    {{ t('import.sheet_blocked_rows', { count: sheet.blocked_rows }) }}
-                  </span>
-                </div>
-              </div>
-
-              <ul v-if="sheet.warnings.length" class="import-warnings">
-                <li
-                  v-for="(warning, idx) in sheet.warnings"
-                  :key="`${sheet.name}-result-warning-${idx}`"
-                >
-                  {{ warning }}
-                </li>
-              </ul>
-              <ul v-if="sheet.errors.length" class="import-errors">
-                <li v-for="(error, idx) in sheet.errors" :key="`${sheet.name}-result-error-${idx}`">
-                  {{ error }}
-                </li>
-              </ul>
-            </article>
-          </div>
-        </div>
-      </AppPanel>
+      <ImportExcelResultPanel v-if="result" :result="result" />
     </div>
 
     <Toast />
@@ -1213,12 +68,14 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
-import RadioButton from 'primevue/radiobutton'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
-import AppPanel from '../components/ui/AppPanel.vue'
+import ImportExcelFormPanel from '../components/import/ImportExcelFormPanel.vue'
+import ImportExcelShortcutsPanel from '../components/import/ImportExcelShortcutsPanel.vue'
+import ImportExcelPreviewPanel from '../components/import/ImportExcelPreviewPanel.vue'
+import ImportExcelResultPanel from '../components/import/ImportExcelResultPanel.vue'
 import { getSettingsApi } from '../api/settings'
 import {
   importTestShortcutApi,
@@ -1229,25 +86,21 @@ import {
   prepareGestionRunApi,
   redoImportOperationApi,
   redoImportRunApi,
-  type ImportEffectRead,
-  type ImportOperationRead,
-  type ImportResult,
-  type ImportRunRead,
-  type PreviewComparisonExtraDetail,
-  type PreviewSheetResult,
-  type PreviewResult,
-  type TestImportShortcut,
   undoImportOperationApi,
   undoImportRunApi,
+  type ImportResult,
+  type ImportRunRead,
+  type PreviewResult,
+  type TestImportShortcut,
 } from '../api/accounting'
 
 const { t } = useI18n()
 const toast = useToast()
 const router = useRouter()
 
+const formPanelRef = ref<{ resetFile: () => void } | null>(null)
 const importType = ref<'gestion' | 'comptabilite'>('gestion')
 const selectedFile = ref<File | null>(null)
-const fileInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
 const previewing = ref(false)
 const fiscalYearStartMonth = ref(8)
@@ -1259,302 +112,17 @@ const busyRunId = ref<number | null>(null)
 const busyOperationId = ref<number | null>(null)
 const comparisonStartDate = ref('')
 const comparisonEndDate = ref('')
-const activePreviewTab = ref<'details' | 'full-summary' | 'warnings'>('details')
-const operationSearch = ref('')
-const operationTypeFilter = ref('all')
-const operationStatusFilter = ref<'all' | ImportOperationRead['status']>('all')
-const operationSortField = ref<
-  'position' | 'summary' | 'sourceSheet' | 'sourceRowCount' | 'status'
->('position')
-const operationSortDirection = ref<'asc' | 'desc'>('asc')
-const expandedOperationIds = ref<number[]>([])
 const testShortcuts = ref<TestImportShortcut[]>([])
 const runningShortcutAlias = ref<string | null>(null)
 
-type OperationTableRow = {
-  id: number
-  groupKey: string
-  groupLabel: string
-  summary: string
-  sourceSheetLabel: string
-  sourceRowCount: number
-  sourceRowsLabel: string
-  statusLabel: string
-  decisionLabel: string
-  searchText: string
-  operation: ImportOperationRead
-}
-const resultHasIssues = computed(() =>
-  Boolean(
-    result.value &&
-      (activeRun.value?.status === 'failed' ||
-        result.value.errors.length > 0 ||
-        result.value.warnings.length > 0),
-  ),
-)
-const resultCreatedCount = computed(() => {
-  if (!result.value) return 0
-  return (
-    result.value.contacts_created +
-    result.value.invoices_created +
-    result.value.payments_created +
-    result.value.salaries_created +
-    result.value.entries_created +
-    result.value.cash_created +
-    result.value.bank_created
-  )
-})
-const resultStateMessage = computed(() => {
-  if (!result.value) return ''
-  if (activeRun.value?.status === 'failed') return t('import.failed')
-  return resultHasIssues.value ? t('import.completed_with_issues') : t('import.success')
-})
-const resultStateDetail = computed(() => {
-  if (!result.value) return ''
-  if (activeRun.value?.status === 'failed') {
-    return t('import.result_failed_hint', {
-      count: resultCreatedCount.value,
-      errors: result.value.errors.length,
-    })
-  }
-  return t('import.result_persistent_hint', {
-    count: resultCreatedCount.value,
-    ignored: result.value.ignored_rows,
-    blocked: result.value.blocked_rows,
-  })
-})
-const hasPreviewWarnings = computed(() =>
-  Boolean(
-    preview.value &&
-    (preview.value.warnings.length > 0 ||
-      preview.value.warning_details.length > 0 ||
-      preview.value.sheets.some(
-        (sheet) => sheet.warnings.length > 0 || sheet.warning_details.length > 0,
-      )),
-  ),
-)
 const canConfirmImport = computed(() =>
-  Boolean(
-    selectedFile.value &&
-    preview.value?.can_import &&
-    activeRun.value?.can_execute !== false,
-  ),
+  Boolean(selectedFile.value && preview.value?.can_import && activeRun.value?.can_execute !== false),
 )
-const previewState = computed<'ready' | 'noop' | 'blocked'>(() => {
-  if (!preview.value) return 'blocked'
-  if (preview.value.can_import) return 'ready'
-  if (preview.value.errors.length === 0) return 'noop'
-  return 'blocked'
-})
-const previewStateClass = computed(() => {
-  if (previewState.value === 'ready') return 'import-preview-state--ready'
-  if (previewState.value === 'noop') return 'import-preview-state--noop'
-  return 'import-preview-state--blocked'
-})
-const previewStateMessage = computed(() => {
-  if (previewState.value === 'ready') return t('import.preview_ready')
-  if (previewState.value === 'noop') return t('import.preview_noop')
-  return t('import.preview_blocked')
-})
-const comparisonTitle = computed(() => {
-  if (preview.value?.comparison?.mode === 'global-convergence') {
-    return t('import.comparison_title_global')
-  }
-  return t('import.comparison_title')
-})
-const comparisonSubtitle = computed(() => {
-  if (preview.value?.comparison?.mode === 'global-convergence') {
-    return t('import.comparison_subtitle_global')
-  }
-  return t('import.comparison_subtitle')
-})
-const isAlreadyImportedPreview = computed(() =>
-  Boolean(
-    preview.value?.error_details.some((detail) => detail.category === 'already-imported') ||
-    preview.value?.errors.some((message) => message.startsWith('Fichier deja importe')),
-  ),
-)
-const showPreviewComparison = computed(
-  () => Boolean(preview.value?.comparison?.domains.length) && isAlreadyImportedPreview.value,
-)
-const previewComparison = computed(() =>
-  showPreviewComparison.value ? (preview.value?.comparison ?? null) : null,
-)
-const previewIssueCount = computed(() => {
-  if (!preview.value) {
-    return 0
-  }
-  return preview.value.warnings.length + preview.value.errors.length
-})
-const operationTableRows = computed<OperationTableRow[]>(() =>
-  (activeRun.value?.operations ?? []).map((operation) => {
-    const groupLabel = operationGroupLabel(operation.operation_type)
-    const summary = operationSummaryLabel(operation)
-    const sourceSheetLabel = operation.source_sheet?.trim() || t('import.operation_no_sheet')
-    const sourceRowsLabel = operation.source_row_numbers.length
-      ? operation.source_row_numbers.join(', ')
-      : t('import.operation_no_sheet')
-    const statusLabel = t(`import.operation_status.${operation.status}`)
-    const decisionLabel = t(`import.operation_decision.${operation.decision}`)
-    const effectTerms = operation.effects
-      .map((effect) => [effect.entity_reference, effect.entity_type, effect.action].join(' '))
-      .join(' ')
-    const sourceDataTerms = (operation.source_data ?? [])
-      .flatMap((sourceRow) => Object.values(sourceRow))
-      .filter((value) => value !== null && value !== undefined && value !== '')
-      .map((value) => String(value))
-
-    return {
-      id: operation.id,
-      groupKey: operation.operation_type,
-      groupLabel,
-      summary,
-      sourceSheetLabel,
-      sourceRowCount: operation.source_row_numbers.length,
-      sourceRowsLabel,
-      statusLabel,
-      decisionLabel,
-      searchText: [
-        groupLabel,
-        summary,
-        sourceSheetLabel,
-        sourceRowsLabel,
-        statusLabel,
-        decisionLabel,
-        operation.description ?? '',
-        operation.error_message ?? '',
-        ...operation.diagnostics,
-        effectTerms,
-        ...sourceDataTerms,
-      ]
-        .join(' ')
-        .toLocaleLowerCase('fr-FR'),
-      operation,
-    }
-  }),
-)
-const operationTypeOptions = computed(() => {
-  const labels = new Map<string, string>()
-  for (const row of operationTableRows.value) {
-    if (!labels.has(row.groupKey)) {
-      labels.set(row.groupKey, row.groupLabel)
-    }
-  }
-  return Array.from(labels.entries())
-    .map(([value, label]) => ({ value, label }))
-    .sort((left, right) => left.label.localeCompare(right.label, 'fr', { sensitivity: 'base' }))
-})
-const operationStatusOptions = computed(() => {
-  const labels = new Map<ImportOperationRead['status'], string>()
-  for (const row of operationTableRows.value) {
-    if (!labels.has(row.operation.status)) {
-      labels.set(row.operation.status, row.statusLabel)
-    }
-  }
-  return Array.from(labels.entries()).map(([value, label]) => ({ value, label }))
-})
-const filteredOperationRows = computed(() => {
-  const searchTerm = operationSearch.value.trim().toLocaleLowerCase('fr-FR')
-  return operationTableRows.value.filter((row) => {
-    if (operationTypeFilter.value !== 'all' && row.groupKey !== operationTypeFilter.value) {
-      return false
-    }
-    if (
-      operationStatusFilter.value !== 'all' &&
-      row.operation.status !== operationStatusFilter.value
-    ) {
-      return false
-    }
-    if (searchTerm && !row.searchText.includes(searchTerm)) {
-      return false
-    }
-    return true
-  })
-})
-const sortedOperationRows = computed(() => {
-  const rows = [...filteredOperationRows.value]
-  rows.sort((left, right) => {
-    let comparison = 0
-
-    switch (operationSortField.value) {
-      case 'summary':
-        comparison = left.summary.localeCompare(right.summary, 'fr', {
-          sensitivity: 'base',
-          numeric: true,
-        })
-        break
-      case 'sourceSheet':
-        comparison = left.sourceSheetLabel.localeCompare(right.sourceSheetLabel, 'fr', {
-          sensitivity: 'base',
-          numeric: true,
-        })
-        break
-      case 'sourceRowCount':
-        comparison = left.sourceRowCount - right.sourceRowCount
-        break
-      case 'status':
-        comparison = left.statusLabel.localeCompare(right.statusLabel, 'fr', {
-          sensitivity: 'base',
-          numeric: true,
-        })
-        break
-      case 'position':
-      default:
-        comparison = left.operation.position - right.operation.position
-        break
-    }
-
-    if (comparison === 0) {
-      comparison = left.operation.position - right.operation.position
-    }
-    return operationSortDirection.value === 'asc' ? comparison : -comparison
-  })
-  return rows
-})
-const filteredOperationGroups = computed(() => {
-  const groups = new Map<string, { key: string; label: string; rows: OperationTableRow[] }>()
-  for (const row of sortedOperationRows.value) {
-    const existing = groups.get(row.groupKey)
-    if (existing) {
-      existing.rows.push(row)
-      continue
-    }
-    groups.set(row.groupKey, { key: row.groupKey, label: row.groupLabel, rows: [row] })
-  }
-  return Array.from(groups.values())
-})
-const operationDecisionStats = computed(() => {
-  const operations = activeRun.value?.operations ?? []
-  return {
-    total: operations.length,
-    apply: operations.filter((operation) => operation.decision === 'apply').length,
-    ignore: operations.filter((operation) => operation.decision === 'ignore').length,
-    block: operations.filter((operation) => operation.decision === 'block').length,
-    failed: operations.filter((operation) => operation.status === 'failed').length,
-  }
-})
-const blockedOperationRows = computed(() =>
-  operationTableRows.value.filter(
-    (row) => row.operation.decision === 'block' || row.operation.status === 'blocked',
-  ),
-)
-const hasBlockingOperations = computed(
-  () =>
-    blockedOperationRows.value.length > 0 || Boolean(preview.value && !preview.value.can_import),
-)
-const importActionHint = computed(() => {
-  if (!selectedFile.value) return t('import.file_required')
-  if (!preview.value) return t('import.preview_required')
-  if (!preview.value.can_import) return t('import.preview_blocked')
-  if (hasPreviewWarnings.value) return t('import.warning_review_hint')
-  return t('import.import_ready')
-})
 
 function resetImportFlow() {
   result.value = null
   preview.value = null
   activeRun.value = null
-  resetOperationTableState()
 }
 
 function shouldDisplayRunSummary(run: ImportRunRead) {
@@ -1565,7 +133,6 @@ function syncRunState(run: ImportRunRead) {
   activeRun.value = run
   preview.value = run.preview
   result.value = shouldDisplayRunSummary(run) ? run.summary : null
-  resetOperationTableState()
 }
 
 function padMonth(value: number) {
@@ -1573,33 +140,19 @@ function padMonth(value: number) {
 }
 
 function formatIsoDate(value: Date) {
-  const year = value.getFullYear()
-  const month = padMonth(value.getMonth() + 1)
-  const day = padMonth(value.getDate())
-  return `${year}-${month}-${day}`
+  return `${value.getFullYear()}-${padMonth(value.getMonth() + 1)}-${padMonth(value.getDate())}`
 }
 
 function buildDefaultComparisonRange(fileName: string | undefined) {
-  if (!fileName) {
-    return { start: '', end: '' }
-  }
+  if (!fileName) return { start: '', end: '' }
   const yearMatch = fileName.match(/(20\d{2})/)
-  if (!yearMatch) {
-    return { start: '', end: '' }
-  }
-  const matchedYear = yearMatch[1]
-  if (!matchedYear) {
-    return { start: '', end: '' }
-  }
-  const startYear = Number.parseInt(matchedYear, 10)
+  if (!yearMatch || !yearMatch[1]) return { start: '', end: '' }
+  const startYear = Number.parseInt(yearMatch[1], 10)
   const startMonth = Math.min(Math.max(fiscalYearStartMonth.value, 1), 12)
   const startDate = new Date(startYear, startMonth - 1, 1)
   const nextFiscalYearStart = new Date(startYear + 1, startMonth - 1, 1)
   const endDate = new Date(nextFiscalYearStart.getTime() - 24 * 60 * 60 * 1000)
-  return {
-    start: formatIsoDate(startDate),
-    end: formatIsoDate(endDate),
-  }
+  return { start: formatIsoDate(startDate), end: formatIsoDate(endDate) }
 }
 
 function applyDefaultComparisonRange(fileName: string | undefined = selectedFile.value?.name) {
@@ -1608,248 +161,15 @@ function applyDefaultComparisonRange(fileName: string | undefined = selectedFile
   comparisonEndDate.value = defaults.end
 }
 
-watch(importType, () => {
-  resetImportFlow()
-  applyDefaultComparisonRange()
-})
-
-watch([comparisonStartDate, comparisonEndDate], () => {
-  if (preview.value !== null) {
-    resetImportFlow()
-  }
-})
-
-onMounted(async () => {
-  await loadSettings()
-  await loadTestShortcuts()
-})
-
-function previewSheetKindLabel(kind: PreviewSheetResult['kind']) {
-  return t(`import.sheet_kind.${kind}`)
-}
-
-function previewSheetStatusLabel(status: PreviewSheetResult['status']) {
-  return t(`import.sheet_status.${status}`)
-}
-
-function previewComparisonExtraDetailFields(detail: PreviewComparisonExtraDetail) {
-  return Object.entries(detail)
-    .filter(([key, value]) => key !== 'summary' && typeof value === 'string' && value.trim())
-    .map(([key, value]) => ({ key, value: value as string }))
-}
-
-function previewIssueMessages(messages: string[], details: Array<{ display_message: string }>) {
-  if (details.length > 0) {
-    return details.map((detail) => detail.display_message)
-  }
-  return messages
-}
-
-function operationGroupLabel(operationType: string) {
-  const translated = t(`import.operation_group.${operationType}`)
-  return translated === `import.operation_group.${operationType}` ? operationType : translated
-}
-
-function operationActionLabel(operationType: string) {
-  const translated = t(`import.operation_action.${operationType}`)
-  return translated === `import.operation_action.${operationType}`
-    ? t('import.operations_column_summary')
-    : translated
-}
-
-function operationSummaryLabel(operation: ImportOperationRead) {
-  const title = operation.title.trim()
-  const actionLabel = operationActionLabel(operation.operation_type)
-  return title ? `${actionLabel} ${title}` : actionLabel
-}
-
-function operationEffectLabel(effect: ImportEffectRead) {
-  const entityKey = `import.effect_entity.${effect.entity_type}`
-  const entityLabel = t(entityKey)
-  return `${t(`import.effect_action.${effect.action}`)} ${entityLabel === entityKey ? effect.entity_type : entityLabel}`
-}
-
-function operationDisplayEffects(operation: ImportOperationRead) {
-  return operation.effects.length ? operation.effects : (operation.planned_effects ?? [])
-}
-
-function operationBusinessEffects(operation: ImportOperationRead) {
-  return operationDisplayEffects(operation).filter(
-    (effect) => effect.entity_type !== 'accounting_entry',
-  )
-}
-
-function operationAccountingEffects(operation: ImportOperationRead) {
-  return operationDisplayEffects(operation).filter(
-    (effect) => effect.entity_type === 'accounting_entry',
-  )
-}
-
-function operationEffectDetailFields(effect: ImportEffectRead) {
-  return Object.entries(effect.details ?? {})
-    .filter(([, value]) => value !== null && value !== undefined && value !== '')
-    .map(([key, value]) => ({ key, value: formatOperationEffectFieldValue(value) }))
-}
-
-function operationEffectFieldLabel(key: string) {
-  const translationKey = `import.effect_detail_fields.${key}`
-  const translated = t(translationKey)
-  return translated === translationKey ? key : translated
-}
-
-function operationSourceRows(operation: ImportOperationRead) {
-  return operation.source_data ?? []
-}
-
-function operationSourceRowLabel(sourceRow: Record<string, unknown>, index: number) {
-  const sourceRowNumber = sourceRow.source_row_number
-  if (typeof sourceRowNumber === 'number') {
-    return t('import.operation_source_data_row', { row: sourceRowNumber })
-  }
-  if (typeof sourceRowNumber === 'string' && sourceRowNumber.trim()) {
-    return t('import.operation_source_data_row', { row: sourceRowNumber })
-  }
-  return t('import.operation_source_data_row', { row: index + 1 })
-}
-
-function operationSourceFields(sourceRow: Record<string, unknown>) {
-  return Object.entries(sourceRow)
-    .filter(
-      ([key, value]) =>
-        key !== 'source_row_number' && value !== null && value !== undefined && value !== '',
-    )
-    .map(([key, value]) => ({ key, value: formatOperationSourceFieldValue(value) }))
-}
-
-function operationSourceFieldLabel(key: string) {
-  const translationKey = `import.source_detail_fields.${key}`
-  const translated = t(translationKey)
-  if (translated !== translationKey) {
-    return translated
-  }
-  const normalized = key.replace(/_/g, ' ').trim()
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
-}
-
-function formatOperationEffectFieldValue(value: unknown) {
-  if (typeof value === 'boolean') {
-    return value ? t('common.yes') : t('common.no')
-  }
-  return String(value)
-}
-
-function formatOperationSourceFieldValue(value: unknown) {
-  if (typeof value === 'boolean') {
-    return value ? t('common.yes') : t('common.no')
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item)).join(', ')
-  }
-  return String(value)
-}
-
-function resetOperationTableState() {
-  activePreviewTab.value = 'details'
-  operationSearch.value = ''
-  operationTypeFilter.value = 'all'
-  operationStatusFilter.value = 'all'
-  operationSortField.value = 'position'
-  operationSortDirection.value = 'asc'
-  expandedOperationIds.value = []
-}
-
-async function scrollToPreviewPanel() {
-  await nextTick()
-  previewPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-}
-
-function setOperationSort(
-  field: 'position' | 'summary' | 'sourceSheet' | 'sourceRowCount' | 'status',
-) {
-  if (operationSortField.value === field) {
-    operationSortDirection.value = operationSortDirection.value === 'asc' ? 'desc' : 'asc'
-    return
-  }
-  operationSortField.value = field
-  operationSortDirection.value = 'asc'
-}
-
-function operationSortIndicator(
-  field: 'position' | 'summary' | 'sourceSheet' | 'sourceRowCount' | 'status',
-) {
-  if (operationSortField.value !== field) {
-    return ''
-  }
-  return operationSortDirection.value === 'asc' ? '↑' : '↓'
-}
-
-function isOperationExpanded(operationId: number) {
-  return expandedOperationIds.value.includes(operationId)
-}
-
-function toggleOperationExpanded(operationId: number) {
-  if (isOperationExpanded(operationId)) {
-    expandedOperationIds.value = expandedOperationIds.value.filter((id) => id !== operationId)
-    return
-  }
-  expandedOperationIds.value = [...expandedOperationIds.value, operationId]
-}
-
-function showBlockedOperations() {
-  activePreviewTab.value = 'details'
-  operationSearch.value = ''
-  operationTypeFilter.value = 'all'
-  operationStatusFilter.value = 'blocked'
-  expandedOperationIds.value = blockedOperationRows.value.slice(0, 3).map((row) => row.id)
-}
-
-function operationStatusBadgeClass(status: ImportOperationRead['status']) {
-  switch (status) {
-    case 'applied':
-      return 'import-operation-badge--success'
-    case 'blocked':
-    case 'failed':
-      return 'import-operation-badge--danger'
-    case 'ignored':
-      return 'import-operation-badge--muted'
-    case 'undone':
-      return 'import-operation-badge--warning'
-    case 'prepared':
-    default:
-      return 'import-operation-badge--default'
-  }
-}
-
-function importSheetKindLabel(kind: string) {
-  return t(`import.sheet_kind.${kind}`)
-}
-
-function onFileChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  selectedFile.value = input.files?.[0] ?? null
-  resetImportFlow()
-  applyDefaultComparisonRange(selectedFile.value?.name)
-}
-
 function getImportErrorSummary(error: unknown): string {
   const responseData = (error as { response?: { data?: unknown } }).response?.data
-  const detail =
-    responseData && typeof responseData === 'object'
-      ? (responseData as { detail?: unknown }).detail
-      : undefined
-  if (typeof detail === 'string' && detail.trim()) {
-    return detail
-  }
-
-  if ((error as { code?: string }).code === 'ECONNABORTED') {
-    return t('import.request_timeout')
-  }
-
+  const detail = responseData && typeof responseData === 'object'
+    ? (responseData as { detail?: unknown }).detail
+    : undefined
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if ((error as { code?: string }).code === 'ECONNABORTED') return t('import.request_timeout')
   const message = (error as { message?: unknown }).message
-  if (typeof message === 'string' && message.trim()) {
-    return message
-  }
-
+  if (typeof message === 'string' && message.trim()) return message
   return t('common.error.unknown')
 }
 
@@ -1867,6 +187,11 @@ async function refreshRunAfterTimeout(runId: number) {
   }
 }
 
+async function scrollToPreviewPanel() {
+  await nextTick()
+  previewPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
 async function loadTestShortcuts() {
   try {
     testShortcuts.value = (await listTestImportShortcutsApi()).sort(
@@ -1874,9 +199,7 @@ async function loadTestShortcuts() {
     )
   } catch (error: unknown) {
     const status = (error as { response?: { status?: number } }).response?.status
-    if (status !== 404) {
-      toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
-    }
+    if (status !== 404) toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
     testShortcuts.value = []
   }
 }
@@ -1889,6 +212,12 @@ async function loadSettings() {
   } catch {
     fiscalYearStartMonth.value = 8
   }
+}
+
+function onFileSelected(file: File | null) {
+  selectedFile.value = file
+  resetImportFlow()
+  applyDefaultComparisonRange(file?.name)
 }
 
 async function doPreview() {
@@ -1939,19 +268,11 @@ async function doImport() {
     syncRunState(run)
     const runResult = run.summary
     const hasFailed = run.status === 'failed'
-    const hasIssues = Boolean(
-      hasFailed || (runResult && (runResult.errors.length > 0 || runResult.warnings.length > 0)),
-    )
+    const hasIssues = Boolean(hasFailed || (runResult && (runResult.errors.length > 0 || runResult.warnings.length > 0)))
     toast.add({
       severity: hasFailed ? 'error' : hasIssues ? 'warn' : 'success',
-      summary: hasFailed
-        ? t('import.failed')
-        : hasIssues
-          ? t('import.completed_with_issues')
-          : t('import.success'),
-      detail: hasFailed
-        ? getImportErrorSummary(runResult)
-        : undefined,
+      summary: hasFailed ? t('import.failed') : hasIssues ? t('import.completed_with_issues') : t('import.success'),
+      detail: hasFailed ? getImportErrorSummary(runResult) : undefined,
       life: hasFailed ? 5000 : 3500,
     })
   } catch (error: unknown) {
@@ -1969,14 +290,9 @@ async function undoRun(runId: number) {
   busyRunId.value = runId
   try {
     const run = await undoImportRunApi(runId)
-    if (activeRun.value?.id === runId) {
-      syncRunState(run)
-    }
+    if (activeRun.value?.id === runId) syncRunState(run)
   } catch (error: unknown) {
-    if (isRequestTimeout(error)) {
-      await refreshRunAfterTimeout(runId)
-      return
-    }
+    if (isRequestTimeout(error)) { await refreshRunAfterTimeout(runId); return }
     toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     busyRunId.value = null
@@ -1987,14 +303,9 @@ async function redoRun(runId: number) {
   busyRunId.value = runId
   try {
     const run = await redoImportRunApi(runId)
-    if (activeRun.value?.id === runId) {
-      syncRunState(run)
-    }
+    if (activeRun.value?.id === runId) syncRunState(run)
   } catch (error: unknown) {
-    if (isRequestTimeout(error)) {
-      await refreshRunAfterTimeout(runId)
-      return
-    }
+    if (isRequestTimeout(error)) { await refreshRunAfterTimeout(runId); return }
     toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     busyRunId.value = null
@@ -2037,9 +348,7 @@ async function runTestShortcut(alias: string) {
   importing.value = true
   runningShortcutAlias.value = alias
   selectedFile.value = null
-  if (fileInput.value) {
-    fileInput.value.value = ''
-  }
+  formPanelRef.value?.resetFile()
   preview.value = null
   result.value = null
   try {
@@ -2056,16 +365,10 @@ async function runTestShortcut(alias: string) {
     syncRunState(run)
     if (run.summary) {
       const hasFailed = run.status === 'failed'
-      const hasIssues = Boolean(
-        hasFailed || run.summary.errors.length > 0 || run.summary.warnings.length > 0,
-      )
+      const hasIssues = Boolean(hasFailed || run.summary.errors.length > 0 || run.summary.warnings.length > 0)
       toast.add({
         severity: hasFailed ? 'error' : hasIssues ? 'warn' : 'success',
-        summary: hasFailed
-          ? t('import.failed')
-          : hasIssues
-            ? t('import.completed_with_issues')
-            : t('import.success'),
+        summary: hasFailed ? t('import.failed') : hasIssues ? t('import.completed_with_issues') : t('import.success'),
         detail: hasFailed ? getImportErrorSummary(run.summary) : undefined,
         life: hasFailed ? 5000 : 3500,
       })
@@ -2085,9 +388,23 @@ async function runTestShortcut(alias: string) {
     runningShortcutAlias.value = null
   }
 }
+
+watch(importType, () => {
+  resetImportFlow()
+  applyDefaultComparisonRange()
+})
+
+watch([comparisonStartDate, comparisonEndDate], () => {
+  if (preview.value !== null) resetImportFlow()
+})
+
+onMounted(async () => {
+  await loadSettings()
+  await loadTestShortcuts()
+})
 </script>
 
-<style scoped>
+<style>
 .import-form {
   display: flex;
   flex-direction: column;
@@ -2871,3 +1188,4 @@ async function runTestShortcut(alias: string) {
   color: var(--p-red-100);
 }
 </style>
+
