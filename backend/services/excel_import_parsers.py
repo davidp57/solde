@@ -345,8 +345,13 @@ def parse_payment_sheet(
         "chèque",
         "cheque",
     )
-    deposited_idx = find_col_idx(col_map, "encaissé", "encaisse")
+    # Resolve deposit_date_idx first: "date encaissement" must not bleed into deposited_idx
+    # because "encaisse" is a substring of "date encaissement".
     deposit_date_idx = find_col_idx(col_map, "date encaissement")
+    deposited_idx = find_col_idx(col_map, "encaissé", "encaisse")
+    if deposited_idx is not None and deposited_idx == deposit_date_idx:
+        # Substring match grabbed the wrong column — fall back to exact key lookup
+        deposited_idx = col_map.get("encaisse")
 
     missing_columns = payment_missing_columns(
         montant_idx=montant_idx,

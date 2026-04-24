@@ -98,6 +98,23 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+**Import — chèques inter-exercices (BIZ-033)**
+
+- `backend/services/excel_import/excel_import_parsers.py` : parsing de la colonne « Encaissé » corrigé — `deposited_idx` ne se résolvait plus sur « Date encaissement » quand « encaisse » est sous-chaîne de ce libellé
+- `backend/services/excel_import/_loaders.py` : nouvelle fonction `_load_existing_payments_deposit_map` pour retrouver le statut de remise des paiements existants
+- `backend/services/import_reversible.py` : nouvelle opération `update_payment_deposit_status` — lors de l'import d'un fichier ultérieur, un paiement existant avec `deposited=False` est mis à jour vers `deposited=True` au lieu d'être silencieusement ignoré comme doublon exact
+
+**Dashboard — corrections KPI et paiements non remis**
+
+- `backend/services/dashboard_service.py` : KPI « chèques non remis » filtre désormais uniquement les paiements `CLIENT` en `chèque` ou `espèces`, excluant correctement les remises fournisseurs
+- `frontend/src/views/ClientInvoicesView.vue` : filtre « en retard » calculé côté client ; limite portée à 1 000 ; `skipDateFilter` actif quand le paramètre URL `status=overdue` est présent
+- `frontend/src/views/DashboardView.vue` : carte « Factures impayées » dirige désormais vers la liste avec `?unpaid=1`
+- `frontend/src/views/PaymentsView.vue` : la liste des paiements non remis ignore le filtre de période exercice (un chèque inter-exercices peut s'étaler sur deux années)
+
+**Import — bouton import séquentiel de test**
+
+- `frontend/src/components/import/ImportExcelShortcutsPanel.vue` + `ImportExcelView.vue` : bouton « Tout importer dans l'ordre » dans le panneau de raccourcis de test — enchaîne `gestion-2024 → comptabilite-2024 → gestion-2025 → comptabilite-2025` avec fenêtre de comparaison auto-calculée par fichier, toast par étape et arrêt au premier échec
+
 **Qualité / Sécurité (audit 2026-04-22)**
 
 - `frontend/src/stores/counter.ts` : suppression du fichier de scaffolding Vue non utilisé (CHR-064)

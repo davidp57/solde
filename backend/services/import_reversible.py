@@ -591,7 +591,7 @@ def _summary_kind_from_operation(operation: ImportOperation) -> str:
         return "contacts"
     if operation.operation_type == "client_invoice_row_import":
         return "invoices"
-    if operation.operation_type == "client_payment_row_import":
+    if operation.operation_type in ("client_payment_row_import", "update_payment_deposit_status"):
         return "payments"
     if operation.operation_type == "salary_month_import":
         return "salaries"
@@ -894,6 +894,9 @@ async def _prepare_gestion_specs(
     deferred_payment_sheets: list[tuple[str, list[NormalizedPaymentRow]]] = []
     planned_payment_signatures: set[tuple[str, str, str, str, str]] = set()
     existing_payment_signatures = await legacy_excel_import._load_existing_payment_signatures(db)
+    existing_payments_deposit_map = await legacy_excel_import._load_existing_payments_deposit_map(
+        db
+    )
 
     for sheet_name in workbook.sheetnames:
         ws = workbook[sheet_name]
@@ -1303,6 +1306,34 @@ async def _prepare_gestion_specs(
                     cheque_number=payment_row.cheque_number,
                 )
                 if payment_signature in existing_payment_signatures:
+                    # If the incoming row upgrades deposit status (False → True), emit an
+                    # update operation so the existing payment reflects the newer file data.
+                    existing_deposit_info = existing_payments_deposit_map.get(payment_signature)
+                    if (
+                        payment_row.deposited
+                        and existing_deposit_info is not None
+                        and not existing_deposit_info[1]  # existing deposited == False
+                    ):
+                        existing_payment_id, _, _ = existing_deposit_info
+                        _append_spec(
+                            specs,
+                            operation_type="update_payment_deposit_status",
+                            title=f"Paiement ligne {payment_row.source_row_number}",
+                            description="Mise à jour du statut de remise en banque.",
+                            source_sheet=sheet_name,
+                            source_row_numbers=[payment_row.source_row_number],
+                            decision=ImportOperationDecision.APPLY,
+                            diagnostics=[],
+                            payload={
+                                "payment_id": existing_payment_id,
+                                "deposited": True,
+                                "deposit_date": payment_row.deposit_date.isoformat()
+                                if payment_row.deposit_date
+                                else None,
+                                "row": _row_to_payload(payment_row),
+                            },
+                        )
+                        continue
                     issue = RowIgnoredIssue(
                         source_row_number=payment_row.source_row_number,
                         message=EXISTING_GESTION_ROW_MESSAGE,
@@ -2344,6 +2375,33 @@ async def _execute_client_payment_row_import(db: AsyncSession, operation: Import
     )
 
 
+async def _execute_update_payment_deposit_status(
+    db: AsyncSession, operation: ImportOperation
+) -> None:
+    from datetime import date as _date  # noqa: PLC0415
+
+    payload: dict[str, Any] = _deserialize_json(operation.payload_json, {})
+    payment_id: int = payload["payment_id"]
+    payment = await db.get(Payment, payment_id)
+    if payment is None:
+        raise ValueError(f"Paiement {payment_id} introuvable pour mise à jour du dépôt")
+    before_snapshot = _serialize_instance(payment)
+    payment.deposited = bool(payload["deposited"])
+    deposit_date_str: str | None = payload.get("deposit_date")
+    payment.deposit_date = _date.fromisoformat(deposit_date_str) if deposit_date_str else None
+    await db.flush()
+    await db.refresh(payment)
+    await _record_effect(
+        db,
+        operation=operation,
+        position=1,
+        entity_type="payment",
+        action=ImportEffectAction.UPDATE,
+        before_snapshot=before_snapshot,
+        after_snapshot=_serialize_instance(payment),
+    )
+
+
 async def _execute_salary_month_import(db: AsyncSession, operation: ImportOperation) -> None:
     payload: dict[str, Any] = _deserialize_json(operation.payload_json, {})
     rows = [_payload_to_salary_row(row_payload) for row_payload in payload.get("rows", [])]
@@ -3022,6 +3080,9 @@ async def _execute_operation(
         return
     if operation.operation_type == "client_payment_row_import":
         await _execute_client_payment_row_import(db, operation)
+        return
+    if operation.operation_type == "update_payment_deposit_status":
+        await _execute_update_payment_deposit_status(db, operation)
         return
     if operation.operation_type == "salary_month_import":
         await _execute_salary_month_import(db, operation)
