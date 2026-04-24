@@ -9,6 +9,13 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Lots actifs
 
+### Lot K — Documentation & Swagger (~20 min) — v0.5
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| CHR-019 | README et documentation technique | P1 | ~10 min | 2026-04-13 | 2026-04-21 | 2026-04-24 |
+| CHR-082 | Descriptions Swagger enrichies | P3 | ~10 min | 2026-04-23 | 2026-04-24 | 2026-04-24 |
+
 ### Lot H — Architecture multi-compte (~45 min) — v0.6
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -19,13 +26,11 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| CHR-019 | README et documentation technique | P1 | ~10 min | 2026-04-13 | 2026-04-21 | |
 | CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
 | BIZ-033 | Comparaison chèques inter-exercices | P1 | ~15 min | 2026-04-21 | | |
 | TEC-039 | Revalidation scénarios facture / email | P1 | ~10 min | 2026-04-21 | | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
-| CHR-082 | Descriptions Swagger enrichies | P3 | ~10 min | 2026-04-23 | | |
 
 ---
 
@@ -124,6 +129,7 @@ Workflow GitHub Actions sur push vers `main` : build multi-stage Docker, push im
 | G | Refactoring frontend | v0.5 | TEC-077 | 2026-04-24 |
 | I | Polish UI & contacts | v0.5 | BIZ-035, BIZ-037, CHR-038, BIZ-040 | 2026-04-24 |
 | J | CI GitHub Actions | v0.5 | CHR-086, CHR-087 | 2026-04-24 |
+| K | Documentation & Swagger | v0.5 | CHR-019, CHR-082 | 2026-04-24 |
 
 Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, CHR-019 – CHR-021, BIZ-022 – BIZ-023.

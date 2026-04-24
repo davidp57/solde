@@ -27,7 +27,23 @@ cp .env.example .env
 
 Renseigner au minimum `JWT_SECRET_KEY`. Si vous voulez éviter les identifiants bootstrap par défaut, renseignez aussi `ADMIN_USERNAME`, `ADMIN_PASSWORD` et `ADMIN_EMAIL`.
 
+#### Option A — Image pré-construite depuis GHCR (recommandée)
+
+Aucune compilation locale n'est nécessaire. L'image est publiée automatiquement à chaque release.
+
+Ajouter dans `.env` :
+
+```bash
+SOLDE_IMAGE=ghcr.io/davidp57/solde:latest
+```
+
 Lancer l'application :
+
+```bash
+docker compose up -d
+```
+
+#### Option B — Construction locale
 
 ```bash
 docker compose up -d --build
@@ -97,7 +113,23 @@ cp .env.example .env
 
 Set at least `JWT_SECRET_KEY`. If you do not want to rely on the default bootstrap credentials, also set `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `ADMIN_EMAIL`.
 
+#### Option A — Pre-built image from GHCR (recommended)
+
+No local build needed. The image is published automatically on every release.
+
+Add to `.env`:
+
+```bash
+SOLDE_IMAGE=ghcr.io/davidp57/solde:latest
+```
+
 Start the application:
+
+```bash
+docker compose up -d
+```
+
+#### Option B — Local build
 
 ```bash
 docker compose up -d --build

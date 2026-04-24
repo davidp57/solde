@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     app_name: str = "Solde"
     app_version: str = "0.1.0"
     debug: bool = False
+    swagger_enabled: bool = False
 
     # Database
     database_url: str = "sqlite+aiosqlite:///data/solde.db"
