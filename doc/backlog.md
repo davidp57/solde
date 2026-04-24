@@ -9,23 +9,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Lots actifs
 
-### Lot G — Refactoring frontend (~30 min) — v0.5
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| TEC-077 | Refactoring vues volumineuses | P2 | ~30 min | 2026-04-23 | 2026-04-24 | 2026-04-24 |
-
-> ✅ Lot G terminé — PR #43 mergée le 2026-04-24
-
-### Lot I — Polish UI & contacts (~35 min) — v0.5
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| CHR-038 | Numéro de version dans l'UI | P3 | ~5 min | 2026-04-21 | 2026-04-24 | 2026-04-24 |
-| BIZ-037 | Profil via clic sur le nom | P3 | ~5 min | 2026-04-21 | 2026-04-24 | 2026-04-24 |
-| BIZ-035 | Onglets clients / fournisseurs | P2 | ~15 min | 2026-04-21 | 2026-04-24 | 2026-04-24 |
-| BIZ-040 | Import one-shot emails contacts | P2 | ~10 min | 2026-04-21 | 2026-04-24 | 2026-04-24 |
-
 ### Lot H — Architecture multi-compte (~45 min) — v0.6
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -130,6 +113,8 @@ Ajouter `description=` et `response_description=` sur les endpoints principaux.
 | C | Dashboard interactif | v0.3 | BIZ-075, BIZ-073 | 2026-04-23 |
 | D | Polish UI | v0.3 | BIZ-071, BIZ-043 | 2026-04-23 |
 | F | Tests | v0.4 | TEC-079, TEC-080, TEC-081 | 2026-04-24 |
+| G | Refactoring frontend | v0.5 | TEC-077 | 2026-04-24 |
+| I | Polish UI & contacts | v0.5 | BIZ-035, BIZ-037, CHR-038, BIZ-040 | 2026-04-24 |
 
 Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, CHR-019 – CHR-021, BIZ-022 – BIZ-023.
