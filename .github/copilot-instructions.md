@@ -76,26 +76,34 @@ Test files mirror the source structure:
 
 ---
 
-## Quality control (pre-commit)
+## Quality control (pre-push)
 
-The following checks must pass before every commit. Configure them as pre-commit hooks:
+Run the following checks **before every push** to avoid CI failures. This is mandatory and applies on every machine.
 
-**Python (backend)**:
-```bash
-ruff check .          # linting + import sorting
-ruff format --check . # formatting
-mypy .                # type checking (strict mode for services/)
-pytest tests/         # full test suite
+**Python (backend)** — run from the repo root:
+```powershell
+ruff check backend/ tests/
+ruff format --check backend/ tests/   # fix with: ruff format backend/ tests/
+python -m mypy backend/
+pytest tests/ -q
 ```
 
-**Vue.js (frontend)**:
-```bash
-eslint src/           # linting
-prettier --check src/ # formatting
-vitest run            # unit tests
+**Vue.js (frontend)** — run from `frontend/`:
+```powershell
+npx eslint src/
+npx vue-tsc --noEmit
+npx vitest run
 ```
 
-All checks must be green before opening a PR. Never bypass with `--no-verify` unless there is a documented exceptional reason.
+All checks must be green before pushing or opening a PR. Never bypass with `--no-verify` unless there is a documented exceptional reason.
+
+## Multi-PC workflow
+
+This project is developed on two machines. Before starting any work on a branch:
+```powershell
+git pull --rebase
+```
+This avoids non-fast-forward push rejections. If a push is rejected, always use `git pull --rebase` (not `git merge`) before retrying.
 
 ---
 
@@ -170,7 +178,7 @@ Keep the following documents up to date with every significant change:
 After every change (feature, fix, refactor):
 
 1. Update or add tests
-2. Run quality gates (ruff, mypy, pytest, eslint, vitest) — all green
+2. Run the full quality gate (see **Quality control** section above) — all green
 3. Verify zero errors in VS Code
 4. Update `CHANGELOG.md` (`[Non publié]` section)
 5. Update `doc/backlog.md` if the change closes or advances a ticket
