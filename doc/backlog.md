@@ -9,18 +9,22 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Lots actifs
 
-### Lot E — Contacts & import (~25 min) — v0.5
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| BL-035 | Onglets clients / fournisseurs | P2 | ~15 min | 2026-04-21 | | |
-| BL-040 | Import one-shot emails contacts | P2 | ~10 min | 2026-04-21 | | |
-
 ### Lot G — Refactoring frontend (~30 min) — v0.5
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BL-077 | Refactoring vues volumineuses | P2 | ~30 min | 2026-04-23 | 2026-04-24 | 2026-04-24 |
+
+> ✅ Lot G terminé — PR #43 mergée le 2026-04-24
+
+### Lot I — Polish UI & contacts (~35 min) — v0.5
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| BL-038 | Numéro de version dans l'UI | P3 | ~5 min | 2026-04-21 | 2026-04-24 | |
+| BL-037 | Profil via clic sur le nom | P3 | ~5 min | 2026-04-21 | 2026-04-24 | |
+| BL-035 | Onglets clients / fournisseurs | P2 | ~15 min | 2026-04-21 | 2026-04-24 | |
+| BL-040 | Import one-shot emails contacts | P2 | ~10 min | 2026-04-21 | 2026-04-24 | |
 
 ### Lot H — Architecture multi-compte (~45 min) — v0.6
 
@@ -37,8 +41,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | BL-033 | Comparaison chèques inter-exercices | P1 | ~15 min | 2026-04-21 | | |
 | BL-039 | Revalidation scénarios facture / email | P1 | ~10 min | 2026-04-21 | | |
 | BL-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
-| BL-037 | Profil via clic sur le nom | P3 | ~5 min | 2026-04-21 | | |
-| BL-038 | Numéro de version dans l'UI | P3 | ~5 min | 2026-04-21 | | |
 | BL-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
 | BL-082 | Descriptions Swagger enrichies | P3 | ~10 min | 2026-04-23 | | |
 

@@ -13,6 +13,12 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- `frontend/src/views/ContactsView.vue` : onglets Tous / Clients / Fournisseurs via `Tabs` PrimeVue — filtrage frontend (`les_deux` visible dans les deux onglets), remplacement du `Select` type par les onglets (BL-035)
+- `POST /api/contacts/import-emails` : endpoint d'import d'e-mails en masse pour enrichir les contacts existants par correspondance sur le nom (normalisation des accents, matching prenom+nom et nom seul) — schémas `ContactEmailImportRow` / `ContactEmailImportResult`, 9 nouveaux tests (BL-040)
+- `frontend/src/views/ContactsView.vue` : bouton « Importer e-mails » + dialogue avec zone de texte collée (`Nom, email` par ligne) + affichage du bilan (mis à jour / non trouvés / déjà renseignés) (BL-040)
+- `frontend/src/layouts/AppLayout.vue` : nom d'utilisateur (sidebar et topbar) cliquable via `RouterLink` vers `/profile` — suppression de l'entrée « Mon profil » du menu de navigation (BL-037)
+- `frontend/src/layouts/AppLayout.vue` : numéro de version discret en bas de la sidebar, injecté depuis `package.json` via `vite.config.ts` `define.__APP_VERSION__` (BL-038)
+
 - `frontend/src/tests/composables/useDarkMode.spec.ts` : tests unitaires Vitest pour le composable `useDarkMode` — toggle, persistance dans localStorage, classe CSS `dark-mode` (BL-079)
 - `frontend/src/tests/composables/useTableFilter.spec.ts` : tests unitaires Vitest pour `applyFilter` et `useTableFilter` — filtrage par sous-chaîne insensible à la casse, réactivité, cas limites null/undefined (BL-079)
 - `frontend/src/tests/composables/activeFilterLabels.spec.ts` : tests unitaires Vitest pour `findSelectedFilterLabel` et `collectActiveFilterLabels` — matching, valeurs nulles, types numériques (BL-079)

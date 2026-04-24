@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+declare const __APP_VERSION__: string
+
 interface ImportMetaEnv {
 	readonly VITE_DEV_AUTO_LOGIN?: string
 	readonly VITE_DEV_AUTO_LOGIN_USERNAME?: string

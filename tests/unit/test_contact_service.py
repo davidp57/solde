@@ -9,12 +9,13 @@ from backend.models.contact import Contact, ContactType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
-from backend.schemas.contact import ContactCreate, ContactUpdate
+from backend.schemas.contact import ContactCreate, ContactEmailImportRow, ContactUpdate
 from backend.services.contact import (
     create_contact,
     delete_contact,
     get_contact,
     get_contact_history,
+    import_emails_from_rows,
     list_contacts,
     mark_creance_douteuse,
     update_contact,
@@ -290,3 +291,40 @@ class TestMarkCreanceDouteuse:
         assert credit_entry.credit == Decimal("300.00")
         assert credit_entry.debit == Decimal("0")
         assert f"411{contact.id:04d}" in credit_entry.account_number
+
+
+class TestImportEmailsFromRows:
+    async def test_updates_contact_without_email(self, db_session: AsyncSession):
+        contact = await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Dupont", prenom="Jean"))
+        rows = [ContactEmailImportRow(nom="Dupont Jean", email="jean@example.com")]
+        result = await import_emails_from_rows(db_session, rows)
+        assert result.updated == 1
+        assert result.not_found == 0
+        assert result.already_has_email == 0
+        await db_session.refresh(contact)
+        assert contact.email == "jean@example.com"
+
+    async def test_skips_contact_with_existing_email(self, db_session: AsyncSession):
+        await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Martin", email="existing@example.com"))
+        rows = [ContactEmailImportRow(nom="Martin", email="new@example.com")]
+        result = await import_emails_from_rows(db_session, rows)
+        assert result.updated == 0
+        assert result.already_has_email == 1
+
+    async def test_reports_not_found(self, db_session: AsyncSession):
+        rows = [ContactEmailImportRow(nom="Inconnu", email="x@example.com")]
+        result = await import_emails_from_rows(db_session, rows)
+        assert result.not_found == 1
+        assert result.updated == 0
+
+    async def test_matches_by_nom_only(self, db_session: AsyncSession):
+        await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Leclerc"))
+        rows = [ContactEmailImportRow(nom="Leclerc", email="leclerc@example.com")]
+        result = await import_emails_from_rows(db_session, rows)
+        assert result.updated == 1
+
+    async def test_accent_normalization(self, db_session: AsyncSession):
+        await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Éléonore"))
+        rows = [ContactEmailImportRow(nom="Eleonore", email="elo@example.com")]
+        result = await import_emails_from_rows(db_session, rows)
+        assert result.updated == 1

@@ -1,5 +1,6 @@
 """Contact service — CRUD and search."""
 
+import unicodedata
 from datetime import date
 from decimal import Decimal
 
@@ -13,6 +14,8 @@ from backend.models.invoice import Invoice, InvoiceStatus
 from backend.models.payment import Payment
 from backend.schemas.contact import (
     ContactCreate,
+    ContactEmailImportResult,
+    ContactEmailImportRow,
     ContactHistory,
     ContactInvoiceSummary,
     ContactPaymentSummary,
@@ -212,3 +215,55 @@ async def mark_creance_douteuse(
     await db.refresh(debit_entry)
     await db.refresh(credit_entry)
     return debit_entry, credit_entry
+
+
+def _normalize_name(name: str) -> str:
+    """Normalize a name for fuzzy matching: lowercase, strip accents, collapse whitespace."""
+    nfkd = unicodedata.normalize("NFKD", name.lower().strip())
+    no_accents = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return " ".join(no_accents.split())
+
+
+async def import_emails_from_rows(
+    db: AsyncSession,
+    rows: list[ContactEmailImportRow],
+) -> ContactEmailImportResult:
+    """Bulk-enrich contacts with email addresses matched by name."""
+    result = await db.execute(select(Contact).where(Contact.is_active == True))  # noqa: E712
+    all_contacts = list(result.scalars().all())
+
+    # Build lookup: normalized name → contact (last write wins for duplicates)
+    contact_by_key: dict[str, Contact] = {}
+    for contact in all_contacts:
+        contact_by_key[_normalize_name(contact.nom)] = contact
+        if contact.prenom:
+            full = f"{contact.nom} {contact.prenom}"
+            contact_by_key[_normalize_name(full)] = contact
+            reversed_full = f"{contact.prenom} {contact.nom}"
+            contact_by_key[_normalize_name(reversed_full)] = contact
+
+    updated = 0
+    not_found = 0
+    already_has_email = 0
+
+    for row in rows:
+        key = _normalize_name(row.nom)
+        found = contact_by_key.get(key)
+        if found is None:
+            not_found += 1
+            continue
+        if found.email:
+            already_has_email += 1
+            continue
+        found.email = row.email
+        updated += 1
+
+    if updated > 0:
+        await db.commit()
+
+    return ContactEmailImportResult(
+        rows_processed=len(rows),
+        updated=updated,
+        not_found=not_found,
+        already_has_email=already_has_email,
+    )
