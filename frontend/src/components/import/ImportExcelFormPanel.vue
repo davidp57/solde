@@ -278,6 +278,7 @@ const resultStateDetail = computed(() => {
 function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   emit('file-selected', input.files?.[0] ?? null)
+  input.value = ''
 }
 
 function resetFile() {
