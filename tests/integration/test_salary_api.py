@@ -251,3 +251,102 @@ async def test_salary_requires_auth(client: AsyncClient) -> None:
     """Salary endpoints require authentication."""
     response = await client.get("/api/salaries/")
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_get_salary_by_id(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session: AsyncSession,
+    admin_user: User,
+) -> None:
+    """GET /api/salaries/{id} returns a single salary record."""
+    employee = await _create_employee(db_session, "Martin", "Lucie")
+    await db_session.commit()
+
+    payload = {
+        "employee_id": employee.id,
+        "month": "2025-06",
+        "hours": 100.0,
+        "gross": 1500.0,
+        "employee_charges": 210.0,
+        "employer_charges": 630.0,
+        "tax": 75.0,
+        "net_pay": 1215.0,
+    }
+    create_resp = await client.post("/api/salaries/", json=payload, headers=auth_headers)
+    salary_id = create_resp.json()["id"]
+
+    response = await client.get(f"/api/salaries/{salary_id}", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["id"] == salary_id
+    assert response.json()["month"] == "2025-06"
+
+
+@pytest.mark.asyncio
+async def test_get_salary_not_found(client: AsyncClient, auth_headers: dict) -> None:
+    """GET /api/salaries/999 returns 404."""
+    response = await client.get("/api/salaries/999", headers=auth_headers)
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_salary(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session: AsyncSession,
+    admin_user: User,
+) -> None:
+    """PUT /api/salaries/{id} updates a salary record."""
+    employee = await _create_employee(db_session, "Dupont", "Marie")
+    await db_session.commit()
+
+    payload = {
+        "employee_id": employee.id,
+        "month": "2025-04",
+        "hours": 151.67,
+        "gross": 1800.0,
+        "employee_charges": 252.0,
+        "employer_charges": 756.0,
+        "tax": 90.0,
+        "net_pay": 1458.0,
+    }
+    create_resp = await client.post("/api/salaries/", json=payload, headers=auth_headers)
+    salary_id = create_resp.json()["id"]
+
+    update_resp = await client.put(
+        f"/api/salaries/{salary_id}",
+        json={"hours": 160.0, "gross": 1900.0, "net_pay": 1540.0},
+        headers=auth_headers,
+    )
+    assert update_resp.status_code == 200
+    data = update_resp.json()
+    assert float(data["hours"]) == pytest.approx(160.0)
+    assert float(data["gross"]) == pytest.approx(1900.0)
+
+
+@pytest.mark.asyncio
+async def test_update_salary_not_found(client: AsyncClient, auth_headers: dict) -> None:
+    """PUT /api/salaries/999 returns 404."""
+    response = await client.put(
+        "/api/salaries/999",
+        json={"hours": 100.0},
+        headers=auth_headers,
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_salary_not_found(client: AsyncClient, auth_headers: dict) -> None:
+    """DELETE /api/salaries/999 returns 404."""
+    response = await client.delete("/api/salaries/999", headers=auth_headers)
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_tresorier_can_access_salaries(
+    client: AsyncClient, tresorier_auth_headers: dict
+) -> None:
+    """Tresorier can access salary endpoints."""
+    response = await client.get("/api/salaries/", headers=tresorier_auth_headers)
+    assert response.status_code == 200
