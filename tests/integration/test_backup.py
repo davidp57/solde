@@ -118,7 +118,9 @@ async def test_create_backup_rejects_invalid_max_backups(tmp_path: Path) -> None
     from backend.services.backup_service import create_backup
 
     with pytest.raises(ValueError, match="max_backups must be >= 1"):
-        await create_backup(db_path=str(src_db), backup_dir=str(tmp_path / "backups"), max_backups=0)
+        await create_backup(
+            db_path=str(src_db), backup_dir=str(tmp_path / "backups"), max_backups=0
+        )
 
 
 # ---------------------------------------------------------------------------

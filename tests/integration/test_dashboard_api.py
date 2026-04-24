@@ -489,3 +489,10 @@ async def test_resources_chart_uses_latest_savings_opening_instead_of_accumulati
     assert Decimal(str(row["funds"])) == Decimal("260.00")
     assert Decimal(str(row["liquidities"])) == Decimal("260.00")
     assert Decimal(str(row["net_resources"])) == Decimal("260.00")
+
+
+@pytest.mark.asyncio
+async def test_resources_chart_requires_auth(client: AsyncClient) -> None:
+    """Resources chart endpoint requires authentication."""
+    response = await client.get("/api/dashboard/chart/resources")
+    assert response.status_code == 401
