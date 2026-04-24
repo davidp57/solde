@@ -28,9 +28,7 @@ async def create_backup(
     dest_file = backup_path / f"solde_backup_{timestamp}.db"
 
     # Run blocking sqlite3 I/O in a worker thread to avoid blocking the event loop.
-    await anyio.to_thread.run_sync(
-        lambda: _do_backup(db_path, dest_file)
-    )
+    await anyio.to_thread.run_sync(lambda: _do_backup(db_path, dest_file))
 
     _rotate_backups(backup_path, max_backups)
 

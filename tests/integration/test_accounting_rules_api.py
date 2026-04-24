@@ -126,9 +126,7 @@ async def test_readonly_cannot_access_rules(
 
 
 @pytest.mark.asyncio
-async def test_tresorier_can_list_rules(
-    client: AsyncClient, tresorier_auth_headers: dict
-) -> None:
+async def test_tresorier_can_list_rules(client: AsyncClient, tresorier_auth_headers: dict) -> None:
     """Tresorier can access accounting rules."""
     response = await client.get("/api/accounting/rules/", headers=tresorier_auth_headers)
     assert response.status_code == 200
