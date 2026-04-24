@@ -13,6 +13,13 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- `doc/user/installation.md` : option A — image pré-construite depuis GHCR (`SOLDE_IMAGE=ghcr.io/davidp57/solde:latest`) et option B — build local ; sections FR + EN (CHR-019)
+- `doc/dev/exploitation.md` : nouvelle section « Image deployment options » présentant GHCR vs build local + variable `SOLDE_IMAGE` ; `SWAGGER_ENABLED` ajouté au tableau de configuration (CHR-019, CHR-082)
+- `backend/config.py` : paramètre `SWAGGER_ENABLED` — active Swagger UI (`/api/docs`) et ReDoc (`/api/redoc`) indépendamment de `DEBUG` (CHR-082)
+- `.env.example` : entrée `SWAGGER_ENABLED=false` documentée (CHR-082)
+- `backend/main.py` : `openapi_tags` avec descriptions pour les 12 groupes d'endpoints ; `/api/docs`, `/api/redoc` et `/api/openapi.json` activés si `debug` ou `swagger_enabled` est vrai (CHR-082)
+
+
 - `.github/workflows/ci.yml` : workflow CI GitHub Actions (jobs `backend` + `frontend`) — ruff check + format, mypy, pytest sur toutes les branches actives ; ESLint, vue-tsc, vitest sur le frontend (CHR-086)
 - `.github/workflows/docker.yml` : workflow Docker — build multi-stage + push image `ghcr.io/davidp57/solde` sur push `main` avec tags `latest` + `sha-<short>` et cache GitHub Actions (CHR-087)
 - `docker-compose.yml` : commentaire indiquant comment substituer le `build:` par `image: ghcr.io/davidp57/solde:latest` pour déploiement NAS sans rebuild local (CHR-087)
