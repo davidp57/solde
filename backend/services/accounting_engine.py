@@ -47,20 +47,18 @@ if TYPE_CHECKING:
 async def _next_entry_number(db: AsyncSession) -> str:
     """Return the next sequential entry number (globally unique, 6 digits).
 
-    Uses MAX(entry_number) + 1 instead of COUNT(*) so that gaps in the
-    sequence (e.g. after a selective reset) do not cause duplicate numbers.
-    SQLite serialises all writes on a single connection, so a separate
-    exclusive lock is not required with the single-worker deployment target.
+    Filters to numeric-only entry_number values (GLOB '[0-9]*') to avoid
+    being misled by non-numeric entries such as 'RUN-*' import entries,
+    which are lexicographically greater than '000NNN' and would otherwise
+    cause the int() conversion to fail and silently reset the counter to 1.
     """
-    result = await db.execute(select(func.max(AccountingEntry.entry_number)))
+    result = await db.execute(
+        select(func.max(AccountingEntry.entry_number)).where(
+            AccountingEntry.entry_number.op("GLOB")("[0-9][0-9][0-9][0-9][0-9][0-9]")
+        )
+    )
     current_max: str | None = result.scalar_one_or_none()
-    if current_max is None:
-        next_num = 1
-    else:
-        try:
-            next_num = int(current_max) + 1
-        except ValueError:
-            next_num = 1
+    next_num = 1 if current_max is None else int(current_max) + 1
     return f"{next_num:06d}"
 
 
