@@ -189,13 +189,41 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 def create_app() -> FastAPI:
     """Build and configure the FastAPI application."""
     cfg = get_settings()
+    swagger_enabled = cfg.swagger_enabled or cfg.debug
+
+    _tags: list[dict[str, str]] = [
+        {"name": "health", "description": "Health check endpoint."},
+        {"name": "auth", "description": "Authentication — login, token refresh, profile."},
+        {"name": "contacts", "description": "Clients and suppliers — CRUD and email import."},
+        {
+            "name": "accounting",
+            "description": (
+                "Accounting — chart of accounts, journal entries, rules and fiscal years."
+            ),
+        },
+        {
+            "name": "invoices",
+            "description": "Client invoices — creation, status, PDF generation and email delivery.",
+        },
+        {"name": "payments", "description": "Payment recording and reconciliation."},
+        {"name": "cash", "description": "Cash in/out operations."},
+        {"name": "bank", "description": "Bank transactions and statement import."},
+        {"name": "salaries", "description": "Monthly salary records."},
+        {"name": "dashboard", "description": "Summary statistics and fiscal-year dashboard."},
+        {
+            "name": "import",
+            "description": "Excel historical import — preview, validation and commit.",
+        },
+        {"name": "settings", "description": "Application settings."},
+    ]
 
     app = FastAPI(
         title=cfg.app_name,
         version=cfg.app_version,
-        docs_url="/api/docs" if cfg.debug else None,
-        redoc_url="/api/redoc" if cfg.debug else None,
-        openapi_url="/api/openapi.json" if cfg.debug else None,
+        openapi_tags=_tags,
+        docs_url="/api/docs" if swagger_enabled else None,
+        redoc_url="/api/redoc" if swagger_enabled else None,
+        openapi_url="/api/openapi.json" if swagger_enabled else None,
         lifespan=lifespan,
     )
 
