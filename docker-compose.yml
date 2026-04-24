@@ -1,9 +1,8 @@
 services:
   solde:
-    # Local build (development / self-hosted):
-    build: .
-    # Pre-built image from GHCR (production / NAS — remove `build:` above and uncomment):
-    # image: ghcr.io/davidp57/solde:latest
+    image: ${SOLDE_IMAGE:-ghcr.io/davidp57/solde:latest}
+    build:
+      context: .
     container_name: solde
     restart: unless-stopped
     ports:
