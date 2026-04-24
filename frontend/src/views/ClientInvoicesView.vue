@@ -590,6 +590,7 @@ const dialogVisible = ref(false)
 const invoiceFormRef = ref<InstanceType<typeof ClientInvoiceForm> | null>(null)
 const editingInvoice = ref<Invoice | null>(null)
 const statusFilter = ref<InvoiceStatus | null>(null)
+const unpaidOnly = ref(false)
 
 // History dialog
 const historyVisible = ref(false)
@@ -790,13 +791,30 @@ function statusSeverity(s: InvoiceStatus): string {
 async function loadInvoices() {
   loading.value = true
   try {
-    const filters: Record<string, unknown> = { invoice_type: 'client' }
-    if (fiscalYearStore.selectedFiscalYear) {
+    const filters: Record<string, unknown> = { invoice_type: 'client', limit: 1000 }
+    // Skip fiscal-year date filter for cross-year queries (overdue, unpaid from dashboard)
+    const skipDateFilter = unpaidOnly.value || statusFilter.value === 'overdue'
+    if (fiscalYearStore.selectedFiscalYear && !skipDateFilter) {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
       filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
     }
-    if (statusFilter.value) filters.invoice_status = statusFilter.value
-    invoices.value = await listInvoicesApi(filters)
+    // For 'overdue', don't pass invoice_status to API — the DB field may be stale.
+    // Filter client-side via isOverdueInvoice() to match dashboard logic.
+    if (statusFilter.value && statusFilter.value !== 'overdue') {
+      filters.invoice_status = statusFilter.value
+    }
+    const all = await listInvoicesApi(filters)
+    if (unpaidOnly.value) {
+      invoices.value = all.filter(
+        (inv) =>
+          inv.status !== 'draft' &&
+          parseFloat(inv.total_amount) - parseFloat(inv.paid_amount) > 0,
+      )
+    } else if (statusFilter.value === 'overdue') {
+      invoices.value = all.filter(isOverdueInvoice)
+    } else {
+      invoices.value = all
+    }
     openInvoiceFromQuery()
   } finally {
     loading.value = false
@@ -804,7 +822,7 @@ async function loadInvoices() {
 }
 
 async function loadReceivablesSnapshot() {
-  allClientInvoices.value = await listInvoicesApi({ invoice_type: 'client' })
+  allClientInvoices.value = await listInvoicesApi({ invoice_type: 'client', limit: 1000 })
 }
 
 async function refreshInvoicesData() {
@@ -1015,6 +1033,13 @@ watch(
   },
 )
 
+watch(
+  () => route.query.unpaid,
+  (newVal) => {
+    unpaidOnly.value = newVal === '1'
+  },
+)
+
 onMounted(async () => {
   await fiscalYearStore.initialize()
   const queryStatus = Array.isArray(route.query.status)
@@ -1023,6 +1048,7 @@ onMounted(async () => {
   if (queryStatus) {
     statusFilter.value = queryStatus as InvoiceStatus
   }
+  unpaidOnly.value = route.query.unpaid === '1'
   await Promise.all([refreshInvoicesData(), loadContacts()])
 })
 </script>

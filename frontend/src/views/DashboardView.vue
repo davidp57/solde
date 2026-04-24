@@ -22,7 +22,7 @@
           :label="t('dashboard.unpaid_invoices')"
           :value="kpis ? kpis.unpaid_count : '—'"
           :caption="kpis ? formatAmount(kpis.unpaid_total) : '—'"
-          :to="{ name: 'invoices-client' }"
+          :to="{ name: 'invoices-client', query: { unpaid: '1' } }"
         />
         <AppStatCard
           :label="t('dashboard.overdue_invoices')"

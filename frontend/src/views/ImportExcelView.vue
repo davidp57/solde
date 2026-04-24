@@ -37,7 +37,9 @@
       :test-shortcuts="testShortcuts"
       :importing="importing"
       :running-shortcut-alias="runningShortcutAlias"
+      :running-all="runningAllShortcuts"
       @run-shortcut="runTestShortcut"
+      @run-all-shortcuts="runAllTestShortcuts"
     />
 
     <div v-if="preview || result" class="import-surface-shell">
@@ -114,6 +116,7 @@ const comparisonStartDate = ref('')
 const comparisonEndDate = ref('')
 const testShortcuts = ref<TestImportShortcut[]>([])
 const runningShortcutAlias = ref<string | null>(null)
+const runningAllShortcuts = ref(false)
 
 const canConfirmImport = computed(() =>
   Boolean(selectedFile.value && preview.value?.can_import && activeRun.value?.can_execute !== false),
@@ -387,6 +390,51 @@ async function runTestShortcut(alias: string) {
     importing.value = false
     runningShortcutAlias.value = null
   }
+}
+
+const ALL_SHORTCUTS_ORDER = ['gestion-2024', 'comptabilite-2024', 'gestion-2025', 'comptabilite-2025']
+
+async function runAllTestShortcuts() {
+  runningAllShortcuts.value = true
+  importing.value = true
+  selectedFile.value = null
+  formPanelRef.value?.resetFile()
+  preview.value = null
+  result.value = null
+
+  for (const alias of ALL_SHORTCUTS_ORDER) {
+    const shortcut = testShortcuts.value.find((item) => item.alias === alias)
+    if (!shortcut?.available) continue
+    runningShortcutAlias.value = alias
+    if (shortcut) {
+      importType.value = shortcut.import_type as 'gestion' | 'comptabilite'
+      applyDefaultComparisonRange(shortcut.file_name ?? undefined)
+    }
+    const comparisonWindow = {
+      comparison_start_date: comparisonStartDate.value || undefined,
+      comparison_end_date: comparisonEndDate.value || undefined,
+    }
+    try {
+      const run = await importTestShortcutApi(alias, comparisonWindow)
+      syncRunState(run)
+      const hasFailed = run.status === 'failed'
+      const hasIssues = Boolean(hasFailed || (run.summary && (run.summary.errors.length > 0 || run.summary.warnings.length > 0)))
+      toast.add({
+        severity: hasFailed ? 'error' : hasIssues ? 'warn' : 'success',
+        summary: `${shortcut.label} : ${hasFailed ? t('import.failed') : hasIssues ? t('import.completed_with_issues') : t('import.success')}`,
+        life: hasFailed ? 6000 : 3500,
+      })
+      if (hasFailed) break
+    } catch (error: unknown) {
+      toast.add({ severity: 'error', summary: `${shortcut.label} : ${getImportErrorSummary(error)}`, life: 6000 })
+      break
+    }
+  }
+
+  runningShortcutAlias.value = null
+  runningAllShortcuts.value = false
+  importing.value = false
+  await loadTestShortcuts()
 }
 
 watch(importType, () => {
