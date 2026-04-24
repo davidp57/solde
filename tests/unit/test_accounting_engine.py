@@ -740,3 +740,33 @@ class TestNextEntryNumber:
         num = await _next_entry_number(db_session)
         assert len(num) == 6
         assert num.isdigit()
+
+    @pytest.mark.asyncio
+    async def test_ignores_non_numeric_run_entries(self, db_session: AsyncSession) -> None:
+        """Regression: MAX on string col would return 'RUN-*' > '000NNN', causing int()
+        to raise ValueError and silently resetting the counter to 000001."""
+        from backend.models.accounting_entry import AccountingEntry
+        from backend.services.accounting_engine import _next_entry_number
+
+        # Simulate state after an import: both numeric and RUN-* entries exist
+        for num, label in [
+            ("000003", "regular"),
+            ("000001", "regular"),
+            ("RUN-42-1", "import"),
+            ("RUN-42-2", "import"),
+        ]:
+            entry = AccountingEntry(
+                entry_number=num,
+                date=date(2025, 1, 1),
+                account_number="411100",
+                label=label,
+                debit=Decimal("0"),
+                credit=Decimal("100"),
+                source_type=EntrySourceType.MANUAL,
+            )
+            db_session.add(entry)
+        await db_session.flush()
+
+        # Must continue from 000004, not reset to 000001
+        result = await _next_entry_number(db_session)
+        assert result == "000004"
