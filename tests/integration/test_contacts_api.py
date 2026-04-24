@@ -178,6 +178,48 @@ class TestUpdateContact:
         assert response.status_code == 404
 
 
+class TestImportContactEmails:
+    async def test_requires_auth(self, client: AsyncClient):
+        response = await client.post("/api/contacts/import-emails", json=[])
+        assert response.status_code == 401
+
+    async def test_updates_contact_without_email(self, client: AsyncClient, auth_headers: dict):
+        await client.post(
+            "/api/contacts/",
+            json={"type": "client", "nom": "Dupont", "prenom": "Jean"},
+            headers=auth_headers,
+        )
+        response = await client.post(
+            "/api/contacts/import-emails",
+            json=[{"nom": "Dupont Jean", "email": "jean@example.com"}],
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["updated"] == 1
+        assert data["not_found"] == 0
+        assert data["already_has_email"] == 0
+
+    async def test_not_found_returns_zero_updates(self, client: AsyncClient, auth_headers: dict):
+        response = await client.post(
+            "/api/contacts/import-emails",
+            json=[{"nom": "Inconnu Total", "email": "x@example.com"}],
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["not_found"] == 1
+        assert response.json()["updated"] == 0
+
+    async def test_empty_list_returns_zero(self, client: AsyncClient, auth_headers: dict):
+        response = await client.post(
+            "/api/contacts/import-emails",
+            json=[],
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["rows_processed"] == 0
+
+
 class TestDeleteContact:
     async def test_soft_delete(self, client: AsyncClient, auth_headers: dict):
         created = await client.post(

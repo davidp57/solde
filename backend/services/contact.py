@@ -1,5 +1,6 @@
 """Contact service — CRUD and search."""
 
+import unicodedata
 from datetime import date
 from decimal import Decimal
 
@@ -13,6 +14,8 @@ from backend.models.invoice import Invoice, InvoiceStatus
 from backend.models.payment import Payment
 from backend.schemas.contact import (
     ContactCreate,
+    ContactEmailImportResult,
+    ContactEmailImportRow,
     ContactHistory,
     ContactInvoiceSummary,
     ContactPaymentSummary,
@@ -212,3 +215,62 @@ async def mark_creance_douteuse(
     await db.refresh(debit_entry)
     await db.refresh(credit_entry)
     return debit_entry, credit_entry
+
+
+def _normalize_name(name: str) -> str:
+    """Normalize a name for fuzzy matching: lowercase, strip accents, collapse whitespace."""
+    nfkd = unicodedata.normalize("NFKD", name.lower().strip())
+    no_accents = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return " ".join(no_accents.split())
+
+
+async def import_emails_from_rows(
+    db: AsyncSession,
+    rows: list[ContactEmailImportRow],
+) -> ContactEmailImportResult:
+    """Bulk-enrich contacts with email addresses matched by name."""
+    result = await db.execute(
+        select(Contact).where(Contact.is_active == True).order_by(Contact.id)  # noqa: E712
+    )
+    all_contacts = list(result.scalars().all())
+
+    # Build lookup: normalized name → list of contacts.
+    # Keys with multiple matches are ambiguous and will be skipped to avoid
+    # updating the wrong contact.
+    contact_by_key: dict[str, list[Contact]] = {}
+    for contact in all_contacts:
+        keys = {_normalize_name(contact.nom)}
+        if contact.prenom:
+            full = f"{contact.nom} {contact.prenom}"
+            reversed_full = f"{contact.prenom} {contact.nom}"
+            keys.add(_normalize_name(full))
+            keys.add(_normalize_name(reversed_full))
+        for key in keys:
+            contact_by_key.setdefault(key, []).append(contact)
+
+    updated = 0
+    not_found = 0
+    already_has_email = 0
+
+    for row in rows:
+        key = _normalize_name(row.nom)
+        matches = contact_by_key.get(key, [])
+        if len(matches) != 1:
+            not_found += 1
+            continue
+        found = matches[0]
+        if found.email:
+            already_has_email += 1
+            continue
+        found.email = row.email
+        updated += 1
+
+    if updated > 0:
+        await db.commit()
+
+    return ContactEmailImportResult(
+        rows_processed=len(rows),
+        updated=updated,
+        not_found=not_found,
+        already_has_email=already_has_email,
+    )

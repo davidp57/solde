@@ -97,3 +97,27 @@ class ContactHistory(BaseModel):
     total_invoiced: Decimal
     total_paid: Decimal
     total_due: Decimal
+
+
+class ContactEmailImportRow(BaseModel):
+    nom: str
+    email: EmailStr
+
+    @field_validator("nom")
+    @classmethod
+    def nom_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("nom must not be empty")
+        return v.strip()
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def email_strip(cls, v: str) -> str:
+        return v.strip()
+
+
+class ContactEmailImportResult(BaseModel):
+    rows_processed: int
+    updated: int
+    not_found: int
+    already_has_email: int
