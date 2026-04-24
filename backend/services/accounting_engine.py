@@ -24,6 +24,7 @@ from backend.models.accounting_entry import (
 )
 from backend.models.accounting_rule import AccountingRule, AccountingRuleEntry, TriggerType
 from backend.models.bank import Deposit, DepositType
+from backend.models.contact import Contact
 from backend.models.invoice import (
     Invoice,
     InvoiceLabel,
@@ -305,9 +306,16 @@ async def generate_entries_for_invoice(
     Returns an empty list if no matching active rule exists.
     """
     fiscal_year_id = await find_fiscal_year_id_for_date(db, invoice.date)
+    contact_result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
+    contact = contact_result.scalar_one_or_none()
+    contact_name = (
+        f"{contact.prenom} {contact.nom}"
+        if contact is not None and contact.prenom
+        else (contact.nom if contact is not None else str(invoice.contact_id))
+    )
     context = {
         "number": invoice.number,
-        "contact": str(invoice.contact_id),
+        "contact": contact_name,
         "label": invoice.description or invoice.number,
         "amount": str(invoice.total_amount),
         "date": str(invoice.date),

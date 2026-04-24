@@ -244,6 +244,57 @@ class TestGenerateEntriesForInvoice:
         assert entries == []
 
     @pytest.mark.asyncio
+    async def test_label_uses_contact_name(self, db_session: AsyncSession) -> None:
+        """{{contact}} in the template must render as 'Prénom NOM', not the contact ID."""
+        contact = Contact(
+            id=1,
+            type=ContactType.CLIENT,
+            nom="DUPONT",
+            prenom="Marie",
+            is_active=True,
+        )
+        db_session.add(contact)
+        await db_session.flush()
+        rule = await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        result = await db_session.execute(
+            select(AccountingRuleEntry).where(AccountingRuleEntry.rule_id == rule.id)
+        )
+        for rule_entry in result.scalars():
+            rule_entry.description_template = "Fact. {{number}} {{contact}}"
+        await db_session.flush()
+        inv = await _make_invoice(db_session, label=InvoiceLabel.CS)
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert entries
+        assert all("Marie DUPONT" in e.label for e in entries)
+
+    @pytest.mark.asyncio
+    async def test_label_uses_nom_only_when_no_prenom(self, db_session: AsyncSession) -> None:
+        contact = Contact(
+            id=1,
+            type=ContactType.CLIENT,
+            nom="ASSOCIATION ABC",
+            prenom=None,
+            is_active=True,
+        )
+        db_session.add(contact)
+        await db_session.flush()
+        rule = await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        result = await db_session.execute(
+            select(AccountingRuleEntry).where(AccountingRuleEntry.rule_id == rule.id)
+        )
+        for rule_entry in result.scalars():
+            rule_entry.description_template = "Fact. {{number}} {{contact}}"
+        await db_session.flush()
+        inv = await _make_invoice(db_session, label=InvoiceLabel.CS)
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert entries
+        assert all("ASSOCIATION ABC" in e.label for e in entries)
+
+    @pytest.mark.asyncio
     async def test_client_cs_label(self, db_session: AsyncSession) -> None:
         await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
         inv = await _make_invoice(db_session, label=InvoiceLabel.CS)
