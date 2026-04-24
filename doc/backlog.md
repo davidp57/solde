@@ -36,12 +36,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Détails
 
-### CHR-019 — README et documentation technique
-
-README recentré FR+EN, `doc/dev/exploitation.md` couvre config/Docker/volumes/backups,
-guide d'installation FR+EN dans `doc/user/installation.md`, `.env.example` documenté.
-Reste à revalider en tests réels d'installation et de mise à jour.
-
 ### CHR-020 — Documentation de contribution
 
 `doc/dev/contribuer.md` centralise setup local, `dev.ps1`, checks backend/frontend,
@@ -95,10 +89,6 @@ en sous-composants < 500 lignes.
 
 Créer `en.ts` avec les clés structurelles pour préparer la localisation anglaise.
 
-### CHR-082 — Descriptions Swagger enrichies
-
-Ajouter `description=` et `response_description=` sur les endpoints principaux.
-
 ### CHR-086 — Workflow CI — quality gates
 
 Workflow GitHub Actions sur push/PR vers `develop` et `main` : ruff check + format, mypy, pytest (backend) ; ESLint, vue-tsc, vitest (frontend).
@@ -132,7 +122,7 @@ Workflow GitHub Actions sur push vers `main` : build multi-stage Docker, push im
 | K | Documentation & Swagger | v0.5 | CHR-019, CHR-082 | 2026-04-24 |
 
 Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041.
-Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, CHR-019 – CHR-021, BIZ-022 – BIZ-023.
+Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
 
 <details>
 <summary>Historique des estimations — lots techniques 1-8 (2026-04-22)</summary>
