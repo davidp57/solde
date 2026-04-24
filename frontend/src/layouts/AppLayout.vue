@@ -80,12 +80,6 @@
 
       <!-- Main content -->
       <main class="main-content">
-        <Breadcrumb
-          v-if="breadcrumbItems.length > 0"
-          :home="breadcrumbHome"
-          :model="breadcrumbItems"
-          class="app-breadcrumb"
-        />
         <RouterView />
       </main>
     </div>
@@ -96,7 +90,6 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import Breadcrumb from 'primevue/breadcrumb'
 import Button from 'primevue/button'
 import Drawer from 'primevue/drawer'
 import Select from 'primevue/select'
@@ -104,14 +97,11 @@ import { useAuthStore } from '../stores/auth'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import NavMenu from '../components/NavMenu.vue'
 import { useDarkMode } from '../composables/useDarkMode'
-import { useBreadcrumb } from '../composables/useBreadcrumb'
-
 const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
 const fiscalYearStore = useFiscalYearStore()
 const { isDark, toggle: toggleDark } = useDarkMode()
-const { home: breadcrumbHome, items: breadcrumbItems } = useBreadcrumb()
 
 const sidebarVisible = ref(false)
 const appVersion = __APP_VERSION__
@@ -284,17 +274,6 @@ onMounted(() => {
   background: v-bind(mainBg);
   min-height: calc(100vh - 53px);
   min-width: 0;
-}
-
-/* Breadcrumb */
-:deep(.app-breadcrumb) {
-  margin: calc(-1 * var(--app-page-padding)) calc(-1 * var(--app-page-padding))
-    var(--app-page-padding);
-  padding: 0.5rem 1.5rem;
-  border-radius: 0;
-  background: transparent;
-  border-bottom: 1px solid var(--p-content-border-color);
-  font-size: 0.8125rem;
 }
 
 /* Desktop breakpoint */
