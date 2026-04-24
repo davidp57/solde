@@ -27,7 +27,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
-| BIZ-033 | Comparaison chèques inter-exercices | P1 | ~15 min | 2026-04-21 | | |
+| BIZ-033 | Comparaison chèques inter-exercices | P1 | ~15 min | 2026-04-21 | 2026-04-24 | 2026-04-24 |
 | TEC-039 | Revalidation scénarios facture / email | P1 | ~10 min | 2026-04-21 | | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
@@ -50,9 +50,7 @@ banque) → lot 3 (import Excel, comptabilité, FAQ) → lot 4 (captures, stabil
 
 ### BIZ-033 — Comparaison chèques inter-exercices
 
-Un chèque reçu en N−1 mais remis en banque en N crée un écart trompeur dans les
-validations par exercice. Convention métier à expliciter, puis aligner comparaison
-d'import et documentation. Cf. `doc/dev/bl-026-validation-2025-working-notes.md`.
+- **Livré** : correction du parsing colonne « Encaissé » (sous-chaîne mal résolue) + opération `update_payment_deposit_status` dans l'import réversible — un paiement existant avec `deposited=False` est mis à jour lors de l'import d'un fichier ultérieur marquant le chèque comme encaissé (2026-04-24).
 
 ### BIZ-034 — Support multi-compte banque
 

@@ -297,6 +297,9 @@ from backend.services.excel_import._loaders import (
     _load_existing_payment_signatures as _load_existing_payment_signatures,
 )
 from backend.services.excel_import._loaders import (
+    _load_existing_payments_deposit_map as _load_existing_payments_deposit_map,
+)
+from backend.services.excel_import._loaders import (
     _load_existing_salary_group_signatures as _load_existing_salary_group_signatures,
 )
 from backend.services.excel_import._loaders import (

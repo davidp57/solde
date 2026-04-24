@@ -145,6 +145,52 @@ async def _load_existing_payment_signatures(
     }
 
 
+async def _load_existing_payments_deposit_map(
+    db: AsyncSession,
+) -> dict[tuple[int, str, str, str, str], tuple[int, bool, date | None]]:
+    """Return a map of payment signature → (payment_id, deposited, deposit_date).
+
+    Used to detect payments whose deposit status should be updated from a newer
+    import file rather than simply being skipped as duplicates.
+    """
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.payment import Payment  # noqa: PLC0415
+
+    result = await db.execute(
+        select(
+            Payment.id,
+            Payment.invoice_id,
+            Payment.date,
+            Payment.amount,
+            Payment.method,
+            Payment.cheque_number,
+            Payment.deposited,
+            Payment.deposit_date,
+        )
+    )
+    deposit_map: dict[tuple[int, str, str, str, str], tuple[int, bool, date | None]] = {}
+    for (
+        payment_id,
+        invoice_id,
+        payment_date,
+        amount,
+        method,
+        cheque_number,
+        deposited,
+        deposit_date,
+    ) in result.all():
+        sig = _payment_signature(
+            invoice_id=invoice_id,
+            payment_date=payment_date,
+            amount=amount,
+            method=str(method),
+            cheque_number=cheque_number,
+        )
+        deposit_map[sig] = (payment_id, bool(deposited), deposit_date)
+    return deposit_map
+
+
 async def _load_existing_contacts_by_salary_key(db: AsyncSession) -> dict[str, Any]:
     from sqlalchemy import select  # noqa: PLC0415
 
