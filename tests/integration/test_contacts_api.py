@@ -199,6 +199,9 @@ class TestImportContactEmails:
         assert data["updated"] == 1
         assert data["not_found"] == 0
         assert data["already_has_email"] == 0
+        assert data["updated_indices"] == [0]
+        assert data["not_found_indices"] == []
+        assert data["already_has_email_indices"] == []
 
     async def test_not_found_returns_zero_updates(self, client: AsyncClient, auth_headers: dict):
         response = await client.post(
@@ -209,6 +212,35 @@ class TestImportContactEmails:
         assert response.status_code == 200
         assert response.json()["not_found"] == 1
         assert response.json()["updated"] == 0
+        assert response.json()["not_found_indices"] == [0]
+        assert response.json()["updated_indices"] == []
+
+    async def test_indices_reflect_row_positions(self, client: AsyncClient, auth_headers: dict):
+        """Indices in the result must match the row positions in the input array."""
+        await client.post(
+            "/api/contacts/",
+            json={"type": "client", "nom": "Bertrand", "prenom": "Sophie"},
+            headers=auth_headers,
+        )
+        await client.post(
+            "/api/contacts/",
+            json={"type": "client", "nom": "Martin", "prenom": "Luc", "email": "luc@example.com"},
+            headers=auth_headers,
+        )
+        response = await client.post(
+            "/api/contacts/import-emails",
+            json=[
+                {"nom": "Inconnu", "email": "x@example.com"},  # idx 0 → not_found
+                {"nom": "Sophie Bertrand", "email": "s@example.com"},  # idx 1 → updated
+                {"nom": "Martin Luc", "email": "luc2@example.com"},  # idx 2 → already_has_email
+            ],
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["updated_indices"] == [1]
+        assert data["not_found_indices"] == [0]
+        assert data["already_has_email_indices"] == [2]
 
     async def test_empty_list_returns_zero(self, client: AsyncClient, auth_headers: dict):
         response = await client.post(

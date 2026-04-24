@@ -84,6 +84,9 @@ export interface ContactEmailImportResult {
   updated: number
   not_found: number
   already_has_email: number
+  updated_indices: number[]
+  not_found_indices: number[]
+  already_has_email_indices: number[]
 }
 
 export async function importContactEmailsApi(rows: ContactEmailImportRow[]): Promise<ContactEmailImportResult> {
