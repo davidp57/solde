@@ -1,14 +1,11 @@
 """Integration tests for fiscal year endpoints — pre-close checks, open-next."""
 
 from datetime import date
-from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.accounting_account import AccountingAccount, AccountType
-from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 
 

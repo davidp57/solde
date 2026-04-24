@@ -1,5 +1,7 @@
 # Changelog
 
+<!-- markdownlint-disable MD024 MD036 -->
+
 Toutes les modifications notables apportées à Solde ⚖️ sont documentées ici.
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
@@ -48,6 +50,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `backend/schemas/auth.py` : politique de complexité de mot de passe — minimum 8 caractères, au moins une majuscule et un chiffre, appliquée sur la création utilisateur, le changement et le reset de mot de passe (BL-085)
 
 **Qualité / Sécurité (audit 2026-04-22)**
+
 - `backend/routers/auth.py` : le refresh token est désormais transmis via un cookie `HttpOnly`, `Secure`, `SameSite=Strict` au lieu du corps JSON — `/auth/login` et `/auth/refresh` posent le cookie, nouvel endpoint `POST /auth/logout` (204) l'efface (BL-046)
 - Frontend : `refreshApi()` et `logoutApi()` utilisent le cookie automatiquement (`withCredentials: true`), le store auth ne stocke plus le refresh token en `localStorage` (BL-046)
 - `entrypoint.sh` : script d'entrée Docker dédié avec `set -e` — les migrations Alembic échouent explicitement au lieu d'être masquées par le `&&` shell (BL-054)
@@ -68,12 +71,14 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ### Refactorisé
 
 **Qualité / Sécurité (audit 2026-04-22)**
+
 - `backend/services/excel_import.py` : monolith de 5 567 lignes éclaté en package `backend/services/excel_import/` avec 16 sous-modules thématiques (`_constants`, `_salary`, `_invoices`, `_loaders`, `_comparison`, `_comparison_loaders`, `_comparison_domains`, `_entry_groups`, `_sheet_wrappers`, `_orchestrator`, `_import_contacts_invoices`, `_import_payments_salaries`, `_import_cash_bank`, `_import_entries`, `_preview_existing`, `_preview_sheets`) — refactoring purement structurel, interfaces publiques inchangées, zéro dépendance circulaire (BL-050)
 - `backend/services/excel_import/_exceptions.py` : introduction de `ImportFileOpenError` et `ImportSheetError` en remplacement des `except Exception` généralisés — `_ImportSheetFailure(RuntimeError)` remplacé par alias vers `ImportSheetError`, orchestrateur avec catch séparés par type, routeur avec mapping HTTP typé (BL-058)
 
 ### Corrigé
 
 **Qualité / Sécurité (audit 2026-04-22)**
+
 - `frontend/src/stores/counter.ts` : suppression du fichier de scaffolding Vue non utilisé (BL-064)
 - `frontend/package.json` : version alignée sur `0.1.0` pour correspondre au backend (BL-062)
 - `backend/models/accounting_account.py` : remplacement des noms de personnes réelles dans le plan comptable par défaut par des libellés génériques (`Client litigieux 1`, `Client litigieux 2`) — conformité RGPD (BL-063)
@@ -83,67 +88,80 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `backend/services/accounting_engine.py` : `_next_entry_number` utilise désormais `SELECT MAX(entry_number)` au lieu de `SELECT COUNT(*)` pour éviter les collisions de numéros après suppressions ou imports partiels (BL-051)
 
 **Documentation projet**
+
 - `README.md` recentré comme point d'entrée synthétique bilingue `FR + EN` avec renvoi vers les guides détaillés
 - Nouvelle documentation technique `doc/dev/exploitation.md` rédigée en anglais pour l'exploitation Docker, la configuration, les volumes, les sauvegardes et les opérations courantes
 - Nouvelle documentation développeur `doc/dev/contribuer.md` rédigée en anglais pour la mise en route locale, les commandes qualité, les conventions de développement et le workflow de contribution
 - Nouvelle documentation utilisateur / installation disponible en `FR + EN` avec index bilingue `doc/user/README.md`, guide d'installation `doc/user/installation.md` et versions anglaises des guides utilisateur déjà rédigés
 
 **Import Excel réversible**
+
 - Journal d'import réversible persistant avec `import_runs`, `import_operations` et `import_effects`
 - Nouveaux endpoints API pour préparer, exécuter, annuler et rejouer un import ou une opération unitaire
 - Historique des imports dédié dans l'interface, séparé de l'écran de préparation
 - Prévisualisation détaillée des opérations préparées, de leurs effets prévus et des données source Excel associées
 
 **Gestion des utilisateurs**
+
 - Documentation de cadrage `doc/dev/gestion-utilisateurs-et-permissions.md` pour clarifier la cible produit des rôles et la matrice simplifiée des permissions
 - Administration des comptes réservée à l'administrateur avec liste, création, activation/désactivation et changement de rôle
 - Espace `Mon profil` permettant à chaque utilisateur authentifié de consulter son compte, de mettre à jour son e-mail et de changer son mot de passe
 - Procédure de réinitialisation d'accès par l'administrateur avec mot de passe temporaire pour le contexte auto-hébergé
 
 **Administration des reprises d'import**
+
 - Reset sélectif de reprise dans `Paramètres` avec prévisualisation puis suppression confirmée d'un périmètre `Gestion` ou `Comptabilite` borné à un exercice
 - Plan de suppression construit à partir des traces d'import (`import_logs` legacy et `import_runs` réversibles) et enrichi, côté `Gestion`, par les dépendances métier dérivées créées ensuite dans Solde
 - Documentation utilisateur consolidée pour expliquer la place respective de l'historique réversible, du reset sélectif et de la réinitialisation complète
 
 **Frontend — filtre générique**
+
 - Composable `useTableFilter` + `applyFilter` (`composables/useTableFilter.ts`) : filtre client-side fuzzy sur tous les champs d'un tableau
 - Champ de recherche générique ajouté dans les 11 écrans avec DataTable : Paiements, Exercices, Règles comptables, Plan comptable, Journal, Balance, Salaires, Factures clients, Factures fournisseurs, Banque (transactions + remises), Caisse (journal + comptages)
 - i18n : clé `common.filter_placeholder` → « Rechercher… »
 
 **Frontend — mode sombre**
+
 - `useDarkMode.ts` : watcher déplacé au niveau module (singleton) pour éviter les problèmes de lifecycle component
 - `main.css` : `body` reçoit `background: var(--p-surface-ground)` et `color: var(--p-text-color)` avec transition douce
 - `index.html` : script inline synchrone pour appliquer la classe `.dark-mode` avant le rendu (suppression du flash blanc au chargement)
 - `index.html` : titre corrigé « Solde ⚖️ », `lang="fr"`
 
 **Frontend — système d’interface partagé**
+
 - `AppPage.vue`, `AppPageHeader.vue`, `AppPanel.vue`, `AppStatCard.vue` : primitives communes pour homogénéiser les pages, les en-têtes, les panneaux et les cartes de synthèse
 - `main.css` : langage visuel partagé pour les mises en page, les métriques, les en-têtes de contenu et les dialogues de formulaire
 
 ### Modifié
 
 **Édition métier des factures, paiements et imports**
+
 - Une facture `sent` non réglée reste modifiable, mais toute modification régénère désormais ses écritures comptables auto-générées au lieu de laisser des écritures obsolètes en base
 - Une facture déjà consommée (`paid`, ou plus généralement hors cas `draft` / `sent` non réglée) ne peut plus être modifiée directement via l'API
 - Les paiements deviennent quasi immuables après création : seules les corrections mineures sans impact structurel (`référence`, `notes`, `n° de chèque`) restent éditables depuis l'écran `Paiements`, et la suppression standard est désormais bloquée en attendant un vrai flux d'annulation métier
 - Le rejeu strict des imports réversibles reste désormais explicitement protégé même après retouche manuelle d'un objet importé via l'API, y compris quand l'instance SQLAlchemy a été expirée entre-temps
 
 **Paiements et trésorerie**
+
 - Les règlements clients en `chèque` et `espèces` se saisissent désormais depuis la facture client et son historique, avec un parcours dédié pour enregistrer date, montant, mode, référence et note
 - Le journal `Caisse` affiche explicitement les mouvements issus d'un paiement client, et les bordereaux bancaires filtrent les paiements selon le type de remise choisi
 
 **Authentification et permissions**
+
 - Les rôles techniques existants restent inchangés côté API, mais leur présentation est clarifiée côté produit pour préparer l'administration des comptes sans casser les autorisations existantes
 
 **Outillage**
+
 - `dev.ps1` : remplacement de `Start-Process pwsh` (2 fenêtres séparées) par `Start-Job` — backend et frontend tournent dans la même session PowerShell, Ctrl+C arrête les deux proprement
 
 **Frontend — modernisation de l’interface**
+
 - Refonte des vues principales avec une présentation plus aérée et cohérente : tableau de bord, contacts, détail contact, factures clients et fournisseurs, paiements, banque, caisse, import Excel, exercices, salaires et écrans comptables (journal, balance, grand livre, résultat, bilan, règles, plan comptable)
 - Harmonisation des dialogues et formulaires métier avec une structure commune (introduction, sections, aides contextuelles) pour les comptes comptables, contacts, factures, salaires, dépôts bancaires, imports, opérations de caisse et saisie manuelle d’écritures
 - L'écran d'import Excel a été réorganisé autour d'une synthèse courte, d'onglets dédiés (`Détails`, `Synthèse complète`, `Avertissements`) et d'une table d'opérations filtrable
 
 **Frontend — mode sombre (dark mode)**
+
 - `AppLayout.vue`, `LoginView.vue`, `NavMenu.vue`, `SettingsView.vue` : fonds et couleurs rendus réactifs via `v-bind()` CSS couplé à des `computed` Vue (les tokens `--p-surface-N` du thème Aura sont absolus, non réactifs au mode)
 - `AppLayout.vue` : suppression de l'en-tête de sidebar « ⚖️ Solde ⚖️ » (redondant avec le titre de la page)
 - `NavMenu.vue` : couleur et fond de l'élément de navigation actif adoucis en dark mode (`rgba(52,211,153,0.12)` + texte `primary-300`)
@@ -152,10 +170,12 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ### Corrigé
 
 **Paiements et trésorerie**
+
 - Un règlement en `espèces` crée désormais immédiatement une entrée en caisse, tandis que la remise d'espèces en banque sort explicitement la somme de la caisse au moment du dépôt
 - Un règlement par `chèque` reste en attente d'une remise manuelle en banque au lieu d'être assimilé à un dépôt automatique
 
 **Backend**
+
 - invalidation des anciens jetons JWT après changement ou réinitialisation de mot de passe pour éviter qu'une ancienne session reste active
 - `excel_import.py` : support des feuilles Caisse (`caisse`/`cash`) et Banque (`banque`/`bank`/`relev`) dans l'import Excel de gestion ; déduplication des numéros de factures dans le même batch ; création automatique du contact si absent (plutôt que saut de ligne silencieux)
 - sécurité et robustesse revues après commentaires de PR : secret JWT obligatoire hors dev/test, conversion propre des erreurs d'édition manuelle en réponses HTTP, metadata Alembic complétée pour l'autogénération
@@ -163,6 +183,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - import réversible BL-004 stabilisé : un paiement préparé peut maintenant se rapprocher d'une facture du même classeur déjà planifiée dans le run, même si l'ordre des onglets est défavorable, et l'exécution facture/paiement ne déclenche plus d'erreurs async sur les snapshots enregistrés
 
 **Frontend — bugfixes interface**
+
 - `index.html` : correction de `<\/script>` → `</script>` (artefact d'échappement introduit lors de la création du fichier)
 - `main.ts` : enregistrement de `ConfirmationService` manquant — toutes les views utilisant `useConfirm()` (Contacts, Factures, Paiements, Exercices, Salaires) crashaient au chargement
 - `DashboardView.vue` : imports PrimeVue manquants (`Card`, `ProgressSpinner`, `Message`, `Select`) — la vue du tableau de bord était vide
@@ -175,6 +196,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ### Ajouté
 
 **Backend (Phase 7 — Complétion du plan)**
+
 - `ContactHistory` schéma + `get_contact_history()` service + `GET /contacts/{id}/history`
 - `POST /contacts/{id}/mark-douteux` : génère les écritures 411xxx → 416xxx pour créances douteuses
 - `BilanRead` schéma + `get_bilan()` service + `GET /accounting/entries/bilan` : bilan simplifié actif/passif
@@ -190,6 +212,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 19 nouveaux tests (5 fichiers) — 342 tests au total
 
 **Frontend (Phase 7)**
+
 - `accounting.ts` : types `BilanRead`, `ContactHistory`, `RulePreviewEntry`, `PreviewResult` + fonctions `getBilanApi`, `getExportCsvUrl`, `getContactHistoryApi`, `markCreanceDouteuse`, `previewRuleApi`, `previewGestionFileApi`, `previewComptabiliteFileApi`, `importOFXApi`, `importQIFApi`
 - `AccountingBilanView.vue` : bilan actif/passif avec filtre exercice + bouton export CSV
 - `ContactDetailView.vue` : fiche contact avec historique factures/paiements + action mark-douteux
@@ -201,6 +224,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - i18n `fr.ts` : clés `bilan.*`, `contact_history.*`, `rule_preview.*`, `bank_import.*`, `import.preview*`
 
 **Backend (Phase 6 — Fonctions avancées)**
+
 - Modèle `Salary` + migration `0010` : salaire mensuel par employé (brut, charges salariales/patronales, PAS, net, total_cost)
 - Schémas `SalaryCreate/Update/Read` (validateur YYYY-MM) + `SalarySummaryRow`
 - `salary_service.py` : CRUD + `get_monthly_summary` + hook `generate_entries_for_salary`
@@ -217,6 +241,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 22 nouveaux tests (4 fichiers) — 323 tests au total, 78 % couverture
 
 **Frontend (Phase 6)**
+
 - `DashboardView.vue` : KPIs temps réel (cards PrimeVue) + tableau mensuel charges/produits
 - `SalaryView.vue` : liste CRUD des salaires + résumé mensuel agrégé + dialog de saisie
 - `ImportExcelView.vue` : upload fichier Excel (gestion ou comptabilité) + affichage du rapport d'import
@@ -226,6 +251,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - NavMenu : entrées Salaires (pi-id-card) et Import Excel (pi-file-excel)
 
 **Backend (Phase 5 — Comptabilité)**
+
 - Modèle `FiscalYear` : exercice comptable avec statuts `open/closing/closed`
 - Modèle `AccountingEntry` : écriture en partie double (numéro, date, compte, libellé, débit, crédit, exercice, source)
 - Modèle `AccountingRule` + `AccountingRuleEntry` : règles configurables par déclencheur (`TriggerType` — 14 valeurs), libellés avec templates `{{key}}`
@@ -240,6 +266,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 93 nouveaux tests (3 fichiers unitaires + 1 intégration) — 87 % couverture globale (301 tests au total)
 
 **Frontend (Phase 5)**
+
 - Types et fonctions API dans `accounting.ts` : journal, balance, grand livre, résultat, saisie manuelle, règles, exercices
 - `AccountingJournalView.vue` : journal filtrable + dialog saisie manuelle
 - `AccountingBalanceView.vue` : balance agrégée par compte avec totaux débit/crédit/solde
@@ -254,6 +281,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ---
 
 ## [0.4.0] — Phase 4 — Paiements & Trésorerie
+
 - Modèle `Payment` : paiement par facture, méthode (espèces/chèque/virement), suivi dépôt en banque
 - Modèle `CashRegister` + `CashCount` : journal de caisse avec solde glissant, comptage physique par coupure
 - Modèle `BankTransaction` + `Deposit` + table d'association `deposit_payments`
@@ -267,6 +295,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 208 tests (12 nouveaux fichiers de tests) — 84 % de couverture globale
 
 **Frontend (Phase 4)**
+
 - `api/payments.ts`, `api/cash.ts`, `api/bank.ts` : clients API typés
 - `PaymentsView.vue` : liste globale des paiements, filtre "à remettre en banque"
 - `CashView.vue` : journal de caisse + interface comptage par coupure (onglets)
@@ -285,6 +314,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 145 tests pytest (unitaires + intégration) — 79 % de couverture
 
 **Frontend (Phase 3)**
+
 - `api/invoices.ts` : toutes les fonctions CRUD + status + duplicate + pdf + email + upload
 - `ClientInvoicesView.vue` : liste filtrée (statut, année), actions PDF/email/dupliquer/supprimer
 - `ClientInvoiceForm.vue` : formulaire avec lignes dynamiques et total calculé
@@ -297,6 +327,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ---
 
 **Backend (Phase 2)**
+
 - Migration Alembic `0002` : table `contacts`
 - Service contacts : CRUD complet, recherche insensible à la casse sur nom/prénom/email, filtrage par type, pagination
 - Routeur `/api/contacts/` : CRUD REST avec guards rôle (`SECRETAIRE+`)
@@ -308,6 +339,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 103 tests pytest (unitaires + intégration) — 89 % de couverture
 
 **Frontend**
+
 - `api/contacts.ts` : fonctions CRUD vers `/api/contacts/`
 - `api/accounting.ts` : fonctions CRUD vers `/api/accounting/accounts/` + seed
 - `ContactsView.vue` : DataTable PrimeVue avec recherche (debounce 300 ms) et filtre par type, Dialog création/édition, suppression avec confirmation
@@ -321,6 +353,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ---
 
 **Backend (Phase 1)**
+
 - Fabrique d'application FastAPI (`create_app()`) avec lifespan, CORS, service des fichiers statiques Vue.js
 - Configuration Pydantic Settings avec validation : `JWT_SECRET_KEY` (min 32 caractères), `FISCAL_YEAR_START_MONTH` (défaut 8 = août), paramètres SMTP optionnels
 - Moteur SQLAlchemy 2 async avec SQLite en mode WAL et contrôle des clés étrangères
@@ -335,6 +368,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 44 tests pytest (unitaires + intégration) — 88 % de couverture
 
 **Frontend**
+
 - Scaffold Vue.js 3 avec TypeScript, Vue Router, Pinia, Vitest, ESLint + Prettier
 - PrimeVue 4 avec preset Aura (`@primeuix/themes`) et primeicons
 - `vue-i18n` v11 avec locale française (auth, navigation, paramètres, rôles utilisateurs)
@@ -349,6 +383,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 11 tests Vitest unitaires pour le store auth — tous verts
 
 **Infra**
+
 - `Dockerfile` multi-stage : `node:22-alpine` pour le build Vue.js, `python:3.13-slim` pour le runtime, utilisateur non-root `solde`
 - `docker-compose.yml` : 1 service, 1 volume `./data`, port 8000
 - `.dockerignore`
