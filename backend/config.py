@@ -78,7 +78,7 @@ class Settings(BaseSettings):
     )
     @classmethod
     def empty_str_to_none(cls, v: object) -> object:
-        if isinstance(v, str) and v.strip() == "":
+        if isinstance(v, str) and v == "":
             return None
         return v
 

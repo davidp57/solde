@@ -84,7 +84,7 @@ These commands reflect the current repository expectations before opening a pull
 
 Run from the repository root:
 
-```powershell
+```bash
 ruff check backend/ tests/
 ruff format --check backend/ tests/   # fix with: ruff format backend/ tests/
 python -m mypy backend/
