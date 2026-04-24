@@ -11,6 +11,8 @@ from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.contact import (
     ContactCreate,
+    ContactEmailImportResult,
+    ContactEmailImportRow,
     ContactHistory,
     ContactRead,
     ContactUpdate,
@@ -58,6 +60,16 @@ async def create_contact(
 ) -> ContactRead:
     """Create a new contact."""
     return await contact_service.create_contact(db, payload)  # type: ignore[return-value]
+
+
+@router.post("/import-emails", response_model=ContactEmailImportResult)
+async def import_contact_emails(
+    payload: list[ContactEmailImportRow],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _WriteAccess,
+) -> ContactEmailImportResult:
+    """Bulk-import email addresses into existing contacts matched by name."""
+    return await contact_service.import_emails_from_rows(db, payload)
 
 
 @router.get("/{contact_id}", response_model=ContactRead)

@@ -73,3 +73,20 @@ export async function updateContactApi(id: number, payload: ContactUpdate): Prom
 export async function deleteContactApi(id: number): Promise<void> {
   await apiClient.delete(`/api/contacts/${id}`)
 }
+
+export interface ContactEmailImportRow {
+  nom: string
+  email: string
+}
+
+export interface ContactEmailImportResult {
+  rows_processed: number
+  updated: number
+  not_found: number
+  already_has_email: number
+}
+
+export async function importContactEmailsApi(rows: ContactEmailImportRow[]): Promise<ContactEmailImportResult> {
+  const response = await apiClient.post<ContactEmailImportResult>('/api/contacts/import-emails', rows)
+  return response.data
+}

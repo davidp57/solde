@@ -251,6 +251,18 @@ export default {
       'Ajoutez un contexte pratique pour les relances, la comptabilité ou l’organisation interne.',
     deleted: 'Contact supprimé.',
     confirm_delete: 'Supprimer le contact {nom} ?',
+    tabs: {
+      all: 'Tous',
+      clients: 'Clients',
+      suppliers: 'Fournisseurs',
+    },
+    import_emails: 'Importer e-mails',
+    import_emails_title: 'Importer des adresses e-mail',
+    import_emails_subtitle:
+      'Collez une liste de contacts (un par ligne, format : Nom, email@exemple.com). Les contacts existants sans e-mail seront mis à jour.',
+    import_emails_placeholder: 'Dupont Jean, jean.dupont@example.com\nMartin Pierre, pierre.martin@example.com',
+    import_emails_result: '{updated} mis à jour, {not_found} non trouvé(s), {already} déjà renseigné(s).',
+    import_emails_empty: 'Aucune ligne valide dans le texte collé.',
     metrics: {
       total: 'Contacts charges',
       clients: '{count} clients',

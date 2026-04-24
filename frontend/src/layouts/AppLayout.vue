@@ -24,7 +24,7 @@
         />
       </div>
       <div class="topbar-user">
-        <span class="topbar-username">{{ displayedUsername }}</span>
+        <RouterLink to="/profile" class="topbar-username">{{ displayedUsername }}</RouterLink>
         <Button
           :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
           text
@@ -56,10 +56,10 @@
       <aside class="sidebar">
         <NavMenu />
         <div class="sidebar-footer">
-          <div class="sidebar-user">
+          <RouterLink to="/profile" class="sidebar-user">
             <span class="sidebar-username">{{ displayedUsername }}</span>
             <span class="sidebar-role">{{ displayedRoleLabel }}</span>
-          </div>
+          </RouterLink>
           <Button
             :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
             text
@@ -75,6 +75,7 @@
             @click="handleLogout"
           />
         </div>
+        <span class="sidebar-version">v{{ appVersion }}</span>
       </aside>
 
       <!-- Main content -->
@@ -113,6 +114,7 @@ const { isDark, toggle: toggleDark } = useDarkMode()
 const { home: breadcrumbHome, items: breadcrumbItems } = useBreadcrumb()
 
 const sidebarVisible = ref(false)
+const appVersion = __APP_VERSION__
 const displayedUsername = computed(() => auth.user?.username ?? t('auth.me'))
 const displayedRoleLabel = computed(() =>
   auth.user?.role ? t(`user.role.${auth.user.role}`) : t('auth.session_active'),
@@ -242,6 +244,15 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  padding: 0.25rem 0.375rem;
+  border-radius: 0.375rem;
+  transition: background 0.15s;
+}
+
+.sidebar-user:hover {
+  background: v-bind(hoverBg);
 }
 
 .sidebar-username {
@@ -255,6 +266,14 @@ onMounted(() => {
 .sidebar-role {
   font-size: 0.75rem;
   color: var(--p-text-muted-color);
+}
+
+.sidebar-version {
+  font-size: 0.7rem;
+  color: var(--p-text-muted-color);
+  padding: 0.25rem 1rem 0.5rem;
+  display: block;
+  opacity: 0.6;
 }
 
 /* Main content */
