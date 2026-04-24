@@ -263,6 +263,7 @@ export default {
     import_emails_placeholder: 'Dupont Jean, jean.dupont@example.com\nMartin Pierre, pierre.martin@example.com',
     import_emails_result: '{updated} mis à jour, {not_found} non trouvé(s), {already} déjà renseigné(s).',
     import_emails_empty: 'Aucune ligne valide dans le texte collé.',
+    import_emails_discarded: '{count} ligne(s) ignorée(s) car leur format était invalide.',
     metrics: {
       total: 'Contacts charges',
       clients: '{count} clients',

@@ -101,13 +101,18 @@ class ContactHistory(BaseModel):
 
 class ContactEmailImportRow(BaseModel):
     nom: str
-    email: str
+    email: EmailStr
 
     @field_validator("nom")
     @classmethod
     def nom_not_empty(cls, v: str) -> str:
         if not v.strip():
             raise ValueError("nom must not be empty")
+        return v.strip()
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def email_strip(cls, v: str) -> str:
         return v.strip()
 
 

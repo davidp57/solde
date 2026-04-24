@@ -197,6 +197,7 @@
       :header="t('contacts.import_emails_title')"
       modal
       class="app-dialog app-dialog--medium"
+      @hide="closeImportDialog"
     >
       <div class="contacts-import-form">
         <p class="app-field__hint">{{ t('contacts.import_emails_subtitle') }}</p>
@@ -213,7 +214,7 @@
           {{ t('contacts.import_emails_result', { updated: importResult.updated, not_found: importResult.not_found, already: importResult.already_has_email }) }}
         </Message>
         <div class="app-form-actions">
-          <Button :label="t('common.cancel')" severity="secondary" text @click="closeImportDialog" />
+          <Button :label="t('common.cancel')" severity="secondary" text :disabled="importLoading" @click="closeImportDialog" />
           <Button :label="t('contacts.import_emails')" icon="pi pi-check" :loading="importLoading" @click="runImport" />
         </div>
       </div>
@@ -369,23 +370,31 @@ function closeImportDialog(): void {
   importResult.value = null
 }
 
-function parseImportText(text: string): ContactEmailImportRow[] {
-  return text
+function parseImportText(text: string): { rows: ContactEmailImportRow[]; discardedCount: number } {
+  let discardedCount = 0
+  const rows = text
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
     .flatMap((line) => {
       const commaIdx = line.lastIndexOf(',')
-      if (commaIdx < 1) return []
+      if (commaIdx < 1) {
+        discardedCount += 1
+        return []
+      }
       const nom = line.slice(0, commaIdx).trim()
       const email = line.slice(commaIdx + 1).trim()
-      if (!nom || !email.includes('@')) return []
+      if (!nom || !email.includes('@')) {
+        discardedCount += 1
+        return []
+      }
       return [{ nom, email }]
     })
+  return { rows, discardedCount }
 }
 
 async function runImport(): Promise<void> {
-  const rows = parseImportText(importText.value)
+  const { rows, discardedCount } = parseImportText(importText.value)
   if (rows.length === 0) {
     toast.add({ severity: 'warn', summary: t('contacts.import_emails_empty'), life: 3000 })
     return
@@ -393,6 +402,9 @@ async function runImport(): Promise<void> {
   importLoading.value = true
   try {
     importResult.value = await importContactEmailsApi(rows)
+    if (discardedCount > 0) {
+      toast.add({ severity: 'warn', summary: t('contacts.import_emails_discarded', { count: discardedCount }), life: 4000 })
+    }
     void loadContacts()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })

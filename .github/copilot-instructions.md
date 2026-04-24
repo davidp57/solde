@@ -124,7 +124,7 @@ Keep the following documents up to date with every significant change:
 
 ### Development cycle
 
-1. **Analyse and create tickets** — add work items to `doc/backlog.md` (format: `BL-NNN`, priorities P1–P3, dates, estimates, explicit status). Estimates represent **Copilot's own implementation time** (how long the AI agent takes to complete the work), not the user's time.
+1. **Analyse and create tickets** — add work items to `doc/backlog.md` (format: `BIZ-NNN` / `TEC-NNN` / `CHR-NNN` depending on category — see backlog legend, priorities P1–P3, dates, estimates, explicit status). Estimates represent **Copilot's own implementation time** (how long the AI agent takes to complete the work), not the user's time.
 2. **Feed the roadmap when relevant** — if a ticket represents a new feature, major initiative, innovative idea, or strategic shift, also add it to `doc/roadmap.md` under "Not yet planned".
 3. **Group tickets into lots** — related backlog items are bundled into named lots (e.g. *Lot A — Import Excel*, *Lot F — Tests*). Each lot is identified in the backlog.
 4. **Assign a target version** — agree on a version (`MAJOR.MINOR`, no patch level) per lot. **Every versioned lot must appear in the roadmap**: functional lots get a subsection with detail, technical lots get a one-line summary.
