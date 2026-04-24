@@ -29,6 +29,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
 | BIZ-033 | Comparaison chèques inter-exercices | P1 | ~15 min | 2026-04-21 | 2026-04-24 | 2026-04-24 |
 | TEC-039 | Revalidation scénarios facture / email | P1 | ~10 min | 2026-04-21 | | |
+| BIZ-088 | Gestion des employés (CRUD) | P1 | ~45 min | 2026-04-24 | | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
 
@@ -77,6 +78,13 @@ avec validation explicite du comportement attendu.
 ### BIZ-040 — Import one-shot emails contacts
 
 Import d'une liste d'adresses e-mail pour enrichir les contacts clients existants.
+
+### BIZ-088 — Gestion des employés (CRUD)
+
+Écran de gestion des employés (liste, création, édition, désactivation) pour permettre
+la saisie manuelle des fiches de salaire. Les employés sont probablement des `Contact`
+de type `fournisseur` ou un sous-type dédié — à décider à l'implémentation. Prérequis
+au ticket de saisie des salaires.
 
 ### TEC-077 — Refactoring vues volumineuses
 
