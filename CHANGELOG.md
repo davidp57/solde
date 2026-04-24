@@ -17,7 +17,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `doc/dev/exploitation.md` : nouvelle section « Image deployment options » présentant GHCR vs build local + variable `SOLDE_IMAGE` ; `SWAGGER_ENABLED` ajouté au tableau de configuration (CHR-019, CHR-082)
 - `backend/config.py` : paramètre `SWAGGER_ENABLED` — active Swagger UI (`/api/docs`) et ReDoc (`/api/redoc`) indépendamment de `DEBUG` (CHR-082)
 - `.env.example` : entrée `SWAGGER_ENABLED=false` documentée (CHR-082)
-- `backend/main.py` : `openapi_tags` avec descriptions pour les 12 groupes d'endpoints ; docs_url / redoc_url / openapi_url pilotés par `swagger_enabled` (CHR-082)
+- `backend/main.py` : `openapi_tags` avec descriptions pour les 12 groupes d'endpoints ; `/api/docs`, `/api/redoc` et `/api/openapi.json` activés si `debug` ou `swagger_enabled` est vrai (CHR-082)
 
 
 - `.github/workflows/ci.yml` : workflow CI GitHub Actions (jobs `backend` + `frontend`) — ruff check + format, mypy, pytest sur toutes les branches actives ; ESLint, vue-tsc, vitest sur le frontend (CHR-086)

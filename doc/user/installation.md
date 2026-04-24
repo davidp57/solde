@@ -31,7 +31,7 @@ Renseigner au minimum `JWT_SECRET_KEY`. Si vous voulez éviter les identifiants 
 
 Aucune compilation locale n'est nécessaire. L'image est publiée automatiquement à chaque release.
 
-Ajouter dans `.env` :
+Ajouter à `.env` :
 
 ```bash
 SOLDE_IMAGE=ghcr.io/davidp57/solde:latest
@@ -40,7 +40,8 @@ SOLDE_IMAGE=ghcr.io/davidp57/solde:latest
 Lancer l'application :
 
 ```bash
-docker compose up -d
+docker compose pull
+docker compose up -d --no-build
 ```
 
 #### Option B — Construction locale
@@ -126,7 +127,8 @@ SOLDE_IMAGE=ghcr.io/davidp57/solde:latest
 Start the application:
 
 ```bash
-docker compose up -d
+docker compose pull
+docker compose up -d --no-build
 ```
 
 #### Option B — Local build
