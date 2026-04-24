@@ -11,6 +11,12 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Modifié
+
+- `doc/dev/contribuer.md` : commandes qualité mises à jour (scope `ruff` limité à `backend/ tests/`, `python -m mypy backend/`, `pytest tests/ -q`) ; commande frontend dédupliquée ; note multi-PC (`git pull --rebase`) ; URL Swagger annotée avec prérequis `SWAGGER_ENABLED`/`DEBUG` (CHR-020)
+
+---
+
 ### Ajouté
 
 - `doc/user/installation.md` : option A — image pré-construite depuis GHCR (`SOLDE_IMAGE=ghcr.io/davidp57/solde:latest`) et option B — build local ; sections FR + EN (CHR-019)

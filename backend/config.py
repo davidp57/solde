@@ -65,6 +65,23 @@ class Settings(BaseSettings):
     # Empty list → ["*"] in debug mode, [] in production
     cors_allowed_origins: list[str] = []
 
+    @field_validator(
+        "test_import_gestion_2024_path",
+        "test_import_gestion_2025_path",
+        "test_import_comptabilite_2024_path",
+        "test_import_comptabilite_2025_path",
+        "smtp_host",
+        "smtp_user",
+        "smtp_password",
+        "smtp_from_email",
+        mode="before",
+    )
+    @classmethod
+    def empty_str_to_none(cls, v: object) -> object:
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
+
     @field_validator("fiscal_year_start_month")
     @classmethod
     def validate_fiscal_year_month(cls, v: int) -> int:

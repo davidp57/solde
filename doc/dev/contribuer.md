@@ -74,7 +74,7 @@ Useful URLs:
 
 - Vite frontend: `http://localhost:5173`
 - FastAPI-served app when the frontend is built: `http://localhost:8000`
-- API docs: `http://localhost:8000/api/docs`
+- API docs: `http://localhost:8000/api/docs` (requires `SWAGGER_ENABLED=true` or `DEBUG=true` in `.env`)
 
 ## Quality commands
 
@@ -82,20 +82,22 @@ These commands reflect the current repository expectations before opening a pull
 
 ### Backend
 
-```bash
-ruff check .
-ruff format --check .
-mypy .
-pytest tests/
+Run from the repository root:
+
+```powershell
+ruff check backend/ tests/
+ruff format --check backend/ tests/   # fix with: ruff format backend/ tests/
+python -m mypy backend/
+pytest tests/ -q
 ```
 
 ### Frontend
 
+Run from the `frontend/` directory:
+
 ```bash
-cd frontend
-npx vue-tsc --noEmit -p tsconfig.app.json
-npx vue-tsc --noEmit
 npx eslint src/
+npx vue-tsc --noEmit
 npx vitest run
 ```
 
@@ -103,7 +105,8 @@ npx vitest run
 
 - activate the Python virtual environment before backend commands;
 - run the full matrix before a PR, even if your change is scoped to a subset of files;
-- for fast iteration, start with focused checks and then replay the full matrix before the final commit.
+- for fast iteration, start with focused checks and then replay the full matrix before the final commit;
+- on a multi-machine setup, always run `git pull --rebase` before starting work on a branch to avoid push rejections.
 
 ## Repository structure
 
