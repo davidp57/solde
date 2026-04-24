@@ -453,11 +453,17 @@ function resetAllFilters(): void {
 async function loadPayments() {
   loading.value = true
   try {
+    // Skip fiscal-year date filter when showing all undeposited — they can span multiple years
+    const dateFilter = undepositedOnly.value
+      ? {}
+      : {
+          from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+          to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+        }
     payments.value = await listPayments({
       invoice_type: 'client',
       undeposited_only: undepositedOnly.value,
-      from_date: fiscalYearStore.selectedFiscalYear?.start_date,
-      to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+      ...dateFilter,
     })
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })

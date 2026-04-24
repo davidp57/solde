@@ -1046,6 +1046,7 @@ export default {
     test_shortcuts_hint:
       'Ces boutons sont destinés aux tests locaux. Ils restent désactivés tant que les fichiers attendus ne sont pas trouvés.',
     test_shortcuts_run: 'Importer {label}',
+    test_shortcuts_run_all: 'Tout importer dans l\'ordre',
     test_shortcuts_missing_file: 'Fichier non configuré',
     estimated_contacts: 'Contacts estimés',
     estimated_invoices: 'Factures estimées',
