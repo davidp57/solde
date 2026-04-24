@@ -63,3 +63,7 @@ docker-compose.override.yml
 
 # Project-specific
 data/
+
+# Playwright
+frontend/test-results/
+frontend/playwright-report/
