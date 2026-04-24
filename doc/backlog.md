@@ -161,9 +161,9 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | BL-043 | UX / Fonctionnel | Comptabilité / Filtres | P2 | D | ~1h30 | Combos comptes comptables couleur | ✅ Fait |
 | BL-035 | UX / Fonctionnel | Contacts | P2 | E | ~2h | Onglets clients / fournisseurs | ⬜ Prêt |
 | BL-040 | Import / Fonctionnel | Contacts client | P2 | E | ~2h | Import one-shot emails contacts | ⬜ Prêt |
-| BL-079 | Qualité / Tests | Frontend / Composables | P2 | F | ~1h30 | Tests unitaires composables | ⬜ Prêt |
-| BL-080 | Qualité / Tests | E2E | P2 | F | ~2h | Smoke test Playwright | ⬜ Prêt |
-| BL-081 | Qualité / Tests | Backend / Intégration | P2 | F | ~1h30 | Tests intégration API manquants | ⬜ Prêt |
+| BL-079 | Qualité / Tests | Frontend / Composables | P2 | F | ~1h30 | Tests unitaires composables | ✅ Fait |
+| BL-080 | Qualité / Tests | E2E | P2 | F | ~2h | Smoke test Playwright | ✅ Fait |
+| BL-081 | Qualité / Tests | Backend / Intégration | P2 | F | ~1h30 | Tests intégration API manquants | ✅ Fait |
 | BL-077 | Dette technique | Frontend / Vues | P2 | G | ~5h | Refactoring vues volumineuses | ⬜ Prêt |
 | BL-034 | Fonctionnel / Architecture | Banque / Multi-compte | P2 | H | ~6h+ | Support multi-compte banque | ⬜ Prêt |
 | BL-078 | Qualité / Frontend | i18n | P3 | — | ~30 min | Squelette localisation `en.ts` | ⬜ Prêt |
@@ -177,7 +177,7 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | **C** | Dashboard interactif | BL-075, BL-073 | ~3h | ✅ Fait 2026-04-23 |
 | **D** | Polish UI | BL-071, BL-043 | ~3h | ✅ Terminé |
 | **E** | Contacts & import | BL-035, BL-040 | ~4h | — |
-| **F** | Tests | BL-079, BL-080, BL-081 | ~5h | Setup Playwright pour BL-080 |
+| **F** | Tests | BL-079, BL-080, BL-081 | ~5h | ✅ Fait 2026-04-24 |
 | **G** | Refactoring frontend | BL-077 | ~5h | — |
 | **H** | Architecture multi-compte | BL-034 | ~6h+ | Décisions métier nécessaires |
 
@@ -239,9 +239,9 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 | BL-076 | 2026-04-23 | UX / Frontend | Comptabilité / Impression | ✅ Fait | Ajouter des styles `@media print` sur les vues comptables (journal, balance, grand livre, bilan, résultat) pour l'impression AG |
 | BL-077 | 2026-04-23 | Dette technique | Frontend / Vues | P2 | Refactorer les vues volumineuses (`ImportExcelView` 2 873 L, `BankView` 2 215 L, `SettingsView` 1 077 L) en sous-composants |
 | BL-078 | 2026-04-23 | Qualité / Frontend | i18n | P3 | Créer un squelette `en.ts` pour préparer la localisation anglaise et assurer la cohérence avec la documentation bilingue |
-| BL-079 | 2026-04-23 | Qualité / Tests | Frontend / Composables | P2 | Ajouter des tests unitaires pour les composables `useDarkMode`, `useTableFilter` et `activeFilterLabels` |
-| BL-080 | 2026-04-23 | Qualité / Tests | E2E | P2 | Ajouter un smoke test E2E (Playwright) couvrant le circuit login → dashboard → contact → facture → paiement |
-| BL-081 | 2026-04-23 | Qualité / Tests | Backend / Intégration | P2 | Compléter les tests d'intégration API manquants (salary, accounting_rule, fiscal_year, dashboard) |
+| BL-079 | 2026-04-23 | Qualité / Tests | Frontend / Composables | ✅ Fait | Ajouter des tests unitaires pour les composables `useDarkMode`, `useTableFilter` et `activeFilterLabels` |
+| BL-080 | 2026-04-23 | Qualité / Tests | E2E | ✅ Fait | Ajouter un smoke test E2E (Playwright) couvrant le circuit login → dashboard → contact → facture → paiement |
+| BL-081 | 2026-04-23 | Qualité / Tests | Backend / Intégration | ✅ Fait | Compléter les tests d'intégration API manquants (salary, accounting_rule, fiscal_year, dashboard) |
 | BL-082 | 2026-04-23 | Documentation | API / OpenAPI | P3 | Enrichir le Swagger avec des descriptions et exemples sur les endpoints principaux |
 | BL-083 | 2026-04-23 | Documentation | Exploitation / Migration | ✅ Fait | Rédiger un guide de migration/montée de version pour les déploiements Synology sans expert technique |
 | BL-084 | 2026-04-23 | UX / Frontend | Session / Auth | ✅ Fait | Afficher une notification « Session bientôt expirée » 5 minutes avant l'expiration du JWT |
@@ -592,25 +592,28 @@ Tableau de suivi des 19 tickets issus de l'audit autonome du 23/04/2026 avec est
 
 ### BL-079 — Tests composables frontend
 
-- **Dates** : `created=2026-04-23`
+- **Dates** : `created=2026-04-23`, `completed=2026-04-24`
 - **Origine** : revue de projet du `2026-04-23`.
 - **Pourquoi** : seul `useDataTableFilters` a un test. Les composables `useDarkMode`, `useTableFilter` et `activeFilterLabels` ne sont pas couverts, en dessous de l'objectif de 70 %.
 - **Résultat attendu** : ajouter des tests Vitest pour chaque composable non couvert.
+- **Livré parce que** : 3 fichiers de tests ajoutés (15 tests) — `useDarkMode.spec.ts` (4 tests : toggle, persistance localStorage, classe CSS), `useTableFilter.spec.ts` (8 tests : `applyFilter` + `useTableFilter` avec réactivité et cas limites), `activeFilterLabels.spec.ts` (10 tests : `findSelectedFilterLabel` + `collectActiveFilterLabels`). Suite frontend 126/126 au vert.
 
 ### BL-080 — Smoke test E2E
 
-- **Dates** : `created=2026-04-23`
+- **Dates** : `created=2026-04-23`, `completed=2026-04-24`
 - **Origine** : revue de projet du `2026-04-23`.
 - **Pourquoi** : aucun test E2E n'existe (ni Playwright ni Cypress). Les tests unitaires et d'intégration ne vérifient pas le circuit complet utilisateur.
 - **Résultat attendu** : un smoke test Playwright couvrant login → dashboard → créer contact → facture → paiement. Même un seul test E2E sur le happy path apporterait beaucoup de confiance.
 - **Point d'attention** : ne pas dépendre d'un service SMTP pour le test ; mocker ou ignorer l'envoi d'e-mail.
+- **Livré parce que** : Playwright installé avec config `playwright.config.ts` (webServer auto-start backend + frontend, DB E2E dédiée). Smoke test couvrant login → changement de mot de passe obligatoire → dashboard → contacts → factures clients → paiements. Script `test:e2e` ajouté au `package.json`.
 
 ### BL-081 — Tests d'intégration API manquants
 
-- **Dates** : `created=2026-04-23`
+- **Dates** : `created=2026-04-23`, `completed=2026-04-24`
 - **Origine** : revue de projet du `2026-04-23`.
 - **Pourquoi** : certains routers n'ont pas de tests d'intégration (salary, accounting_rule, fiscal_year, dashboard au-delà du smoke).
 - **Résultat attendu** : ajouter des tests d'intégration API couvrant les cas nominaux et les erreurs pour chaque router non couvert.
+- **Livré parce que** : 3 fichiers de tests ajoutés ou complétés — `test_accounting_rules_api.py` (11 tests : CRUD, seed idempotent, auth, rôles), `test_fiscal_year_api.py` (10 tests : pre-close-checks, open-next, close 404, auth/rôles), `test_salary_api.py` (+7 tests : get/update/delete by id, not found, accès trésorier), `test_dashboard_api.py` (+1 test : auth resources chart). Total 52 tests d'intégration ajoutés/existants au vert.
 
 ### BL-082 — Enrichir le Swagger avec descriptions et exemples
 
