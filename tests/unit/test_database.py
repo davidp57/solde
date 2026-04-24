@@ -17,16 +17,15 @@ async def test_init_db_does_not_create_tables() -> None:
     async def _noop() -> None:
         return None
 
-    with patch.object(db_module, "_engine", engine), patch.object(
-        db_module, "_bootstrap_admin", _noop
+    with (
+        patch.object(db_module, "_engine", engine),
+        patch.object(db_module, "_bootstrap_admin", _noop),
     ):
         await db_module.init_db()
 
     async with engine.begin() as conn:
         # No tables should have been created
-        table_names = await conn.run_sync(
-            lambda sync_conn: inspect(sync_conn).get_table_names()
-        )
+        table_names = await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_table_names())
         assert table_names == [], f"init_db() must not create tables, found: {table_names}"
 
         # PRAGMA journal_mode is called — in-memory SQLite returns 'memory'

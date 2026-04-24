@@ -1,6 +1,8 @@
 services:
   solde:
-    build: .
+    image: ${SOLDE_IMAGE:-ghcr.io/davidp57/solde:latest}
+    build:
+      context: .
     container_name: solde
     restart: unless-stopped
     ports:

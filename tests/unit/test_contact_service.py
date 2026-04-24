@@ -295,7 +295,9 @@ class TestMarkCreanceDouteuse:
 
 class TestImportEmailsFromRows:
     async def test_updates_contact_without_email(self, db_session: AsyncSession):
-        contact = await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Dupont", prenom="Jean"))
+        contact = await create_contact(
+            db_session, ContactCreate(type=ContactType.CLIENT, nom="Dupont", prenom="Jean")
+        )
         rows = [ContactEmailImportRow(nom="Dupont Jean", email="jean@example.com")]
         result = await import_emails_from_rows(db_session, rows)
         assert result.updated == 1
@@ -305,7 +307,10 @@ class TestImportEmailsFromRows:
         assert contact.email == "jean@example.com"
 
     async def test_skips_contact_with_existing_email(self, db_session: AsyncSession):
-        await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Martin", email="existing@example.com"))
+        await create_contact(
+            db_session,
+            ContactCreate(type=ContactType.CLIENT, nom="Martin", email="existing@example.com"),
+        )
         rows = [ContactEmailImportRow(nom="Martin", email="new@example.com")]
         result = await import_emails_from_rows(db_session, rows)
         assert result.updated == 0
