@@ -20,7 +20,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BL-077 | Refactoring vues volumineuses | P2 | ~30 min | 2026-04-23 | | |
+| BL-077 | Refactoring vues volumineuses | P2 | ~30 min | 2026-04-23 | 2026-04-24 | 2026-04-24 |
 
 ### Lot H — Architecture multi-compte (~45 min) — v0.6
 
