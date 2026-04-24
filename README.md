@@ -10,8 +10,8 @@ Solde centralise la facturation, les paiements, la trésorerie, les imports hist
 
 - Installation / premiers pas : [doc/user/installation.md](doc/user/installation.md)
 - Documentation utilisateur : [doc/user/README.md](doc/user/README.md)
-- Exploitation technique et opérations Docker : [doc/dev/exploitation.md](doc/dev/exploitation.md)
-- Contribution et développement local : [doc/dev/contribuer.md](doc/dev/contribuer.md)
+- Exploitation technique et opérations Docker : [doc/dev/docker-operations.md](doc/dev/docker-operations.md)
+- Contribution et développement local : [doc/dev/contributing.md](doc/dev/contributing.md)
 - Architecture et cadrage projet : [doc/architecture.md](doc/architecture.md), [doc/plan.md](doc/plan.md), [doc/roadmap.md](doc/roadmap.md) (migration EN encore à faire sur ces documents historiques)
 - Changelog : [CHANGELOG.md](CHANGELOG.md)
 
@@ -23,8 +23,8 @@ Solde brings invoicing, payments, treasury workflows, historical imports, and do
 
 - Installation / getting started: [doc/user/installation.md](doc/user/installation.md)
 - User documentation: [doc/user/README.md](doc/user/README.md)
-- Technical operations and Docker runtime guide: [doc/dev/exploitation.md](doc/dev/exploitation.md)
-- Contribution and local development guide: [doc/dev/contribuer.md](doc/dev/contribuer.md)
+- Technical operations and Docker runtime guide: [doc/dev/docker-operations.md](doc/dev/docker-operations.md)
+- Contribution and local development guide: [doc/dev/contributing.md](doc/dev/contributing.md)
 - Architecture and project planning: [doc/architecture.md](doc/architecture.md), [doc/plan.md](doc/plan.md), [doc/roadmap.md](doc/roadmap.md) (legacy French documents, English migration still pending)
 - Changelog: [CHANGELOG.md](CHANGELOG.md)
 

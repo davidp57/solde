@@ -38,7 +38,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ### CHR-020 — Documentation de contribution
 
-`doc/dev/contribuer.md` centralise setup local, `dev.ps1`, checks backend/frontend,
+`doc/dev/contributing.md` centralise setup local, `dev.ps1`, checks backend/frontend,
 conventions et workflow Git. Reste à valider sur un vrai cycle setup → checks → PR.
 
 ### CHR-021 — Manuel utilisateur illustré

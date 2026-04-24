@@ -13,14 +13,15 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
-- `doc/dev/contribuer.md` : commandes qualité mises à jour (scope `ruff` limité à `backend/ tests/`, `python -m mypy backend/`, `pytest tests/ -q`) ; commande frontend dédupliquée ; note multi-PC (`git pull --rebase`) ; URL Swagger annotée avec prérequis `SWAGGER_ENABLED`/`DEBUG` (CHR-020)
+- `doc/dev/contribuer.md` → `doc/dev/contributing.md`, `doc/dev/exploitation.md` → `doc/dev/docker-operations.md`, `doc/dev/gestion-utilisateurs-et-permissions.md` → `doc/dev/user-permissions.md`, `doc/plan-reprise-post-imp.md` → `doc/plan-post-imp.md` : renommage pour aligner les noms de fichiers sur la langue du contenu (EN) (CHR-020)
+- `doc/dev/contributing.md` : commandes qualité mises à jour (scope `ruff` limité à `backend/ tests/`, `python -m mypy backend/`, `pytest tests/ -q`) ; commande frontend dédupliquée ; note multi-PC (`git pull --rebase`) ; URL Swagger annotée avec prérequis `SWAGGER_ENABLED`/`DEBUG` (CHR-020)
 
 ---
 
 ### Ajouté
 
 - `doc/user/installation.md` : option A — image pré-construite depuis GHCR (`SOLDE_IMAGE=ghcr.io/davidp57/solde:latest`) et option B — build local ; sections FR + EN (CHR-019)
-- `doc/dev/exploitation.md` : nouvelle section « Image deployment options » présentant GHCR vs build local + variable `SOLDE_IMAGE` ; `SWAGGER_ENABLED` ajouté au tableau de configuration (CHR-019, CHR-082)
+- `doc/dev/docker-operations.md` : nouvelle section « Image deployment options » présentant GHCR vs build local + variable `SOLDE_IMAGE` ; `SWAGGER_ENABLED` ajouté au tableau de configuration (CHR-019, CHR-082)
 - `backend/config.py` : paramètre `SWAGGER_ENABLED` — active Swagger UI (`/api/docs`) et ReDoc (`/api/redoc`) indépendamment de `DEBUG` (CHR-082)
 - `.env.example` : entrée `SWAGGER_ENABLED=false` documentée (CHR-082)
 - `backend/main.py` : `openapi_tags` avec descriptions pour les 12 groupes d'endpoints ; `/api/docs`, `/api/redoc` et `/api/openapi.json` activés si `debug` ou `swagger_enabled` est vrai (CHR-082)
@@ -117,8 +118,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 **Documentation projet**
 
 - `README.md` recentré comme point d'entrée synthétique bilingue `FR + EN` avec renvoi vers les guides détaillés
-- Nouvelle documentation technique `doc/dev/exploitation.md` rédigée en anglais pour l'exploitation Docker, la configuration, les volumes, les sauvegardes et les opérations courantes
-- Nouvelle documentation développeur `doc/dev/contribuer.md` rédigée en anglais pour la mise en route locale, les commandes qualité, les conventions de développement et le workflow de contribution
+- Nouvelle documentation technique `doc/dev/docker-operations.md` rédigée en anglais pour l'exploitation Docker, la configuration, les volumes, les sauvegardes et les opérations courantes
+- Nouvelle documentation développeur `doc/dev/contributing.md` rédigée en anglais pour la mise en route locale, les commandes qualité, les conventions de développement et le workflow de contribution
 - Nouvelle documentation utilisateur / installation disponible en `FR + EN` avec index bilingue `doc/user/README.md`, guide d'installation `doc/user/installation.md` et versions anglaises des guides utilisateur déjà rédigés
 
 **Import Excel réversible**
@@ -130,7 +131,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 **Gestion des utilisateurs**
 
-- Documentation de cadrage `doc/dev/gestion-utilisateurs-et-permissions.md` pour clarifier la cible produit des rôles et la matrice simplifiée des permissions
+- Documentation de cadrage `doc/dev/user-permissions.md` pour clarifier la cible produit des rôles et la matrice simplifiée des permissions
 - Administration des comptes réservée à l'administrateur avec liste, création, activation/désactivation et changement de rôle
 - Espace `Mon profil` permettant à chaque utilisateur authentifié de consulter son compte, de mettre à jour son e-mail et de changer son mot de passe
 - Procédure de réinitialisation d'accès par l'administrateur avec mot de passe temporaire pour le contexte auto-hébergé

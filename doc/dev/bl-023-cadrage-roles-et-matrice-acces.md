@@ -58,7 +58,7 @@ The technical roles currently used in code are:
 - `tresorier`
 - `admin`
 
-The existing document `doc/dev/gestion-utilisateurs-et-permissions.md` already presents them on the product side as:
+The existing document `doc/dev/user-permissions.md` already presents them on the product side as:
 
 - `readonly` -> `Consultation`
 - `secretaire` -> `Gestionnaire`
@@ -185,4 +185,4 @@ Align the menu, guards, authorization helpers, fiscal year selector visibility, 
 
 ### Step 3 — documentation
 
-Update `doc/dev/gestion-utilisateurs-et-permissions.md` so that it reflects the final matrix actually implemented.
+Update `doc/dev/user-permissions.md` so that it reflects the final matrix actually implemented.

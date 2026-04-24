@@ -84,7 +84,7 @@ Sous Windows, `./dev.ps1` permet de lancer backend et frontend dans la même ses
 
 ### Aller plus loin
 
-- Exploitation technique Docker : [../dev/exploitation.md](../dev/exploitation.md)
+- Exploitation technique Docker : [../dev/docker-operations.md](../dev/docker-operations.md)
 - Documentation utilisateur : [README.md](README.md)
 
 ## English
@@ -171,5 +171,5 @@ On Windows, `./dev.ps1` starts backend and frontend in the same session.
 
 ### Next steps
 
-- Docker runtime and operations: [../dev/exploitation.md](../dev/exploitation.md)
+- Docker runtime and operations: [../dev/docker-operations.md](../dev/docker-operations.md)
 - User documentation: [README.md](README.md)

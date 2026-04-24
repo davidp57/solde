@@ -203,7 +203,7 @@ Coverage targets referenced by the repository instructions:
 ## Useful docs to revisit depending on the task
 
 - `README.md` for the project entry point
-- `doc/dev/exploitation.md` for Docker runtime and persisted data
+- `doc/dev/docker-operations.md` for Docker runtime and persisted data
 - `doc/plan.md` for the architecture target
 - `doc/roadmap.md` for delivery sequencing
 - `doc/user/` for user-facing behavior and workflows
