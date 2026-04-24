@@ -251,19 +251,25 @@ async def import_emails_from_rows(
     updated = 0
     not_found = 0
     already_has_email = 0
+    updated_indices: list[int] = []
+    not_found_indices: list[int] = []
+    already_has_email_indices: list[int] = []
 
-    for row in rows:
+    for i, row in enumerate(rows):
         key = _normalize_name(row.nom)
         matches = contact_by_key.get(key, [])
         if len(matches) != 1:
             not_found += 1
+            not_found_indices.append(i)
             continue
         found = matches[0]
         if found.email:
             already_has_email += 1
+            already_has_email_indices.append(i)
             continue
         found.email = row.email
         updated += 1
+        updated_indices.append(i)
 
     if updated > 0:
         await db.commit()
@@ -273,4 +279,7 @@ async def import_emails_from_rows(
         updated=updated,
         not_found=not_found,
         already_has_email=already_has_email,
+        updated_indices=updated_indices,
+        not_found_indices=not_found_indices,
+        already_has_email_indices=already_has_email_indices,
     )

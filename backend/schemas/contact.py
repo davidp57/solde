@@ -121,3 +121,6 @@ class ContactEmailImportResult(BaseModel):
     updated: int
     not_found: int
     already_has_email: int
+    updated_indices: list[int] = []
+    not_found_indices: list[int] = []
+    already_has_email_indices: list[int] = []

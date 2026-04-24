@@ -200,22 +200,98 @@
       @hide="closeImportDialog"
     >
       <div class="contacts-import-form">
-        <p class="app-field__hint">{{ t('contacts.import_emails_subtitle') }}</p>
-        <div class="app-field">
-          <Textarea
+        <p v-if="!importText.trim()" class="contacts-import-preview__summary">{{ t('contacts.import_emails_subtitle') }}</p>
+        <div v-if="importText.trim()" class="contacts-import-preview">
+          <p class="contacts-import-preview__summary" :class="{ 'contacts-import-preview__summary--none': !importResult && parsedPreview.rows.length === 0 }">
+            <template v-if="importResult">{{ t('contacts.import_emails_result', { updated: importResult.updated, not_found: importResult.not_found, already: importResult.already_has_email }) }}</template>
+            <template v-else-if="parsedPreview.rows.length > 0">{{ t('contacts.import_emails_preview_valid', { count: parsedPreview.rows.length }) }}</template>
+            <template v-else>{{ t('contacts.import_emails_preview_none') }}</template>
+          </p>
+          <div v-if="parsedPreview.ignoredLines.length > 0" class="contacts-import-issues">
+            <p class="contacts-import-issues__label">{{ t('contacts.import_emails_lines_ignored_label') }}</p>
+            <ul class="contacts-import-issues__list">
+              <li v-for="line in parsedPreview.ignoredLines" :key="line.lineNumber" class="contacts-import-issues__item contacts-import-issues__item--warn">
+                <span class="contacts-import-issues__num">{{ line.lineNumber }}</span>
+                <code class="contacts-import-issues__text">{{ line.raw.length > 70 ? line.raw.slice(0, 67) + '\u2026' : line.raw }}</code>
+              </li>
+            </ul>
+          </div>
+          <div v-if="serverErrorLines.length > 0" class="contacts-import-issues">
+            <p class="contacts-import-issues__label">{{ t('contacts.import_emails_lines_error_label') }}</p>
+            <ul class="contacts-import-issues__list">
+              <li v-for="line in serverErrorLines" :key="line.lineNumber" class="contacts-import-issues__item contacts-import-issues__item--error">
+                <span class="contacts-import-issues__num">{{ line.lineNumber }}</span>
+                <code class="contacts-import-issues__text">{{ line.raw.length > 70 ? line.raw.slice(0, 67) + '\u2026' : line.raw }}</code>
+              </li>
+            </ul>
+          </div>
+          <template v-if="importResult">
+            <div v-if="updatedResultLines.length > 0" class="contacts-import-issues">
+              <p class="contacts-import-issues__label">{{ t('contacts.import_emails_lines_updated_label') }}</p>
+              <ul class="contacts-import-issues__list">
+                <li v-for="line in updatedResultLines" :key="line.lineNumber" class="contacts-import-issues__item contacts-import-issues__item--success">
+                  <span class="contacts-import-issues__num">{{ line.lineNumber }}</span>
+                  <code class="contacts-import-issues__text">{{ line.raw.length > 70 ? line.raw.slice(0, 67) + '\u2026' : line.raw }}</code>
+                </li>
+              </ul>
+            </div>
+            <div v-if="notFoundResultLines.length > 0" class="contacts-import-issues">
+              <p class="contacts-import-issues__label">{{ t('contacts.import_emails_lines_not_found_label') }}</p>
+              <ul class="contacts-import-issues__list">
+                <li v-for="line in notFoundResultLines" :key="line.lineNumber" class="contacts-import-issues__item contacts-import-issues__item--not-found">
+                  <span class="contacts-import-issues__num">{{ line.lineNumber }}</span>
+                  <code class="contacts-import-issues__text">{{ line.raw.length > 70 ? line.raw.slice(0, 67) + '\u2026' : line.raw }}</code>
+                </li>
+              </ul>
+            </div>
+            <div v-if="alreadyHasEmailResultLines.length > 0" class="contacts-import-issues">
+              <p class="contacts-import-issues__label">{{ t('contacts.import_emails_lines_already_label') }}</p>
+              <ul class="contacts-import-issues__list">
+                <li v-for="line in alreadyHasEmailResultLines" :key="line.lineNumber" class="contacts-import-issues__item contacts-import-issues__item--already">
+                  <span class="contacts-import-issues__num">{{ line.lineNumber }}</span>
+                  <code class="contacts-import-issues__text">{{ line.raw.length > 70 ? line.raw.slice(0, 67) + '\u2026' : line.raw }}</code>
+                </li>
+              </ul>
+            </div>
+          </template>
+        </div>
+        <div class="contacts-import-editor">
+          <div ref="backdropRef" class="contacts-import-editor__backdrop" aria-hidden="true">
+            <div
+              v-for="(_, i) in importLinesList"
+              :key="i"
+              class="contacts-import-editor__line"
+              :class="{
+                'contacts-import-editor__line--warn': warnLineSet.has(i + 1),
+                'contacts-import-editor__line--error': errorLineSet.has(i + 1),
+                'contacts-import-editor__line--result-updated': updatedLineSet.has(i + 1),
+                'contacts-import-editor__line--result-not-found': notFoundLineSet.has(i + 1),
+                'contacts-import-editor__line--result-already': alreadyLineSet.has(i + 1),
+              }"
+            />
+          </div>
+          <textarea
+            ref="textareaRef"
             v-model="importText"
             :placeholder="t('contacts.import_emails_placeholder')"
             rows="8"
-            class="w-full"
-            style="font-family: monospace; font-size: 0.875rem"
+            wrap="off"
+            class="contacts-import-editor__textarea"
+            @scroll="syncBackdropScroll"
           />
         </div>
-        <Message v-if="importResult" severity="success" :closable="false">
-          {{ t('contacts.import_emails_result', { updated: importResult.updated, not_found: importResult.not_found, already: importResult.already_has_email }) }}
+        <Message v-if="importError" severity="error" :closable="false">
+          {{ importError }}
         </Message>
         <div class="app-form-actions">
           <Button :label="t('common.cancel')" severity="secondary" text :disabled="importLoading" @click="closeImportDialog" />
-          <Button :label="t('contacts.import_emails')" icon="pi pi-check" :loading="importLoading" @click="runImport" />
+          <Button
+            :label="t('contacts.import_emails')"
+            icon="pi pi-check"
+            :loading="importLoading"
+            :disabled="!importText.trim() || parsedPreview.rows.length === 0"
+            @click="runImport"
+          />
         </div>
       </div>
     </Dialog>
@@ -234,20 +310,21 @@
 </template>
 
 <script setup lang="ts">
+import axios from 'axios'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
+import Message from 'primevue/message'
 import Tab from 'primevue/tab'
 import TabList from 'primevue/tablist'
 import Tabs from 'primevue/tabs'
 import Tag from 'primevue/tag'
-import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
@@ -257,7 +334,8 @@ import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
 import { deleteContactApi, importContactEmailsApi, listContactsApi, type Contact } from '@/api/contacts'
-import type { ContactEmailImportRow } from '@/api/contacts'
+import type { ContactEmailImportResult, ContactEmailImportRow } from '@/api/contacts'
+import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import {
@@ -279,7 +357,43 @@ const editingContact = ref<Contact | null>(null)
 const importDialogVisible = ref(false)
 const importText = ref('')
 const importLoading = ref(false)
-const importResult = ref<{ updated: number; not_found: number; already_has_email: number } | null>(null)
+const importResult = ref<ContactEmailImportResult | null>(null)
+const importError = ref<string | null>(null)
+const serverErrorLines = ref<Array<{ lineNumber: number; raw: string }>>([])
+const parsedPreview = computed(() => parseImportText(importText.value))
+const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const backdropRef = ref<HTMLDivElement | null>(null)
+const importLinesList = computed(() => importText.value.split('\n'))
+const warnLineSet = computed(() => new Set(parsedPreview.value.ignoredLines.map((l) => l.lineNumber)))
+const errorLineSet = computed(() => new Set(serverErrorLines.value.map((l) => l.lineNumber)))
+const updatedResultLines = computed(() => {
+  if (!importResult.value) return []
+  const { rowLineNumbers, rowRaws } = parsedPreview.value
+  return importResult.value.updated_indices
+    .filter((i) => i < rowLineNumbers.length)
+    .map((i) => ({ lineNumber: rowLineNumbers[i], raw: rowRaws[i] }))
+})
+const notFoundResultLines = computed(() => {
+  if (!importResult.value) return []
+  const { rowLineNumbers, rowRaws } = parsedPreview.value
+  return importResult.value.not_found_indices
+    .filter((i) => i < rowLineNumbers.length)
+    .map((i) => ({ lineNumber: rowLineNumbers[i], raw: rowRaws[i] }))
+})
+const alreadyHasEmailResultLines = computed(() => {
+  if (!importResult.value) return []
+  const { rowLineNumbers, rowRaws } = parsedPreview.value
+  return importResult.value.already_has_email_indices
+    .filter((i) => i < rowLineNumbers.length)
+    .map((i) => ({ lineNumber: rowLineNumbers[i], raw: rowRaws[i] }))
+})
+const updatedLineSet = computed(() => new Set(updatedResultLines.value.map((l) => l.lineNumber)))
+const notFoundLineSet = computed(() => new Set(notFoundResultLines.value.map((l) => l.lineNumber)))
+const alreadyLineSet = computed(() => new Set(alreadyHasEmailResultLines.value.map((l) => l.lineNumber)))
+watch(importText, () => {
+  importError.value = null
+  serverErrorLines.value = []
+})
 
 const tabContacts = computed(() => {
   if (activeTab.value === 'client') return contacts.value.filter((c) => c.type === 'client' || c.type === 'les_deux')
@@ -364,50 +478,85 @@ async function loadContacts(): Promise<void> {
   }
 }
 
+function syncBackdropScroll(): void {
+  if (textareaRef.value && backdropRef.value) {
+    backdropRef.value.scrollTop = textareaRef.value.scrollTop
+  }
+}
+
 function closeImportDialog(): void {
   importDialogVisible.value = false
   importText.value = ''
   importResult.value = null
+  importError.value = null
+  serverErrorLines.value = []
 }
 
-function parseImportText(text: string): { rows: ContactEmailImportRow[]; discardedCount: number } {
-  let discardedCount = 0
-  const rows = text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      const commaIdx = line.lastIndexOf(',')
-      if (commaIdx < 1) {
-        discardedCount += 1
-        return []
-      }
-      const nom = line.slice(0, commaIdx).trim()
-      const email = line.slice(commaIdx + 1).trim()
-      if (!nom || !email.includes('@')) {
-        discardedCount += 1
-        return []
-      }
-      return [{ nom, email }]
-    })
-  return { rows, discardedCount }
+interface ParsedLine { lineNumber: number; raw: string }
+
+function parseImportText(text: string): { rows: ContactEmailImportRow[]; rowLineNumbers: number[]; rowRaws: string[]; ignoredLines: ParsedLine[] } {
+  const rows: ContactEmailImportRow[] = []
+  const rowLineNumbers: number[] = []
+  const rowRaws: string[] = []
+  const ignoredLines: ParsedLine[] = []
+  text.split('\n').forEach((raw, idx) => {
+    const line = raw.trim()
+    if (!line) return
+    const lineNumber = idx + 1
+    const commaIdx = line.lastIndexOf(',')
+    if (commaIdx < 1) {
+      ignoredLines.push({ lineNumber, raw: line })
+      return
+    }
+    const nom = line.slice(0, commaIdx).trim()
+    const email = line.slice(commaIdx + 1).trim()
+    if (!nom || !email.includes('@')) {
+      ignoredLines.push({ lineNumber, raw: line })
+      return
+    }
+    rows.push({ nom, email })
+    rowLineNumbers.push(lineNumber)
+    rowRaws.push(line)
+  })
+  return { rows, rowLineNumbers, rowRaws, ignoredLines }
 }
 
 async function runImport(): Promise<void> {
-  const { rows, discardedCount } = parseImportText(importText.value)
+  const { rows, rowLineNumbers, rowRaws } = parsedPreview.value
   if (rows.length === 0) {
     toast.add({ severity: 'warn', summary: t('contacts.import_emails_empty'), life: 3000 })
     return
   }
   importLoading.value = true
+  importError.value = null
+  serverErrorLines.value = []
   try {
     importResult.value = await importContactEmailsApi(rows)
-    if (discardedCount > 0) {
-      toast.add({ severity: 'warn', summary: t('contacts.import_emails_discarded', { count: discardedCount }), life: 4000 })
-    }
     void loadContacts()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 422) {
+      const detail = err.response.data?.detail
+      if (Array.isArray(detail) && detail.length > 0) {
+        const badIndices = new Set<number>()
+        for (const e of detail as Array<{ loc?: unknown[] }>) {
+          if (Array.isArray(e.loc) && typeof e.loc[1] === 'number') {
+            badIndices.add(e.loc[1] as number)
+          }
+        }
+        if (badIndices.size > 0) {
+          serverErrorLines.value = [...badIndices]
+            .filter(i => i < rowLineNumbers.length)
+            .map(i => ({ lineNumber: rowLineNumbers[i], raw: rowRaws[i] }))
+            .sort((a, b) => a.lineNumber - b.lineNumber)
+        } else {
+          importError.value = t('contacts.import_emails_error_format')
+        }
+      } else {
+        importError.value = t('contacts.import_emails_error_format')
+      }
+    } else {
+      toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+    }
   } finally {
     importLoading.value = false
   }
@@ -477,5 +626,156 @@ onMounted(loadContacts)
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
+}
+
+.contacts-import-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.contacts-import-preview__summary {
+  font-size: 0.875rem;
+  color: var(--p-text-muted-color);
+  margin: 0;
+}
+
+.contacts-import-preview__summary--none {
+  color: var(--p-yellow-500);
+}
+
+.contacts-import-issues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.contacts-import-issues__label {
+  font-size: 0.8125rem;
+  color: var(--p-text-muted-color);
+  margin: 0;
+}
+
+.contacts-import-issues__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.contacts-import-issues__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--app-space-2);
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
+}
+
+.contacts-import-issues__item--warn {
+  background-color: color-mix(in srgb, var(--p-yellow-500) 12%, transparent);
+}
+
+.contacts-import-issues__item--error {
+  background-color: color-mix(in srgb, var(--p-red-500) 12%, transparent);
+}
+
+.contacts-import-issues__num {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: monospace;
+  min-width: 2ch;
+  color: var(--p-text-muted-color);
+}
+
+.contacts-import-issues__text {
+  font-family: monospace;
+  font-size: 0.8125rem;
+  word-break: break-all;
+}
+
+.contacts-import-editor {
+  position: relative;
+  border: 1px solid var(--p-inputtext-border-color);
+  border-radius: 6px;
+  background: var(--p-inputtext-background);
+}
+
+.contacts-import-editor:focus-within {
+  border-color: var(--p-primary-color);
+  box-shadow: 0 0 0 1px var(--p-primary-color);
+}
+
+.contacts-import-editor__backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  padding: 0.5rem 0.75rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.contacts-import-editor__line {
+  height: calc(0.875rem * 1.5);
+}
+
+.contacts-import-editor__line--warn {
+  background-color: color-mix(in srgb, var(--p-yellow-500) 22%, transparent);
+}
+
+.contacts-import-editor__line--error {
+  background-color: color-mix(in srgb, var(--p-red-500) 22%, transparent);
+}
+
+.contacts-import-editor__textarea {
+  display: block;
+  position: relative;
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: vertical;
+  padding: 0.5rem 0.75rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--p-inputtext-color);
+  overflow-x: auto;
+  box-sizing: border-box;
+}
+
+.contacts-import-editor__line--result-updated {
+  background-color: color-mix(in srgb, var(--p-green-500) 22%, transparent);
+}
+
+.contacts-import-editor__line--result-not-found {
+  background-color: color-mix(in srgb, var(--p-orange-500) 22%, transparent);
+}
+
+.contacts-import-editor__line--result-already {
+  background-color: color-mix(in srgb, var(--p-blue-400) 18%, transparent);
+}
+
+.contacts-import-issues__item--success {
+  background-color: color-mix(in srgb, var(--p-green-500) 12%, transparent);
+}
+
+.contacts-import-issues__item--not-found {
+  background-color: color-mix(in srgb, var(--p-orange-500) 12%, transparent);
+}
+
+.contacts-import-issues__item--already {
+  background-color: color-mix(in srgb, var(--p-blue-400) 10%, transparent);
+}
+
+
+.contacts-import-editor__textarea::placeholder {
+  color: var(--p-inputtext-placeholder-color);
 }
 </style>
