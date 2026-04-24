@@ -200,11 +200,11 @@ interface SettingsForm {
   smtp_use_tls: boolean
 }
 
-const MONTHS = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
-]
-const monthOptions = MONTHS.map((label, i) => ({ label, value: i + 1 }))
+const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long' })
+const monthOptions = Array.from({ length: 12 }, (_, i) => {
+  const label = monthFormatter.format(new Date(2000, i, 1))
+  return { label: label.charAt(0).toUpperCase() + label.slice(1), value: i + 1 }
+})
 
 const defaultForm = (): SettingsForm => ({
   association_name: '',

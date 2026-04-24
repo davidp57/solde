@@ -71,7 +71,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ### Refactorisé
 
 - `frontend/src/views/SettingsView.vue` → 24 lignes (depuis 1 077 L) : extraction de `SettingsAssociationSmtpPanel`, `SettingsSystemOpeningPanel`, `SettingsDangerZonePanel` dans `src/components/settings/` (BL-077)
-- `frontend/src/views/BankView.vue` → 917 lignes (depuis 2 215 L) : extraction de 6 composants de dialogue dans `src/components/bank/` — `BankNewTransactionDialog`, `BankImportStatementDialog`, `BankClientPaymentDialog`, `BankLinkClientPaymentDialog`, `BankSupplierPaymentDialog`, `BankLinkSupplierPaymentDialog`, `BankNewDepositDialog` — chaque dialogue est auto-suffisant (chargement interne, émet `@saved`) (BL-077)
+- `frontend/src/views/BankView.vue` → 917 lignes (depuis 2 215 L) : extraction de 7 composants de dialogue dans `src/components/bank/` — `BankNewTransactionDialog`, `BankImportStatementDialog`, `BankClientPaymentDialog`, `BankLinkClientPaymentDialog`, `BankSupplierPaymentDialog`, `BankLinkSupplierPaymentDialog`, `BankNewDepositDialog` — chaque dialogue est auto-suffisant (chargement interne, émet `@saved`) (BL-077)
 - `frontend/src/views/ImportExcelView.vue` → 1 191 lignes (depuis 2 873 L) : extraction de `ImportExcelFormPanel`, `ImportExcelShortcutsPanel`, `ImportExcelPreviewPanel`, `ImportExcelResultPanel` dans `src/components/import/` — la vue orchestre, les composants gèrent l'affichage et les opérations locales (BL-077)
 
 **Qualité / Sécurité (audit 2026-04-22)**
