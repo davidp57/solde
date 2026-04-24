@@ -43,11 +43,7 @@ const router = createRouter({
           path: 'contacts/:id/history',
           name: 'contact-history',
           component: () => import('../views/ContactDetailView.vue'),
-          meta: {
-            requiresManagement: true,
-            label: 'contact_history.title',
-            breadcrumbParent: { labelKey: 'nav.contacts', to: '/contacts' },
-          },
+          meta: { requiresManagement: true, label: 'contact_history.title' },
         },
         {
           path: 'accounting/accounts',
