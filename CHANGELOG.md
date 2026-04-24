@@ -13,6 +13,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- `.github/workflows/ci.yml` : workflow CI GitHub Actions (jobs `backend` + `frontend`) — ruff check + format, mypy, pytest sur toutes les branches actives ; ESLint, vue-tsc, vitest sur le frontend (CHR-086)
+- `.github/workflows/docker.yml` : workflow Docker — build multi-stage + push image `ghcr.io/davidp57/solde` sur push `main` avec tags `latest` + `sha-<short>` et cache GitHub Actions (CHR-087)
+- `docker-compose.yml` : commentaire indiquant comment substituer le `build:` par `image: ghcr.io/davidp57/solde:latest` pour déploiement NAS sans rebuild local (CHR-087)
+
 - `frontend/src/views/ContactsView.vue` : onglets Tous / Clients / Fournisseurs via `Tabs` PrimeVue — filtrage frontend (`les_deux` visible dans les deux onglets), remplacement du `Select` type par les onglets (BIZ-035)
 - `POST /api/contacts/import-emails` : endpoint d'import d'e-mails en masse pour enrichir les contacts existants par correspondance sur le nom (normalisation des accents, matching prénom+nom et nom seul) — schémas `ContactEmailImportRow` / `ContactEmailImportResult`, 9 nouveaux tests (BIZ-040)
 - `frontend/src/views/ContactsView.vue` : bouton « Importer e-mails » + dialogue avec zone de texte collée (`Nom, email` par ligne) + affichage du bilan (mis à jour / non trouvés / déjà renseignés) (BIZ-040)

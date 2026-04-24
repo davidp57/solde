@@ -9,6 +9,13 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Lots actifs
 
+### Lot J — CI GitHub Actions (~25 min) — v0.5
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| CHR-086 | Workflow CI — quality gates | P2 | ~15 min | 2026-04-24 | 2026-04-24 | |
+| CHR-087 | Workflow CI — Docker build + push GHCR | P2 | ~10 min | 2026-04-24 | 2026-04-24 | |
+
 ### Lot H — Architecture multi-compte (~45 min) — v0.6
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -93,6 +100,14 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 ### CHR-082 — Descriptions Swagger enrichies
 
 Ajouter `description=` et `response_description=` sur les endpoints principaux.
+
+### CHR-086 — Workflow CI — quality gates
+
+Workflow GitHub Actions sur push/PR vers `develop` et `main` : ruff check + format, mypy, pytest (backend) ; ESLint, vue-tsc, vitest (frontend).
+
+### CHR-087 — Workflow CI — Docker build + push GHCR
+
+Workflow GitHub Actions sur push vers `main` : build multi-stage Docker, push image sur GHCR (`ghcr.io/davidp57/solde`) avec tags `latest` + `sha-<short>`. Cache GitHub Actions activé.
 
 ---
 
