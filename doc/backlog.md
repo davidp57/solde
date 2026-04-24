@@ -9,13 +9,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Lots actifs
 
-### Lot J — CI GitHub Actions (~25 min) — v0.5
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| CHR-086 | Workflow CI — quality gates | P2 | ~15 min | 2026-04-24 | 2026-04-24 | |
-| CHR-087 | Workflow CI — Docker build + push GHCR | P2 | ~10 min | 2026-04-24 | 2026-04-24 | |
-
 ### Lot H — Architecture multi-compte (~45 min) — v0.6
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -130,6 +123,7 @@ Workflow GitHub Actions sur push vers `main` : build multi-stage Docker, push im
 | F | Tests | v0.4 | TEC-079, TEC-080, TEC-081 | 2026-04-24 |
 | G | Refactoring frontend | v0.5 | TEC-077 | 2026-04-24 |
 | I | Polish UI & contacts | v0.5 | BIZ-035, BIZ-037, CHR-038, BIZ-040 | 2026-04-24 |
+| J | CI GitHub Actions | v0.5 | CHR-086, CHR-087 | 2026-04-24 |
 
 Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, CHR-019 – CHR-021, BIZ-022 – BIZ-023.
