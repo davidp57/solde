@@ -22,9 +22,6 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
     """Return dashboard KPIs and alerts."""
     today = date.today()
 
-    def remaining_amount(invoice: Invoice) -> Decimal:
-        return invoice.total_amount - invoice.paid_amount
-
     # --- Bank balance (last transaction balance_after) ---
     bank_result = await db.execute(
         select(BankTransaction.balance_after)
@@ -41,26 +38,37 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
     )
     cash_balance = cash_result.scalar_one_or_none() or Decimal("0")
 
-    # --- Client invoices with a remaining amount (status can be stale after imports/edits) ---
-    client_invoices_result = await db.execute(
-        select(Invoice).where(
+    # --- Unpaid client invoices (total_amount > paid_amount, filtered in DB) ---
+    unpaid_result = await db.execute(
+        select(
+            func.count(Invoice.id),
+            func.coalesce(func.sum(Invoice.total_amount - Invoice.paid_amount), Decimal("0")),
+        ).where(
             Invoice.type == InvoiceType.CLIENT,
             Invoice.status != InvoiceStatus.DRAFT,
+            Invoice.total_amount > Invoice.paid_amount,
         )
     )
-    client_invoices = client_invoices_result.scalars().all()
-    unpaid_invoices = [invoice for invoice in client_invoices if remaining_amount(invoice) > 0]
-    unpaid_count = len(unpaid_invoices)
-    unpaid_total = sum(remaining_amount(inv) for inv in unpaid_invoices)
+    unpaid_row = unpaid_result.one()
+    unpaid_count: int = unpaid_row[0] or 0
+    unpaid_total: Decimal = unpaid_row[1] or Decimal("0")
 
-    # --- Overdue invoices (remaining amount > 0 with due_date < today) ---
-    overdue_invoices = [
-        invoice
-        for invoice in unpaid_invoices
-        if invoice.due_date is not None and invoice.due_date < today
-    ]
-    overdue_count = len(overdue_invoices)
-    overdue_total = sum(remaining_amount(inv) for inv in overdue_invoices)
+    # --- Overdue invoices (remaining amount > 0 with due_date < today, filtered in DB) ---
+    overdue_result = await db.execute(
+        select(
+            func.count(Invoice.id),
+            func.coalesce(func.sum(Invoice.total_amount - Invoice.paid_amount), Decimal("0")),
+        ).where(
+            Invoice.type == InvoiceType.CLIENT,
+            Invoice.status != InvoiceStatus.DRAFT,
+            Invoice.total_amount > Invoice.paid_amount,
+            Invoice.due_date.is_not(None),
+            Invoice.due_date < today,
+        )
+    )
+    overdue_row = overdue_result.one()
+    overdue_count: int = overdue_row[0] or 0
+    overdue_total: Decimal = overdue_row[1] or Decimal("0")
 
     # --- Undeposited payments (client chèques/espèces not yet deposited) ---
     undeposited_result = await db.execute(

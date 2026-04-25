@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from backend.models.cash import CashEntrySource, CashMovementType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
@@ -172,13 +173,12 @@ async def list_payments(
     skip: int = 0,
     limit: int = 100,
 ) -> list[PaymentRead]:
-    query = select(Payment)
+    inv = aliased(Invoice)
+    query = select(Payment, inv.number, inv.type).join(inv, Payment.invoice_id == inv.id)
     if invoice_id is not None:
         query = query.where(Payment.invoice_id == invoice_id)
     if invoice_type is not None:
-        query = query.join(Invoice, Payment.invoice_id == Invoice.id).where(
-            Invoice.type == invoice_type
-        )
+        query = query.where(inv.type == invoice_type)
     if contact_id is not None:
         query = query.where(Payment.contact_id == contact_id)
     if from_date is not None:
@@ -187,11 +187,21 @@ async def list_payments(
         query = query.where(Payment.date <= to_date)
     if undeposited_only:
         query = query.where(Payment.deposited == False)  # noqa: E712
-    query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip)
-    query = query.limit(limit)
+    query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
-    payments_orm = list(result.scalars().all())
-    return [await _to_payment_read(db, p) for p in payments_orm]
+    rows = result.all()
+    out: list[PaymentRead] = []
+    for payment, inv_number, inv_type in rows:
+        read = PaymentRead.model_validate(payment)
+        out.append(
+            read.model_copy(
+                update={
+                    "invoice_number": inv_number,
+                    "invoice_type": InvoiceType(inv_type) if inv_type else None,
+                }
+            )
+        )
+    return out
 
 
 async def update_payment(db: AsyncSession, payment_id: int, payload: PaymentUpdate) -> PaymentRead:

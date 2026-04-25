@@ -55,7 +55,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-089 | Gestion des salaires — aide saisie, composantes CDD, vue coûts personnel | P1 | ~3h | 2026-04-25 | 2026-04-25 | 2026-04-25 |
 | BIZ-090 | Import Excel Gestion — champs CDD dans la feuille « Aide Salaires » | P1 | ~30 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
-| TEC-105 | Lenteur navigation et chargement des données | P2 | ~2h | 2026-04-25 | | |
+| TEC-105 | Lenteur navigation et chargement des données | P2 | ~2h | 2026-04-25 | 2026-04-25 | |
 | CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
 | TEC-039 | Revalidation scénarios facture / email | P1 | ~10 min | 2026-04-21 | | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
