@@ -11,6 +11,12 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Sécurité
+
+- TEC-091 : Logging serveur ajouté sur les routeurs `invoice`, `excel_import`, `settings` — les exceptions inattendues sont désormais tracées (`logger.exception`) avant relance
+- TEC-092 : Validation du contenu réel des fichiers uploadés par magic bytes (PDF, JPEG, PNG, WebP) dans `upload_invoice_file` — le header `Content-Type` client ne suffit plus
+- TEC-093 : Contraintes Pydantic sur les schémas `contact`, `invoice`, `salary`, `payment` — `max_length` sur tous les champs texte libres, `ge=0` sur les montants salaires, validation plage `hours` (0–744)
+
 ### Ajouté
 
 - `backend/models/contact.py` : enum `ContractType` (CDI/CDD) + 5 nouveaux champs sur `Contact` : `contract_type`, `base_gross`, `base_hours`, `hourly_rate`, `is_contractor` (BIZ-089)

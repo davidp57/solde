@@ -1,5 +1,6 @@
 """Invoices API router — CRUD, status changes, PDF generation, file upload, email."""
 
+import logging
 import uuid
 from datetime import date
 from pathlib import Path
@@ -31,6 +32,8 @@ from backend.schemas.invoice import (
 from backend.services import invoice as invoice_service
 from backend.services.invoice import InvoiceDeleteError, InvoiceStatusError, InvoiceUpdateError
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 
 _WriteAccess = Annotated[
@@ -45,6 +48,21 @@ _ReadAccess = Annotated[
 # Allowed MIME types for supplier invoice file uploads
 _ALLOWED_MIME_TYPES = {"application/pdf", "image/jpeg", "image/png", "image/webp"}
 _MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+
+# Magic bytes for allowed file types
+_MAGIC_BYTES: list[bytes] = [
+    b"\x25\x50\x44\x46",  # PDF: %PDF
+    b"\xff\xd8\xff",  # JPEG
+    b"\x89\x50\x4e\x47",  # PNG: \x89PNG
+]
+
+
+def _content_matches_allowed_type(content: bytes) -> bool:
+    """Return True if the file's magic bytes match an allowed type."""
+    if any(content[: len(magic)] == magic for magic in _MAGIC_BYTES):
+        return True
+    # WebP: "RIFF" at offset 0 and "WEBP" at offset 8
+    return len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP"
 
 
 @router.get("/", response_model=list[InvoiceRead])
@@ -199,6 +217,7 @@ async def get_invoice_pdf(
     try:
         pdf_bytes = pdf_service.generate_invoice_pdf(invoice, contact_name, cfg)
     except Exception as exc:
+        logger.exception("PDF generation failed for invoice %d", invoice_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="PDF generation failed",
@@ -316,10 +335,17 @@ async def upload_invoice_file(
             detail="File exceeds 10 MB limit",
         )
 
+    # Validate actual file content against magic bytes (not just the client-supplied MIME type)
+    if not _content_matches_allowed_type(content):
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="File content does not match an allowed type (PDF, JPEG, PNG, WebP).",
+        )
+
     # Save with a UUID-based name to prevent path traversal
     suffix = Path(file.filename or "upload").suffix.lower()
     safe_name = f"{uuid.uuid4().hex}{suffix}"
-    upload_dir = Path("data/uploads/invoices")
+    upload_dir = Path("data/uploads/invoices").resolve()
     upload_dir.mkdir(parents=True, exist_ok=True)
     file_path = upload_dir / safe_name
     file_path.write_bytes(content)

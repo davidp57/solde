@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from backend.models.invoice import InvoiceType
 from backend.models.payment import PaymentMethod
@@ -17,9 +17,9 @@ class PaymentBase(BaseModel):
     amount: Decimal
     date: datetime.date
     method: PaymentMethod
-    cheque_number: str | None = None
-    reference: str | None = None
-    notes: str | None = None
+    cheque_number: str | None = Field(default=None, max_length=50)
+    reference: str | None = Field(default=None, max_length=100)
+    notes: str | None = Field(default=None, max_length=2000)
 
     @field_validator("amount")
     @classmethod
@@ -37,9 +37,9 @@ class PaymentUpdate(BaseModel):
     amount: Decimal | None = None
     date: datetime.date | None = None
     method: PaymentMethod | None = None
-    cheque_number: str | None = None
-    reference: str | None = None
-    notes: str | None = None
+    cheque_number: str | None = Field(default=None, max_length=50)
+    reference: str | None = Field(default=None, max_length=100)
+    notes: str | None = Field(default=None, max_length=2000)
     deposited: bool | None = None
     deposit_date: datetime.date | None = None
 
