@@ -20,6 +20,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - Menu de navigation : entrée « Employés » dans la section Comptabilité, avant « Salaires » (BIZ-088)
 - `frontend/src/views/SalaryView.vue` : `loadEmployees` filtre désormais sur `type=employe` — seuls les contacts de type employé apparaissent dans la liste de sélection (BIZ-088)
 
+### Corrigé
+
+- `backend/services/excel_import/_import_payments_salaries.py` et `import_reversible.py` : les contacts employés créés lors de l'import Excel utilisent désormais `ContactType.EMPLOYE` au lieu de `FOURNISSEUR` (BIZ-088)
+
 - `doc/user/installation.md` : option A — image pré-construite depuis GHCR (`SOLDE_IMAGE=ghcr.io/davidp57/solde:latest`) et option B — build local ; sections FR + EN (CHR-019)
 - `doc/dev/exploitation.md` : nouvelle section « Image deployment options » présentant GHCR vs build local + variable `SOLDE_IMAGE` ; `SWAGGER_ENABLED` ajouté au tableau de configuration (CHR-019, CHR-082)
 - `backend/config.py` : paramètre `SWAGGER_ENABLED` — active Swagger UI (`/api/docs`) et ReDoc (`/api/redoc`) indépendamment de `DEBUG` (CHR-082)
