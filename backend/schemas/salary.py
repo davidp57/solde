@@ -32,6 +32,31 @@ class SalaryCreate(BaseModel):
             raise ValueError("month must be in YYYY-MM format")
         return v
 
+    @field_validator("hours")
+    @classmethod
+    def validate_hours(cls, v: Decimal) -> Decimal:
+        if v < 0:
+            raise ValueError("hours must be non-negative")
+        if v > 744:
+            raise ValueError("hours cannot exceed 744 (31 days × 24 hours)")
+        return v
+
+    @field_validator(
+        "gross",
+        "employee_charges",
+        "employer_charges",
+        "tax",
+        "net_pay",
+        "brut_declared",
+        "conges_payes",
+        "precarite",
+    )
+    @classmethod
+    def validate_non_negative(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v < 0:
+            raise ValueError("value must be non-negative")
+        return v
+
 
 class SalaryUpdate(BaseModel):
     hours: Decimal | None = None
@@ -44,6 +69,32 @@ class SalaryUpdate(BaseModel):
     conges_payes: Decimal | None = None
     precarite: Decimal | None = None
     notes: str | None = None
+
+    @field_validator("hours")
+    @classmethod
+    def validate_hours(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None:
+            if v < 0:
+                raise ValueError("hours must be non-negative")
+            if v > 744:
+                raise ValueError("hours cannot exceed 744 (31 days × 24 hours)")
+        return v
+
+    @field_validator(
+        "gross",
+        "employee_charges",
+        "employer_charges",
+        "tax",
+        "net_pay",
+        "brut_declared",
+        "conges_payes",
+        "precarite",
+    )
+    @classmethod
+    def validate_non_negative(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v < 0:
+            raise ValueError("value must be non-negative")
+        return v
 
 
 class SalaryRead(BaseModel):

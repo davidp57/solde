@@ -4,23 +4,23 @@ from datetime import date as date_value
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from backend.models.contact import ContactType, ContractType
 
 
 class ContactWriteBase(BaseModel):
     type: ContactType
-    nom: str
-    prenom: str | None = None
+    nom: str = Field(max_length=100)
+    prenom: str | None = Field(default=None, max_length=100)
     email: EmailStr | None = None
-    telephone: str | None = None
-    adresse: str | None = None
-    notes: str | None = None
+    telephone: str | None = Field(default=None, max_length=30)
+    adresse: str | None = Field(default=None, max_length=500)
+    notes: str | None = Field(default=None, max_length=2000)
     contract_type: ContractType | None = None
-    base_gross: Decimal | None = None
-    base_hours: Decimal | None = None
-    hourly_rate: Decimal | None = None
+    base_gross: Decimal | None = Field(default=None, ge=0)
+    base_hours: Decimal | None = Field(default=None, ge=0)
+    hourly_rate: Decimal | None = Field(default=None, ge=0)
     is_contractor: bool = False
 
     @field_validator("nom")
@@ -39,17 +39,17 @@ class ContactUpdate(BaseModel):
     """All fields optional for partial update."""
 
     type: ContactType | None = None
-    nom: str | None = None
-    prenom: str | None = None
+    nom: str | None = Field(default=None, max_length=100)
+    prenom: str | None = Field(default=None, max_length=100)
     email: EmailStr | None = None
-    telephone: str | None = None
-    adresse: str | None = None
-    notes: str | None = None
+    telephone: str | None = Field(default=None, max_length=30)
+    adresse: str | None = Field(default=None, max_length=500)
+    notes: str | None = Field(default=None, max_length=2000)
     is_active: bool | None = None
     contract_type: ContractType | None = None
-    base_gross: Decimal | None = None
-    base_hours: Decimal | None = None
-    hourly_rate: Decimal | None = None
+    base_gross: Decimal | None = Field(default=None, ge=0)
+    base_hours: Decimal | None = Field(default=None, ge=0)
+    hourly_rate: Decimal | None = Field(default=None, ge=0)
     is_contractor: bool | None = None
 
     @field_validator("nom")

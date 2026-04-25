@@ -5,13 +5,13 @@ from __future__ import annotations
 import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from backend.models.invoice import InvoiceLabel, InvoiceLineType, InvoiceStatus, InvoiceType
 
 
 class InvoiceLineBase(BaseModel):
-    description: str
+    description: str = Field(max_length=500)
     line_type: InvoiceLineType | None = None
     quantity: Decimal = Decimal("1")
     unit_price: Decimal = Decimal("0")
@@ -49,8 +49,8 @@ class InvoiceBase(BaseModel):
     date: datetime.date
     due_date: datetime.date | None = None
     label: InvoiceLabel | None = None
-    description: str | None = None
-    reference: str | None = None
+    description: str | None = Field(default=None, max_length=1000)
+    reference: str | None = Field(default=None, max_length=100)
 
 
 class InvoiceCreate(InvoiceBase):
@@ -92,8 +92,8 @@ class InvoiceUpdate(BaseModel):
     date: datetime.date | None = None
     due_date: datetime.date | None = None
     label: InvoiceLabel | None = None
-    description: str | None = None
-    reference: str | None = None
+    description: str | None = Field(default=None, max_length=1000)
+    reference: str | None = Field(default=None, max_length=100)
     lines: list[InvoiceLineCreate] | None = None
     total_amount: Decimal | None = None
     hours: Decimal | None = None  # optional, for AE/contractor invoices
