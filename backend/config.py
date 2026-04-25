@@ -2,6 +2,12 @@
 
 import sys
 from functools import lru_cache
+from importlib.metadata import version as _pkg_version, PackageNotFoundError
+
+try:
+    _SOLDE_VERSION = _pkg_version("solde")
+except PackageNotFoundError:
+    _SOLDE_VERSION = "0.0.0"
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,7 +25,7 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "Solde"
-    app_version: str = "0.1.0"
+    app_version: str = _SOLDE_VERSION
     debug: bool = False
     swagger_enabled: bool = False
 
