@@ -28,6 +28,7 @@ class AppSettingsRead(BaseModel):
     smtp_user: str | None
     smtp_from_email: str | None
     smtp_use_tls: bool
+    smtp_bcc: str | None
 
     model_config = {"from_attributes": True}
 
@@ -47,6 +48,7 @@ class AppSettingsUpdate(BaseModel):
     smtp_password: str | None = None
     smtp_from_email: str | None = None
     smtp_use_tls: bool | None = None
+    smtp_bcc: str | None = None
 
     @field_validator("fiscal_year_start_month")
     @classmethod

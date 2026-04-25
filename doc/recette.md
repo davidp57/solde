@@ -184,6 +184,32 @@ Chaque ticket correspond à un ou plusieurs commits liés. Les identifiants `REC
 
 ---
 
+### REC-014 — Suppression des champs SMTP/association depuis les variables d'env
+
+| Champ | Valeur |
+|---|---|
+| **Type** | `refactor` |
+| **Date** | 2026-04-26 |
+| **Commit** | `90491b8` |
+| **Fichiers** | `backend/config.py`, `backend/routers/invoice.py`, `.env`, `.env.example`, `doc/dev/exploitation.md`, `tests/unit/test_config.py` |
+
+**Description** : Les champs SMTP et association (`smtp_*`, `association_*`) ont été retirés de `backend/config.py` (env vars). Ces paramètres sont entièrement gérés via l'UI Paramètres et stockés en base (`AppSettings`). Les endpoints `/pdf` et `/send-email` utilisaient déjà `AppSettings` ; les champs env étaient du code mort.
+
+---
+
+### REC-015 — BCC optionnel sur l'envoi de factures par e-mail
+
+| Champ | Valeur |
+|---|---|
+| **Type** | `feat` |
+| **Date** | 2026-04-26 |
+| **Commit** | *(en cours)* |
+| **Fichiers** | `backend/models/app_settings.py`, `backend/schemas/settings.py`, `backend/services/email_service.py`, `backend/routers/invoice.py`, `backend/alembic/versions/0029_add_smtp_bcc.py`, `frontend/src/api/settings.ts`, `frontend/src/i18n/fr.ts`, `frontend/src/components/settings/SettingsAssociationSmtpPanel.vue` |
+
+**Description** : Ajout d'un champ **Adresse BCC** optionnel dans les paramètres SMTP. Quand renseigné, chaque envoi de facture envoie une copie cachée à cette adresse. Utilise `server.send_message()` (et non `sendmail()`) pour que le header `Bcc` soit correctement interprété par `smtplib`.
+
+---
+
 ## État d'ensemble
 
 | ID | Titre | Type | Commit | Statut |
@@ -201,3 +227,5 @@ Chaque ticket correspond à un ou plusieurs commits liés. Les identifiants `REC
 | REC-011 | Dialogs détail facture / paiement (fiche contact) | feat | `e00b9a3` | ✅ livré |
 | REC-012 | Fix PDF : nom association depuis DB (pas env) | fix | `4f70488` | ✅ livré |
 | REC-013 | Fix dialog contact : import `Dialog` manquant | fix | `063d941` | ✅ livré |
+| REC-014 | Suppression champs SMTP/asso depuis env vars | refactor | `90491b8` | ✅ livré |
+| REC-015 | BCC optionnel sur envoi factures par e-mail | feat | *(en cours)* | ✅ livré |

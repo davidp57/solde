@@ -767,6 +767,8 @@ export default {
     smtp_password: 'Mot de passe SMTP',
     smtp_password_placeholder: 'Laisser vide pour conserver le mot de passe actuel',
     smtp_from: 'Adresse expéditeur',
+    smtp_bcc: 'Adresse BCC (copie cachée)',
+    smtp_bcc_help: 'Recevez une copie de chaque facture envoyée (optionnel).',
     smtp_use_tls: 'Utiliser TLS',
     saved: 'Paramètres enregistrés avec succès.',
     save_error: "Échec de l'enregistrement des paramètres.",

@@ -293,6 +293,7 @@ async def send_invoice_email(
             smtp_password=app_settings.smtp_password,  # type: ignore[arg-type]
             smtp_from_email=app_settings.smtp_from_email,  # type: ignore[arg-type]
             smtp_use_tls=app_settings.smtp_use_tls,
+            bcc=app_settings.smtp_bcc,
             recipient_email=contact.email,
             invoice_number=invoice.number,
             association_name=app_settings.association_name,
