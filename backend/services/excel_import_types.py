@@ -82,6 +82,10 @@ class NormalizedSalaryRow:
     employer_charges: Decimal
     tax: Decimal
     net_pay: Decimal
+    # CDD-specific fields — None for CDI rows
+    brut_declared: Decimal | None = None
+    conges_payes: Decimal | None = None
+    precarite: Decimal | None = None
 
 
 @dataclass(slots=True)

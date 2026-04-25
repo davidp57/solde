@@ -466,11 +466,23 @@ def parse_salary_sheet(
 
         if current_format == "detailed":
             hours = _salary_decimal_or_zero(get_row_value(row, 1))
+            _brut_declared_raw = _salary_decimal_or_zero(get_row_value(row, 2))
+            _conges_raw = _salary_decimal_or_zero(get_row_value(row, 3))
+            _precarite_raw = _salary_decimal_or_zero(get_row_value(row, 4))
             gross = _salary_decimal_or_zero(get_row_value(row, 6))
             employee_charges = _salary_decimal_or_zero(get_row_value(row, 7))
             employer_charges = _salary_decimal_or_zero(get_row_value(row, 8))
             tax = _salary_decimal_or_zero(get_row_value(row, 9))
             net_pay = _salary_decimal_or_zero(get_row_value(row, 10))
+            # Store CDD breakdown only when CP or précarité are non-zero (CDI rows have 0)
+            if _conges_raw > 0 or _precarite_raw > 0:
+                brut_declared: Decimal | None = _brut_declared_raw
+                conges_payes: Decimal | None = _conges_raw
+                precarite: Decimal | None = _precarite_raw
+            else:
+                brut_declared = None
+                conges_payes = None
+                precarite = None
         else:
             hours = _salary_decimal_or_zero(get_row_value(row, 1))
             gross = _salary_decimal_or_zero(get_row_value(row, 2))
@@ -478,6 +490,9 @@ def parse_salary_sheet(
             employer_charges = _salary_decimal_or_zero(get_row_value(row, 4))
             tax = _salary_decimal_or_zero(get_row_value(row, 5))
             net_pay = _salary_decimal_or_zero(get_row_value(row, 6))
+            brut_declared = None
+            conges_payes = None
+            precarite = None
 
         row_errors: list[str] = []
         if not first_cell:
@@ -504,6 +519,9 @@ def parse_salary_sheet(
                 employer_charges=employer_charges,
                 tax=tax,
                 net_pay=net_pay,
+                brut_declared=brut_declared,
+                conges_payes=conges_payes,
+                precarite=precarite,
             )
         )
 

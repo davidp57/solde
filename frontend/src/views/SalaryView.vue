@@ -359,13 +359,10 @@
         </div>
       </div>
       <DataTable
-        :value="workforceCost"
+        :value="workforceSummaryByMonth"
         :loading="workforceLoading"
         class="app-data-table"
         striped-rows
-        paginator
-        :rows="20"
-        data-key="person_id"
         size="small"
         row-hover
         removable-sort
@@ -373,46 +370,41 @@
         <Column field="month" :header="t('salary.month')" sortable>
           <template #body="{ data }">{{ formatDisplayMonth(data.month) }}</template>
         </Column>
-        <Column field="person_name" :header="t('salary.workforce_person')" sortable />
-        <Column field="person_type" :header="t('salary.workforce_type')" sortable>
-          <template #body="{ data }">
-            <Tag
-              :value="t(`salary.workforce_type_${data.person_type.toLowerCase()}`)"
-              :severity="data.person_type === 'AE' ? 'info' : data.person_type === 'CDD' ? 'warn' : 'success'"
-            />
-          </template>
-        </Column>
-        <Column field="hours" :header="t('salary.hours')" data-type="numeric" sortable>
-          <template #body="{ data }">{{ data.hours != null ? data.hours : '—' }}</template>
-        </Column>
         <Column
-          field="amount"
-          :header="t('salary.workforce_amount')"
+          field="cdi"
+          :header="t('salary.workforce_type_cdi')"
           class="app-money"
           data-type="numeric"
           sortable
         >
-          <template #body="{ data }">{{ formatAmount(data.amount) }}</template>
+          <template #body="{ data }">{{ data.cdi > 0 ? formatAmount(data.cdi) : '—' }}</template>
         </Column>
         <Column
-          field="total_cost"
-          :header="t('salary.workforce_total_cost')"
+          field="cdd"
+          :header="t('salary.workforce_type_cdd')"
           class="app-money"
           data-type="numeric"
           sortable
         >
-          <template #body="{ data }">{{ formatAmount(data.total_cost) }}</template>
+          <template #body="{ data }">{{ data.cdd > 0 ? formatAmount(data.cdd) : '—' }}</template>
         </Column>
         <Column
-          field="hourly_cost"
-          :header="t('salary.workforce_hourly')"
+          field="ae"
+          :header="t('salary.workforce_type_ae')"
           class="app-money"
           data-type="numeric"
           sortable
         >
-          <template #body="{ data }">
-            {{ data.hourly_cost != null ? formatAmount(data.hourly_cost) : '—' }}
-          </template>
+          <template #body="{ data }">{{ data.ae > 0 ? formatAmount(data.ae) : '—' }}</template>
+        </Column>
+        <Column
+          field="total"
+          :header="t('salary.workforce_col_total')"
+          class="app-money"
+          data-type="numeric"
+          sortable
+        >
+          <template #body="{ data }">{{ formatAmount(data.total) }}</template>
         </Column>
         <template #empty
           ><div class="app-empty-state">{{ t('salary.workforce_empty') }}</div></template
@@ -800,6 +792,31 @@ const workforceLoading = ref(false)
 const workforceFromMonth = ref('')
 const workforceToMonth = ref('')
 
+interface WorkforceMonthRow {
+  month: string
+  cdi: number
+  cdd: number
+  ae: number
+  total: number
+}
+
+const workforceSummaryByMonth = computed<WorkforceMonthRow[]>(() => {
+  const map = new Map<string, WorkforceMonthRow>()
+  for (const row of workforceCost.value) {
+    if (!map.has(row.month)) {
+      map.set(row.month, { month: row.month, cdi: 0, cdd: 0, ae: 0, total: 0 })
+    }
+    const entry = map.get(row.month)!
+    const cost = Number(row.total_cost)
+    const type = row.person_type.toUpperCase()
+    if (type === 'CDI') entry.cdi += cost
+    else if (type === 'CDD') entry.cdd += cost
+    else if (type === 'AE') entry.ae += cost
+    entry.total += cost
+  }
+  return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month))
+})
+
 interface SalaryForm {
   employee_id: number | null
   month: string
@@ -852,10 +869,12 @@ watch(
     if (!isCDD.value) return
     const rate = selectedEmployee.value?.hourly_rate ?? 0
     const brutD = form.value.hours * rate
+    const cp = brutD * 0.1
+    const prec = (brutD + cp) * 0.1
     form.value.brut_declared = brutD
-    form.value.conges_payes = brutD * 0.1
-    form.value.precarite = brutD * 0.1
-    form.value.gross = brutD + brutD * 0.1 + brutD * 0.1
+    form.value.conges_payes = cp
+    form.value.precarite = prec
+    form.value.gross = brutD + cp + prec
   },
 )
 
@@ -1030,12 +1049,16 @@ watch(
   () => fiscalYearStore.selectedFiscalYearId,
   (newId, oldId) => {
     if (!fiscalYearStore.initialized || newId === oldId) return
-    void Promise.all([loadSalaries(), loadSummary()])
+    workforceFromMonth.value = salaryMonthRange.value.from_month ?? ''
+    workforceToMonth.value = salaryMonthRange.value.to_month ?? ''
+    void Promise.all([loadSalaries(), loadSummary(), loadWorkforce()])
   },
 )
 
 onMounted(async () => {
   await fiscalYearStore.initialize()
+  workforceFromMonth.value = salaryMonthRange.value.from_month ?? ''
+  workforceToMonth.value = salaryMonthRange.value.to_month ?? ''
   await Promise.all([loadEmployees(), loadSalaries(), loadSummary(), loadWorkforce()])
 })
 </script>
