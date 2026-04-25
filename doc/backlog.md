@@ -19,9 +19,9 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-091 | Fuite d'exception interne dans les réponses API | P1 | ~15 min | 2026-04-25 | | |
-| TEC-092 | Validation contenu réel des fichiers uploadés (magic bytes) | P2 | ~15 min | 2026-04-25 | | |
-| TEC-093 | Validateurs max_length / min–max sur schémas Pydantic | P2 | ~15 min | 2026-04-25 | | |
+| TEC-091 | Fuite d'exception interne dans les réponses API | P1 | ~15 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
+| TEC-092 | Validation contenu réel des fichiers uploadés (magic bytes) | P2 | ~15 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
+| TEC-093 | Validateurs max_length / min–max sur schémas Pydantic | P2 | ~15 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
 
 ### Lot N — UX & formulaires (~2h) — v0.7
 
