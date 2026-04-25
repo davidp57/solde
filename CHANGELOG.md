@@ -11,6 +11,28 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+
+- Bouton « Télécharger une sauvegarde » dans la page Paramètres — appelle `POST /api/settings/backup` et déclenche le téléchargement du fichier `.db` avec un nom horodaté (`solde_backup_YYYY-MM-DD-HH-MM-SS.db`) (CHR-019, REC-004)
+- `doc/dev/exploitation.md` : section déploiement Portainer / NAS Synology — stack YAML, variables d'environnement, données persistantes, procédure de mise à jour (CHR-019, REC-004)
+- Écran Salaires rendu accessible au rôle `secretaire` (Management) en plus des rôles `tresorier` et `admin` (REC-005)
+- CRUD complet des règles comptables réservé aux admins : création, modification, suppression avec confirmation ; dialog formulaire avec sélecteur de déclencheur, lignes comptables éditables ; 26 libellés et descriptions métier en français par déclencheur (REC-008)
+
+### Modifié
+
+- `PUT /api/accounting/rules/{id}` : accès resserré de trésorier+admin à **admin uniquement**, cohérent avec `POST /` et `DELETE /{id}` (REC-008)
+
+### Corrigé
+
+- Docker : rechargement direct sur une route Vue retournait 404 — FastAPI sert désormais `index.html` en fallback pour toutes les routes hors `/api/**` (REC-003)
+- Docker : `libgdk-pixbuf2.0-0` absent de Debian Trixie remplacé par `libgdk-pixbuf-xlib-2.0-0` — génération PDF WeasyPrint rétablie (REC-002)
+- Docker : `pyproject.toml` absent du stage `frontend-builder`, causant un échec de build de l'image (REC-007)
+- `.gitattributes` ajouté pour forcer LF sur `entrypoint.sh` et éviter les erreurs de syntaxe shell après checkout Windows (REC-003)
+
+### Technique
+
+- Version de l'application lue depuis `pyproject.toml` via `importlib.metadata` (backend) et regex Vite (frontend) — `APP_VERSION` supprimé de `.env` (REC-001, REC-006)
+
 ### UX & Formulaires
 
 - BIZ-094 : Confirmation avant « Recréer le socle comptable » — dialog warn avec annulation (SettingsDangerZonePanel)
@@ -29,11 +51,6 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - TEC-091 : Logging serveur ajouté sur les routeurs `invoice`, `excel_import`, `settings` — les exceptions inattendues sont désormais tracées (`logger.exception`) avant relance
 - TEC-092 : Validation du contenu réel des fichiers uploadés par magic bytes (PDF, JPEG, PNG, WebP) dans `upload_invoice_file` — le header `Content-Type` client ne suffit plus
 - TEC-093 : Contraintes Pydantic sur les schémas `contact`, `invoice`, `salary`, `payment` — `max_length` sur tous les champs texte libres, `ge=0` sur les montants salaires, validation plage `hours` (0–744)
-
-### Ajouté
-
-- Bouton « Télécharger une sauvegarde » dans la page Paramètres — appelle `POST /api/settings/backup` et déclenche le téléchargement du fichier `.db` avec un nom horodaté (`solde_backup_YYYY-MM-DD-HH-MM-SS.db`) (CHR-019)
-- `doc/dev/exploitation.md` : section déploiement Portainer / NAS Synology — stack YAML, variables d'environnement, données persistantes, procédure de mise à jour (CHR-019)
 
 - `backend/models/contact.py` : enum `ContractType` (CDI/CDD) + 5 nouveaux champs sur `Contact` : `contract_type`, `base_gross`, `base_hours`, `hourly_rate`, `is_contractor` (BIZ-089)
 - `backend/models/salary.py` : 3 champs CDD nullable : `brut_declared`, `conges_payes`, `precarite` (BIZ-089)
