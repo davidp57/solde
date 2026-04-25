@@ -11,6 +11,13 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### UX & Formulaires
+
+- BIZ-094 : Confirmation avant « Recréer le socle comptable » — dialog warn avec annulation (SettingsDangerZonePanel)
+- BIZ-095 : Avertissement modifications non sauvegardées sur tous les formulaires — garde `@update:visible` + `onBeforeRouteLeave` (ClientInvoicesView, SupplierInvoicesView, ContactsView, EmployeesView, SalaryView)
+- BIZ-096 : Feedback de validation champ par champ — parsing erreurs Pydantic 422 dans ClientInvoiceForm, SupplierInvoiceForm, ContactForm
+- BIZ-097 : Accessibilité : `aria-label` sur tous les boutons icône, focus automatique sur le premier champ à l'ouverture des dialogs
+
 ### Performances
 
 - TEC-105 : Fix N+1 dans `payment.list_payments()` — Invoice jointe dans la requête principale (1 query au lieu de N+1)
