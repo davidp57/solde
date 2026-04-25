@@ -23,6 +23,16 @@ class PaymentDeleteError(ValueError):
     """Raised when a payment deletion is not allowed in the standard workflow."""
 
 
+def _build_payment_read(
+    payment: Payment,
+    invoice_number: str | None,
+    invoice_type: InvoiceType | None,
+) -> PaymentRead:
+    """Build a PaymentRead DTO from an ORM Payment and pre-fetched invoice metadata."""
+    read = PaymentRead.model_validate(payment)
+    return read.model_copy(update={"invoice_number": invoice_number, "invoice_type": invoice_type})
+
+
 async def _to_payment_read(db: AsyncSession, payment: Payment) -> PaymentRead:
     """Build a PaymentRead DTO enriched with invoice metadata."""
     result = await db.execute(
@@ -31,8 +41,7 @@ async def _to_payment_read(db: AsyncSession, payment: Payment) -> PaymentRead:
     row = result.one_or_none()
     invoice_number: str | None = row[0] if row else None
     invoice_type: InvoiceType | None = InvoiceType(row[1]) if row and row[1] else None
-    read = PaymentRead.model_validate(payment)
-    return read.model_copy(update={"invoice_number": invoice_number, "invoice_type": invoice_type})
+    return _build_payment_read(payment, invoice_number, invoice_type)
 
 
 async def _get_payment_orm(db: AsyncSession, payment_id: int) -> Payment | None:
@@ -190,18 +199,10 @@ async def list_payments(
     query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     rows = result.all()
-    out: list[PaymentRead] = []
-    for payment, inv_number, inv_type in rows:
-        read = PaymentRead.model_validate(payment)
-        out.append(
-            read.model_copy(
-                update={
-                    "invoice_number": inv_number,
-                    "invoice_type": InvoiceType(inv_type) if inv_type else None,
-                }
-            )
-        )
-    return out
+    return [
+        _build_payment_read(payment, inv_number, InvoiceType(inv_type) if inv_type else None)
+        for payment, inv_number, inv_type in rows
+    ]
 
 
 async def update_payment(db: AsyncSession, payment_id: int, payload: PaymentUpdate) -> PaymentRead:
