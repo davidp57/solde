@@ -1,5 +1,6 @@
 """Excel import API — upload and import Gestion / Comptabilité Excel files."""
 
+import logging
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -14,6 +15,8 @@ from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.services import excel_import, import_reversible
 from backend.services.excel_import import ImportFileOpenError, ImportSheetError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/import", tags=["import"])
 
@@ -182,6 +185,7 @@ def _raise_import_run_error(exc: Exception) -> NoReturn:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    logger.exception("Unexpected error in import run")
     raise exc
 
 

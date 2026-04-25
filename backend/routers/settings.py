@@ -1,5 +1,6 @@
 """Settings API router — GET/PUT /api/settings (admin only)."""
 
+import logging
 from pathlib import Path
 from typing import Annotated, NoReturn
 
@@ -22,6 +23,8 @@ from backend.schemas.settings import (
 from backend.services import settings as settings_service
 from backend.services.audit_service import AuditAction, record_audit
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 _AdminRequired = Annotated[User, Depends(require_role(UserRole.ADMIN))]
@@ -35,6 +38,7 @@ def _raise_selective_reset_error(exc: Exception) -> NoReturn:
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
+    logger.exception("Unexpected error in selective reset")
     raise exc
 
 
