@@ -27,10 +27,10 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BIZ-094 | Confirmation manquante sur « Initialiser la comptabilité » | P1 | ~10 min | 2026-04-25 | | |
-| BIZ-095 | Avertissement « modifications non sauvegardées » sur tous les formulaires | P2 | ~45 min | 2026-04-25 | | |
-| BIZ-096 | Feedback de validation champ par champ dans les formulaires | P2 | ~30 min | 2026-04-25 | | |
-| BIZ-097 | Accessibilité de base : aria-labels icônes, focus management dialogs | P3 | ~30 min | 2026-04-25 | | |
+| BIZ-094 | Confirmation manquante sur « Initialiser la comptabilité » | P1 | ~10 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
+| BIZ-095 | Avertissement « modifications non sauvegardées » sur tous les formulaires | P2 | ~45 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
+| BIZ-096 | Feedback de validation champ par champ dans les formulaires | P2 | ~30 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
+| BIZ-097 | Accessibilité de base : aria-labels icônes, focus management dialogs | P3 | ~30 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
 
 ### Lot O — Qualité technique backend (~2h) — v0.7
 
