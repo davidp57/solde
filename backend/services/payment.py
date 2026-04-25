@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from backend.models.cash import CashEntrySource, CashMovementType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
@@ -22,6 +23,16 @@ class PaymentDeleteError(ValueError):
     """Raised when a payment deletion is not allowed in the standard workflow."""
 
 
+def _build_payment_read(
+    payment: Payment,
+    invoice_number: str | None,
+    invoice_type: InvoiceType | None,
+) -> PaymentRead:
+    """Build a PaymentRead DTO from an ORM Payment and pre-fetched invoice metadata."""
+    read = PaymentRead.model_validate(payment)
+    return read.model_copy(update={"invoice_number": invoice_number, "invoice_type": invoice_type})
+
+
 async def _to_payment_read(db: AsyncSession, payment: Payment) -> PaymentRead:
     """Build a PaymentRead DTO enriched with invoice metadata."""
     result = await db.execute(
@@ -30,8 +41,7 @@ async def _to_payment_read(db: AsyncSession, payment: Payment) -> PaymentRead:
     row = result.one_or_none()
     invoice_number: str | None = row[0] if row else None
     invoice_type: InvoiceType | None = InvoiceType(row[1]) if row and row[1] else None
-    read = PaymentRead.model_validate(payment)
-    return read.model_copy(update={"invoice_number": invoice_number, "invoice_type": invoice_type})
+    return _build_payment_read(payment, invoice_number, invoice_type)
 
 
 async def _get_payment_orm(db: AsyncSession, payment_id: int) -> Payment | None:
@@ -172,13 +182,12 @@ async def list_payments(
     skip: int = 0,
     limit: int = 100,
 ) -> list[PaymentRead]:
-    query = select(Payment)
+    inv = aliased(Invoice)
+    query = select(Payment, inv.number, inv.type).join(inv, Payment.invoice_id == inv.id)
     if invoice_id is not None:
         query = query.where(Payment.invoice_id == invoice_id)
     if invoice_type is not None:
-        query = query.join(Invoice, Payment.invoice_id == Invoice.id).where(
-            Invoice.type == invoice_type
-        )
+        query = query.where(inv.type == invoice_type)
     if contact_id is not None:
         query = query.where(Payment.contact_id == contact_id)
     if from_date is not None:
@@ -187,11 +196,13 @@ async def list_payments(
         query = query.where(Payment.date <= to_date)
     if undeposited_only:
         query = query.where(Payment.deposited == False)  # noqa: E712
-    query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip)
-    query = query.limit(limit)
+    query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
-    payments_orm = list(result.scalars().all())
-    return [await _to_payment_read(db, p) for p in payments_orm]
+    rows = result.all()
+    return [
+        _build_payment_read(payment, inv_number, InvoiceType(inv_type) if inv_type else None)
+        for payment, inv_number, inv_type in rows
+    ]
 
 
 async def update_payment(db: AsyncSession, payment_id: int, payload: PaymentUpdate) -> PaymentRead:
