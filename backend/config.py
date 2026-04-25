@@ -2,7 +2,8 @@
 
 import sys
 from functools import lru_cache
-from importlib.metadata import version as _pkg_version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
 
 try:
     _SOLDE_VERSION = _pkg_version("solde")

@@ -326,6 +326,12 @@ export interface AccountingRuleEntrySchema {
   description_template: string
 }
 
+export interface AccountingRuleEntryCreate {
+  account_number: string
+  side: 'debit' | 'credit'
+  description_template: string
+}
+
 export interface AccountingRuleRead {
   id: number
   name: string
@@ -336,15 +342,30 @@ export interface AccountingRuleRead {
   entries: AccountingRuleEntrySchema[]
 }
 
+export interface AccountingRuleCreate {
+  name: string
+  trigger_type: string
+  is_active?: boolean
+  priority?: number
+  description?: string | null
+  entries?: AccountingRuleEntryCreate[]
+}
+
 export interface AccountingRuleUpdate {
   name?: string
   is_active?: boolean
   priority?: number
   description?: string | null
+  entries?: AccountingRuleEntryCreate[]
 }
 
 export async function listRulesApi(): Promise<AccountingRuleRead[]> {
   const response = await apiClient.get<AccountingRuleRead[]>('/api/accounting/rules/')
+  return response.data
+}
+
+export async function createRuleApi(payload: AccountingRuleCreate): Promise<AccountingRuleRead> {
+  const response = await apiClient.post<AccountingRuleRead>('/api/accounting/rules/', payload)
   return response.data
 }
 
@@ -354,6 +375,10 @@ export async function updateRuleApi(
 ): Promise<AccountingRuleRead> {
   const response = await apiClient.put<AccountingRuleRead>(`/api/accounting/rules/${id}`, payload)
   return response.data
+}
+
+export async function deleteRuleApi(id: number): Promise<void> {
+  await apiClient.delete(`/api/accounting/rules/${id}`)
 }
 
 export async function seedRulesApi(): Promise<{ inserted: number }> {

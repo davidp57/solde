@@ -130,3 +130,90 @@ async def test_tresorier_can_list_rules(client: AsyncClient, tresorier_auth_head
     """Tresorier can access accounting rules."""
     response = await client.get("/api/accounting/rules/", headers=tresorier_auth_headers)
     assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Create rule (POST /)
+# ---------------------------------------------------------------------------
+
+_SAMPLE_RULE = {
+    "name": "Test rule",
+    "trigger_type": "manual",
+    "is_active": True,
+    "priority": 99,
+    "description": "Created in test",
+    "entries": [
+        {"account_number": "512100", "side": "debit", "description_template": "{{label}}"},
+        {"account_number": "580000", "side": "credit", "description_template": "{{label}}"},
+    ],
+}
+
+
+@pytest.mark.asyncio
+async def test_create_rule(client: AsyncClient, auth_headers: dict) -> None:
+    """POST /api/accounting/rules/ creates a new rule (admin only)."""
+    response = await client.post("/api/accounting/rules/", json=_SAMPLE_RULE, headers=auth_headers)
+    assert response.status_code == 201
+    data = response.json()
+    assert data["trigger_type"] == "manual"
+    assert data["name"] == "Test rule"
+    assert len(data["entries"]) == 2
+    assert data["id"] is not None
+
+
+@pytest.mark.asyncio
+async def test_create_rule_duplicate_trigger_type(client: AsyncClient, auth_headers: dict) -> None:
+    """POST /api/accounting/rules/ returns 409 when trigger_type already exists."""
+    await client.post("/api/accounting/rules/", json=_SAMPLE_RULE, headers=auth_headers)
+    response = await client.post("/api/accounting/rules/", json=_SAMPLE_RULE, headers=auth_headers)
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_create_rule_requires_admin(
+    client: AsyncClient, tresorier_auth_headers: dict
+) -> None:
+    """Tresorier cannot create rules — admin only."""
+    response = await client.post(
+        "/api/accounting/rules/", json=_SAMPLE_RULE, headers=tresorier_auth_headers
+    )
+    assert response.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Delete rule (DELETE /{id})
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_delete_rule(client: AsyncClient, auth_headers: dict) -> None:
+    """DELETE /api/accounting/rules/{id} removes the rule."""
+    created = await client.post("/api/accounting/rules/", json=_SAMPLE_RULE, headers=auth_headers)
+    rule_id = created.json()["id"]
+
+    response = await client.delete(f"/api/accounting/rules/{rule_id}", headers=auth_headers)
+    assert response.status_code == 204
+
+    get_resp = await client.get(f"/api/accounting/rules/{rule_id}", headers=auth_headers)
+    assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_rule_not_found(client: AsyncClient, auth_headers: dict) -> None:
+    """DELETE /api/accounting/rules/999 returns 404."""
+    response = await client.delete("/api/accounting/rules/999", headers=auth_headers)
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_rule_requires_admin(
+    client: AsyncClient, auth_headers: dict, tresorier_auth_headers: dict
+) -> None:
+    """Tresorier cannot delete rules — admin only."""
+    created = await client.post("/api/accounting/rules/", json=_SAMPLE_RULE, headers=auth_headers)
+    rule_id = created.json()["id"]
+
+    response = await client.delete(
+        f"/api/accounting/rules/{rule_id}", headers=tresorier_auth_headers
+    )
+    assert response.status_code == 403
