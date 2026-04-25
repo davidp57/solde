@@ -119,8 +119,9 @@ export async function deleteInvoiceApi(id: number): Promise<void> {
   await apiClient.delete(`/api/invoices/${id}`)
 }
 
-export function getInvoicePdfUrl(id: number): string {
-  return `/api/invoices/${id}/pdf`
+export async function downloadInvoicePdfApi(id: number): Promise<Blob> {
+  const response = await apiClient.get(`/api/invoices/${id}/pdf`, { responseType: 'blob' })
+  return response.data
 }
 
 export async function sendInvoiceEmailApi(id: number): Promise<void> {

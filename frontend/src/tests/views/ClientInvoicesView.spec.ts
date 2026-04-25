@@ -53,7 +53,7 @@ vi.mock('../../api/invoices', () => ({
   listInvoicesApi: vi.fn(),
   deleteInvoiceApi: vi.fn(),
   duplicateInvoiceApi: vi.fn(),
-  getInvoicePdfUrl: vi.fn(() => '/pdf'),
+  downloadInvoicePdfApi: vi.fn(() => Promise.resolve(new Blob(['%PDF'], { type: 'application/pdf' }))),
   sendInvoiceEmailApi: vi.fn(),
 }))
 
