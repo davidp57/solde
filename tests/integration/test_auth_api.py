@@ -360,6 +360,43 @@ async def test_update_user_role_and_activation_as_admin(
 
 
 @pytest.mark.asyncio
+async def test_update_user_email_as_admin(
+    client: AsyncClient,
+    admin_user: User,
+    readonly_user: User,
+    auth_headers: dict,
+) -> None:
+    """Admin can update another user's email address."""
+    response = await client.patch(
+        f"/api/auth/users/{readonly_user.id}",
+        json={"email": "new-readonly@test.com"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["email"] == "new-readonly@test.com"
+
+
+@pytest.mark.asyncio
+async def test_update_user_email_duplicate_returns_409(
+    client: AsyncClient,
+    admin_user: User,
+    readonly_user: User,
+    auth_headers: dict,
+) -> None:
+    """Admin cannot set a user's email to an address already in use."""
+    response = await client.patch(
+        f"/api/auth/users/{readonly_user.id}",
+        json={"email": admin_user.email},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "email_exists"
+
+
+@pytest.mark.asyncio
 async def test_update_other_admin_succeeds_when_two_admins_exist(
     client: AsyncClient,
     admin_user: User,

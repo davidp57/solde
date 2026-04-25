@@ -108,6 +108,8 @@ export default {
       last_admin: 'Au moins un administrateur actif doit rester disponible.',
       no_changes: 'Aucune modification n’a été demandée.',
       user_not_found: 'Le compte demandé est introuvable.',
+      email_exists: 'Cette adresse e-mail est déjà utilisée par un autre compte.',
+      email_required: "L'adresse e-mail est obligatoire.",
     },
     stats: {
       total: 'Comptes totaux',
