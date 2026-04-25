@@ -57,6 +57,7 @@ const managementItems = computed<MenuItem[]>(() => {
       { to: '/payments', icon: 'pi-credit-card', label: t('nav.payments') },
       { to: '/bank', icon: 'pi-building-columns', label: t('nav.bank') },
       { to: '/cash', icon: 'pi-wallet', label: t('nav.cash') },
+      { to: '/salaries', icon: 'pi-money-bill', label: t('nav.salaries') },
     )
   }
 
@@ -73,7 +74,6 @@ const accountingItems = computed<MenuItem[]>(() => {
     { to: '/accounting/journal', icon: 'pi-book', label: t('nav.accounting_journal') },
     { to: '/accounting/ledger', icon: 'pi-list', label: t('nav.accounting_ledger') },
     { to: '/employees', icon: 'pi-id-card', label: t('nav.employees') },
-    { to: '/salaries', icon: 'pi-money-bill', label: t('nav.salaries') },
     { to: '/accounting/bilan', icon: 'pi-chart-line', label: t('nav.accounting_bilan') },
     { to: '/accounting/resultat', icon: 'pi-chart-pie', label: t('nav.accounting_resultat') },
     {
