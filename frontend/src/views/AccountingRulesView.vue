@@ -1,7 +1,14 @@
 <template>
   <AppPage width="wide">
+    <ConfirmDialog />
     <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('accounting.rules.title')">
       <template #actions>
+        <Button
+          v-if="canManageApplication"
+          :label="t('accounting.rules.new')"
+          icon="pi pi-plus"
+          @click="openCreate"
+        />
         <Button
           :label="t('accounting.rules.seed')"
           icon="pi pi-download"
@@ -62,6 +69,12 @@
           :show-filter-match-modes="false"
           :show-add-button="false"
         >
+          <template #body="{ data }">
+            <div class="rule-trigger-cell">
+              <span class="rule-trigger-label">{{ triggerLabel(data.trigger_type) }}</span>
+              <span v-if="data.description" class="rule-trigger-desc">{{ data.description }}</span>
+            </div>
+          </template>
           <template #filter="{ filterModel }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
@@ -123,17 +136,42 @@
             <AppNumberRangeFilter v-model="filterModel.value" />
           </template>
         </Column>
-        <Column :header="t('common.actions')">
+        <Column :header="t('accounting.rules.entries')" style="width:5rem; text-align:center">
+          <template #body="{ data }">
+            <Tag :value="String(data.entries.length)" severity="secondary" />
+          </template>
+        </Column>
+        <Column :header="t('common.actions')" style="width:9rem">
           <template #body="{ data }">
             <Button
               :icon="data.is_active ? 'pi pi-eye-slash' : 'pi pi-eye'"
               :severity="data.is_active ? 'secondary' : 'success'"
               text
               rounded
+              size="small"
               :title="
                 data.is_active ? t('accounting.rules.deactivate') : t('accounting.rules.activate')
               "
               @click="toggleRule(data)"
+            />
+            <Button
+              v-if="canManageApplication"
+              icon="pi pi-pencil"
+              text
+              rounded
+              size="small"
+              :title="t('accounting.rules.edit')"
+              @click="openEdit(data)"
+            />
+            <Button
+              v-if="canManageApplication"
+              icon="pi pi-trash"
+              severity="danger"
+              text
+              rounded
+              size="small"
+              :title="t('common.delete')"
+              @click="confirmDelete(data)"
             />
           </template>
         </Column>
@@ -142,18 +180,27 @@
         >
       </DataTable>
     </AppPanel>
+    <AccountingRuleDialog
+      v-model:visible="dialogVisible"
+      :rule="editingRule"
+      @saved="handleSaved"
+    />
   </AppPage>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { storeToRefs } from 'pinia'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
+import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
+import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import AccountingRuleDialog from '../components/accounting/AccountingRuleDialog.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
 import AppListState from '../components/ui/AppListState.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
@@ -164,6 +211,7 @@ import {
   listRulesApi,
   updateRuleApi,
   seedRulesApi,
+  deleteRuleApi,
   type AccountingRuleRead,
 } from '../api/accounting'
 import {
@@ -172,9 +220,15 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
+import { useAuthStore } from '../stores/auth'
 
 const { t } = useI18n()
 const toast = useToast()
+const confirm = useConfirm()
+const { canManageApplication } = storeToRefs(useAuthStore())
+
+const dialogVisible = ref(false)
+const editingRule = ref<AccountingRuleRead | null>(null)
 
 const rules = ref<AccountingRuleRead[]>([])
 const loading = ref(false)
@@ -200,19 +254,73 @@ const {
   priority: numericRangeFilter(),
 })
 
+function triggerLabel(value: string): string {
+  const key = `accounting.rules.trigger_types.${value}`
+  const translated = t(key)
+  return translated === key ? value : translated
+}
+
+function buildRows(source: AccountingRuleRead[]) {
+  return source.map((rule) => ({
+    ...rule,
+    is_active_label: rule.is_active ? t('common.yes') : t('common.no'),
+  }))
+}
+
 async function load() {
   loading.value = true
   try {
     rules.value = await listRulesApi()
-    ruleRows.value = rules.value.map((rule) => ({
-      ...rule,
-      is_active_label: rule.is_active ? t('common.yes') : t('common.no'),
-    }))
+    ruleRows.value = buildRows(rules.value)
     triggerTypeOptions.value = Array.from(
       new Set(rules.value.map((rule) => rule.trigger_type)),
-    ).map((value) => ({ label: value, value }))
+    ).map((value) => ({ label: triggerLabel(value), value }))
   } finally {
     loading.value = false
+  }
+}
+
+function openCreate(): void {
+  editingRule.value = null
+  dialogVisible.value = true
+}
+
+function openEdit(rule: AccountingRuleRead): void {
+  editingRule.value = rule
+  dialogVisible.value = true
+}
+
+function handleSaved(saved: AccountingRuleRead): void {
+  const idx = rules.value.findIndex((r) => r.id === saved.id)
+  if (idx !== -1) {
+    rules.value[idx] = saved
+  } else {
+    rules.value.push(saved)
+    triggerTypeOptions.value = Array.from(
+      new Set(rules.value.map((r) => r.trigger_type)),
+    ).map((value) => ({ label: triggerLabel(value), value }))
+  }
+  ruleRows.value = buildRows(rules.value)
+}
+
+function confirmDelete(rule: AccountingRuleRead): void {
+  confirm.require({
+    message: t('accounting.rules.confirm_delete', { name: rule.name }),
+    header: t('common.delete'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: () => doDelete(rule),
+  })
+}
+
+async function doDelete(rule: AccountingRuleRead): Promise<void> {
+  try {
+    await deleteRuleApi(rule.id)
+    rules.value = rules.value.filter((r) => r.id !== rule.id)
+    ruleRows.value = buildRows(rules.value)
+    toast.add({ severity: 'success', summary: t('accounting.rules.deleted'), life: 3000 })
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   }
 }
 
@@ -220,7 +328,10 @@ async function toggleRule(rule: AccountingRuleRead) {
   try {
     const updated = await updateRuleApi(rule.id, { is_active: !rule.is_active })
     const idx = rules.value.findIndex((r) => r.id === rule.id)
-    if (idx !== -1) rules.value[idx] = updated
+    if (idx !== -1) {
+      rules.value[idx] = updated
+      ruleRows.value = buildRows(rules.value)
+    }
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   }
@@ -249,3 +360,21 @@ async function seedRules() {
 
 onMounted(load)
 </script>
+
+<style scoped>
+.rule-trigger-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.rule-trigger-label {
+  font-weight: 500;
+}
+
+.rule-trigger-desc {
+  font-size: 0.8125rem;
+  color: var(--p-text-muted-color, #6c757d);
+  white-space: normal;
+}
+</style>
