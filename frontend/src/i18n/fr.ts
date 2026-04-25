@@ -187,6 +187,9 @@ export default {
     save: 'Enregistrer',
     search: 'Rechercher',
     cancel: 'Annuler',
+    discard: 'Abandonner les modifications',
+    unsaved_changes: 'Modifications non sauvegardées',
+    unsaved_changes_confirm: 'Des modifications non sauvegardées seront perdues. Continuer quand même ?',
     delete: 'Supprimer',
     yes: 'Oui',
     no: 'Non',
@@ -777,6 +780,7 @@ export default {
     bootstrap_accounting_done:
       '{accounts} compte(s), {rules} règle(s) et {fiscalYears} exercice(s) créés.',
     bootstrap_accounting_error: 'Erreur lors de la recréation du socle comptable.',
+    bootstrap_accounting_confirm: 'Cette action recrée le socle comptable par défaut (comptes, règles, exercices). Les données existantes ne seront pas supprimées. Confirmer ?',
     reset_db_done: '{count} ligne(s) supprimée(s). La base est réinitialisée.',
     reset_db_error: 'Erreur lors de la réinitialisation.',
     selective_reset_title: 'Reset sélectif de reprise',

@@ -190,6 +190,8 @@
                 size="small"
                 severity="secondary"
                 text
+                :title="t('salary.edit')"
+                :aria-label="t('salary.edit')"
                 @click="openEditDialog(data)"
               />
               <Button
@@ -197,6 +199,8 @@
                 size="small"
                 severity="danger"
                 text
+                :title="t('common.delete')"
+                :aria-label="t('common.delete')"
                 @click="confirmDelete(data)"
               />
             </div>
@@ -413,7 +417,8 @@
     </AppPanel>
 
     <Dialog
-      v-model:visible="dialogVisible"
+      :visible="dialogVisible"
+      @update:visible="onCloseDialog"
       :header="editing ? t('salary.edit') : t('salary.new')"
       modal
       class="app-dialog app-dialog--medium"
@@ -574,7 +579,7 @@
           :label="t('common.cancel')"
           severity="secondary"
           text
-          @click="dialogVisible = false"
+          @click="onCloseDialog(false)"
         />
         <Button :label="t('common.save')" :loading="saving" @click="save" />
       </template>
@@ -586,8 +591,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { onBeforeRouteLeave } from 'vue-router'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -785,6 +791,47 @@ const editing = ref<SalaryRead | null>(null)
 const saving = ref(false)
 const isEditing = computed(() => editing.value !== null)
 const copyingPrevious = ref(false)
+const formInitialSnapshot = ref('')
+const isFormDirty = computed(() => JSON.stringify(form.value) !== formInitialSnapshot.value)
+
+function captureFormSnapshot(): void {
+  formInitialSnapshot.value = JSON.stringify(form.value)
+}
+
+function onCloseDialog(val: boolean): void {
+  if (val) {
+    dialogVisible.value = true
+    return
+  }
+  if (isFormDirty.value) {
+    confirm.require({
+      message: t('common.unsaved_changes_confirm'),
+      header: t('common.unsaved_changes'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptProps: { severity: 'warn', label: t('common.discard') },
+      rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
+      accept: () => { dialogVisible.value = false },
+    })
+  } else {
+    dialogVisible.value = false
+  }
+}
+
+onBeforeRouteLeave((to, from, next) => {
+  if (dialogVisible.value && isFormDirty.value) {
+    confirm.require({
+      message: t('common.unsaved_changes_confirm'),
+      header: t('common.unsaved_changes'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptProps: { severity: 'warn', label: t('common.discard') },
+      rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
+      accept: () => { dialogVisible.value = false; next() },
+      reject: () => { next(false) },
+    })
+  } else {
+    next()
+  }
+})
 
 // Workforce cost panel
 const workforceCost = ref<WorkforceCostRow[]>([])
@@ -943,6 +990,7 @@ function openCreateDialog() {
   editing.value = null
   form.value = blankForm()
   dialogVisible.value = true
+  void nextTick(captureFormSnapshot)
 }
 
 function openEditDialog(salary: SalaryRead) {
@@ -962,6 +1010,7 @@ function openEditDialog(salary: SalaryRead) {
     precarite: salary.precarite ?? null,
   }
   dialogVisible.value = true
+  void nextTick(captureFormSnapshot)
 }
 
 async function save() {

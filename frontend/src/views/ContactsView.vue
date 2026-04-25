@@ -167,6 +167,7 @@
                 severity="info"
                 text
                 :title="t('contact_history.title')"
+                :aria-label="t('contact_history.title')"
                 @click="$router.push(`/contacts/${data.id}/history`)"
               />
               <Button
@@ -174,6 +175,8 @@
                 size="small"
                 severity="secondary"
                 text
+                :title="t('contacts.edit')"
+                :aria-label="t('contacts.edit')"
                 @click="openEditDialog(data)"
               />
               <Button
@@ -181,6 +184,8 @@
                 size="small"
                 severity="danger"
                 text
+                :title="t('common.delete')"
+                :aria-label="t('common.delete')"
                 @click="confirmDelete(data)"
               />
             </div>
@@ -297,12 +302,16 @@
     </Dialog>
 
     <Dialog
-      v-model:visible="dialogVisible"
+      :visible="dialogVisible"
+      @update:visible="onCloseDialog"
+      @show="focusFormInput"
       :header="editingContact ? t('contacts.edit') : t('contacts.new')"
       modal
       class="app-dialog app-dialog--medium"
     >
-      <ContactForm ref="contactFormRef" :contact="editingContact" @saved="onSaved" @cancel="dialogVisible = false" />
+      <div ref="formWrapperEl">
+        <ContactForm ref="contactFormRef" :contact="editingContact" @saved="onSaved" @cancel="onCloseDialog(false)" />
+      </div>
     </Dialog>
 
     <ConfirmDialog />
@@ -324,7 +333,7 @@ import Tabs from 'primevue/tabs'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
@@ -354,6 +363,32 @@ const activeTab = ref<'all' | 'client' | 'fournisseur'>('all')
 const dialogVisible = ref(false)
 const contactFormRef = ref<InstanceType<typeof ContactForm> | null>(null)
 const editingContact = ref<Contact | null>(null)
+const formWrapperEl = ref<HTMLElement | null>(null)
+
+function focusFormInput(): void {
+  nextTick(() => {
+    formWrapperEl.value?.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled])')?.focus()
+  })
+}
+
+function onCloseDialog(val: boolean): void {
+  if (val) {
+    dialogVisible.value = true
+    return
+  }
+  if (contactFormRef.value?.isDirty) {
+    confirm.require({
+      message: t('common.unsaved_changes_confirm'),
+      header: t('common.unsaved_changes'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptProps: { severity: 'warn', label: t('common.discard') },
+      rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
+      accept: () => { dialogVisible.value = false },
+    })
+  } else {
+    dialogVisible.value = false
+  }
+}
 const importDialogVisible = ref(false)
 const importText = ref('')
 const importLoading = ref(false)
