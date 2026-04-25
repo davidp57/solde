@@ -220,14 +220,13 @@ async def get_workforce_cost(
         .where(Invoice.contact.has(Contact.is_contractor.is_(True)))
         .order_by(Invoice.date)
     )
+    if from_month is not None:
+        ae_query = ae_query.where(func.strftime("%Y-%m", Invoice.date) >= from_month)
+    if to_month is not None:
+        ae_query = ae_query.where(func.strftime("%Y-%m", Invoice.date) <= to_month)
     ae_result = await db.execute(ae_query)
     for inv in ae_result.scalars().all():
-        # Map invoice date to YYYY-MM month string
         month_str = inv.date.strftime("%Y-%m")
-        if from_month and month_str < from_month:
-            continue
-        if to_month and month_str > to_month:
-            continue
         contact = inv.contact
         hours = inv.hours if inv.hours and inv.hours > 0 else None
         rows.append(

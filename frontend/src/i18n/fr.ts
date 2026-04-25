@@ -1057,6 +1057,8 @@ export default {
     copy_previous_not_found: 'Aucun salaire précédent trouvé pour cet employé.',
     filter_employee: 'Filtrer par employé',
     filter_month: 'Filtrer par mois (AAAA-MM)',
+    filter_month_from: 'Mois de début',
+    filter_month_to: 'Mois de fin',
   },
   dashboard: {
     title: 'Tableau de bord',
