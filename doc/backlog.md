@@ -60,10 +60,18 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | TEC-039 | Revalidation scénarios facture / email | P1 | ~10 min | 2026-04-21 | | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
+| TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | | |
 
 ---
 
 ## Détails
+
+### TEC-106 — Audit et complétion des clés i18n manquantes
+
+Plusieurs clés i18n ne sont pas renseignées dans `fr.ts` et s'affichent brutes en production (ex. `common.active` dans la vue Employés).
+- Parcourir toutes les vues et composants pour identifier les appels `t('...')` sans traduction correspondante dans `src/i18n/fr.ts`.
+- Ajouter les traductions manquantes.
+- Vérifier aussi les clés orphelines (dans `fr.ts` mais plus utilisées dans le code).
 
 ### TEC-105 — Lenteur navigation et chargement des données
 
