@@ -593,7 +593,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onBeforeRouteLeave } from 'vue-router'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -632,6 +631,7 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
+import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatDisplayMonth } from '../utils/format'
 
@@ -798,40 +798,7 @@ function captureFormSnapshot(): void {
   formInitialSnapshot.value = JSON.stringify(form.value)
 }
 
-function onCloseDialog(val: boolean): void {
-  if (val) {
-    dialogVisible.value = true
-    return
-  }
-  if (isFormDirty.value) {
-    confirm.require({
-      message: t('common.unsaved_changes_confirm'),
-      header: t('common.unsaved_changes'),
-      icon: 'pi pi-exclamation-triangle',
-      acceptProps: { severity: 'warn', label: t('common.discard') },
-      rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
-      accept: () => { dialogVisible.value = false },
-    })
-  } else {
-    dialogVisible.value = false
-  }
-}
-
-onBeforeRouteLeave((to, from, next) => {
-  if (dialogVisible.value && isFormDirty.value) {
-    confirm.require({
-      message: t('common.unsaved_changes_confirm'),
-      header: t('common.unsaved_changes'),
-      icon: 'pi pi-exclamation-triangle',
-      acceptProps: { severity: 'warn', label: t('common.discard') },
-      rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
-      accept: () => { dialogVisible.value = false; next() },
-      reject: () => { next(false) },
-    })
-  } else {
-    next()
-  }
-})
+const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => isFormDirty.value, { withRouteLeaveGuard: true })
 
 // Workforce cost panel
 const workforceCost = ref<WorkforceCostRow[]>([])

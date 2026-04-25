@@ -564,6 +564,7 @@ import {
 import { createPayment, listPayments, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
+import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
 import AppListState from '../components/ui/AppListState.vue'
@@ -609,24 +610,7 @@ function focusFormInput(): void {
   })
 }
 
-function onCloseDialog(val: boolean): void {
-  if (val) {
-    dialogVisible.value = true
-    return
-  }
-  if (invoiceFormRef.value?.isDirty) {
-    confirm.require({
-      message: t('common.unsaved_changes_confirm'),
-      header: t('common.unsaved_changes'),
-      icon: 'pi pi-exclamation-triangle',
-      acceptProps: { severity: 'warn', label: t('common.discard') },
-      rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
-      accept: () => { dialogVisible.value = false },
-    })
-  } else {
-    dialogVisible.value = false
-  }
-}
+const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => Boolean(invoiceFormRef.value?.isDirty))
 const editingInvoice = ref<Invoice | null>(null)
 const statusFilter = ref<InvoiceStatus | null>(null)
 const unpaidOnly = ref(false)

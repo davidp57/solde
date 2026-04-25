@@ -347,6 +347,7 @@ import type { ContactEmailImportResult, ContactEmailImportRow } from '@/api/cont
 import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
+import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import {
   collectActiveFilterLabels,
 } from '../composables/activeFilterLabels'
@@ -371,24 +372,7 @@ function focusFormInput(): void {
   })
 }
 
-function onCloseDialog(val: boolean): void {
-  if (val) {
-    dialogVisible.value = true
-    return
-  }
-  if (contactFormRef.value?.isDirty) {
-    confirm.require({
-      message: t('common.unsaved_changes_confirm'),
-      header: t('common.unsaved_changes'),
-      icon: 'pi pi-exclamation-triangle',
-      acceptProps: { severity: 'warn', label: t('common.discard') },
-      rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
-      accept: () => { dialogVisible.value = false },
-    })
-  } else {
-    dialogVisible.value = false
-  }
-}
+const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => Boolean(contactFormRef.value?.isDirty))
 const importDialogVisible = ref(false)
 const importText = ref('')
 const importLoading = ref(false)
