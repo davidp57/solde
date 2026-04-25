@@ -7,6 +7,9 @@ WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
+# Copy pyproject.toml so vite.config.ts can read the version
+COPY pyproject.toml ../
+
 # Copy source and build
 COPY frontend/ ./
 RUN npm run build-only
