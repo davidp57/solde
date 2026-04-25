@@ -17,6 +17,10 @@ class SalaryCreate(BaseModel):
     employer_charges: Decimal = Decimal("0")
     tax: Decimal = Decimal("0")
     net_pay: Decimal
+    # CDD breakdown components (optional)
+    brut_declared: Decimal | None = None
+    conges_payes: Decimal | None = None
+    precarite: Decimal | None = None
     notes: str | None = None
 
     @field_validator("month")
@@ -36,6 +40,9 @@ class SalaryUpdate(BaseModel):
     employer_charges: Decimal | None = None
     tax: Decimal | None = None
     net_pay: Decimal | None = None
+    brut_declared: Decimal | None = None
+    conges_payes: Decimal | None = None
+    precarite: Decimal | None = None
     notes: str | None = None
 
 
@@ -51,10 +58,24 @@ class SalaryRead(BaseModel):
     tax: Decimal
     net_pay: Decimal
     total_cost: Decimal
+    brut_declared: Decimal | None
+    conges_payes: Decimal | None
+    precarite: Decimal | None
     notes: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class SalaryPreviousRead(BaseModel):
+    """Pre-fill data for 'copy previous salary' — only pre-CEA fields."""
+
+    employee_id: int
+    hours: Decimal
+    gross: Decimal
+    brut_declared: Decimal | None
+    conges_payes: Decimal | None
+    precarite: Decimal | None
 
 
 class SalarySummaryRow(BaseModel):
@@ -68,3 +89,16 @@ class SalarySummaryRow(BaseModel):
     total_net_pay: Decimal
     total_cost: Decimal
     count: int
+
+
+class WorkforceCostRow(BaseModel):
+    """One row in the consolidated workforce cost view (salaries + AE invoices)."""
+
+    month: str
+    person_id: int
+    person_name: str
+    person_type: str  # "CDI", "CDD", "AE"
+    hours: Decimal | None
+    amount: Decimal  # gross for employees, invoice total for AE
+    total_cost: Decimal  # gross + employer charges for employees, invoice total for AE
+    hourly_cost: Decimal | None  # total_cost / hours if hours > 0

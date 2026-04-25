@@ -243,6 +243,69 @@
           </div>
         </section>
 
+        <section class="app-dialog-section">
+          <div class="app-dialog-section__header">
+            <h3 class="app-dialog-section__title">{{ t('employees.contract_title') }}</h3>
+            <p class="app-dialog-section__copy">{{ t('employees.contract_subtitle') }}</p>
+          </div>
+          <div class="app-form-grid">
+            <div class="app-field">
+              <label for="ef-contract-type" class="app-field__label">{{ t('employees.contract_type') }}</label>
+              <Select
+                id="ef-contract-type"
+                v-model="form.contract_type"
+                :options="contractTypeOptions"
+                option-label="label"
+                option-value="value"
+                :placeholder="t('employees.contract_type_placeholder')"
+                show-clear
+                class="w-full"
+              />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('employees.is_contractor') }}</label>
+              <ToggleSwitch v-model="form.is_contractor" />
+              <small class="app-dialog-note">{{ t('employees.is_contractor_help') }}</small>
+            </div>
+            <template v-if="form.contract_type === 'cdi'">
+              <div class="app-field">
+                <label for="ef-base-gross" class="app-field__label">{{ t('employees.base_gross') }}</label>
+                <InputNumber
+                  id="ef-base-gross"
+                  v-model="form.base_gross"
+                  :min-fraction-digits="2"
+                  suffix=" €"
+                  class="w-full"
+                />
+                <small class="app-dialog-note">{{ t('employees.base_gross_help') }}</small>
+              </div>
+              <div class="app-field">
+                <label for="ef-base-hours" class="app-field__label">{{ t('employees.base_hours') }}</label>
+                <InputNumber
+                  id="ef-base-hours"
+                  v-model="form.base_hours"
+                  :min-fraction-digits="2"
+                  class="w-full"
+                />
+                <small class="app-dialog-note">{{ t('employees.base_hours_help') }}</small>
+              </div>
+            </template>
+            <template v-if="form.contract_type === 'cdd'">
+              <div class="app-field">
+                <label for="ef-hourly-rate" class="app-field__label">{{ t('employees.hourly_rate') }}</label>
+                <InputNumber
+                  id="ef-hourly-rate"
+                  v-model="form.hourly_rate"
+                  :min-fraction-digits="2"
+                  suffix=" €/h"
+                  class="w-full"
+                />
+                <small class="app-dialog-note">{{ t('employees.hourly_rate_help') }}</small>
+              </div>
+            </template>
+          </div>
+        </section>
+
         <Message v-if="errorMessage" severity="error">{{ errorMessage }}</Message>
 
         <div class="app-form-actions">
@@ -268,8 +331,10 @@ import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
+import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
+import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
@@ -289,6 +354,11 @@ import { textFilter, useDataTableFilters } from '../composables/useDataTableFilt
 const { t } = useI18n()
 const confirm = useConfirm()
 const toast = useToast()
+
+const contractTypeOptions = computed(() => [
+  { label: t('employees.contract_type_cdi'), value: 'cdi' },
+  { label: t('employees.contract_type_cdd'), value: 'cdd' },
+])
 
 const employees = ref<Contact[]>([])
 const loading = ref(false)
@@ -356,10 +426,27 @@ interface EmployeeForm {
   telephone: string
   adresse: string
   notes: string
+  contract_type: 'cdi' | 'cdd' | null
+  base_gross: number | null
+  base_hours: number | null
+  hourly_rate: number | null
+  is_contractor: boolean
 }
 
 function blankForm(): EmployeeForm {
-  return { nom: '', prenom: '', email: '', telephone: '', adresse: '', notes: '' }
+  return {
+    nom: '',
+    prenom: '',
+    email: '',
+    telephone: '',
+    adresse: '',
+    notes: '',
+    contract_type: null,
+    base_gross: null,
+    base_hours: null,
+    hourly_rate: null,
+    is_contractor: false,
+  }
 }
 
 function fromContact(c: Contact): EmployeeForm {
@@ -370,6 +457,11 @@ function fromContact(c: Contact): EmployeeForm {
     telephone: c.telephone ?? '',
     adresse: c.adresse ?? '',
     notes: c.notes ?? '',
+    contract_type: c.contract_type ?? null,
+    base_gross: c.base_gross ?? null,
+    base_hours: c.base_hours ?? null,
+    hourly_rate: c.hourly_rate ?? null,
+    is_contractor: c.is_contractor,
   }
 }
 
@@ -400,6 +492,11 @@ async function submit(): Promise<void> {
       telephone: form.value.telephone || null,
       adresse: form.value.adresse || null,
       notes: form.value.notes || null,
+      contract_type: form.value.contract_type,
+      base_gross: form.value.base_gross,
+      base_hours: form.value.base_hours,
+      hourly_rate: form.value.hourly_rate,
+      is_contractor: form.value.is_contractor,
     }
     if (editing.value) {
       await updateContactApi(editing.value.id, payload)

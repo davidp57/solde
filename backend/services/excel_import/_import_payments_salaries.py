@@ -210,6 +210,9 @@ async def _import_salaries_sheet(db: AsyncSession, ws: Any, result: ImportResult
             employer_charges=salary_row.employer_charges,
             tax=salary_row.tax,
             net_pay=salary_row.net_pay,
+            brut_declared=salary_row.brut_declared,
+            conges_payes=salary_row.conges_payes,
+            precarite=salary_row.precarite,
             notes="Imported from Gestion Excel",
         )
         db.add(salary)

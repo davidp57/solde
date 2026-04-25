@@ -98,6 +98,12 @@
           />
           <small class="app-dialog-note">{{ t('contacts.notes_help') }}</small>
         </div>
+
+        <div class="app-field">
+          <label class="app-field__label">{{ t('employees.is_contractor') }}</label>
+          <ToggleSwitch v-model="form.is_contractor" />
+          <small class="app-dialog-note">{{ t('employees.is_contractor_help') }}</small>
+        </div>
       </div>
     </section>
 
@@ -122,6 +128,7 @@ import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
+import ToggleSwitch from 'primevue/toggleswitch'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createContactApi, updateContactApi, type Contact } from '@/api/contacts'
@@ -146,6 +153,7 @@ interface FormState {
   telephone: string
   adresse: string
   notes: string
+  is_contractor: boolean
 }
 
 function fromContact(c: Contact | null): FormState {
@@ -157,6 +165,7 @@ function fromContact(c: Contact | null): FormState {
     telephone: c?.telephone ?? '',
     adresse: c?.adresse ?? '',
     notes: c?.notes ?? '',
+    is_contractor: c?.is_contractor ?? false,
   }
 }
 
@@ -185,6 +194,7 @@ async function submit(): Promise<void> {
       telephone: form.value.telephone || null,
       adresse: form.value.adresse || null,
       notes: form.value.notes || null,
+      is_contractor: form.value.is_contractor,
     }
     if (props.contact) {
       await updateContactApi(props.contact.id, payload)

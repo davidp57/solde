@@ -10,9 +10,11 @@ from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.salary import (
     SalaryCreate,
+    SalaryPreviousRead,
     SalaryRead,
     SalarySummaryRow,
     SalaryUpdate,
+    WorkforceCostRow,
 )
 from backend.services import salary_service
 
@@ -43,6 +45,9 @@ def _to_read(salary: "Salary") -> SalaryRead:
         tax=salary.tax,
         net_pay=salary.net_pay,
         total_cost=salary.total_cost,
+        brut_declared=salary.brut_declared,
+        conges_payes=salary.conges_payes,
+        precarite=salary.precarite,
         notes=salary.notes,
         created_at=salary.created_at,
     )
@@ -79,6 +84,21 @@ async def get_monthly_summary(
     to_month: str | None = Query(default=None),
 ) -> list[SalarySummaryRow]:
     return await salary_service.get_monthly_summary(
+        db,
+        from_month=from_month,
+        to_month=to_month,
+    )
+
+
+@router.get("/workforce-cost", response_model=list[WorkforceCostRow])
+async def get_workforce_cost(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    from_month: str | None = Query(default=None),
+    to_month: str | None = Query(default=None),
+) -> list[WorkforceCostRow]:
+    """Consolidated workforce cost: employee salaries + AE contractor invoices."""
+    return await salary_service.get_workforce_cost(
         db,
         from_month=from_month,
         to_month=to_month,
@@ -131,3 +151,19 @@ async def delete_salary(
     if salary is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
     await salary_service.delete_salary(db, salary)
+
+
+@router.get("/previous/{employee_id}", response_model=SalaryPreviousRead)
+async def get_previous_salary(
+    employee_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+) -> SalaryPreviousRead:
+    """Return pre-CEA fields from the most recent salary for quick copy."""
+    previous = await salary_service.get_previous_salary(db, employee_id)
+    if previous is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No previous salary found for this employee",
+        )
+    return previous

@@ -10,7 +10,13 @@ from sqlalchemy.orm import selectinload
 
 from backend.models.contact import Contact
 from backend.models.salary import Salary
-from backend.schemas.salary import SalaryCreate, SalarySummaryRow, SalaryUpdate
+from backend.schemas.salary import (
+    SalaryCreate,
+    SalaryPreviousRead,
+    SalarySummaryRow,
+    SalaryUpdate,
+    WorkforceCostRow,
+)
 
 
 class SalaryError(Exception):
@@ -135,3 +141,108 @@ def _employee_display_name(contact: Contact | None) -> str | None:
     if contact.nom:
         parts.append(contact.nom)
     return " ".join(parts) if parts else None
+
+
+async def get_previous_salary(db: AsyncSession, employee_id: int) -> SalaryPreviousRead | None:
+    """Return pre-CEA fields from the most recent salary for an employee.
+
+    Only hours, gross, and CDD breakdown components are returned — the CEA
+    fields (cotisations, net) are intentionally excluded because they can
+    change each month.
+    """
+    result = await db.execute(
+        select(Salary)
+        .where(Salary.employee_id == employee_id)
+        .order_by(Salary.month.desc())
+        .limit(1)
+    )
+    salary = result.scalar_one_or_none()
+    if salary is None:
+        return None
+    return SalaryPreviousRead(
+        employee_id=salary.employee_id,
+        hours=salary.hours,
+        gross=salary.gross,
+        brut_declared=salary.brut_declared,
+        conges_payes=salary.conges_payes,
+        precarite=salary.precarite,
+    )
+
+
+async def get_workforce_cost(
+    db: AsyncSession,
+    *,
+    from_month: str | None = None,
+    to_month: str | None = None,
+) -> list[WorkforceCostRow]:
+    """Return consolidated workforce cost rows (employees + AE invoices) by month."""
+    from backend.models.invoice import Invoice, InvoiceType  # noqa: PLC0415
+
+    rows: list[WorkforceCostRow] = []
+
+    # --- Employee salaries ---
+    salary_query = (
+        select(Salary)
+        .options(selectinload(Salary.employee))
+        .order_by(Salary.month, Salary.employee_id)
+    )
+    if from_month is not None:
+        salary_query = salary_query.where(Salary.month >= from_month)
+    if to_month is not None:
+        salary_query = salary_query.where(Salary.month <= to_month)
+    salary_result = await db.execute(salary_query)
+    for sal in salary_result.scalars().all():
+        emp = sal.employee
+        contract = getattr(emp, "contract_type", None) or "CDI"
+        person_type = contract.upper() if contract else "CDI"
+        hours = sal.hours if sal.hours and sal.hours > 0 else None
+        total_cost = sal.total_cost
+        rows.append(
+            WorkforceCostRow(
+                month=sal.month,
+                person_id=emp.id if emp else sal.employee_id,
+                person_name=_employee_display_name(emp) or str(sal.employee_id),
+                person_type=person_type,
+                hours=hours,
+                amount=sal.gross,
+                total_cost=total_cost,
+                hourly_cost=(total_cost / hours).quantize(Decimal("0.01"))
+                if hours and hours > 0
+                else None,
+            )
+        )
+
+    # --- AE / contractor invoices ---
+    ae_query = (
+        select(Invoice)
+        .options(selectinload(Invoice.contact))
+        .where(Invoice.type == InvoiceType.FOURNISSEUR)
+        .where(Invoice.contact.has(Contact.is_contractor.is_(True)))
+        .order_by(Invoice.date)
+    )
+    if from_month is not None:
+        ae_query = ae_query.where(func.strftime("%Y-%m", Invoice.date) >= from_month)
+    if to_month is not None:
+        ae_query = ae_query.where(func.strftime("%Y-%m", Invoice.date) <= to_month)
+    ae_result = await db.execute(ae_query)
+    for inv in ae_result.scalars().all():
+        month_str = inv.date.strftime("%Y-%m")
+        contact = inv.contact
+        hours = inv.hours if inv.hours and inv.hours > 0 else None
+        rows.append(
+            WorkforceCostRow(
+                month=month_str,
+                person_id=contact.id if contact else inv.contact_id,
+                person_name=_employee_display_name(contact) or str(inv.contact_id),
+                person_type="AE",
+                hours=hours,
+                amount=inv.total_amount,
+                total_cost=inv.total_amount,
+                hourly_cost=(inv.total_amount / hours).quantize(Decimal("0.01"))
+                if hours and hours > 0
+                else None,
+            )
+        )
+
+    rows.sort(key=lambda r: (r.month, r.person_name))
+    return rows
