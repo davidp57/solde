@@ -11,6 +11,12 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Performances
+
+- TEC-105 : Fix N+1 dans `payment.list_payments()` — Invoice jointé dans la requête principale (1 query au lieu de N+1)
+- TEC-105 : Dashboard — filtres `unpaid` et `overdue` déplacés en SQL (`WHERE total_amount > paid_amount`, `WHERE due_date < today`) au lieu d'un chargement en mémoire de toutes les factures
+- TEC-105 : Index SQL ajouté sur `invoices.due_date` (migration 0028) — accélère les requêtes de factures en retard
+
 ### Sécurité
 
 - TEC-091 : Logging serveur ajouté sur les routeurs `invoice`, `excel_import`, `settings` — les exceptions inattendues sont désormais tracées (`logger.exception`) avant relance

@@ -116,7 +116,7 @@ class Invoice(Base):
     type: Mapped[InvoiceType] = mapped_column(String(20), nullable=False, index=True)
     contact_id: Mapped[int] = mapped_column(ForeignKey("contacts.id"), nullable=False, index=True)
     date: Mapped[_Date] = mapped_column(Date, nullable=False, index=True)
-    due_date: Mapped[_Date | None] = mapped_column(Date, nullable=True)
+    due_date: Mapped[_Date | None] = mapped_column(Date, nullable=True, index=True)
     label: Mapped[InvoiceLabel | None] = mapped_column(String(10), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
