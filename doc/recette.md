@@ -132,6 +132,58 @@ Chaque ticket correspond à un ou plusieurs commits liés. Les identifiants `REC
 
 ---
 
+### REC-010 — Admin peut modifier l'adresse e-mail d'un utilisateur
+
+| Champ | Valeur |
+|---|---|
+| **Type** | `feat` |
+| **Date** | 2026-04-25 |
+| **Commit** | `a1e3c54` |
+| **Fichiers** | `backend/routers/auth.py`, `backend/schemas/auth.py`, `frontend/src/api/users.ts`, `frontend/src/i18n/fr.ts`, `frontend/src/views/UsersView.vue`, `tests/integration/test_auth_api.py` |
+
+**Description** : Le champ e-mail était en lecture seule dans le dialog de gestion des utilisateurs. L'admin peut désormais modifier l'adresse e-mail d'un utilisateur via `PATCH /api/auth/users/{id}`. Inclut une vérification d'unicité (409 si doublon) et un garde contre la valeur vide. Côté frontend, le champ e-mail est maintenant éditable ; `canEdit` s'active dès qu'un changement d'e-mail est détecté, y compris pour la modification de son propre compte. 2 nouveaux tests d'intégration.
+
+---
+
+### REC-011 — Dialogs de détail facture / paiement depuis la fiche contact
+
+| Champ | Valeur |
+|---|---|
+| **Type** | `feat` |
+| **Date** | 2026-04-25 |
+| **Commit** | `e00b9a3` |
+| **Fichiers** | `frontend/src/views/ContactDetailView.vue`, `frontend/src/i18n/fr.ts` |
+
+**Description** : Depuis la fiche contact, un clic sur l'icône œil d'une facture ouvre un dialog affichant les lignes, les totaux (total, réglé, restant dû), le statut et l'échéance, avec bouton « Générer PDF » et bouton « Envoyer par e-mail » (visible uniquement si le contact a une adresse e-mail et si c'est une facture client). Un clic sur l'icône œil d'un paiement ouvre un dialog affichant tous les champs (mode de règlement, montant, n° chèque, référence, notes, remise en banque).
+
+---
+
+### REC-012 — Fix PDF : paramètres de l'association ignorés (nom affiché « Mon association »)
+
+| Champ | Valeur |
+|---|---|
+| **Type** | `fix` |
+| **Date** | 2026-04-25 |
+| **Commit** | `4f70488` |
+| **Fichiers** | `backend/routers/invoice.py` |
+
+**Description** : Les endpoints `/pdf` et `/send-email` passaient `cfg` (config lue depuis les variables d'environnement, valeur par défaut `"Mon Association"`) à la génération PDF au lieu de charger `AppSettings` depuis la base de données. Les champs nom, adresse, SIRET et logo de l'association étaient donc toujours ignorés. Correction : `settings_service.get_settings(db)` est maintenant appelé avant `generate_invoice_pdf` dans les deux endpoints.
+
+---
+
+### REC-013 — Fix dialogs contact : composant `Dialog` non importé
+
+| Champ | Valeur |
+|---|---|
+| **Type** | `fix` |
+| **Date** | 2026-04-25 |
+| **Commit** | `063d941` |
+| **Fichiers** | `frontend/src/views/ContactDetailView.vue` |
+
+**Description** : Suite à REC-011, les boutons œil ne faisaient rien. Le composant `Dialog` était utilisé dans le template mais non importé dans le `<script setup>` — PrimeVue ne pouvait pas l'enregistrer. Ajout de `import Dialog from 'primevue/dialog'`.
+
+---
+
 ## État d'ensemble
 
 | ID | Titre | Type | Commit | Statut |
@@ -145,3 +197,7 @@ Chaque ticket correspond à un ou plusieurs commits liés. Les identifiants `REC
 | REC-007 | Docker : `pyproject.toml` dans builder | fix | `4f19c62` | ✅ livré |
 | REC-008 | CRUD règles comptables (admin) | feat | `1fe2274` | ✅ livré |
 | REC-009 | Fix vue-i18n SyntaxError 9 — `entries_subtitle` | fix | `4ea32a5` | ✅ livré |
+| REC-010 | Admin peut modifier l'e-mail utilisateur | feat | `a1e3c54` | ✅ livré |
+| REC-011 | Dialogs détail facture / paiement (fiche contact) | feat | `e00b9a3` | ✅ livré |
+| REC-012 | Fix PDF : nom association depuis DB (pas env) | fix | `4f70488` | ✅ livré |
+| REC-013 | Fix dialog contact : import `Dialog` manquant | fix | `063d941` | ✅ livré |
