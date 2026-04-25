@@ -90,6 +90,21 @@ async def get_monthly_summary(
     )
 
 
+@router.get("/workforce-cost", response_model=list[WorkforceCostRow])
+async def get_workforce_cost(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    from_month: str | None = Query(default=None),
+    to_month: str | None = Query(default=None),
+) -> list[WorkforceCostRow]:
+    """Consolidated workforce cost: employee salaries + AE contractor invoices."""
+    return await salary_service.get_workforce_cost(
+        db,
+        from_month=from_month,
+        to_month=to_month,
+    )
+
+
 @router.post("/", response_model=SalaryRead, status_code=status.HTTP_201_CREATED)
 async def create_salary(
     payload: SalaryCreate,
@@ -152,18 +167,3 @@ async def get_previous_salary(
             detail="No previous salary found for this employee",
         )
     return previous
-
-
-@router.get("/workforce-cost", response_model=list[WorkforceCostRow])
-async def get_workforce_cost(
-    db: Annotated[AsyncSession, Depends(get_db)],
-    _: _ReadAccess,
-    from_month: str | None = Query(default=None),
-    to_month: str | None = Query(default=None),
-) -> list[WorkforceCostRow]:
-    """Consolidated workforce cost: employee salaries + AE contractor invoices."""
-    return await salary_service.get_workforce_cost(
-        db,
-        from_month=from_month,
-        to_month=to_month,
-    )

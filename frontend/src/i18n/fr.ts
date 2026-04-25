@@ -195,6 +195,7 @@ export default {
     all: 'Tous',
     actions: 'Actions',
     filter_placeholder: 'Rechercher…',
+    refresh: 'Actualiser',
     reset_filters: 'Réinitialiser les filtres',
     list: {
       count_total: '{count} élément(s)',
@@ -1049,7 +1050,8 @@ export default {
     workforce_hourly: 'Coût / h',
     workforce_type_cdi: 'CDI',
     workforce_type_cdd: 'CDD',
-    workforce_type_ae: 'Auto-entrepreneur',
+    workforce_type_ae: 'Auto-E',
+    workforce_col_total: 'Total du mois',
     copy_previous: 'Reprendre le salaire précédent',
     copy_previous_applied: 'Heures et brut repris du mois précédent.',
     copy_previous_not_found: 'Aucun salaire précédent trouvé pour cet employé.',

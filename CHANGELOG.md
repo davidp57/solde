@@ -26,6 +26,15 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `frontend/src/api/accounting.ts` : champs CDD sur `SalaryRead`/`SalaryCreate` ; nouveaux types `SalaryPreviousRead` et `WorkforceCostRow` ; `getPreviousSalaryApi` et `getWorkforceCostApi` (BIZ-089)
 - `frontend/src/views/EmployeesView.vue` : section « Contrat » dans le dialog — type CDI/CDD (conditionne les champs brut de base / taux horaire), flag auto-entrepreneur (BIZ-089)
 - `frontend/src/views/SalaryView.vue` : formulaire restructuré en 3 étapes (calcul du brut, saisie CEA, notes) ; calcul automatique CDD (brut déclaré → CP → précarité → brut total) ; bouton « Reprendre le salaire précédent » ; panneau « Coûts du personnel » (CDI + CDD + AE) (BIZ-089)
+- `backend/services/excel_import_types.py` : `NormalizedSalaryRow` étendu avec `brut_declared`, `conges_payes`, `precarite` (optionnels) (BIZ-090)
+- `backend/services/excel_import_parsers.py` : `parse_salary_sheet` lit désormais les colonnes CDD (cols 2/3/4) du format détaillé de la feuille « Aide Salaires » — les lignes CDD obtiennent leurs 3 champs, les lignes CDI conservent `None` (BIZ-090)
+- `backend/services/excel_import/_import_payments_salaries.py` : `_import_salaries_sheet` passe `brut_declared`, `conges_payes`, `precarite` au constructeur `Salary` lors de l'import (BIZ-090)
+
+- `backend/models/invoice.py` : relation ORM `contact` ajoutée sur `Invoice` (nécessaire pour `selectinload` dans `get_workforce_cost`) (BIZ-089)
+- `backend/routers/salary.py` : route `GET /salaries/workforce-cost` déplacée avant `GET /salaries/{salary_id}` — Starlette essayait de convertir "workforce-cost" en `int` → 422 (BIZ-089)
+- `frontend/src/views/SalaryView.vue` : panneau « Coûts du personnel » refondu en tableau pivoté 5 colonnes (mois, CDI, CDD, Auto-E, total du mois) — agrégation `total_cost` par type par mois (BIZ-089)
+- `frontend/src/components/ContactForm.vue` : toggle « Auto-entrepreneur / prestataire » (`is_contractor`) ajouté dans le formulaire contact — permet de marquer un fournisseur comme auto-E pour l'inclure dans la vue coûts du personnel (BIZ-089)
+- `frontend/src/i18n/fr.ts` : clé `common.refresh` ajoutée ; `workforce_col_total` ajouté ; libellé `workforce_type_ae` abrégé en "Auto-E" (BIZ-089)
 
 - `backend/models/contact.py` : valeur `EMPLOYE = "employe"` ajoutée à `ContactType` — les employés sont désormais des contacts d'un sous-type dédié (BIZ-088)
 - `backend/alembic/versions/0024_add_employe_contact_type.py` : migration documentant la nouvelle valeur enum (colonne `VARCHAR(20)`, pas de DDL) (BIZ-088)
