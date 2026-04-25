@@ -11,6 +11,11 @@ export interface Contact {
   adresse: string | null
   notes: string | null
   is_active: boolean
+  contract_type: 'cdi' | 'cdd' | null
+  base_gross: number | null
+  base_hours: number | null
+  hourly_rate: number | null
+  is_contractor: boolean
   created_at: string
   updated_at: string
 }
@@ -23,6 +28,11 @@ export interface ContactCreate {
   telephone?: string | null
   adresse?: string | null
   notes?: string | null
+  contract_type?: 'cdi' | 'cdd' | null
+  base_gross?: number | null
+  base_hours?: number | null
+  hourly_rate?: number | null
+  is_contractor?: boolean
 }
 
 export interface ContactUpdate {
@@ -34,6 +44,11 @@ export interface ContactUpdate {
   adresse?: string | null
   notes?: string | null
   is_active?: boolean
+  contract_type?: 'cdi' | 'cdd' | null
+  base_gross?: number | null
+  base_hours?: number | null
+  hourly_rate?: number | null
+  is_contractor?: boolean
 }
 
 export interface ContactFilters {

@@ -184,6 +184,7 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
             len(payload.lines),
         ),
         status=InvoiceStatus.DRAFT,
+        hours=payload.hours,
     )
     db.add(invoice)
     await db.flush()  # get invoice.id before adding lines
@@ -275,6 +276,7 @@ async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpd
         "due_date",
         "description",
         "reference",
+        "hours",
     ):
         value = getattr(payload, field)
         if value is not None:

@@ -53,6 +53,14 @@ class Salary(Base):
     # Net salary paid to employee
     net_pay: Mapped[_Decimal] = mapped_column(DecimalType(10, 2), nullable=False)
 
+    # CDD breakdown components (nullable — only stored for CDD contracts)
+    # brut_declared: base gross before CP/précarité additions (hours × hourly_rate)
+    brut_declared: Mapped[_Decimal | None] = mapped_column(DecimalType(10, 2), nullable=True)
+    # conges_payes: 10% holiday pay add-on
+    conges_payes: Mapped[_Decimal | None] = mapped_column(DecimalType(10, 2), nullable=True)
+    # precarite: 10% end-of-contract precarity add-on
+    precarite: Mapped[_Decimal | None] = mapped_column(DecimalType(10, 2), nullable=True)
+
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
