@@ -119,6 +119,19 @@ Chaque ticket correspond à un ou plusieurs commits liés. Les identifiants `REC
 
 ---
 
+### REC-009 — Fix vue-i18n SyntaxError 9 au clic sur « Nouvelle règle »
+
+| Champ | Valeur |
+|---|---|
+| **Type** | `fix` |
+| **Date** | 2026-04-25 |
+| **Commit** | `4ea32a5` |
+| **Fichiers** | `frontend/src/i18n/fr.ts` |
+
+**Description** : L'ouverture du dialog `AccountingRuleDialog` provoquait une `SyntaxError: 9` (erreur de compilation de message vue-i18n). La clé `accounting.rules.entries_subtitle` contenait `{{label}}, {{amount}}, {{date}}` — les doubles accolades sont interprétées comme interpolation vue-i18n v9 et causent un échec du parseur. Reformulation de la chaîne pour éviter tout `{`.
+
+---
+
 ## État d'ensemble
 
 | ID | Titre | Type | Commit | Statut |
@@ -131,3 +144,4 @@ Chaque ticket correspond à un ou plusieurs commits liés. Les identifiants `REC
 | REC-006 | Version Vite depuis `pyproject.toml` | chore | `d61399b` | ✅ livré |
 | REC-007 | Docker : `pyproject.toml` dans builder | fix | `4f19c62` | ✅ livré |
 | REC-008 | CRUD règles comptables (admin) | feat | `1fe2274` | ✅ livré |
+| REC-009 | Fix vue-i18n SyntaxError 9 — `entries_subtitle` | fix | `4ea32a5` | ✅ livré |
