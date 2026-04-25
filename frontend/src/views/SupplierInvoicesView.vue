@@ -211,6 +211,8 @@
                 size="small"
                 severity="secondary"
                 text
+                :title="t('invoices.edit')"
+                :aria-label="t('invoices.edit')"
                 @click="openEditDialog(data)"
               />
               <Button
@@ -219,6 +221,7 @@
                 severity="secondary"
                 text
                 :title="t('invoices.upload_file')"
+                :aria-label="t('invoices.upload_file')"
                 @click="openUploadDialog(data)"
               />
               <Button
@@ -226,6 +229,8 @@
                 size="small"
                 severity="danger"
                 text
+                :title="t('common.delete')"
+                :aria-label="t('common.delete')"
                 @click="confirmDelete(data)"
               />
             </div>
@@ -238,17 +243,22 @@
     </AppPanel>
 
     <Dialog
-      v-model:visible="dialogVisible"
+      :visible="dialogVisible"
+      @update:visible="onCloseDialog"
+      @show="focusFormInput"
       :header="editingInvoice ? t('invoices.edit') : t('invoices.new')"
       modal
       class="app-dialog app-dialog--medium"
     >
-      <SupplierInvoiceForm
-        :invoice="editingInvoice"
-        :contacts="contacts"
-        @saved="onSaved"
-        @cancel="dialogVisible = false"
-      />
+      <div ref="formWrapperEl">
+        <SupplierInvoiceForm
+          ref="supplierFormRef"
+          :invoice="editingInvoice"
+          :contacts="contacts"
+          @saved="onSaved"
+          @cancel="onCloseDialog(false)"
+        />
+      </div>
     </Dialog>
 
     <Dialog
@@ -305,7 +315,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
@@ -337,6 +347,7 @@ import {
   collectActiveFilterLabels,
   findSelectedFilterLabel,
 } from '../composables/activeFilterLabels'
+import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatContactDisplayName } from '../utils/contact'
 import { formatDisplayDate } from '@/utils/format'
@@ -353,6 +364,16 @@ const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const editingInvoice = ref<Invoice | null>(null)
+const supplierFormRef = ref<InstanceType<typeof SupplierInvoiceForm> | null>(null)
+const formWrapperEl = ref<HTMLElement | null>(null)
+
+function focusFormInput(): void {
+  nextTick(() => {
+    formWrapperEl.value?.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled])')?.focus()
+  })
+}
+
+const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => Boolean(supplierFormRef.value?.isDirty))
 const uploadDialogVisible = ref(false)
 const uploadTargetId = ref<number | null>(null)
 const selectedFile = ref<File | null>(null)

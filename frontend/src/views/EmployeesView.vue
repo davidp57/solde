@@ -129,6 +129,8 @@
                 size="small"
                 severity="secondary"
                 text
+                :title="t('employees.edit')"
+                :aria-label="t('employees.edit')"
                 @click="openEditDialog(data)"
               />
               <Button
@@ -138,6 +140,7 @@
                 severity="warn"
                 text
                 :title="t('employees.confirm_deactivate', { nom: data.nom })"
+                :aria-label="t('employees.confirm_deactivate', { nom: data.nom })"
                 @click="confirmToggleActive(data)"
               />
               <Button
@@ -147,6 +150,7 @@
                 severity="success"
                 text
                 :title="t('employees.confirm_reactivate', { nom: data.nom })"
+                :aria-label="t('employees.confirm_reactivate', { nom: data.nom })"
                 @click="confirmToggleActive(data)"
               />
             </div>
@@ -160,7 +164,8 @@
 
     <!-- Create / Edit dialog -->
     <Dialog
-      v-model:visible="dialogVisible"
+      :visible="dialogVisible"
+      @update:visible="onCloseDialog"
       :header="editing ? t('employees.edit') : t('employees.new')"
       modal
       class="app-dialog app-dialog--medium"
@@ -314,7 +319,7 @@
             :label="t('common.cancel')"
             severity="secondary"
             :disabled="saving"
-            @click="dialogVisible = false"
+            @click="onCloseDialog(false)"
           />
           <Button type="submit" :label="t('common.save')" :loading="saving" icon="pi pi-check" />
         </div>
@@ -340,9 +345,10 @@ import Textarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createContactApi, listContactsApi, updateContactApi, type Contact } from '@/api/contacts'
+import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import AppListState from '@/components/ui/AppListState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
@@ -418,6 +424,14 @@ const dialogVisible = ref(false)
 const editing = ref<Contact | null>(null)
 const saving = ref(false)
 const errorMessage = ref('')
+const formInitialSnapshot = ref('')
+const isFormDirty = computed(() => JSON.stringify(form.value) !== formInitialSnapshot.value)
+
+function captureFormSnapshot(): void {
+  formInitialSnapshot.value = JSON.stringify(form.value)
+}
+
+const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => isFormDirty.value, { withRouteLeaveGuard: true })
 
 interface EmployeeForm {
   nom: string
@@ -472,6 +486,7 @@ function openCreateDialog(): void {
   form.value = blankForm()
   errorMessage.value = ''
   dialogVisible.value = true
+  void nextTick(captureFormSnapshot)
 }
 
 function openEditDialog(employee: Contact): void {
@@ -479,6 +494,7 @@ function openEditDialog(employee: Contact): void {
   form.value = fromContact(employee)
   errorMessage.value = ''
   dialogVisible.value = true
+  void nextTick(captureFormSnapshot)
 }
 
 async function submit(): Promise<void> {

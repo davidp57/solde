@@ -12,7 +12,7 @@
           severity="secondary"
           outlined
           :loading="bootstrapping"
-          @click="bootstrapAccounting"
+          @click="confirmBootstrap"
         />
       </div>
       <div>
@@ -219,6 +219,17 @@ function buildSelectiveResetPayload(): { import_type: SelectiveResetImportType; 
     import_type: selectiveResetForm.value.importType,
     fiscal_year_id: selectiveResetForm.value.fiscalYearId,
   }
+}
+
+function confirmBootstrap(): void {
+  confirm.require({
+    message: t('settings.bootstrap_accounting_confirm'),
+    header: t('settings.bootstrap_accounting'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptProps: { severity: 'warn', label: t('common.confirm') },
+    rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
+    accept: bootstrapAccounting,
+  })
 }
 
 function confirmReset(): void {
