@@ -42,12 +42,6 @@ class Settings(BaseSettings):
     # Fiscal year (month number: 8 = August)
     fiscal_year_start_month: int = 8
 
-    # Association info (shown on invoices)
-    association_name: str = "Mon Association"
-    association_address: str = ""
-    association_siret: str = ""
-    association_logo_path: str = ""
-
     # Bootstrap admin (created on first startup if no user exists)
     admin_username: str = "admin"
     admin_password: str = "changeme"
@@ -59,14 +53,6 @@ class Settings(BaseSettings):
     test_import_gestion_2025_path: str | None = None
     test_import_comptabilite_2024_path: str | None = None
     test_import_comptabilite_2025_path: str | None = None
-
-    # SMTP (optional)
-    smtp_host: str | None = None
-    smtp_port: int = 587
-    smtp_user: str | None = None
-    smtp_password: str | None = None
-    smtp_from_email: str | None = None
-    smtp_use_tls: bool = True
 
     # CORS — allowed origins (comma-separated in env: CORS_ALLOWED_ORIGINS=http://a.com,http://b.com)
     # Empty list → ["*"] in debug mode, [] in production
