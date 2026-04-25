@@ -27,6 +27,7 @@ def send_invoice_email(
     invoice_number: str,
     association_name: str,
     pdf_bytes: bytes,
+    bcc: str | None = None,
 ) -> None:
     """Send an invoice PDF by email.
 
@@ -36,6 +37,8 @@ def send_invoice_email(
     msg["From"] = smtp_from_email
     msg["To"] = recipient_email
     msg["Subject"] = f"Facture {invoice_number} — {association_name}"
+    if bcc:
+        msg["Bcc"] = bcc
 
     body = (
         f"Bonjour,\n\n"
@@ -59,10 +62,10 @@ def send_invoice_email(
                 server.ehlo()
                 server.starttls(context=context)
                 server.login(smtp_user, smtp_password)
-                server.sendmail(smtp_from_email, recipient_email, msg.as_string())
+                server.send_message(msg)
         else:
             with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=30) as server:
                 server.login(smtp_user, smtp_password)
-                server.sendmail(smtp_from_email, recipient_email, msg.as_string())
+                server.send_message(msg)
     except (smtplib.SMTPException, OSError) as exc:
         raise EmailSendError(f"Failed to send email: {exc}") from exc

@@ -35,3 +35,4 @@ class AppSettings(Base):
     smtp_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     smtp_from_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     smtp_use_tls: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    smtp_bcc: Mapped[str | None] = mapped_column(String(255), nullable=True)

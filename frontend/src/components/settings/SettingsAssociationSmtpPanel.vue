@@ -137,6 +137,20 @@
           />
         </div>
 
+        <div class="app-field">
+          <label for="smtp_bcc" class="app-field__label">
+            {{ t('settings.smtp_bcc') }}
+          </label>
+          <InputText
+            id="smtp_bcc"
+            v-model="form.smtp_bcc"
+            :placeholder="t('settings.smtp_bcc')"
+            type="email"
+            class="w-full"
+          />
+          <small class="app-field__help">{{ t('settings.smtp_bcc_help') }}</small>
+        </div>
+
         <div class="settings-switch">
           <ToggleSwitch id="smtp_use_tls" v-model="form.smtp_use_tls" />
           <label for="smtp_use_tls" class="app-field__label">
@@ -198,6 +212,7 @@ interface SettingsForm {
   smtp_password: string | null
   smtp_from_email: string | null
   smtp_use_tls: boolean
+  smtp_bcc: string | null
 }
 
 const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long' })
@@ -218,6 +233,7 @@ const defaultForm = (): SettingsForm => ({
   smtp_password: null,
   smtp_from_email: null,
   smtp_use_tls: true,
+  smtp_bcc: null,
 })
 
 const form = ref<SettingsForm>(defaultForm())
@@ -240,6 +256,7 @@ async function load(): Promise<void> {
       smtp_password: null,
       smtp_from_email: data.smtp_from_email,
       smtp_use_tls: data.smtp_use_tls,
+      smtp_bcc: data.smtp_bcc,
     }
   } catch {
     errorMessage.value = t('common.error.unknown')
@@ -262,6 +279,7 @@ async function save(): Promise<void> {
       smtp_user: form.value.smtp_user,
       smtp_from_email: form.value.smtp_from_email,
       smtp_use_tls: form.value.smtp_use_tls,
+      smtp_bcc: form.value.smtp_bcc,
     }
     if (form.value.smtp_password) {
       payload.smtp_password = form.value.smtp_password

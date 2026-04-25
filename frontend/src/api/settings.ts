@@ -12,6 +12,7 @@ export interface AppSettings {
   smtp_user: string | null
   smtp_from_email: string | null
   smtp_use_tls: boolean
+  smtp_bcc: string | null
 }
 
 export interface AppSettingsUpdate {
@@ -26,6 +27,7 @@ export interface AppSettingsUpdate {
   smtp_password?: string | null
   smtp_from_email?: string | null
   smtp_use_tls?: boolean
+  smtp_bcc?: string | null
 }
 
 export interface SystemOpening {
