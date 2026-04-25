@@ -5,11 +5,15 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text, false, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database import Base
+
+if TYPE_CHECKING:
+    from backend.models.contact import Contact
 from backend.models.types import DecimalType
 
 # Type aliases to avoid name shadowing within class bodies
@@ -130,6 +134,8 @@ class Invoice(Base):
     )
     pdf_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Hours worked — optional, used for freelance/contractor invoices to compute hourly cost
+    hours: Mapped[_Decimal | None] = mapped_column(DecimalType(8, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )
@@ -140,6 +146,7 @@ class Invoice(Base):
     lines: Mapped[list[InvoiceLine]] = relationship(
         "InvoiceLine", back_populates="invoice", cascade="all, delete-orphan"
     )
+    contact: Mapped[Contact] = relationship("Contact", lazy="raise")
 
 
 class InvoiceLine(Base):

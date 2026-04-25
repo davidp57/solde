@@ -3441,6 +3441,82 @@ async def test_import_gestion_attaches_july_salary_entries_to_previous_fiscal_ye
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_import_gestion_salary_detailed_format_stores_cdd_fields(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Detailed Aide Salaires format should populate CDD-specific fields on CDD rows."""
+    from backend.models.salary import Salary
+
+    # Reproduce the "detailed" header format: month row col 1 == "Heures" triggers detailed mode
+    content = _make_multi_sheet_xlsx_rows(
+        {
+            "Aide Salaires": [
+                # Detailed header: month + column headers
+                [
+                    "2025.09",
+                    "Heures",
+                    "Brut déclaré",
+                    "Congés",
+                    "Précarité",
+                    "Brut total",
+                    "Brut",
+                    "Salariales",
+                    "Patronales",
+                    "Impôts",
+                    "Net",
+                ],
+                # CDI row: conges=0, precarite=0 → CDD fields should be None
+                ["LAY", 104, 1605, 0, 0, 1605, 1605, 355, 350, 0, 1250],
+                # CDD row: conges>0 → CDD fields should be stored
+                ["WOLFF", 8, 200, 20, 22, 242, 242, 51, 97, 0, 191],
+                ["Total charges fixes", 500],
+            ]
+        }
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    data = import_response.json()
+    assert data["contacts_created"] == 2
+    assert data["salaries_created"] == 2
+
+    from sqlalchemy.orm import selectinload
+
+    salary_rows = list(
+        (
+            await db_session.execute(
+                select(Salary).options(selectinload(Salary.employee)).order_by(Salary.id)
+            )
+        ).scalars()
+    )
+    assert len(salary_rows) == 2
+
+    lay_salary = next(s for s in salary_rows if "LAY" in s.employee.nom.upper())
+    wolff_salary = next(s for s in salary_rows if "WOLFF" in s.employee.nom.upper())
+
+    # CDI row: CDD fields must be None
+    assert lay_salary.brut_declared is None
+    assert lay_salary.conges_payes is None
+    assert lay_salary.precarite is None
+
+    # CDD row: CDD fields must be populated
+    from decimal import Decimal
+
+    assert wolff_salary.brut_declared == Decimal("200")
+    assert wolff_salary.conges_payes == Decimal("20")
+    assert wolff_salary.precarite == Decimal("22")
+    assert wolff_salary.gross == Decimal("242")
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
 async def test_import_comptabilite_ignores_salary_groups_already_generated_from_gestion(
     client: AsyncClient,
     auth_headers: dict,

@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, EmailStr, field_validator
 
-from backend.models.contact import ContactType
+from backend.models.contact import ContactType, ContractType
 
 
 class ContactWriteBase(BaseModel):
@@ -17,6 +17,11 @@ class ContactWriteBase(BaseModel):
     telephone: str | None = None
     adresse: str | None = None
     notes: str | None = None
+    contract_type: ContractType | None = None
+    base_gross: Decimal | None = None
+    base_hours: Decimal | None = None
+    hourly_rate: Decimal | None = None
+    is_contractor: bool = False
 
     @field_validator("nom")
     @classmethod
@@ -41,6 +46,11 @@ class ContactUpdate(BaseModel):
     adresse: str | None = None
     notes: str | None = None
     is_active: bool | None = None
+    contract_type: ContractType | None = None
+    base_gross: Decimal | None = None
+    base_hours: Decimal | None = None
+    hourly_rate: Decimal | None = None
+    is_contractor: bool | None = None
 
     @field_validator("nom")
     @classmethod
@@ -60,6 +70,11 @@ class ContactRead(BaseModel):
     adresse: str | None = None
     notes: str | None = None
     is_active: bool
+    contract_type: ContractType | None = None
+    base_gross: Decimal | None = None
+    base_hours: Decimal | None = None
+    hourly_rate: Decimal | None = None
+    is_contractor: bool
     created_at: datetime
     updated_at: datetime
 
