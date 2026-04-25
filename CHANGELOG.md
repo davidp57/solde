@@ -32,6 +32,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Bouton « Télécharger une sauvegarde » dans la page Paramètres — appelle `POST /api/settings/backup` et déclenche le téléchargement du fichier `.db` avec un nom horodaté (`solde_backup_YYYY-MM-DD-HH-MM-SS.db`) (CHR-019)
+- `doc/dev/exploitation.md` : section déploiement Portainer / NAS Synology — stack YAML, variables d'environnement, données persistantes, procédure de mise à jour (CHR-019)
+
 - `backend/models/contact.py` : enum `ContractType` (CDI/CDD) + 5 nouveaux champs sur `Contact` : `contract_type`, `base_gross`, `base_hours`, `hourly_rate`, `is_contractor` (BIZ-089)
 - `backend/models/salary.py` : 3 champs CDD nullable : `brut_declared`, `conges_payes`, `precarite` (BIZ-089)
 - `backend/models/invoice.py` : champ `hours` nullable (pour factures AE) (BIZ-089)
