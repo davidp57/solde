@@ -39,7 +39,10 @@ def _raise_selective_reset_error(exc: Exception) -> NoReturn:
             detail=str(exc),
         ) from exc
     logger.exception("Unexpected error in selective reset")
-    raise exc
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="An unexpected error occurred during selective reset.",
+    ) from exc
 
 
 @router.get("/", response_model=AppSettingsRead)

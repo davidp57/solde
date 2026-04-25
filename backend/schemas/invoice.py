@@ -92,8 +92,8 @@ class InvoiceUpdate(BaseModel):
     date: datetime.date | None = None
     due_date: datetime.date | None = None
     label: InvoiceLabel | None = None
-    description: str | None = None
-    reference: str | None = None
+    description: str | None = Field(default=None, max_length=1000)
+    reference: str | None = Field(default=None, max_length=100)
     lines: list[InvoiceLineCreate] | None = None
     total_amount: Decimal | None = None
     hours: Decimal | None = None  # optional, for AE/contractor invoices

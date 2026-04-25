@@ -186,7 +186,10 @@ def _raise_import_run_error(exc: Exception) -> NoReturn:
     if isinstance(exc, ValueError):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     logger.exception("Unexpected error in import run")
-    raise exc
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="An unexpected error occurred during import.",
+    ) from exc
 
 
 @router.post("/excel/gestion", status_code=status.HTTP_200_OK)
