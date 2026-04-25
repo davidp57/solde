@@ -130,6 +130,8 @@ class Invoice(Base):
     )
     pdf_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Hours worked — optional, used for freelance/contractor invoices to compute hourly cost
+    hours: Mapped[_Decimal | None] = mapped_column(DecimalType(8, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )

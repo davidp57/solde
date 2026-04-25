@@ -378,6 +378,9 @@ export interface SalaryRead {
   net_pay: number
   total_cost: number
   notes: string | null
+  brut_declared: number | null
+  conges_payes: number | null
+  precarite: number | null
   created_at: string
 }
 
@@ -391,9 +394,34 @@ export interface SalaryCreate {
   tax: number
   net_pay: number
   notes?: string | null
+  brut_declared?: number | null
+  conges_payes?: number | null
+  precarite?: number | null
 }
 
 export type SalaryUpdate = Partial<SalaryCreate>
+
+export interface SalaryPreviousRead {
+  employee_id: number
+  hours: number
+  gross: number
+  brut_declared: number | null
+  conges_payes: number | null
+  precarite: number | null
+}
+
+export type WorkforceCostPersonType = 'CDI' | 'CDD' | 'AE'
+
+export interface WorkforceCostRow {
+  month: string
+  person_id: number
+  person_name: string
+  person_type: WorkforceCostPersonType
+  hours: number | null
+  amount: number
+  total_cost: number
+  hourly_cost: number | null
+}
 
 export interface SalarySummaryRow {
   month: string
@@ -425,6 +453,9 @@ function normalizeSalaryRead(salary: SalaryRead): SalaryRead {
     tax: parseSalaryNumericValue(salary.tax),
     net_pay: parseSalaryNumericValue(salary.net_pay),
     total_cost: parseSalaryNumericValue(salary.total_cost),
+    brut_declared: salary.brut_declared != null ? parseSalaryNumericValue(salary.brut_declared) : null,
+    conges_payes: salary.conges_payes != null ? parseSalaryNumericValue(salary.conges_payes) : null,
+    precarite: salary.precarite != null ? parseSalaryNumericValue(salary.precarite) : null,
   }
 }
 
@@ -470,6 +501,41 @@ export async function updateSalaryApi(id: number, payload: SalaryUpdate): Promis
 
 export async function deleteSalaryApi(id: number): Promise<void> {
   await apiClient.delete(`/api/salaries/${id}`)
+}
+
+export async function getPreviousSalaryApi(employeeId: number): Promise<SalaryPreviousRead> {
+  const response = await apiClient.get<SalaryPreviousRead>(
+    `/api/salaries/previous/${employeeId}`,
+  )
+  const d = response.data
+  return {
+    employee_id: d.employee_id,
+    hours: parseSalaryNumericValue(d.hours),
+    gross: parseSalaryNumericValue(d.gross),
+    brut_declared: d.brut_declared != null ? parseSalaryNumericValue(d.brut_declared) : null,
+    conges_payes: d.conges_payes != null ? parseSalaryNumericValue(d.conges_payes) : null,
+    precarite: d.precarite != null ? parseSalaryNumericValue(d.precarite) : null,
+  }
+}
+
+function parseWorkforceCostRow(row: WorkforceCostRow): WorkforceCostRow {
+  return {
+    ...row,
+    hours: row.hours != null ? parseSalaryNumericValue(row.hours) : null,
+    amount: parseSalaryNumericValue(row.amount),
+    total_cost: parseSalaryNumericValue(row.total_cost),
+    hourly_cost: row.hourly_cost != null ? parseSalaryNumericValue(row.hourly_cost) : null,
+  }
+}
+
+export async function getWorkforceCostApi(params?: {
+  from_month?: string
+  to_month?: string
+}): Promise<WorkforceCostRow[]> {
+  const response = await apiClient.get<WorkforceCostRow[]>('/api/salaries/workforce-cost', {
+    params,
+  })
+  return response.data.map(parseWorkforceCostRow)
 }
 
 // -----------------------------------------------------------------------

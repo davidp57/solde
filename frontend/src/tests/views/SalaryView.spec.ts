@@ -29,6 +29,8 @@ vi.mock('../../api/accounting', () => ({
   createSalaryApi: vi.fn(),
   updateSalaryApi: vi.fn(),
   deleteSalaryApi: vi.fn(),
+  getPreviousSalaryApi: vi.fn(),
+  getWorkforceCostApi: vi.fn().mockResolvedValue([]),
 }))
 
 const fiscalYearStoreMock: {
@@ -69,13 +71,17 @@ vi.mock('../../api/client', () => ({
   },
 }))
 
+vi.mock('../../api/contacts', () => ({
+  listContactsApi: vi.fn().mockResolvedValue([]),
+}))
+
 import SalaryView from '../../views/SalaryView.vue'
-import apiClient from '../../api/client'
 import { getSalarySummaryApi, listSalariesApi } from '../../api/accounting'
+import { listContactsApi } from '../../api/contacts'
 
 const mockListSalariesApi = vi.mocked(listSalariesApi)
 const mockGetSalarySummaryApi = vi.mocked(getSalarySummaryApi)
-const mockApiClientGet = vi.mocked(apiClient.get)
+const mockListContactsApi = vi.mocked(listContactsApi)
 
 const ContainerStub = defineComponent({
   template: '<div><slot /></div>',
@@ -157,6 +163,7 @@ function mountView() {
         InputNumber: InputNumberStub,
         InputText: InputTextStub,
         Select: SelectStub,
+        Tag: true,
         Textarea: true,
         Toast: true,
       },
@@ -167,9 +174,26 @@ function mountView() {
 describe('SalaryView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockApiClientGet.mockResolvedValue({
-      data: [{ id: 1, nom: 'Martin', prenom: 'Alice' }],
-    })
+    mockListContactsApi.mockResolvedValue([
+      {
+        id: 1,
+        type: 'employe' as const,
+        nom: 'Martin',
+        prenom: 'Alice',
+        email: null,
+        telephone: null,
+        adresse: null,
+        notes: null,
+        is_active: true,
+        contract_type: null,
+        base_gross: null,
+        base_hours: null,
+        hourly_rate: null,
+        is_contractor: false,
+        created_at: '2026-01-01T00:00:00',
+        updated_at: '2026-01-01T00:00:00',
+      },
+    ])
     mockListSalariesApi.mockResolvedValue([
       {
         id: 1,
@@ -184,6 +208,9 @@ describe('SalaryView', () => {
         net_pay: '970.00' as unknown as number,
         total_cost: '1500.60' as unknown as number,
         notes: null,
+        brut_declared: null,
+        conges_payes: null,
+        precarite: null,
         created_at: '2026-04-13T08:00:00',
       },
       {
@@ -199,6 +226,9 @@ describe('SalaryView', () => {
         net_pay: '1460.00' as unknown as number,
         total_cost: '2220.00' as unknown as number,
         notes: null,
+        brut_declared: null,
+        conges_payes: null,
+        precarite: null,
         created_at: '2026-04-13T08:00:00',
       },
     ])
@@ -245,7 +275,7 @@ describe('SalaryView', () => {
   })
 
   it('exposes employee filter options from loaded salary rows when contacts are unavailable', async () => {
-    mockApiClientGet.mockResolvedValue({ data: [] })
+    mockListContactsApi.mockResolvedValue([])
 
     const wrapper = mountView()
     await flushView()
