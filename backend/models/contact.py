@@ -13,6 +13,7 @@ class ContactType(StrEnum):
     CLIENT = "client"
     FOURNISSEUR = "fournisseur"
     LES_DEUX = "les_deux"
+    EMPLOYE = "employe"
 
 
 class Contact(Base):

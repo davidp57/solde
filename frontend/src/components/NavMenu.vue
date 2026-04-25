@@ -72,7 +72,8 @@ const accountingItems = computed<MenuItem[]>(() => {
     { to: '/accounting/balance', icon: 'pi-chart-bar', label: t('nav.accounting_balance') },
     { to: '/accounting/journal', icon: 'pi-book', label: t('nav.accounting_journal') },
     { to: '/accounting/ledger', icon: 'pi-list', label: t('nav.accounting_ledger') },
-    { to: '/salaries', icon: 'pi-id-card', label: t('nav.salaries') },
+    { to: '/employees', icon: 'pi-id-card', label: t('nav.employees') },
+    { to: '/salaries', icon: 'pi-money-bill', label: t('nav.salaries') },
     { to: '/accounting/bilan', icon: 'pi-chart-line', label: t('nav.accounting_bilan') },
     { to: '/accounting/resultat', icon: 'pi-chart-pie', label: t('nav.accounting_resultat') },
     {

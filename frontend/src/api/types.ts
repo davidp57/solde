@@ -34,7 +34,7 @@ export interface UserPasswordResetRequest {
   new_password: string
 }
 
-export type ContactType = 'client' | 'fournisseur' | 'les_deux'
+export type ContactType = 'client' | 'fournisseur' | 'les_deux' | 'employe'
 
 // ---------------------------------------------------------------------------
 // Salary

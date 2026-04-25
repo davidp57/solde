@@ -647,7 +647,7 @@ function formatAmount(v: number | string | null | undefined): string {
 async function loadEmployees() {
   try {
     const res =
-      await apiClient.get<{ id: number; nom: string; prenom: string | null }[]>('/contacts/')
+      await apiClient.get<{ id: number; nom: string; prenom: string | null }[]>('/api/contacts/?type=employe&active_only=false')
     employees.value = res.data.map((c) => ({
       label: [c.prenom, c.nom].filter(Boolean).join(' '),
       value: c.id,
