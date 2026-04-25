@@ -19,6 +19,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
+| BIZ-089 | Gestion des salaires — aide saisie, composantes CDD, vue coûts personnel | P1 | ~3h | 2026-04-25 | | |
 | CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
 | TEC-039 | Revalidation scénarios facture / email | P1 | ~10 min | 2026-04-21 | | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
@@ -27,6 +28,50 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 ---
 
 ## Détails
+
+### BIZ-089 — Gestion des salaires — aide saisie, composantes CDD, vue coûts personnel
+
+**Contexte** : 2 types d'employés — CDI classique (heures fixes, brut de base) et
+CDD d'usage à l'heure (taux horaire + 10 % précarité + 10 % congés payés). Tous les
+calculs de cotisations sont faits sur le site CEA (https://www.cea.urssaf.fr/) puis
+saisis manuellement. Les auto-entrepreneurs envoient des factures mensuelles (déjà
+dans le système), mais il manque une vue consolidée des coûts du personnel.
+
+**Fiche employé** (`Contact` de type `EMPLOYE`) — champs à ajouter :
+- `type_contrat` : `CDI` ou `CDD` (enum)
+- `salaire_brut_base` : brut mensuel fixe (CDI uniquement)
+- `heures_base` : nombre d'heures mensuel fixe (CDI)
+- `taux_horaire` : taux horaire brut (CDD)
+
+**Formulaire de saisie mensuelle** — workflow en 3 étapes :
+1. **Calcul du brut** : CDI → pré-rempli depuis la fiche (modifiable) ; CDD →
+   saisie des heures, calcul automatique précarité (× 1,10) + congés payés (× 1,10)
+   → brut total affiché avant passage sur CEA
+2. **Saisie des données CEA** : cotisations salariales, patronales, impôts, net à
+   payer (résultats du bulletin CEA, saisis tels quels)
+3. **Enregistrement** : génération des écritures comptables existantes (641000,
+   645100, 421000, 431100) + paiement virement (512100 par employé)
+
+**Bouton "Reprendre le salaire précédent"** : pré-remplit uniquement les données
+*avant* passage sur CEA (heures et brut total), pas les résultats CEA (cotisations,
+net, impôts). Disponible pour tous les types de salariés.
+
+**Modèle `Salary`** — champs supplémentaires à stocker (nullable, CDD) :
+- `brut_declared` : brut avant précarité/congés (heures × taux)
+- `conges_payes` : montant indemnité congés payés
+- `precarite` : montant indemnité de précarité
+
+**Auto-entrepreneurs** — suivi heures + coûts :
+- Champ `hours` optionnel sur la facture fournisseur (`Invoice`) pour les AE
+- Lors de la saisie d'une facture AE, possibilité d'associer le nombre d'heures
+  correspondant (ex : "20h @ 15 €/h = 300 €")
+- Le contact doit être marqué "prestataire / auto-entrepreneur" (champ booléen ou
+  type dédié sur `Contact`) pour être inclus dans la vue consolidée
+
+**Vue coûts du personnel** (nouvelle section ou onglet dans `SalaryView`) :
+- Tableau consolidé par mois : employés CDI + CDD (salaires) + AE (factures)
+- Colonnes : nom, type (CDI / CDD / AE), heures, montant brut/facturé, coût horaire
+- Permet de comparer le coût horaire réel de tous les types de collaborateurs
 
 ### CHR-020 — Documentation de contribution
 
