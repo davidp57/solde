@@ -133,3 +133,10 @@ export async function bootstrapAccountingApi(): Promise<{
   }>('/api/settings/bootstrap-accounting')
   return response.data
 }
+
+export async function createBackupApi(): Promise<Blob> {
+  const response = await apiClient.post('/api/settings/backup', null, {
+    responseType: 'blob',
+  })
+  return response.data as Blob
+}

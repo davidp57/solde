@@ -769,6 +769,10 @@ export default {
     saved: 'Paramètres enregistrés avec succès.',
     save_error: "Échec de l'enregistrement des paramètres.",
     danger_zone: 'Zone de danger',
+    backup_title: 'Sauvegarde',
+    backup_subtitle: 'Télécharge une sauvegarde de la base de données SQLite (copie cohérente, service actif).',
+    backup_download: 'Télécharger une sauvegarde',
+    backup_error: 'Erreur lors de la création de la sauvegarde.',
     reset_db: 'Réinitialiser les données',
     reset_db_desc:
       "Supprime toutes les données de l'application, y compris les paramètres, le plan comptable, les règles comptables, les exercices et l'historique d'import. " +
