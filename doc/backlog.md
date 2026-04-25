@@ -15,6 +15,40 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-034 | Support multi-compte banque | P2 | ~45 min | 2026-04-21 | | |
 
+### Lot M — Sécurité applicative (~45 min) — v0.6
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-091 | Fuite d'exception interne dans les réponses API | P1 | ~15 min | 2026-04-25 | | |
+| TEC-092 | Validation contenu réel des fichiers uploadés (magic bytes) | P2 | ~15 min | 2026-04-25 | | |
+| TEC-093 | Validateurs max_length / min–max sur schémas Pydantic | P2 | ~15 min | 2026-04-25 | | |
+
+### Lot N — UX & formulaires (~2h) — v0.7
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| BIZ-094 | Confirmation manquante sur « Initialiser la comptabilité » | P1 | ~10 min | 2026-04-25 | | |
+| BIZ-095 | Avertissement « modifications non sauvegardées » sur tous les formulaires | P2 | ~45 min | 2026-04-25 | | |
+| BIZ-096 | Feedback de validation champ par champ dans les formulaires | P2 | ~30 min | 2026-04-25 | | |
+| BIZ-097 | Accessibilité de base : aria-labels icônes, focus management dialogs | P3 | ~30 min | 2026-04-25 | | |
+
+### Lot O — Qualité technique backend (~2h) — v0.7
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-098 | Journal comptable : remplacer limit=100 000 par pagination SQL | P1 | ~45 min | 2026-04-25 | | |
+| TEC-099 | Cascade FK manquante Payment → Invoice (+ migration Alembic) | P2 | ~15 min | 2026-04-25 | | |
+| TEC-100 | Tests manquants : pdf_service, email_service, bank_import | P2 | ~1h | 2026-04-25 | | |
+
+### Lot P — Qualité technique frontend (~1h15) — v0.7
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-101 | Refactoring ClientInvoicesView.vue (~1 100 L) | P2 | ~45 min | 2026-04-25 | | |
+| TEC-102 | Utilitaire getErrorDetail() mutualisé (bank dialogs) | P3 | ~10 min | 2026-04-25 | | |
+| TEC-103 | Debounce sur filtres texte en temps réel | P3 | ~10 min | 2026-04-25 | | |
+| TEC-104 | Casts TypeScript non sûrs dans CashView.vue | P2 | ~10 min | 2026-04-25 | | |
+
 ## Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -142,6 +176,195 @@ en sous-composants < 500 lignes.
 ### CHR-078 — Squelette i18n anglais
 
 Créer `en.ts` avec les clés structurelles pour préparer la localisation anglaise.
+
+---
+
+### TEC-091 — Fuite d'exception interne dans les réponses API
+
+`detail=str(exc)` présent dans `backend/routers/bank.py` (16 occurrences), `backend/routers/excel_import.py` (4 occurrences) et `backend/routers/fiscal_year.py` (1 occurrence). Ce pattern retourne directement le message d'exception Python brut dans la réponse HTTP, exposant potentiellement des noms de tables, des traces SQLAlchemy ou des chemins de fichiers à un client.
+
+**Correctif** : dans chaque bloc `except`, remplacer `detail=str(exc)` par un message générique localisé (ex. `detail="Erreur interne, veuillez réessayer"`) et logger l'exception réelle côté serveur avec `logger.exception(...)`. Les exceptions métier déjà typées (`HTTPException`) sont exclues — seuls les `except Exception` génériques sont visés.
+
+**Fichiers à modifier** : `backend/routers/bank.py` (lignes ~169–467), `backend/routers/excel_import.py` (lignes ~174–184), `backend/routers/fiscal_year.py`.
+
+---
+
+### TEC-092 — Validation contenu réel des fichiers uploadés (magic bytes)
+
+Le endpoint `POST /invoices/{id}/attachment` dans `backend/routers/invoice.py` valide le type de fichier via le champ `Content-Type` fourni par le client — ce header peut être falsifié. Un fichier `.exe` renommé en `.pdf` passe actuellement la vérification.
+
+**Correctif** : lire les 8 premiers octets du fichier uploadé et vérifier les magic bytes connus :
+- PDF : `%PDF` (0x25 50 44 46)
+- JPEG : `FFD8FF`
+- PNG : `89504E47`
+- WebP : octets 8–11 = `WEBP`
+
+Rejeter avec `422` si aucun magic bytes ne correspond à la liste blanche, indépendamment du `Content-Type` déclaré. Résoudre également le chemin d'upload en chemin absolu (`Path("data/uploads/invoices").resolve()`).
+
+**Fichier à modifier** : `backend/routers/invoice.py` (~L305–325).
+
+---
+
+### TEC-093 — Validateurs max_length / min–max sur schémas Pydantic
+
+Aucun champ texte libre des schémas principaux n'a de contrainte `max_length`, et aucun champ numérique métier n'a de contrainte `ge=0`. Un client malveillant ou un bug d'import peut insérer des chaînes de plusieurs Mo ou des montants négatifs.
+
+**Champs prioritaires à contraindre** :
+- `Contact` : `nom` (max 100), `prenom` (max 100), `adresse` (max 500), `email` (max 200), `telephone` (max 30)
+- `Invoice` : `reference` (max 100), `description` (max 1 000)
+- `Salary` : `hours` (`ge=0, le=744`), `gross` (`ge=0`), `employee_charges` (`ge=0`), `employer_charges` (`ge=0`), `net_pay` (`ge=0`)
+- `Payment` : `amount` (`gt=0`)
+
+**Fichiers à modifier** : `backend/schemas/contact.py`, `backend/schemas/invoice.py`, `backend/schemas/salary.py`, `backend/schemas/payment.py`.
+
+---
+
+### BIZ-094 — Confirmation manquante sur « Initialiser la comptabilité »
+
+Dans `SettingsDangerZonePanel.vue`, le bouton « Initialiser la comptabilité » déclenche directement `bootstrapAccounting()` sans dialogue de confirmation, contrairement au bouton « Réinitialiser la base » qui passe par `confirmReset()`. Cette action est destructive (écrasement du plan comptable).
+
+**Correctif** : entourer l'appel `bootstrapAccounting()` d'un `confirm.require({ ... })` PrimeVue identique au pattern de `confirmReset`, avec un message d'avertissement adapté et une sévérité `warn`.
+
+**Fichier à modifier** : `frontend/src/components/settings/SettingsDangerZonePanel.vue`.
+
+---
+
+### BIZ-095 — Avertissement « modifications non sauvegardées » sur tous les formulaires
+
+Les formulaires de création/modification (factures client, factures fournisseur, contacts, employés, salaires) n'ont aucune détection de changements non sauvegardés. Fermer accidentellement le dialog ou naviguer vers une autre page efface silencieusement les saisies.
+
+**Correctif** : pour chaque formulaire concerné, ajouter :
+1. Un `computed<boolean> isDirty` comparant `form.value` à `initialValue` (snapshot au chargement)
+2. Un guard sur l'événement `@hide` / `@update:visible` du Dialog PrimeVue : si `isDirty`, appeler `confirm.require({ ... })` avant de fermer
+3. Pour les navigations inter-pages (vue SalaryView, EmployeesView), utiliser le navigation guard vue-router `onBeforeRouteLeave`
+
+**Périmètre** : `ClientInvoiceForm.vue`, `SupplierInvoiceForm.vue`, `ContactForm.vue`, `EmployeeForm.vue`, formulaires inline dans `SalaryView.vue`.
+
+---
+
+### BIZ-096 — Feedback de validation champ par champ dans les formulaires
+
+Les formulaires affichent les erreurs API sous forme de message global (`<Message severity="error">`), mais ne signalent pas quel champ est invalide. L'utilisateur doit deviner où corriger.
+
+**Correctif** :
+1. Côté backend : s'assurer que les erreurs Pydantic 422 renvoient bien le champ fautif dans `loc` (déjà le cas avec FastAPI).
+2. Côté frontend : parser `error.response.data.detail` (tableau d'objets `{loc, msg}`) pour affecter un message d'erreur par champ dans un `Record<string, string> fieldErrors`.
+3. Afficher `<small class="p-error">{{ fieldErrors['nom'] }}</small>` sous chaque champ concerné dans les templates des formulaires principaux.
+
+**Périmètre** : `ClientInvoiceForm.vue`, `SupplierInvoiceForm.vue`, `ContactForm.vue`.
+
+---
+
+### BIZ-097 — Accessibilité de base : aria-labels icônes, focus management dialogs
+
+Deux lacunes d'accessibilité identifiées lors de la review :
+1. **Boutons icône seuls** (sans label texte visible) dans les tables (éditer, supprimer, détail) n'ont pas d'attribut `aria-label`. Les lecteurs d'écran annoncent « bouton » sans contexte.
+2. **Dialogs** (CreateInvoice, EditContact, etc.) ne placent pas le focus sur le premier champ à l'ouverture, rendant la navigation clavier difficile.
+
+**Correctif** :
+1. Ajouter `:aria-label="t('ui.action.edit_item', { item: row.reference })"` (ou équivalent) sur les boutons icône dans les colonnes d'actions de toutes les tables PrimeVue.
+2. Utiliser `<Dialog ... :pt="{ content: { autofocus: true } }"` ou un `ref` + `nextTick` focus sur le premier champ `<InputText>` des dialogs.
+
+---
+
+### TEC-098 — Journal comptable : remplacer limit=100 000 par pagination SQL
+
+`backend/services/accounting_entry_service.py` utilise `limit=100_000` dans cinq fonctions (`get_balance`, `get_ledger`, `get_resultat`, `get_bilan`, `get_grouped_journal`) et charge jusqu'à 100 000 lignes en mémoire Python avant d'effectuer un skip/limit Python dans `get_grouped_journal`. `export_service.py` a le même pattern (L43). Sur une association active sur plusieurs exercices, ce plafond peut saturer la RAM de 384 MB allouée.
+
+**Correctif** :
+- `get_balance`, `get_ledger`, `get_resultat`, `get_bilan` : remplacer le `limit=100_000` par une agrégation SQL (GROUP BY + SUM) là où seuls les totaux sont nécessaires, ou par une pagination SQL réelle quand la liste de lignes est retournée à l'API.
+- `get_grouped_journal` (L597–628) : pousser le `OFFSET`/`LIMIT` dans la requête SQLAlchemy, supprimer le slice Python.
+- `export_service.py` : idem — ne charger que les lignes nécessaires à l'export.
+
+**Fichiers à modifier** : `backend/services/accounting_entry_service.py`, `backend/services/export_service.py`.
+
+---
+
+### TEC-099 — Cascade FK manquante Payment → Invoice (+ migration Alembic)
+
+`backend/models/payment.py` ligne 29 : `ForeignKey("invoices.id")` sans `ondelete="CASCADE"`. Si une facture est supprimée directement en base (migration, script, bug), les paiements associés deviennent orphelins avec `invoice_id` pointant vers un enregistrement inexistant, corrompant les rapprochements.
+
+Le service `invoice.py` protège actuellement la suppression applicative, mais la contrainte DB est absente.
+
+**Correctif** :
+1. Modifier `payment.py` : `ForeignKey("invoices.id", ondelete="CASCADE")`
+2. Créer migration Alembic `0028_payment_invoice_cascade.py` : `DROP CONSTRAINT` + `ADD CONSTRAINT` avec `ON DELETE CASCADE` (SQLite : recréer la table).
+
+**Fichiers à modifier** : `backend/models/payment.py`, nouvelle migration `backend/alembic/versions/0028_payment_invoice_cascade.py`.
+
+---
+
+### TEC-100 — Tests manquants : pdf_service, email_service, bank_import
+
+Trois services sans aucune couverture de test :
+- `backend/services/pdf_service.py` — génération PDF facture (WeasyPrint)
+- `backend/services/email_service.py` — envoi SMTP (aiosmtplib)
+- `backend/services/bank_import.py` — parsing fichier OFX
+
+**Objectif** : atteindre ≥ 80 % de couverture sur chacun.
+
+**Approche** :
+- `pdf_service` : mock WeasyPrint, tester que le HTML rendu contient les champs clés (référence, montant, contact)
+- `email_service` : mock `aiosmtplib.send`, tester les cas succès, destinataire vide, SMTP non configuré
+- `bank_import` : utiliser `data/comptes.ofx` comme fixture, tester le parsing des transactions, dates, montants, solde d'ouverture
+
+**Fichiers à créer** : `tests/unit/test_pdf_service.py`, `tests/unit/test_email_service.py`, `tests/unit/test_bank_import.py`.
+
+---
+
+### TEC-101 — Refactoring ClientInvoicesView.vue (~1 100 L)
+
+`frontend/src/views/ClientInvoicesView.vue` compte environ 1 100 lignes (hors périmètre de TEC-077 qui ciblait `ImportExcelView`, `BankView`, `SettingsView`). La vue mélange : logique de liste/filtre, calculs de métriques portefeuille, gestion des dialogs, calls API directs.
+
+**Correctif** :
+1. Extraire `composables/useInvoiceMetrics.ts` — les computed `receivableMetrics` et `portfolioMetrics` qui filtrent de grands tableaux à chaque changement.
+2. Extraire les dialogs (création, édition, envoi email, annulation) vers des sous-composants dédiés (`ClientInvoiceCreateDialog.vue`, etc.) ou les regrouper dans un composable `useInvoiceDialogs`.
+3. Les appels API directs restent dans la vue pour l'instant (store dédié hors scope).
+
+**Cible** : vue principale < 500 L, composable métriques < 100 L.
+
+**Fichier source** : `frontend/src/views/ClientInvoicesView.vue`.
+
+---
+
+### TEC-102 — Utilitaire getErrorDetail() mutualisé (bank dialogs)
+
+Le pattern d'extraction de message d'erreur API :
+```typescript
+(error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+```
+est répété dans au moins 4 composants (`BankSupplierPaymentDialog.vue`, `BankLinkClientPaymentDialog.vue`, `BankLinkSupplierPaymentDialog.vue`, et d'autres). Toute évolution de la structure d'erreur impose de modifier N fichiers.
+
+**Correctif** : créer `frontend/src/utils/errorUtils.ts` avec :
+```typescript
+export function getErrorDetail(error: unknown): string {
+  if (error && typeof error === 'object' && 'response' in error) { ... }
+  return 'Erreur inconnue'
+}
+```
+Remplacer toutes les occurrences inline par un appel à `getErrorDetail(error)`.
+
+---
+
+### TEC-103 — Debounce sur filtres texte en temps réel
+
+`ClientInvoicesView.vue` dispose d'un filtre global (`globalFilter`) qui déclenche un re-rendu de la DataTable PrimeVue à chaque frappe, sans debounce. Sur de grandes listes (> 200 factures), cela peut provoquer des freezes perceptibles.
+
+**Correctif** : remplacer le binding direct `v-model="globalFilter"` par une valeur intermédiaire `globalFilterInput` avec un watcher `watchDebounced(globalFilterInput, (v) => { globalFilter.value = v }, { debounce: 200 })` via `@vueuse/core`. Appliquer le même pattern aux autres vues disposant d'un filtre texte inline si nécessaire.
+
+---
+
+### TEC-104 — Casts TypeScript non sûrs dans CashView.vue
+
+`frontend/src/views/CashView.vue` contient trois casts `as unknown as` dans du code de production :
+- L487 : `(countForm as unknown as Record<string, number>)[denom.field]` — contournement du typage du formulaire de comptage de caisse
+- L891, L900 : `entryForm.value.date as unknown as Date` — le champ `date` est déclaré `string` dans le type du formulaire mais PrimeVue DatePicker renvoie un `Date`
+
+**Correctif** :
+- L487 : typer explicitement `countForm` comme `Record<string, number>` ou créer une interface dédiée `CashCountForm`.
+- L891/L900 : déclarer `date` comme `Date | null` dans le type du formulaire ou utiliser `toIsoDate(new Date(entryForm.value.date))` avec une assertion propre.
+
+**Fichier à modifier** : `frontend/src/views/CashView.vue`.
 
 ### CHR-086 — Workflow CI — quality gates
 
