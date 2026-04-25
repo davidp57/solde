@@ -12,15 +12,15 @@ if (!isVitest) {
   plugins.push(vueDevTools())
 }
 
-const pkg = JSON.parse(
-  readFileSync(new URL('./package.json', import.meta.url), 'utf-8'),
-) as { version: string }
+const pyproject = readFileSync(new URL('../pyproject.toml', import.meta.url), 'utf-8')
+const versionMatch = pyproject.match(/^version\s*=\s*"([^"]+)"/m)
+const appVersion = versionMatch ? versionMatch[1] : '0.0.0'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins,
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_VERSION__: JSON.stringify(appVersion),
   },
   resolve: {
     alias: {
