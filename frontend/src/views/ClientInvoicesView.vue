@@ -248,6 +248,7 @@
                 severity="secondary"
                 text
                 :title="t('invoices.history')"
+                :aria-label="t('invoices.history')"
                 @click="openHistory(data)"
               />
               <Button
@@ -257,6 +258,7 @@
                 severity="success"
                 text
                 :title="t('invoices.record_payment')"
+                :aria-label="t('invoices.record_payment')"
                 @click="openPaymentDialog(data)"
               />
               <Button
@@ -264,6 +266,8 @@
                 size="small"
                 severity="secondary"
                 text
+                :title="t('invoices.edit')"
+                :aria-label="t('invoices.edit')"
                 @click="openEditDialog(data)"
               />
               <Button
@@ -272,6 +276,7 @@
                 severity="secondary"
                 text
                 :title="t('invoices.generate_pdf')"
+                :aria-label="t('invoices.generate_pdf')"
                 @click="openPdf(data)"
               />
               <Button
@@ -280,6 +285,7 @@
                 severity="secondary"
                 text
                 :title="t('invoices.send_email')"
+                :aria-label="t('invoices.send_email')"
                 @click="sendEmail(data)"
               />
               <Button
@@ -288,6 +294,7 @@
                 severity="secondary"
                 text
                 :title="t('invoices.duplicate')"
+                :aria-label="t('invoices.duplicate')"
                 @click="duplicate(data)"
               />
               <Button
@@ -295,6 +302,8 @@
                 size="small"
                 severity="danger"
                 text
+                :title="t('common.delete')"
+                :aria-label="t('common.delete')"
                 @click="confirmDelete(data)"
               />
             </div>
@@ -307,18 +316,22 @@
     </AppPanel>
 
     <Dialog
-      v-model:visible="dialogVisible"
+      :visible="dialogVisible"
+      @update:visible="onCloseDialog"
+      @show="focusFormInput"
       :header="editingInvoice ? t('invoices.edit') : t('invoices.new')"
       modal
       class="app-dialog app-dialog--large"
     >
-      <ClientInvoiceForm
-        ref="invoiceFormRef"
-        :invoice="editingInvoice"
-        :contacts="contacts"
-        @saved="onSaved"
-        @cancel="dialogVisible = false"
-      />
+      <div ref="formWrapperEl">
+        <ClientInvoiceForm
+          ref="invoiceFormRef"
+          :invoice="editingInvoice"
+          :contacts="contacts"
+          @saved="onSaved"
+          @cancel="onCloseDialog(false)"
+        />
+      </div>
     </Dialog>
 
     <ConfirmDialog />
@@ -534,7 +547,7 @@ import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -588,6 +601,32 @@ const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
 const invoiceFormRef = ref<InstanceType<typeof ClientInvoiceForm> | null>(null)
+const formWrapperEl = ref<HTMLElement | null>(null)
+
+function focusFormInput(): void {
+  nextTick(() => {
+    formWrapperEl.value?.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled])')?.focus()
+  })
+}
+
+function onCloseDialog(val: boolean): void {
+  if (val) {
+    dialogVisible.value = true
+    return
+  }
+  if (invoiceFormRef.value?.isDirty) {
+    confirm.require({
+      message: t('common.unsaved_changes_confirm'),
+      header: t('common.unsaved_changes'),
+      icon: 'pi pi-exclamation-triangle',
+      acceptProps: { severity: 'warn', label: t('common.discard') },
+      rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
+      accept: () => { dialogVisible.value = false },
+    })
+  } else {
+    dialogVisible.value = false
+  }
+}
 const editingInvoice = ref<Invoice | null>(null)
 const statusFilter = ref<InvoiceStatus | null>(null)
 const unpaidOnly = ref(false)

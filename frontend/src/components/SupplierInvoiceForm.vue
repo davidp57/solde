@@ -27,6 +27,7 @@
             class="w-full"
             required
           />
+          <small v-if="fieldErrors['contact_id']" class="p-error">{{ fieldErrors['contact_id'] }}</small>
         </div>
 
         <div class="app-form-grid">
@@ -58,6 +59,7 @@
               class="w-full"
               required
             />
+            <small v-if="fieldErrors['total_amount']" class="p-error">{{ fieldErrors['total_amount'] }}</small>
           </div>
         </div>
       </div>
@@ -95,7 +97,8 @@ import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
-import { computed, reactive, ref, watch } from 'vue'
+import axios from 'axios'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Contact } from '../api/contacts'
@@ -115,6 +118,8 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 const saving = ref(false)
+const fieldErrors = ref<Record<string, string>>({})
+const initialSnapshot = ref('')
 const isEditing = computed(() => props.invoice !== null)
 const defaultInvoiceDueDays = ref<number | null>(null)
 const suggestedDueDateIso = ref<string | null>(null)
@@ -136,6 +141,19 @@ const form = reactive<FormState>({
   total_amount: null,
   description: '',
 })
+
+function formSnapshot(): string {
+  return JSON.stringify({
+    contact_id: form.contact_id,
+    date: form.date?.toISOString().slice(0, 10) ?? null,
+    due_date: form.due_date?.toISOString().slice(0, 10) ?? null,
+    reference: form.reference,
+    total_amount: form.total_amount,
+    description: form.description,
+  })
+}
+
+const isDirty = computed(() => formSnapshot() !== initialSnapshot.value)
 
 const contactOptions = computed(() =>
   props.contacts.map((contact) => ({
@@ -169,6 +187,7 @@ watch(
   (inv) => {
     if (inv) setFromInvoice(inv)
     else resetForm()
+    nextTick(() => { initialSnapshot.value = formSnapshot() })
   },
   { immediate: true },
 )
@@ -212,6 +231,7 @@ function formatDate(d: Date): string {
 async function submit() {
   if (!form.contact_id || !form.date || form.total_amount === null) return
   saving.value = true
+  fieldErrors.value = {}
   try {
     const payload = {
       type: 'fournisseur' as const,
@@ -228,8 +248,23 @@ async function submit() {
       await createInvoiceApi(payload)
     }
     emit('saved')
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 422) {
+      const detail = error.response.data?.detail
+      if (Array.isArray(detail)) {
+        const errors: Record<string, string> = {}
+        for (const item of detail) {
+          if (Array.isArray(item.loc) && item.loc.length > 0) {
+            errors[String(item.loc[item.loc.length - 1])] = item.msg
+          }
+        }
+        fieldErrors.value = errors
+      } else {
+        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+      }
+    } else {
+      toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+    }
   } finally {
     saving.value = false
   }
@@ -243,6 +278,8 @@ void getSettingsApi()
   .catch(() => {
     defaultInvoiceDueDays.value = null
   })
+
+defineExpose({ isDirty })
 </script>
 
 <style scoped>
