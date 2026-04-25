@@ -55,6 +55,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-089 | Gestion des salaires — aide saisie, composantes CDD, vue coûts personnel | P1 | ~3h | 2026-04-25 | 2026-04-25 | 2026-04-25 |
 | BIZ-090 | Import Excel Gestion — champs CDD dans la feuille « Aide Salaires » | P1 | ~30 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
+| TEC-105 | Lenteur navigation et chargement des données | P2 | ~2h | 2026-04-25 | | |
 | CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
 | TEC-039 | Revalidation scénarios facture / email | P1 | ~10 min | 2026-04-21 | | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
@@ -63,6 +64,14 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 ---
 
 ## Détails
+
+### TEC-105 — Lenteur navigation et chargement des données
+
+L'application est perçue comme lente lors de la navigation entre vues et au chargement des données.
+Pistes à investiguer et corriger :
+- **Frontend** : lazy-loading des routes Vue Router ; skeleton loaders ou spinners pour le feedback immédiat ; éviter les re-fetch inutiles (cache Pinia, `keepAlive` sur les vues stables).
+- **API** : vérifier les requêtes N+1 SQLAlchemy (`.selectinload` / `.joinedload` manquants) ; ajouter des index SQLite sur les colonnes filtrées/triées fréquemment (`contact_id`, `fiscal_year_id`, `date`, `status`).
+- **Bundle** : analyser la taille du bundle Vite (`npx vite-bundle-visualizer`) et couper les imports lourds inutiles.
 
 ### BIZ-090 — Import Excel Gestion — champs CDD dans la feuille « Aide Salaires »
 
