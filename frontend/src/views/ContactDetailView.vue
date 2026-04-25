@@ -172,6 +172,20 @@
               <AppNumberRangeFilter v-model="filterModel.value" />
             </template>
           </Column>
+          <Column :header="t('common.actions')" style="width: 4rem">
+            <template #body="{ data }">
+              <div class="app-inline-actions">
+                <Button
+                  icon="pi pi-eye"
+                  size="small"
+                  severity="secondary"
+                  text
+                  :title="t('contact_history.view_invoice')"
+                  @click.stop="openInvoiceDetail(data)"
+                />
+              </div>
+            </template>
+          </Column>
         </DataTable>
         <div v-else class="app-empty-state">{{ t('contact_history.no_invoices') }}</div>
       </AppPanel>
@@ -263,6 +277,20 @@
               <AppNumberRangeFilter v-model="filterModel.value" />
             </template>
           </Column>
+          <Column :header="t('common.actions')" style="width: 4rem">
+            <template #body="{ data }">
+              <div class="app-inline-actions">
+                <Button
+                  icon="pi pi-eye"
+                  size="small"
+                  severity="secondary"
+                  text
+                  :title="t('contact_history.view_payment')"
+                  @click.stop="openPaymentDetail(data)"
+                />
+              </div>
+            </template>
+          </Column>
         </DataTable>
         <div v-else class="app-empty-state">{{ t('contact_history.no_payments') }}</div>
       </AppPanel>
@@ -271,6 +299,144 @@
     <div v-else class="app-empty-state">
       {{ t('common.error.notFound') }}
     </div>
+
+    <Dialog
+      v-model:visible="invoiceDetailVisible"
+      :header="
+        invoiceDetail
+          ? t('contact_history.invoice_detail_title', { number: invoiceDetail.number })
+          : ''
+      "
+      modal
+      class="app-dialog app-dialog--large"
+    >
+      <Skeleton v-if="invoiceDetailLoading" height="220px" border-radius="8px" />
+      <div v-else-if="invoiceDetail" class="contact-detail-dialog">
+        <div class="contact-detail-dialog__meta">
+          <Tag
+            :value="t(`invoices.statuses.${invoiceDetail.status}`)"
+            :severity="statusSeverity(invoiceDetail.status)"
+          />
+          <span>{{ formatDisplayDate(invoiceDetail.date) }}</span>
+          <span v-if="invoiceDetail.due_date"
+            >{{ t('invoices.due_date') }} : {{ formatDisplayDate(invoiceDetail.due_date) }}</span
+          >
+        </div>
+        <section class="app-stat-grid contact-detail-dialog__stats">
+          <AppStatCard
+            :label="t('invoices.total')"
+            :value="`${fmt(invoiceDetail.total_amount)} €`"
+          />
+          <AppStatCard
+            :label="t('invoices.paid')"
+            :value="`${fmt(invoiceDetail.paid_amount)} €`"
+            tone="success"
+          />
+          <AppStatCard
+            :label="t('invoices.remaining')"
+            :value="`${invoiceRemaining.toFixed(2)} €`"
+            :tone="invoiceRemaining > 0 ? 'danger' : 'default'"
+          />
+        </section>
+        <DataTable
+          v-if="invoiceDetail.lines.length"
+          :value="invoiceDetail.lines"
+          size="small"
+          class="app-data-table contact-detail-dialog__lines"
+          striped-rows
+        >
+          <Column field="description" :header="t('invoices.line_description')" />
+          <Column
+            field="quantity"
+            :header="t('invoices.line_qty')"
+            style="width: 5rem"
+            class="app-money"
+          />
+          <Column
+            field="unit_price"
+            :header="t('invoices.line_price')"
+            style="width: 8rem"
+            class="app-money"
+          >
+            <template #body="{ data }">{{ fmt(data.unit_price) }} €</template>
+          </Column>
+          <Column
+            field="amount"
+            :header="t('invoices.total')"
+            style="width: 8rem"
+            class="app-money"
+          >
+            <template #body="{ data }">{{ fmt(data.amount) }} €</template>
+          </Column>
+        </DataTable>
+        <div class="contact-detail-dialog__actions">
+          <Button
+            icon="pi pi-file-pdf"
+            :label="t('invoices.generate_pdf')"
+            severity="secondary"
+            outlined
+            :loading="downloadingPdf"
+            @click="downloadPdf(invoiceDetail)"
+          />
+          <Button
+            v-if="contactEmail && invoiceDetail.type === 'client'"
+            icon="pi pi-send"
+            :label="t('invoices.send_email')"
+            :loading="sendingEmail"
+            @click="sendEmail(invoiceDetail)"
+          />
+        </div>
+      </div>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="paymentDetailVisible"
+      :header="t('contact_history.payment_detail_title')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <Skeleton v-if="paymentDetailLoading" height="160px" border-radius="8px" />
+      <div v-else-if="paymentDetail" class="contact-detail-dialog">
+        <dl class="contact-detail-dialog__fields">
+          <div class="contact-detail-dialog__field">
+            <dt>{{ t('payments.date') }}</dt>
+            <dd>{{ formatDisplayDate(paymentDetail.date) }}</dd>
+          </div>
+          <div class="contact-detail-dialog__field">
+            <dt>{{ t('payments.method') }}</dt>
+            <dd>{{ t(`payments.methods.${paymentDetail.method}`) }}</dd>
+          </div>
+          <div class="contact-detail-dialog__field">
+            <dt>{{ t('payments.amount') }}</dt>
+            <dd>{{ fmt(paymentDetail.amount) }} €</dd>
+          </div>
+          <div v-if="paymentDetail.invoice_number" class="contact-detail-dialog__field">
+            <dt>{{ t('payments.invoice') }}</dt>
+            <dd>{{ paymentDetail.invoice_number }}</dd>
+          </div>
+          <div v-if="paymentDetail.cheque_number" class="contact-detail-dialog__field">
+            <dt>{{ t('payments.cheque_number') }}</dt>
+            <dd>{{ paymentDetail.cheque_number }}</dd>
+          </div>
+          <div v-if="paymentDetail.reference" class="contact-detail-dialog__field">
+            <dt>{{ t('payments.reference') }}</dt>
+            <dd>{{ paymentDetail.reference }}</dd>
+          </div>
+          <div v-if="paymentDetail.notes" class="contact-detail-dialog__field">
+            <dt>{{ t('payments.notes') }}</dt>
+            <dd>{{ paymentDetail.notes }}</dd>
+          </div>
+          <div class="contact-detail-dialog__field">
+            <dt>{{ t('payments.deposited') }}</dt>
+            <dd>{{ paymentDetail.deposited ? t('common.yes') : t('common.no') }}</dd>
+          </div>
+          <div v-if="paymentDetail.deposit_date" class="contact-detail-dialog__field">
+            <dt>{{ t('payments.deposit_date') }}</dt>
+            <dd>{{ formatDisplayDate(paymentDetail.deposit_date) }}</dd>
+          </div>
+        </dl>
+      </div>
+    </Dialog>
 
     <ConfirmDialog />
     <Toast />
@@ -300,7 +466,11 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import { getContactHistoryApi, markCreanceDouteuse } from '../api/accounting'
-import type { ContactHistory } from '../api/accounting'
+import type { ContactHistory, ContactInvoiceSummary, ContactPaymentSummary } from '../api/accounting'
+import { downloadInvoicePdfApi, getInvoiceApi, sendInvoiceEmailApi } from '../api/invoices'
+import type { Invoice } from '../api/invoices'
+import { getPayment } from '../api/payments'
+import type { Payment } from '../api/payments'
 import {
   dateRangeFilter,
   inFilter,
@@ -317,6 +487,22 @@ const toast = useToast()
 
 const history = ref<ContactHistory | null>(null)
 const loading = ref(false)
+const invoiceDetailVisible = ref(false)
+const invoiceDetail = ref<Invoice | null>(null)
+const invoiceDetailLoading = ref(false)
+const paymentDetailVisible = ref(false)
+const paymentDetail = ref<Payment | null>(null)
+const paymentDetailLoading = ref(false)
+const downloadingPdf = ref(false)
+const sendingEmail = ref(false)
+const contactEmail = computed((): string | null => {
+  const email = history.value?.contact.email
+  return typeof email === 'string' && email.length > 0 ? email : null
+})
+const invoiceRemaining = computed((): number => {
+  if (!invoiceDetail.value) return 0
+  return Number(invoiceDetail.value.total_amount) - Number(invoiceDetail.value.paid_amount)
+})
 const invoiceRows = computed(() =>
   (history.value?.invoices ?? []).map((invoice) => ({
     ...invoice,
@@ -400,6 +586,63 @@ function contactSubtitle(contact: ContactHistory['contact']): string {
     .join(' • ')
 }
 
+async function openInvoiceDetail(data: ContactInvoiceSummary): Promise<void> {
+  invoiceDetailVisible.value = true
+  invoiceDetailLoading.value = true
+  invoiceDetail.value = null
+  try {
+    invoiceDetail.value = await getInvoiceApi(data.id)
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+    invoiceDetailVisible.value = false
+  } finally {
+    invoiceDetailLoading.value = false
+  }
+}
+
+async function openPaymentDetail(data: ContactPaymentSummary): Promise<void> {
+  paymentDetailVisible.value = true
+  paymentDetailLoading.value = true
+  paymentDetail.value = null
+  try {
+    paymentDetail.value = await getPayment(data.id)
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+    paymentDetailVisible.value = false
+  } finally {
+    paymentDetailLoading.value = false
+  }
+}
+
+async function downloadPdf(invoice: Invoice): Promise<void> {
+  downloadingPdf.value = true
+  try {
+    const blob = await downloadInvoicePdfApi(invoice.id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `facture-${invoice.number ?? invoice.id}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } finally {
+    downloadingPdf.value = false
+  }
+}
+
+async function sendEmail(invoice: Invoice): Promise<void> {
+  sendingEmail.value = true
+  try {
+    await sendInvoiceEmailApi(invoice.id)
+    toast.add({ severity: 'success', summary: t('invoices.email_sent'), life: 3000 })
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } finally {
+    sendingEmail.value = false
+  }
+}
+
 function confirmMarkDouteux() {
   const amount = history.value ? fmt(history.value.total_due) : ''
   confirm.require({
@@ -471,5 +714,62 @@ onMounted(loadHistory)
 
 .contact-detail-due {
   color: var(--p-red-600);
+}
+
+.contact-detail-dialog__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--p-text-muted-color);
+}
+
+.contact-detail-dialog__stats {
+  margin-bottom: 1rem;
+}
+
+.contact-detail-dialog__lines {
+  margin-bottom: 1rem;
+}
+
+.contact-detail-dialog__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: 0.5rem;
+}
+
+.contact-detail-dialog__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.contact-detail-dialog__field {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--p-content-border-color);
+}
+
+.contact-detail-dialog__field:last-child {
+  border-bottom: none;
+}
+
+.contact-detail-dialog__field dt {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+  min-width: 9rem;
+  font-weight: 500;
+}
+
+.contact-detail-dialog__field dd {
+  margin: 0;
 }
 </style>

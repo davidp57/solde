@@ -1547,6 +1547,10 @@ export default {
     mark_douteux_confirm: 'Transférer le solde dû ({amount} €) vers le compte 416xxx ?',
     mark_douteux_success: 'Créance douteuse enregistrée (écritures {debit} / {credit}).',
     mark_douteux_no_balance: 'Aucun solde dû pour ce contact.',
+    view_invoice: 'Voir la facture',
+    view_payment: 'Voir le paiement',
+    invoice_detail_title: 'Facture {number}',
+    payment_detail_title: 'Détail du paiement',
   },
   bilan: {
     title: 'Bilan simplifié',
