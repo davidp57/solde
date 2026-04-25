@@ -276,8 +276,7 @@
         </div>
         <div class="app-field">
           <label class="app-field__label">{{ t('users.email') }}</label>
-          <InputText :model-value="editingUser?.email ?? ''" disabled class="w-full" />
-        </div>
+          <InputText v-model="editForm.email" type="email" class="w-full" /></div>
         <div class="app-field">
           <label class="app-field__label" for="user-edit-role">{{ t('users.role') }}</label>
           <Select
@@ -404,6 +403,7 @@ interface CreateUserForm {
 interface EditUserForm {
   role: UserRole
   is_active: boolean
+  email: string
 }
 
 type ResetPasswordForm = UserPasswordResetRequest
@@ -466,6 +466,8 @@ const userApiErrorMessages: Record<string, string> = {
   last_admin: 'users.api_errors.last_admin',
   no_changes: 'users.api_errors.no_changes',
   user_not_found: 'users.api_errors.user_not_found',
+  email_exists: 'users.api_errors.email_exists',
+  email_required: 'users.api_errors.email_required',
 }
 
 const legacyUserApiErrorMessages: Record<string, string> = {
@@ -489,6 +491,7 @@ function defaultEditForm(): EditUserForm {
   return {
     role: 'secretaire',
     is_active: true,
+    email: '',
   }
 }
 
@@ -562,13 +565,20 @@ const canCreate = computed(() => {
   )
 })
 const canEdit = computed(() => {
-  if (!editingUser.value || isEditingSelf.value) {
+  if (!editingUser.value) {
     return false
   }
-  return (
+  const roleOrStatusChanged =
     editForm.value.role !== editingUser.value.role ||
     editForm.value.is_active !== editingUser.value.is_active
-  )
+  const emailChanged =
+    editForm.value.email.trim() !== editingUser.value.email &&
+    editForm.value.email.trim().length > 0
+  if (isEditingSelf.value) {
+    // Admin can only update their own email; role/active changes are blocked
+    return emailChanged
+  }
+  return roleOrStatusChanged || emailChanged
 })
 const canResetPassword = computed(() => {
   return (
@@ -656,6 +666,7 @@ function openEditDialog(user: UserRead): void {
   editForm.value = {
     role: user.role,
     is_active: user.is_active,
+    email: user.email,
   }
   editDialogVisible.value = true
 }
@@ -708,10 +719,16 @@ async function submitEdit(): Promise<void> {
 
   savingEdit.value = true
   try {
-    await updateUserApi(editingUser.value.id, {
-      role: editForm.value.role,
-      is_active: editForm.value.is_active,
-    })
+    const payload: Parameters<typeof updateUserApi>[1] = {}
+    if (editForm.value.role !== editingUser.value.role) payload.role = editForm.value.role
+    if (editForm.value.is_active !== editingUser.value.is_active)
+      payload.is_active = editForm.value.is_active
+    if (
+      editForm.value.email.trim() !== editingUser.value.email &&
+      editForm.value.email.trim().length > 0
+    )
+      payload.email = editForm.value.email.trim()
+    await updateUserApi(editingUser.value.id, payload)
     toast.add({ severity: 'success', summary: t('users.updated'), life: 3000 })
     closeEditDialog()
     await loadUsers()

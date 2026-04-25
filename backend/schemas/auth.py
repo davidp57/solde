@@ -71,6 +71,7 @@ class UserRead(OrmReadModel):
 class UserAdminUpdate(BaseModel):
     role: UserRole | None = None
     is_active: bool | None = None
+    email: str | None = None
 
 
 class UserSelfUpdate(BaseModel):

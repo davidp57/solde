@@ -149,7 +149,7 @@ async def _validate_admin_user_update(
     db: AsyncSession,
 ) -> None:
     """Enforce admin account safety rules for role/status changes."""
-    if body.role is None and body.is_active is None:
+    if body.role is None and body.is_active is None and body.email is None:
         raise _admin_user_update_exception("no_changes", "No changes requested")
 
     role_change = body.role is not None and body.role != target_user.role
@@ -418,6 +418,21 @@ async def update_user(
         user.role = body.role
     if body.is_active is not None:
         user.is_active = body.is_active
+    if body.email is not None:
+        normalized_email = body.email.strip()
+        if not normalized_email:
+            raise _admin_user_update_exception("email_required", "Email is required")
+        if normalized_email != user.email:
+            existing_email = await db.execute(
+                select(User).where(User.email == normalized_email, User.id != user.id)
+            )
+            if existing_email.scalar_one_or_none() is not None:
+                raise _admin_user_update_exception(
+                    "email_exists",
+                    "Email already exists",
+                    status.HTTP_409_CONFLICT,
+                )
+            user.email = normalized_email
 
     changes = body.model_dump(exclude_unset=True)
     await db.commit()

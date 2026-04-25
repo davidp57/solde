@@ -11,6 +11,7 @@ export interface UserCreatePayload {
 export interface UserAdminUpdatePayload {
   role?: UserRole
   is_active?: boolean
+  email?: string
 }
 
 export async function listUsersApi(): Promise<UserRead[]> {
