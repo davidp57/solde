@@ -127,7 +127,7 @@ const router = createRouter({
           path: 'salaries',
           name: 'salaries',
           component: () => import('../views/SalaryView.vue'),
-          meta: { requiresAccounting: true, label: 'nav.salaries' },
+          meta: { requiresManagement: true, label: 'nav.salaries' },
         },
         {
           path: 'employees',
