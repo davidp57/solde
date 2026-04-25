@@ -35,6 +35,7 @@
               required
               class="w-full"
             />
+            <small v-if="fieldErrors['nom']" class="p-error">{{ fieldErrors['nom'] }}</small>
           </div>
           <div class="app-field">
             <label for="cf-prenom" class="app-field__label">{{ t('contacts.prenom') }}</label>
@@ -64,6 +65,7 @@
             :placeholder="t('contacts.email')"
             class="w-full"
           />
+          <small v-if="fieldErrors['email']" class="p-error">{{ fieldErrors['email'] }}</small>
         </div>
 
         <div class="app-field">
@@ -131,6 +133,7 @@ import Textarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import axios from 'axios'
 import { createContactApi, updateContactApi, type Contact } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
 
@@ -172,6 +175,9 @@ function fromContact(c: Contact | null): FormState {
 const form = ref<FormState>(fromContact(props.contact))
 const saving = ref(false)
 const errorMessage = ref('')
+const fieldErrors = ref<Record<string, string>>({})
+const initialSnapshot = ref(JSON.stringify(fromContact(props.contact)))
+const isDirty = computed(() => JSON.stringify(form.value) !== initialSnapshot.value)
 const isEditing = computed(() => props.contact !== null)
 
 watch(
@@ -179,12 +185,15 @@ watch(
   (c) => {
     form.value = fromContact(c)
     errorMessage.value = ''
+    fieldErrors.value = {}
+    initialSnapshot.value = JSON.stringify(fromContact(c))
   },
 )
 
 async function submit(): Promise<void> {
   saving.value = true
   errorMessage.value = ''
+  fieldErrors.value = {}
   try {
     const payload = {
       type: form.value.type,
@@ -202,14 +211,29 @@ async function submit(): Promise<void> {
       await createContactApi(payload)
     }
     emit('saved')
-  } catch {
-    errorMessage.value = t('common.error.unknown')
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 422) {
+      const detail = error.response.data?.detail
+      if (Array.isArray(detail)) {
+        const errors: Record<string, string> = {}
+        for (const item of detail) {
+          if (Array.isArray(item.loc) && item.loc.length > 0) {
+            errors[String(item.loc[item.loc.length - 1])] = item.msg
+          }
+        }
+        fieldErrors.value = errors
+      } else {
+        errorMessage.value = t('common.error.unknown')
+      }
+    } else {
+      errorMessage.value = t('common.error.unknown')
+    }
   } finally {
     saving.value = false
   }
 }
 
-defineExpose({ submit })
+defineExpose({ submit, isDirty })
 </script>
 
 <style scoped>
