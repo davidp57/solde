@@ -180,7 +180,7 @@ async def _import_salaries_sheet(db: AsyncSession, ws: Any, result: ImportResult
         employee_key = _salary_employee_key(salary_row.employee_name)
         contact = existing_contacts_by_salary_key.get(employee_key)
         if contact is None:
-            contact = Contact(nom=salary_row.employee_name, type=ContactType.FOURNISSEUR)
+            contact = Contact(nom=salary_row.employee_name, type=ContactType.EMPLOYE)
             db.add(contact)
             await db.flush()
             created_contacts.append(contact)

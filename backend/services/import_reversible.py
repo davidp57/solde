@@ -2415,7 +2415,7 @@ async def _execute_salary_month_import(db: AsyncSession, operation: ImportOperat
         employee_key = legacy_excel_import._salary_employee_key(row.employee_name)
         contact = existing_contacts_by_key.get(employee_key)
         if contact is None:
-            contact = Contact(nom=row.employee_name, type=ContactType.FOURNISSEUR)
+            contact = Contact(nom=row.employee_name, type=ContactType.EMPLOYE)
             db.add(contact)
             await db.flush()
             created_contacts.append(contact)
