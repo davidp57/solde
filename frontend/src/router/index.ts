@@ -130,6 +130,12 @@ const router = createRouter({
           meta: { requiresAccounting: true, label: 'nav.salaries' },
         },
         {
+          path: 'employees',
+          name: 'employees',
+          component: () => import('../views/EmployeesView.vue'),
+          meta: { requiresAccounting: true, label: 'nav.employees' },
+        },
+        {
           path: 'import/excel',
           name: 'import-excel',
           component: () => import('../views/ImportExcelView.vue'),

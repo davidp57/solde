@@ -13,6 +13,13 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- `backend/models/contact.py` : valeur `EMPLOYE = "employe"` ajoutée à `ContactType` — les employés sont désormais des contacts d'un sous-type dédié (BIZ-088)
+- `backend/alembic/versions/0024_add_employe_contact_type.py` : migration documentant la nouvelle valeur enum (colonne `VARCHAR(20)`, pas de DDL) (BIZ-088)
+- `frontend/src/views/EmployeesView.vue` : nouvel écran de gestion des employés — liste (filtrable par nom/prénom/e-mail/téléphone, toggle actifs/inactifs), création, édition, activation/désactivation (BIZ-088)
+- Route `/employees` ajoutée au router Vue, accessible aux rôles `tresorier` et `admin` (BIZ-088)
+- Menu de navigation : entrée « Employés » dans la section Comptabilité, avant « Salaires » (BIZ-088)
+- `frontend/src/views/SalaryView.vue` : `loadEmployees` filtre désormais sur `type=employe` — seuls les contacts de type employé apparaissent dans la liste de sélection (BIZ-088)
+
 - `doc/user/installation.md` : option A — image pré-construite depuis GHCR (`SOLDE_IMAGE=ghcr.io/davidp57/solde:latest`) et option B — build local ; sections FR + EN (CHR-019)
 - `doc/dev/exploitation.md` : nouvelle section « Image deployment options » présentant GHCR vs build local + variable `SOLDE_IMAGE` ; `SWAGGER_ENABLED` ajouté au tableau de configuration (CHR-019, CHR-082)
 - `backend/config.py` : paramètre `SWAGGER_ENABLED` — active Swagger UI (`/api/docs`) et ReDoc (`/api/redoc`) indépendamment de `DEBUG` (CHR-082)

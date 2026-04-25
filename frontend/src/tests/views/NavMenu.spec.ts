@@ -99,6 +99,7 @@ describe('NavMenu', () => {
       'nav.accounting_balance',
       'nav.accounting_journal',
       'nav.accounting_ledger',
+      'nav.employees',
       'nav.salaries',
       'nav.accounting_bilan',
       'nav.accounting_resultat',
