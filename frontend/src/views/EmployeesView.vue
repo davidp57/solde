@@ -347,8 +347,8 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onBeforeRouteLeave } from 'vue-router'
 import { createContactApi, listContactsApi, updateContactApi, type Contact } from '@/api/contacts'
+import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import AppListState from '@/components/ui/AppListState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
@@ -431,40 +431,7 @@ function captureFormSnapshot(): void {
   formInitialSnapshot.value = JSON.stringify(form.value)
 }
 
-function onCloseDialog(val: boolean): void {
-  if (val) {
-    dialogVisible.value = true
-    return
-  }
-  if (isFormDirty.value) {
-    confirm.require({
-      message: t('common.unsaved_changes_confirm'),
-      header: t('common.unsaved_changes'),
-      icon: 'pi pi-exclamation-triangle',
-      acceptProps: { severity: 'warn', label: t('common.discard') },
-      rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
-      accept: () => { dialogVisible.value = false },
-    })
-  } else {
-    dialogVisible.value = false
-  }
-}
-
-onBeforeRouteLeave((to, from, next) => {
-  if (dialogVisible.value && isFormDirty.value) {
-    confirm.require({
-      message: t('common.unsaved_changes_confirm'),
-      header: t('common.unsaved_changes'),
-      icon: 'pi pi-exclamation-triangle',
-      acceptProps: { severity: 'warn', label: t('common.discard') },
-      rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
-      accept: () => { dialogVisible.value = false; next() },
-      reject: () => { next(false) },
-    })
-  } else {
-    next()
-  }
-})
+const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => isFormDirty.value, { withRouteLeaveGuard: true })
 
 interface EmployeeForm {
   nom: string

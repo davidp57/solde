@@ -347,6 +347,7 @@ import {
   collectActiveFilterLabels,
   findSelectedFilterLabel,
 } from '../composables/activeFilterLabels'
+import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatContactDisplayName } from '../utils/contact'
 import { formatDisplayDate } from '@/utils/format'
@@ -372,24 +373,7 @@ function focusFormInput(): void {
   })
 }
 
-function onCloseDialog(val: boolean): void {
-  if (val) {
-    dialogVisible.value = true
-    return
-  }
-  if (supplierFormRef.value?.isDirty) {
-    confirm.require({
-      message: t('common.unsaved_changes_confirm'),
-      header: t('common.unsaved_changes'),
-      icon: 'pi pi-exclamation-triangle',
-      acceptProps: { severity: 'warn', label: t('common.discard') },
-      rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
-      accept: () => { dialogVisible.value = false },
-    })
-  } else {
-    dialogVisible.value = false
-  }
-}
+const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => Boolean(supplierFormRef.value?.isDirty))
 const uploadDialogVisible = ref(false)
 const uploadTargetId = ref<number | null>(null)
 const selectedFile = ref<File | null>(null)

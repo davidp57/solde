@@ -34,6 +34,7 @@
           <div class="app-field">
             <label class="app-field__label">{{ t('invoices.date') }}</label>
             <DatePicker v-model="form.date" date-format="dd/mm/yy" class="w-full" required />
+            <small v-if="fieldErrors['date']" class="p-error">{{ fieldErrors['date'] }}</small>
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('invoices.due_date') }}</label>
