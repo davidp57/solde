@@ -8,6 +8,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse
@@ -287,7 +288,15 @@ def create_app() -> FastAPI:
     # Serve Vue.js frontend static files (built output)
     frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
     if frontend_dist.exists():
-        app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+        # SPA fallback: serve the exact file if it exists (assets, favicon…),
+        # otherwise return index.html so Vue Router handles client-side routing.
+        # This prevents 404 on hard-refresh (Ctrl+F5) for any Vue route.
+        @app.get("/{full_path:path}")
+        async def serve_spa(full_path: str) -> Response:  # noqa: RUF029
+            file_path = frontend_dist / full_path
+            if file_path.is_file():
+                return FileResponse(str(file_path))
+            return FileResponse(str(frontend_dist / "index.html"))
 
     # --- Global exception handler: added LAST so it's outermost user middleware ---
     app.add_middleware(UnhandledExceptionMiddleware)

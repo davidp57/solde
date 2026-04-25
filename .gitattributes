@@ -1,0 +1,5 @@
+# Enforce LF line endings for shell scripts (prevents CRLF crash in Docker/Linux)
+*.sh text eol=lf
+
+# Normalize all text files on checkout to the platform default
+* text=auto
