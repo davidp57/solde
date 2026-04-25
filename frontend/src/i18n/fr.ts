@@ -984,7 +984,7 @@ export default {
       identity_title: 'Identification',
       identity_subtitle: 'Déclencheur, nom, priorité et statut de la règle.',
       entries_title: 'Lignes comptables',
-      entries_subtitle: 'Comptes débités et crédités lors du déclenchement. Utilisez {{label}}, {{amount}}, {{date}} dans les libellés.',
+      entries_subtitle: 'Comptes débités et crédités lors du déclenchement. Les libellés modèles acceptent des variables entre doubles accolades (ex : label, amount, date).',
       entry_account: 'N° compte',
       entry_side: 'Sens',
       entry_template: 'Libellé (modèle)',
