@@ -542,7 +542,7 @@ import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
   duplicateInvoiceApi,
-  getInvoicePdfUrl,
+  downloadInvoicePdfApi,
   listInvoicesApi,
   sendInvoiceEmailApi,
   type Invoice,
@@ -874,8 +874,18 @@ useKeyboardShortcuts({
   },
 })
 
-function openPdf(invoice: Invoice) {
-  window.open(getInvoicePdfUrl(invoice.id), '_blank')
+async function openPdf(invoice: Invoice) {
+  try {
+    const blob = await downloadInvoicePdfApi(invoice.id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `facture-${invoice.number ?? invoice.id}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  }
 }
 
 async function sendEmail(invoice: Invoice) {
