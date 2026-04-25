@@ -30,6 +30,7 @@ from backend.schemas.invoice import (
     InvoiceUpdate,
 )
 from backend.services import invoice as invoice_service
+from backend.services import settings as settings_service
 from backend.services.invoice import InvoiceDeleteError, InvoiceStatusError, InvoiceUpdateError
 
 logger = logging.getLogger(__name__)
@@ -214,8 +215,9 @@ async def get_invoice_pdf(
     if contact and contact.prenom:
         contact_name = f"{contact.prenom} {contact.nom}"
 
+    app_settings = await settings_service.get_settings(db)
     try:
-        pdf_bytes = pdf_service.generate_invoice_pdf(invoice, contact_name, cfg)
+        pdf_bytes = pdf_service.generate_invoice_pdf(invoice, contact_name, app_settings)
     except Exception as exc:
         logger.exception("PDF generation failed for invoice %d", invoice_id)
         raise HTTPException(
@@ -275,7 +277,8 @@ async def send_invoice_email(
     if contact.prenom:
         contact_name = f"{contact.prenom} {contact.nom}"
 
-    pdf_bytes = pdf_service.generate_invoice_pdf(invoice, contact_name, cfg)
+    app_settings = await settings_service.get_settings(db)
+    pdf_bytes = pdf_service.generate_invoice_pdf(invoice, contact_name, app_settings)
 
     try:
         email_service.send_invoice_email(
@@ -287,7 +290,7 @@ async def send_invoice_email(
             smtp_use_tls=cfg.smtp_use_tls,
             recipient_email=contact.email,
             invoice_number=invoice.number,
-            association_name=cfg.association_name,
+            association_name=app_settings.association_name,
             pdf_bytes=pdf_bytes,
         )
     except email_service.EmailSendError as exc:
