@@ -590,6 +590,17 @@ class TestGenerateEntriesForPayment:
             assert e.source_type == EntrySourceType.PAYMENT
             assert e.source_id == pay.id
 
+    @pytest.mark.asyncio
+    async def test_label_uses_invoice_number(self, db_session: AsyncSession) -> None:
+        """Regression: label must use invoice.number, not invoice.id."""
+        await _seed_one_rule(db_session, TriggerType.PAYMENT_RECEIVED_VIREMENT, "512100", "411100")
+        inv = await _make_invoice(db_session)  # number = "2024-C-0001"
+        pay = await _make_payment(db_session, method=PaymentMethod.VIREMENT, invoice_id=inv.id)
+        entries = await generate_entries_for_payment(db_session, pay, InvoiceType.CLIENT)
+        assert entries
+        assert all("2024-C-0001" in e.label for e in entries)
+        assert not any(f"#{inv.id}" in e.label for e in entries)
+
 
 # ---------------------------------------------------------------------------
 # generate_entries_for_deposit

@@ -392,8 +392,11 @@ async def generate_entries_for_payment(
         return []
 
     fiscal_year_id = await find_fiscal_year_id_for_date(db, payment.date)
+    invoice_result = await db.execute(select(Invoice).where(Invoice.id == payment.invoice_id))
+    invoice = invoice_result.scalar_one_or_none()
+    invoice_ref = invoice.number if invoice is not None else str(payment.invoice_id)
     context = {
-        "label": f"Règlement facture #{payment.invoice_id}",
+        "label": f"Règlement facture {invoice_ref}",
         "amount": str(payment.amount),
         "date": str(payment.date),
         "method": str(payment.method),
