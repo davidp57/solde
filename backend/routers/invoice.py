@@ -18,7 +18,6 @@ from fastapi import (
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.config import Settings, get_settings
 from backend.database import get_db
 from backend.models.invoice import InvoiceStatus, InvoiceType
 from backend.models.user import User, UserRole
@@ -191,7 +190,6 @@ async def get_invoice_pdf(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     background_tasks: BackgroundTasks,
-    cfg: Annotated[Settings, Depends(get_settings)],
 ) -> FileResponse:
     """Generate and return the PDF for a client invoice."""
     from backend.services import pdf_service  # noqa: PLC0415 — lazy import
@@ -240,7 +238,6 @@ async def send_invoice_email(
     invoice_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _WriteAccess,
-    cfg: Annotated[Settings, Depends(get_settings)],
 ) -> None:
     """Generate PDF and send the invoice by email to the contact."""
     from backend.services import email_service, pdf_service  # noqa: PLC0415
@@ -254,8 +251,17 @@ async def send_invoice_email(
             detail="Email sending is only available for client invoices",
         )
 
+    app_settings = await settings_service.get_settings(db)
+
     # Check SMTP is configured
-    if not all([cfg.smtp_host, cfg.smtp_user, cfg.smtp_password, cfg.smtp_from_email]):
+    if not all(
+        [
+            app_settings.smtp_host,
+            app_settings.smtp_user,
+            app_settings.smtp_password,
+            app_settings.smtp_from_email,
+        ]
+    ):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="SMTP is not configured",
@@ -277,17 +283,16 @@ async def send_invoice_email(
     if contact.prenom:
         contact_name = f"{contact.prenom} {contact.nom}"
 
-    app_settings = await settings_service.get_settings(db)
     pdf_bytes = pdf_service.generate_invoice_pdf(invoice, contact_name, app_settings)
 
     try:
         email_service.send_invoice_email(
-            smtp_host=cfg.smtp_host,  # type: ignore[arg-type]
-            smtp_port=cfg.smtp_port,
-            smtp_user=cfg.smtp_user,  # type: ignore[arg-type]
-            smtp_password=cfg.smtp_password,  # type: ignore[arg-type]
-            smtp_from_email=cfg.smtp_from_email,  # type: ignore[arg-type]
-            smtp_use_tls=cfg.smtp_use_tls,
+            smtp_host=app_settings.smtp_host,  # type: ignore[arg-type]
+            smtp_port=app_settings.smtp_port,
+            smtp_user=app_settings.smtp_user,  # type: ignore[arg-type]
+            smtp_password=app_settings.smtp_password,  # type: ignore[arg-type]
+            smtp_from_email=app_settings.smtp_from_email,  # type: ignore[arg-type]
+            smtp_use_tls=app_settings.smtp_use_tls,
             recipient_email=contact.email,
             invoice_number=invoice.number,
             association_name=app_settings.association_name,
