@@ -58,6 +58,13 @@ class InvoiceCreate(InvoiceBase):
     total_amount: Decimal | None = None  # required for supplier invoices without lines
     hours: Decimal | None = None  # optional, for AE/contractor invoices
 
+    @field_validator("hours")
+    @classmethod
+    def hours_non_negative(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v < 0:
+            raise ValueError("hours must be non-negative")
+        return v
+
     @field_validator("total_amount")
     @classmethod
     def total_amount_non_negative(cls, v: Decimal | None) -> Decimal | None:
@@ -90,6 +97,13 @@ class InvoiceUpdate(BaseModel):
     lines: list[InvoiceLineCreate] | None = None
     total_amount: Decimal | None = None
     hours: Decimal | None = None  # optional, for AE/contractor invoices
+
+    @field_validator("hours")
+    @classmethod
+    def hours_non_negative(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v < 0:
+            raise ValueError("hours must be non-negative")
+        return v
 
     @model_validator(mode="after")
     def validate_client_total(self) -> InvoiceUpdate:

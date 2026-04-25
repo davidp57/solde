@@ -39,7 +39,7 @@ class Contact(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     # Employee contract fields (only relevant when type == EMPLOYE)
-    contract_type: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    contract_type: Mapped[ContractType | None] = mapped_column(String(10), nullable=True)
     base_gross: Mapped[_Decimal | None] = mapped_column(DecimalType(10, 2), nullable=True)
     base_hours: Mapped[_Decimal | None] = mapped_column(DecimalType(8, 2), nullable=True)
     hourly_rate: Mapped[_Decimal | None] = mapped_column(DecimalType(10, 2), nullable=True)

@@ -281,3 +281,223 @@ async def test_employee_display_name() -> None:
     assert _employee_display_name(c) == "Jean Dupont"
     c2 = Contact(type=ContactType.CLIENT, nom="Solo", prenom=None)
     assert _employee_display_name(c2) == "Solo"
+
+
+# ---------------------------------------------------------------------------
+# get_previous_salary
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_previous_salary_returns_most_recent(db_session: AsyncSession) -> None:
+    """get_previous_salary returns the salary with the lexicographically latest month."""
+    from backend.services.salary_service import create_salary, get_previous_salary
+
+    employee = await _make_employee(db_session, "Durand", "Lucie")
+    for month, gross in [("2025-01", Decimal("1500.00")), ("2025-03", Decimal("1600.00"))]:
+        await create_salary(
+            db_session,
+            SalaryCreate(
+                employee_id=employee.id,
+                month=month,
+                hours=Decimal("151.67"),
+                gross=gross,
+                employee_charges=Decimal("200.00"),
+                employer_charges=Decimal("600.00"),
+                tax=Decimal("0.00"),
+                net_pay=Decimal("1300.00"),
+            ),
+        )
+
+    result = await get_previous_salary(db_session, employee.id)
+    assert result is not None
+    assert result.employee_id == employee.id
+    assert result.gross == Decimal("1600.00")  # most recent month (2025-03)
+
+
+@pytest.mark.asyncio
+async def test_get_previous_salary_returns_none_when_no_salary(db_session: AsyncSession) -> None:
+    """get_previous_salary returns None when the employee has no salary."""
+    from backend.services.salary_service import get_previous_salary
+
+    employee = await _make_employee(db_session, "Absent", "Nobody")
+    result = await get_previous_salary(db_session, employee.id)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_previous_salary_cdd_fields(db_session: AsyncSession) -> None:
+    """get_previous_salary preserves brut_declared/conges_payes/precarite for CDD rows."""
+    from backend.services.salary_service import create_salary, get_previous_salary
+
+    employee = await _make_employee(db_session, "Martin", "Chloe")
+    await create_salary(
+        db_session,
+        SalaryCreate(
+            employee_id=employee.id,
+            month="2025-06",
+            hours=Decimal("8.00"),
+            gross=Decimal("242.00"),
+            employee_charges=Decimal("51.00"),
+            employer_charges=Decimal("97.00"),
+            tax=Decimal("0.00"),
+            net_pay=Decimal("191.00"),
+            brut_declared=Decimal("200.00"),
+            conges_payes=Decimal("20.00"),
+            precarite=Decimal("22.00"),
+        ),
+    )
+
+    result = await get_previous_salary(db_session, employee.id)
+    assert result is not None
+    assert result.brut_declared == Decimal("200.00")
+    assert result.conges_payes == Decimal("20.00")
+    assert result.precarite == Decimal("22.00")
+
+
+# ---------------------------------------------------------------------------
+# get_workforce_cost
+# ---------------------------------------------------------------------------
+
+
+async def _make_contractor(
+    db_session: AsyncSession, nom: str = "Prestataire", prenom: str = "AE"
+) -> Contact:
+    from backend.models.contact import ContactType
+
+    c = Contact(type=ContactType.FOURNISSEUR, nom=nom, prenom=prenom, is_contractor=True)
+    db_session.add(c)
+    await db_session.flush()
+    return c
+
+
+_invoice_counter = 0
+
+
+async def _make_ae_invoice(
+    db_session: AsyncSession,
+    contact_id: int,
+    date_str: str,
+    total: Decimal,
+    hours: Decimal | None = None,
+) -> None:
+    import datetime
+
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+
+    global _invoice_counter
+    _invoice_counter += 1
+    inv = Invoice(
+        number=f"AE-TEST-{_invoice_counter:04d}",
+        type=InvoiceType.FOURNISSEUR,
+        contact_id=contact_id,
+        date=datetime.date.fromisoformat(date_str),
+        total_amount=total,
+        status=InvoiceStatus.PAID,
+        hours=hours,
+    )
+    db_session.add(inv)
+    await db_session.flush()
+
+
+@pytest.mark.asyncio
+async def test_get_workforce_cost_employee_salaries(db_session: AsyncSession) -> None:
+    """get_workforce_cost returns CDI and CDD salary rows."""
+    from backend.models.contact import ContractType
+    from backend.services.salary_service import create_salary, get_workforce_cost
+
+    cdi_emp = await _make_employee(db_session, "Legrand", "Paul")
+    cdi_emp.contract_type = ContractType.CDI
+    cdd_emp = await _make_employee(db_session, "Wolff", "Anna")
+    cdd_emp.contract_type = ContractType.CDD
+    await db_session.flush()
+
+    for emp, gross in [(cdi_emp, Decimal("1800.00")), (cdd_emp, Decimal("242.00"))]:
+        await create_salary(
+            db_session,
+            SalaryCreate(
+                employee_id=emp.id,
+                month="2025-04",
+                hours=Decimal("151.67") if emp is cdi_emp else Decimal("8.00"),
+                gross=gross,
+                employee_charges=Decimal("200.00"),
+                employer_charges=Decimal("600.00"),
+                tax=Decimal("0.00"),
+                net_pay=Decimal("1000.00"),
+            ),
+        )
+
+    rows = await get_workforce_cost(db_session)
+    assert len(rows) == 2
+    types = {r.person_type for r in rows}
+    assert types == {"CDI", "CDD"}
+
+
+@pytest.mark.asyncio
+async def test_get_workforce_cost_month_filter(db_session: AsyncSession) -> None:
+    """get_workforce_cost respects from_month and to_month."""
+    from backend.services.salary_service import create_salary, get_workforce_cost
+
+    employee = await _make_employee(db_session, "Roux", "Elise")
+    for month in ["2025-01", "2025-03", "2025-06"]:
+        await create_salary(
+            db_session,
+            SalaryCreate(
+                employee_id=employee.id,
+                month=month,
+                hours=Decimal("100.00"),
+                gross=Decimal("1500.00"),
+                employee_charges=Decimal("200.00"),
+                employer_charges=Decimal("600.00"),
+                tax=Decimal("0.00"),
+                net_pay=Decimal("1300.00"),
+            ),
+        )
+
+    rows = await get_workforce_cost(db_session, from_month="2025-02", to_month="2025-05")
+    assert len(rows) == 1
+    assert rows[0].month == "2025-03"
+
+
+@pytest.mark.asyncio
+async def test_get_workforce_cost_includes_ae_invoices(db_session: AsyncSession) -> None:
+    """get_workforce_cost includes AE contractor invoices with hourly_cost when hours set."""
+    from backend.services.salary_service import get_workforce_cost
+
+    contractor = await _make_contractor(db_session, "Bernard", "Marc")
+    await _make_ae_invoice(
+        db_session,
+        contact_id=contractor.id,
+        date_str="2025-05-10",
+        total=Decimal("300.00"),
+        hours=Decimal("20.00"),
+    )
+
+    rows = await get_workforce_cost(db_session, from_month="2025-05", to_month="2025-05")
+    ae_rows = [r for r in rows if r.person_type == "AE"]
+    assert len(ae_rows) == 1
+    assert ae_rows[0].total_cost == Decimal("300.00")
+    assert ae_rows[0].hourly_cost == Decimal("15.00")  # 300 / 20
+
+
+@pytest.mark.asyncio
+async def test_get_workforce_cost_ae_month_filter_sql(db_session: AsyncSession) -> None:
+    """AE invoices outside from_month/to_month are excluded (SQL-level filter)."""
+    from backend.services.salary_service import get_workforce_cost
+
+    contractor = await _make_contractor(db_session, "Petit", "Sophie")
+    for date_str, amount in [
+        ("2025-03-15", Decimal("200.00")),  # outside range
+        ("2025-05-20", Decimal("400.00")),  # inside range
+    ]:
+        await _make_ae_invoice(
+            db_session,
+            contact_id=contractor.id,
+            date_str=date_str,
+            total=amount,
+        )
+
+    rows = await get_workforce_cost(db_session, from_month="2025-05", to_month="2025-05")
+    ae_rows = [r for r in rows if r.person_type == "AE"]
+    assert len(ae_rows) == 1
+    assert ae_rows[0].amount == Decimal("400.00")

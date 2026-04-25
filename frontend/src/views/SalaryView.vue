@@ -330,7 +330,7 @@
       <div class="app-toolbar">
         <div class="app-filter-grid">
           <div class="app-field">
-            <label class="app-field__label">{{ t('salary.filter_month') }} (début)</label>
+            <label class="app-field__label">{{ t('salary.filter_month_from') }}</label>
             <InputText
               v-model="workforceFromMonth"
               :placeholder="t('salary.month_placeholder')"
@@ -338,7 +338,7 @@
             />
           </div>
           <div class="app-field">
-            <label class="app-field__label">{{ t('salary.filter_month') }} (fin)</label>
+            <label class="app-field__label">{{ t('salary.filter_month_to') }}</label>
             <InputText
               v-model="workforceToMonth"
               :placeholder="t('salary.month_placeholder')"
@@ -867,14 +867,15 @@ watch(
   () => [form.value.hours, form.value.employee_id] as const,
   () => {
     if (!isCDD.value) return
+    const round2 = (n: number) => Math.round(n * 100) / 100
     const rate = selectedEmployee.value?.hourly_rate ?? 0
-    const brutD = form.value.hours * rate
-    const cp = brutD * 0.1
-    const prec = (brutD + cp) * 0.1
+    const brutD = round2(form.value.hours * rate)
+    const cp = round2(brutD * 0.1)
+    const prec = round2((brutD + cp) * 0.1)
     form.value.brut_declared = brutD
     form.value.conges_payes = cp
     form.value.precarite = prec
-    form.value.gross = brutD + cp + prec
+    form.value.gross = round2(brutD + cp + prec)
   },
 )
 
