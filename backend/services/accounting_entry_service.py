@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import String, cast, func, literal_column, or_, select
+from sqlalchemy import String, cast, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -54,6 +54,22 @@ def _runtime_group_key(entry: AccountingEntry) -> str:
         entry.group_key
         or build_entry_group_key(entry.source_type, entry.source_id)
         or f"entry:{entry.id}"
+    )
+
+
+def _effective_gk_expr() -> ColumnElement[str]:
+    """SQL expression mirroring _runtime_group_key priority:
+
+    1. group_key if stored, else
+    2. source_type || ':' || source_id (NULL when either column is NULL), else
+    3. 'entry:' || id.
+    """
+    return func.coalesce(
+        AccountingEntry.group_key,
+        AccountingEntry.source_type.op("||")(
+            literal_column("':'").op("||")(cast(AccountingEntry.source_id, String))
+        ),
+        literal_column("'entry:'").op("||")(cast(AccountingEntry.id, String)),
     )
 
 
@@ -115,13 +131,11 @@ async def _query_group_keys_paged(
 ) -> list[str]:
     """Return a paginated list of effective group keys matching the filter.
 
-    The effective group key is COALESCE(group_key, 'entry:' || id), ordered
-    by (MIN(date), MIN(id)) so pagination is stable and chronological.
+    The effective group key mirrors _runtime_group_key: group_key, then
+    source_type:source_id, then entry:<id>.  Ordered by (MIN(date), MIN(id))
+    so pagination is stable and chronological.
     """
-    effective_gk = func.coalesce(
-        AccountingEntry.group_key,
-        literal_column("'entry:'").op("||")(cast(AccountingEntry.id, String)),
-    ).label("effective_gk")
+    effective_gk = _effective_gk_expr().label("effective_gk")
 
     query = select(
         effective_gk,
@@ -407,19 +421,11 @@ async def get_grouped_journal(
         return []
 
     # Step 2: load all entries belonging to those groups (all sibling lines).
-    stored_keys = [gk for gk in group_keys if not gk.startswith("entry:")]
-    standalone_ids = [int(gk[6:]) for gk in group_keys if gk.startswith("entry:")]
-    conditions: list[ColumnElement[bool]] = []
-    if stored_keys:
-        conditions.append(AccountingEntry.group_key.in_(stored_keys))
-    if standalone_ids:
-        conditions.append(AccountingEntry.id.in_(standalone_ids))
-    if not conditions:
-        return []
-
+    # Use the same effective_gk expression so entries whose group key is derived
+    # from source_type:source_id (rather than a stored group_key) are also found.
     entries_q = (
         select(AccountingEntry)
-        .where(or_(*conditions) if len(conditions) > 1 else conditions[0])
+        .where(_effective_gk_expr().in_(group_keys))
         .order_by(AccountingEntry.date.asc(), AccountingEntry.id.asc())
     )
     result = await db.execute(entries_q)

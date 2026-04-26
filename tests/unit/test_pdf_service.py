@@ -5,10 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from backend.services.pdf_service import (
     generate_invoice_pdf,
@@ -160,24 +159,25 @@ def test_generate_invoice_pdf_returns_bytes() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_save_invoice_pdf_creates_file(tmp_path: pytest.TempPathFactory) -> None:
+def test_save_invoice_pdf_creates_file(tmp_path: Path) -> None:
     pdf_bytes = b"%PDF-1.4 fake content"
     output_dir = str(tmp_path / "pdfs")
     result_path = save_invoice_pdf("2024-001", pdf_bytes, output_dir=output_dir)
-
-    from pathlib import Path
 
     assert Path(result_path).exists()
     assert Path(result_path).read_bytes() == pdf_bytes
 
 
-def test_save_invoice_pdf_sanitises_slash_in_number(tmp_path: pytest.TempPathFactory) -> None:
+def test_save_invoice_pdf_sanitises_slash_in_number(tmp_path: Path) -> None:
     output_dir = str(tmp_path / "pdfs")
     result_path = save_invoice_pdf("2024/001", b"pdf", output_dir=output_dir)
-    assert "/" not in result_path.split("pdfs")[-1] or result_path.endswith("2024-001.pdf")
+    filename = Path(result_path).name
+    assert "/" not in filename
+    assert "\\" not in filename
+    assert filename == "facture_2024-001.pdf"
 
 
-def test_save_invoice_pdf_returns_path_string(tmp_path: pytest.TempPathFactory) -> None:
+def test_save_invoice_pdf_returns_path_string(tmp_path: Path) -> None:
     output_dir = str(tmp_path / "pdfs")
     result = save_invoice_pdf("INV-999", b"bytes", output_dir=output_dir)
     assert isinstance(result, str)

@@ -4,9 +4,11 @@
  * The FastAPI backend returns structured error responses with the shape:
  *   { response: { data: { detail: string | object } } }
  *
- * Falls back to a generic message when the error has no recognised shape.
+ * Falls back to a caller-provided translated message when the error has no
+ * recognised shape.  The fallback is required so callers are forced to pass
+ * an already-translated string and cannot accidentally embed hard-coded UI text.
  */
-export function getErrorDetail(error: unknown, fallback = 'Erreur inconnue'): string {
+export function getErrorDetail(error: unknown, fallback: string): string {
   if (error !== null && typeof error === 'object' && 'response' in error) {
     const response = (error as { response?: unknown }).response
     if (response !== null && typeof response === 'object' && 'data' in response) {
