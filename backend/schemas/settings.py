@@ -24,6 +24,7 @@ class AppSettingsRead(BaseModel):
     association_logo_path: str
     fiscal_year_start_month: int
     default_invoice_due_days: int | None
+    client_invoice_seq_digits: int
 
     smtp_host: str | None
     smtp_port: int
@@ -43,6 +44,7 @@ class AppSettingsUpdate(BaseModel):
     association_siret: str | None = None
     fiscal_year_start_month: int | None = None
     default_invoice_due_days: int | None = None
+    client_invoice_seq_digits: int | None = None
 
     smtp_host: str | None = None
     smtp_port: int | None = None
@@ -71,6 +73,13 @@ class AppSettingsUpdate(BaseModel):
     def validate_default_invoice_due_days(cls, v: int | None) -> int | None:
         if v is not None and not 0 <= v <= 365:
             raise ValueError("default_invoice_due_days must be between 0 and 365")
+        return v
+
+    @field_validator("client_invoice_seq_digits")
+    @classmethod
+    def validate_client_invoice_seq_digits(cls, v: int | None) -> int | None:
+        if v is not None and not 2 <= v <= 6:
+            raise ValueError("client_invoice_seq_digits must be between 2 and 6")
         return v
 
 

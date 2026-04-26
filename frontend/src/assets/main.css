@@ -314,6 +314,13 @@ a.app-stat-card {
   letter-spacing: 0.02em;
 }
 
+.app-field__hint--warning {
+  color: var(--p-orange-500);
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+
 .app-inline-actions {
   display: inline-flex;
   align-items: center;

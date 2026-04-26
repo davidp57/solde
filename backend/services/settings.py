@@ -583,6 +583,15 @@ async def get_default_invoice_due_days(db: AsyncSession) -> int | None:
     return result.scalar_one_or_none()
 
 
+async def get_client_invoice_seq_digits(db: AsyncSession) -> int:
+    """Return the number of digits used in client invoice sequential numbers (default 3)."""
+    result = await db.execute(
+        select(AppSettings.client_invoice_seq_digits).where(AppSettings.id == _SETTINGS_ID)
+    )
+    value = result.scalar_one_or_none()
+    return value if value is not None else 3
+
+
 async def update_settings(db: AsyncSession, payload: AppSettingsUpdate) -> AppSettings:
     """Partially update settings with provided fields."""
     settings = await get_settings(db)
