@@ -30,7 +30,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-119 | Interface simplifiée : tableau de bord avec cartes d'actions rapides | P2 | ~2h | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-111 | Import one-shot adresses postales depuis factures Word | P3 | ~1h | 2026-04-26 | | |
-| BIZ-117 | Assistant IA intégré (chatbot manuel utilisateur + accès doc/code) | P3 | ~4h | 2026-04-26 | | |
+| ~~BIZ-117~~ | ~~Assistant IA intégré (chatbot manuel utilisateur + accès doc/code)~~ | P3 | — | 2026-04-26 | — | ❌ Non réalisable |
 
 ---
 
@@ -126,6 +126,10 @@ textuel consolidé. Reste : enrichissement visuel (captures annotées homogènes
 Séquence : lot 1 (connexion, contacts, facture, paiement) → lot 2 (achat, caisse,
 banque) → lot 3 (import Excel, comptabilité, FAQ) → lot 4 (captures, stabilisation).
 
+**Deux versions par langue (4 fichiers au total)** :
+- **Version humaine** : Markdown illustré (captures d'écran annotées), exporté en PDF — destinée à être lue ou imprimée par un utilisateur final.
+- **Version LLM** : Markdown épuré, dense, sans images, optimisé pour être ingéré comme source de vérité par un assistant IA (ChatGPT, Gemini, etc.) — structure explicite, pas de mise en page décorative, terminologie cohérente et exhaustive.
+
 ### BIZ-034 — Support multi-compte banque
 
 Distinguer compte courant et compte épargne dans les données, imports et écrans.
@@ -166,7 +170,7 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 | O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-30 |
 | P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-30 |
 
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121.
+Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, **BIZ-117** (clôturé — non réalisable : intégration d'un LLM tiers exclue pour raisons de confidentialité des données comptables ; modèle local incompatible avec la contrainte RAM ≤ 384 MB du NAS).
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
 
 <details>
