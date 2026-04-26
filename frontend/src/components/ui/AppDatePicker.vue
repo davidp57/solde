@@ -1,14 +1,48 @@
 <template>
-  <div class="app-date-picker" :class="[wrapperClass, { 'app-date-picker--clearable': showClear }]">
+  <div
+    class="app-date-picker p-inputtext"
+    :class="wrapperClass"
+    @click.self="dayRef?.focus()"
+  >
     <input
-      type="date"
-      lang="fr-FR"
-      class="p-inputtext app-date-picker__input"
       :id="id"
+      ref="dayRef"
+      v-model="dayStr"
+      type="text"
+      inputmode="numeric"
+      class="app-date-picker__seg"
+      maxlength="2"
+      placeholder="JJ"
       :required="required"
       :disabled="disabled"
-      :value="inputValue"
-      @change="onInput"
+      @input="onDayInput"
+      @keydown="onDayKeydown"
+    />
+    <span class="app-date-picker__sep">/</span>
+    <input
+      ref="monthRef"
+      v-model="monthStr"
+      type="text"
+      inputmode="numeric"
+      class="app-date-picker__seg"
+      maxlength="2"
+      placeholder="MM"
+      :disabled="disabled"
+      @input="onMonthInput"
+      @keydown="onMonthKeydown"
+    />
+    <span class="app-date-picker__sep">/</span>
+    <input
+      ref="yearRef"
+      v-model="yearStr"
+      type="text"
+      inputmode="numeric"
+      class="app-date-picker__seg app-date-picker__seg--year"
+      maxlength="4"
+      placeholder="AAAA"
+      :disabled="disabled"
+      @input="onYearInput"
+      @keydown="onYearKeydown"
     />
     <button
       v-if="showClear && modelValue != null"
@@ -23,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, useAttrs } from 'vue'
+import { computed, ref, useAttrs, watch } from 'vue'
 
 defineOptions({ inheritAttrs: false })
 
@@ -40,58 +74,151 @@ const emit = defineEmits<{
 }>()
 
 const attrs = useAttrs()
-
-// Forward only layout-related attrs (class, style) to the wrapper div
 const wrapperClass = computed(() => attrs.class as string | undefined)
 
-const inputValue = computed(() => {
-  if (!props.modelValue) return ''
-  const d = props.modelValue
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-})
+const dayRef = ref<HTMLInputElement | null>(null)
+const monthRef = ref<HTMLInputElement | null>(null)
+const yearRef = ref<HTMLInputElement | null>(null)
 
-function onInput(event: Event): void {
-  const value = (event.target as HTMLInputElement).value
-  if (!value) {
+const dayStr = ref('')
+const monthStr = ref('')
+const yearStr = ref('')
+
+// Sync from modelValue to strings without triggering re-emit
+watch(
+  () => props.modelValue,
+  (d) => {
+    if (!d) {
+      dayStr.value = ''
+      monthStr.value = ''
+      yearStr.value = ''
+    } else {
+      const dd = String(d.getDate()).padStart(2, '0')
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const yyyy = String(d.getFullYear())
+      if (dayStr.value !== dd) dayStr.value = dd
+      if (monthStr.value !== mm) monthStr.value = mm
+      if (yearStr.value !== yyyy) yearStr.value = yyyy
+    }
+  },
+  { immediate: true },
+)
+
+function tryEmit() {
+  const d = parseInt(dayStr.value, 10)
+  const m = parseInt(monthStr.value, 10)
+  const y = parseInt(yearStr.value, 10)
+
+  if (
+    !isNaN(d) && d >= 1 && d <= 31 &&
+    !isNaN(m) && m >= 1 && m <= 12 &&
+    !isNaN(y) && y >= 1000 && y <= 9999
+  ) {
+    // Use noon (12:00) to avoid DST-related date shifts
+    emit('update:modelValue', new Date(y, m - 1, d, 12))
+  } else if (dayStr.value === '' && monthStr.value === '' && yearStr.value === '') {
     emit('update:modelValue', null)
-    return
   }
-  const [yearStr, monthStr, dayStr] = value.split('-')
-  const year = parseInt(yearStr ?? '1970', 10)
-  const month = parseInt(monthStr ?? '1', 10)
-  const day = parseInt(dayStr ?? '1', 10)
-  // Use noon (12:00) to be safe against DST shifts at midnight
-  emit('update:modelValue', new Date(year, month - 1, day, 12))
+}
+
+function onDayInput() {
+  if (dayStr.value.length === 2) {
+    monthRef.value?.focus()
+    monthRef.value?.select()
+  }
+  tryEmit()
+}
+
+function onMonthInput() {
+  if (monthStr.value.length === 2) {
+    yearRef.value?.focus()
+    yearRef.value?.select()
+  }
+  tryEmit()
+}
+
+function onYearInput() {
+  tryEmit()
+}
+
+function onDayKeydown(e: KeyboardEvent) {
+  const input = e.target as HTMLInputElement
+  if (e.key === 'ArrowRight' && input.selectionStart === dayStr.value.length) {
+    e.preventDefault()
+    monthRef.value?.focus()
+    monthRef.value?.setSelectionRange(0, 0)
+  }
+}
+
+function onMonthKeydown(e: KeyboardEvent) {
+  const input = e.target as HTMLInputElement
+  if (e.key === 'Backspace' && monthStr.value === '') {
+    e.preventDefault()
+    dayRef.value?.focus()
+    dayRef.value?.select()
+  } else if (e.key === 'ArrowLeft' && input.selectionStart === 0) {
+    e.preventDefault()
+    dayRef.value?.focus()
+    dayRef.value?.setSelectionRange(dayStr.value.length, dayStr.value.length)
+  } else if (e.key === 'ArrowRight' && input.selectionStart === monthStr.value.length) {
+    e.preventDefault()
+    yearRef.value?.focus()
+    yearRef.value?.setSelectionRange(0, 0)
+  }
+}
+
+function onYearKeydown(e: KeyboardEvent) {
+  const input = e.target as HTMLInputElement
+  if (e.key === 'Backspace' && yearStr.value === '') {
+    e.preventDefault()
+    monthRef.value?.focus()
+    monthRef.value?.select()
+  } else if (e.key === 'ArrowLeft' && input.selectionStart === 0) {
+    e.preventDefault()
+    monthRef.value?.focus()
+    monthRef.value?.setSelectionRange(monthStr.value.length, monthStr.value.length)
+  }
 }
 </script>
 
 <style scoped>
 .app-date-picker {
-  position: relative;
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
+  cursor: text;
 }
 
 .app-date-picker.w-full {
   width: 100%;
 }
 
-.app-date-picker__input {
-  width: 100%;
-  /* Ensure the native date picker icon is always visible */
-  padding-right: 0.5rem;
+.app-date-picker__seg {
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  text-align: center;
+  width: 2ch;
 }
 
-.app-date-picker--clearable .app-date-picker__input {
-  padding-right: 2rem;
+.app-date-picker__seg--year {
+  width: 4ch;
+  text-align: left;
+}
+
+.app-date-picker__sep {
+  padding: 0 1px;
+  user-select: none;
+  opacity: 0.5;
 }
 
 .app-date-picker__clear {
-  position: absolute;
-  right: 0.5rem;
+  margin-left: auto;
+  padding-left: 0.35rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -99,7 +226,6 @@ function onInput(event: Event): void {
   border: none;
   cursor: pointer;
   color: var(--p-inputtext-placeholder-color, #6b7280);
-  padding: 0;
   font-size: 0.75rem;
   line-height: 1;
 }
