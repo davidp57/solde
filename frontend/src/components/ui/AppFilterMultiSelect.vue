@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import MultiSelect from 'primevue/multiselect'
 
-defineProps<{
+const props = defineProps<{
   modelValue?: unknown
   options: unknown[]
   optionLabel?: string
@@ -25,6 +25,7 @@ defineProps<{
   placeholder?: string
   display?: 'comma' | 'chip'
   showClear?: boolean
+  filterCallback?: () => void
 }>()
 
 const emit = defineEmits<{
@@ -33,6 +34,7 @@ const emit = defineEmits<{
 
 function updateValue(value: unknown): void {
   emit('update:modelValue', value)
+  props.filterCallback?.()
 }
 </script>
 

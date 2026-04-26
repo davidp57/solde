@@ -134,7 +134,7 @@
                     />
                   </div>
                 </template>
-                <template #filter="{ filterModel }">
+                <template #filter="{ filterModel, filterCallback }">
                   <AppFilterMultiSelect
                     v-model="filterModel.value"
                     :options="movementTypes"
@@ -143,6 +143,7 @@
                     :placeholder="t('common.all')"
                     display="chip"
                     show-clear
+                    :filter-callback="filterCallback"
                   />
                 </template>
               </Column>

@@ -124,7 +124,7 @@
           <template #body="{ data }">
             <Tag :value="t(`contacts.types.${data.type}`)" :severity="typeSeverity(data.type)" />
           </template>
-          <template #filter="{ filterModel }">
+          <template #filter="{ filterModel, filterCallback }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
               :options="typeOptions"
@@ -133,6 +133,7 @@
               :placeholder="t('common.all')"
               display="chip"
               show-clear
+              :filter-callback="filterCallback"
             />
           </template>
         </Column>

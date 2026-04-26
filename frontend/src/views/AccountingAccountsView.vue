@@ -118,7 +118,7 @@
               :severity="typeSeverity(data.type)"
             />
           </template>
-          <template #filter="{ filterModel }">
+          <template #filter="{ filterModel, filterCallback }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
               :options="tableTypeOptions"
@@ -127,6 +127,7 @@
               :placeholder="t('common.all')"
               display="chip"
               show-clear
+              :filter-callback="filterCallback"
             />
           </template>
         </Column>
@@ -142,7 +143,7 @@
           <template #body="{ data }">
             <i v-if="data.is_default" class="pi pi-check text-green-500" />
           </template>
-          <template #filter="{ filterModel }">
+          <template #filter="{ filterModel, filterCallback }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
               :options="yesNoOptions"
@@ -151,6 +152,7 @@
               :placeholder="t('common.all')"
               display="chip"
               show-clear
+              :filter-callback="filterCallback"
             />
           </template>
         </Column>
