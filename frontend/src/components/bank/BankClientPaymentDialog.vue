@@ -117,6 +117,7 @@ import { listInvoicesApi, type Invoice } from '@/api/invoices'
 import { scoreInvoiceSuggestion } from '@/utils/bankReconciliation'
 import { formatContactDisplayName } from '@/utils/contact'
 import { formatDisplayDate } from '@/utils/format'
+import { getErrorDetail } from '@/utils/errorUtils'
 
 const props = defineProps<{
   visible: boolean
@@ -289,10 +290,9 @@ async function submit(): Promise<void> {
     })
     emit('saved')
   } catch (error) {
-    const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
     toast.add({
       severity: 'error',
-      summary: typeof detail === 'string' ? detail : t('common.error.unknown'),
+      summary: getErrorDetail(error, t('common.error.unknown')),
       life: 3000,
     })
   } finally {
