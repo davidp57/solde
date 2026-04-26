@@ -15,23 +15,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-034 | Support multi-compte banque | P3 | ~45 min | 2026-04-21 | | |
 
-### Lot O — Qualité technique backend (~2h) — v0.7
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| TEC-098 | Journal comptable : remplacer limit=100 000 par pagination SQL | P1 | ~45 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
-| TEC-099 | Cascade FK manquante Payment → Invoice (+ migration Alembic) | P2 | ~15 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
-| TEC-100 | Tests manquants : pdf_service, email_service, bank_import | P2 | ~1h | 2026-04-25 | 2026-04-29 | 2026-04-30 |
-
-### Lot P — Qualité technique frontend (~1h15) — v0.7
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| TEC-101 | Refactoring ClientInvoicesView.vue (~1 100 L) | P2 | ~45 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
-| TEC-102 | Utilitaire getErrorDetail() mutualisé (bank dialogs) | P3 | ~10 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
-| TEC-103 | Debounce sur filtres texte en temps réel | P3 | ~10 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
-| TEC-104 | Casts TypeScript non sûrs dans CashView.vue | P2 | ~10 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
-
 ### Lot S — Documentation & i18n (~1h) — v0.9
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -45,49 +28,13 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BIZ-118 | Saisie de dates pénible (DatePicker → AppDatePicker natif) | P1 | ~30 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
-| BIZ-112 | Afficher le numéro de facture dans le dialog de modification | P1 | ~10 min | 2026-04-26 | 2026-05-05 | 2026-05-05 |
-| BIZ-113 | Créances irrécouvrables : statut + écriture comptable 654/411 | P2 | ~2h | 2026-04-26 | 2026-05-05 | 2026-05-05 |
+| BIZ-119 | Interface simplifiée : tableau de bord avec cartes d'actions rapides | P2 | ~2h | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-111 | Import one-shot adresses postales depuis factures Word | P3 | ~1h | 2026-04-26 | | |
-| BIZ-106 | Journal comptable/caisse : limite 100 → 5000 lignes par défaut | P1 | ~15 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
-| BIZ-114 | Suppression entrées caisse manuelles (cascade + aperçu connexions) | P2 | ~45 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
-| BIZ-115 | Nommer les sauvegardes dans la vue système | P2 | ~30 min | 2026-04-26 | 2026-05-05 | 2026-05-05 |
-| BIZ-116 | Restauration d'une sauvegarde depuis la vue système (double confirmation) | P1 | ~1h30 | 2026-04-26 | 2026-05-05 | 2026-05-05 |
-| BIZ-119 | Interface simplifiée : tableau de bord avec cartes d'actions rapides | P2 | ~2h | 2026-04-26 | | |
-| BIZ-121 | Audit incomplet : paiements, factures, caisse, salaires, banque, contacts non tracés | P2 | ~1h30 | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-117 | Assistant IA intégré (chatbot manuel utilisateur + accès doc/code) | P3 | ~4h | 2026-04-26 | | |
 
 ---
 
 ## Détails
-
-### BIZ-113 — Créances irrécouvrables : statut + écriture comptable 654/411
-
-**Problème** : Les factures client émises mais jamais réglées (ex. 2022-0361) restent indéfiniment en statut « ouverte » et polluent les tableaux de bord (encours, relances, métriques de portefeuille).
-
-**Solution** : ajouter un statut `IRRECOVERABLE` sur les factures clients.
-
-**Backend** :
-- Ajouter la valeur `IRRECOVERABLE` à l’enum `InvoiceStatus` et créer une migration Alembic.
-- Nouvel endpoint `POST /api/invoices/{id}/write-off` (admin ou trésorier) : passe la facture en `IRRECOVERABLE` et génère automatiquement l'écriture comptable de constatation de perte :
-  - Débit `654 Pertes sur créances irrécouvrables` / Crédit `411 Clients` (montant restant à encaisser)
-  - Libellé automatique : `Créance irrécouvrable — {référence facture}`
-- La facture devient en lecture seule (plus de modification ni d’ajout de paiement).
-- Ajouter la règle comptable correspondante dans `accounting_rules` si elle n’existe pas.
-
-**Frontend** :
-- Bouton « Passer en irrécouvrable » dans le menu d’action de la facture (avec dialog de confirmation mentionnant l’écriture qui sera générée).
-- Filtre dans la liste des factures pour afficher / masquer les irrécouvrables (masquées par défaut).
-- Badge visuel distinct dans la liste (gris, barré ou étiquette « Irrécouvrable »).
-- Exclure les irrécouvrables des métriques d’encours et de relance.
-
-**Annulation possible** : si le client finit par payer après passage en irrécouvrable, l'utilisateur peut annuler le statut via une action « Rétablir la facture ». Cela génère l'écriture inverse : débit `411 Clients` / crédit `754 Reprises sur créances amorties`, et repasse la facture en `OPEN` (ou `PARTIAL`). Le paiement est ensuite saisi normalement.
-
-**Hors périmètre** : créances douteuses (compte 416 + provision 491/68174) — trop rare pour une asso de soutien scolaire, pourra être ajouté plus tard.
-
-**Fichiers à modifier** : `backend/models/invoice.py`, nouvelle migration, `backend/routers/invoice.py`, `backend/services/invoice.py`, `backend/services/accounting_engine.py`, `frontend/src/views/ClientInvoicesView.vue`.
-
----
 
 ### BIZ-119 — Interface simplifiée : tableau de bord avec cartes d'actions rapides
 
@@ -103,47 +50,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 - Option B : écran dédié `/accueil` avec navigation simplifiée (à voir selon le retour utilisateur)
 
 **Rôles concernés** : tous (admin, trésorier, secrétaire).
-
----
-
-### BIZ-121 — Audit incomplet : actions métier non tracées
-
-**Contexte** : `audit_service.py` / `AuditAction` ne couvre que les événements d'authentification et d'administration système (login, logout, changement de mot de passe, création/modification d'utilisateur, reset DB). Toutes les opérations métier — création, modification, suppression d'enregistrements — sont invisibles dans le journal d'audit.
-
-**Constat** : exemple signalé — l'encodage de paiements n'apparaît pas dans le journal d'audit.
-
-**Périmètre à couvrir** (toutes les mutations POST/PUT/PATCH/DELETE) :
-
-| Domaine | Actions à auditer |
-|---|---|
-| Paiements | création, modification, suppression |
-| Factures clients | création, modification, changement statut, suppression, envoi email |
-| Factures fournisseurs | création, modification, changement statut, suppression |
-| Caisse | création entrée, modification, suppression, comptage de caisse |
-| Salaires | création, modification, suppression |
-| Banque | import OFX, rapprochement, liaison paiement, dépôt, création transaction manuelle |
-| Contacts | création, modification, suppression, import emails |
-| Import Excel | déclenchement import, annulation (undo) |
-
-**Backend** :
-- Étendre `AuditAction` avec les nouvelles valeurs (ex. `payment.create`, `invoice.delete`, `cash.entry.create`, etc.)
-- Ajouter `record_audit(...)` dans chaque endpoint concerné (routers `payment.py`, `invoice.py`, `cash.py`, `salary.py`, `bank.py`, `contact.py`, `excel_import.py`)
-- Inclure dans `detail` les informations utiles : montant, référence, ID cible, exercice fiscal selon le type d'objet
-
-**Frontend** :
-- Étendre les libellés i18n `system.action.*` pour couvrir les nouvelles valeurs d'action
-
-**Fichiers à modifier** : `backend/services/audit_service.py`, `backend/routers/payment.py`, `backend/routers/invoice.py`, `backend/routers/cash.py`, `backend/routers/salary.py`, `backend/routers/bank.py`, `backend/routers/contact.py`, `backend/routers/excel_import.py`, `frontend/src/i18n/fr.ts`
-
----
-
-### BIZ-112 — Afficher le numéro de facture dans le dialog de modification
-
-Dans le dialog « Modifier la facture » (`ClientInvoicesView.vue` et `SupplierInvoicesView.vue`), le numéro de référence de la facture (ex. `2022-0042`) n'est pas affiché. L'utilisateur ne peut pas vérifier quelle facture il est en train de modifier.
-
-**Correction** : afficher la référence en lecture seule dans l'en-tête ou sous le titre du dialog (ex. `Référence : 2022-0042`, texte non modifiable).
-
-**Fichiers concernés** : `frontend/src/views/ClientInvoicesView.vue`, `frontend/src/views/SupplierInvoicesView.vue`.
 
 ---
 
@@ -179,50 +85,6 @@ Dans le dialog « Modifier la facture » (`ClientInvoicesView.vue` et `Supplie
 
 ---
 
-### BIZ-116 — Restauration d'une sauvegarde depuis la vue système (double confirmation)
-
-**Contexte** : La vue système (`/system`) liste les sauvegardes disponibles dans `data/backups/`. Actuellement il n'est pas possible de restaurer une sauvegarde depuis l'UI — l'utilisateur doit intervenir manuellement sur le serveur.
-
-**Comportement attendu** :
-1. Bouton « Restaurer » sur chaque ligne de la liste des sauvegardes.
-2. **Première confirmation** : dialog avertissant que toutes les données actuelles seront remplacées et que l'application redémarrera.
-3. **Saisie de confirmation** : l'utilisateur doit taper le mot `RESTAURER` pour activer le bouton de validation (prévient les clics accidentels).
-4. **Deuxième confirmation** : dialog final récapitulatif (nom du fichier, date, taille) avant exécution.
-5. Le backend effectue la restauration (copie du fichier `.db` + WAL/SHM) puis redémarre Uvicorn (SIGTERM sur le processus courant, repris par le gestionnaire de processus Docker).
-6. Le frontend détecte la déconnexion et affiche un message « Restauration en cours… » avec rechargement automatique après quelques secondes.
-
-**Backend** :
-- Endpoint `POST /api/settings/backups/{filename}/restore` (admin only).
-- Validation : le fichier doit exister dans `data/backups/`, extension `.db`.
-- Séquence : fermer les connexions SQLAlchemy → copier le fichier de sauvegarde vers `data/solde.db` (+ supprimer WAL/SHM existants) → `os.kill(os.getpid(), signal.SIGTERM)`.
-- Sécurité : interdire tout path traversal sur `filename` (valider que le nom ne contient pas `/`, `..`, etc.).
-
-**Frontend** :
-- Composant de confirmation en deux étapes dans `SystemView.vue`.
-- Gestion de l'état « restauration en cours » (spinner, polling `/api/health` jusqu'au retour du serveur).
-
-**Fichiers** : `backend/routers/settings.py`, `backend/services/backup_service.py`, `frontend/src/views/SystemView.vue`.
-
----
-
-### BIZ-115 — Nommer les sauvegardes dans la vue système
-
-**Contexte** : Les sauvegardes générées automatiquement portent un nom basé sur l'horodatage (`solde_backup_YYYYMMDD_HHMMSS.db`). L'utilisateur ne peut pas distinguer facilement une sauvegarde prise avant une opération risquée d'une sauvegarde de routine.
-
-**Solution** :
-- Champ texte optionnel « Libellé » dans le panneau Sauvegardes de `SystemView.vue`, visible à côté du bouton « Sauvegarder maintenant ».
-- Si renseigné, le libellé est inclus dans le nom du fichier (slugifié, caractères spéciaux remplacés par `_`) : ex. `solde_backup_20260426_143000_avant_import_gestion_2025.db`.
-- Affichage du libellé (partie après l'horodatage) dans la colonne « Nom » de la liste des sauvegardes, avec l'horodatage en secondaire.
-- La longueur du libellé est limitée à 50 caractères ; les caractères autorisés sont `[a-zA-Z0-9 _-]`.
-
-**Backend** :
-- `POST /api/settings/backups` : nouveau paramètre optionnel `label: str | None` dans le body.
-- `BackupService.create_backup(label)` : génère le nom de fichier en intégrant le slug du libellé.
-
-**Fichiers** : `backend/routers/settings.py`, `backend/services/backup_service.py`, `frontend/src/views/SystemView.vue`.
-
----
-
 ### BIZ-111 — Import one-shot adresses postales depuis factures Word
 
 **Contexte** : Les factures clients historiques sont des fichiers Word (`.docx`). L'adresse postale des clients y figure mais n'a jamais été saisie dans la base. Ce script one-shot extrait ces adresses et enrichit le champ `Contact.adresse`.
@@ -242,80 +104,6 @@ Dans le dialog « Modifier la facture » (`ClientInvoicesView.vue` et `Supplie
 **Dépendance** : `python-docx` (à ajouter dans `pyproject.toml`, groupe `[project.optional-dependencies]` ou direct si jugé léger).
 
 **Fichiers** : `scripts/import_addresses_from_docx.py`, `pyproject.toml` (dépendance optionnelle).
-
----
-
-### TEC-110 — Fix SPA : `Cache-Control: no-store` sur `index.html`
-
-**Problème** : Après un rebuild Docker, le navigateur utilisait un `index.html` mis en cache référençant d'anciens hashes de chunks Vite. Le module manquant déclenchait `TypeError: error loading dynamically imported module` (ex. `ProfileView-BM0w_JLN.js`).
-
-**Correction** : `serve_spa` dans `backend/main.py` retourne désormais `Cache-Control: no-store, no-cache, must-revalidate` pour `index.html`, et `Cache-Control: public, max-age=31536000, immutable` pour les assets hachés (`/assets/*`).
-
----
-
-### BIZ-107 — Contacts : colonne dernière facture + historique en modal centré
-
-**Colonne « Dernière facture »** dans `ContactsView` :
-- Côté backend : ajouter un champ calculé `last_invoice_ref: str | None` et `last_invoice_date: date | None` dans `ContactRead` (requête SQL avec subquery ou jointure + ORDER BY date DESC LIMIT 1, distingué client/fournisseur).
-- Côté frontend : nouvelle colonne « Dernière facture » dans la DataTable, filtrable et triable.
-
-**Historique contact en modal centré** (remplace la navigation vers `ContactDetailView`) :
-- Remplacer le `$router.push('/contacts/:id/history')` par un `<Dialog>` PrimeVue centré, `modal: true`, fond flouté (`backdrop-blur`).
-- Largeur : ~800px, hauteur maximale avec scroll interne. Contenu = factures + paiements du contact (contenu actuel de `ContactDetailView`).
-- La route `/contacts/:id/history` reste accessible pour accès direct par URL.
-- Avantage : filtre/tri de la liste préservé au retour, cohérence UX avec les autres modals.
-
-**Inventaire des interactions candidates au même traitement modal** :
-- Identifier dans le codebase tous les `$router.push` ou `navigateTo` vers des vues « détail » lancés depuis une liste (factures, paiements, écritures, etc.).
-- Pour chaque cas : évaluer si la vue détail est riche (sous-listes, formulaires) ou légère, et si le contexte liste doit être préservé.
-- Décider cas par cas : modal, drawer, ou navigation page selon la densité du contenu.
-- Documenter les décisions et ouvrir des sous-tickets si d'autres vues méritent la migration.
-
-**Fichiers à modifier** : `backend/schemas/contact.py`, `backend/services/contact.py`, `backend/routers/contact.py`, `frontend/src/views/ContactsView.vue`, nouveau composant `ContactHistoryDialog.vue` (extrait de `ContactDetailView.vue`).
-
----
-
-### BIZ-108 — Écran de supervision technique (état système, sauvegardes, logs applicatifs)
-
-Nouvelle route admin `/system` → `SystemView.vue` avec 3 panneaux.
-
-**Panneau État système** :
-- Version de l'application (depuis `cfg.app_version`)
-- Taille de la base SQLite (`os.path.getsize` sur `data/solde.db`)
-- Timestamp de démarrage du serveur
-- Badge de statut (vert/rouge)
-- Endpoint backend : `GET /api/settings/system-info` (admin only)
-
-**Panneau Sauvegardes** :
-- Déplacer le bouton « Sauvegarder maintenant » de `SettingsView` vers `SystemView` (supprimer de `SettingsView`)
-- Liste des sauvegardes existantes dans `data/backups/` (nom, taille, date) → `GET /api/settings/backups`
-- Pas de téléchargement depuis l'UI
-
-**Panneau Logs applicatifs** :
-- Les logs applicatifs sont écrits dans `data/logs/solde.log` via `RotatingFileHandler` (5 MB, 3 fichiers de rotation : `solde.log`, `solde.log.1`…)
-- Format de chaque ligne : `YYYY-MM-DD HH:MM:SS [LEVEL] name: message`
-- Endpoint `GET /api/settings/logs` (admin only) : lit et concatène **tous** les fichiers de rotation dans l'ordre chronologique, parse chaque ligne en `{timestamp, level, logger, message}`, retourne la liste complète
-- Frontend :
-  - Zone scrollable avec coloration par niveau (DEBUG=gris, INFO=blanc, WARNING=orange, ERROR=rouge)
-  - Filtre par niveau (multi-select : DEBUG / INFO / WARNING / ERROR)
-  - Filtre par date/heure (plage début–fin)
-  - Recherche texte libre (filtre côté client sur `logger` + `message`)
-  - Bouton « Aller en bas » (dernière entrée)
-
-**Traçabilité des actions utilisateur** (`AuditLog`) : voir ticket séparé BIZ-109.
-
-**Fichiers à créer/modifier** : `backend/routers/settings.py` (+3 endpoints), `frontend/src/views/SystemView.vue`, `frontend/src/views/SettingsView.vue` (retrait du panneau backup), `frontend/src/router/index.ts`, entrée menu admin.
-
----
-
-### BIZ-109 — Traçabilité des actions utilisateur (journal d'audit)
-
-La table `audit_logs` existe en base et est alimentée par `audit_service.py`, mais elle n'est pas exposée.
-
-- Créer `GET /api/settings/audit-logs` (admin only) : retourne les entrées paginées (filtrables par action, acteur, période)
-- Ajouter un panneau « Journal d'audit » dans `SystemView.vue` (BIZ-108) ou dans une vue dédiée selon la charge de la page
-- Colonnes : horodatage, acteur, action, cible (type + id), détail (JSON expandable)
-- Vérifier la couverture de `audit_service.py` : quelles actions sont tracées, lesquelles manquent (import, suppression, reset…)
 
 ---
 
@@ -349,107 +137,6 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 
 ---
 
-### TEC-098 — Journal comptable : remplacer limit=100 000 par pagination SQL
-
-`backend/services/accounting_entry_service.py` utilise `limit=100_000` dans cinq fonctions (`get_balance`, `get_ledger`, `get_resultat`, `get_bilan`, `get_grouped_journal`) et charge jusqu'à 100 000 lignes en mémoire Python avant d'effectuer un skip/limit Python dans `get_grouped_journal`. `export_service.py` a le même pattern (L43). Sur une association active sur plusieurs exercices, ce plafond peut saturer la RAM de 384 MB allouée.
-
-**Correctif** :
-- `get_balance`, `get_ledger`, `get_resultat`, `get_bilan` : remplacer le `limit=100_000` par une agrégation SQL (GROUP BY + SUM) là où seuls les totaux sont nécessaires, ou par une pagination SQL réelle quand la liste de lignes est retournée à l'API.
-- `get_grouped_journal` (L597–628) : pousser le `OFFSET`/`LIMIT` dans la requête SQLAlchemy, supprimer le slice Python.
-- `export_service.py` : idem — ne charger que les lignes nécessaires à l'export.
-
-**Fichiers à modifier** : `backend/services/accounting_entry_service.py`, `backend/services/export_service.py`.
-
----
-
-### TEC-099 — Cascade FK manquante Payment → Invoice (+ migration Alembic)
-
-`backend/models/payment.py` ligne 29 : `ForeignKey("invoices.id")` sans `ondelete="CASCADE"`. Si une facture est supprimée directement en base (migration, script, bug), les paiements associés deviennent orphelins avec `invoice_id` pointant vers un enregistrement inexistant, corrompant les rapprochements.
-
-Le service `invoice.py` protège actuellement la suppression applicative, mais la contrainte DB est absente.
-
-**Correctif** :
-1. Modifier `payment.py` : `ForeignKey("invoices.id", ondelete="CASCADE")`
-2. Créer migration Alembic `0030_payment_invoice_cascade.py` : `DROP CONSTRAINT` + `ADD CONSTRAINT` avec `ON DELETE CASCADE` (SQLite : recréer la table).
-
-**Fichiers à modifier** : `backend/models/payment.py`, nouvelle migration `backend/alembic/versions/0030_payment_invoice_cascade.py`.
-
----
-
-### TEC-100 — Tests manquants : pdf_service, email_service, bank_import
-
-Trois services sans aucune couverture de test :
-- `backend/services/pdf_service.py` — génération PDF facture (WeasyPrint)
-- `backend/services/email_service.py` — envoi SMTP (aiosmtplib)
-- `backend/services/bank_import.py` — parsing fichier OFX
-
-**Objectif** : atteindre ≥ 80 % de couverture sur chacun.
-
-**Approche** :
-- `pdf_service` : mock WeasyPrint, tester que le HTML rendu contient les champs clés (référence, montant, contact)
-- `email_service` : mock `smtplib.SMTP`, tester les cas succès, BCC optionnel, SMTP non configuré
-- `bank_import` : utiliser `data/comptes.ofx` comme fixture, tester le parsing des transactions, dates, montants, solde d'ouverture
-
-**Fichiers à créer** : `tests/unit/test_pdf_service.py`, `tests/unit/test_email_service.py`, `tests/unit/test_bank_import.py`.
-
----
-
-### TEC-101 — Refactoring ClientInvoicesView.vue (~1 100 L)
-
-`frontend/src/views/ClientInvoicesView.vue` compte environ 1 100 lignes (hors périmètre de TEC-077 qui ciblait `ImportExcelView`, `BankView`, `SettingsView`). La vue mélange : logique de liste/filtre, calculs de métriques portefeuille, gestion des dialogs, calls API directs.
-
-**Correctif** :
-1. Extraire `composables/useInvoiceMetrics.ts` — les computed `receivableMetrics` et `portfolioMetrics` qui filtrent de grands tableaux à chaque changement.
-2. Extraire les dialogs (création, édition, envoi email, annulation) vers des sous-composants dédiés (`ClientInvoiceCreateDialog.vue`, etc.) ou les regrouper dans un composable `useInvoiceDialogs`.
-3. Les appels API directs restent dans la vue pour l'instant (store dédié hors scope).
-
-**Cible** : vue principale < 500 L, composable métriques < 100 L.
-
-**Fichier source** : `frontend/src/views/ClientInvoicesView.vue`.
-
----
-
-### TEC-102 — Utilitaire getErrorDetail() mutualisé (bank dialogs)
-
-Le pattern d'extraction de message d'erreur API :
-```typescript
-(error as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-```
-est répété dans au moins 4 composants (`BankSupplierPaymentDialog.vue`, `BankLinkClientPaymentDialog.vue`, `BankLinkSupplierPaymentDialog.vue`, et d'autres). Toute évolution de la structure d'erreur impose de modifier N fichiers.
-
-**Correctif** : créer `frontend/src/utils/errorUtils.ts` avec :
-```typescript
-export function getErrorDetail(error: unknown): string {
-  if (error && typeof error === 'object' && 'response' in error) { ... }
-  return 'Erreur inconnue'
-}
-```
-Remplacer toutes les occurrences inline par un appel à `getErrorDetail(error)`.
-
----
-
-### TEC-103 — Debounce sur filtres texte en temps réel
-
-`ClientInvoicesView.vue` dispose d'un filtre global (`globalFilter`) qui déclenche un re-rendu de la DataTable PrimeVue à chaque frappe, sans debounce. Sur de grandes listes (> 200 factures), cela peut provoquer des freezes perceptibles.
-
-**Correctif** : remplacer le binding direct `v-model="globalFilter"` par une valeur intermédiaire `globalFilterInput` avec un watcher `watchDebounced(globalFilterInput, (v) => { globalFilter.value = v }, { debounce: 200 })` via `@vueuse/core`. Appliquer le même pattern aux autres vues disposant d'un filtre texte inline si nécessaire.
-
----
-
-### TEC-104 — Casts TypeScript non sûrs dans CashView.vue
-
-`frontend/src/views/CashView.vue` contient trois casts `as unknown as` dans du code de production :
-- L487 : `(countForm as unknown as Record<string, number>)[denom.field]` — contournement du typage du formulaire de comptage de caisse
-- L891, L900 : `entryForm.value.date as unknown as Date` — le champ `date` est déclaré `string` dans le type du formulaire mais PrimeVue DatePicker renvoie un `Date`
-
-**Correctif** :
-- L487 : typer explicitement `countForm` comme `Record<string, number>` ou créer une interface dédiée `CashCountForm`.
-- L891/L900 : déclarer `date` comme `Date | null` dans le type du formulaire ou utiliser `toIsoDate(new Date(entryForm.value.date))` avec une assertion propre.
-
-**Fichier à modifier** : `frontend/src/views/CashView.vue`.
-
----
-
 ## Lots terminés
 
 | Lot | Nom | Version | Tickets | Terminé |
@@ -479,7 +166,7 @@ Remplacer toutes les occurrences inline par un appel à `getErrorDetail(error)`.
 | O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-30 |
 | P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-30 |
 
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-107, TEC-110, BIZ-108, BIZ-109.
+Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
 
 <details>
