@@ -37,7 +37,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
-| BIZ-107 | Contacts : colonne dernière facture + historique en modal centré | P2 | ~45 min | 2026-04-26 | | |
+| BIZ-107 | Contacts : colonne dernière facture + historique en modal centré | P2 | ~45 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-108 | Écran de supervision technique (état système, sauvegardes, logs applicatifs) | P2 | ~1h30 | 2026-04-26 | | |
 | BIZ-109 | Traçabilité des actions utilisateur (journal d'audit) | P2 | ~30 min | 2026-04-26 | | |
 | TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | | |

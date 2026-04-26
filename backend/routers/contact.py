@@ -42,14 +42,14 @@ async def list_contacts(
     limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[ContactRead]:
     """List contacts with optional filters."""
-    return await contact_service.list_contacts(
+    return await contact_service.list_contacts_enriched(
         db,
         type=type,
         search=search,
         active_only=active_only,
         skip=skip,
         limit=limit,
-    )  # type: ignore[return-value]
+    )
 
 
 @router.post("/", response_model=ContactRead, status_code=status.HTTP_201_CREATED)

@@ -158,6 +158,21 @@
             <InputText v-model="filterModel.value" :placeholder="t('contacts.telephone')" />
           </template>
         </Column>
+        <Column
+          field="last_invoice_date"
+          :header="t('contacts.last_invoice')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #body="{ data }">
+            <template v-if="data.last_invoice_ref">
+              <span>{{ data.last_invoice_ref }}</span><br />
+              <span class="app-text-muted" style="font-size:0.85rem">{{ formatDisplayDate(data.last_invoice_date) }}</span>
+            </template>
+            <span v-else class="app-text-muted">—</span>
+          </template>
+        </Column>
         <Column :header="t('common.actions')" class="contacts-table__actions">
           <template #body="{ data }">
             <div class="app-inline-actions">
@@ -168,7 +183,7 @@
                 text
                 :title="t('contact_history.title')"
                 :aria-label="t('contact_history.title')"
-                @click="$router.push(`/contacts/${data.id}/history`)"
+                @click="openHistoryDialog(data.id)"
               />
               <Button
                 icon="pi pi-pencil"
@@ -314,6 +329,7 @@
       </div>
     </Dialog>
 
+    <ContactHistoryDialog v-model="historyDialogVisible" :contact-id="selectedContactId" />
     <ConfirmDialog />
   </AppPage>
 </template>
@@ -346,12 +362,14 @@ import { deleteContactApi, importContactEmailsApi, listContactsApi, type Contact
 import type { ContactEmailImportResult, ContactEmailImportRow } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'
+import ContactHistoryDialog from '@/components/ContactHistoryDialog.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import {
   collectActiveFilterLabels,
 } from '../composables/activeFilterLabels'
 import { inFilter, textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
+import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const confirm = useConfirm()
@@ -365,11 +383,18 @@ const dialogVisible = ref(false)
 const contactFormRef = ref<InstanceType<typeof ContactForm> | null>(null)
 const editingContact = ref<Contact | null>(null)
 const formWrapperEl = ref<HTMLElement | null>(null)
+const historyDialogVisible = ref(false)
+const selectedContactId = ref<number | null>(null)
 
 function focusFormInput(): void {
   nextTick(() => {
     formWrapperEl.value?.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled])')?.focus()
   })
+}
+
+function openHistoryDialog(id: number): void {
+  selectedContactId.value = id
+  historyDialogVisible.value = true
 }
 
 const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => Boolean(contactFormRef.value?.isDirty))

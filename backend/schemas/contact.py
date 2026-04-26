@@ -77,6 +77,8 @@ class ContactRead(BaseModel):
     is_contractor: bool
     created_at: datetime
     updated_at: datetime
+    last_invoice_ref: str | None = None
+    last_invoice_date: date_value | None = None
 
     model_config = {"from_attributes": True}
 

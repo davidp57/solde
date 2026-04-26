@@ -18,6 +18,8 @@ export interface Contact {
   is_contractor: boolean
   created_at: string
   updated_at: string
+  last_invoice_ref: string | null
+  last_invoice_date: string | null
 }
 
 export interface ContactCreate {

@@ -13,7 +13,17 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
-- Bouton « Télécharger une sauvegarde » dans la page Paramètres — appelle `POST /api/settings/backup` et déclenche le téléchargement du fichier `.db` avec un nom horodaté (`solde_backup_YYYY-MM-DD-HH-MM-SS.db`) (CHR-019, REC-004)
+- BIZ-107 : Colonne « Dernière facture » dans le tableau des contacts (référence + date) — enrichissement backend avec sous-requête SQLAlchemy MAX(date) par contact
+- BIZ-107 : Historique contact en Dialog centré (au lieu d'une navigation vers une page dédiée) — composant `ContactHistoryContent` partagé entre la vue pleine page et le dialog
+- BIZ-107 : `ContactHistoryContent.vue` — composant extrait de `ContactDetailView`, réutilisable via prop `contactId` et événement `contact-loaded`
+- BIZ-107 : `ContactHistoryDialog.vue` — enveloppe `ContactHistoryContent` dans un `<Dialog>` PrimeVue avec le nom du contact en titre
+
+### Modifié
+
+- BIZ-107 : `ContactDetailView.vue` — réécrit comme wrapper léger autour de `ContactHistoryContent`
+- BIZ-107 : `ContactsView.vue` — bouton historique ouvre le dialog au lieu de naviguer, nouvelle colonne « Dernière facture »
+
+ dans la page Paramètres — appelle `POST /api/settings/backup` et déclenche le téléchargement du fichier `.db` avec un nom horodaté (`solde_backup_YYYY-MM-DD-HH-MM-SS.db`) (CHR-019, REC-004)
 - `doc/dev/exploitation.md` : section déploiement Portainer / NAS Synology — stack YAML, variables d'environnement, données persistantes, procédure de mise à jour (CHR-019, REC-004)
 - Écran Salaires rendu accessible au rôle `secretaire` (Management) en plus des rôles `tresorier` et `admin` (REC-005)
 - CRUD complet des règles comptables réservé aux admins : création, modification, suppression avec confirmation ; dialog formulaire avec sélecteur de déclencheur, lignes comptables éditables ; 26 libellés et descriptions métier en français par déclencheur (REC-008)
