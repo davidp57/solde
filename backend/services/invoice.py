@@ -66,6 +66,7 @@ _VALID_TRANSITIONS: dict[InvoiceStatus, set[InvoiceStatus]] = {
         InvoiceStatus.OVERDUE,
     },
     InvoiceStatus.PAID: set(),  # final state
+    InvoiceStatus.IRRECOVERABLE: set(),  # managed via dedicated write-off/restore endpoints
 }
 
 
@@ -356,6 +357,65 @@ async def update_invoice_status(
         )  # noqa: PLC0415
 
         await generate_entries_for_invoice(db, invoice)
+    await db.commit()
+    await db.refresh(invoice)
+    return invoice
+
+
+async def write_off_invoice(db: AsyncSession, invoice: Invoice) -> Invoice:
+    """Pass a client invoice to IRRECOVERABLE status and generate write-off entries.
+
+    The invoice must be a client invoice with remaining amount > 0 and not already
+    DRAFT, PAID or IRRECOVERABLE.
+    """
+    from backend.services.accounting_engine import (  # noqa: PLC0415
+        generate_entries_for_write_off,
+    )
+
+    if invoice.type != InvoiceType.CLIENT:
+        raise InvoiceStatusError("Only client invoices can be written off")
+    if invoice.status in {InvoiceStatus.DRAFT, InvoiceStatus.PAID, InvoiceStatus.IRRECOVERABLE}:
+        raise InvoiceStatusError(f"Invoice in status '{invoice.status}' cannot be written off")
+    remaining = invoice.total_amount - invoice.paid_amount
+    if remaining <= Decimal("0"):
+        raise InvoiceStatusError("Invoice has no remaining amount to write off")
+
+    invoice.status = InvoiceStatus.IRRECOVERABLE
+    invoice.updated_at = datetime.now(UTC)
+    await db.flush()
+    await generate_entries_for_write_off(db, invoice, remaining)
+    await db.commit()
+    await db.refresh(invoice)
+    return invoice
+
+
+async def restore_from_writeoff(db: AsyncSession, invoice: Invoice) -> Invoice:
+    """Restore an IRRECOVERABLE invoice: generate reversal entries and recompute status.
+
+    The reversal uses account 754000 (Reprises sur créances amorties).
+    The new status is inferred from paid_amount vs total_amount.
+    """
+    from backend.services.accounting_engine import (  # noqa: PLC0415
+        generate_entries_for_restore_from_writeoff,
+    )
+
+    if invoice.status != InvoiceStatus.IRRECOVERABLE:
+        raise InvoiceStatusError("Invoice is not in IRRECOVERABLE status")
+
+    remaining = invoice.total_amount - invoice.paid_amount
+    amount = remaining if remaining > Decimal("0") else invoice.total_amount
+
+    if invoice.paid_amount >= invoice.total_amount:
+        new_status = InvoiceStatus.PAID
+    elif invoice.paid_amount > Decimal("0"):
+        new_status = InvoiceStatus.PARTIAL
+    else:
+        new_status = InvoiceStatus.SENT
+
+    invoice.status = new_status
+    invoice.updated_at = datetime.now(UTC)
+    await db.flush()
+    await generate_entries_for_restore_from_writeoff(db, invoice, amount)
     await db.commit()
     await db.refresh(invoice)
     return invoice

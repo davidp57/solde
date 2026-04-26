@@ -116,6 +116,16 @@
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
             <InputText v-model="globalFilterInput" :placeholder="t('common.filter_placeholder')" />
           </div>
+          <div class="app-field">
+            <Button
+              :label="showIrrecoverable ? t('invoices.hide_irrecoverable') : t('invoices.show_irrecoverable')"
+              :icon="showIrrecoverable ? 'pi pi-eye-slash' : 'pi pi-eye'"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="showIrrecoverable = !showIrrecoverable; loadInvoices()"
+            />
+          </div>
         </div>
       </div>
 
@@ -302,6 +312,26 @@
                 @click="duplicate(data)"
               />
               <Button
+                v-if="data.status !== 'draft' && data.status !== 'paid' && data.status !== 'irrecoverable' && parseFloat(data.total_amount) - parseFloat(data.paid_amount) > 0"
+                icon="pi pi-ban"
+                size="small"
+                severity="danger"
+                text
+                :title="t('invoices.write_off')"
+                :aria-label="t('invoices.write_off')"
+                @click="openWriteOffDialog(data)"
+              />
+              <Button
+                v-if="data.status === 'irrecoverable'"
+                icon="pi pi-refresh"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.restore_from_writeoff')"
+                :aria-label="t('invoices.restore_from_writeoff')"
+                @click="restoreFromWriteoff(data)"
+              />
+              <Button
                 icon="pi pi-trash"
                 size="small"
                 severity="danger"
@@ -323,7 +353,7 @@
       :visible="dialogVisible"
       @update:visible="onCloseDialog"
       @show="focusFormInput"
-      :header="editingInvoice ? t('invoices.edit') : t('invoices.new')"
+      :header="editingInvoice ? `${t('invoices.edit')} — ${editingInvoice.number}` : t('invoices.new')"
       modal
       class="app-dialog app-dialog--large"
     >
@@ -339,6 +369,36 @@
     </Dialog>
 
     <ConfirmDialog />
+
+    <!-- Write-off confirmation dialog -->
+    <Dialog
+      v-model:visible="writeOffDialogVisible"
+      :header="t('invoices.write_off_confirm_title')"
+      modal
+      :style="{ width: '30rem' }"
+    >
+      <div class="write-off-dialog-body">
+        <p>{{ t('invoices.write_off_confirm_msg') }}</p>
+        <p v-if="writeOffTarget" class="write-off-invoice-ref">
+          {{ writeOffTarget.number }} — {{ parseFloat(writeOffTarget.total_amount).toFixed(2) }} €
+        </p>
+      </div>
+      <template #footer>
+        <Button
+          :label="t('common.cancel')"
+          severity="secondary"
+          outlined
+          @click="writeOffDialogVisible = false"
+        />
+        <Button
+          :label="t('invoices.write_off')"
+          icon="pi pi-ban"
+          severity="danger"
+          :loading="writeOffLoading"
+          @click="confirmWriteOff"
+        />
+      </template>
+    </Dialog>
 
     <Dialog
       v-model:visible="historyVisible"
@@ -563,6 +623,8 @@ import {
   downloadInvoicePdfApi,
   listInvoicesApi,
   sendInvoiceEmailApi,
+  writeOffInvoiceApi,
+  restoreFromWriteoffApi,
   type Invoice,
   type InvoiceStatus,
 } from '../api/invoices'
@@ -624,6 +686,12 @@ const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => Boolean(invoic
 const editingInvoice = ref<Invoice | null>(null)
 const statusFilter = ref<InvoiceStatus | null>(null)
 const unpaidOnly = ref(false)
+const showIrrecoverable = ref(false)
+
+// Write-off dialog
+const writeOffDialogVisible = ref(false)
+const writeOffTarget = ref<Invoice | null>(null)
+const writeOffLoading = ref(false)
 
 // History dialog
 const historyVisible = ref(false)
@@ -733,6 +801,7 @@ const statusOptions = [
   { label: t('invoices.statuses.partial'), value: 'partial' },
   { label: t('invoices.statuses.overdue'), value: 'overdue' },
   { label: t('invoices.statuses.disputed'), value: 'disputed' },
+  { label: t('invoices.statuses.irrecoverable'), value: 'irrecoverable' },
 ]
 
 const paymentMethodOptions = [
@@ -758,7 +827,11 @@ function toIsoDate(value: Date | string): string {
 
 function canRecordPayment(invoice: Invoice | null): boolean {
   if (!invoice) return false
-  return invoice.status !== 'draft' && remainingForInvoice(invoice) > 0
+  return (
+    invoice.status !== 'draft' &&
+    invoice.status !== 'irrecoverable' &&
+    remainingForInvoice(invoice) > 0
+  )
 }
 
 function contactName(id: number): string {
@@ -775,6 +848,7 @@ function statusSeverity(s: InvoiceStatus): string {
     partial: 'warn',
     overdue: 'danger',
     disputed: 'danger',
+    irrecoverable: 'secondary',
   }
   return map[s] ?? 'secondary'
 }
@@ -799,10 +873,13 @@ async function loadInvoices() {
       invoices.value = all.filter(
         (inv) =>
           inv.status !== 'draft' &&
+          inv.status !== 'irrecoverable' &&
           parseFloat(inv.total_amount) - parseFloat(inv.paid_amount) > 0,
       )
     } else if (statusFilter.value === 'overdue') {
       invoices.value = all.filter(isOverdueInvoice)
+    } else if (!showIrrecoverable.value && !statusFilter.value) {
+      invoices.value = all.filter((inv) => inv.status !== 'irrecoverable')
     } else {
       invoices.value = all
     }
@@ -883,6 +960,36 @@ async function sendEmail(invoice: Invoice) {
   try {
     await sendInvoiceEmailApi(invoice.id)
     toast.add({ severity: 'success', summary: t('invoices.email_sent'), life: 3000 })
+    await refreshInvoicesData()
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  }
+}
+
+function openWriteOffDialog(invoice: Invoice): void {
+  writeOffTarget.value = invoice
+  writeOffDialogVisible.value = true
+}
+
+async function confirmWriteOff(): Promise<void> {
+  if (!writeOffTarget.value) return
+  writeOffLoading.value = true
+  try {
+    await writeOffInvoiceApi(writeOffTarget.value.id)
+    writeOffDialogVisible.value = false
+    toast.add({ severity: 'success', summary: t('invoices.write_off'), life: 3000 })
+    await refreshInvoicesData()
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } finally {
+    writeOffLoading.value = false
+  }
+}
+
+async function restoreFromWriteoff(invoice: Invoice): Promise<void> {
+  try {
+    await restoreFromWriteoffApi(invoice.id)
+    toast.add({ severity: 'success', summary: t('invoices.restore_from_writeoff'), life: 3000 })
     await refreshInvoicesData()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })

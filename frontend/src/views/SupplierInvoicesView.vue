@@ -248,7 +248,7 @@
       :visible="dialogVisible"
       @update:visible="onCloseDialog"
       @show="focusFormInput"
-      :header="editingInvoice ? t('invoices.edit') : t('invoices.new')"
+      :header="editingInvoice ? `${t('invoices.edit')} — ${editingInvoice.number}` : t('invoices.new')"
       modal
       class="app-dialog app-dialog--medium"
     >

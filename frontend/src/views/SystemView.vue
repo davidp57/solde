@@ -32,14 +32,21 @@
     <!-- Backups -->
     <AppPanel :title="t('system.backup_title')" :subtitle="t('system.backup_subtitle')">
       <div class="backup-actions">
-        <Button
-          :label="t('system.backup_download')"
-          icon="pi pi-download"
-          severity="secondary"
-          outlined
-          :loading="backing"
-          @click="downloadBackup"
-        />
+        <div class="backup-create-row">
+          <InputText
+            v-model="backupLabel"
+            :placeholder="t('system.backup_label_placeholder')"
+            class="backup-label-input"
+          />
+          <Button
+            :label="t('system.backup_download')"
+            icon="pi pi-download"
+            severity="secondary"
+            outlined
+            :loading="backing"
+            @click="downloadBackup"
+          />
+        </div>
         <Message v-if="backupError" severity="error" :closable="true">
           {{ backupError }}
         </Message>
@@ -49,16 +56,102 @@
         <h3 class="backup-list-title">{{ t('system.backup_list_title') }}</h3>
         <DataTable :value="backupFiles" size="small" striped-rows>
           <Column field="filename" :header="t('system.col_filename')" />
+          <Column :header="t('system.col_label')">
+            <template #body="{ data }">{{ data.label || '—' }}</template>
+          </Column>
           <Column :header="t('system.col_size')">
             <template #body="{ data }">{{ formatBytes(data.size_bytes) }}</template>
           </Column>
           <Column :header="t('system.col_date')">
             <template #body="{ data }">{{ formatDatetime(data.created_at) }}</template>
           </Column>
+          <Column header="" style="width: 4rem">
+            <template #body="{ data }">
+              <Button
+                icon="pi pi-history"
+                size="small"
+                severity="danger"
+                text
+                :title="t('system.restore_btn')"
+                @click="openRestoreDialog(data)"
+              />
+            </template>
+          </Column>
         </DataTable>
       </div>
       <p v-else class="empty-message">{{ t('system.backup_empty') }}</p>
     </AppPanel>
+
+    <!-- Restore step 1: type RESTAURER -->
+    <Dialog
+      v-model:visible="restoreStep1Visible"
+      :header="t('system.restore_step1_title')"
+      modal
+      :style="{ width: '32rem' }"
+    >
+      <div class="restore-dialog-body">
+        <Message severity="warn" :closable="false">
+          {{ t('system.restore_step1_msg') }}
+        </Message>
+        <p class="restore-filename">{{ restoreTarget?.filename }}</p>
+        <label class="restore-confirm-label">{{ t('system.restore_type_confirm') }}</label>
+        <InputText
+          v-model="restoreConfirmInput"
+          :placeholder="t('system.restore_confirm_word')"
+          class="restore-confirm-input"
+          autocomplete="off"
+        />
+      </div>
+      <template #footer>
+        <Button
+          :label="t('common.cancel')"
+          severity="secondary"
+          outlined
+          @click="restoreStep1Visible = false"
+        />
+        <Button
+          :label="t('system.restore_confirm_btn')"
+          severity="danger"
+          :disabled="restoreConfirmInput !== t('system.restore_confirm_word')"
+          @click="onRestoreStep1Confirm"
+        />
+      </template>
+    </Dialog>
+
+    <!-- Restore step 2: final confirm -->
+    <Dialog
+      v-model:visible="restoreStep2Visible"
+      :header="t('system.restore_step2_title')"
+      modal
+      :style="{ width: '32rem' }"
+    >
+      <div class="restore-dialog-body">
+        <p>{{ t('system.restore_step2_msg') }}</p>
+        <ul class="restore-file-details">
+          <li><strong>{{ t('system.col_filename') }}</strong> : {{ restoreTarget?.filename }}</li>
+          <li><strong>{{ t('system.col_label') }}</strong> : {{ restoreTarget?.label || '—' }}</li>
+          <li><strong>{{ t('system.col_size') }}</strong> : {{ restoreTarget ? formatBytes(restoreTarget.size_bytes) : '' }}</li>
+          <li><strong>{{ t('system.col_date') }}</strong> : {{ restoreTarget ? formatDatetime(restoreTarget.created_at) : '' }}</li>
+        </ul>
+        <Message v-if="restoreError" severity="error" :closable="false">{{ restoreError }}</Message>
+        <Message v-if="restoring" severity="info" :closable="false">{{ t('system.restore_in_progress') }}</Message>
+      </div>
+      <template #footer>
+        <Button
+          :label="t('common.cancel')"
+          severity="secondary"
+          outlined
+          :disabled="restoring"
+          @click="restoreStep2Visible = false"
+        />
+        <Button
+          :label="t('system.restore_proceed_btn')"
+          severity="danger"
+          :loading="restoring"
+          @click="executeRestore"
+        />
+      </template>
+    </Dialog>
 
     <!-- Application logs -->
     <AppPanel :title="t('system.logs_title')">
@@ -155,6 +248,7 @@ import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
+import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import MultiSelect from 'primevue/multiselect'
@@ -169,6 +263,7 @@ import {
   getLogsApi,
   getSystemInfoApi,
   listBackupsApi,
+  restoreBackupApi,
 } from '@/api/settings'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
@@ -182,6 +277,15 @@ const systemInfoError = ref(false)
 const backupFiles = ref<BackupFile[]>([])
 const backing = ref(false)
 const backupError = ref('')
+const backupLabel = ref('')
+
+// --- Restore state ---
+const restoreTarget = ref<BackupFile | null>(null)
+const restoreStep1Visible = ref(false)
+const restoreStep2Visible = ref(false)
+const restoreConfirmInput = ref('')
+const restoring = ref(false)
+const restoreError = ref('')
 const logs = ref<LogEntry[]>([])
 const logsLoaded = ref(false)
 const logsLoading = ref(false)
@@ -238,20 +342,64 @@ async function downloadBackup(): Promise<void> {
   backing.value = true
   backupError.value = ''
   try {
-    const blob = await createBackupApi()
+    const label = backupLabel.value.trim() || null
+    const blob = await createBackupApi(label)
     const url = URL.createObjectURL(blob)
-    const filename = `solde_backup_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.db`
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '').replace(/-/g, '')
+    const filename = `solde_backup_${ts}.db`
     const a = document.createElement('a')
     a.href = url
     a.download = filename
     a.click()
     URL.revokeObjectURL(url)
+    backupLabel.value = ''
     // Refresh backup list
     backupFiles.value = await listBackupsApi()
   } catch {
     backupError.value = t('system.backup_error')
   } finally {
     backing.value = false
+  }
+}
+
+function openRestoreDialog(file: BackupFile): void {
+  restoreTarget.value = file
+  restoreConfirmInput.value = ''
+  restoreError.value = ''
+  restoreStep1Visible.value = true
+}
+
+function onRestoreStep1Confirm(): void {
+  restoreStep1Visible.value = false
+  restoreStep2Visible.value = true
+}
+
+async function executeRestore(): Promise<void> {
+  if (!restoreTarget.value) return
+  restoring.value = true
+  restoreError.value = ''
+  try {
+    await restoreBackupApi(restoreTarget.value.filename)
+    // Poll /api/health until the restarted server responds
+    await pollUntilHealthy()
+    window.location.reload()
+  } catch {
+    restoreError.value = t('system.restore_error')
+    restoring.value = false
+  }
+}
+
+async function pollUntilHealthy(): Promise<void> {
+  const DELAY_MS = 2000
+  const MAX_ATTEMPTS = 30
+  for (let i = 0; i < MAX_ATTEMPTS; i++) {
+    await new Promise<void>((resolve) => setTimeout(resolve, DELAY_MS))
+    try {
+      const res = await fetch('/api/health')
+      if (res.ok) return
+    } catch {
+      // server not yet up — keep polling
+    }
   }
 }
 
@@ -316,6 +464,48 @@ onMounted(async () => {
   flex-direction: column;
   gap: 0.75rem;
   align-items: flex-start;
+}
+
+.backup-create-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.backup-label-input {
+  min-width: 220px;
+}
+
+.restore-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.restore-filename {
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+}
+
+.restore-confirm-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.restore-confirm-input {
+  width: 100%;
+}
+
+.restore-file-details {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
 }
 
 .backup-list {

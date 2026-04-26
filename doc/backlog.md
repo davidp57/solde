@@ -46,13 +46,13 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-118 | Saisie de dates pénible (DatePicker → AppDatePicker natif) | P1 | ~30 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
-| BIZ-112 | Afficher le numéro de facture dans le dialog de modification | P1 | ~10 min | 2026-04-26 | | |
-| BIZ-113 | Créances irrécouvrables : statut + écriture comptable 654/411 | P2 | ~2h | 2026-04-26 | | |
+| BIZ-112 | Afficher le numéro de facture dans le dialog de modification | P1 | ~10 min | 2026-04-26 | 2026-05-05 | 2026-05-05 |
+| BIZ-113 | Créances irrécouvrables : statut + écriture comptable 654/411 | P2 | ~2h | 2026-04-26 | 2026-05-05 | 2026-05-05 |
 | BIZ-111 | Import one-shot adresses postales depuis factures Word | P3 | ~1h | 2026-04-26 | | |
 | BIZ-106 | Journal comptable/caisse : limite 100 → 5000 lignes par défaut | P1 | ~15 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-114 | Suppression entrées caisse manuelles (cascade + aperçu connexions) | P2 | ~45 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
-| BIZ-115 | Nommer les sauvegardes dans la vue système | P2 | ~30 min | 2026-04-26 | | |
-| BIZ-116 | Restauration d'une sauvegarde depuis la vue système (double confirmation) | P1 | ~1h30 | 2026-04-26 | | |
+| BIZ-115 | Nommer les sauvegardes dans la vue système | P2 | ~30 min | 2026-04-26 | 2026-05-05 | 2026-05-05 |
+| BIZ-116 | Restauration d'une sauvegarde depuis la vue système (double confirmation) | P1 | ~1h30 | 2026-04-26 | 2026-05-05 | 2026-05-05 |
 | BIZ-119 | Interface simplifiée : tableau de bord avec cartes d'actions rapides | P2 | ~2h | 2026-04-26 | | |
 | BIZ-121 | Audit incomplet : paiements, factures, caisse, salaires, banque, contacts non tracés | P2 | ~1h30 | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-117 | Assistant IA intégré (chatbot manuel utilisateur + accès doc/code) | P3 | ~4h | 2026-04-26 | | |

@@ -472,6 +472,16 @@ export default {
     paid: 'Réglé',
     remaining: 'Restant dû',
     no_payments: 'Aucun paiement enregistré.',
+    write_off: 'Passer en irrécouvrable',
+    write_off_confirm_title: 'Passer en irrécouvrable',
+    write_off_confirm_msg:
+      "Cette facture sera marquée irrécouvrable. Une écriture comptable sera générée automatiquement (654 / 411). Cette action est réversible.",
+    restore_from_writeoff: 'Annuler le statut irrécouvrable',
+    restore_from_writeoff_confirm_title: 'Annuler le statut irrécouvrable',
+    restore_from_writeoff_confirm_msg:
+      "La facture reprendra son statut précédent. Une écriture de reprise sera générée (411 / 754). Confirmer ?",
+    hide_irrecoverable: 'Masquer les irrécouvrables',
+    show_irrecoverable: 'Afficher les irrécouvrables',
     statuses: {
       draft: 'Brouillon',
       sent: 'Émise',
@@ -479,6 +489,7 @@ export default {
       partial: 'Partiel',
       overdue: 'En retard',
       disputed: 'Litige',
+      irrecoverable: 'Irrécouvrable',
     },
     labels: {
       cs: 'Cours scolaires',
@@ -1627,9 +1638,26 @@ export default {
     backup_error: 'Erreur lors de la création de la sauvegarde.',
     backup_empty: 'Aucune sauvegarde existante.',
     backup_list_title: 'Sauvegardes existantes',
+    backup_label_placeholder: 'Libellé (optionnel)',
+    backup_label_hint: 'Lettres, chiffres, tirets et espaces — 50 caractères max.',
     col_filename: 'Fichier',
     col_size: 'Taille',
     col_date: 'Date',
+    col_label: 'Libellé',
+    restore_btn: 'Restaurer',
+    restore_step1_title: 'Restaurer une sauvegarde',
+    restore_step1_msg:
+      'Toutes les données actuelles seront remplacées par la sauvegarde sélectionnée. ' +
+      "L'application redémarrera immédiatement. Cette opération est irréversible.",
+    restore_type_confirm: 'Tapez RESTAURER pour confirmer',
+    restore_confirm_word: 'RESTAURER',
+    restore_confirm_btn: 'Confirmer',
+    restore_step2_title: 'Confirmer la restauration',
+    restore_step2_msg: 'Vous êtes sur le point de restaurer la sauvegarde suivante :',
+    restore_proceed_btn: 'Restaurer maintenant',
+    restore_in_progress: 'Restauration en cours… L\'application va redémarrer.',
+    restore_success_msg: 'Restauration réussie. Rechargement de la page…',
+    restore_error: 'Erreur lors de la restauration de la sauvegarde.',
     logs_title: 'Journaux applicatifs',
     logs_load_btn: 'Charger les journaux',
     logs_reload_btn: 'Recharger',
@@ -1666,6 +1694,7 @@ export default {
         },
         reset_db: 'Réinitialisation base de données',
         selective_reset: 'Réinitialisation sélective',
+        backup: { restore: 'Restauration sauvegarde' },
       },
       payment: {
         create: 'Paiement créé',
@@ -1679,6 +1708,8 @@ export default {
         duplicate: 'Facture dupliquée',
         delete: 'Facture supprimée',
         email: { send: 'Facture envoyée par email' },
+        write_off: 'Créance irrécouvrable',
+        restore_from_writeoff: 'Restauration créance',
       },
       cash: {
         entry: {

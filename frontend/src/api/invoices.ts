@@ -3,7 +3,14 @@ import apiClient from './client'
 export type InvoiceType = 'client' | 'fournisseur'
 export type InvoiceLabel = 'cs' | 'a' | 'cs+a' | 'general'
 export type InvoiceLineType = 'cours' | 'adhesion' | 'autres'
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'partial' | 'overdue' | 'disputed'
+export type InvoiceStatus =
+  | 'draft'
+  | 'sent'
+  | 'paid'
+  | 'partial'
+  | 'overdue'
+  | 'disputed'
+  | 'irrecoverable'
 
 export interface InvoiceLine {
   id: number
@@ -126,6 +133,16 @@ export async function downloadInvoicePdfApi(id: number): Promise<Blob> {
 
 export async function sendInvoiceEmailApi(id: number): Promise<void> {
   await apiClient.post(`/api/invoices/${id}/send-email`)
+}
+
+export async function writeOffInvoiceApi(id: number): Promise<Invoice> {
+  const response = await apiClient.post<Invoice>(`/api/invoices/${id}/write-off`)
+  return response.data
+}
+
+export async function restoreFromWriteoffApi(id: number): Promise<Invoice> {
+  const response = await apiClient.post<Invoice>(`/api/invoices/${id}/restore-from-writeoff`)
+  return response.data
 }
 
 export async function uploadInvoiceFileApi(id: number, file: File): Promise<Invoice> {

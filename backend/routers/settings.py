@@ -19,6 +19,7 @@ from backend.schemas.settings import (
     AppSettingsRead,
     AppSettingsUpdate,
     AuditLogRead,
+    BackupCreate,
     BackupFileRead,
     LogEntryRead,
     SelectiveResetPreviewRead,
@@ -159,6 +160,10 @@ async def bootstrap_accounting(
 _BACKUP_DIR = "data/backups"
 _MAX_BACKUPS = 5
 
+# Regex to validate backup filenames and prevent path traversal.
+# Matches: solde_backup_YYYYMMDD_HHMMSS[_label].db  (label is alphanumeric + _-)
+_SAFE_BACKUP_RE = re.compile(r"^solde_backup_\d{8}_\d{6}[a-zA-Z0-9_-]*\.db$")
+
 
 def _get_db_path() -> str:
     """Resolve the SQLite file path from the database URL."""
@@ -181,6 +186,7 @@ def _get_backup_dir() -> str:
 @router.post("/backup")
 async def create_backup(
     _current_user: _AdminRequired,
+    payload: BackupCreate | None = None,
 ) -> FileResponse:
     """Create a SQLite backup and return it as a downloadable file (admin only)."""
     from backend.services.backup_service import create_backup as do_backup
@@ -198,6 +204,7 @@ async def create_backup(
         db_path=db_path,
         backup_dir=backup_dir,
         max_backups=_MAX_BACKUPS,
+        label=payload.label if payload else None,
     )
 
     return FileResponse(
@@ -244,6 +251,16 @@ async def get_system_info(
     )
 
 
+def _extract_backup_label(filename: str) -> str | None:
+    """Extract the user label slug from a backup filename, if present.
+
+    Filename format: solde_backup_YYYYMMDD_HHMMSS[_label].db
+    Returns the raw slug, or None when absent.
+    """
+    m = re.match(r"^solde_backup_\d{8}_\d{6}_(.+)\.db$", filename)
+    return m.group(1) if m else None
+
+
 @router.get("/backups", response_model=list[BackupFileRead])
 async def list_backups(
     _current_user: _AdminRequired,
@@ -261,9 +278,54 @@ async def list_backups(
                 filename=f.name,
                 size_bytes=stat.st_size,
                 created_at=datetime.fromtimestamp(stat.st_mtime, tz=UTC),
+                label=_extract_backup_label(f.name),
             )
         )
     return result
+
+
+@router.post("/backups/{filename}/restore", status_code=status.HTTP_202_ACCEPTED)
+async def restore_backup(
+    filename: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _AdminRequired,
+) -> dict[str, str]:
+    """Restore a backup file and restart the application (admin only).
+
+    The backup is copied over the live database, WAL/SHM files are removed,
+    then SIGTERM is sent to the process for a clean restart.
+    """
+    if not _SAFE_BACKUP_RE.fullmatch(filename):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid backup filename.",
+        )
+
+    backup_file = Path(_BACKUP_DIR) / filename
+    if not backup_file.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Backup file not found.",
+        )
+
+    db_path = _get_db_path()
+
+    await record_audit(
+        db,
+        action=AuditAction.BACKUP_RESTORED,
+        actor=current_user,
+        detail={"filename": filename},
+    )
+
+    from backend.services.backup_service import restore_backup as do_restore  # noqa: PLC0415
+
+    await do_restore(
+        filename=filename,
+        backup_dir=_BACKUP_DIR,
+        db_path=db_path,
+    )
+
+    return {"status": "restoring"}
 
 
 @router.get("/logs", response_model=list[LogEntryRead])

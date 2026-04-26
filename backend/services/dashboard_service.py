@@ -46,6 +46,7 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
         ).where(
             Invoice.type == InvoiceType.CLIENT,
             Invoice.status != InvoiceStatus.DRAFT,
+            Invoice.status != InvoiceStatus.IRRECOVERABLE,
             Invoice.total_amount > Invoice.paid_amount,
         )
     )
@@ -61,6 +62,7 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
         ).where(
             Invoice.type == InvoiceType.CLIENT,
             Invoice.status != InvoiceStatus.DRAFT,
+            Invoice.status != InvoiceStatus.IRRECOVERABLE,
             Invoice.total_amount > Invoice.paid_amount,
             Invoice.due_date.is_not(None),
             Invoice.due_date < today,

@@ -13,6 +13,15 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- BIZ-112 : Numéro de facture affiché dans le titre du dialog de modification (factures clients et fournisseurs) — header dynamique `Modifier — F-2025-042` au lieu du libellé générique
+- BIZ-113 : Statut `IRRECOVERABLE` sur les factures clients — passage en irrécouvrable avec écriture comptable automatique 654/411 (Pertes sur créances irrécouvrables / Adhérents) et bouton de restauration du statut avec écriture de reprise 411/754
+- BIZ-113 : Comptes PCG `654000` (Pertes sur créances irrécouvrables) et `754000` (Reprises sur créances amorties) ajoutés aux comptes par défaut
+- BIZ-113 : Endpoints `POST /api/invoices/{id}/write-off` et `POST /api/invoices/{id}/restore-from-writeoff` — transitions gérées par service dédié avec validation d'état et génération d'écritures
+- BIZ-113 : Migration Alembic documentaire `0031` — marqueur de version, aucun changement de schéma (statuts stockés en VARCHAR)
+- BIZ-113 : Bouton « Passer en irrécouvrable » dans la colonne actions des factures clients (dialog de confirmation avec mention des écritures) ; bouton « Annuler le statut irrécouvrable » pour les factures IRRECOVERABLE ; toggle « Afficher/Masquer les irrécouvrables » (masqués par défaut)
+- BIZ-115 : Libellé optionnel (champ texte libre) sur les sauvegardes — saisie avant création, inclus dans le nom de fichier et affiché en colonne dans la liste
+- BIZ-116 : Restauration d'une sauvegarde depuis la vue système — double confirmation (saisie de « RESTAURER » + récapitulatif) ; polling `/api/health` après déclenchement ; rechargement automatique de la page
+- BIZ-116 : Endpoint `POST /api/settings/backups/{filename}/restore` — validation du nom de fichier par regex, audit `admin.backup.restore`, arrêt du processus via `SIGTERM` après `_engine.dispose()`
 - TEC-099 : Contrainte `ON DELETE CASCADE` sur la FK `payments.invoice_id → invoices.id` (migration Alembic `0030_payment_invoice_cascade`) — suppression d'une facture en base entraîne désormais la suppression en cascade des paiements associés, éliminant le risque d'enregistrements orphelins
 - TEC-100 : `tests/unit/test_pdf_service.py` — 13 tests couvrant `render_invoice_html` (contenu HTML) et `generate_invoice_pdf` / `save_invoice_pdf` (WeasyPrint mocké via `sys.modules` pour éviter l'import natif GTK)
 - TEC-100 : `tests/unit/test_email_service.py` — 11 tests couvrant STARTTLS, SSL, BCC optionnel, sujet du message, et gestion des erreurs SMTP/OS/auth

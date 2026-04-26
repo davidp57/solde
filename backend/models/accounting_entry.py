@@ -25,6 +25,7 @@ class EntrySourceType(StrEnum):
     MANUAL = "manual"
     CASH = "cash"
     CLOTURE = "cloture"
+    WRITE_OFF = "write_off"
 
 
 def build_entry_group_key(

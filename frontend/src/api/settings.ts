@@ -136,8 +136,8 @@ export async function bootstrapAccountingApi(): Promise<{
   return response.data
 }
 
-export async function createBackupApi(): Promise<Blob> {
-  const response = await apiClient.post('/api/settings/backup', null, {
+export async function createBackupApi(label?: string | null): Promise<Blob> {
+  const response = await apiClient.post('/api/settings/backup', { label: label ?? null }, {
     responseType: 'blob',
   })
   return response.data as Blob
@@ -158,6 +158,7 @@ export interface BackupFile {
   filename: string
   size_bytes: number
   created_at: string
+  label: string | null
 }
 
 export interface LogEntry {
@@ -186,6 +187,10 @@ export async function getSystemInfoApi(): Promise<SystemInfo> {
 export async function listBackupsApi(): Promise<BackupFile[]> {
   const response = await apiClient.get<BackupFile[]>('/api/settings/backups')
   return response.data
+}
+
+export async function restoreBackupApi(filename: string): Promise<void> {
+  await apiClient.post(`/api/settings/backups/${encodeURIComponent(filename)}/restore`)
 }
 
 export async function getLogsApi(levels?: string[]): Promise<LogEntry[]> {

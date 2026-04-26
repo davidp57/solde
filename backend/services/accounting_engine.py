@@ -661,6 +661,123 @@ async def generate_entries_for_trigger(
 # ---------------------------------------------------------------------------
 
 
+async def generate_entries_for_write_off(
+    db: AsyncSession,
+    invoice: Invoice,
+    remaining_amount: Decimal,
+) -> list[AccountingEntry]:
+    """Generate accounting entries when a client invoice is written off as irrecoverable.
+
+    Creates a balanced pair:
+    - Debit  654000 (Pertes sur créances irrécouvrables)
+    - Credit 411100 (Adhérents — clients)
+
+    The entry date is today's date.
+    """
+    today = date.today()
+    fiscal_year_id = await find_fiscal_year_id_for_date(db, today)
+    label = f"Créance irrécouvrable — {invoice.number or invoice.reference or str(invoice.id)}"
+    group_key = build_entry_group_key(EntrySourceType.WRITE_OFF, invoice.id)
+
+    entries: list[AccountingEntry] = []
+
+    debit_num = await _next_entry_number(db)
+    debit_entry = AccountingEntry(
+        entry_number=debit_num,
+        date=today,
+        account_number="654000",
+        label=label,
+        debit=remaining_amount,
+        credit=Decimal("0"),
+        fiscal_year_id=fiscal_year_id,
+        source_type=EntrySourceType.WRITE_OFF,
+        source_id=invoice.id,
+        group_key=group_key,
+    )
+    db.add(debit_entry)
+    await db.flush()
+    entries.append(debit_entry)
+
+    credit_num = await _next_entry_number(db)
+    credit_entry = AccountingEntry(
+        entry_number=credit_num,
+        date=today,
+        account_number="411100",
+        label=label,
+        debit=Decimal("0"),
+        credit=remaining_amount,
+        fiscal_year_id=fiscal_year_id,
+        source_type=EntrySourceType.WRITE_OFF,
+        source_id=invoice.id,
+        group_key=group_key,
+    )
+    db.add(credit_entry)
+    await db.flush()
+    entries.append(credit_entry)
+
+    return entries
+
+
+async def generate_entries_for_restore_from_writeoff(
+    db: AsyncSession,
+    invoice: Invoice,
+    amount: Decimal,
+) -> list[AccountingEntry]:
+    """Generate reversal entries when an irrecoverable invoice is restored.
+
+    Creates a balanced pair:
+    - Debit  411100 (Adhérents — clients)
+    - Credit 754000 (Reprises sur créances amorties)
+
+    The entry date is today's date.
+    """
+    today = date.today()
+    fiscal_year_id = await find_fiscal_year_id_for_date(db, today)
+    label = (
+        f"Annulation créance irrécouvrable — "
+        f"{invoice.number or invoice.reference or str(invoice.id)}"
+    )
+    group_key = build_entry_group_key(EntrySourceType.WRITE_OFF, invoice.id)
+
+    entries: list[AccountingEntry] = []
+
+    debit_num = await _next_entry_number(db)
+    debit_entry = AccountingEntry(
+        entry_number=debit_num,
+        date=today,
+        account_number="411100",
+        label=label,
+        debit=amount,
+        credit=Decimal("0"),
+        fiscal_year_id=fiscal_year_id,
+        source_type=EntrySourceType.WRITE_OFF,
+        source_id=invoice.id,
+        group_key=group_key,
+    )
+    db.add(debit_entry)
+    await db.flush()
+    entries.append(debit_entry)
+
+    credit_num = await _next_entry_number(db)
+    credit_entry = AccountingEntry(
+        entry_number=credit_num,
+        date=today,
+        account_number="754000",
+        label=label,
+        debit=Decimal("0"),
+        credit=amount,
+        fiscal_year_id=fiscal_year_id,
+        source_type=EntrySourceType.WRITE_OFF,
+        source_id=invoice.id,
+        group_key=group_key,
+    )
+    db.add(credit_entry)
+    await db.flush()
+    entries.append(credit_entry)
+
+    return entries
+
+
 async def seed_default_rules(db: AsyncSession) -> int:
     """Insert any missing default accounting rules.
 

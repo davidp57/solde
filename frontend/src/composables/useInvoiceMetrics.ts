@@ -11,7 +11,11 @@ export function remainingForInvoice(invoice: Invoice): number {
 }
 
 export function isOpenReceivableInvoice(invoice: Invoice): boolean {
-  return invoice.status !== 'draft' && remainingForInvoice(invoice) > 0
+  return (
+    invoice.status !== 'draft' &&
+    invoice.status !== 'irrecoverable' &&
+    remainingForInvoice(invoice) > 0
+  )
 }
 
 export function isOverdueInvoice(invoice: Invoice): boolean {

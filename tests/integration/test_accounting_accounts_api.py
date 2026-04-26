@@ -7,7 +7,7 @@ class TestSeedAccounts:
     async def test_seed_inserts_40_accounts(self, client: AsyncClient, auth_headers: dict):
         response = await client.post("/api/accounting/accounts/seed", headers=auth_headers)
         assert response.status_code == 200
-        assert response.json()["inserted"] == 40
+        assert response.json()["inserted"] == 42
 
     async def test_seed_is_idempotent(self, client: AsyncClient, auth_headers: dict):
         await client.post("/api/accounting/accounts/seed", headers=auth_headers)
@@ -56,7 +56,7 @@ class TestListAccounts:
     ):
         await client.post("/api/accounting/accounts/seed", headers=auth_headers)
         response = await client.get("/api/accounting/accounts/", headers=auth_headers)
-        assert len(response.json()) == 36
+        assert len(response.json()) == 38
 
     async def test_can_include_inactive_accounts_after_seed(
         self, client: AsyncClient, auth_headers: dict
@@ -66,7 +66,7 @@ class TestListAccounts:
             "/api/accounting/accounts/?active_only=false", headers=auth_headers
         )
         data = response.json()
-        assert len(data) == 40
+        assert len(data) == 42
         indexed = {account["number"]: account for account in data}
         assert indexed["401103"]["is_active"] is False
         assert indexed["416001"]["is_active"] is False
