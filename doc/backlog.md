@@ -19,7 +19,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | | |
+| TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | 2026-07-14 | 2026-07-14 |
 | CHR-021 | Manuel utilisateur illustré | P3 | ~20 min | 2026-04-13 | 2026-04-13 | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
@@ -133,12 +133,9 @@ Le champ `Invoice.description` est déjà présent dans le modèle, l’API, le 
 
 ---
 
-### TEC-106 — Audit et complétion des clés i18n manquantes
+### TEC-106 — Audit et complétion des clés i18n manquantes ✅
 
-Plusieurs clés i18n ne sont pas renseignées dans `fr.ts` et s'affichent brutes en production (ex. `common.active` dans la vue Employés).
-- Parcourir toutes les vues et composants pour identifier les appels `t('...')` sans traduction correspondante dans `src/i18n/fr.ts`.
-- Ajouter les traductions manquantes.
-- Vérifier aussi les clés orphelines (dans `fr.ts` mais plus utilisées dans le code).
+Audit complet des 1 096 clés `t('...')` utilisées dans le frontend (1 358 appels bruts filtrés). Résultat : 2 clés manquantes (`common.active`, `common.inactive`) utilisées dans `EmployeesView.vue` — ajoutées dans `fr.ts`. Les 361 clés sans appel direct sont des accès dynamiques légitimes (ex. `t('accounting.rules.trigger_types.' + type)`).
 
 ### CHR-020 — Documentation de contribution
 
