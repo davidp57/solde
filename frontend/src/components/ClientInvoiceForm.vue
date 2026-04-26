@@ -31,12 +31,12 @@
         <div class="app-form-grid">
           <div class="app-field">
             <label class="app-field__label">{{ t('invoices.date') }}</label>
-            <DatePicker v-model="form.date" date-format="dd/mm/yy" class="w-full" :show-on-focus="false" required />
+            <AppDatePicker v-model="form.date" class="w-full" required />
             <small v-if="fieldErrors['date']" class="p-error">{{ fieldErrors['date'] }}</small>
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('invoices.due_date') }}</label>
-            <DatePicker v-model="form.due_date" date-format="dd/mm/yy" class="w-full" :show-on-focus="false" show-clear />
+            <AppDatePicker v-model="form.due_date" class="w-full" show-clear />
           </div>
         </div>
 
@@ -124,7 +124,7 @@
 
 <script setup lang="ts">
 import Button from 'primevue/button'
-import DatePicker from 'primevue/datepicker'
+import AppDatePicker from './ui/AppDatePicker.vue'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'

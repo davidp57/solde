@@ -45,11 +45,15 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
+| BIZ-118 | Saisie de dates pénible (DatePicker → AppDatePicker natif) | P1 | ~30 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-112 | Afficher le numéro de facture dans le dialog de modification | P1 | ~10 min | 2026-04-26 | | |
 | BIZ-113 | Créances irrécouvrables : statut + écriture comptable 654/411 | P2 | ~2h | 2026-04-26 | | |
 | BIZ-111 | Import one-shot adresses postales depuis factures Word | P3 | ~1h | 2026-04-26 | | |
 | BIZ-106 | Journal comptable/caisse : limite 100 → 5000 lignes par défaut | P1 | ~15 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-114 | Suppression entrées caisse manuelles (cascade + aperçu connexions) | P2 | ~45 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
+| BIZ-115 | Nommer les sauvegardes dans la vue système | P2 | ~30 min | 2026-04-26 | | |
+| BIZ-116 | Restauration d'une sauvegarde depuis la vue système (double confirmation) | P1 | ~1h30 | 2026-04-26 | | |
+| BIZ-117 | Assistant IA intégré (chatbot manuel utilisateur + accès doc/code) | P3 | ~4h | 2026-04-26 | | |
 
 ---
 
@@ -90,6 +94,82 @@ Dans le dialog « Modifier la facture » (`ClientInvoicesView.vue` et `Supplie
 **Correction** : afficher la référence en lecture seule dans l'en-tête ou sous le titre du dialog (ex. `Référence : 2022-0042`, texte non modifiable).
 
 **Fichiers concernés** : `frontend/src/views/ClientInvoicesView.vue`, `frontend/src/views/SupplierInvoicesView.vue`.
+
+---
+
+### BIZ-117 — Assistant IA intégré (chatbot manuel utilisateur + accès doc/code)
+
+**Objectif** : offrir à l'utilisateur un assistant conversationnel accessible depuis l'interface, capable de répondre à des questions sur l'utilisation de l'application et sur les règles métier, en s'appuyant sur le manuel utilisateur et la documentation technique.
+
+**Périmètre** :
+- Bouton « Assistant » flottant ou dans le menu principal (visible pour tous les rôles).
+- Chatbot dans un panneau latéral ou une modale plein-écran, style dialogue question/réponse.
+- Sources de connaissance indexées : `doc/user/` (manuel utilisateur), `doc/dev/` (documentation technique), `doc/plan.md`, `doc/roadmap.md`.
+- Pas d'accès en écriture à la base ; pas d'exécution de commandes — lecture seule des documents.
+- Langue de réponse : français (alignée sur l'interface).
+
+**Options d'implémentation à évaluer** :
+1. **LLM externe via API** (ex. OpenAI, Mistral) avec prompt système incluant les docs en contexte (RAG simple ou full-context si taille le permet) — nécessite une clé API configurable dans `.env`.
+2. **Modèle local** (ex. Ollama) pour fonctionnement hors ligne sur le NAS — contrainte RAM 384 MB à vérifier.
+3. **Recherche documentaire sans LLM** : moteur de recherche plein texte sur les fichiers Markdown, avec affichage des passages pertinents — solution minimale mais robuste.
+
+**Backend** :
+- Endpoint `POST /api/assistant/ask` (authentifié) : reçoit `{question: str}`, retourne `{answer: str, sources: list[str]}`.
+- Configuration : `ASSISTANT_PROVIDER` (openai/ollama/search), `ASSISTANT_API_KEY`, `ASSISTANT_MODEL` dans `.env` / `Settings`.
+- Indexation des docs au démarrage ou à la demande (lazy, mis en cache).
+
+**Frontend** :
+- Composant `AssistantPanel.vue` — zone de saisie, historique de la conversation, affichage des sources.
+- État global minimal dans un store Pinia dédié (historique de session, état loading).
+- Accessible via raccourci clavier (`?` ou `Ctrl+/`).
+
+**Hors périmètre v1** : accès en lecture à la base de données (requêtes comptables via langage naturel), mémorisation entre sessions, multi-utilisateur avec historiques séparés.
+
+**Fichiers** : `backend/routers/assistant.py`, `backend/services/assistant_service.py`, `frontend/src/views/components/AssistantPanel.vue`, `frontend/src/stores/assistant.ts`.
+
+---
+
+### BIZ-116 — Restauration d'une sauvegarde depuis la vue système (double confirmation)
+
+**Contexte** : La vue système (`/system`) liste les sauvegardes disponibles dans `data/backups/`. Actuellement il n'est pas possible de restaurer une sauvegarde depuis l'UI — l'utilisateur doit intervenir manuellement sur le serveur.
+
+**Comportement attendu** :
+1. Bouton « Restaurer » sur chaque ligne de la liste des sauvegardes.
+2. **Première confirmation** : dialog avertissant que toutes les données actuelles seront remplacées et que l'application redémarrera.
+3. **Saisie de confirmation** : l'utilisateur doit taper le mot `RESTAURER` pour activer le bouton de validation (prévient les clics accidentels).
+4. **Deuxième confirmation** : dialog final récapitulatif (nom du fichier, date, taille) avant exécution.
+5. Le backend effectue la restauration (copie du fichier `.db` + WAL/SHM) puis redémarre Uvicorn (SIGTERM sur le processus courant, repris par le gestionnaire de processus Docker).
+6. Le frontend détecte la déconnexion et affiche un message « Restauration en cours… » avec rechargement automatique après quelques secondes.
+
+**Backend** :
+- Endpoint `POST /api/settings/backups/{filename}/restore` (admin only).
+- Validation : le fichier doit exister dans `data/backups/`, extension `.db`.
+- Séquence : fermer les connexions SQLAlchemy → copier le fichier de sauvegarde vers `data/solde.db` (+ supprimer WAL/SHM existants) → `os.kill(os.getpid(), signal.SIGTERM)`.
+- Sécurité : interdire tout path traversal sur `filename` (valider que le nom ne contient pas `/`, `..`, etc.).
+
+**Frontend** :
+- Composant de confirmation en deux étapes dans `SystemView.vue`.
+- Gestion de l'état « restauration en cours » (spinner, polling `/api/health` jusqu'au retour du serveur).
+
+**Fichiers** : `backend/routers/settings.py`, `backend/services/backup_service.py`, `frontend/src/views/SystemView.vue`.
+
+---
+
+### BIZ-115 — Nommer les sauvegardes dans la vue système
+
+**Contexte** : Les sauvegardes générées automatiquement portent un nom basé sur l'horodatage (`solde_backup_YYYYMMDD_HHMMSS.db`). L'utilisateur ne peut pas distinguer facilement une sauvegarde prise avant une opération risquée d'une sauvegarde de routine.
+
+**Solution** :
+- Champ texte optionnel « Libellé » dans le panneau Sauvegardes de `SystemView.vue`, visible à côté du bouton « Sauvegarder maintenant ».
+- Si renseigné, le libellé est inclus dans le nom du fichier (slugifié, caractères spéciaux remplacés par `_`) : ex. `solde_backup_20260426_143000_avant_import_gestion_2025.db`.
+- Affichage du libellé (partie après l'horodatage) dans la colonne « Nom » de la liste des sauvegardes, avec l'horodatage en secondaire.
+- La longueur du libellé est limitée à 50 caractères ; les caractères autorisés sont `[a-zA-Z0-9 _-]`.
+
+**Backend** :
+- `POST /api/settings/backups` : nouveau paramètre optionnel `label: str | None` dans le body.
+- `BackupService.create_backup(label)` : génère le nom de fichier en intégrant le slug du libellé.
+
+**Fichiers** : `backend/routers/settings.py`, `backend/services/backup_service.py`, `frontend/src/views/SystemView.vue`.
 
 ---
 

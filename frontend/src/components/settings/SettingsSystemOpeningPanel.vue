@@ -32,11 +32,9 @@
               <label for="system_opening_bank_date" class="app-field__label">
                 {{ t('settings.system_opening_date') }}
               </label>
-              <DatePicker
+              <AppDatePicker
                 id="system_opening_bank_date"
                 v-model="form.bank.date"
-                date-format="yy-mm-dd"
-                show-icon
                 class="w-full"
               />
             </div>
@@ -94,11 +92,9 @@
               <label for="system_opening_cash_date" class="app-field__label">
                 {{ t('settings.system_opening_date') }}
               </label>
-              <DatePicker
+              <AppDatePicker
                 id="system_opening_cash_date"
                 v-model="form.cash.date"
-                date-format="yy-mm-dd"
-                show-icon
                 class="w-full"
               />
             </div>
@@ -166,7 +162,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
-import DatePicker from 'primevue/datepicker'
+import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
