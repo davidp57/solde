@@ -335,10 +335,7 @@ watch(
   () => props.invoice,
   (inv) => {
     if (inv) setFromInvoice(inv)
-    else {
-      resetForm()
-      addLine()
-    }
+    else resetForm()
     nextTick(() => { initialSnapshot.value = formSnapshot() })
   },
   { immediate: true },
@@ -401,21 +398,20 @@ async function submit() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const settings = await getSettingsApi()
+    defaultInvoiceDueDays.value = settings.default_invoice_due_days
+    defaultPrices.value = {
+      cours: settings.default_price_cours,
+      adhesion: settings.default_price_adhesion,
+      autres: settings.default_price_autres,
+    }
+  } catch {
+    defaultInvoiceDueDays.value = null
+  }
   if (form.lines.length === 0 && !props.invoice) addLine()
-  void getSettingsApi()
-    .then((settings) => {
-      defaultInvoiceDueDays.value = settings.default_invoice_due_days
-      defaultPrices.value = {
-        cours: settings.default_price_cours,
-        adhesion: settings.default_price_adhesion,
-        autres: settings.default_price_autres,
-      }
-      applySuggestedDueDate()
-    })
-    .catch(() => {
-      defaultInvoiceDueDays.value = null
-    })
+  applySuggestedDueDate()
 })
 
 defineExpose({ submit, isDirty })
