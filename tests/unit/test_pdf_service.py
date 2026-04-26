@@ -102,6 +102,20 @@ def test_render_invoice_html_contains_line_description() -> None:
     assert "mathématiques" in html
 
 
+def test_render_invoice_html_contains_contact_address() -> None:
+    html = render_invoice_html(
+        _FakeInvoice(), "Alice Martin", _FakeSettings(), "6 rue des Lilas\n57000 Metz"
+    )
+    assert "6 rue des Lilas" in html
+    assert "57000 Metz" in html
+
+
+def test_render_invoice_html_no_address_omitted() -> None:
+    html = render_invoice_html(_FakeInvoice(), "Alice Martin", _FakeSettings(), None)
+    # No address block should appear beyond the contact name
+    assert "57000" not in html
+
+
 # ---------------------------------------------------------------------------
 # generate_invoice_pdf — WeasyPrint mocked via sys.modules to avoid
 # loading native GTK libraries that may not be present on dev machines.
