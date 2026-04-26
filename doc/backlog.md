@@ -32,13 +32,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | TEC-103 | Debounce sur filtres texte en temps réel | P3 | ~10 min | 2026-04-25 | | |
 | TEC-104 | Casts TypeScript non sûrs dans CashView.vue | P2 | ~10 min | 2026-04-25 | | |
 
-### Lot R — Supervision système & audit (~2h) — v0.8
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| BIZ-108 | Écran de supervision technique (état système, sauvegardes, logs applicatifs) | P1 | ~1h30 | 2026-04-26 | 2026-04-26 | 2026-04-26 |
-| BIZ-109 | Traçabilité des actions utilisateur (journal d'audit) | P1 | ~30 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
-
 ### Lot S — Documentation & i18n (~1h) — v0.9
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -350,8 +343,9 @@ Remplacer toutes les occurrences inline par un appel à `getErrorDetail(error)`.
 | M | Sécurité applicative | v0.6 | TEC-091, TEC-092, TEC-093 | 2026-04-25 |
 | N | UX & formulaires | v0.7 | BIZ-094, BIZ-095, BIZ-096, BIZ-097 | 2026-04-25 |
 | Q | Recette post-merge N | v0.7 | voir doc/recette.md (REC-001..REC-015) | 2026-04-26 |
+| R | Supervision système & audit | v0.8 | BIZ-108, BIZ-109 | 2026-04-26 |
 
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-107, TEC-110.
+Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-107, TEC-110, BIZ-108, BIZ-109.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
 
 <details>
