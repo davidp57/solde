@@ -1,6 +1,8 @@
 """Application settings model — single-row table (id always = 1)."""
 
-from sqlalchemy import Boolean, Integer, String
+from decimal import Decimal
+
+from sqlalchemy import Boolean, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
@@ -36,6 +38,11 @@ class AppSettings(Base):
     supplier_invoice_number_template: Mapped[str] = mapped_column(
         String(100), nullable=False, default="FF-%Y%m%d%H.%M.%S"
     )
+
+    # Default unit prices per invoice line type (null = no default)
+    default_price_cours: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    default_price_adhesion: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
+    default_price_autres: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
 
     # SMTP (all optional)
     smtp_host: Mapped[str | None] = mapped_column(String(255), nullable=True)

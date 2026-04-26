@@ -29,6 +29,10 @@ class AppSettingsRead(BaseModel):
     client_invoice_number_template: str
     supplier_invoice_number_template: str
 
+    default_price_cours: _Decimal | None
+    default_price_adhesion: _Decimal | None
+    default_price_autres: _Decimal | None
+
     smtp_host: str | None
     smtp_port: int
     smtp_user: str | None
@@ -50,6 +54,10 @@ class AppSettingsUpdate(BaseModel):
     client_invoice_seq_digits: int | None = None
     client_invoice_number_template: str | None = None
     supplier_invoice_number_template: str | None = None
+
+    default_price_cours: _Decimal | None = None
+    default_price_adhesion: _Decimal | None = None
+    default_price_autres: _Decimal | None = None
 
     smtp_host: str | None = None
     smtp_port: int | None = None

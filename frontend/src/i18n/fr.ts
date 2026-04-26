@@ -755,6 +755,13 @@ export default {
       'Identite administrative et informations qui structurent les documents emis.',
     section_smtp: 'Configuration e-mail (SMTP)',
     section_smtp_subtitle: "Parametres d'envoi pour les e-mails automatiques et les relances.",
+    section_default_prices: 'Prix unitaires par défaut',
+    section_default_prices_subtitle:
+      "Pré-remplis automatiquement lors de l'ajout d'une ligne de facture client. Laisser vide pour désactiver.",
+    default_price_cours: 'Prix unitaire — cours (€/h)',
+    default_price_adhesion: 'Prix unitaire — adhésion (€)',
+    default_price_autres: 'Prix unitaire — autres',
+    default_price_help: "Pré-rempli à la création d'une ligne, modifiable ensuite.",
     system_opening_title: 'Ouverture du système',
     system_opening_subtitle:
       'Définissez le point de départ réel de la banque et de la caisse sur le plus ancien exercice importé.',
