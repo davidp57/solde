@@ -1212,6 +1212,15 @@ export default {
       undeposited: 'À remettre',
       warning: 'Attention',
     },
+    quick_actions_title: 'Actions rapides',
+    quick_actions: {
+      new_invoice: 'Saisir une facture client',
+      new_invoice_desc: 'Créer une nouvelle facture et la rattacher à un contact.',
+      new_payment: 'Encoder un paiement',
+      new_payment_desc: 'Afficher les factures impayées pour encaisser un règlement.',
+      new_cash: 'Ajouter une entrée de caisse',
+      new_cash_desc: 'Enregistrer une recette ou une dépense en espèces.',
+    },
   },
   import: {
     title: 'Import Excel',
