@@ -19,108 +19,18 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | 2026-07-14 | 2026-07-14 |
+| TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | 2026-04-26 | 2026-04-26 |
 | CHR-021 | Manuel utilisateur illustré | P3 | ~20 min | 2026-04-13 | 2026-04-13 | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
 
 ## Hors lots
 
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| BIZ-111 | Import one-shot adresses postales depuis factures Word | P3 | ~1h | 2026-04-26 | 2026-07-14 | 2026-07-14 |
+*Aucun ticket hors lot en cours.*
 
 ---
 
 ## Détails
-
-### BIZ-119 — Interface simplifiée : tableau de bord avec cartes d'actions rapides
-
-**Objectif** : offrir un écran d'accueil orienté « tâches » pour les utilisateurs non-comptables (secrétaire, bénévole occasionnel), avec des cartes cliquables correspondant aux actions les plus fréquentes, qui déclenchent un guide de saisie (wizard) pour aider l'encodage.
-
-**Actions à couvrir** :
-- Saisir une facture client
-- Encoder un paiement
-- Ajouter une entrée de caisse
-
-**Options d'intégration** :
-- Option A : nouveau panneau en haut du dashboard existant (cartes en grille, au-dessus des KPIs)
-- Option B : écran dédié `/accueil` avec navigation simplifiée (à voir selon le retour utilisateur)
-
-**Rôles concernés** : tous (admin, trésorier, secrétaire).
-
----
-
-### BIZ-117 — Assistant IA intégré (chatbot manuel utilisateur + accès doc/code)
-
-**Objectif** : offrir à l'utilisateur un assistant conversationnel accessible depuis l'interface, capable de répondre à des questions sur l'utilisation de l'application et sur les règles métier, en s'appuyant sur le manuel utilisateur et la documentation technique.
-
-**Périmètre** :
-- Bouton « Assistant » flottant ou dans le menu principal (visible pour tous les rôles).
-- Chatbot dans un panneau latéral ou une modale plein-écran, style dialogue question/réponse.
-- Sources de connaissance indexées : `doc/user/` (manuel utilisateur), `doc/dev/` (documentation technique), `doc/plan.md`, `doc/roadmap.md`.
-- Pas d'accès en écriture à la base ; pas d'exécution de commandes — lecture seule des documents.
-- Langue de réponse : français (alignée sur l'interface).
-
-**Options d'implémentation à évaluer** :
-1. **LLM externe via API** (ex. OpenAI, Mistral) avec prompt système incluant les docs en contexte (RAG simple ou full-context si taille le permet) — nécessite une clé API configurable dans `.env`.
-2. **Modèle local** (ex. Ollama) pour fonctionnement hors ligne sur le NAS — contrainte RAM 384 MB à vérifier.
-3. **Recherche documentaire sans LLM** : moteur de recherche plein texte sur les fichiers Markdown, avec affichage des passages pertinents — solution minimale mais robuste.
-
-**Backend** :
-- Endpoint `POST /api/assistant/ask` (authentifié) : reçoit `{question: str}`, retourne `{answer: str, sources: list[str]}`.
-- Configuration : `ASSISTANT_PROVIDER` (openai/ollama/search), `ASSISTANT_API_KEY`, `ASSISTANT_MODEL` dans `.env` / `Settings`.
-- Indexation des docs au démarrage ou à la demande (lazy, mis en cache).
-
-**Frontend** :
-- Composant `AssistantPanel.vue` — zone de saisie, historique de la conversation, affichage des sources.
-- État global minimal dans un store Pinia dédié (historique de session, état loading).
-- Accessible via raccourci clavier (`?` ou `Ctrl+/`).
-
-**Hors périmètre v1** : accès en lecture à la base de données (requêtes comptables via langage naturel), mémorisation entre sessions, multi-utilisateur avec historiques séparés.
-
-**Fichiers** : `backend/routers/assistant.py`, `backend/services/assistant_service.py`, `frontend/src/views/components/AssistantPanel.vue`, `frontend/src/stores/assistant.ts`.
-
----
-
-### BIZ-123 — Prix par défaut par type de ligne de facture
-
-**Objectif** : configurer dans les paramètres de l’application un prix unitaire par défaut pour chaque type de ligne (ex : Adhésion = 50 €, Cours = 12 €/h), pré-rempli automatiquement lors de l’ajout d’une ligne dans le formulaire de facture client.
-
-**Périmètre** :
-- Modèle `AppSettings` : ajouter des colonnes `default_price_adhesion`, `default_price_cours`, etc. (Decimal, nullable) — migration Alembic.
-- Vue Paramètres : section dédiée « Prix par défaut » avec un champ par type de ligne.
-- `ClientInvoiceForm` : lors du `addLine()` ou au changement de `line_type`, pré-remplir `unit_price` avec le prix par défaut correspondant (si non nul et si l’utilisateur n’a pas déjà saisi une valeur).
-- API : inclure les nouveaux champs dans les schémas `Settings`.
-
-**Hors périmètre** : prix par défaut sur les lignes fournisseurs.
-
-**Fichiers** : `backend/models/app_settings.py`, `backend/schemas/settings.py`, `backend/alembic/versions/XXXX_add_default_line_prices.py`, `backend/routers/settings.py`, `frontend/src/components/ClientInvoiceForm.vue`, `frontend/src/views/SettingsView.vue`.
-
----
-
-
----
-
-### BIZ-111 — Import one-shot adresses postales depuis factures Word : Les factures clients historiques sont des fichiers Word (`.docx`). L'adresse postale des clients y figure mais n'a jamais été saisie dans la base. Ce script one-shot extrait ces adresses et enrichit le champ `Contact.adresse`.
-
-**Règle de priorité** : traiter les factures par ordre décroissant de date (les plus récentes d'abord), car un client peut avoir déménagé. Ne pas écraser `adresse` si le champ est déjà renseigné pour ce contact.
-
-**Périmètre** : script Python standalone (`scripts/import_addresses_from_docx.py`), exécutable uniquement en mode test (`--dry-run` par défaut, `--commit` pour appliquer). Pas d'endpoint API, pas d'UI.
-
-**Algorithme** :
-1. Lister tous les fichiers `.docx` dans un dossier source (paramètre CLI).
-2. Pour chaque fichier, extraire : numéro de facture (pour identifier le contact), date de facture, bloc adresse (lignes situées après le nom du client et avant la ligne objet / référence).
-3. Résoudre le contact par correspondance sur le nom ou le numéro de facture en base (`Invoice.reference` → `Invoice.contact_id`).
-4. Trier les fichiers par date décroissante ; pour chaque contact, ne garder que la première adresse trouvée.
-5. En mode `--commit` : mettre à jour `Contact.adresse` uniquement si `adresse IS NULL`.
-6. Afficher un rapport : contacts mis à jour, ignorés (adresse déjà renseignée), non résolus.
-
-**Dépendance** : `python-docx` (à ajouter dans `pyproject.toml`, groupe `[project.optional-dependencies]` ou direct si jugé léger).
-
-**Fichiers** : `scripts/import_addresses_from_docx.py`, `pyproject.toml` (dépendance optionnelle).
-
----
 
 ### TEC-106 — Audit et complétion des clés i18n manquantes ✅
 
@@ -182,11 +92,16 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 | O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-30 |
 | P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-30 |
 
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**.
+Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**, **BIZ-111**.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
 
 <details>
-<summary>Tickets fermés hors lots — détails (BIZ-117, BIZ-119, BIZ-123, BIZ-124)</summary>
+<summary>Tickets fermés hors lots — détails (BIZ-111, BIZ-117, BIZ-119, BIZ-123, BIZ-124)</summary>
+
+### BIZ-111 — Import one-shot adresses postales depuis factures Word
+
+- **Terminé** : 2026-04-26
+- **Livré** : script `scripts/import_addresses_from_docx.py` — extrait les adresses postales depuis les factures Word historiques et enrichit `Contact.adresse` (dry-run par défaut, `--commit` pour appliquer). 48 contacts mis à jour. Dépendance `python-docx` ajoutée dans `pyproject.toml`. Amélioration associée : affichage de l'adresse dans le PDF facture + suppression du SIRET en doublon dans la section Émetteur.
 
 ### BIZ-117 — Assistant IA intégré
 
