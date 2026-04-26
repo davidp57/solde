@@ -44,20 +44,39 @@
       @input="onYearInput"
       @keydown="onYearKeydown"
     />
+    <span class="app-date-picker__spacer" />
     <button
       v-if="showClear && modelValue != null"
       type="button"
-      class="app-date-picker__clear"
+      class="app-date-picker__icon-btn"
       tabindex="-1"
       @click.prevent="emit('update:modelValue', null)"
     >
       <i class="pi pi-times-circle" />
     </button>
+    <button
+      v-if="!disabled"
+      type="button"
+      class="app-date-picker__icon-btn"
+      tabindex="-1"
+      @click="toggleCalendar"
+    >
+      <i class="pi pi-calendar" />
+    </button>
+    <Popover ref="popoverRef">
+      <DatePicker
+        :model-value="modelValue"
+        inline
+        @update:model-value="onCalendarSelect"
+      />
+    </Popover>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useAttrs, watch } from 'vue'
+import { computed, nextTick, ref, useAttrs, watch } from 'vue'
+import DatePicker from 'primevue/datepicker'
+import Popover from 'primevue/popover'
 
 defineOptions({ inheritAttrs: false })
 
@@ -79,26 +98,27 @@ const wrapperClass = computed(() => attrs.class as string | undefined)
 const dayRef = ref<HTMLInputElement | null>(null)
 const monthRef = ref<HTMLInputElement | null>(null)
 const yearRef = ref<HTMLInputElement | null>(null)
+const popoverRef = ref()
 
 const dayStr = ref('')
 const monthStr = ref('')
 const yearStr = ref('')
 
-// Sync from modelValue to strings without triggering re-emit
+// Prevent the watch from overwriting in-progress user input after we emit
+let suppressWatch = 0
+
 watch(
   () => props.modelValue,
   (d) => {
+    if (suppressWatch > 0) return
     if (!d) {
       dayStr.value = ''
       monthStr.value = ''
       yearStr.value = ''
     } else {
-      const dd = String(d.getDate()).padStart(2, '0')
-      const mm = String(d.getMonth() + 1).padStart(2, '0')
-      const yyyy = String(d.getFullYear())
-      if (dayStr.value !== dd) dayStr.value = dd
-      if (monthStr.value !== mm) monthStr.value = mm
-      if (yearStr.value !== yyyy) yearStr.value = yyyy
+      dayStr.value = String(d.getDate()).padStart(2, '0')
+      monthStr.value = String(d.getMonth() + 1).padStart(2, '0')
+      yearStr.value = String(d.getFullYear())
     }
   },
   { immediate: true },
@@ -108,16 +128,19 @@ function tryEmit() {
   const d = parseInt(dayStr.value, 10)
   const m = parseInt(monthStr.value, 10)
   const y = parseInt(yearStr.value, 10)
-
   if (
     !isNaN(d) && d >= 1 && d <= 31 &&
     !isNaN(m) && m >= 1 && m <= 12 &&
     !isNaN(y) && y >= 1000 && y <= 9999
   ) {
-    // Use noon (12:00) to avoid DST-related date shifts
+    // Suppress the watch so it doesn't reformat the segment the user is currently editing
+    suppressWatch++
     emit('update:modelValue', new Date(y, m - 1, d, 12))
+    nextTick(() => { suppressWatch-- })
   } else if (dayStr.value === '' && monthStr.value === '' && yearStr.value === '') {
+    suppressWatch++
     emit('update:modelValue', null)
+    nextTick(() => { suppressWatch-- })
   }
 }
 
@@ -179,6 +202,20 @@ function onYearKeydown(e: KeyboardEvent) {
     monthRef.value?.setSelectionRange(monthStr.value.length, monthStr.value.length)
   }
 }
+
+function toggleCalendar(e: MouseEvent) {
+  popoverRef.value?.toggle(e)
+}
+
+function onCalendarSelect(date: unknown) {
+  if (!date || !(date instanceof Date)) {
+    emit('update:modelValue', null)
+  } else {
+    // Use noon to avoid DST shifts
+    emit('update:modelValue', new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12))
+  }
+  popoverRef.value?.hide()
+}
 </script>
 
 <style scoped>
@@ -216,21 +253,25 @@ function onYearKeydown(e: KeyboardEvent) {
   opacity: 0.5;
 }
 
-.app-date-picker__clear {
-  margin-left: auto;
-  padding-left: 0.35rem;
+.app-date-picker__spacer {
+  flex: 1;
+}
+
+.app-date-picker__icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0 0.2rem;
   background: none;
   border: none;
   cursor: pointer;
   color: var(--p-inputtext-placeholder-color, #6b7280);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   line-height: 1;
+  flex-shrink: 0;
 }
 
-.app-date-picker__clear:hover {
+.app-date-picker__icon-btn:hover {
   color: var(--p-text-color, #374151);
 }
 </style>

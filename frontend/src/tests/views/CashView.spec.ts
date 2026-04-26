@@ -294,7 +294,7 @@ function mountView() {
         Button: ButtonStub,
         Column: ColumnStub,
         DataTable: DataTableStub,
-        DatePicker: DatePickerStub,
+        AppDatePicker: DatePickerStub,
         Dialog: DialogStub,
         InputNumber: InputNumberStub,
         InputText: InputTextStub,

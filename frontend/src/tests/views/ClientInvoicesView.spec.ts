@@ -309,7 +309,7 @@ function mountView() {
         Column: ColumnStub,
         ConfirmDialog: ContainerStub,
         DataTable: DataTableStub,
-        DatePicker: DatePickerStub,
+        AppDatePicker: DatePickerStub,
         Dialog: DialogStub,
         InputNumber: InputNumberStub,
         InputText: InputTextStub,
