@@ -23,6 +23,7 @@ class EntrySourceType(StrEnum):
     DEPOSIT = "deposit"
     SALARY = "salary"
     MANUAL = "manual"
+    CASH = "cash"
     CLOTURE = "cloture"
 
 

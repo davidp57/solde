@@ -9,6 +9,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.cash import CashCount, CashEntrySource, CashMovementType, CashRegister
 from backend.schemas.cash import CashCountCreate, CashEntryCreate, CashEntryUpdate
 
@@ -144,6 +145,38 @@ async def get_cash_entry(db: AsyncSession, entry_id: int) -> CashRegister | None
         await db.commit()
     result = await db.execute(select(CashRegister).where(CashRegister.id == entry_id))
     return result.scalar_one_or_none()
+
+
+async def get_cash_entry_accounting_entries(
+    db: AsyncSession,
+    entry_id: int,
+) -> list[AccountingEntry]:
+    """Return accounting entries generated from a given cash register entry."""
+    result = await db.execute(
+        select(AccountingEntry).where(
+            AccountingEntry.source_type == EntrySourceType.CASH,
+            AccountingEntry.source_id == entry_id,
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def delete_cash_entry(db: AsyncSession, entry: CashRegister) -> int:
+    """Delete a manual cash register entry, cascade to linked accounting entries.
+
+    Returns the number of accounting entries also deleted.
+    Raises ValueError if the entry is linked to a payment (use import undo instead).
+    """
+    if entry.payment_id is not None:
+        raise ValueError("This cash entry is linked to a payment. Use import undo to remove it.")
+    linked_entries = await get_cash_entry_accounting_entries(db, entry.id)
+    for acc_entry in linked_entries:
+        await db.delete(acc_entry)
+    await db.delete(entry)
+    await db.flush()
+    await recompute_cash_balances(db)
+    await db.commit()
+    return len(linked_entries)
 
 
 async def update_cash_entry(

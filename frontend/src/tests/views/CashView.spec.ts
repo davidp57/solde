@@ -9,6 +9,13 @@ vi.mock('vue-i18n', () => ({
 }))
 
 const toastAdd = vi.fn()
+const confirmRequire = vi.fn()
+
+vi.mock('primevue/useconfirm', () => ({
+  useConfirm: () => ({
+    require: confirmRequire,
+  }),
+}))
 
 vi.mock('primevue/usetoast', () => ({
   useToast: () => ({
@@ -39,6 +46,8 @@ vi.mock('../../api/cash', () => ({
   addCashEntry: vi.fn(),
   getCashEntry: vi.fn(),
   updateCashEntry: vi.fn(),
+  deleteCashEntry: vi.fn(),
+  getCashEntryConnections: vi.fn(),
   listCashCounts: vi.fn(),
   addCashCount: vi.fn(),
 }))
@@ -298,6 +307,7 @@ function mountView() {
         Tag: TagStub,
         Textarea: TextareaStub,
         TrendLineChart: ContainerStub,
+        ConfirmDialog: ContainerStub,
       },
     },
   })

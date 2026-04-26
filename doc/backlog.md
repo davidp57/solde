@@ -48,6 +48,8 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | BIZ-112 | Afficher le numéro de facture dans le dialog de modification | P1 | ~10 min | 2026-04-26 | | |
 | BIZ-113 | Créances irrécouvrables : statut + écriture comptable 654/411 | P2 | ~2h | 2026-04-26 | | |
 | BIZ-111 | Import one-shot adresses postales depuis factures Word | P3 | ~1h | 2026-04-26 | | |
+| BIZ-106 | Journal comptable/caisse : limite 100 → 5000 lignes par défaut | P1 | ~15 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
+| BIZ-114 | Suppression entrées caisse manuelles (cascade + aperçu connexions) | P2 | ~45 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 
 ---
 
