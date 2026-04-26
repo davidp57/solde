@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re as _re
 from datetime import date as _Date
 from datetime import datetime as _Datetime
 from decimal import Decimal as _Decimal
@@ -25,6 +26,8 @@ class AppSettingsRead(BaseModel):
     fiscal_year_start_month: int
     default_invoice_due_days: int | None
     client_invoice_seq_digits: int
+    client_invoice_number_template: str
+    supplier_invoice_number_template: str
 
     smtp_host: str | None
     smtp_port: int
@@ -45,6 +48,8 @@ class AppSettingsUpdate(BaseModel):
     fiscal_year_start_month: int | None = None
     default_invoice_due_days: int | None = None
     client_invoice_seq_digits: int | None = None
+    client_invoice_number_template: str | None = None
+    supplier_invoice_number_template: str | None = None
 
     smtp_host: str | None = None
     smtp_port: int | None = None
@@ -80,6 +85,16 @@ class AppSettingsUpdate(BaseModel):
     def validate_client_invoice_seq_digits(cls, v: int | None) -> int | None:
         if v is not None and not 2 <= v <= 6:
             raise ValueError("client_invoice_seq_digits must be between 2 and 6")
+        return v
+
+    @field_validator("client_invoice_number_template")
+    @classmethod
+    def validate_client_invoice_number_template(cls, v: str | None) -> str | None:
+        if v is not None:
+            if "{year}" not in v or "{seq}" not in v:
+                raise ValueError("client_invoice_number_template must contain {year} and {seq}")
+            if _re.search(r"\{(?!year\}|seq\})[^}]*\}", v):
+                raise ValueError("client_invoice_number_template only supports {year} and {seq}")
         return v
 
 

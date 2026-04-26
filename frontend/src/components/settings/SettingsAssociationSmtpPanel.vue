@@ -89,6 +89,38 @@
             {{ t('settings.client_invoice_seq_digits_help') }}
           </small>
         </div>
+
+        <div class="app-field">
+          <label for="client_invoice_number_template" class="app-field__label">
+            {{ t('settings.client_invoice_number_template') }}
+          </label>
+          <InputText
+            id="client_invoice_number_template"
+            v-model="form.client_invoice_number_template"
+            class="w-full"
+            :placeholder="t('settings.client_invoice_number_template_placeholder')"
+          />
+          <small class="app-field__hint app-field__hint--warning">
+            <i class="pi pi-exclamation-triangle" />
+            {{ t('settings.client_invoice_number_template_help') }}
+          </small>
+        </div>
+
+        <div class="app-field">
+          <label for="supplier_invoice_number_template" class="app-field__label">
+            {{ t('settings.supplier_invoice_number_template') }}
+          </label>
+          <InputText
+            id="supplier_invoice_number_template"
+            v-model="form.supplier_invoice_number_template"
+            class="w-full"
+            :placeholder="t('settings.supplier_invoice_number_template_placeholder')"
+          />
+          <small class="app-field__hint app-field__hint--warning">
+            <i class="pi pi-exclamation-triangle" />
+            {{ t('settings.supplier_invoice_number_template_help') }}
+          </small>
+        </div>
       </div>
     </AppPanel>
 
@@ -226,6 +258,8 @@ interface SettingsForm {
   fiscal_year_start_month: number
   default_invoice_due_days: number | null
   client_invoice_seq_digits: number
+  client_invoice_number_template: string
+  supplier_invoice_number_template: string
   smtp_host: string | null
   smtp_port: number
   smtp_user: string | null
@@ -248,6 +282,8 @@ const defaultForm = (): SettingsForm => ({
   fiscal_year_start_month: 8,
   default_invoice_due_days: null,
   client_invoice_seq_digits: 3,
+  client_invoice_number_template: '{year}-{seq}',
+  supplier_invoice_number_template: 'FF-%Y%m%d%H.%M.%S',
   smtp_host: null,
   smtp_port: 587,
   smtp_user: null,
@@ -272,6 +308,8 @@ async function load(): Promise<void> {
       fiscal_year_start_month: data.fiscal_year_start_month,
       default_invoice_due_days: data.default_invoice_due_days,
       client_invoice_seq_digits: data.client_invoice_seq_digits,
+      client_invoice_number_template: data.client_invoice_number_template,
+      supplier_invoice_number_template: data.supplier_invoice_number_template,
       smtp_host: data.smtp_host,
       smtp_port: data.smtp_port,
       smtp_user: data.smtp_user,
@@ -297,6 +335,8 @@ async function save(): Promise<void> {
       fiscal_year_start_month: form.value.fiscal_year_start_month,
       default_invoice_due_days: form.value.default_invoice_due_days,
       client_invoice_seq_digits: form.value.client_invoice_seq_digits,
+      client_invoice_number_template: form.value.client_invoice_number_template,
+      supplier_invoice_number_template: form.value.supplier_invoice_number_template,
       smtp_host: form.value.smtp_host,
       smtp_port: form.value.smtp_port,
       smtp_user: form.value.smtp_user,

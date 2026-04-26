@@ -30,6 +30,12 @@ class AppSettings(Base):
 
     # Invoice numbering
     client_invoice_seq_digits: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    client_invoice_number_template: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="{year}-{seq}"
+    )
+    supplier_invoice_number_template: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="FF-%Y%m%d%H.%M.%S"
+    )
 
     # SMTP (all optional)
     smtp_host: Mapped[str | None] = mapped_column(String(255), nullable=True)
