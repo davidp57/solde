@@ -31,6 +31,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | BIZ-119 | Interface simplifiée : tableau de bord avec cartes d'actions rapides | P2 | ~2h | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-111 | Import one-shot adresses postales depuis factures Word | P3 | ~1h | 2026-04-26 | | |
 | BIZ-122 | Titre optionnel sur les factures clients | P2 | ~1h30 | 2026-04-26 | | |
+| BIZ-123 | Prix par défaut par type de ligne de facture | P2 | ~1h | 2026-04-26 | | |
 | ~~BIZ-117~~ | ~~Assistant IA intégré (chatbot manuel utilisateur + accès doc/code)~~ | P3 | — | 2026-04-26 | — | ❌ Non réalisable |
 
 ---
@@ -86,9 +87,23 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ---
 
-### BIZ-122 — Titre optionnel sur les factures clients
+### BIZ-123 — Prix par défaut par type de ligne de facture
 
-**Objectif** : permettre d’associer un titre libre à une facture client (ex : « cours du mois d’avril 2026 »), affiché dans le PDF et repris dans l’e-mail d’envoi.
+**Objectif** : configurer dans les paramètres de l’application un prix unitaire par défaut pour chaque type de ligne (ex : Adhésion = 50 €, Cours = 12 €/h), pré-rempli automatiquement lors de l’ajout d’une ligne dans le formulaire de facture client.
+
+**Périmètre** :
+- Modèle `AppSettings` : ajouter des colonnes `default_price_adhesion`, `default_price_cours`, etc. (Decimal, nullable) — migration Alembic.
+- Vue Paramètres : section dédiée « Prix par défaut » avec un champ par type de ligne.
+- `ClientInvoiceForm` : lors du `addLine()` ou au changement de `line_type`, pré-remplir `unit_price` avec le prix par défaut correspondant (si non nul et si l’utilisateur n’a pas déjà saisi une valeur).
+- API : inclure les nouveaux champs dans les schémas `Settings`.
+
+**Hors périmètre** : prix par défaut sur les lignes fournisseurs.
+
+**Fichiers** : `backend/models/app_settings.py`, `backend/schemas/settings.py`, `backend/alembic/versions/XXXX_add_default_line_prices.py`, `backend/routers/settings.py`, `frontend/src/components/ClientInvoiceForm.vue`, `frontend/src/views/SettingsView.vue`.
+
+---
+
+### BIZ-122 — Titre optionnel sur les factures clients : permettre d’associer un titre libre à une facture client (ex : « cours du mois d’avril 2026 »), affiché dans le PDF et repris dans l’e-mail d’envoi.
 
 **Périmètre** :
 - Champ `title` (VARCHAR, nullable) ajouté sur le modèle `Invoice` — migration Alembic.
