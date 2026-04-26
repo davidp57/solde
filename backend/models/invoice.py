@@ -46,6 +46,7 @@ class InvoiceStatus(StrEnum):
     PARTIAL = "partial"
     OVERDUE = "overdue"
     DISPUTED = "disputed"
+    IRRECOVERABLE = "irrecoverable"
 
 
 def _normalize_invoice_line_text(value: str) -> str:

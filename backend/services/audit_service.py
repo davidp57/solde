@@ -23,6 +23,7 @@ class AuditAction(StrEnum):
     PASSWORD_RESET_BY_ADMIN = "admin.user.password_reset"
     DB_RESET = "admin.reset_db"
     SELECTIVE_RESET = "admin.selective_reset"
+    BACKUP_RESTORED = "admin.backup.restore"
     # Payments
     PAYMENT_CREATED = "payment.create"
     PAYMENT_UPDATED = "payment.update"
@@ -34,6 +35,8 @@ class AuditAction(StrEnum):
     INVOICE_DUPLICATED = "invoice.duplicate"
     INVOICE_DELETED = "invoice.delete"
     INVOICE_EMAIL_SENT = "invoice.email.send"
+    INVOICE_WRITTEN_OFF = "invoice.write_off"
+    INVOICE_RESTORED_FROM_WRITEOFF = "invoice.restore_from_writeoff"
     # Cash
     CASH_ENTRY_CREATED = "cash.entry.create"
     CASH_ENTRY_UPDATED = "cash.entry.update"

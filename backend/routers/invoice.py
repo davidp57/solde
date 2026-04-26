@@ -168,9 +168,7 @@ async def update_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
     old_status = invoice.status
     try:
-        updated = await invoice_service.update_invoice_status(
-            db, invoice, payload.status
-        )
+        updated = await invoice_service.update_invoice_status(db, invoice, payload.status)
     except InvoiceStatusError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     await record_audit(
@@ -180,6 +178,56 @@ async def update_status(
         target_id=invoice_id,
         target_type="invoice",
         detail={"number": invoice.number, "from": old_status, "to": payload.status},
+    )
+    return updated  # type: ignore[return-value]
+
+
+@router.post("/{invoice_id}/write-off", response_model=InvoiceRead)
+async def write_off_invoice(
+    invoice_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> InvoiceRead:
+    """Mark a client invoice as irrecoverable and generate write-off accounting entries."""
+    invoice = await invoice_service.get_invoice(db, invoice_id)
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    try:
+        updated = await invoice_service.write_off_invoice(db, invoice)
+    except InvoiceStatusError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.INVOICE_WRITTEN_OFF,
+        actor=current_user,
+        target_id=invoice_id,
+        target_type="invoice",
+        detail={"number": invoice.number},
+    )
+    return updated  # type: ignore[return-value]
+
+
+@router.post("/{invoice_id}/restore-from-writeoff", response_model=InvoiceRead)
+async def restore_from_writeoff(
+    invoice_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> InvoiceRead:
+    """Restore an irrecoverable invoice: generate reversal entries and recompute status."""
+    invoice = await invoice_service.get_invoice(db, invoice_id)
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    try:
+        updated = await invoice_service.restore_from_writeoff(db, invoice)
+    except InvoiceStatusError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.INVOICE_RESTORED_FROM_WRITEOFF,
+        actor=current_user,
+        target_id=invoice_id,
+        target_type="invoice",
+        detail={"number": invoice.number},
     )
     return updated  # type: ignore[return-value]
 
