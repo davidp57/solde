@@ -7,6 +7,39 @@
     </section>
 
     <template v-else>
+      <section class="dashboard-quick-actions" :aria-label="t('dashboard.quick_actions_title')">
+        <button class="dashboard-action-card" @click="router.push({ name: 'invoices-client', query: { create: '1' } })">
+          <span class="dashboard-action-card__icon">
+            <i class="pi pi-file-plus" />
+          </span>
+          <span class="dashboard-action-card__body">
+            <span class="dashboard-action-card__title">{{ t('dashboard.quick_actions.new_invoice') }}</span>
+            <span class="dashboard-action-card__desc">{{ t('dashboard.quick_actions.new_invoice_desc') }}</span>
+          </span>
+          <i class="pi pi-chevron-right dashboard-action-card__arrow" />
+        </button>
+        <button class="dashboard-action-card" @click="router.push({ name: 'invoices-client', query: { unpaid: '1' } })">
+          <span class="dashboard-action-card__icon">
+            <i class="pi pi-credit-card" />
+          </span>
+          <span class="dashboard-action-card__body">
+            <span class="dashboard-action-card__title">{{ t('dashboard.quick_actions.new_payment') }}</span>
+            <span class="dashboard-action-card__desc">{{ t('dashboard.quick_actions.new_payment_desc') }}</span>
+          </span>
+          <i class="pi pi-chevron-right dashboard-action-card__arrow" />
+        </button>
+        <button class="dashboard-action-card" @click="router.push({ name: 'cash', query: { create: '1' } })">
+          <span class="dashboard-action-card__icon">
+            <i class="pi pi-wallet" />
+          </span>
+          <span class="dashboard-action-card__body">
+            <span class="dashboard-action-card__title">{{ t('dashboard.quick_actions.new_cash') }}</span>
+            <span class="dashboard-action-card__desc">{{ t('dashboard.quick_actions.new_cash_desc') }}</span>
+          </span>
+          <i class="pi pi-chevron-right dashboard-action-card__arrow" />
+        </button>
+      </section>
+
       <section class="app-stat-grid">
         <AppStatCard
           :label="t('dashboard.bank_balance')"
@@ -132,6 +165,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import Message from 'primevue/message'
 import Skeleton from 'primevue/skeleton'
 import Select from 'primevue/select'
@@ -151,6 +185,7 @@ import type {
 import { useFiscalYearStore } from '../stores/fiscalYear'
 
 const { t } = useI18n()
+const router = useRouter()
 const fiscalYearStore = useFiscalYearStore()
 
 const loading = ref(true)
@@ -386,6 +421,89 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
+}
+
+.dashboard-quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--app-space-4);
+  margin-bottom: var(--app-space-5);
+}
+
+.dashboard-action-card {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-surface-radius);
+  background: var(--p-surface-0);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+  width: 100%;
+}
+
+.dashboard-action-card:hover {
+  background: color-mix(in srgb, var(--p-primary-50) 60%, transparent);
+  border-color: var(--p-primary-400);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--p-primary-200) 40%, transparent);
+}
+
+.dashboard-action-card:focus-visible {
+  outline: 2px solid var(--p-primary-500);
+  outline-offset: 2px;
+}
+
+.dashboard-action-card__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--p-primary-100) 70%, transparent);
+  color: var(--p-primary-600);
+  font-size: 1.15rem;
+}
+
+.dashboard-action-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.dashboard-action-card__title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--p-text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-action-card__desc {
+  font-size: 0.8rem;
+  color: var(--p-text-muted-color);
+  line-height: 1.35;
+}
+
+.dashboard-action-card__arrow {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--p-text-muted-color);
+}
+
+@media (max-width: 900px) {
+  .dashboard-quick-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 900px) {

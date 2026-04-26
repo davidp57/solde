@@ -1158,6 +1158,10 @@ onMounted(async () => {
   }
   unpaidOnly.value = route.query.unpaid === '1'
   await Promise.all([refreshInvoicesData(), loadContacts()])
+  if (route.query.create === '1') {
+    openCreateDialog()
+    void router.replace({ name: 'invoices-client', query: { ...route.query, create: undefined } })
+  }
 })
 </script>
 

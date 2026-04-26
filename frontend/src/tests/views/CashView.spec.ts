@@ -8,6 +8,11 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ replace: vi.fn() }),
+}))
+
 const toastAdd = vi.fn()
 const confirmRequire = vi.fn()
 

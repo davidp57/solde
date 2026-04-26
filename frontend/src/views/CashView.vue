@@ -546,6 +546,7 @@ import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import TrendLineChart, {
   type TrendLineChartSeries,
 } from '../components/charts/TrendLineChart.vue'
@@ -583,6 +584,8 @@ import {
 } from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const toast = useToast()
 const confirm = useConfirm()
 const fiscalYearStore = useFiscalYearStore()
@@ -1017,6 +1020,10 @@ watch(
 onMounted(async () => {
   await fiscalYearStore.initialize()
   await loadAll()
+  if (route.query.create === '1') {
+    openCreateEntryDialog()
+    void router.replace({ name: 'cash', query: { ...route.query, create: undefined } })
+  }
 })
 </script>
 
