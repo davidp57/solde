@@ -13,7 +13,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
-- BIZ-124 : Templates de numérotation configurables pour les factures clients et fournisseurs — champ `client_invoice_number_template` (`{year}` + `{seq}`, ex. `{year}-{seq}` → `2026-001`) et `supplier_invoice_number_template` (strftime Python, ex. `FF-%Y%m%d%H.%M.%S` → `FF-2026040717.56.01`) modifiables dans les paramètres de l'association
+- BIZ-122 : Intégration du champ `description` de la facture dans l'objet de l'e-mail d'envoi — si renseigné, le sujet devient `Facture {numéro} — {description}` au lieu de `Facture {numéro} — {association}`
+- BIZ-122 : `tests/unit/test_email_service.py` — test `test_send_invoice_email_subject_with_description` ajouté
+
+ pour les factures clients et fournisseurs — champ `client_invoice_number_template` (`{year}` + `{seq}`, ex. `{year}-{seq}` → `2026-001`) et `supplier_invoice_number_template` (strftime Python, ex. `FF-%Y%m%d%H.%M.%S` → `FF-2026040717.56.01`) modifiables dans les paramètres de l'association
 - BIZ-124 : Migrations Alembic 0032 (`client_invoice_seq_digits`) et 0033 (`client_invoice_number_template` + `supplier_invoice_number_template`)
 
 ### Ajouté
