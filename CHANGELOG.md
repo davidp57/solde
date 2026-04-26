@@ -13,6 +13,11 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- BIZ-124 : Templates de numérotation configurables pour les factures clients et fournisseurs — champ `client_invoice_number_template` (`{year}` + `{seq}`, ex. `{year}-{seq}` → `2026-001`) et `supplier_invoice_number_template` (strftime Python, ex. `FF-%Y%m%d%H.%M.%S` → `FF-2026040717.56.01`) modifiables dans les paramètres de l'association
+- BIZ-124 : Migrations Alembic 0032 (`client_invoice_seq_digits`) et 0033 (`client_invoice_number_template` + `supplier_invoice_number_template`)
+
+### Ajouté
+
 - BIZ-119 : Panneau « Actions rapides » sur le tableau de bord — 3 cartes d'accès direct (nouvelle facture client, encoder un paiement, nouvelle entrée de caisse) ; navigation vers la vue cible avec ouverture automatique du dialog de création via le paramètre `?create=1`
 - BIZ-119 : Carte « Saisir une facture client » — ouvre désormais un wizard inline (dialog) avec formulaire de création et bouton « Saisir une autre facture » après succès, sur le modèle du wizard de paiement
 - BIZ-112 : Numéro de facture affiché dans le titre du dialog de modification (factures clients et fournisseurs) — header dynamique `Modifier — F-2025-042` au lieu du libellé générique
