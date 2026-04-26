@@ -15,23 +15,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-034 | Support multi-compte banque | P2 | ~45 min | 2026-04-21 | | |
 
-### Lot M — Sécurité applicative (~45 min) — v0.6
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| TEC-091 | Fuite d'exception interne dans les réponses API | P1 | ~15 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
-| TEC-092 | Validation contenu réel des fichiers uploadés (magic bytes) | P2 | ~15 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
-| TEC-093 | Validateurs max_length / min–max sur schémas Pydantic | P2 | ~15 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
-
-### Lot N — UX & formulaires (~2h) — v0.7
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| BIZ-094 | Confirmation manquante sur « Initialiser la comptabilité » | P1 | ~10 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
-| BIZ-095 | Avertissement « modifications non sauvegardées » sur tous les formulaires | P2 | ~45 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
-| BIZ-096 | Feedback de validation champ par champ dans les formulaires | P2 | ~30 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
-| BIZ-097 | Accessibilité de base : aria-labels icônes, focus management dialogs | P3 | ~30 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
-
 ### Lot O — Qualité technique backend (~2h) — v0.7
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -53,14 +36,10 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BIZ-089 | Gestion des salaires — aide saisie, composantes CDD, vue coûts personnel | P1 | ~3h | 2026-04-25 | 2026-04-25 | 2026-04-25 |
-| BIZ-090 | Import Excel Gestion — champs CDD dans la feuille « Aide Salaires » | P1 | ~30 min | 2026-04-25 | 2026-04-25 | 2026-04-25 |
-| TEC-105 | Lenteur navigation et chargement des données | P2 | ~2h | 2026-04-25 | 2026-04-25 | 2026-04-25 |
 | CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
-| TEC-039 | Revalidation scénarios facture / email | P1 | ~10 min | 2026-04-21 | | |
+| TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
-| TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | | |
 
 ---
 
@@ -72,72 +51,6 @@ Plusieurs clés i18n ne sont pas renseignées dans `fr.ts` et s'affichent brutes
 - Parcourir toutes les vues et composants pour identifier les appels `t('...')` sans traduction correspondante dans `src/i18n/fr.ts`.
 - Ajouter les traductions manquantes.
 - Vérifier aussi les clés orphelines (dans `fr.ts` mais plus utilisées dans le code).
-
-### TEC-105 — Lenteur navigation et chargement des données
-
-L'application est perçue comme lente lors de la navigation entre vues et au chargement des données.
-Pistes à investiguer et corriger :
-- **Frontend** : lazy-loading des routes Vue Router ; skeleton loaders ou spinners pour le feedback immédiat ; éviter les re-fetch inutiles (cache Pinia, `keepAlive` sur les vues stables).
-- **API** : vérifier les requêtes N+1 SQLAlchemy (`.selectinload` / `.joinedload` manquants) ; ajouter des index SQLite sur les colonnes filtrées/triées fréquemment (`contact_id`, `fiscal_year_id`, `date`, `status`).
-- **Bundle** : analyser la taille du bundle Vite (`npx vite-bundle-visualizer`) et couper les imports lourds inutiles.
-
-### BIZ-090 — Import Excel Gestion — champs CDD dans la feuille « Aide Salaires »
-
-La feuille « Aide Salaires » du fichier Gestion.xlsx utilise un format « détaillé »
-pour le mois le plus récent, avec les colonnes : *Heures*, *Brut déclaré*, *Congés*,
-*Précarité*, *Brut total*, *Brut*, *Salariales*, *Patronales*, *Impôts*, *Net*.
-Pour les employés CDD, les colonnes *Brut déclaré* (col 2), *Congés* (col 3) et
-*Précarité* (col 4) contiennent des valeurs non nulles.
-
-Le parseur existant lisait déjà le bon `gross` (col 6) mais ignorait les 3 colonnes
-CDD. Ce ticket étend `NormalizedSalaryRow`, `parse_salary_sheet` et
-`_import_salaries_sheet` pour stocker `brut_declared`, `conges_payes`, `precarite`
-sur les enregistrements `Salary` créés à l'import. Les lignes CDI conservent `None`
-pour ces champs (CP = 0 dans l'Excel → condition de détection CDD).
-
-### BIZ-089 — Gestion des salaires — aide saisie, composantes CDD, vue coûts personnel
-
-**Contexte** : 2 types d'employés — CDI classique (heures fixes, brut de base) et
-CDD d'usage à l'heure (taux horaire + 10 % précarité + 10 % congés payés). Tous les
-calculs de cotisations sont faits sur le site CEA (https://www.cea.urssaf.fr/) puis
-saisis manuellement. Les auto-entrepreneurs envoient des factures mensuelles (déjà
-dans le système), mais il manque une vue consolidée des coûts du personnel.
-
-**Fiche employé** (`Contact` de type `EMPLOYE`) — champs à ajouter :
-- `type_contrat` : `CDI` ou `CDD` (enum)
-- `salaire_brut_base` : brut mensuel fixe (CDI uniquement)
-- `heures_base` : nombre d'heures mensuel fixe (CDI)
-- `taux_horaire` : taux horaire brut (CDD)
-
-**Formulaire de saisie mensuelle** — workflow en 3 étapes :
-1. **Calcul du brut** : CDI → pré-rempli depuis la fiche (modifiable) ; CDD →
-   saisie des heures, calcul automatique précarité (× 1,10) + congés payés (× 1,10)
-   → brut total affiché avant passage sur CEA
-2. **Saisie des données CEA** : cotisations salariales, patronales, impôts, net à
-   payer (résultats du bulletin CEA, saisis tels quels)
-3. **Enregistrement** : génération des écritures comptables existantes (641000,
-   645100, 421000, 431100) + paiement virement (512100 par employé)
-
-**Bouton "Reprendre le salaire précédent"** : pré-remplit uniquement les données
-*avant* passage sur CEA (heures et brut total), pas les résultats CEA (cotisations,
-net, impôts). Disponible pour tous les types de salariés.
-
-**Modèle `Salary`** — champs supplémentaires à stocker (nullable, CDD) :
-- `brut_declared` : brut avant précarité/congés (heures × taux)
-- `conges_payes` : montant indemnité congés payés
-- `precarite` : montant indemnité de précarité
-
-**Auto-entrepreneurs** — suivi heures + coûts :
-- Champ `hours` optionnel sur la facture fournisseur (`Invoice`) pour les AE
-- Lors de la saisie d'une facture AE, possibilité d'associer le nombre d'heures
-  correspondant (ex : "20h @ 15 €/h = 300 €")
-- Le contact doit être marqué "prestataire / auto-entrepreneur" (champ booléen ou
-  type dédié sur `Contact`) pour être inclus dans la vue consolidée
-
-**Vue coûts du personnel** (nouvelle section ou onglet dans `SalaryView`) :
-- Tableau consolidé par mois : employés CDI + CDD (salaires) + AE (factures)
-- Colonnes : nom, type (CDI / CDD / AE), heures, montant brut/facturé, coût horaire
-- Permet de comparer le coût horaire réel de tous les types de collaborateurs
 
 ### CHR-020 — Documentation de contribution
 
@@ -151,136 +64,14 @@ textuel consolidé. Reste : enrichissement visuel (captures annotées homogènes
 Séquence : lot 1 (connexion, contacts, facture, paiement) → lot 2 (achat, caisse,
 banque) → lot 3 (import Excel, comptabilité, FAQ) → lot 4 (captures, stabilisation).
 
-### BIZ-033 — Comparaison chèques inter-exercices
-
-- **Livré** : correction du parsing colonne « Encaissé » (sous-chaîne mal résolue) + opération `update_payment_deposit_status` dans l'import réversible — un paiement existant avec `deposited=False` est mis à jour lors de l'import d'un fichier ultérieur marquant le chèque comme encaissé (2026-04-24).
-
 ### BIZ-034 — Support multi-compte banque
 
 Distinguer compte courant et compte épargne dans les données, imports et écrans.
 Décisions métier nécessaires avant implémentation.
 
-### BIZ-035 — Onglets clients / fournisseurs
-
-Séparer les contacts clients et fournisseurs dans deux onglets dédiés.
-
-### BIZ-037 — Profil via clic sur le nom
-
-Remplacer l'entrée menu « Mon profil » par un accès via clic sur le nom utilisateur.
-
-### CHR-038 — Numéro de version dans l'UI
-
-Afficher un numéro de version discret mais visible dans l'interface.
-
-### TEC-039 — Revalidation scénarios facture / email
-
-Rejouer et fiabiliser les scénarios d'édition de facture client et d'envoi par e-mail
-avec validation explicite du comportement attendu.
-
-### BIZ-040 — Import one-shot emails contacts
-
-Import d'une liste d'adresses e-mail pour enrichir les contacts clients existants.
-
-### BIZ-088 — Gestion des employés (CRUD)
-
-- **Livré** : `ContactType.EMPLOYE` ajouté ; `EmployeesView.vue` (liste, CRUD, activation/désactivation) ; route `/employees` (`requiresAccounting`) ; menu de navigation ; `SalaryView` filtre sur `type=employe` ; import Excel crée les contacts employés avec `type=employe` (2026-04-25).
-
-### TEC-077 — Refactoring vues volumineuses
-
-`ImportExcelView` (2 873 L), `BankView` (2 215 L), `SettingsView` (1 077 L) à éclater
-en sous-composants < 500 lignes.
-
 ### CHR-078 — Squelette i18n anglais
 
 Créer `en.ts` avec les clés structurelles pour préparer la localisation anglaise.
-
----
-
-### TEC-091 — Fuite d'exception interne dans les réponses API
-
-`detail=str(exc)` présent dans `backend/routers/bank.py` (16 occurrences), `backend/routers/excel_import.py` (4 occurrences) et `backend/routers/fiscal_year.py` (1 occurrence). Ce pattern retourne directement le message d'exception Python brut dans la réponse HTTP, exposant potentiellement des noms de tables, des traces SQLAlchemy ou des chemins de fichiers à un client.
-
-**Correctif** : dans chaque bloc `except`, remplacer `detail=str(exc)` par un message générique localisé (ex. `detail="Erreur interne, veuillez réessayer"`) et logger l'exception réelle côté serveur avec `logger.exception(...)`. Les exceptions métier déjà typées (`HTTPException`) sont exclues — seuls les `except Exception` génériques sont visés.
-
-**Fichiers à modifier** : `backend/routers/bank.py` (lignes ~169–467), `backend/routers/excel_import.py` (lignes ~174–184), `backend/routers/fiscal_year.py`.
-
----
-
-### TEC-092 — Validation contenu réel des fichiers uploadés (magic bytes)
-
-Le endpoint `POST /invoices/{id}/attachment` dans `backend/routers/invoice.py` valide le type de fichier via le champ `Content-Type` fourni par le client — ce header peut être falsifié. Un fichier `.exe` renommé en `.pdf` passe actuellement la vérification.
-
-**Correctif** : lire les 8 premiers octets du fichier uploadé et vérifier les magic bytes connus :
-- PDF : `%PDF` (0x25 50 44 46)
-- JPEG : `FFD8FF`
-- PNG : `89504E47`
-- WebP : octets 8–11 = `WEBP`
-
-Rejeter avec `422` si aucun magic bytes ne correspond à la liste blanche, indépendamment du `Content-Type` déclaré. Résoudre également le chemin d'upload en chemin absolu (`Path("data/uploads/invoices").resolve()`).
-
-**Fichier à modifier** : `backend/routers/invoice.py` (~L305–325).
-
----
-
-### TEC-093 — Validateurs max_length / min–max sur schémas Pydantic
-
-Aucun champ texte libre des schémas principaux n'a de contrainte `max_length`, et aucun champ numérique métier n'a de contrainte `ge=0`. Un client malveillant ou un bug d'import peut insérer des chaînes de plusieurs Mo ou des montants négatifs.
-
-**Champs prioritaires à contraindre** :
-- `Contact` : `nom` (max 100), `prenom` (max 100), `adresse` (max 500), `email` (max 200), `telephone` (max 30)
-- `Invoice` : `reference` (max 100), `description` (max 1 000)
-- `Salary` : `hours` (`ge=0, le=744`), `gross` (`ge=0`), `employee_charges` (`ge=0`), `employer_charges` (`ge=0`), `net_pay` (`ge=0`)
-- `Payment` : `amount` (`gt=0`)
-
-**Fichiers à modifier** : `backend/schemas/contact.py`, `backend/schemas/invoice.py`, `backend/schemas/salary.py`, `backend/schemas/payment.py`.
-
----
-
-### BIZ-094 — Confirmation manquante sur « Initialiser la comptabilité »
-
-Dans `SettingsDangerZonePanel.vue`, le bouton « Initialiser la comptabilité » déclenche directement `bootstrapAccounting()` sans dialogue de confirmation, contrairement au bouton « Réinitialiser la base » qui passe par `confirmReset()`. Cette action est destructive (écrasement du plan comptable).
-
-**Correctif** : entourer l'appel `bootstrapAccounting()` d'un `confirm.require({ ... })` PrimeVue identique au pattern de `confirmReset`, avec un message d'avertissement adapté et une sévérité `warn`.
-
-**Fichier à modifier** : `frontend/src/components/settings/SettingsDangerZonePanel.vue`.
-
----
-
-### BIZ-095 — Avertissement « modifications non sauvegardées » sur tous les formulaires
-
-Les formulaires de création/modification (factures client, factures fournisseur, contacts, employés, salaires) n'ont aucune détection de changements non sauvegardés. Fermer accidentellement le dialog ou naviguer vers une autre page efface silencieusement les saisies.
-
-**Correctif** : pour chaque formulaire concerné, ajouter :
-1. Un `computed<boolean> isDirty` comparant `form.value` à `initialValue` (snapshot au chargement)
-2. Un guard sur l'événement `@hide` / `@update:visible` du Dialog PrimeVue : si `isDirty`, appeler `confirm.require({ ... })` avant de fermer
-3. Pour les navigations inter-pages (vue SalaryView, EmployeesView), utiliser le navigation guard vue-router `onBeforeRouteLeave`
-
-**Périmètre** : `ClientInvoiceForm.vue`, `SupplierInvoiceForm.vue`, `ContactForm.vue`, `EmployeeForm.vue`, formulaires inline dans `SalaryView.vue`.
-
----
-
-### BIZ-096 — Feedback de validation champ par champ dans les formulaires
-
-Les formulaires affichent les erreurs API sous forme de message global (`<Message severity="error">`), mais ne signalent pas quel champ est invalide. L'utilisateur doit deviner où corriger.
-
-**Correctif** :
-1. Côté backend : s'assurer que les erreurs Pydantic 422 renvoient bien le champ fautif dans `loc` (déjà le cas avec FastAPI).
-2. Côté frontend : parser `error.response.data.detail` (tableau d'objets `{loc, msg}`) pour affecter un message d'erreur par champ dans un `Record<string, string> fieldErrors`.
-3. Afficher `<small class="p-error">{{ fieldErrors['nom'] }}</small>` sous chaque champ concerné dans les templates des formulaires principaux.
-
-**Périmètre** : `ClientInvoiceForm.vue`, `SupplierInvoiceForm.vue`, `ContactForm.vue`.
-
----
-
-### BIZ-097 — Accessibilité de base : aria-labels icônes, focus management dialogs
-
-Deux lacunes d'accessibilité identifiées lors de la review :
-1. **Boutons icône seuls** (sans label texte visible) dans les tables (éditer, supprimer, détail) n'ont pas d'attribut `aria-label`. Les lecteurs d'écran annoncent « bouton » sans contexte.
-2. **Dialogs** (CreateInvoice, EditContact, etc.) ne placent pas le focus sur le premier champ à l'ouverture, rendant la navigation clavier difficile.
-
-**Correctif** :
-1. Ajouter `:aria-label="t('ui.action.edit_item', { item: row.reference })"` (ou équivalent) sur les boutons icône dans les colonnes d'actions de toutes les tables PrimeVue.
-2. Utiliser `<Dialog ... :pt="{ content: { autofocus: true } }"` ou un `ref` + `nextTick` focus sur le premier champ `<InputText>` des dialogs.
 
 ---
 
@@ -305,9 +96,9 @@ Le service `invoice.py` protège actuellement la suppression applicative, mais l
 
 **Correctif** :
 1. Modifier `payment.py` : `ForeignKey("invoices.id", ondelete="CASCADE")`
-2. Créer migration Alembic `0028_payment_invoice_cascade.py` : `DROP CONSTRAINT` + `ADD CONSTRAINT` avec `ON DELETE CASCADE` (SQLite : recréer la table).
+2. Créer migration Alembic `0030_payment_invoice_cascade.py` : `DROP CONSTRAINT` + `ADD CONSTRAINT` avec `ON DELETE CASCADE` (SQLite : recréer la table).
 
-**Fichiers à modifier** : `backend/models/payment.py`, nouvelle migration `backend/alembic/versions/0028_payment_invoice_cascade.py`.
+**Fichiers à modifier** : `backend/models/payment.py`, nouvelle migration `backend/alembic/versions/0030_payment_invoice_cascade.py`.
 
 ---
 
@@ -322,7 +113,7 @@ Trois services sans aucune couverture de test :
 
 **Approche** :
 - `pdf_service` : mock WeasyPrint, tester que le HTML rendu contient les champs clés (référence, montant, contact)
-- `email_service` : mock `aiosmtplib.send`, tester les cas succès, destinataire vide, SMTP non configuré
+- `email_service` : mock `smtplib.SMTP`, tester les cas succès, BCC optionnel, SMTP non configuré
 - `bank_import` : utiliser `data/comptes.ofx` comme fixture, tester le parsing des transactions, dates, montants, solde d'ouverture
 
 **Fichiers à créer** : `tests/unit/test_pdf_service.py`, `tests/unit/test_email_service.py`, `tests/unit/test_bank_import.py`.
@@ -383,14 +174,6 @@ Remplacer toutes les occurrences inline par un appel à `getErrorDetail(error)`.
 
 **Fichier à modifier** : `frontend/src/views/CashView.vue`.
 
-### CHR-086 — Workflow CI — quality gates
-
-Workflow GitHub Actions sur push/PR vers `develop` et `main` : ruff check + format, mypy, pytest (backend) ; ESLint, vue-tsc, vitest (frontend).
-
-### CHR-087 — Workflow CI — Docker build + push GHCR
-
-Workflow GitHub Actions sur push vers `main` : build multi-stage Docker, push image sur GHCR (`ghcr.io/davidp57/solde`) avec tags `latest` + `sha-<short>`. Cache GitHub Actions activé.
-
 ---
 
 ## Lots terminés
@@ -415,8 +198,11 @@ Workflow GitHub Actions sur push vers `main` : build multi-stage Docker, push im
 | J | CI GitHub Actions | v0.5 | CHR-086, CHR-087 | 2026-04-24 |
 | K | Documentation & Swagger | v0.5 | CHR-019, CHR-082 | 2026-04-24 |
 | L | Gestion employés | v0.6 | BIZ-088 | 2026-04-25 |
+| M | Sécurité applicative | v0.6 | TEC-091, TEC-092, TEC-093 | 2026-04-25 |
+| N | UX & formulaires | v0.7 | BIZ-094, BIZ-095, BIZ-096, BIZ-097 | 2026-04-25 |
+| Q | Recette post-merge N | v0.7 | voir doc/recette.md (REC-001..REC-015) | 2026-04-26 |
 
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088.
+Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
 
 <details>
