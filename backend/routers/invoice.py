@@ -324,7 +324,9 @@ async def get_invoice_pdf(
 
     app_settings = await settings_service.get_settings(db)
     try:
-        pdf_bytes = pdf_service.generate_invoice_pdf(invoice, contact_name, app_settings)
+        pdf_bytes = pdf_service.generate_invoice_pdf(
+            invoice, contact_name, app_settings, contact.adresse if contact else None
+        )
     except Exception as exc:
         logger.exception("PDF generation failed for invoice %d", invoice_id)
         raise HTTPException(
@@ -392,7 +394,9 @@ async def send_invoice_email(
     if contact.prenom:
         contact_name = f"{contact.prenom} {contact.nom}"
 
-    pdf_bytes = pdf_service.generate_invoice_pdf(invoice, contact_name, app_settings)
+    pdf_bytes = pdf_service.generate_invoice_pdf(
+        invoice, contact_name, app_settings, contact.adresse
+    )
 
     try:
         email_service.send_invoice_email(
