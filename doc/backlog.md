@@ -37,9 +37,9 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
-| BIZ-107 | Contacts : colonne dernière facture + historique en modal centré | P2 | ~2h | 2026-04-26 | | |
-| BIZ-108 | Écran de supervision technique (état système, sauvegardes, logs applicatifs) | P2 | ~2h | 2026-04-26 | | |
-| BIZ-109 | Traçabilité des actions utilisateur (journal d'audit) | P2 | ~1h30 | 2026-04-26 | | |
+| BIZ-107 | Contacts : colonne dernière facture + historique en modal centré | P2 | ~45 min | 2026-04-26 | | |
+| BIZ-108 | Écran de supervision technique (état système, sauvegardes, logs applicatifs) | P2 | ~1h | 2026-04-26 | | |
+| BIZ-109 | Traçabilité des actions utilisateur (journal d'audit) | P2 | ~30 min | 2026-04-26 | | |
 | TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
@@ -87,9 +87,10 @@ Nouvelle route admin `/system` → `SystemView.vue` avec 3 panneaux.
 - Pas de téléchargement depuis l'UI
 
 **Panneau Logs applicatifs** :
-- Afficher le contenu récent des fichiers de log dans `data/logs/` (les N dernières lignes)
-- Endpoint `GET /api/settings/logs` (admin only) : retourne les dernières lignes du log courant
-- Filtre par niveau (INFO/WARNING/ERROR) côté frontend si les logs sont structurés
+- Les logs applicatifs sont écrits dans `data/logs/solde.log` via `RotatingFileHandler` (5 MB, 3 fichiers de rotation : `solde.log`, `solde.log.1`…)
+- Format : `YYYY-MM-DD HH:MM:SS [LEVEL] name: message`
+- Endpoint `GET /api/settings/logs?lines=200` (admin only) : lit les N dernières lignes du fichier courant, retourne une liste de lignes brutes
+- Frontend : zone scrollable avec coloration par niveau (DEBUG=gris, INFO=normal, WARNING=orange, ERROR=rouge)
 
 **Traçabilité des actions utilisateur** (`AuditLog`) : voir ticket séparé BIZ-109.
 
