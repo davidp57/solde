@@ -62,13 +62,13 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ### BIZ-113 — Créances irrécouvrables : statut + écriture comptable 654/411
 
-**Problème** : Les factures client émises mais jamais réglées (ex. 2022-0361) restent indefiniment en statut « ouverte » et polluent les tableaux de bord (encours, relances, métriques de portefeuille).
+**Problème** : Les factures client émises mais jamais réglées (ex. 2022-0361) restent indéfiniment en statut « ouverte » et polluent les tableaux de bord (encours, relances, métriques de portefeuille).
 
 **Solution** : ajouter un statut `IRRECOVERABLE` sur les factures clients.
 
 **Backend** :
 - Ajouter la valeur `IRRECOVERABLE` à l’enum `InvoiceStatus` et créer une migration Alembic.
-- Nouvel endpoint `POST /api/invoices/{id}/write-off` (admin ou tresorier) : passe la facture en `IRRECOVERABLE` et génère automatiquement l’écriture comptable de constatation de perte :
+- Nouvel endpoint `POST /api/invoices/{id}/write-off` (admin ou trésorier) : passe la facture en `IRRECOVERABLE` et génère automatiquement l'écriture comptable de constatation de perte :
   - Débit `654 Pertes sur créances irrécouvrables` / Crédit `411 Clients` (montant restant à encaisser)
   - Libellé automatique : `Créance irrécouvrable — {référence facture}`
 - La facture devient en lecture seule (plus de modification ni d’ajout de paiement).
