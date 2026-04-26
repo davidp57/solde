@@ -29,7 +29,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-111 | Import one-shot adresses postales depuis factures Word | P3 | ~1h | 2026-04-26 | | |
-| BIZ-122 | Intégrer `description` dans l'e-mail de facture | P2 | ~30 min | 2026-04-26 | | |
 
 ---
 
@@ -100,17 +99,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ---
 
-### BIZ-122 — Intégrer `description` dans l’e-mail de facture
 
-Le champ `Invoice.description` est déjà présent dans le modèle, l’API, le formulaire de création/modification et le PDF (affiché sous « Objet : »). Il ne manque que son intégration dans l’e-mail d’envoi.
-
-**Périmètre** :
-- `email_service.send_invoice_email` : ajouter un paramètre optionnel `description` et l’inclure dans l’objet du message (ex : « Facture n° 2026-0045 — cours du mois d’avril 2026 ») si non vide.
-- Routeur `send-email` : passer `invoice.description` au service.
-
-**Hors périmètre** : nouveau champ (couvert par `description`), intégration dans le corps HTML de l’e-mail (au-delà de l’objet).
-
-**Fichiers** : `backend/services/email_service.py`, `backend/routers/invoice.py`.
 ---
 
 ### BIZ-111 — Import one-shot adresses postales depuis factures Word : Les factures clients historiques sont des fichiers Word (`.docx`). L'adresse postale des clients y figure mais n'a jamais été saisie dans la base. Ce script one-shot extrait ces adresses et enrichit le champ `Contact.adresse`.
