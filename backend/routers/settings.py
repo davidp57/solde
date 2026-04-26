@@ -1,10 +1,13 @@
 """Settings API router — GET/PUT /api/settings (admin only)."""
 
 import logging
+import re
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import anyio
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,8 +18,12 @@ from backend.routers.auth import require_role
 from backend.schemas.settings import (
     AppSettingsRead,
     AppSettingsUpdate,
+    AuditLogRead,
+    BackupFileRead,
+    LogEntryRead,
     SelectiveResetPreviewRead,
     SelectiveResetRequest,
+    SystemInfoRead,
     TreasurySystemOpeningRead,
     TreasurySystemOpeningUpdate,
 )
@@ -198,3 +205,137 @@ async def create_backup(
         filename=backup_file.name,
         media_type="application/octet-stream",
     )
+
+
+# ---------------------------------------------------------------------------
+# System info (BIZ-108)
+# ---------------------------------------------------------------------------
+
+_SERVER_START_TIME: datetime = datetime.now(UTC)
+
+_LOG_LINE_RE = re.compile(
+    r"^(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})"
+    r" \[(?P<level>[A-Z]+)\]"
+    r" (?P<logger>[^:]+):"
+    r" (?P<message>.*)$"
+)
+
+
+@router.get("/system-info", response_model=SystemInfoRead)
+async def get_system_info(
+    _current_user: _AdminRequired,
+) -> SystemInfoRead:
+    """Return system information: version, DB size, uptime (admin only)."""
+    cfg = get_app_config()
+    from sqlalchemy.engine import make_url
+
+    url = make_url(cfg.database_url)
+    db_path = Path(url.database or "data/solde.db")
+    db_size = db_path.stat().st_size if db_path.exists() else 0
+
+    log_dir = Path("data/logs")
+    log_file = str(log_dir / "solde.log")
+
+    return SystemInfoRead(
+        app_version=cfg.app_version,
+        db_size_bytes=db_size,
+        started_at=_SERVER_START_TIME,
+        log_file=log_file,
+    )
+
+
+@router.get("/backups", response_model=list[BackupFileRead])
+async def list_backups(
+    _current_user: _AdminRequired,
+) -> list[BackupFileRead]:
+    """List existing backup files with name, size and creation date (admin only)."""
+    backup_dir = Path(_BACKUP_DIR)
+    if not backup_dir.exists():
+        return []
+
+    result: list[BackupFileRead] = []
+    for f in sorted(backup_dir.glob("solde_backup_*.db"), reverse=True):
+        stat = f.stat()
+        result.append(
+            BackupFileRead(
+                filename=f.name,
+                size_bytes=stat.st_size,
+                created_at=datetime.fromtimestamp(stat.st_mtime, tz=UTC),
+            )
+        )
+    return result
+
+
+@router.get("/logs", response_model=list[LogEntryRead])
+async def get_logs(
+    _current_user: _AdminRequired,
+    limit: Annotated[int, Query(ge=1, le=5000)] = 500,
+    levels: Annotated[list[str] | None, Query()] = None,
+) -> list[LogEntryRead]:
+    """Return the most recent log entries parsed from rotating log files (admin only).
+
+    Reads files in a thread to avoid blocking the async event loop.
+    Returns at most *limit* entries (default 500), most recent last.
+    If *levels* is provided, only entries matching one of those levels are returned.
+    """
+    log_dir = Path("data/logs")
+    # Current file first, then rotations in order: .1 (newest) → .2 (older) → …
+    candidates = [log_dir / "solde.log"] + sorted(log_dir.glob("solde.log.*"))
+    level_set = {lv.upper() for lv in levels} if levels else None
+
+    def _read_tail() -> list[LogEntryRead]:
+        collected: list[LogEntryRead] = []
+        for log_file in candidates:
+            if not log_file.exists():
+                continue
+            try:
+                text = log_file.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            file_entries: list[LogEntryRead] = []
+            current_entry: LogEntryRead | None = None
+            for line in text.splitlines():
+                if m := _LOG_LINE_RE.match(line):
+                    if current_entry is not None:
+                        file_entries.append(current_entry)
+                    lvl = m.group("level")
+                    if level_set and lvl not in level_set:
+                        current_entry = None
+                        continue
+                    current_entry = LogEntryRead(
+                        timestamp=m.group("ts"),
+                        level=lvl,
+                        logger=m.group("logger").strip(),
+                        message=m.group("message"),
+                    )
+                elif current_entry is not None:
+                    # Continuation line (e.g. stack trace frame): append to current message
+                    current_entry.message = f"{current_entry.message}\n{line}"
+            if current_entry is not None:
+                file_entries.append(current_entry)
+            # Prepend: older file lines go before current file lines
+            collected = file_entries + collected
+            if len(collected) >= limit:
+                break
+        return collected[-limit:]
+
+    return await anyio.to_thread.run_sync(_read_tail)
+
+
+# ---------------------------------------------------------------------------
+# Audit log (BIZ-109)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/audit-logs", response_model=list[AuditLogRead])
+async def get_audit_logs(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _AdminRequired,
+) -> list[AuditLogRead]:
+    """Return all audit log entries, most recent first (admin only)."""
+    from sqlalchemy import select
+
+    from backend.models.audit_log import AuditLog
+
+    result = await db.execute(select(AuditLog).order_by(AuditLog.created_at.desc()).limit(1000))
+    return result.scalars().all()  # type: ignore[return-value]

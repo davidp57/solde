@@ -107,6 +107,10 @@
             <small class="app-field__help">{{ t('profile.password_help') }}</small>
           </div>
 
+          <Message v-if="passwordComplexityError" severity="warn" :closable="false">
+            {{ passwordComplexityError }}
+          </Message>
+
           <Message v-if="passwordMismatch" severity="warn" :closable="false">
             {{ t('profile.password_mismatch') }}
           </Message>
@@ -203,10 +207,19 @@ const passwordMismatch = computed(() => {
     passwordForm.value.confirm_password !== passwordForm.value.new_password
   )
 })
+const passwordComplexityError = computed(() => {
+  const p = passwordForm.value.new_password
+  if (p.length === 0) return null
+  if (p.length < PASSWORD_MIN_LENGTH) return t('profile.password_too_short', { min: PASSWORD_MIN_LENGTH })
+  if (!/[A-Z]/.test(p)) return t('profile.password_no_uppercase')
+  if (!/[0-9]/.test(p)) return t('profile.password_no_digit')
+  return null
+})
 const canChangePassword = computed(() => {
   return (
     passwordForm.value.current_password.length > 0 &&
-    passwordForm.value.new_password.length >= PASSWORD_MIN_LENGTH &&
+    passwordComplexityError.value === null &&
+    passwordForm.value.new_password.length > 0 &&
     passwordForm.value.confirm_password.length > 0 &&
     !passwordMismatch.value
   )

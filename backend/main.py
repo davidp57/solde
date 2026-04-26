@@ -290,12 +290,22 @@ def create_app() -> FastAPI:
         # SPA fallback: serve the exact file if it exists (assets, favicon…),
         # otherwise return index.html so Vue Router handles client-side routing.
         # This prevents 404 on hard-refresh (Ctrl+F5) for any Vue route.
+        # index.html is never cached (no-store) so that after a Docker rebuild the
+        # browser always fetches the latest version with up-to-date chunk hashes,
+        # preventing "error loading dynamically imported module" on stale hashes.
+        # Hashed assets (/assets/*) get an immutable long-lived cache entry.
         @app.get("/{full_path:path}")
         async def serve_spa(full_path: str) -> Response:  # noqa: RUF029
             file_path = frontend_dist / full_path
-            if file_path.is_file():
-                return FileResponse(str(file_path))
-            return FileResponse(str(frontend_dist / "index.html"))
+            if file_path.is_file() and full_path != "index.html":
+                response = FileResponse(str(file_path))
+                if full_path.startswith("assets/"):
+                    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+                return response
+            # SPA route fallback or direct /index.html request — never cache
+            response = FileResponse(str(frontend_dist / "index.html"))
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            return response
 
     # --- Global exception handler: added LAST so it's outermost user middleware ---
     app.add_middleware(UnhandledExceptionMiddleware)

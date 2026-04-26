@@ -234,6 +234,9 @@
             input-class="w-full"
           />
           <small class="app-field__help">{{ t('users.password_help') }}</small>
+          <Message v-if="createPasswordComplexityError" severity="warn" :closable="false">
+            {{ createPasswordComplexityError }}
+          </Message>
         </div>
         <div class="app-field">
           <label class="app-field__label" for="user-create-role">{{ t('users.role') }}</label>
@@ -341,6 +344,9 @@
             class="w-full"
             input-class="w-full"
           />
+          <Message v-if="resetPasswordComplexityError" severity="warn" :closable="false">
+            {{ resetPasswordComplexityError }}
+          </Message>
         </div>
         <div class="app-form-actions">
           <Button
@@ -554,6 +560,16 @@ const allRoleOptions = computed(() => [
 
 const roleCards = computed(() => roleDefinitions.value)
 
+function checkPasswordComplexity(p: string): string | null {
+  if (p.length === 0) return null
+  if (p.length < PASSWORD_MIN_LENGTH) return t('users.password_too_short', { min: PASSWORD_MIN_LENGTH })
+  if (!/[A-Z]/.test(p)) return t('users.password_no_uppercase')
+  if (!/[0-9]/.test(p)) return t('users.password_no_digit')
+  return null
+}
+const createPasswordComplexityError = computed(() => checkPasswordComplexity(createForm.value.password))
+const resetPasswordComplexityError = computed(() => checkPasswordComplexity(resetPasswordForm.value.new_password))
+
 const activeCount = computed(() => users.value.filter((user) => user.is_active).length)
 const adminCount = computed(() => users.value.filter((user) => user.role === 'admin').length)
 const isEditingSelf = computed(() => editingUser.value?.id === auth.user?.id)
@@ -561,7 +577,8 @@ const canCreate = computed(() => {
   return (
     createForm.value.username.trim().length > 0 &&
     createForm.value.email.trim().length > 0 &&
-    createForm.value.password.length >= PASSWORD_MIN_LENGTH
+    createPasswordComplexityError.value === null &&
+    createForm.value.password.length > 0
   )
 })
 const canEdit = computed(() => {
@@ -582,7 +599,8 @@ const canEdit = computed(() => {
 })
 const canResetPassword = computed(() => {
   return (
-    resetPasswordForm.value.new_password.length >= PASSWORD_MIN_LENGTH &&
+    resetPasswordComplexityError.value === null &&
+    resetPasswordForm.value.new_password.length > 0 &&
     resetPasswordUser.value !== null
   )
 })

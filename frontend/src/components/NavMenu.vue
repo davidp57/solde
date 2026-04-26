@@ -58,6 +58,7 @@ const managementItems = computed<MenuItem[]>(() => {
       { to: '/bank', icon: 'pi-building-columns', label: t('nav.bank') },
       { to: '/cash', icon: 'pi-wallet', label: t('nav.cash') },
       { to: '/salaries', icon: 'pi-money-bill', label: t('nav.salaries') },
+      { to: '/employees', icon: 'pi-id-card', label: t('nav.employees') },
     )
   }
 
@@ -73,7 +74,6 @@ const accountingItems = computed<MenuItem[]>(() => {
     { to: '/accounting/balance', icon: 'pi-chart-bar', label: t('nav.accounting_balance') },
     { to: '/accounting/journal', icon: 'pi-book', label: t('nav.accounting_journal') },
     { to: '/accounting/ledger', icon: 'pi-list', label: t('nav.accounting_ledger') },
-    { to: '/employees', icon: 'pi-id-card', label: t('nav.employees') },
     { to: '/accounting/bilan', icon: 'pi-chart-line', label: t('nav.accounting_bilan') },
     { to: '/accounting/resultat', icon: 'pi-chart-pie', label: t('nav.accounting_resultat') },
     {
@@ -94,6 +94,7 @@ const administrationItems = computed<MenuItem[]>(() => {
   return [
     { to: '/users', icon: 'pi-users', label: t('nav.users') },
     { to: '/settings', icon: 'pi-cog', label: t('nav.settings') },
+    { to: '/system', icon: 'pi-server', label: t('nav.system') },
     { to: '/import/excel', icon: 'pi-file-excel', label: t('nav.import_excel') },
     { to: '/import/history', icon: 'pi-history', label: t('nav.import_history') },
   ]
