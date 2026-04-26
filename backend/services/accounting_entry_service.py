@@ -195,7 +195,8 @@ async def _enrich_journal_entries(
     invoice_source_ids = {
         entry.source_id
         for entry in entries
-        if entry.source_type == EntrySourceType.INVOICE and entry.source_id is not None
+        if entry.source_type in (EntrySourceType.INVOICE, EntrySourceType.WRITE_OFF)
+        and entry.source_id is not None
     }
     payment_source_ids = {
         entry.source_id
@@ -324,6 +325,14 @@ async def _enrich_journal_entries(
             if salary is not None:
                 source_reference = salary.month
                 source_contact_name = _contact_display_name(contacts_by_id.get(salary.employee_id))
+        elif entry.source_type == EntrySourceType.WRITE_OFF and entry.source_id is not None:
+            invoice = invoices_by_id.get(entry.source_id)
+            if invoice is not None:
+                source_reference = invoice.reference or invoice.number
+                source_contact_name = _contact_display_name(contacts_by_id.get(invoice.contact_id))
+                source_invoice_id = invoice.id
+                source_invoice_type = _enum_value(invoice.type)
+                source_invoice_number = invoice.number
         elif entry.source_type == EntrySourceType.GESTION and entry.source_id is not None:
             bank_transaction = bank_transactions_by_id.get(entry.source_id)
             if bank_transaction is not None:

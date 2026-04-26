@@ -756,9 +756,10 @@ const sourceTypeOptions = [
   { label: t('accounting.journal.sources.payment'), value: 'payment' },
   { label: t('accounting.journal.sources.deposit'), value: 'deposit' },
   { label: t('accounting.journal.sources.salary'), value: 'salary' },
-  { label: t('accounting.journal.sources.gestion'), value: 'gestion' },
+  { label: t('accounting.journal.sources.cash'), value: 'cash' },
   { label: t('accounting.journal.sources.manual'), value: 'manual' },
   { label: t('accounting.journal.sources.cloture'), value: 'cloture' },
+  { label: t('accounting.journal.sources.write_off'), value: 'write_off' },
 ]
 
 const hasRemoteFilters = computed(
