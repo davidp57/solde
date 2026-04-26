@@ -13,6 +13,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- BIZ-119 : Panneau « Actions rapides » sur le tableau de bord — 3 cartes d'accès direct (nouvelle facture client, encoder un paiement, nouvelle entrée de caisse) ; navigation vers la vue cible avec ouverture automatique du dialog de création via le paramètre `?create=1`
 - BIZ-112 : Numéro de facture affiché dans le titre du dialog de modification (factures clients et fournisseurs) — header dynamique `Modifier — F-2025-042` au lieu du libellé générique
 - BIZ-113 : Statut `IRRECOVERABLE` sur les factures clients — passage en irrécouvrable avec écriture comptable automatique 654/411 (Pertes sur créances irrécouvrables / Adhérents) et bouton de restauration du statut avec écriture de reprise 411/754
 - BIZ-113 : Comptes PCG `654000` (Pertes sur créances irrécouvrables) et `754000` (Reprises sur créances amorties) ajoutés aux comptes par défaut
