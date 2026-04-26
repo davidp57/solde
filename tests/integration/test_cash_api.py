@@ -103,7 +103,7 @@ async def test_list_entries(client: AsyncClient, admin_user: User, auth_headers:
 
 
 @pytest.mark.asyncio
-async def test_list_entries_default_limit_is_100(
+async def test_list_entries_default_limit_is_5000(
     client: AsyncClient,
     admin_user: User,
     auth_headers: dict,
@@ -126,7 +126,7 @@ async def test_list_entries_default_limit_is_100(
     response = await client.get("/api/cash/entries", headers=auth_headers)
 
     assert response.status_code == 200
-    assert len(response.json()) == 100
+    assert len(response.json()) == 101
 
 
 @pytest.mark.asyncio
@@ -279,7 +279,7 @@ async def test_list_cash_counts(client: AsyncClient, admin_user: User, auth_head
 
 
 @pytest.mark.asyncio
-async def test_list_cash_counts_default_limit_is_100(
+async def test_list_cash_counts_default_limit_is_5000(
     client: AsyncClient,
     admin_user: User,
     auth_headers: dict,
@@ -301,7 +301,7 @@ async def test_list_cash_counts_default_limit_is_100(
     response = await client.get("/api/cash/counts", headers=auth_headers)
 
     assert response.status_code == 200
-    assert len(response.json()) == 100
+    assert len(response.json()) == 101
 
 
 @pytest.mark.asyncio

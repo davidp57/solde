@@ -45,7 +45,7 @@ async def get_journal(
     source_type: EntrySourceType | None = Query(default=None),
     fiscal_year_id: int | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=1000),
+    limit: int = Query(default=5000, ge=1, le=10000),
 ) -> list[AccountingEntryRead]:
     return await accounting_entry_service.get_journal(
         db,
@@ -69,7 +69,7 @@ async def get_grouped_journal(
     source_type: EntrySourceType | None = Query(default=None),
     fiscal_year_id: int | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=1000),
+    limit: int = Query(default=5000, ge=1, le=10000),
 ) -> list[AccountingEntryGroupRead]:
     return await accounting_entry_service.get_grouped_journal(
         db,

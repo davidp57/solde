@@ -3,6 +3,20 @@ import apiClient from './client'
 export type CashMovementType = 'in' | 'out'
 export type CashEntrySource = 'manual' | 'deposit' | 'payment' | 'system_opening'
 
+export interface LinkedAccountingEntry {
+  id: number
+  account_number: string
+  label: string
+  debit: string
+  credit: string
+}
+
+export interface CashEntryConnections {
+  can_delete: boolean
+  blocking_reason: string | null
+  accounting_entries: LinkedAccountingEntry[]
+}
+
 export interface CashEntry {
   id: number
   date: string
@@ -116,6 +130,15 @@ export async function getCashEntry(id: number): Promise<CashEntry> {
 
 export async function updateCashEntry(id: number, payload: CashEntryUpdate): Promise<CashEntry> {
   const response = await apiClient.put<CashEntry>(`/api/cash/entries/${id}`, payload)
+  return response.data
+}
+
+export async function deleteCashEntry(id: number): Promise<void> {
+  await apiClient.delete(`/api/cash/entries/${id}`)
+}
+
+export async function getCashEntryConnections(id: number): Promise<CashEntryConnections> {
+  const response = await apiClient.get<CashEntryConnections>(`/api/cash/entries/${id}/connections`)
   return response.data
 }
 

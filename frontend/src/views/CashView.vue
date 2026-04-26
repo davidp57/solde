@@ -226,6 +226,15 @@
                       text
                       @click="openEditDialog(data)"
                     />
+                    <Button
+                      v-if="data.source === 'manual' && !data.payment_id"
+                      data-testid="cash-delete-button"
+                      icon="pi pi-trash"
+                      size="small"
+                      severity="danger"
+                      text
+                      @click="confirmDeleteEntry(data)"
+                    />
                   </div>
                 </template>
               </Column>
@@ -510,12 +519,14 @@
         </div>
       </form>
     </Dialog>
+    <ConfirmDialog />
   </AppPage>
 </template>
 
 <script setup lang="ts">
 import Button from 'primevue/button'
 import Column from 'primevue/column'
+import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import DatePicker from 'primevue/datepicker'
 import Dialog from 'primevue/dialog'
@@ -530,6 +541,7 @@ import Tabs from 'primevue/tabs'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
+import { useConfirm } from 'primevue/useconfirm'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TrendLineChart, {
@@ -546,8 +558,10 @@ import { useFiscalYearStore } from '../stores/fiscalYear'
 import {
   addCashCount,
   addCashEntry,
+  deleteCashEntry,
   getCashEntry,
   getCashBalance,
+  getCashEntryConnections,
   getCashFundsChart,
   listCashCounts,
   listCashEntries,
@@ -568,6 +582,7 @@ import {
 
 const { t } = useI18n()
 const toast = useToast()
+const confirm = useConfirm()
 const fiscalYearStore = useFiscalYearStore()
 
 const balance = ref('0')
@@ -870,6 +885,45 @@ function openEditDialog(entry: CashEntry) {
     description: entry.description,
   }
   entryDialogVisible.value = true
+}
+
+async function confirmDeleteEntry(entry: CashEntry) {
+  let connections
+  try {
+    connections = await getCashEntryConnections(entry.id)
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+    return
+  }
+  if (!connections.can_delete) {
+    const key =
+      connections.blocking_reason === 'has_payment'
+        ? 'cash.delete_blocked_payment'
+        : 'cash.delete_blocked_source'
+    toast.add({ severity: 'warn', summary: t(key), life: 5000 })
+    return
+  }
+  const message =
+    connections.accounting_entries.length > 0
+      ? t('cash.confirm_delete_with_entries', { count: connections.accounting_entries.length })
+      : t('cash.confirm_delete_entry', { amount: parseFloat(entry.amount) })
+  confirm.require({
+    message,
+    header: t('common.delete'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: () => doDeleteEntry(entry),
+  })
+}
+
+async function doDeleteEntry(entry: CashEntry) {
+  try {
+    await deleteCashEntry(entry.id)
+    entries.value = entries.value.filter((e) => e.id !== entry.id)
+    toast.add({ severity: 'success', summary: t('cash.entry_deleted'), life: 3000 })
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  }
 }
 
 async function loadAll() {

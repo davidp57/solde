@@ -60,6 +60,26 @@ class CashEntryRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class LinkedAccountingEntry(BaseModel):
+    """Minimal accounting entry info returned in cash connection checks."""
+
+    id: int
+    account_number: str
+    label: str
+    debit: _Decimal
+    credit: _Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class CashEntryConnectionsRead(BaseModel):
+    """Result of checking what is connected to a cash entry before deletion."""
+
+    can_delete: bool
+    blocking_reason: str | None = None
+    accounting_entries: list[LinkedAccountingEntry] = []
+
+
 class CashCountCreate(BaseModel):
     date: _Date
     count_100: int = 0
