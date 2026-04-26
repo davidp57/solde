@@ -13,6 +13,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- BIZ-111 : Script one-shot `scripts/import_addresses_from_docx.py` — extrait les adresses postales depuis les factures Word historiques (`.docx`) et enrichit `Contact.adresse` ; dry-run par défaut, `--commit` pour appliquer, `--verbose` pour le détail extraction par fichier
 - TEC-106 : Audit i18n complet — 2 clés manquantes identifiées et ajoutées dans `fr.ts` : `common.active` ('Actif') et `common.inactive` ('Inactif'), utilisées dans la vue Employés
 - BIZ-122 : Intégration du champ `description` de la facture dans l'objet de l'e-mail d'envoi — si renseigné, le sujet devient `Facture {numéro} — {description}` au lieu de `Facture {numéro} — {association}`
 - BIZ-122 : `tests/unit/test_email_service.py` — test `test_send_invoice_email_subject_with_description` ajouté
