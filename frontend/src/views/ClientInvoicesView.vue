@@ -94,7 +94,7 @@
               severity="secondary"
               text
               :title="t('common.reset_filters')"
-              @click="resetFilters"
+              @click="resetAllFilters"
             />
           </div>
         </div>
@@ -114,7 +114,7 @@
           </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="globalFilter" :placeholder="t('common.filter_placeholder')" />
+            <InputText v-model="globalFilterInput" :placeholder="t('common.filter_placeholder')" />
           </div>
         </div>
       </div>
@@ -547,7 +547,7 @@ import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, nextTick, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -585,6 +585,11 @@ import {
   collectActiveFilterLabels,
   findSelectedFilterLabel,
 } from '../composables/activeFilterLabels'
+import {
+  useInvoiceMetrics,
+  remainingForInvoice,
+  isOverdueInvoice,
+} from '../composables/useInvoiceMetrics'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatContactDisplayName } from '../utils/contact'
 import { formatDisplayDate } from '@/utils/format'
@@ -666,6 +671,25 @@ const {
   total_amount_value: numericRangeFilter(),
   status: inFilter(),
 })
+
+// Debounced input: avoids filtering on every keystroke
+const globalFilterInput = ref(globalFilter.value)
+let _filterDebounce: ReturnType<typeof setTimeout> | null = null
+watch(globalFilterInput, (val) => {
+  if (_filterDebounce) clearTimeout(_filterDebounce)
+  _filterDebounce = setTimeout(() => {
+    globalFilter.value = val
+  }, 300)
+})
+onUnmounted(() => {
+  if (_filterDebounce) clearTimeout(_filterDebounce)
+})
+
+function resetAllFilters(): void {
+  globalFilterInput.value = ''
+  globalFilter.value = ''
+  resetFilters()
+}
 const { filters: historyTableFilters } = useDataTableFilters(historyPaymentRows, {
   global: textFilter(''),
   date: dateRangeFilter(),
@@ -686,51 +710,7 @@ const paymentRemaining = computed(() => {
 
 const selectedFiscalYearLabel = computed(() => fiscalYearStore.selectedFiscalYear?.name ?? null)
 
-const receivableMetrics = computed(() => {
-  const openReceivables = allClientInvoices.value.filter(isOpenReceivableInvoice)
-  const fiscalYear = fiscalYearStore.selectedFiscalYear
-  const exerciseReceivables = fiscalYear
-    ? openReceivables.filter(
-        (invoice) => invoice.date >= fiscalYear.start_date && invoice.date <= fiscalYear.end_date,
-      )
-    : openReceivables
-  const historicalReceivables = fiscalYear
-    ? openReceivables.filter((invoice) => invoice.date < fiscalYear.start_date)
-    : []
-
-  return {
-    exerciseAmount: exerciseReceivables.reduce((sum, invoice) => sum + remainingForInvoice(invoice), 0),
-    exerciseCount: exerciseReceivables.length,
-    totalAmount: openReceivables.reduce((sum, invoice) => sum + remainingForInvoice(invoice), 0),
-    totalCount: openReceivables.length,
-    historicalAmount: historicalReceivables.reduce(
-      (sum, invoice) => sum + remainingForInvoice(invoice),
-      0,
-    ),
-    historicalCount: historicalReceivables.length,
-  }
-})
-
-const portfolioMetrics = computed(() => {
-  const visible = displayedInvoices.value
-  const totalAmount = visible.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0)
-  const paidAmount = visible.reduce((sum, invoice) => sum + parseFloat(invoice.paid_amount), 0)
-  const overdueInvoices = visible.filter(isOverdueInvoice)
-  const overdueAmount = overdueInvoices.reduce((sum, invoice) => {
-    return sum + remainingForInvoice(invoice)
-  }, 0)
-  const partialCount = visible.filter((invoice) => invoice.status === 'partial').length
-
-  return {
-    visibleCount: visible.length,
-    totalAmount,
-    paidAmount,
-    overdueAmount,
-    overdueCount: overdueInvoices.length,
-    partialCount,
-    averageAmount: visible.length > 0 ? totalAmount / visible.length : 0,
-  }
-})
+const { receivableMetrics, portfolioMetrics } = useInvoiceMetrics(allClientInvoices, displayedInvoices)
 
 const activeFilterLabels = computed(() =>
   collectActiveFilterLabels(
@@ -769,23 +749,6 @@ function formatAmount(val: string | number) {
 function toIsoDate(value: Date | string): string {
   if (typeof value === 'string') return value
   return value.toISOString().slice(0, 10)
-}
-
-function remainingForInvoice(invoice: Invoice): number {
-  return Math.max(0, parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount))
-}
-
-function isOpenReceivableInvoice(invoice: Invoice): boolean {
-  return invoice.status !== 'draft' && remainingForInvoice(invoice) > 0
-}
-
-function isOverdueInvoice(invoice: Invoice): boolean {
-  return Boolean(
-    invoice.status !== 'draft' &&
-      invoice.due_date &&
-      remainingForInvoice(invoice) > 0 &&
-      invoice.due_date < new Date().toISOString().slice(0, 10),
-  )
 }
 
 function canRecordPayment(invoice: Invoice | null): boolean {

@@ -26,7 +26,9 @@ class Payment(Base):
     __tablename__ = "payments"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    invoice_id: Mapped[int] = mapped_column(ForeignKey("invoices.id"), nullable=False, index=True)
+    invoice_id: Mapped[int] = mapped_column(
+        ForeignKey("invoices.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     contact_id: Mapped[int] = mapped_column(ForeignKey("contacts.id"), nullable=False, index=True)
     amount: Mapped[_Decimal] = mapped_column(DecimalType(10, 2), nullable=False)
     date: Mapped[_Date] = mapped_column(Date, nullable=False, index=True)

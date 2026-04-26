@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import String, cast, func, literal_column, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -57,6 +57,22 @@ def _runtime_group_key(entry: AccountingEntry) -> str:
     )
 
 
+def _effective_gk_expr() -> ColumnElement[str]:
+    """SQL expression mirroring _runtime_group_key priority:
+
+    1. group_key if stored, else
+    2. source_type || ':' || source_id (NULL when either column is NULL), else
+    3. 'entry:' || id.
+    """
+    return func.coalesce(
+        AccountingEntry.group_key,
+        AccountingEntry.source_type.op("||")(
+            literal_column("':'").op("||")(cast(AccountingEntry.source_id, String))
+        ),
+        literal_column("'entry:'").op("||")(cast(AccountingEntry.id, String)),
+    )
+
+
 def _ordered_unique(values: Iterable[str]) -> list[str]:
     return list(dict.fromkeys(values))
 
@@ -81,7 +97,7 @@ async def _query_journal_entries(
     source_type: EntrySourceType | None = None,
     fiscal_year_id: int | None = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int | None = 100,
 ) -> list[AccountingEntry]:
     query = select(AccountingEntry)
     if from_date:
@@ -96,9 +112,57 @@ async def _query_journal_entries(
         query = query.where(AccountingEntry.fiscal_year_id == fiscal_year_id)
     query = query.order_by(AccountingEntry.date.asc(), AccountingEntry.id.asc())
     query = query.offset(skip)
-    query = query.limit(limit)
+    if limit is not None:
+        query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def _query_group_keys_paged(
+    db: AsyncSession,
+    *,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    account_number: str | None = None,
+    source_type: EntrySourceType | None = None,
+    fiscal_year_id: int | None = None,
+    skip: int = 0,
+    limit: int = 100,
+) -> list[str]:
+    """Return a paginated list of effective group keys matching the filter.
+
+    The effective group key mirrors _runtime_group_key: group_key, then
+    source_type:source_id, then entry:<id>.  Ordered by (MIN(date), MIN(id))
+    so pagination is stable and chronological.
+    """
+    effective_gk = _effective_gk_expr().label("effective_gk")
+
+    query = select(
+        effective_gk,
+        func.min(AccountingEntry.date).label("min_date"),
+        func.min(AccountingEntry.id).label("min_id"),
+    )
+    if from_date:
+        query = query.where(AccountingEntry.date >= from_date)
+    if to_date:
+        query = query.where(AccountingEntry.date <= to_date)
+    if account_number:
+        query = query.where(AccountingEntry.account_number == account_number)
+    if source_type:
+        query = query.where(AccountingEntry.source_type == source_type)
+    if fiscal_year_id:
+        query = query.where(AccountingEntry.fiscal_year_id == fiscal_year_id)
+    query = (
+        query.group_by(effective_gk)
+        .order_by(
+            func.min(AccountingEntry.date).asc(),
+            func.min(AccountingEntry.id).asc(),
+        )
+        .offset(skip)
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    return [row.effective_gk for row in result.all()]
 
 
 async def _load_account_labels(
@@ -307,64 +371,6 @@ async def _enrich_journal_entries(
     return journal_entries
 
 
-async def _load_entries_for_groups(
-    db: AsyncSession,
-    matched_entries: list[AccountingEntry],
-) -> list[AccountingEntry]:
-    if not matched_entries:
-        return []
-
-    group_keys = sorted(
-        {entry.group_key for entry in matched_entries if entry.group_key is not None}
-    )
-    source_groups = sorted(
-        {
-            (entry.source_type, entry.source_id)
-            for entry in matched_entries
-            if entry.group_key is None
-            and entry.source_type is not None
-            and entry.source_id is not None
-        },
-        key=lambda item: (str(item[0]), item[1]),
-    )
-    entry_ids = sorted(
-        {
-            entry.id
-            for entry in matched_entries
-            if entry.group_key is None and (entry.source_type is None or entry.source_id is None)
-        }
-    )
-
-    conditions: list[ColumnElement[bool]] = []
-    if group_keys:
-        conditions.append(AccountingEntry.group_key.in_(group_keys))
-    if source_groups:
-        conditions.append(
-            or_(
-                *[
-                    and_(
-                        AccountingEntry.source_type == source_type,
-                        AccountingEntry.source_id == source_id,
-                    )
-                    for source_type, source_id in source_groups
-                ]
-            )
-        )
-    if entry_ids:
-        conditions.append(AccountingEntry.id.in_(entry_ids))
-
-    if not conditions:
-        return matched_entries
-
-    query = (
-        select(AccountingEntry)
-        .where(or_(*conditions))
-        .order_by(AccountingEntry.date.asc(), AccountingEntry.id.asc())
-    )
-    result = await db.execute(query)
-    return list(result.scalars().all())
-
-
 async def get_journal(
     db: AsyncSession,
     *,
@@ -374,7 +380,7 @@ async def get_journal(
     source_type: EntrySourceType | None = None,
     fiscal_year_id: int | None = None,
     skip: int = 0,
-    limit: int = 100,
+    limit: int | None = 100,
 ) -> list[AccountingEntryRead]:
     entries = await _query_journal_entries(
         db,
@@ -400,27 +406,39 @@ async def get_grouped_journal(
     skip: int = 0,
     limit: int = 100,
 ) -> list[AccountingEntryGroupRead]:
-    matched_entries = await _query_journal_entries(
+    # Step 1: paginate at the group level using SQL — avoid loading all entries.
+    group_keys = await _query_group_keys_paged(
         db,
         from_date=from_date,
         to_date=to_date,
         account_number=account_number,
         source_type=source_type,
         fiscal_year_id=fiscal_year_id,
-        limit=100_000,
+        skip=skip,
+        limit=limit,
     )
-    if not matched_entries:
+    if not group_keys:
         return []
 
-    matched_group_keys = _ordered_unique(_runtime_group_key(entry) for entry in matched_entries)
-    group_entries = await _load_entries_for_groups(db, matched_entries)
+    # Step 2: load all entries belonging to those groups (all sibling lines).
+    # Use the same effective_gk expression so entries whose group key is derived
+    # from source_type:source_id (rather than a stored group_key) are also found.
+    entries_q = (
+        select(AccountingEntry)
+        .where(_effective_gk_expr().in_(group_keys))
+        .order_by(AccountingEntry.date.asc(), AccountingEntry.id.asc())
+    )
+    result = await db.execute(entries_q)
+    group_entries = list(result.scalars().all())
+
+    # Step 3: enrich and assemble groups in the SQL-paginated order.
     journal_lines = await _enrich_journal_entries(db, group_entries)
     lines_by_group: dict[str, list[AccountingEntryRead]] = {}
     for line in journal_lines:
         lines_by_group.setdefault(line.group_key, []).append(line)
 
     groups: list[AccountingEntryGroupRead] = []
-    for group_key in matched_group_keys:
+    for group_key in group_keys:
         lines = lines_by_group.get(group_key, [])
         if not lines:
             continue
@@ -448,9 +466,6 @@ async def get_grouped_journal(
             )
         )
 
-    if skip:
-        groups = groups[skip:]
-    groups = groups[:limit]
     return groups
 
 
@@ -466,44 +481,42 @@ async def get_balance(
     to_date: date | None = None,
     fiscal_year_id: int | None = None,
 ) -> list[BalanceRow]:
-    """Return balance grouped by account number."""
-    entries = await _query_journal_entries(
-        db,
-        from_date=from_date,
-        to_date=to_date,
-        fiscal_year_id=fiscal_year_id,
-        limit=100_000,
+    """Return balance grouped by account number using SQL aggregation."""
+    query = select(
+        AccountingEntry.account_number,
+        func.sum(AccountingEntry.debit).label("total_debit"),
+        func.sum(AccountingEntry.credit).label("total_credit"),
     )
+    if from_date:
+        query = query.where(AccountingEntry.date >= from_date)
+    if to_date:
+        query = query.where(AccountingEntry.date <= to_date)
+    if fiscal_year_id:
+        query = query.where(AccountingEntry.fiscal_year_id == fiscal_year_id)
+    query = query.group_by(AccountingEntry.account_number).order_by(AccountingEntry.account_number)
+    agg_result = await db.execute(query)
+    agg_rows = agg_result.all()
 
-    # Aggregate per account
-    totals: dict[str, dict[str, Decimal]] = {}
-    for e in entries:
-        acct = e.account_number
-        if acct not in totals:
-            totals[acct] = {"debit": Decimal("0"), "credit": Decimal("0")}
-        totals[acct]["debit"] += e.debit
-        totals[acct]["credit"] += e.credit
+    if not agg_rows:
+        return []
 
-    # Look up account labels
-    account_map: dict[str, AccountingAccount] = {}
-    if totals:
-        numbers = list(totals.keys())
-        result = await db.execute(
-            select(AccountingAccount).where(AccountingAccount.number.in_(numbers))
-        )
-        for account in result.scalars().all():
-            account_map[account.number] = account
+    # Look up account labels and types in one query
+    account_numbers = [row.account_number for row in agg_rows]
+    acct_result = await db.execute(
+        select(AccountingAccount).where(AccountingAccount.number.in_(account_numbers))
+    )
+    account_map = {a.number: a for a in acct_result.scalars().all()}
 
     rows: list[BalanceRow] = []
-    for number, sums in sorted(totals.items()):
-        acct_obj = account_map.get(number)
-        label = acct_obj.label if acct_obj else number
-        acct_type = acct_obj.type if acct_obj else "actif"
-        debit = sums["debit"]
-        credit = sums["credit"]
+    for row in agg_rows:
+        acct_obj = account_map.get(row.account_number)
+        label = acct_obj.label if acct_obj else row.account_number
+        acct_type = acct_obj.type if acct_obj else AccountType.ACTIF
+        debit = Decimal(str(row.total_debit))
+        credit = Decimal(str(row.total_credit))
         rows.append(
             BalanceRow(
-                account_number=number,
+                account_number=row.account_number,
                 account_label=label,
                 account_type=acct_type,
                 total_debit=debit,
@@ -549,7 +562,7 @@ async def get_ledger(
         from_date=from_date,
         to_date=to_date,
         fiscal_year_id=fiscal_year_id,
-        limit=100_000,
+        limit=None,
     )
 
     # Account label
@@ -593,88 +606,87 @@ async def get_ledger(
 async def _compute_resultat(
     db: AsyncSession, fiscal_year_id: int | None
 ) -> tuple[Decimal, Decimal]:
-    """Return (total_charges, total_produits) for the given fiscal year."""
-    entries = await _query_journal_entries(db, fiscal_year_id=fiscal_year_id, limit=100_000)
-
-    # Get charge and produit account numbers
-    result = await db.execute(
-        select(AccountingAccount).where(
-            AccountingAccount.type.in_([AccountType.CHARGE, AccountType.PRODUIT])
+    """Return (total_charges, total_produits) for the given fiscal year using SQL aggregation."""
+    query = (
+        select(
+            AccountingAccount.type,
+            func.sum(AccountingEntry.debit).label("total_debit"),
+            func.sum(AccountingEntry.credit).label("total_credit"),
         )
+        .join(AccountingAccount, AccountingEntry.account_number == AccountingAccount.number)
+        .where(AccountingAccount.type.in_([AccountType.CHARGE, AccountType.PRODUIT]))
     )
-    acct_map: dict[str, AccountingAccount] = {a.number: a for a in result.scalars().all()}
+    if fiscal_year_id is not None:
+        query = query.where(AccountingEntry.fiscal_year_id == fiscal_year_id)
+    query = query.group_by(AccountingAccount.type)
+    result = await db.execute(query)
 
-    charges: dict[str, Decimal] = {}
-    produits: dict[str, Decimal] = {}
-
-    for e in entries:
-        acct = acct_map.get(e.account_number)
-        if acct is None:
-            continue
-        if acct.type == AccountType.CHARGE:
-            charges[e.account_number] = (
-                charges.get(e.account_number, Decimal("0")) + e.debit - e.credit
-            )
-        elif acct.type == AccountType.PRODUIT:
-            produits[e.account_number] = (
-                produits.get(e.account_number, Decimal("0")) + e.credit - e.debit
-            )
-
-    return sum(charges.values(), Decimal("0")), sum(produits.values(), Decimal("0"))
+    total_c = Decimal("0")
+    total_p = Decimal("0")
+    for row in result.all():
+        debit = Decimal(str(row.total_debit))
+        credit = Decimal(str(row.total_credit))
+        if row.type == AccountType.CHARGE:
+            total_c = debit - credit
+        elif row.type == AccountType.PRODUIT:
+            total_p = credit - debit
+    return total_c, total_p
 
 
 async def get_resultat(db: AsyncSession, fiscal_year_id: int | None = None) -> ResultatRead:
-    """Build the compte de résultat for a given fiscal year."""
-    entries = await _query_journal_entries(db, fiscal_year_id=fiscal_year_id, limit=100_000)
-
-    result = await db.execute(
-        select(AccountingAccount).where(
-            AccountingAccount.type.in_([AccountType.CHARGE, AccountType.PRODUIT])
+    """Build the compte de résultat for a given fiscal year using SQL aggregation."""
+    query = (
+        select(
+            AccountingEntry.account_number,
+            AccountingAccount.label,
+            AccountingAccount.type,
+            func.sum(AccountingEntry.debit).label("total_debit"),
+            func.sum(AccountingEntry.credit).label("total_credit"),
         )
+        .join(AccountingAccount, AccountingEntry.account_number == AccountingAccount.number)
+        .where(AccountingAccount.type.in_([AccountType.CHARGE, AccountType.PRODUIT]))
     )
-    acct_map: dict[str, AccountingAccount] = {a.number: a for a in result.scalars().all()}
+    if fiscal_year_id is not None:
+        query = query.where(AccountingEntry.fiscal_year_id == fiscal_year_id)
+    query = query.group_by(
+        AccountingEntry.account_number,
+        AccountingAccount.label,
+        AccountingAccount.type,
+    ).order_by(AccountingEntry.account_number)
+    result = await db.execute(query)
 
-    charge_totals: dict[str, Decimal] = {}
-    produit_totals: dict[str, Decimal] = {}
-
-    for e in entries:
-        acct = acct_map.get(e.account_number)
-        if acct is None:
-            continue
-        if acct.type == AccountType.CHARGE:
-            charge_totals[e.account_number] = (
-                charge_totals.get(e.account_number, Decimal("0")) + e.debit - e.credit
+    charges_rows: list[BalanceRow] = []
+    produits_rows: list[BalanceRow] = []
+    for row in result.all():
+        debit = Decimal(str(row.total_debit))
+        credit = Decimal(str(row.total_credit))
+        if row.type == AccountType.CHARGE:
+            tot = debit - credit
+            charges_rows.append(
+                BalanceRow(
+                    account_number=row.account_number,
+                    account_label=row.label,
+                    account_type="charge",
+                    total_debit=tot,
+                    total_credit=Decimal("0"),
+                    solde=tot,
+                )
             )
-        elif acct.type == AccountType.PRODUIT:
-            produit_totals[e.account_number] = (
-                produit_totals.get(e.account_number, Decimal("0")) + e.credit - e.debit
+        elif row.type == AccountType.PRODUIT:
+            tot = credit - debit
+            produits_rows.append(
+                BalanceRow(
+                    account_number=row.account_number,
+                    account_label=row.label,
+                    account_type="produit",
+                    total_debit=Decimal("0"),
+                    total_credit=tot,
+                    solde=tot,
+                )
             )
 
-    charges_rows = [
-        BalanceRow(
-            account_number=num,
-            account_label=acct_map[num].label if num in acct_map else num,
-            account_type="charge",
-            total_debit=tot,
-            total_credit=Decimal("0"),
-            solde=tot,
-        )
-        for num, tot in sorted(charge_totals.items())
-    ]
-    produits_rows = [
-        BalanceRow(
-            account_number=num,
-            account_label=acct_map[num].label if num in acct_map else num,
-            account_type="produit",
-            total_debit=Decimal("0"),
-            total_credit=tot,
-            solde=tot,
-        )
-        for num, tot in sorted(produit_totals.items())
-    ]
-
-    total_c = sum(charge_totals.values(), Decimal("0"))
-    total_p = sum(produit_totals.values(), Decimal("0"))
+    total_c = sum((r.solde for r in charges_rows), Decimal("0"))
+    total_p = sum((r.solde for r in produits_rows), Decimal("0"))
 
     return ResultatRead(
         total_charges=total_c,

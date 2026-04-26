@@ -484,7 +484,7 @@
               <div class="app-field">
                 <label class="app-field__label">{{ denom.label }}</label>
                 <InputNumber
-                  v-model="(countForm as unknown as Record<string, number>)[denom.field]"
+                  v-model="countForm[denom.field]"
                   :min="0"
                 />
               </div>
@@ -726,7 +726,22 @@ function resetActiveFilters() {
   resetCountFilters()
 }
 
-const denominations = [
+type CashDenomField =
+  | 'count_100'
+  | 'count_50'
+  | 'count_20'
+  | 'count_10'
+  | 'count_5'
+  | 'count_2'
+  | 'count_1'
+  | 'count_cents_50'
+  | 'count_cents_20'
+  | 'count_cents_10'
+  | 'count_cents_5'
+  | 'count_cents_2'
+  | 'count_cents_1'
+
+const denominations: Array<{ field: CashDenomField; label: string }> = [
   { field: 'count_100', label: '100 €' },
   { field: 'count_50', label: '50 €' },
   { field: 'count_20', label: '20 €' },
@@ -743,7 +758,7 @@ const denominations = [
 ]
 
 interface CashEntryFormState {
-  date: Date
+  date: Date | string
   type: 'in' | 'out'
   amount: number
   reference: string
@@ -888,7 +903,7 @@ async function submitEntry() {
   try {
     if (editingEntry.value) {
       await updateCashEntry(editingEntry.value.id, {
-        date: toIsoDate(entryForm.value.date as unknown as Date),
+        date: toIsoDate(entryForm.value.date),
         type: entryForm.value.type,
         amount: String(entryForm.value.amount),
         reference: normalizeOptionalField(entryForm.value.reference),
@@ -897,7 +912,7 @@ async function submitEntry() {
       toast.add({ severity: 'success', summary: t('cash.entry_updated'), life: 3000 })
     } else {
       await addCashEntry({
-        date: toIsoDate(entryForm.value.date as unknown as Date),
+        date: toIsoDate(entryForm.value.date),
         type: entryForm.value.type,
         amount: String(entryForm.value.amount),
         reference: normalizeOptionalField(entryForm.value.reference),
