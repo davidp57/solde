@@ -168,6 +168,11 @@ async def _next_number(db: AsyncSession, invoice_type: InvoiceType, year: int) -
     return filled.replace("{seq}", f"{seq:0{digits}d}")
 
 
+async def peek_next_client_number(db: AsyncSession) -> str:
+    """Preview the next client invoice number without creating anything."""
+    return await _next_number(db, InvoiceType.CLIENT, date.today().year)
+
+
 async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
     """Create an invoice with auto-generated number and computed total."""
     year = payload.date.year

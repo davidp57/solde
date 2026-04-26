@@ -30,7 +30,7 @@
           <i class="pi pi-check-circle" />
         </div>
         <p class="qiw-result__title">{{ t('dashboard.invoice_wizard.success_title') }}</p>
-        <p class="qiw-result__msg">{{ t('dashboard.invoice_wizard.success_msg') }}</p>
+        <p class="qiw-result__msg">{{ t('dashboard.invoice_wizard.success_msg', { number: savedInvoiceNumber }) }}</p>
         <div class="qiw-result__actions">
           <Button
             :label="t('dashboard.invoice_wizard.create_another')"
@@ -52,6 +52,7 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import ClientInvoiceForm from './ClientInvoiceForm.vue'
 import { listContactsApi, type Contact } from '../api/contacts'
+import type { Invoice } from '../api/invoices'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (e: 'update:visible', v: boolean): void }>()
@@ -63,12 +64,15 @@ const step = ref<1 | 2>(1)
 const loadingContacts = ref(false)
 const contacts = ref<Contact[]>([])
 const formKey = ref(0)
+const savedInvoiceNumber = ref<string | null>(null)
 
 // ── data loading ───────────────────────────────────────────────────────────
 async function loadContacts() {
   loadingContacts.value = true
   try {
-    contacts.value = await listContactsApi({ active_only: false })
+    contacts.value = (await listContactsApi({ active_only: false })).filter(
+      (c) => c.type === 'client' || c.type === 'les_deux',
+    )
   } catch {
     contacts.value = []
   } finally {
@@ -89,7 +93,8 @@ watch(
 )
 
 // ── actions ────────────────────────────────────────────────────────────────
-function onSaved() {
+function onSaved(invoice: Invoice) {
+  savedInvoiceNumber.value = invoice.number
   step.value = 2
 }
 

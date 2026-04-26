@@ -912,7 +912,8 @@ function openInvoiceFromQuery() {
 }
 
 async function loadContacts() {
-  contacts.value = await listContactsApi()
+  const all = await listContactsApi()
+  contacts.value = all.filter((c) => c.type === 'client' || c.type === 'les_deux')
 }
 
 function openCreateDialog() {
@@ -925,7 +926,7 @@ function openEditDialog(invoice: Invoice) {
   dialogVisible.value = true
 }
 
-function onSaved() {
+function onSaved(_invoice: import('../api/invoices').Invoice) {
   dialogVisible.value = false
   void refreshInvoicesData()
 }

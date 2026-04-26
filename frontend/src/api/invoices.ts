@@ -107,6 +107,11 @@ export async function createInvoiceApi(data: InvoiceCreate): Promise<Invoice> {
   return response.data
 }
 
+export async function getNextClientInvoiceNumberApi(): Promise<string> {
+  const response = await apiClient.get<{ number: string }>('/api/invoices/next_number')
+  return response.data.number
+}
+
 export async function updateInvoiceApi(id: number, data: InvoiceUpdate): Promise<Invoice> {
   const response = await apiClient.put<Invoice>(`/api/invoices/${id}`, data)
   return response.data
