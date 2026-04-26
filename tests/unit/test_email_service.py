@@ -117,7 +117,7 @@ def test_send_invoice_email_without_bcc() -> None:
 
 
 def test_send_invoice_email_message_subject() -> None:
-    """Subject line must contain the invoice number and association name."""
+    """Without description, subject contains invoice number and association name."""
     sent_messages: list = []
 
     class _FakeSMTP:
@@ -146,6 +146,39 @@ def test_send_invoice_email_message_subject() -> None:
     subject = sent_messages[0]["Subject"]
     assert "2024-001" in subject
     assert "Association Test" in subject
+
+
+def test_send_invoice_email_subject_with_description() -> None:
+    """With description, subject contains invoice number and description (not association name)."""
+    sent_messages: list = []
+
+    class _FakeSMTP:
+        def __enter__(self) -> _FakeSMTP:
+            return self
+
+        def __exit__(self, *args: object) -> bool:
+            return False
+
+        def ehlo(self) -> None:
+            pass
+
+        def starttls(self, **kwargs: object) -> None:
+            pass
+
+        def login(self, user: str, password: str) -> None:
+            pass
+
+        def send_message(self, msg: object) -> None:
+            sent_messages.append(msg)
+
+    with patch("smtplib.SMTP", return_value=_FakeSMTP()):
+        send_invoice_email(**{**_COMMON_KWARGS, "description": "cours du mois d'avril 2026"})
+
+    assert sent_messages
+    subject = sent_messages[0]["Subject"]
+    assert "2024-001" in subject
+    assert "cours du mois d'avril 2026" in subject
+    assert "Association Test" not in subject
 
 
 # ---------------------------------------------------------------------------
