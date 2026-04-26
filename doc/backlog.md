@@ -38,7 +38,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
 | BIZ-107 | Contacts : colonne dernière facture + historique en modal centré | P2 | ~45 min | 2026-04-26 | | |
-| BIZ-108 | Écran de supervision technique (état système, sauvegardes, logs applicatifs) | P2 | ~1h | 2026-04-26 | | |
+| BIZ-108 | Écran de supervision technique (état système, sauvegardes, logs applicatifs) | P2 | ~1h30 | 2026-04-26 | | |
 | BIZ-109 | Traçabilité des actions utilisateur (journal d'audit) | P2 | ~30 min | 2026-04-26 | | |
 | TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
@@ -88,9 +88,14 @@ Nouvelle route admin `/system` → `SystemView.vue` avec 3 panneaux.
 
 **Panneau Logs applicatifs** :
 - Les logs applicatifs sont écrits dans `data/logs/solde.log` via `RotatingFileHandler` (5 MB, 3 fichiers de rotation : `solde.log`, `solde.log.1`…)
-- Format : `YYYY-MM-DD HH:MM:SS [LEVEL] name: message`
-- Endpoint `GET /api/settings/logs?lines=200` (admin only) : lit les N dernières lignes du fichier courant, retourne une liste de lignes brutes
-- Frontend : zone scrollable avec coloration par niveau (DEBUG=gris, INFO=normal, WARNING=orange, ERROR=rouge)
+- Format de chaque ligne : `YYYY-MM-DD HH:MM:SS [LEVEL] name: message`
+- Endpoint `GET /api/settings/logs` (admin only) : lit et concatène **tous** les fichiers de rotation dans l'ordre chronologique, parse chaque ligne en `{timestamp, level, logger, message}`, retourne la liste complète
+- Frontend :
+  - Zone scrollable avec coloration par niveau (DEBUG=gris, INFO=blanc, WARNING=orange, ERROR=rouge)
+  - Filtre par niveau (multi-select : DEBUG / INFO / WARNING / ERROR)
+  - Filtre par date/heure (plage début–fin)
+  - Recherche texte libre (filtre côté client sur `logger` + `message`)
+  - Bouton « Aller en bas » (dernière entrée)
 
 **Traçabilité des actions utilisateur** (`AuditLog`) : voir ticket séparé BIZ-109.
 
