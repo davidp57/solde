@@ -6,7 +6,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import anyio
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -268,32 +269,50 @@ async def list_backups(
 @router.get("/logs", response_model=list[LogEntryRead])
 async def get_logs(
     _current_user: _AdminRequired,
+    limit: Annotated[int, Query(ge=1, le=5000)] = 500,
+    levels: Annotated[list[str] | None, Query()] = None,
 ) -> list[LogEntryRead]:
-    """Return all log entries parsed from rotating log files (admin only)."""
-    log_dir = Path("data/logs")
-    # Collect files in chronological order: oldest rotated first, then current
-    log_files = sorted(log_dir.glob("solde.log.*")) + [log_dir / "solde.log"]
+    """Return the most recent log entries parsed from rotating log files (admin only).
 
-    entries: list[LogEntryRead] = []
-    for log_file in log_files:
-        if not log_file.exists():
-            continue
-        try:
-            text = log_file.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        for line in text.splitlines():
-            m = _LOG_LINE_RE.match(line)
-            if m:
-                entries.append(
-                    LogEntryRead(
-                        timestamp=m.group("ts"),
-                        level=m.group("level"),
-                        logger=m.group("logger").strip(),
-                        message=m.group("message"),
+    Reads files in a thread to avoid blocking the async event loop.
+    Returns at most *limit* entries (default 500), most recent last.
+    If *levels* is provided, only entries matching one of those levels are returned.
+    """
+    log_dir = Path("data/logs")
+    # Current file first, then rotations in order: .1 (newest) → .2 (older) → …
+    candidates = [log_dir / "solde.log"] + sorted(log_dir.glob("solde.log.*"))
+    level_set = {lv.upper() for lv in levels} if levels else None
+
+    def _read_tail() -> list[LogEntryRead]:
+        collected: list[LogEntryRead] = []
+        for log_file in candidates:
+            if not log_file.exists():
+                continue
+            try:
+                text = log_file.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            file_entries: list[LogEntryRead] = []
+            for line in text.splitlines():
+                if m := _LOG_LINE_RE.match(line):
+                    lvl = m.group("level")
+                    if level_set and lvl not in level_set:
+                        continue
+                    file_entries.append(
+                        LogEntryRead(
+                            timestamp=m.group("ts"),
+                            level=lvl,
+                            logger=m.group("logger").strip(),
+                            message=m.group("message"),
+                        )
                     )
-                )
-    return entries
+            # Prepend: older file lines go before current file lines
+            collected = file_entries + collected
+            if len(collected) >= limit:
+                break
+        return collected[-limit:]
+
+    return await anyio.to_thread.run_sync(_read_tail)
 
 
 # ---------------------------------------------------------------------------

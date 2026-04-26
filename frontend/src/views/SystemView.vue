@@ -22,7 +22,7 @@
           <span class="system-info-value">{{ formatDatetime(systemInfo.started_at) }}</span>
         </div>
         <div class="system-info-item">
-          <span class="system-info-label">Statut</span>
+          <span class="system-info-label">{{ t('system.status_label') }}</span>
           <Tag :value="t('system.status_ok')" severity="success" icon="pi pi-check-circle" />
         </div>
       </div>
@@ -62,45 +62,59 @@
 
     <!-- Journaux applicatifs -->
     <AppPanel :title="t('system.logs_title')">
-      <div class="logs-toolbar">
-        <MultiSelect
-          v-model="selectedLevels"
-          :options="levelOptions"
-          :placeholder="t('system.logs_filter_level')"
-          class="logs-level-filter"
-          display="chip"
-        />
-        <InputText
-          v-model="logSearch"
-          :placeholder="t('system.logs_filter_search')"
-          class="logs-search"
-        />
+      <div class="logs-load-bar">
         <Button
-          :label="t('system.logs_scroll_bottom')"
-          icon="pi pi-arrow-down"
+          :label="logsLoaded ? t('system.logs_reload_btn') : t('system.logs_load_btn')"
+          :icon="logsLoaded ? 'pi pi-refresh' : 'pi pi-download'"
           severity="secondary"
           outlined
-          size="small"
-          @click="scrollLogsBottom"
+          :loading="logsLoading"
+          @click="loadLogs"
         />
+        <span v-if="logsLoaded" class="logs-count">
+          {{ t('system.logs_count', { n: logs.length }) }}
+        </span>
       </div>
-      <div ref="logsContainerRef" class="logs-container">
-        <p v-if="filteredLogs.length === 0" class="empty-message">
-          {{ t('system.logs_empty') }}
-        </p>
-        <div
-          v-for="(entry, i) in filteredLogs"
-          :key="i"
-          :class="['log-line', `log-${entry.level.toLowerCase()}`]"
-        >
-          <span class="log-ts">{{ entry.timestamp }}</span>
-          <span :class="['log-level', `log-level--${entry.level.toLowerCase()}`]">{{
-            entry.level
-          }}</span>
-          <span class="log-logger">{{ entry.logger }}</span>
-          <span class="log-msg">{{ entry.message }}</span>
+
+      <template v-if="logsLoaded">
+        <div class="logs-toolbar">
+          <MultiSelect
+            v-model="selectedLevels"
+            :options="levelOptions"
+            :placeholder="t('system.logs_filter_level')"
+            class="logs-level-filter"
+            display="chip"
+          />
+          <InputText
+            v-model="logSearch"
+            :placeholder="t('system.logs_filter_search')"
+            class="logs-search"
+          />
+          <Button
+            :label="t('system.logs_scroll_bottom')"
+            icon="pi pi-arrow-down"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="scrollLogsBottom"
+          />
         </div>
-      </div>
+        <div ref="logsContainerRef" class="logs-container">
+          <p v-if="filteredLogs.length === 0" class="empty-message">
+            {{ t('system.logs_empty') }}
+          </p>
+          <div
+            v-for="(entry, i) in filteredLogs"
+            :key="i"
+            :class="['log-line', `log-${entry.level.toLowerCase()}`]"
+          >
+            <span class="log-ts">{{ entry.timestamp }}</span>
+            <span :class="['log-level', `log-level--${entry.level.toLowerCase()}`]">{{ entry.level }}</span>
+            <span class="log-logger">{{ entry.logger }}</span>
+            <span class="log-msg">{{ entry.message }}</span>
+          </div>
+        </div>
+      </template>
     </AppPanel>
 
     <!-- Journal d'audit -->
@@ -111,14 +125,18 @@
           <template #body="{ data }">{{ formatDatetime(data.created_at) }}</template>
         </Column>
         <Column field="actor_username" :header="t('system.col_actor')" />
-        <Column field="action" :header="t('system.col_action')" />
+        <Column :header="t('system.col_action')" style="min-width: 18rem">
+          <template #body="{ data }">
+            {{ t(`system.action.${data.action}`, data.action) }}
+          </template>
+        </Column>
         <Column :header="t('system.col_target')">
           <template #body="{ data }">
             <span v-if="data.target_type">{{ data.target_type }} #{{ data.target_id }}</span>
             <span v-else>—</span>
           </template>
         </Column>
-        <Column :header="t('system.col_detail')">
+        <Column :header="t('system.col_detail')" style="font-size: 0.6em">
           <template #body="{ data }">
             <code v-if="data.detail" class="audit-detail">{{
               JSON.stringify(data.detail)
@@ -132,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -165,6 +183,8 @@ const backupFiles = ref<BackupFile[]>([])
 const backing = ref(false)
 const backupError = ref('')
 const logs = ref<LogEntry[]>([])
+const logsLoaded = ref(false)
+const logsLoading = ref(false)
 const auditLogs = ref<AuditLogEntry[]>([])
 const logSearch = ref('')
 const selectedLevels = ref<string[]>([])
@@ -174,17 +194,12 @@ const levelOptions = ['DEBUG', 'INFO', 'WARNING', 'ERROR']
 
 // --- Computed ---
 const filteredLogs = computed(() => {
-  let result = logs.value
-  if (selectedLevels.value.length > 0) {
-    result = result.filter((l) => selectedLevels.value.includes(l.level))
-  }
-  if (logSearch.value.trim()) {
-    const q = logSearch.value.trim().toLowerCase()
-    result = result.filter(
-      (l) => l.logger.toLowerCase().includes(q) || l.message.toLowerCase().includes(q),
-    )
-  }
-  return result
+  // Level filtering is done server-side; only text search remains client-side
+  if (!logSearch.value.trim()) return logs.value
+  const q = logSearch.value.trim().toLowerCase()
+  return logs.value.filter(
+    (l) => l.logger.toLowerCase().includes(q) || l.message.toLowerCase().includes(q),
+  )
 })
 
 // --- Methods ---
@@ -195,7 +210,10 @@ function formatBytes(bytes: number): string {
 }
 
 function formatDatetime(iso: string): string {
-  return new Date(iso).toLocaleString('fr-FR', {
+  // SQLite returns naive UTC datetimes (no Z); append Z so JS interprets them as UTC
+  // and toLocaleString then applies the user's local timezone correctly.
+  const utc = /Z$|[+-]\d{2}:\d{2}$/.test(iso) ? iso : iso + 'Z'
+  return new Date(utc).toLocaleString('fr-FR', {
     dateStyle: 'short',
     timeStyle: 'short',
   })
@@ -228,6 +246,22 @@ async function downloadBackup(): Promise<void> {
   }
 }
 
+async function loadLogs(): Promise<void> {
+  logsLoading.value = true
+  try {
+    logs.value = await getLogsApi(selectedLevels.value.length > 0 ? selectedLevels.value : undefined)
+    logsLoaded.value = true
+  } catch {
+    // silently ignore — user can retry
+  } finally {
+    logsLoading.value = false
+  }
+}
+
+watch(selectedLevels, () => {
+  if (logsLoaded.value) loadLogs()
+})
+
 // --- Init ---
 onMounted(async () => {
   await Promise.all([
@@ -236,9 +270,6 @@ onMounted(async () => {
       .catch(() => (systemInfoError.value = true)),
     listBackupsApi()
       .then((d) => (backupFiles.value = d))
-      .catch(() => {}),
-    getLogsApi()
-      .then((d) => (logs.value = d))
       .catch(() => {}),
     getAuditLogsApi()
       .then((d) => (auditLogs.value = d))
@@ -286,6 +317,18 @@ onMounted(async () => {
   font-size: 0.9rem;
   font-weight: 600;
   margin-bottom: 0.75rem;
+}
+
+.logs-load-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.logs-count {
+  font-size: 0.8rem;
+  color: var(--p-text-muted-color);
 }
 
 .logs-toolbar {
