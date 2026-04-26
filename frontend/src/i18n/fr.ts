@@ -209,6 +209,8 @@ export default {
     filter_placeholder: 'Rechercher…',
     refresh: 'Actualiser',
     reset_filters: 'Réinitialiser les filtres',
+    active: 'Actif',
+    inactive: 'Inactif',
     list: {
       count_total: '{count} élément(s)',
       count_filtered: '{shown} sur {total}',
