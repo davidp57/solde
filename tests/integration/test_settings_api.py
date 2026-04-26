@@ -554,3 +554,96 @@ class TestBootstrapAccountingSetup:
             ("2024", date(2024, 8, 1), date(2025, 7, 31)),
             ("2025", date(2025, 8, 1), date(2026, 7, 31)),
         ]
+
+
+# ---------------------------------------------------------------------------
+# BIZ-108 / BIZ-109: supervision endpoints (system-info, backups, logs, audit-logs)
+# ---------------------------------------------------------------------------
+
+
+class TestGetSystemInfo:
+    async def test_requires_auth(self, client: AsyncClient) -> None:
+        response = await client.get("/api/settings/system-info")
+        assert response.status_code == 401
+
+    async def test_requires_admin_role(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ) -> None:
+        response = await client.get("/api/settings/system-info", headers=readonly_auth_headers)
+        assert response.status_code == 403
+
+    async def test_returns_system_info(self, client: AsyncClient, auth_headers: dict) -> None:
+        response = await client.get("/api/settings/system-info", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert "app_version" in data
+        assert "db_size_bytes" in data
+        assert isinstance(data["db_size_bytes"], int)
+        assert "started_at" in data
+
+
+class TestListBackups:
+    async def test_requires_auth(self, client: AsyncClient) -> None:
+        response = await client.get("/api/settings/backups")
+        assert response.status_code == 401
+
+    async def test_requires_admin_role(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ) -> None:
+        response = await client.get("/api/settings/backups", headers=readonly_auth_headers)
+        assert response.status_code == 403
+
+    async def test_returns_list(self, client: AsyncClient, auth_headers: dict) -> None:
+        # Backup directory may not exist in CI — endpoint must return an empty list, not error.
+        response = await client.get("/api/settings/backups", headers=auth_headers)
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+
+class TestGetLogs:
+    async def test_requires_auth(self, client: AsyncClient) -> None:
+        response = await client.get("/api/settings/logs")
+        assert response.status_code == 401
+
+    async def test_requires_admin_role(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ) -> None:
+        response = await client.get("/api/settings/logs", headers=readonly_auth_headers)
+        assert response.status_code == 403
+
+    async def test_returns_list(self, client: AsyncClient, auth_headers: dict) -> None:
+        # Log files may not exist in CI — endpoint must return an empty list, not error.
+        response = await client.get("/api/settings/logs", headers=auth_headers)
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    async def test_level_filter_accepted(self, client: AsyncClient, auth_headers: dict) -> None:
+        # Verify the server accepts the levels query parameter without error.
+        response = await client.get(
+            "/api/settings/logs?levels=ERROR&levels=WARNING", headers=auth_headers
+        )
+        assert response.status_code == 200
+
+    async def test_limit_validation(self, client: AsyncClient, auth_headers: dict) -> None:
+        response = await client.get("/api/settings/logs?limit=0", headers=auth_headers)
+        assert response.status_code == 422
+
+        response = await client.get("/api/settings/logs?limit=5001", headers=auth_headers)
+        assert response.status_code == 422
+
+
+class TestGetAuditLogs:
+    async def test_requires_auth(self, client: AsyncClient) -> None:
+        response = await client.get("/api/settings/audit-logs")
+        assert response.status_code == 401
+
+    async def test_requires_admin_role(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ) -> None:
+        response = await client.get("/api/settings/audit-logs", headers=readonly_auth_headers)
+        assert response.status_code == 403
+
+    async def test_returns_list(self, client: AsyncClient, auth_headers: dict) -> None:
+        response = await client.get("/api/settings/audit-logs", headers=auth_headers)
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)

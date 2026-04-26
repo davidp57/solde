@@ -65,6 +65,7 @@ describe('NavMenu', () => {
       'nav.bank',
       'nav.cash',
       'nav.salaries',
+      'nav.employees',
     ])
   })
 
@@ -98,10 +99,10 @@ describe('NavMenu', () => {
       'nav.bank',
       'nav.cash',
       'nav.salaries',
+      'nav.employees',
       'nav.accounting_balance',
       'nav.accounting_journal',
       'nav.accounting_ledger',
-      'nav.employees',
       'nav.accounting_bilan',
       'nav.accounting_resultat',
       'nav.accounting_fiscal_years',
@@ -131,6 +132,7 @@ describe('NavMenu', () => {
     expect(links).toContain('nav.import_history')
     expect(links).toContain('nav.users')
     expect(links).toContain('nav.settings')
+    expect(links).toContain('nav.system')
   })
 
   it('shows only the home section for a readonly user', () => {

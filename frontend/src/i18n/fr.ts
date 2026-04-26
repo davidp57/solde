@@ -56,6 +56,7 @@ export default {
     bank_import_ofx: 'Import OFX/QIF',
     settings: 'Paramètres',
     users: 'Utilisateurs',
+    system: 'Supervision système',
   },
   user: {
     role: {
@@ -83,6 +84,9 @@ export default {
     password: 'Mot de passe initial',
     password_help:
       'Minimum 8 caractères. L’utilisateur pourra ensuite le changer depuis son profil.',
+    password_too_short: 'Le mot de passe doit contenir au moins {min} caractères.',
+    password_no_uppercase: 'Le mot de passe doit contenir au moins une lettre majuscule.',
+    password_no_digit: 'Le mot de passe doit contenir au moins un chiffre.',
     reset_password: 'Mot de passe temporaire',
     reset_password_action: 'Réinitialiser le mot de passe',
     reset_dialog_title: 'Réinitialiser l’accès',
@@ -164,6 +168,9 @@ export default {
     password_help:
       'Minimum 8 caractères. Après le changement, les anciennes sessions seront invalidées et une nouvelle connexion sera demandée.',
     password_mismatch: 'La confirmation ne correspond pas au nouveau mot de passe.',
+    password_too_short: 'Le mot de passe doit contenir au moins {min} caractères.',
+    password_no_uppercase: 'Le mot de passe doit contenir au moins une lettre majuscule.',
+    password_no_digit: 'Le mot de passe doit contenir au moins un chiffre.',
     change_password: 'Changer le mot de passe',
     password_changed: 'Mot de passe modifié. Veuillez vous reconnecter.',
     must_change_password_banner:
@@ -1599,5 +1606,62 @@ export default {
   offline: {
     title: 'Connexion perdue',
     subtitle: 'Le serveur est temporairement injoignable. Vos données ne sont pas affectées.',
+  },
+  system: {
+    title: 'Supervision système',
+    subtitle: "État de l'application, sauvegardes et journaux.",
+    info_title: 'État système',
+    version: 'Version',
+    db_size: 'Taille base de données',
+    started_at: 'Démarré le',
+    status_label: 'Statut',
+    status_ok: 'Opérationnel',
+    backup_title: 'Sauvegardes',
+    backup_subtitle: 'Crée et télécharge une copie cohérente de la base SQLite (service actif).',
+    backup_download: 'Créer et télécharger',
+    backup_error: 'Erreur lors de la création de la sauvegarde.',
+    backup_empty: 'Aucune sauvegarde existante.',
+    backup_list_title: 'Sauvegardes existantes',
+    col_filename: 'Fichier',
+    col_size: 'Taille',
+    col_date: 'Date',
+    logs_title: 'Journaux applicatifs',
+    logs_load_btn: 'Charger les journaux',
+    logs_reload_btn: 'Recharger',
+    logs_count: '{n} entrée(s) chargée(s)',
+    logs_filter_level: 'Niveau',
+    logs_filter_search: 'Rechercher…',
+    logs_empty: 'Aucun journal disponible.',
+    logs_scroll_bottom: 'Aller en bas',
+    audit_title: "Journal d'audit",
+    audit_subtitle: 'Actions sensibles enregistrées par le système.',
+    audit_empty: "Aucune entrée d'audit.",
+    col_timestamp: 'Horodatage',
+    col_actor: 'Acteur',
+    col_action: 'Action',
+    col_target: 'Cible',
+    col_detail: 'Détail',
+    load_error: 'Erreur lors du chargement.',
+    action: {
+      auth: {
+        login: {
+          success: 'Connexion réussie',
+          failure: 'Échec de connexion',
+        },
+        logout: 'Déconnexion',
+        password: {
+          change: 'Changement de mot de passe',
+        },
+      },
+      admin: {
+        user: {
+          create: 'Création utilisateur',
+          update: 'Modification utilisateur',
+          password_reset: 'Réinitialisation MDP admin',
+        },
+        reset_db: 'Réinitialisation base de données',
+        selective_reset: 'Réinitialisation sélective',
+      },
+    },
   },
 }
