@@ -134,19 +134,25 @@ def apply_default_due_date(
 async def _next_number(db: AsyncSession, invoice_type: InvoiceType, year: int) -> str:
     """Generate the next sequential invoice number for a given type and year.
 
-    Format: YYYY-C-NNNN for client, YYYY-F-NNNN for supplier.
+    Client format:   YYYY-NNN  (digits count from settings, default 3) e.g. 2026-001
+    Supplier format: FF-YYYYMMDDhh.mm.ss                               e.g. FF-20260407175601
     """
-    prefix = "C" if invoice_type == InvoiceType.CLIENT else "F"
-    pattern = f"{year}-{prefix}-%"
+    if invoice_type != InvoiceType.CLIENT:
+        now = datetime.now(UTC)
+        return f"FF-{now.strftime('%Y%m%d%H.%M.%S')}"
+
+    digits = await settings_service.get_client_invoice_seq_digits(db)
+    pattern = f"{year}-%"
     result = await db.execute(
         select(Invoice.number)
         .where(Invoice.number.like(pattern))
+        .where(Invoice.type == InvoiceType.CLIENT)
         .order_by(Invoice.id.desc())
         .limit(1)
     )
     last = result.scalar_one_or_none()
     seq = 1 if last is None else int(last.split("-")[-1]) + 1
-    return f"{year}-{prefix}-{seq:04d}"
+    return f"{year}-{seq:0{digits}d}"
 
 
 async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:

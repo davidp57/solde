@@ -28,6 +28,9 @@ class AppSettings(Base):
     fiscal_year_start_month: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
     default_invoice_due_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Invoice numbering
+    client_invoice_seq_digits: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+
     # SMTP (all optional)
     smtp_host: Mapped[str | None] = mapped_column(String(255), nullable=True)
     smtp_port: Mapped[int] = mapped_column(Integer, nullable=False, default=587)

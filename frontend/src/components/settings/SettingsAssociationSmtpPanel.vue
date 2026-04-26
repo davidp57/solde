@@ -70,6 +70,25 @@
             {{ t('settings.default_invoice_due_days_help') }}
           </small>
         </div>
+
+        <div class="app-field">
+          <label for="client_invoice_seq_digits" class="app-field__label">
+            {{ t('settings.client_invoice_seq_digits') }}
+          </label>
+          <InputNumber
+            id="client_invoice_seq_digits"
+            v-model="form.client_invoice_seq_digits"
+            :min="2"
+            :max="6"
+            :use-grouping="false"
+            show-buttons
+            class="w-full"
+          />
+          <small class="app-field__hint app-field__hint--warning">
+            <i class="pi pi-exclamation-triangle" />
+            {{ t('settings.client_invoice_seq_digits_help') }}
+          </small>
+        </div>
       </div>
     </AppPanel>
 
@@ -206,6 +225,7 @@ interface SettingsForm {
   association_siret: string
   fiscal_year_start_month: number
   default_invoice_due_days: number | null
+  client_invoice_seq_digits: number
   smtp_host: string | null
   smtp_port: number
   smtp_user: string | null
@@ -227,6 +247,7 @@ const defaultForm = (): SettingsForm => ({
   association_siret: '',
   fiscal_year_start_month: 8,
   default_invoice_due_days: null,
+  client_invoice_seq_digits: 3,
   smtp_host: null,
   smtp_port: 587,
   smtp_user: null,
@@ -250,6 +271,7 @@ async function load(): Promise<void> {
       association_siret: data.association_siret,
       fiscal_year_start_month: data.fiscal_year_start_month,
       default_invoice_due_days: data.default_invoice_due_days,
+      client_invoice_seq_digits: data.client_invoice_seq_digits,
       smtp_host: data.smtp_host,
       smtp_port: data.smtp_port,
       smtp_user: data.smtp_user,
@@ -274,6 +296,7 @@ async function save(): Promise<void> {
       association_siret: form.value.association_siret,
       fiscal_year_start_month: form.value.fiscal_year_start_month,
       default_invoice_due_days: form.value.default_invoice_due_days,
+      client_invoice_seq_digits: form.value.client_invoice_seq_digits,
       smtp_host: form.value.smtp_host,
       smtp_port: form.value.smtp_port,
       smtp_user: form.value.smtp_user,

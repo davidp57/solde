@@ -62,12 +62,12 @@ async def _make_invoice(
 class TestGenerateInvoiceNumber:
     async def test_first_client_invoice_of_year(self, db_session: AsyncSession):
         invoice = await _make_invoice(db_session)
-        assert invoice.number == "2025-C-0001"  # type: ignore[union-attr]
+        assert invoice.number == "2025-001"  # type: ignore[union-attr]
 
     async def test_second_client_invoice_increments(self, db_session: AsyncSession):
         await _make_invoice(db_session)
         invoice2 = await _make_invoice(db_session)
-        assert invoice2.number == "2025-C-0002"  # type: ignore[union-attr]
+        assert invoice2.number == "2025-002"  # type: ignore[union-attr]
 
     async def test_supplier_invoice_uses_f_prefix(self, db_session: AsyncSession):
         invoice = await _make_invoice(
@@ -75,7 +75,7 @@ class TestGenerateInvoiceNumber:
             invoice_type=InvoiceType.FOURNISSEUR,
             total_amount=Decimal("100.00"),
         )
-        assert invoice.number == "2025-F-0001"  # type: ignore[union-attr]
+        assert invoice.number.startswith("FF-")  # type: ignore[union-attr]
 
     async def test_client_and_supplier_have_independent_sequences(self, db_session: AsyncSession):
         await _make_invoice(db_session)
@@ -84,12 +84,12 @@ class TestGenerateInvoiceNumber:
             invoice_type=InvoiceType.FOURNISSEUR,
             total_amount=Decimal("50.00"),
         )
-        assert supplier.number == "2025-F-0001"  # type: ignore[union-attr]
+        assert supplier.number.startswith("FF-")  # type: ignore[union-attr]
 
     async def test_year_changes_resets_sequence(self, db_session: AsyncSession):
         await _make_invoice(db_session, invoice_date=date(2024, 12, 1))
         invoice_2025 = await _make_invoice(db_session, invoice_date=date(2025, 1, 15))
-        assert invoice_2025.number == "2025-C-0001"  # type: ignore[union-attr]
+        assert invoice_2025.number == "2025-001"  # type: ignore[union-attr]
 
 
 class TestCreateInvoice:

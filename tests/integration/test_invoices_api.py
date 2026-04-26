@@ -123,7 +123,7 @@ class TestCreateInvoice:
             },
         ]
         invoice = await _create_invoice(client, auth_headers, cid, lines=lines)
-        assert invoice["number"] == "2025-C-0001"
+        assert invoice["number"] == "2025-001"
         assert float(invoice["total_amount"]) == 80.0
         assert invoice["status"] == "draft"
         assert len(invoice["lines"]) == 2
@@ -134,7 +134,7 @@ class TestCreateInvoice:
         invoice = await _create_invoice(
             client, auth_headers, cid, invoice_type="fournisseur", total_amount=250.0
         )
-        assert invoice["number"] == "2025-F-0001"
+        assert invoice["number"].startswith("FF-")
         assert float(invoice["total_amount"]) == 250.0
 
     async def test_requires_auth(self, client: AsyncClient):
@@ -148,8 +148,8 @@ class TestCreateInvoice:
         cid = await _create_contact(client, auth_headers)
         inv1 = await _create_invoice(client, auth_headers, cid)
         inv2 = await _create_invoice(client, auth_headers, cid)
-        assert inv1["number"] == "2025-C-0001"
-        assert inv2["number"] == "2025-C-0002"
+        assert inv1["number"] == "2025-001"
+        assert inv2["number"] == "2025-002"
 
 
 class TestGetInvoice:

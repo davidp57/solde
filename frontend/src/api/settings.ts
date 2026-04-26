@@ -7,6 +7,7 @@ export interface AppSettings {
   association_logo_path: string
   fiscal_year_start_month: number
   default_invoice_due_days: number | null
+  client_invoice_seq_digits: number
   smtp_host: string | null
   smtp_port: number
   smtp_user: string | null
@@ -21,6 +22,7 @@ export interface AppSettingsUpdate {
   association_siret?: string
   fiscal_year_start_month?: number
   default_invoice_due_days?: number | null
+  client_invoice_seq_digits?: number
   smtp_host?: string | null
   smtp_port?: number
   smtp_user?: string | null

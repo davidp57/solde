@@ -785,6 +785,9 @@ export default {
     default_invoice_due_days: 'Délai de paiement par défaut (jours)',
     default_invoice_due_days_help:
       "Utilisé pour proposer une échéance à la création des factures et pour renseigner l'échéance par défaut sur les imports si elle est absente.",
+    client_invoice_seq_digits: 'Nombre de chiffres du numéro de facture client',
+    client_invoice_seq_digits_help:
+      "Détermine le format du numéro séquentiel des factures clients (ex. 3 → 2026-001, 4 → 2026-0001). À définir lors de l'initialisation uniquement : modifier ce paramètre en cours d'année brisera la séquence existante.",
     smtp_host: 'Serveur SMTP',
     smtp_port: 'Port SMTP',
     smtp_username: 'Utilisateur SMTP',
