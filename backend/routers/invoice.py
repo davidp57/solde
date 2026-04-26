@@ -30,6 +30,7 @@ from backend.schemas.invoice import (
 )
 from backend.services import invoice as invoice_service
 from backend.services import settings as settings_service
+from backend.services.audit_service import AuditAction, record_audit
 from backend.services.invoice import InvoiceDeleteError, InvoiceStatusError, InvoiceUpdateError
 
 logger = logging.getLogger(__name__)
@@ -96,10 +97,23 @@ async def list_invoices(
 async def create_invoice(
     payload: InvoiceCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> InvoiceRead:
     """Create a new invoice."""
-    return await invoice_service.create_invoice(db, payload)  # type: ignore[return-value]
+    invoice = await invoice_service.create_invoice(db, payload)
+    await record_audit(
+        db,
+        action=AuditAction.INVOICE_CREATED,
+        actor=current_user,
+        target_id=invoice.id,
+        target_type="invoice",
+        detail={
+            "number": invoice.number,
+            "type": invoice.type,
+            "total_amount": str(invoice.total_amount),
+        },
+    )
+    return invoice  # type: ignore[return-value]
 
 
 @router.get("/{invoice_id}", response_model=InvoiceRead)
@@ -120,16 +134,25 @@ async def update_invoice(
     invoice_id: int,
     payload: InvoiceUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> InvoiceRead:
     """Partially update an invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
     try:
-        return await invoice_service.update_invoice(db, invoice, payload)  # type: ignore[return-value]
+        updated = await invoice_service.update_invoice(db, invoice, payload)
     except InvoiceUpdateError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.INVOICE_UPDATED,
+        actor=current_user,
+        target_id=invoice_id,
+        target_type="invoice",
+        detail={"number": invoice.number},
+    )
+    return updated  # type: ignore[return-value]
 
 
 @router.patch("/{invoice_id}/status", response_model=InvoiceRead)
@@ -137,18 +160,28 @@ async def update_status(
     invoice_id: int,
     payload: InvoiceStatusUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> InvoiceRead:
     """Change the status of an invoice (enforces valid transitions)."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    old_status = invoice.status
     try:
-        return await invoice_service.update_invoice_status(  # type: ignore[return-value]
+        updated = await invoice_service.update_invoice_status(
             db, invoice, payload.status
         )
     except InvoiceStatusError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.INVOICE_STATUS_CHANGED,
+        actor=current_user,
+        target_id=invoice_id,
+        target_type="invoice",
+        detail={"number": invoice.number, "from": old_status, "to": payload.status},
+    )
+    return updated  # type: ignore[return-value]
 
 
 @router.post(
@@ -159,29 +192,47 @@ async def update_status(
 async def duplicate_invoice(
     invoice_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> InvoiceRead:
     """Create a draft copy of an existing invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
-    return await invoice_service.duplicate_invoice(db, invoice)  # type: ignore[return-value]
+    duplicate = await invoice_service.duplicate_invoice(db, invoice)
+    await record_audit(
+        db,
+        action=AuditAction.INVOICE_DUPLICATED,
+        actor=current_user,
+        target_id=duplicate.id,
+        target_type="invoice",
+        detail={"source_id": invoice_id, "source_number": invoice.number},
+    )
+    return duplicate  # type: ignore[return-value]
 
 
 @router.delete("/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_invoice(
     invoice_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> None:
     """Delete an invoice. Only draft invoices can be deleted."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    detail = {"number": invoice.number, "type": invoice.type}
     try:
         await invoice_service.delete_invoice(db, invoice)
     except InvoiceDeleteError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.INVOICE_DELETED,
+        actor=current_user,
+        target_id=invoice_id,
+        target_type="invoice",
+        detail=detail,
+    )
 
 
 @router.get("/{invoice_id}/pdf")
@@ -237,7 +288,7 @@ async def get_invoice_pdf(
 async def send_invoice_email(
     invoice_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> None:
     """Generate PDF and send the invoice by email to the contact."""
     from backend.services import email_service, pdf_service  # noqa: PLC0415
@@ -310,6 +361,14 @@ async def send_invoice_email(
 
     if invoice.status == InvoiceStatus.DRAFT:
         await invoice_service.update_invoice_status(db, invoice, InvoiceStatus.SENT)
+    await record_audit(
+        db,
+        action=AuditAction.INVOICE_EMAIL_SENT,
+        actor=current_user,
+        target_id=invoice_id,
+        target_type="invoice",
+        detail={"number": invoice.number, "recipient": contact.email},
+    )
 
 
 @router.post("/{invoice_id}/file", response_model=InvoiceRead)

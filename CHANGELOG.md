@@ -31,6 +31,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- BIZ-121 : Couverture d'audit étendue à toutes les mutations métier — `AuditAction` enrichi de 40 nouvelles valeurs (paiements, factures, caisse, salaires, transactions bancaires, rapprochements, imports CSV/OFX/QIF, remises, contacts, import Excel) ; `record_audit()` appelé après chaque opération réussie dans 7 routers (`payment`, `invoice`, `cash`, `salary`, `contact`, `bank`, `excel_import`) ; libellés i18n français ajoutés dans `fr.ts`
 - BIZ-120 : Tri par date décroissante par défaut sur toutes les listes — journal, grand livre, banque, caisse, salaires, paiements, factures clients et fournisseurs
 - TEC-098 : `backend/services/accounting_entry_service.py` — suppression de `limit=100_000` ; `get_balance`, `get_resultat`, `get_bilan` utilisent désormais des agrégations SQL (`GROUP BY + SUM`) ; `get_grouped_journal` utilise une pagination SQL réelle (`OFFSET/LIMIT` poussés dans la requête SQLAlchemy, plus de slice Python)
 - TEC-098 : `backend/services/export_service.py` — `export_journal_csv` passe `limit=None` pour lever le plafond de 100 000 lignes sans charger en mémoire

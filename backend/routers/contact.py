@@ -18,6 +18,7 @@ from backend.schemas.contact import (
     ContactUpdate,
 )
 from backend.services import contact as contact_service
+from backend.services.audit_service import AuditAction, record_audit
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
@@ -56,10 +57,19 @@ async def list_contacts(
 async def create_contact(
     payload: ContactCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> ContactRead:
     """Create a new contact."""
-    return await contact_service.create_contact(db, payload)  # type: ignore[return-value]
+    contact = await contact_service.create_contact(db, payload)
+    await record_audit(
+        db,
+        action=AuditAction.CONTACT_CREATED,
+        actor=current_user,
+        target_id=contact.id,
+        target_type="contact",
+        detail={"nom": contact.nom, "type": contact.type},
+    )
+    return contact  # type: ignore[return-value]
 
 
 @router.post("/import-emails", response_model=ContactEmailImportResult)
@@ -90,26 +100,44 @@ async def update_contact(
     contact_id: int,
     payload: ContactUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> ContactRead:
     """Partially update a contact."""
     contact = await contact_service.get_contact(db, contact_id)
     if contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
-    return await contact_service.update_contact(db, contact, payload)  # type: ignore[return-value]
+    updated = await contact_service.update_contact(db, contact, payload)
+    await record_audit(
+        db,
+        action=AuditAction.CONTACT_UPDATED,
+        actor=current_user,
+        target_id=contact_id,
+        target_type="contact",
+        detail={"nom": contact.nom},
+    )
+    return updated  # type: ignore[return-value]
 
 
 @router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_contact(
     contact_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> None:
     """Soft-delete a contact (marks as inactive)."""
     contact = await contact_service.get_contact(db, contact_id)
     if contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+    detail = {"nom": contact.nom, "type": contact.type}
     await contact_service.delete_contact(db, contact)
+    await record_audit(
+        db,
+        action=AuditAction.CONTACT_DELETED,
+        actor=current_user,
+        target_id=contact_id,
+        target_type="contact",
+        detail=detail,
+    )
 
 
 @router.get("/{contact_id}/history", response_model=ContactHistory)
@@ -129,7 +157,7 @@ async def get_contact_history(
 async def mark_douteux(
     contact_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> dict[str, int | str]:
     """Transfer the outstanding client balance to a doubtful receivable account (416xxx)."""
     result = await contact_service.mark_creance_douteuse(db, contact_id)
@@ -139,6 +167,14 @@ async def mark_douteux(
             detail="Contact not found or no outstanding balance",
         )
     debit_entry, credit_entry = result
+    await record_audit(
+        db,
+        action=AuditAction.CONTACT_CREANCE_DOUTEUSE,
+        actor=current_user,
+        target_id=contact_id,
+        target_type="contact",
+        detail={"amount": str(debit_entry.debit), "account_douteux": debit_entry.account_number},
+    )
     return {
         "debit_entry_id": debit_entry.id,
         "credit_entry_id": credit_entry.id,

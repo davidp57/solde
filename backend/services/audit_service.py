@@ -23,6 +23,41 @@ class AuditAction(StrEnum):
     PASSWORD_RESET_BY_ADMIN = "admin.user.password_reset"
     DB_RESET = "admin.reset_db"
     SELECTIVE_RESET = "admin.selective_reset"
+    # Payments
+    PAYMENT_CREATED = "payment.create"
+    PAYMENT_UPDATED = "payment.update"
+    PAYMENT_DELETED = "payment.delete"
+    # Invoices
+    INVOICE_CREATED = "invoice.create"
+    INVOICE_UPDATED = "invoice.update"
+    INVOICE_STATUS_CHANGED = "invoice.status.change"
+    INVOICE_DUPLICATED = "invoice.duplicate"
+    INVOICE_DELETED = "invoice.delete"
+    INVOICE_EMAIL_SENT = "invoice.email.send"
+    # Cash
+    CASH_ENTRY_CREATED = "cash.entry.create"
+    CASH_ENTRY_UPDATED = "cash.entry.update"
+    CASH_ENTRY_DELETED = "cash.entry.delete"
+    CASH_COUNT_CREATED = "cash.count.create"
+    # Salaries
+    SALARY_CREATED = "salary.create"
+    SALARY_UPDATED = "salary.update"
+    SALARY_DELETED = "salary.delete"
+    # Bank
+    BANK_TRANSACTION_CREATED = "bank.transaction.create"
+    BANK_TRANSACTION_UPDATED = "bank.transaction.update"
+    BANK_PAYMENT_CREATED = "bank.reconcile.payment"
+    BANK_IMPORTED = "bank.import"
+    BANK_DEPOSIT_CREATED = "bank.deposit.create"
+    # Contacts
+    CONTACT_CREATED = "contact.create"
+    CONTACT_UPDATED = "contact.update"
+    CONTACT_DELETED = "contact.delete"
+    CONTACT_CREANCE_DOUTEUSE = "contact.creance_douteuse"
+    # Excel import
+    IMPORT_EXECUTED = "import.run.execute"
+    IMPORT_UNDONE = "import.run.undo"
+    IMPORT_REDONE = "import.run.redo"
 
 
 async def record_audit(

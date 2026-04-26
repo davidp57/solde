@@ -22,6 +22,7 @@ from backend.schemas.cash import (
     LinkedAccountingEntry,
 )
 from backend.services import cash_service
+from backend.services.audit_service import AuditAction, record_audit
 
 router = APIRouter(prefix="/cash", tags=["cash"])
 
@@ -75,9 +76,18 @@ async def list_entries(
 async def add_entry(
     payload: CashEntryCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> CashEntryRead:
-    return await cash_service.add_cash_entry(db, payload)  # type: ignore[return-value]
+    entry = await cash_service.add_cash_entry(db, payload)
+    await record_audit(
+        db,
+        action=AuditAction.CASH_ENTRY_CREATED,
+        actor=current_user,
+        target_id=entry.id,
+        target_type="cash_entry",
+        detail={"amount": str(payload.amount), "type": payload.type},
+    )
+    return entry  # type: ignore[return-value]
 
 
 @router.get("/entries/{entry_id}", response_model=CashEntryRead)
@@ -123,19 +133,27 @@ async def update_entry(
     entry_id: int,
     payload: CashEntryUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> CashEntryRead:
     entry = await cash_service.get_cash_entry(db, entry_id)
     if entry is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cash entry not found")
-    return await cash_service.update_cash_entry(db, entry, payload)  # type: ignore[return-value]
+    updated = await cash_service.update_cash_entry(db, entry, payload)
+    await record_audit(
+        db,
+        action=AuditAction.CASH_ENTRY_UPDATED,
+        actor=current_user,
+        target_id=entry_id,
+        target_type="cash_entry",
+    )
+    return updated  # type: ignore[return-value]
 
 
 @router.delete("/entries/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_entry(
     entry_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> None:
     entry = await cash_service.get_cash_entry(db, entry_id)
     if entry is None:
@@ -152,6 +170,13 @@ async def delete_entry(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(exc),
         ) from exc
+    await record_audit(
+        db,
+        action=AuditAction.CASH_ENTRY_DELETED,
+        actor=current_user,
+        target_id=entry_id,
+        target_type="cash_entry",
+    )
 
 
 @router.get("/counts", response_model=list[CashCountRead])
@@ -176,6 +201,15 @@ async def list_counts(
 async def add_count(
     payload: CashCountCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> CashCountRead:
-    return await cash_service.create_cash_count(db, payload)  # type: ignore[return-value]
+    count = await cash_service.create_cash_count(db, payload)
+    await record_audit(
+        db,
+        action=AuditAction.CASH_COUNT_CREATED,
+        actor=current_user,
+        target_id=count.id,
+        target_type="cash_count",
+        detail={"date": str(payload.date), "total": str(count.total_counted)},
+    )
+    return count  # type: ignore[return-value]

@@ -12,6 +12,7 @@ from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.payment import PaymentCreate, PaymentRead, PaymentUpdate
 from backend.services import payment as payment_service
+from backend.services.audit_service import AuditAction, record_audit
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
@@ -56,7 +57,7 @@ async def list_payments(
 async def create_payment(
     payload: PaymentCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> PaymentRead:
     try:
         payment = await payment_service.create_payment(db, payload)
@@ -64,6 +65,18 @@ async def create_payment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.PAYMENT_CREATED,
+        actor=current_user,
+        target_id=payment.id,
+        target_type="payment",
+        detail={
+            "invoice_id": payment.invoice_id,
+            "amount": str(payment.amount),
+            "method": payment.method,
+        },
+    )
     return payment
 
 
@@ -84,7 +97,7 @@ async def update_payment(
     payment_id: int,
     payload: PaymentUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> PaymentRead:
     try:
         updated = await payment_service.update_payment(db, payment_id, payload)
@@ -92,6 +105,13 @@ async def update_payment(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.PAYMENT_UPDATED,
+        actor=current_user,
+        target_id=payment_id,
+        target_type="payment",
+    )
     return updated
 
 
@@ -99,12 +119,25 @@ async def update_payment(
 async def delete_payment(
     payment_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> None:
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    detail = {
+        "invoice_id": payment.invoice_id,
+        "amount": str(payment.amount),
+        "method": payment.method,
+    }
     try:
         await payment_service.delete_payment(db, payment_id)
     except payment_service.PaymentDeleteError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.PAYMENT_DELETED,
+        actor=current_user,
+        target_id=payment_id,
+        target_type="payment",
+        detail=detail,
+    )

@@ -182,6 +182,7 @@ After every change (feature, fix, refactor):
 3. Verify zero errors in VS Code
 4. Update `CHANGELOG.md` (`[Non publié]` section)
 5. Update `doc/backlog.md` if the change closes or advances a ticket
+6. **Increment the patch version** in `pyproject.toml` and `frontend/package.json` (e.g. `0.7.12` → `0.7.13`)
 
 ---
 
