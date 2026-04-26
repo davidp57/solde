@@ -28,11 +28,8 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BIZ-119 | Interface simplifiée : tableau de bord avec cartes d'actions rapides | P2 | ~2h | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-111 | Import one-shot adresses postales depuis factures Word | P3 | ~1h | 2026-04-26 | | |
 | BIZ-122 | Titre optionnel sur les factures clients | P2 | ~1h30 | 2026-04-26 | | |
-| BIZ-123 | Prix par défaut par type de ligne de facture | P2 | ~1h | 2026-04-26 | | |
-| ~~BIZ-117~~ | ~~Assistant IA intégré (chatbot manuel utilisateur + accès doc/code)~~ | P3 | — | 2026-04-26 | — | ❌ Non réalisable |
 
 ---
 
@@ -202,8 +199,32 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 | O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-30 |
 | P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-30 |
 
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, **BIZ-117** (clôturé — non réalisable : intégration d'un LLM tiers exclue pour raisons de confidentialité des données comptables ; modèle local incompatible avec la contrainte RAM ≤ 384 MB du NAS).
+Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
+
+<details>
+<summary>Tickets fermés hors lots — détails (BIZ-117, BIZ-119, BIZ-123, BIZ-124)</summary>
+
+### BIZ-117 — Assistant IA intégré
+
+**Clôturé ❌ Non réalisable** — intégration d'un LLM tiers exclue pour raisons de confidentialité des données comptables ; modèle local incompatible avec la contrainte RAM ≤ 384 MB du NAS.
+
+### BIZ-119 — Tableau de bord avec cartes d'actions rapides
+
+- **Terminé** : 2026-04-26
+- **Livré** : panneau « Actions rapides » en haut du dashboard — 3 cartes (facture client, paiement, caisse) ouvrant des wizards de saisie inline ; wizard facture client avec confirmation et bouton « Saisir une autre ».
+
+### BIZ-123 — Prix par défaut par type de ligne de facture
+
+- **Terminé** : 2026-04-26
+- **Livré** : colonnes `default_price_cours`, `default_price_adhesion`, `default_price_autres` sur `AppSettings` (migration 0034) ; section « Prix unitaires par défaut » dans les paramètres ; pré-remplissage automatique au `addLine()` et au changement de `line_type` dans `ClientInvoiceForm` ; correction race-condition (`onMounted` async avant `addLine`).
+
+### BIZ-124 — Templates de numérotation configurables pour les factures
+
+- **Terminé** : 2026-04-26
+- **Livré** : `client_invoice_number_template` (`{year}`, `{seq}`) + `client_invoice_seq_digits` + `supplier_invoice_number_template` (strftime) sur `AppSettings` (migrations 0032, 0033) ; service `_next_number` avec regex ; endpoint `GET /api/invoices/next_number` (aperçu sans side-effect) ; affichage du numéro prévu dans le formulaire de création et dans la confirmation du wizard.
+
+</details>
 
 <details>
 <summary>Historique des estimations — lots techniques 1-8 (2026-04-22)</summary>
