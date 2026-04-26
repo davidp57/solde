@@ -17,11 +17,11 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - TEC-106 : Audit i18n complet — 2 clés manquantes identifiées et ajoutées dans `fr.ts` : `common.active` ('Actif') et `common.inactive` ('Inactif'), utilisées dans la vue Employés
 - BIZ-122 : Intégration du champ `description` de la facture dans l'objet de l'e-mail d'envoi — si renseigné, le sujet devient `Facture {numéro} — {description}` au lieu de `Facture {numéro} — {association}`
 - BIZ-122 : `tests/unit/test_email_service.py` — test `test_send_invoice_email_subject_with_description` ajouté
-
- pour les factures clients et fournisseurs — champ `client_invoice_number_template` (`{year}` + `{seq}`, ex. `{year}-{seq}` → `2026-001`) et `supplier_invoice_number_template` (strftime Python, ex. `FF-%Y%m%d%H.%M.%S` → `FF-2026040717.56.01`) modifiables dans les paramètres de l'association
+- BIZ-124 : Numérotation configurable pour les factures clients et fournisseurs — champ `client_invoice_number_template` (`{year}` + `{seq}`, ex. `{year}-{seq}` → `2026-001`) et `supplier_invoice_number_template` (strftime Python, ex. `FF-%Y%m%d%H.%M.%S` → `FF-2026040717.56.01`) modifiables dans les paramètres de l'association
 - BIZ-124 : Migrations Alembic 0032 (`client_invoice_seq_digits`) et 0033 (`client_invoice_number_template` + `supplier_invoice_number_template`)
-
-### Ajouté
+- BIZ-123 : Prix par défaut par type de ligne de facture — colonnes `default_price_cours`, `default_price_adhesion`, `default_price_autres` sur `AppSettings` (migration 0034) ; section « Prix unitaires par défaut » dans les paramètres ; pré-remplissage automatique au `addLine()` et au changement de `line_type` dans `ClientInvoiceForm`
+- BIZ-111 (suite) : Adresse postale du contact (`Contact.adresse`) affichée dans la section Destinataire des factures PDF — chaque ligne rendue séparément
+- BIZ-111 (suite) : SIRET de l’émetteur supprimé de la carte Émetteur dans les factures PDF (déjà présent dans l’en-tête et le pied de page)
 
 - BIZ-119 : Panneau « Actions rapides » sur le tableau de bord — 3 cartes d'accès direct (nouvelle facture client, encoder un paiement, nouvelle entrée de caisse) ; navigation vers la vue cible avec ouverture automatique du dialog de création via le paramètre `?create=1`
 - BIZ-119 : Carte « Saisir une facture client » — ouvre désormais un wizard inline (dialog) avec formulaire de création et bouton « Saisir une autre facture » après succès, sur le modèle du wizard de paiement
