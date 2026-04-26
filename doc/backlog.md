@@ -37,6 +37,8 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
+| BIZ-107 | Contacts : colonne dernière facture + historique en panneau latéral | P2 | ~1h30 | 2026-04-26 | | |
+| BIZ-108 | Écran de supervision technique (état système, sauvegardes, audit) | P2 | ~2h30 | 2026-04-26 | | |
 | TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | | |
 | CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
@@ -44,6 +46,46 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 ---
 
 ## Détails
+
+### BIZ-107 — Contacts : colonne dernière facture + historique en panneau latéral
+
+**Colonne « Dernière facture »** dans `ContactsView` :
+- Côté backend : ajouter un champ calculé `last_invoice_ref: str | None` et `last_invoice_date: date | None` dans `ContactRead` (requête SQL avec subquery ou jointure + ORDER BY date DESC LIMIT 1, distingué client/fournisseur).
+- Côté frontend : nouvelle colonne « Dernière facture » dans la DataTable, filtrable et triable.
+
+**Historique contact en panneau latéral** (remplace la navigation vers `ContactDetailView`) :
+- Remplacer le `$router.push('/contacts/:id/history')` par l'ouverture d'un `<Drawer>` PrimeVue (position `right`, largeur ~700px, fond modal flouté).
+- Le contenu du drawer = contenu actuel de `ContactDetailView` (factures + paiements du contact, avec leurs dialogs de détail).
+- La route `/contacts/:id/history` reste accessible pour accès direct par URL mais n'est plus utilisée en navigation interne.
+- Avantage : filtre/tri de la liste préservé au retour.
+
+**Fichiers à modifier** : `backend/schemas/contact.py`, `backend/services/contact.py`, `backend/routers/contact.py`, `frontend/src/views/ContactsView.vue`, `frontend/src/views/ContactDetailView.vue` (ou nouveau composant `ContactHistoryDrawer.vue`).
+
+---
+
+### BIZ-108 — Écran de supervision technique (état système, sauvegardes, audit)
+
+Nouvelle route admin `/system` → `SystemView.vue` avec 3 panneaux :
+
+**Panneau État système** :
+- Version de l'application (depuis `cfg.app_version`)
+- Taille de la base SQLite (`os.path.getsize` sur `data/solde.db`)
+- Timestamp de démarrage du serveur
+- Résultat du dernier health check (badge vert/rouge)
+- Endpoint backend : enrichir `GET /api/health` ou créer `GET /api/settings/system-info` (admin only)
+
+**Panneau Sauvegardes** :
+- Liste des sauvegardes existantes dans `data/backups/` (nom, taille, date) → `GET /api/settings/backups`
+- Bouton « Sauvegarder maintenant » (existant dans `SettingsBackupPanel.vue`, à déplacer ou dupliquer)
+- Téléchargement d'une sauvegarde : **à valider** — endpoint `GET /api/settings/backups/{filename}` admin-only avec validation stricte du nom de fichier (pas de path traversal)
+
+**Panneau Journal d'audit** :
+- Tableau paginé des `AuditLog` : action, acteur, horodatage, détail → `GET /api/settings/audit-logs` (paginated, filtrable)
+- Endpoint à créer (la table `audit_logs` existe mais n'est pas exposée)
+
+**Fichiers à créer/modifier** : `backend/routers/settings.py` (+3 endpoints), `frontend/src/views/SystemView.vue`, `frontend/src/router/index.ts` (route `/system`), `frontend/src/layouts/AppLayout.vue` (entrée menu admin).
+
+---
 
 ### TEC-106 — Audit et complétion des clés i18n manquantes
 
