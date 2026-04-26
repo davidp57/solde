@@ -24,6 +24,13 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - Navigation : page « Employés » déplacée de la section Comptabilité vers la section Gestion
 - Navigation : ajout de l'entrée « Supervision système » dans la section Administration (admins uniquement)
 
+### Corrigé
+
+- BIZ-108 : Ordre de lecture des fichiers de rotation inversé — `.log.1` (plus récent) était lu après `.log.2` (plus ancien), masquant les entrées récentes
+- BIZ-108 : Filtre de niveau des journaux passé côté serveur — le filtre s'applique maintenant avant la limite de 500 lignes, rechargement automatique à chaque changement de filtre
+- BIZ-109 : Labels des actions d'audit traduits en français dans l'écran de supervision (clés i18n imbriquées `system.action.*`)
+- BIZ-109 : Horodatages affichés en heure locale — SQLite stockant les dates sans suffixe de fuseau, elles étaient interprétées comme heure locale plutôt qu'UTC (décalage −2h)
+
 ---
 
 ## [Non publié — avant Lot R]

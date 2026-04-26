@@ -1608,6 +1608,7 @@ export default {
     version: 'Version',
     db_size: 'Taille base de données',
     started_at: 'Démarré le',
+    status_label: 'Statut',
     status_ok: 'Opérationnel',
     backup_title: 'Sauvegardes',
     backup_subtitle: 'Crée et télécharge une copie cohérente de la base SQLite (service actif).',
@@ -1619,6 +1620,9 @@ export default {
     col_size: 'Taille',
     col_date: 'Date',
     logs_title: 'Journaux applicatifs',
+    logs_load_btn: 'Charger les journaux',
+    logs_reload_btn: 'Recharger',
+    logs_count: '{n} entrée(s) chargée(s)',
     logs_filter_level: 'Niveau',
     logs_filter_search: 'Rechercher…',
     logs_empty: 'Aucun journal disponible.',
@@ -1632,5 +1636,26 @@ export default {
     col_target: 'Cible',
     col_detail: 'Détail',
     load_error: 'Erreur lors du chargement.',
+    action: {
+      auth: {
+        login: {
+          success: 'Connexion réussie',
+          failure: 'Échec de connexion',
+        },
+        logout: 'Déconnexion',
+        password: {
+          change: 'Changement de mot de passe',
+        },
+      },
+      admin: {
+        user: {
+          create: 'Création utilisateur',
+          update: 'Modification utilisateur',
+          password_reset: 'Réinitialisation MDP admin',
+        },
+        reset_db: 'Réinitialisation base de données',
+        selective_reset: 'Réinitialisation sélective',
+      },
+    },
   },
 }

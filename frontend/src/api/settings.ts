@@ -188,8 +188,15 @@ export async function listBackupsApi(): Promise<BackupFile[]> {
   return response.data
 }
 
-export async function getLogsApi(): Promise<LogEntry[]> {
-  const response = await apiClient.get<LogEntry[]>('/api/settings/logs')
+export async function getLogsApi(levels?: string[]): Promise<LogEntry[]> {
+  const params = levels && levels.length > 0 ? { levels } : {}
+  const response = await apiClient.get<LogEntry[]>('/api/settings/logs', {
+    params,
+    paramsSerializer: (p) =>
+      Object.entries(p)
+        .flatMap(([k, v]) => (Array.isArray(v) ? v.map((x) => `${k}=${x}`) : [`${k}=${v}`]))
+        .join('&'),
+  })
   return response.data
 }
 
