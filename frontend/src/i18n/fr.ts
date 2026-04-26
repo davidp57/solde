@@ -278,6 +278,7 @@ export default {
     import_emails_lines_not_found_label: 'Non trouvé(s) dans les contacts :',
     import_emails_lines_already_label: 'Déjà renseigné(s) (e-mail existant) :',
     import_emails_error_format: "Certaines lignes contiennent des données invalides. Format attendu sur chaque ligne : Nom, email{'@'}domaine.com",
+    last_invoice: 'Dernière facture',
     metrics: {
       total: 'Contacts charges',
       clients: '{count} clients',

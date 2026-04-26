@@ -4,7 +4,7 @@ import unicodedata
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
@@ -64,6 +64,60 @@ async def list_contacts(
     query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def list_contacts_enriched(
+    db: AsyncSession,
+    *,
+    type: ContactType | None = None,
+    search: str | None = None,
+    active_only: bool = True,
+    skip: int = 0,
+    limit: int = 100,
+) -> list[ContactRead]:
+    """List contacts with last_invoice_ref and last_invoice_date enriched."""
+    contacts = await list_contacts(
+        db, type=type, search=search, active_only=active_only, skip=skip, limit=limit
+    )
+    if not contacts:
+        return []
+
+    contact_ids = [c.id for c in contacts]
+
+    # Subquery: latest invoice date per contact
+    latest_date_subq = (
+        select(Invoice.contact_id, func.max(Invoice.date).label("max_date"))
+        .where(Invoice.contact_id.in_(contact_ids))
+        .group_by(Invoice.contact_id)
+        .subquery()
+    )
+
+    # Join to retrieve the invoice number for that max date
+    inv_result = await db.execute(
+        select(Invoice.contact_id, Invoice.number, Invoice.date).join(
+            latest_date_subq,
+            and_(
+                Invoice.contact_id == latest_date_subq.c.contact_id,
+                Invoice.date == latest_date_subq.c.max_date,
+            ),
+        )
+    )
+    last_inv_by_contact: dict[int, tuple[str, date]] = {
+        row.contact_id: (row.number, row.date) for row in inv_result.all()
+    }
+
+    result_list: list[ContactRead] = []
+    for c in contacts:
+        last = last_inv_by_contact.get(c.id)
+        read = ContactRead.model_validate(c)
+        read = read.model_copy(
+            update={
+                "last_invoice_ref": last[0] if last else None,
+                "last_invoice_date": last[1] if last else None,
+            }
+        )
+        result_list.append(read)
+    return result_list
 
 
 async def update_contact(db: AsyncSession, contact: Contact, payload: ContactUpdate) -> Contact:
