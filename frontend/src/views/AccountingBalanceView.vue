@@ -119,7 +119,7 @@
           <template #body="{ data }">{{
             t(`accounting.account_types.${data.account_type}`)
           }}</template>
-          <template #filter="{ filterModel }">
+          <template #filter="{ filterModel, filterCallback }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
               :options="accountTypeOptions"
@@ -127,6 +127,7 @@
               option-value="value"
               :placeholder="t('common.all')"
               show-clear
+              :filter-callback="filterCallback"
             />
           </template>
         </Column>

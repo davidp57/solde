@@ -188,7 +188,7 @@
           <template #body="{ data }">
             <Tag v-if="data.label" :value="t(`invoices.labels.${data.label}`)" severity="info" />
           </template>
-          <template #filter="{ filterModel }">
+          <template #filter="{ filterModel, filterCallback }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
               :options="labelOptions"
@@ -196,6 +196,7 @@
               option-value="value"
               :placeholder="t('common.all')"
               show-clear
+              :filter-callback="filterCallback"
             />
           </template>
         </Column>
@@ -228,7 +229,7 @@
               :severity="statusSeverity(data.status)"
             />
           </template>
-          <template #filter="{ filterModel }">
+          <template #filter="{ filterModel, filterCallback }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
               :options="statusOptions"
@@ -236,6 +237,7 @@
               option-value="value"
               :placeholder="t('common.all')"
               show-clear
+              :filter-callback="filterCallback"
             />
           </template>
         </Column>
@@ -434,7 +436,7 @@
             :show-add-button="false"
           >
             <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
-            <template #filter="{ filterModel }">
+            <template #filter="{ filterModel, filterCallback }">
               <AppFilterMultiSelect
                 v-model="filterModel.value"
                 :options="paymentMethodOptions"
@@ -443,6 +445,7 @@
                 :placeholder="t('common.all')"
                 display="chip"
                 show-clear
+                :filter-callback="filterCallback"
               />
             </template>
           </Column>

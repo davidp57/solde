@@ -207,7 +207,7 @@
                     "
                   />
                 </template>
-                <template #filter="{ filterModel }">
+                <template #filter="{ filterModel, filterCallback }">
                   <AppFilterMultiSelect
                     v-model="filterModel.value"
                     :options="yesNoOptions"
@@ -216,6 +216,7 @@
                     :placeholder="t('common.all')"
                     display="chip"
                     show-clear
+                    :filter-callback="filterCallback"
                   />
                 </template>
               </Column>
@@ -234,7 +235,7 @@
                     :value="t(`bank.categories.${data.detected_category}`)"
                   />
                 </template>
-                <template #filter="{ filterModel }">
+                <template #filter="{ filterModel, filterCallback }">
                   <AppFilterMultiSelect
                     v-model="filterModel.value"
                     :options="categoryOptions"
@@ -243,6 +244,7 @@
                     :placeholder="t('common.all')"
                     display="chip"
                     show-clear
+                    :filter-callback="filterCallback"
                   />
                 </template>
               </Column>
@@ -261,7 +263,7 @@
                     :severity="data.source === 'system_opening' ? 'info' : 'secondary'"
                   />
                 </template>
-                <template #filter="{ filterModel }">
+                <template #filter="{ filterModel, filterCallback }">
                   <AppFilterMultiSelect
                     v-model="filterModel.value"
                     :options="sourceOptions"
@@ -270,6 +272,7 @@
                     :placeholder="t('common.all')"
                     display="chip"
                     show-clear
+                    :filter-callback="filterCallback"
                   />
                 </template>
               </Column>
@@ -375,7 +378,7 @@
                 <template #body="{ data }">
                   <Tag :value="t(`bank.deposit_types.${data.type}`)" />
                 </template>
-                <template #filter="{ filterModel }">
+                <template #filter="{ filterModel, filterCallback }">
                   <AppFilterMultiSelect
                     v-model="filterModel.value"
                     :options="depositTypeOptions"
@@ -384,6 +387,7 @@
                     :placeholder="t('common.all')"
                     display="chip"
                     show-clear
+                    :filter-callback="filterCallback"
                   />
                 </template>
               </Column>

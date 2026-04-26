@@ -182,7 +182,7 @@
             />
             <span v-else>{{ t('accounting.journal.sources.manual') }}</span>
           </template>
-          <template #filter="{ filterModel }">
+          <template #filter="{ filterModel, filterCallback }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
               :options="sourceTypeOptions"
@@ -191,6 +191,7 @@
               :placeholder="t('common.all')"
               display="chip"
               show-clear
+              :filter-callback="filterCallback"
             />
           </template>
         </Column>

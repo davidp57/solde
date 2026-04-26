@@ -75,13 +75,14 @@
               <span v-if="data.description" class="rule-trigger-desc">{{ data.description }}</span>
             </div>
           </template>
-          <template #filter="{ filterModel }">
+          <template #filter="{ filterModel, filterCallback }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
               :options="triggerTypeOptions"
               :placeholder="t('common.all')"
               display="chip"
               show-clear
+              :filter-callback="filterCallback"
             />
           </template>
         </Column>
@@ -112,7 +113,7 @@
               :severity="data.is_active ? 'success' : 'secondary'"
             />
           </template>
-          <template #filter="{ filterModel }">
+          <template #filter="{ filterModel, filterCallback }">
             <AppFilterMultiSelect
               v-model="filterModel.value"
               :options="yesNoOptions"
@@ -121,6 +122,7 @@
               :placeholder="t('common.all')"
               display="chip"
               show-clear
+              :filter-callback="filterCallback"
             />
           </template>
         </Column>
