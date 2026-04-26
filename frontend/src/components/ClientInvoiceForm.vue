@@ -5,6 +5,9 @@
       <p class="app-dialog-intro__text">
         {{ t(isEditing ? 'invoices.client.form_intro_edit' : 'invoices.client.form_intro_create') }}
       </p>
+      <p v-if="!isEditing && nextNumber" class="app-dialog-intro__number-preview">
+        {{ t('invoices.client.next_number_preview', { number: nextNumber }) }}
+      </p>
     </section>
 
     <section class="app-dialog-section">
@@ -137,6 +140,7 @@ import type { Contact } from '../api/contacts'
 import { getSettingsApi } from '../api/settings'
 import {
   createInvoiceApi,
+  getNextClientInvoiceNumberApi,
   updateInvoiceApi,
   type Invoice,
   type InvoiceLineType,
@@ -148,7 +152,7 @@ const props = defineProps<{
   contacts: Contact[]
 }>()
 const emit = defineEmits<{
-  saved: []
+  saved: [invoice: Invoice]
   cancel: []
 }>()
 
@@ -165,6 +169,7 @@ const defaultPrices = ref<Record<string, number | null>>({
   adhesion: null,
   autres: null,
 })
+const nextNumber = ref<string | null>(null)
 
 interface LineForm {
   line_type: InvoiceLineType | null
@@ -370,12 +375,13 @@ async function submit() {
         unit_price: String(l.unit_price),
       })),
     }
+    let savedInvoice: Invoice
     if (props.invoice) {
-      await updateInvoiceApi(props.invoice.id, payload)
+      savedInvoice = await updateInvoiceApi(props.invoice.id, payload)
     } else {
-      await createInvoiceApi(payload)
+      savedInvoice = await createInvoiceApi(payload)
     }
-    emit('saved')
+    emit('saved', savedInvoice)
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 422) {
       const detail = error.response.data?.detail
@@ -409,6 +415,9 @@ onMounted(async () => {
     }
   } catch {
     defaultInvoiceDueDays.value = null
+  }
+  if (!props.invoice) {
+    getNextClientInvoiceNumberApi().then((n) => { nextNumber.value = n }).catch(() => {})
   }
   if (form.lines.length === 0 && !props.invoice) addLine()
   applySuggestedDueDate()

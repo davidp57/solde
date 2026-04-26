@@ -66,6 +66,16 @@ def _content_matches_allowed_type(content: bytes) -> bool:
     return len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP"
 
 
+@router.get("/next_number")
+async def preview_next_number(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _ReadAccess,
+) -> dict[str, str]:
+    """Preview the next client invoice number (no side effects)."""
+    number = await invoice_service.peek_next_client_number(db)
+    return {"number": number}
+
+
 @router.get("/", response_model=list[InvoiceRead])
 async def list_invoices(
     db: Annotated[AsyncSession, Depends(get_db)],

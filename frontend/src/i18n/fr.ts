@@ -382,6 +382,7 @@ export default {
         'Préparez une facture client claire avec ses lignes, son échéance et le bon contact dès la première saisie.',
       form_intro_edit:
         'Ajustez la facture sans perdre la lisibilité des lignes et des montants déjà préparés.',
+      next_number_preview: 'Elle sera numérotée {number}.',
       identity_title: 'Cadre de facturation',
       identity_subtitle:
         'Choisissez le contact et les dates, puis laissez la composition de la facture se déduire des lignes.',
@@ -1264,7 +1265,7 @@ export default {
       title: 'Saisir une facture client',
       loading: 'Chargement des contacts…',
       success_title: 'Facture créée',
-      success_msg: 'La facture a bien été enregistrée.',
+      success_msg: 'La facture {number} a bien été enregistrée.',
       close: 'Fermer',
       create_another: 'Saisir une autre facture',
     },
