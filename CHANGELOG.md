@@ -31,6 +31,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Modifié
 
+- BIZ-120 : Tri par date décroissante par défaut sur toutes les listes — journal, grand livre, banque, caisse, salaires, paiements, factures clients et fournisseurs
 - TEC-098 : `backend/services/accounting_entry_service.py` — suppression de `limit=100_000` ; `get_balance`, `get_resultat`, `get_bilan` utilisent désormais des agrégations SQL (`GROUP BY + SUM`) ; `get_grouped_journal` utilise une pagination SQL réelle (`OFFSET/LIMIT` poussés dans la requête SQLAlchemy, plus de slice Python)
 - TEC-098 : `backend/services/export_service.py` — `export_journal_csv` passe `limit=None` pour lever le plafond de 100 000 lignes sans charger en mémoire
 - TEC-102 : `BankClientPaymentDialog.vue`, `BankSupplierPaymentDialog.vue`, `BankLinkClientPaymentDialog.vue`, `BankLinkSupplierPaymentDialog.vue` — extraction d'erreur inline remplacée par `getErrorDetail()`

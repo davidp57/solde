@@ -87,6 +87,8 @@
           'cheque_number',
           'deposited',
         ]"
+        sort-field="date"
+        :sort-order="-1"
         removable-sort
         @value-change="syncDisplayedPayments"
       >

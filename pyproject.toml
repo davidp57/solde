@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "solde"
-version = "0.7.3"
+version = "0.7.7"
 description = "Web app for French non-profit accounting — invoicing, payments, cash management and double-entry bookkeeping."
 requires-python = ">=3.11"
 dependencies = [
