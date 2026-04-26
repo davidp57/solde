@@ -6,7 +6,7 @@
       :subtitle="t('system.subtitle')"
     />
 
-    <!-- État système -->
+    <!-- System status -->
     <AppPanel :title="t('system.info_title')">
       <div v-if="systemInfo" class="system-info-grid">
         <div class="system-info-item">
@@ -29,7 +29,7 @@
       <Message v-if="systemInfoError" severity="error">{{ t('system.load_error') }}</Message>
     </AppPanel>
 
-    <!-- Sauvegardes -->
+    <!-- Backups -->
     <AppPanel :title="t('system.backup_title')" :subtitle="t('system.backup_subtitle')">
       <div class="backup-actions">
         <Button
@@ -60,7 +60,7 @@
       <p v-else class="empty-message">{{ t('system.backup_empty') }}</p>
     </AppPanel>
 
-    <!-- Journaux applicatifs -->
+    <!-- Application logs -->
     <AppPanel :title="t('system.logs_title')">
       <div class="logs-load-bar">
         <Button
@@ -117,7 +117,7 @@
       </template>
     </AppPanel>
 
-    <!-- Journal d'audit -->
+    <!-- Audit log -->
     <AppPanel :title="t('system.audit_title')" :subtitle="t('system.audit_subtitle')">
       <p v-if="auditLogs.length === 0" class="empty-message">{{ t('system.audit_empty') }}</p>
       <DataTable v-else :value="auditLogs" size="small" striped-rows paginator :rows="50">
@@ -127,7 +127,7 @@
         <Column field="actor_username" :header="t('system.col_actor')" />
         <Column :header="t('system.col_action')" style="min-width: 18rem">
           <template #body="{ data }">
-            {{ t(`system.action.${data.action}`, data.action) }}
+            {{ tAuditAction(data.action) }}
           </template>
         </Column>
         <Column :header="t('system.col_target')">
@@ -209,14 +209,23 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(2)} Mo`
 }
 
+function normalizeUtcIsoString(iso: string): string {
+  // SQLite returns naive UTC datetimes (no timezone suffix); append Z so JS interprets as UTC.
+  return /Z$|[+-]\d{2}:\d{2}$/.test(iso) ? iso : `${iso}Z`
+}
+
 function formatDatetime(iso: string): string {
-  // SQLite returns naive UTC datetimes (no Z); append Z so JS interprets them as UTC
-  // and toLocaleString then applies the user's local timezone correctly.
-  const utc = /Z$|[+-]\d{2}:\d{2}$/.test(iso) ? iso : iso + 'Z'
-  return new Date(utc).toLocaleString('fr-FR', {
+  return new Date(normalizeUtcIsoString(iso)).toLocaleString('fr-FR', {
     dateStyle: 'short',
     timeStyle: 'short',
   })
+}
+
+function tAuditAction(action: string): string {
+  // Use dot-path as fallback: if the key is not found, vue-i18n returns the key itself.
+  const key = `system.action.${action}`
+  const result = t(key)
+  return result === key ? action : result
 }
 
 function scrollLogsBottom(): void {

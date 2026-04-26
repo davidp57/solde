@@ -132,6 +132,7 @@ describe('NavMenu', () => {
     expect(links).toContain('nav.import_history')
     expect(links).toContain('nav.users')
     expect(links).toContain('nav.settings')
+    expect(links).toContain('nav.system')
   })
 
   it('shows only the home section for a readonly user', () => {

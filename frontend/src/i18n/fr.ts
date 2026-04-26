@@ -84,6 +84,9 @@ export default {
     password: 'Mot de passe initial',
     password_help:
       'Minimum 8 caractères. L’utilisateur pourra ensuite le changer depuis son profil.',
+    password_too_short: 'Le mot de passe doit contenir au moins {min} caractères.',
+    password_no_uppercase: 'Le mot de passe doit contenir au moins une lettre majuscule.',
+    password_no_digit: 'Le mot de passe doit contenir au moins un chiffre.',
     reset_password: 'Mot de passe temporaire',
     reset_password_action: 'Réinitialiser le mot de passe',
     reset_dialog_title: 'Réinitialiser l’accès',
@@ -165,6 +168,9 @@ export default {
     password_help:
       'Minimum 8 caractères. Après le changement, les anciennes sessions seront invalidées et une nouvelle connexion sera demandée.',
     password_mismatch: 'La confirmation ne correspond pas au nouveau mot de passe.',
+    password_too_short: 'Le mot de passe doit contenir au moins {min} caractères.',
+    password_no_uppercase: 'Le mot de passe doit contenir au moins une lettre majuscule.',
+    password_no_digit: 'Le mot de passe doit contenir au moins un chiffre.',
     change_password: 'Changer le mot de passe',
     password_changed: 'Mot de passe modifié. Veuillez vous reconnecter.',
     must_change_password_banner:
