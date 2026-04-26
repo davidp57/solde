@@ -8,6 +8,8 @@ export interface AppSettings {
   fiscal_year_start_month: number
   default_invoice_due_days: number | null
   client_invoice_seq_digits: number
+  client_invoice_number_template: string
+  supplier_invoice_number_template: string
   smtp_host: string | null
   smtp_port: number
   smtp_user: string | null
@@ -23,6 +25,8 @@ export interface AppSettingsUpdate {
   fiscal_year_start_month?: number
   default_invoice_due_days?: number | null
   client_invoice_seq_digits?: number
+  client_invoice_number_template?: string
+  supplier_invoice_number_template?: string
   smtp_host?: string | null
   smtp_port?: number
   smtp_user?: string | null

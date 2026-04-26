@@ -592,6 +592,27 @@ async def get_client_invoice_seq_digits(db: AsyncSession) -> int:
     return value if value is not None else 3
 
 
+async def get_client_invoice_number_template(db: AsyncSession) -> str:
+    """Return the client invoice number template (default '{year}-{seq}')."""
+    result = await db.execute(
+        select(AppSettings.client_invoice_number_template).where(AppSettings.id == _SETTINGS_ID)
+    )
+    value = result.scalar_one_or_none()
+    return value or "{year}-{seq}"
+
+
+async def get_supplier_invoice_number_template(db: AsyncSession) -> str:
+    """Return the supplier invoice number template (strftime format).
+
+    Default: 'FF-%Y%m%d%H.%M.%S'.
+    """
+    result = await db.execute(
+        select(AppSettings.supplier_invoice_number_template).where(AppSettings.id == _SETTINGS_ID)
+    )
+    value = result.scalar_one_or_none()
+    return value or "FF-%Y%m%d%H.%M.%S"
+
+
 async def update_settings(db: AsyncSession, payload: AppSettingsUpdate) -> AppSettings:
     """Partially update settings with provided fields."""
     settings = await get_settings(db)

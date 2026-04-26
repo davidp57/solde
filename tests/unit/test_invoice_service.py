@@ -91,6 +91,27 @@ class TestGenerateInvoiceNumber:
         invoice_2025 = await _make_invoice(db_session, invoice_date=date(2025, 1, 15))
         assert invoice_2025.number == "2025-001"  # type: ignore[union-attr]
 
+    async def test_custom_client_template(self, db_session: AsyncSession):
+        await update_settings(
+            db_session,
+            AppSettingsUpdate(
+                client_invoice_number_template="FAC{year}/{seq}",
+                client_invoice_seq_digits=4,
+            ),
+        )
+        invoice = await _make_invoice(db_session)
+        assert invoice.number == "FAC2025/0001"  # type: ignore[union-attr]
+
+    async def test_custom_supplier_template(self, db_session: AsyncSession):
+        await update_settings(
+            db_session,
+            AppSettingsUpdate(supplier_invoice_number_template="FOURN-%Y%m"),
+        )
+        invoice = await _make_invoice(
+            db_session, invoice_type=InvoiceType.FOURNISSEUR, total_amount=Decimal("100.00")
+        )
+        assert invoice.number.startswith("FOURN-")  # type: ignore[union-attr]
+
 
 class TestCreateInvoice:
     async def test_creates_with_lines_and_computes_total(self, db_session: AsyncSession):

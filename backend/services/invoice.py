@@ -1,5 +1,6 @@
 """Invoice service — CRUD, numbering, status changes, duplication."""
 
+import re
 from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -132,27 +133,39 @@ def apply_default_due_date(
 
 
 async def _next_number(db: AsyncSession, invoice_type: InvoiceType, year: int) -> str:
-    """Generate the next sequential invoice number for a given type and year.
+    """Generate the next invoice number from the configured templates.
 
-    Client format:   YYYY-NNN  (digits count from settings, default 3) e.g. 2026-001
-    Supplier format: FF-YYYYMMDDhh.mm.ss                               e.g. FF-20260407175601
+    Client:   uses client_invoice_number_template + client_invoice_seq_digits.
+              Template placeholders: {year}, {seq}.
+              e.g. template="{year}-{seq}", digits=3, year=2026 → "2026-001"
+    Supplier: uses supplier_invoice_number_template (Python strftime format).
+              e.g. template="FF-%Y%m%d%H.%M.%S" → "FF-2026040717.56.01"
     """
     if invoice_type != InvoiceType.CLIENT:
-        now = datetime.now(UTC)
-        return f"FF-{now.strftime('%Y%m%d%H.%M.%S')}"
+        template = await settings_service.get_supplier_invoice_number_template(db)
+        return datetime.now(UTC).strftime(template)
 
+    client_template = await settings_service.get_client_invoice_number_template(db)
     digits = await settings_service.get_client_invoice_seq_digits(db)
-    pattern = f"{year}-%"
+    filled = client_template.replace("{year}", str(year))
+    like_pattern = filled.replace("{seq}", "%")
+    seq_regex = re.escape(filled).replace(r"\{seq\}", r"(\d+)")
+
     result = await db.execute(
         select(Invoice.number)
-        .where(Invoice.number.like(pattern))
+        .where(Invoice.number.like(like_pattern))
         .where(Invoice.type == InvoiceType.CLIENT)
         .order_by(Invoice.id.desc())
         .limit(1)
     )
     last = result.scalar_one_or_none()
-    seq = 1 if last is None else int(last.split("-")[-1]) + 1
-    return f"{year}-{seq:0{digits}d}"
+    if last is None:
+        seq = 1
+    else:
+        m = re.match(f"{seq_regex}$", last)
+        seq = int(m.group(1)) + 1 if m else 1
+
+    return filled.replace("{seq}", f"{seq:0{digits}d}")
 
 
 async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:

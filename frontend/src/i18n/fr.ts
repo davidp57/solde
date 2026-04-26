@@ -788,6 +788,14 @@ export default {
     client_invoice_seq_digits: 'Nombre de chiffres du numéro de facture client',
     client_invoice_seq_digits_help:
       "Détermine le format du numéro séquentiel des factures clients (ex. 3 → 2026-001, 4 → 2026-0001). À définir lors de l'initialisation uniquement : modifier ce paramètre en cours d'année brisera la séquence existante.",
+    client_invoice_number_template: 'Modèle de numérotation — facture client',
+    client_invoice_number_template_placeholder: '{year}-{seq}',
+    client_invoice_number_template_help:
+      "Utilise {year} pour l'année et {seq} pour le numéro séquentiel (zéros : voir paramètre précédent). Ex. : {year}-{seq} → 2026-001, FAC{year}/{seq} → FAC2026/001. ⚠️ À définir à l'initialisation ; changer en cours d'année brise la séquence.",
+    supplier_invoice_number_template: 'Modèle de numérotation — facture fournisseur',
+    supplier_invoice_number_template_placeholder: 'FF-%Y%m%d%H.%M.%S',
+    supplier_invoice_number_template_help:
+      "Format strftime Python. %Y = année, %m = mois, %d = jour, %H = heure, %M = minute, %S = seconde. Ex. : FF-%Y%m%d%H.%M.%S → FF-2026040717.56.01. ⚠️ Tout changement rend les anciens numéros d'un format différent.",
     smtp_host: 'Serveur SMTP',
     smtp_port: 'Port SMTP',
     smtp_username: 'Utilisateur SMTP',
