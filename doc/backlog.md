@@ -30,6 +30,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-119 | Interface simplifiée : tableau de bord avec cartes d'actions rapides | P2 | ~2h | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-111 | Import one-shot adresses postales depuis factures Word | P3 | ~1h | 2026-04-26 | | |
+| BIZ-122 | Titre optionnel sur les factures clients | P2 | ~1h30 | 2026-04-26 | | |
 | ~~BIZ-117~~ | ~~Assistant IA intégré (chatbot manuel utilisateur + accès doc/code)~~ | P3 | — | 2026-04-26 | — | ❌ Non réalisable |
 
 ---
@@ -85,9 +86,25 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ---
 
-### BIZ-111 — Import one-shot adresses postales depuis factures Word
+### BIZ-122 — Titre optionnel sur les factures clients
 
-**Contexte** : Les factures clients historiques sont des fichiers Word (`.docx`). L'adresse postale des clients y figure mais n'a jamais été saisie dans la base. Ce script one-shot extrait ces adresses et enrichit le champ `Contact.adresse`.
+**Objectif** : permettre d’associer un titre libre à une facture client (ex : « cours du mois d’avril 2026 »), affiché dans le PDF et repris dans l’e-mail d’envoi.
+
+**Périmètre** :
+- Champ `title` (VARCHAR, nullable) ajouté sur le modèle `Invoice` — migration Alembic.
+- Formulaire de création/modification de facture : champ texte optionnel, visible après le contact et la date.
+- PDF (`templates/invoice.html`) : afficher le titre sous le numéro de facture si renseigné.
+- E-mail d’envoi : intégrer le titre dans l’objet et/ou le corps du message (ex : « Facture n° 2026-0045 — cours du mois d’avril 2026 »).
+- API : inclure `title` dans les schémas `InvoiceCreate`, `InvoiceUpdate`, `InvoiceRead`.
+- Liste des factures : afficher le titre en sous-texte de la ligne (ou infobulle) si présent.
+
+**Hors périmètre** : titre sur les factures fournisseurs (non prioritaire), recherche/filtrage par titre.
+
+**Fichiers** : `backend/models/invoice.py`, `backend/schemas/invoice.py`, `backend/alembic/versions/XXXX_add_invoice_title.py`, `backend/templates/invoice.html`, `backend/services/email_service.py`, `frontend/src/components/ClientInvoiceForm.vue`, `frontend/src/views/ClientInvoicesView.vue`.
+
+---
+
+### BIZ-111 — Import one-shot adresses postales depuis factures Word : Les factures clients historiques sont des fichiers Word (`.docx`). L'adresse postale des clients y figure mais n'a jamais été saisie dans la base. Ce script one-shot extrait ces adresses et enrichit le champ `Contact.adresse`.
 
 **Règle de priorité** : traiter les factures par ordre décroissant de date (les plus récentes d'abord), car un client peut avoir déménagé. Ne pas écraser `adresse` si le champ est déjà renseigné pour ce contact.
 
