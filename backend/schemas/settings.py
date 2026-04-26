@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from datetime import date as _Date
 from datetime import datetime as _Datetime
 from decimal import Decimal as _Decimal
@@ -151,10 +150,6 @@ class BackupCreate(BaseModel):
         v = v.strip()
         if len(v) > 50:
             raise ValueError("Label must be at most 50 characters")
-        if v and not re.fullmatch(r"[a-zA-Z0-9 _-]*", v):
-            raise ValueError(
-                "Label may only contain letters, digits, spaces, hyphens and underscores"
-            )
         return v or None
 
 

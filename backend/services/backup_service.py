@@ -107,4 +107,4 @@ def _do_restore(backup_file: Path, db_path: Path) -> None:
     shm = Path(f"{db_path}-shm")
     for side_file in (wal, shm):
         side_file.unlink(missing_ok=True)
-    shutil.copy2(str(backup_file), str(db_path))
+    shutil.copyfile(str(backup_file), str(db_path))

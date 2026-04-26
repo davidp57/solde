@@ -941,7 +941,9 @@ export default {
         deposit: 'Remise banque',
         salary: 'Salaire',
         manual: 'Manuel',
+        cash: 'Caisse',
         cloture: 'Clôture',
+        write_off: 'Irrécouvrable',
       },
     },
     balance: {
