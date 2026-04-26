@@ -192,10 +192,17 @@ export async function getLogsApi(levels?: string[]): Promise<LogEntry[]> {
   const params = levels && levels.length > 0 ? { levels } : {}
   const response = await apiClient.get<LogEntry[]>('/api/settings/logs', {
     params,
-    paramsSerializer: (p) =>
-      Object.entries(p)
-        .flatMap(([k, v]) => (Array.isArray(v) ? v.map((x) => `${k}=${x}`) : [`${k}=${v}`]))
-        .join('&'),
+    paramsSerializer: (p) => {
+      const searchParams = new URLSearchParams()
+      Object.entries(p).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          value.forEach((item) => searchParams.append(key, String(item)))
+        } else if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value))
+        }
+      })
+      return searchParams.toString()
+    },
   })
   return response.data
 }

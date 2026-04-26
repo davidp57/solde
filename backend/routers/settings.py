@@ -293,19 +293,26 @@ async def get_logs(
             except OSError:
                 continue
             file_entries: list[LogEntryRead] = []
+            current_entry: LogEntryRead | None = None
             for line in text.splitlines():
                 if m := _LOG_LINE_RE.match(line):
+                    if current_entry is not None:
+                        file_entries.append(current_entry)
                     lvl = m.group("level")
                     if level_set and lvl not in level_set:
+                        current_entry = None
                         continue
-                    file_entries.append(
-                        LogEntryRead(
-                            timestamp=m.group("ts"),
-                            level=lvl,
-                            logger=m.group("logger").strip(),
-                            message=m.group("message"),
-                        )
+                    current_entry = LogEntryRead(
+                        timestamp=m.group("ts"),
+                        level=lvl,
+                        logger=m.group("logger").strip(),
+                        message=m.group("message"),
                     )
+                elif current_entry is not None:
+                    # Continuation line (e.g. stack trace frame): append to current message
+                    current_entry.message = f"{current_entry.message}\n{line}"
+            if current_entry is not None:
+                file_entries.append(current_entry)
             # Prepend: older file lines go before current file lines
             collected = file_entries + collected
             if len(collected) >= limit:

@@ -203,8 +203,7 @@ Chaque ticket correspond à un ou plusieurs commits liés. Les identifiants `REC
 |---|---|
 | **Type** | `feat` |
 | **Date** | 2026-04-26 |
-| **Commit** | *(en cours)* |
-| **Fichiers** | `backend/models/app_settings.py`, `backend/schemas/settings.py`, `backend/services/email_service.py`, `backend/routers/invoice.py`, `backend/alembic/versions/0029_add_smtp_bcc.py`, `frontend/src/api/settings.ts`, `frontend/src/i18n/fr.ts`, `frontend/src/components/settings/SettingsAssociationSmtpPanel.vue` |
+| **Commit** | `7306c28` |, `backend/schemas/settings.py`, `backend/services/email_service.py`, `backend/routers/invoice.py`, `backend/alembic/versions/0029_add_smtp_bcc.py`, `frontend/src/api/settings.ts`, `frontend/src/i18n/fr.ts`, `frontend/src/components/settings/SettingsAssociationSmtpPanel.vue` |
 
 **Description** : Ajout d'un champ **Adresse BCC** optionnel dans les paramètres SMTP. Quand renseigné, chaque envoi de facture envoie une copie cachée à cette adresse. Utilise `server.send_message()` (et non `sendmail()`) pour que le header `Bcc` soit correctement interprété par `smtplib`.
 
@@ -216,8 +215,7 @@ Chaque ticket correspond à un ou plusieurs commits liés. Les identifiants `REC
 |---|---|
 | **Type** | `fix` |
 | **Date** | 2026-04-26 |
-| **Commit** | *(en cours)* |
-| **Fichiers** | `backend/main.py` |
+| **Commit** | `01058cd` |
 
 **Description** : Après un rebuild Docker, le navigateur chargeait un `index.html` mis en cache référençant d'anciens hashes de chunks Vite (`ProfileView-BM0w_JLN.js`…). Les fichiers ayant changé de hash, les imports dynamiques échouaient avec `TypeError: error loading dynamically imported module`. Le handler `serve_spa` renvoie maintenant `Cache-Control: no-store, no-cache, must-revalidate` pour `index.html`, et `Cache-Control: public, max-age=31536000, immutable` pour les assets hachés (`/assets/*`).
 
@@ -241,5 +239,5 @@ Chaque ticket correspond à un ou plusieurs commits liés. Les identifiants `REC
 | REC-012 | Fix PDF : nom association depuis DB (pas env) | fix | `4f70488` | ✅ livré |
 | REC-013 | Fix dialog contact : import `Dialog` manquant | fix | `063d941` | ✅ livré |
 | REC-014 | Suppression champs SMTP/asso depuis env vars | refactor | `90491b8` | ✅ livré |
-| REC-015 | BCC optionnel sur envoi factures par e-mail | feat | *(en cours)* | ✅ livré |
-| REC-016 | Fix SPA : `Cache-Control: no-store` sur `index.html` (TEC-110) | fix | *(en cours)* | ✅ livré |
+| REC-015 | BCC optionnel sur envoi factures par e-mail | feat | `7306c28` | ✅ livré |
+| REC-016 | Fix SPA : `Cache-Control: no-store` sur `index.html` (TEC-110) | fix | `01058cd` | ✅ livré |
