@@ -65,6 +65,7 @@ describe('NavMenu', () => {
       'nav.bank',
       'nav.cash',
       'nav.salaries',
+      'nav.employees',
     ])
   })
 
@@ -98,10 +99,10 @@ describe('NavMenu', () => {
       'nav.bank',
       'nav.cash',
       'nav.salaries',
+      'nav.employees',
       'nav.accounting_balance',
       'nav.accounting_journal',
       'nav.accounting_ledger',
-      'nav.employees',
       'nav.accounting_bilan',
       'nav.accounting_resultat',
       'nav.accounting_fiscal_years',

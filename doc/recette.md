@@ -210,6 +210,19 @@ Chaque ticket correspond à un ou plusieurs commits liés. Les identifiants `REC
 
 ---
 
+### REC-016 — Fix SPA : `Cache-Control: no-store` sur `index.html` (TEC-110)
+
+| Champ | Valeur |
+|---|---|
+| **Type** | `fix` |
+| **Date** | 2026-04-26 |
+| **Commit** | *(en cours)* |
+| **Fichiers** | `backend/main.py` |
+
+**Description** : Après un rebuild Docker, le navigateur chargeait un `index.html` mis en cache référençant d'anciens hashes de chunks Vite (`ProfileView-BM0w_JLN.js`…). Les fichiers ayant changé de hash, les imports dynamiques échouaient avec `TypeError: error loading dynamically imported module`. Le handler `serve_spa` renvoie maintenant `Cache-Control: no-store, no-cache, must-revalidate` pour `index.html`, et `Cache-Control: public, max-age=31536000, immutable` pour les assets hachés (`/assets/*`).
+
+---
+
 ## État d'ensemble
 
 | ID | Titre | Type | Commit | Statut |
@@ -229,3 +242,4 @@ Chaque ticket correspond à un ou plusieurs commits liés. Les identifiants `REC
 | REC-013 | Fix dialog contact : import `Dialog` manquant | fix | `063d941` | ✅ livré |
 | REC-014 | Suppression champs SMTP/asso depuis env vars | refactor | `90491b8` | ✅ livré |
 | REC-015 | BCC optionnel sur envoi factures par e-mail | feat | *(en cours)* | ✅ livré |
+| REC-016 | Fix SPA : `Cache-Control: no-store` sur `index.html` (TEC-110) | fix | *(en cours)* | ✅ livré |

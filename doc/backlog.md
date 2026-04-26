@@ -9,11 +9,11 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Lots actifs
 
-### Lot H — Architecture multi-compte (~45 min) — v0.6
+### Lot H — Architecture multi-compte (~45 min) — v0.9
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BIZ-034 | Support multi-compte banque | P2 | ~45 min | 2026-04-21 | | |
+| BIZ-034 | Support multi-compte banque | P3 | ~45 min | 2026-04-21 | | |
 
 ### Lot O — Qualité technique backend (~2h) — v0.7
 
@@ -32,21 +32,101 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | TEC-103 | Debounce sur filtres texte en temps réel | P3 | ~10 min | 2026-04-25 | | |
 | TEC-104 | Casts TypeScript non sûrs dans CashView.vue | P2 | ~10 min | 2026-04-25 | | |
 
+### Lot R — Supervision système & audit (~2h) — v0.8
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| BIZ-108 | Écran de supervision technique (état système, sauvegardes, logs applicatifs) | P1 | ~1h30 | 2026-04-26 | 2026-04-26 | 2026-04-26 |
+| BIZ-109 | Traçabilité des actions utilisateur (journal d'audit) | P1 | ~30 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
+
+### Lot S — Documentation & i18n (~1h) — v0.9
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | | |
+| CHR-021 | Manuel utilisateur illustré | P3 | ~20 min | 2026-04-13 | 2026-04-13 | |
+| CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
+| CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
+
 ## Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| CHR-021 | Manuel utilisateur illustré | P1 | ~20 min | 2026-04-13 | 2026-04-13 | |
-| BIZ-107 | Contacts : colonne dernière facture + historique en modal centré | P2 | ~45 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
-| BIZ-108 | Écran de supervision technique (état système, sauvegardes, logs applicatifs) | P2 | ~1h30 | 2026-04-26 | | |
-| BIZ-109 | Traçabilité des actions utilisateur (journal d'audit) | P2 | ~30 min | 2026-04-26 | | |
-| TEC-106 | Audit et complétion des clés i18n manquantes | P2 | ~30 min | 2026-04-25 | | |
-| CHR-020 | Documentation de contribution | P3 | ~5 min | 2026-04-13 | 2026-04-21 | |
-| CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
+| BIZ-112 | Afficher le numéro de facture dans le dialog de modification | P1 | ~10 min | 2026-04-26 | | |
+| BIZ-113 | Créances irrécouvrables : statut + écriture comptable 654/411 | P2 | ~2h | 2026-04-26 | | |
+| BIZ-111 | Import one-shot adresses postales depuis factures Word | P3 | ~1h | 2026-04-26 | | |
 
 ---
 
 ## Détails
+
+### BIZ-113 — Créances irrécouvrables : statut + écriture comptable 654/411
+
+**Problème** : Les factures client émises mais jamais réglées (ex. 2022-0361) restent indefiniment en statut « ouverte » et polluent les tableaux de bord (encours, relances, métriques de portefeuille).
+
+**Solution** : ajouter un statut `IRRECOVERABLE` sur les factures clients.
+
+**Backend** :
+- Ajouter la valeur `IRRECOVERABLE` à l’enum `InvoiceStatus` et créer une migration Alembic.
+- Nouvel endpoint `POST /api/invoices/{id}/write-off` (admin ou tresorier) : passe la facture en `IRRECOVERABLE` et génère automatiquement l’écriture comptable de constatation de perte :
+  - Débit `654 Pertes sur créances irrécouvrables` / Crédit `411 Clients` (montant restant à encaisser)
+  - Libellé automatique : `Créance irrécouvrable — {référence facture}`
+- La facture devient en lecture seule (plus de modification ni d’ajout de paiement).
+- Ajouter la règle comptable correspondante dans `accounting_rules` si elle n’existe pas.
+
+**Frontend** :
+- Bouton « Passer en irrécouvrable » dans le menu d’action de la facture (avec dialog de confirmation mentionnant l’écriture qui sera générée).
+- Filtre dans la liste des factures pour afficher / masquer les irrécouvrables (masquées par défaut).
+- Badge visuel distinct dans la liste (gris, barré ou étiquette « Irrécouvrable »).
+- Exclure les irrécouvrables des métriques d’encours et de relance.
+
+**Annulation possible** : si le client finit par payer après passage en irrécouvrable, l'utilisateur peut annuler le statut via une action « Rétablir la facture ». Cela génère l'écriture inverse : débit `411 Clients` / crédit `754 Reprises sur créances amorties`, et repasse la facture en `OPEN` (ou `PARTIAL`). Le paiement est ensuite saisi normalement.
+
+**Hors périmètre** : créances douteuses (compte 416 + provision 491/68174) — trop rare pour une asso de soutien scolaire, pourra être ajouté plus tard.
+
+**Fichiers à modifier** : `backend/models/invoice.py`, nouvelle migration, `backend/routers/invoice.py`, `backend/services/invoice.py`, `backend/services/accounting_engine.py`, `frontend/src/views/ClientInvoicesView.vue`.
+
+---
+
+### BIZ-112 — Afficher le numéro de facture dans le dialog de modification
+
+Dans le dialog « Modifier la facture » (`ClientInvoicesView.vue` et `SupplierInvoicesView.vue`), le numéro de référence de la facture (ex. `2022-0042`) n'est pas affiché. L'utilisateur ne peut pas vérifier quelle facture il est en train de modifier.
+
+**Correction** : afficher la référence en lecture seule dans l'en-tête ou sous le titre du dialog (ex. `Référence : 2022-0042`, texte non modifiable).
+
+**Fichiers concernés** : `frontend/src/views/ClientInvoicesView.vue`, `frontend/src/views/SupplierInvoicesView.vue`.
+
+---
+
+### BIZ-111 — Import one-shot adresses postales depuis factures Word
+
+**Contexte** : Les factures clients historiques sont des fichiers Word (`.docx`). L'adresse postale des clients y figure mais n'a jamais été saisie dans la base. Ce script one-shot extrait ces adresses et enrichit le champ `Contact.adresse`.
+
+**Règle de priorité** : traiter les factures par ordre décroissant de date (les plus récentes d'abord), car un client peut avoir déménagé. Ne pas écraser `adresse` si le champ est déjà renseigné pour ce contact.
+
+**Périmètre** : script Python standalone (`scripts/import_addresses_from_docx.py`), exécutable uniquement en mode test (`--dry-run` par défaut, `--commit` pour appliquer). Pas d'endpoint API, pas d'UI.
+
+**Algorithme** :
+1. Lister tous les fichiers `.docx` dans un dossier source (paramètre CLI).
+2. Pour chaque fichier, extraire : numéro de facture (pour identifier le contact), date de facture, bloc adresse (lignes situées après le nom du client et avant la ligne objet / référence).
+3. Résoudre le contact par correspondance sur le nom ou le numéro de facture en base (`Invoice.reference` → `Invoice.contact_id`).
+4. Trier les fichiers par date décroissante ; pour chaque contact, ne garder que la première adresse trouvée.
+5. En mode `--commit` : mettre à jour `Contact.adresse` uniquement si `adresse IS NULL`.
+6. Afficher un rapport : contacts mis à jour, ignorés (adresse déjà renseignée), non résolus.
+
+**Dépendance** : `python-docx` (à ajouter dans `pyproject.toml`, groupe `[project.optional-dependencies]` ou direct si jugé léger).
+
+**Fichiers** : `scripts/import_addresses_from_docx.py`, `pyproject.toml` (dépendance optionnelle).
+
+---
+
+### TEC-110 — Fix SPA : `Cache-Control: no-store` sur `index.html`
+
+**Problème** : Après un rebuild Docker, le navigateur utilisait un `index.html` mis en cache référençant d'anciens hashes de chunks Vite. Le module manquant déclenchait `TypeError: error loading dynamically imported module` (ex. `ProfileView-BM0w_JLN.js`).
+
+**Correction** : `serve_spa` dans `backend/main.py` retourne désormais `Cache-Control: no-store, no-cache, must-revalidate` pour `index.html`, et `Cache-Control: public, max-age=31536000, immutable` pour les assets hachés (`/assets/*`).
+
+---
 
 ### BIZ-107 — Contacts : colonne dernière facture + historique en modal centré
 
@@ -271,7 +351,7 @@ Remplacer toutes les occurrences inline par un appel à `getErrorDetail(error)`.
 | N | UX & formulaires | v0.7 | BIZ-094, BIZ-095, BIZ-096, BIZ-097 | 2026-04-25 |
 | Q | Recette post-merge N | v0.7 | voir doc/recette.md (REC-001..REC-015) | 2026-04-26 |
 
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039.
+Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-107, TEC-110.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
 
 <details>

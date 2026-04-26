@@ -13,6 +13,23 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- BIZ-108 : Écran de supervision système (`/system`) — panneau état (version, taille DB, uptime, badge statut), panneau sauvegardes (création + liste), journaux applicatifs (filtres niveau + texte, couleur par niveau, défilement)
+- BIZ-109 : Journal d'audit — endpoint `GET /api/settings/audit-logs` et panneau dédié dans l'écran système (tableau horodatage / acteur / action / cible / détail)
+- BIZ-108 : Schémas Pydantic `SystemInfoRead`, `BackupFileRead`, `LogEntryRead`, `AuditLogRead` dans `backend/schemas/settings.py`
+- BIZ-108 : Endpoints admin `GET /api/settings/system-info`, `GET /api/settings/backups`, `GET /api/settings/logs` avec parsing des fichiers de rotation
+- BIZ-108 : Fonctions API TypeScript `getSystemInfoApi`, `listBackupsApi`, `getLogsApi`, `getAuditLogsApi` dans `frontend/src/api/settings.ts`
+
+### Modifié
+
+- Navigation : page « Employés » déplacée de la section Comptabilité vers la section Gestion
+- Navigation : ajout de l'entrée « Supervision système » dans la section Administration (admins uniquement)
+
+---
+
+## [Non publié — avant Lot R]
+
+### Ajouté
+
 - BIZ-107 : Colonne « Dernière facture » dans le tableau des contacts (référence + date) — enrichissement backend avec sous-requête SQLAlchemy MAX(date) par contact
 - BIZ-107 : Historique contact en Dialog centré (au lieu d'une navigation vers une page dédiée) — composant `ContactHistoryContent` partagé entre la vue pleine page et le dialog
 - BIZ-107 : `ContactHistoryContent.vue` — composant extrait de `ContactDetailView`, réutilisable via prop `contactId` et événement `contact-loaded`
@@ -22,6 +39,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 - BIZ-107 : `ContactDetailView.vue` — réécrit comme wrapper léger autour de `ContactHistoryContent`
 - BIZ-107 : `ContactsView.vue` — bouton historique ouvre le dialog au lieu de naviguer, nouvelle colonne « Dernière facture »
+
+### Corrigé
+
+- TEC-110 (REC-016) : Fix SPA — `index.html` servi avec `Cache-Control: no-store, no-cache, must-revalidate` ; assets hachés `/assets/*` avec `immutable, max-age=1 an`. Élimine l'erreur `TypeError: error loading dynamically imported module` après un rebuild Docker (navigateur chargeait un `index.html` mis en cache référençant des hashes de chunks obsolètes)
 
  dans la page Paramètres — appelle `POST /api/settings/backup` et déclenche le téléchargement du fichier `.db` avec un nom horodaté (`solde_backup_YYYY-MM-DD-HH-MM-SS.db`) (CHR-019, REC-004)
 - `doc/dev/exploitation.md` : section déploiement Portainer / NAS Synology — stack YAML, variables d'environnement, données persistantes, procédure de mise à jour (CHR-019, REC-004)
