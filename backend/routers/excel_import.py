@@ -14,6 +14,7 @@ from backend.database import get_db
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.services import excel_import, import_reversible
+from backend.services.audit_service import AuditAction, record_audit
 from backend.services.excel_import import ImportFileOpenError, ImportSheetError
 
 logger = logging.getLogger(__name__)
@@ -366,13 +367,20 @@ async def get_import_run(
 async def execute_import_run(
     run_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> dict[str, object]:
     """Execute all prepared operations of a reversible import run."""
     try:
         run = await import_reversible.execute_import_run(db, run_id)
     except Exception as exc:  # pragma: no cover - delegated mapping below
         _raise_import_run_error(exc)
+    await record_audit(
+        db,
+        action=AuditAction.IMPORT_EXECUTED,
+        actor=current_user,
+        target_id=run_id,
+        target_type="import_run",
+    )
     return import_reversible.serialize_run(run)
 
 
@@ -380,13 +388,20 @@ async def execute_import_run(
 async def undo_import_run(
     run_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> dict[str, object]:
     """Undo every applied operation of a reversible import run in reverse order."""
     try:
         run = await import_reversible.undo_import_run(db, run_id)
     except Exception as exc:  # pragma: no cover - delegated mapping below
         _raise_import_run_error(exc)
+    await record_audit(
+        db,
+        action=AuditAction.IMPORT_UNDONE,
+        actor=current_user,
+        target_id=run_id,
+        target_type="import_run",
+    )
     return import_reversible.serialize_run(run)
 
 
@@ -394,13 +409,20 @@ async def undo_import_run(
 async def redo_import_run(
     run_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> dict[str, object]:
     """Redo every undone operation of a reversible import run in forward order."""
     try:
         run = await import_reversible.redo_import_run(db, run_id)
     except Exception as exc:  # pragma: no cover - delegated mapping below
         _raise_import_run_error(exc)
+    await record_audit(
+        db,
+        action=AuditAction.IMPORT_REDONE,
+        actor=current_user,
+        target_id=run_id,
+        target_type="import_run",
+    )
     return import_reversible.serialize_run(run)
 
 

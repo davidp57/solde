@@ -1667,6 +1667,51 @@ export default {
         reset_db: 'Réinitialisation base de données',
         selective_reset: 'Réinitialisation sélective',
       },
+      payment: {
+        create: 'Paiement créé',
+        update: 'Paiement modifié',
+        delete: 'Paiement supprimé',
+      },
+      invoice: {
+        create: 'Facture créée',
+        update: 'Facture modifiée',
+        status: { change: 'Statut facture modifié' },
+        duplicate: 'Facture dupliquée',
+        delete: 'Facture supprimée',
+        email: { send: 'Facture envoyée par email' },
+      },
+      cash: {
+        entry: {
+          create: 'Entrée caisse créée',
+          update: 'Entrée caisse modifiée',
+          delete: 'Entrée caisse supprimée',
+        },
+        count: { create: 'Comptage caisse créé' },
+      },
+      salary: {
+        create: 'Salaire créé',
+        update: 'Salaire modifié',
+        delete: 'Salaire supprimé',
+      },
+      bank: {
+        transaction: { create: 'Transaction bancaire créée', update: 'Transaction bancaire modifiée' },
+        reconcile: { payment: 'Rapprochement bancaire effectué' },
+        import: 'Import bancaire',
+        deposit: { create: 'Remise en banque créée' },
+      },
+      contact: {
+        create: 'Contact créé',
+        update: 'Contact modifié',
+        delete: 'Contact supprimé',
+        creance_douteuse: 'Créance douteuse constatée',
+      },
+      import: {
+        run: {
+          execute: 'Import Excel exécuté',
+          undo: 'Import Excel annulé',
+          redo: 'Import Excel rétabli',
+        },
+      },
     },
   },
 }

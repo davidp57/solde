@@ -53,6 +53,8 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | BIZ-114 | Suppression entrées caisse manuelles (cascade + aperçu connexions) | P2 | ~45 min | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-115 | Nommer les sauvegardes dans la vue système | P2 | ~30 min | 2026-04-26 | | |
 | BIZ-116 | Restauration d'une sauvegarde depuis la vue système (double confirmation) | P1 | ~1h30 | 2026-04-26 | | |
+| BIZ-119 | Interface simplifiée : tableau de bord avec cartes d'actions rapides | P2 | ~2h | 2026-04-26 | | |
+| BIZ-121 | Audit incomplet : paiements, factures, caisse, salaires, banque, contacts non tracés | P2 | ~1h30 | 2026-04-26 | 2026-04-26 | 2026-04-26 |
 | BIZ-117 | Assistant IA intégré (chatbot manuel utilisateur + accès doc/code) | P3 | ~4h | 2026-04-26 | | |
 
 ---
@@ -84,6 +86,54 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 **Hors périmètre** : créances douteuses (compte 416 + provision 491/68174) — trop rare pour une asso de soutien scolaire, pourra être ajouté plus tard.
 
 **Fichiers à modifier** : `backend/models/invoice.py`, nouvelle migration, `backend/routers/invoice.py`, `backend/services/invoice.py`, `backend/services/accounting_engine.py`, `frontend/src/views/ClientInvoicesView.vue`.
+
+---
+
+### BIZ-119 — Interface simplifiée : tableau de bord avec cartes d'actions rapides
+
+**Objectif** : offrir un écran d'accueil orienté « tâches » pour les utilisateurs non-comptables (secrétaire, bénévole occasionnel), avec des cartes cliquables correspondant aux actions les plus fréquentes, qui déclenchent un guide de saisie (wizard) pour aider l'encodage.
+
+**Actions à couvrir** :
+- Saisir une facture client
+- Encoder un paiement
+- Ajouter une entrée de caisse
+
+**Options d'intégration** :
+- Option A : nouveau panneau en haut du dashboard existant (cartes en grille, au-dessus des KPIs)
+- Option B : écran dédié `/accueil` avec navigation simplifiée (à voir selon le retour utilisateur)
+
+**Rôles concernés** : tous (admin, trésorier, secrétaire).
+
+---
+
+### BIZ-121 — Audit incomplet : actions métier non tracées
+
+**Contexte** : `audit_service.py` / `AuditAction` ne couvre que les événements d'authentification et d'administration système (login, logout, changement de mot de passe, création/modification d'utilisateur, reset DB). Toutes les opérations métier — création, modification, suppression d'enregistrements — sont invisibles dans le journal d'audit.
+
+**Constat** : exemple signalé — l'encodage de paiements n'apparaît pas dans le journal d'audit.
+
+**Périmètre à couvrir** (toutes les mutations POST/PUT/PATCH/DELETE) :
+
+| Domaine | Actions à auditer |
+|---|---|
+| Paiements | création, modification, suppression |
+| Factures clients | création, modification, changement statut, suppression, envoi email |
+| Factures fournisseurs | création, modification, changement statut, suppression |
+| Caisse | création entrée, modification, suppression, comptage de caisse |
+| Salaires | création, modification, suppression |
+| Banque | import OFX, rapprochement, liaison paiement, dépôt, création transaction manuelle |
+| Contacts | création, modification, suppression, import emails |
+| Import Excel | déclenchement import, annulation (undo) |
+
+**Backend** :
+- Étendre `AuditAction` avec les nouvelles valeurs (ex. `payment.create`, `invoice.delete`, `cash.entry.create`, etc.)
+- Ajouter `record_audit(...)` dans chaque endpoint concerné (routers `payment.py`, `invoice.py`, `cash.py`, `salary.py`, `bank.py`, `contact.py`, `excel_import.py`)
+- Inclure dans `detail` les informations utiles : montant, référence, ID cible, exercice fiscal selon le type d'objet
+
+**Frontend** :
+- Étendre les libellés i18n `system.action.*` pour couvrir les nouvelles valeurs d'action
+
+**Fichiers à modifier** : `backend/services/audit_service.py`, `backend/routers/payment.py`, `backend/routers/invoice.py`, `backend/routers/cash.py`, `backend/routers/salary.py`, `backend/routers/bank.py`, `backend/routers/contact.py`, `backend/routers/excel_import.py`, `frontend/src/i18n/fr.ts`
 
 ---
 
