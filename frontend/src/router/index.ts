@@ -133,7 +133,7 @@ const router = createRouter({
           path: 'employees',
           name: 'employees',
           component: () => import('../views/EmployeesView.vue'),
-          meta: { requiresAccounting: true, label: 'nav.employees' },
+          meta: { requiresManagement: true, label: 'nav.employees' },
         },
         {
           path: 'import/excel',
@@ -158,6 +158,12 @@ const router = createRouter({
           name: 'users',
           component: () => import('../views/UsersView.vue'),
           meta: { requiresAdmin: true, label: 'nav.users' },
+        },
+        {
+          path: 'system',
+          name: 'system',
+          component: () => import('../views/SystemView.vue'),
+          meta: { requiresAdmin: true, label: 'nav.system' },
         },
       ],
     },

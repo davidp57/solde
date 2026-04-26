@@ -142,3 +142,59 @@ export async function createBackupApi(): Promise<Blob> {
   })
   return response.data as Blob
 }
+
+// ---------------------------------------------------------------------------
+// System supervision (BIZ-108 / BIZ-109)
+// ---------------------------------------------------------------------------
+
+export interface SystemInfo {
+  app_version: string
+  db_size_bytes: number
+  started_at: string
+  log_file: string
+}
+
+export interface BackupFile {
+  filename: string
+  size_bytes: number
+  created_at: string
+}
+
+export interface LogEntry {
+  timestamp: string
+  level: string
+  logger: string
+  message: string
+}
+
+export interface AuditLogEntry {
+  id: number
+  action: string
+  actor_id: number | null
+  actor_username: string | null
+  target_type: string | null
+  target_id: number | null
+  detail: Record<string, unknown> | null
+  created_at: string
+}
+
+export async function getSystemInfoApi(): Promise<SystemInfo> {
+  const response = await apiClient.get<SystemInfo>('/api/settings/system-info')
+  return response.data
+}
+
+export async function listBackupsApi(): Promise<BackupFile[]> {
+  const response = await apiClient.get<BackupFile[]>('/api/settings/backups')
+  return response.data
+}
+
+export async function getLogsApi(): Promise<LogEntry[]> {
+  const response = await apiClient.get<LogEntry[]>('/api/settings/logs')
+  return response.data
+}
+
+export async function getAuditLogsApi(): Promise<AuditLogEntry[]> {
+  const response = await apiClient.get<AuditLogEntry[]>('/api/settings/audit-logs')
+  return response.data
+}
+

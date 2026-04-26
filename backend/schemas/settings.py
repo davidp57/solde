@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from datetime import date as _Date
+from datetime import datetime as _Datetime
 from decimal import Decimal as _Decimal
+from typing import Any
 
 from pydantic import BaseModel, field_validator
 
@@ -119,3 +121,54 @@ class SelectiveResetPreviewRead(BaseModel):
     root_objects: dict[str, int]
     derived_objects: dict[str, int]
     delete_plan: dict[str, int]
+
+
+# ---------------------------------------------------------------------------
+# System info (BIZ-108)
+# ---------------------------------------------------------------------------
+
+
+class SystemInfoRead(BaseModel):
+    """Read-only system information for the supervision screen."""
+
+    app_version: str
+    db_size_bytes: int
+    started_at: _Datetime
+    log_file: str
+
+
+class BackupFileRead(BaseModel):
+    """Metadata for a single backup file."""
+
+    filename: str
+    size_bytes: int
+    created_at: _Datetime
+
+
+class LogEntryRead(BaseModel):
+    """A single parsed log line."""
+
+    timestamp: str
+    level: str
+    logger: str
+    message: str
+
+
+# ---------------------------------------------------------------------------
+# Audit log (BIZ-109)
+# ---------------------------------------------------------------------------
+
+
+class AuditLogRead(BaseModel):
+    """A single audit log entry."""
+
+    id: int
+    action: str
+    actor_id: int | None
+    actor_username: str | None
+    target_type: str | None
+    target_id: int | None
+    detail: dict[str, Any] | None
+    created_at: _Datetime
+
+    model_config = {"from_attributes": True}
