@@ -436,8 +436,8 @@ onMounted(async () => {
   gap: var(--app-space-3);
   padding: var(--app-space-4);
   border: 1px solid var(--app-surface-border);
-  border-radius: var(--app-surface-radius);
-  background: var(--p-surface-0);
+  border-radius: var(--app-surface-radius-sm);
+  background: color-mix(in srgb, var(--app-surface-bg) 88%, var(--p-surface-0) 12%);
   cursor: pointer;
   text-align: left;
   transition:
@@ -448,9 +448,15 @@ onMounted(async () => {
 }
 
 .dashboard-action-card:hover {
-  background: color-mix(in srgb, var(--p-primary-50) 60%, transparent);
+  background: color-mix(in srgb, var(--app-surface-bg) 70%, var(--p-primary-100) 30%);
   border-color: var(--p-primary-400);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--p-primary-200) 40%, transparent);
+}
+
+html.dark-mode .dashboard-action-card:hover {
+  background: color-mix(in srgb, var(--app-surface-bg) 70%, rgba(var(--p-primary-400-rgb, 99, 102, 241), 0.15) 30%);
+  border-color: var(--p-primary-500);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .dashboard-action-card:focus-visible {
@@ -469,6 +475,11 @@ onMounted(async () => {
   background: color-mix(in srgb, var(--p-primary-100) 70%, transparent);
   color: var(--p-primary-600);
   font-size: 1.15rem;
+}
+
+html.dark-mode .dashboard-action-card__icon {
+  background: color-mix(in srgb, var(--p-primary-900) 60%, transparent);
+  color: var(--p-primary-300);
 }
 
 .dashboard-action-card__body {
