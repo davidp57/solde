@@ -13,6 +13,22 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- TEC-099 : Contrainte `ON DELETE CASCADE` sur la FK `payments.invoice_id → invoices.id` (migration Alembic `0030_payment_invoice_cascade`) — suppression d'une facture en base entraîne désormais la suppression en cascade des paiements associés, éliminant le risque d'enregistrements orphelins
+- TEC-100 : `tests/unit/test_pdf_service.py` — 13 tests couvrant `render_invoice_html` (contenu HTML) et `generate_invoice_pdf` / `save_invoice_pdf` (WeasyPrint mocké via `sys.modules` pour éviter l'import natif GTK)
+- TEC-100 : `tests/unit/test_email_service.py` — 11 tests couvrant STARTTLS, SSL, BCC optionnel, sujet du message, et gestion des erreurs SMTP/OS/auth
+- TEC-101 : Composable `frontend/src/composables/useInvoiceMetrics.ts` — extrait `receivableMetrics` et `portfolioMetrics` de `ClientInvoicesView.vue`, avec export des helpers purs `remainingForInvoice`, `isOpenReceivableInvoice`, `isOverdueInvoice`
+- TEC-102 : Utilitaire `frontend/src/utils/errorUtils.ts` — fonction `getErrorDetail(error, fallback)` qui extrait le message `detail` des erreurs FastAPI structurées
+- TEC-103 : Debounce 300 ms sur le filtre global de `ClientInvoicesView.vue` via `globalFilterInput` ref + `setTimeout`/`clearTimeout` natif — évite les re-renders à chaque frappe sur de longues listes
+
+### Modifié
+
+- TEC-098 : `backend/services/accounting_entry_service.py` — suppression de `limit=100_000` ; `get_balance`, `get_resultat`, `get_bilan` utilisent désormais des agrégations SQL (`GROUP BY + SUM`) ; `get_grouped_journal` utilise une pagination SQL réelle (`OFFSET/LIMIT` poussés dans la requête SQLAlchemy, plus de slice Python)
+- TEC-098 : `backend/services/export_service.py` — `export_journal_csv` passe `limit=None` pour lever le plafond de 100 000 lignes sans charger en mémoire
+- TEC-102 : `BankClientPaymentDialog.vue`, `BankSupplierPaymentDialog.vue`, `BankLinkClientPaymentDialog.vue`, `BankLinkSupplierPaymentDialog.vue` — extraction d'erreur inline remplacée par `getErrorDetail()`
+- TEC-104 : `CashView.vue` — type `CashDenomField` dédié élimine le cast `as unknown as Record<string, number>` dans le template ; `CashEntryFormState.date` déclaré `Date | string` élimine les deux casts `as unknown as Date`
+
+### Ajouté
+
 - BIZ-108 : Écran de supervision système (`/system`) — panneau état (version, taille DB, uptime, badge statut), panneau sauvegardes (création + liste), journaux applicatifs (filtres niveau + texte, couleur par niveau, défilement)
 - BIZ-109 : Journal d'audit — endpoint `GET /api/settings/audit-logs` et panneau dédié dans l'écran système (tableau horodatage / acteur / action / cible / détail)
 - BIZ-108 : Schémas Pydantic `SystemInfoRead`, `BackupFileRead`, `LogEntryRead`, `AuditLogRead` dans `backend/schemas/settings.py`

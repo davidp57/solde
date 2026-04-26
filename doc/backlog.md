@@ -19,18 +19,18 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-098 | Journal comptable : remplacer limit=100 000 par pagination SQL | P1 | ~45 min | 2026-04-25 | | |
-| TEC-099 | Cascade FK manquante Payment → Invoice (+ migration Alembic) | P2 | ~15 min | 2026-04-25 | | |
-| TEC-100 | Tests manquants : pdf_service, email_service, bank_import | P2 | ~1h | 2026-04-25 | | |
+| TEC-098 | Journal comptable : remplacer limit=100 000 par pagination SQL | P1 | ~45 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
+| TEC-099 | Cascade FK manquante Payment → Invoice (+ migration Alembic) | P2 | ~15 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
+| TEC-100 | Tests manquants : pdf_service, email_service, bank_import | P2 | ~1h | 2026-04-25 | 2026-04-29 | 2026-04-30 |
 
 ### Lot P — Qualité technique frontend (~1h15) — v0.7
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-101 | Refactoring ClientInvoicesView.vue (~1 100 L) | P2 | ~45 min | 2026-04-25 | | |
-| TEC-102 | Utilitaire getErrorDetail() mutualisé (bank dialogs) | P3 | ~10 min | 2026-04-25 | | |
-| TEC-103 | Debounce sur filtres texte en temps réel | P3 | ~10 min | 2026-04-25 | | |
-| TEC-104 | Casts TypeScript non sûrs dans CashView.vue | P2 | ~10 min | 2026-04-25 | | |
+| TEC-101 | Refactoring ClientInvoicesView.vue (~1 100 L) | P2 | ~45 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
+| TEC-102 | Utilitaire getErrorDetail() mutualisé (bank dialogs) | P3 | ~10 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
+| TEC-103 | Debounce sur filtres texte en temps réel | P3 | ~10 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
+| TEC-104 | Casts TypeScript non sûrs dans CashView.vue | P2 | ~10 min | 2026-04-25 | 2026-04-29 | 2026-04-30 |
 
 ### Lot S — Documentation & i18n (~1h) — v0.9
 
@@ -344,6 +344,8 @@ Remplacer toutes les occurrences inline par un appel à `getErrorDetail(error)`.
 | N | UX & formulaires | v0.7 | BIZ-094, BIZ-095, BIZ-096, BIZ-097 | 2026-04-25 |
 | Q | Recette post-merge N | v0.7 | voir doc/recette.md (REC-001..REC-015) | 2026-04-26 |
 | R | Supervision système & audit | v0.8 | BIZ-108, BIZ-109 | 2026-04-26 |
+| O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-30 |
+| P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-30 |
 
 Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-107, TEC-110, BIZ-108, BIZ-109.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
