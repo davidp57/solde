@@ -123,7 +123,55 @@
         </div>
       </div>
     </AppPanel>
+    <AppPanel :title="t('settings.section_default_prices')" :subtitle="t('settings.section_default_prices_subtitle')">
+      <div class="app-form-grid">
+        <div class="app-field">
+          <label for="default_price_cours" class="app-field__label">
+            {{ t('settings.default_price_cours') }}
+          </label>
+          <InputNumber
+            id="default_price_cours"
+            v-model="form.default_price_cours"
+            :min="0"
+            :max-fraction-digits="2"
+            :min-fraction-digits="2"
+            suffix=" €"
+            class="w-full"
+          />
+          <small class="app-field__hint">{{ t('settings.default_price_help') }}</small>
+        </div>
 
+        <div class="app-field">
+          <label for="default_price_adhesion" class="app-field__label">
+            {{ t('settings.default_price_adhesion') }}
+          </label>
+          <InputNumber
+            id="default_price_adhesion"
+            v-model="form.default_price_adhesion"
+            :min="0"
+            :max-fraction-digits="2"
+            :min-fraction-digits="2"
+            suffix=" €"
+            class="w-full"
+          />
+        </div>
+
+        <div class="app-field">
+          <label for="default_price_autres" class="app-field__label">
+            {{ t('settings.default_price_autres') }}
+          </label>
+          <InputNumber
+            id="default_price_autres"
+            v-model="form.default_price_autres"
+            :min="0"
+            :max-fraction-digits="2"
+            :min-fraction-digits="2"
+            suffix=" €"
+            class="w-full"
+          />
+        </div>
+      </div>
+    </AppPanel>
     <AppPanel :title="t('settings.section_smtp')" :subtitle="t('settings.section_smtp_subtitle')">
       <div class="app-form-grid">
         <div class="app-field">
@@ -260,6 +308,9 @@ interface SettingsForm {
   client_invoice_seq_digits: number
   client_invoice_number_template: string
   supplier_invoice_number_template: string
+  default_price_cours: number | null
+  default_price_adhesion: number | null
+  default_price_autres: number | null
   smtp_host: string | null
   smtp_port: number
   smtp_user: string | null
@@ -284,6 +335,9 @@ const defaultForm = (): SettingsForm => ({
   client_invoice_seq_digits: 3,
   client_invoice_number_template: '{year}-{seq}',
   supplier_invoice_number_template: 'FF-%Y%m%d%H.%M.%S',
+  default_price_cours: null,
+  default_price_adhesion: null,
+  default_price_autres: null,
   smtp_host: null,
   smtp_port: 587,
   smtp_user: null,
@@ -310,6 +364,9 @@ async function load(): Promise<void> {
       client_invoice_seq_digits: data.client_invoice_seq_digits,
       client_invoice_number_template: data.client_invoice_number_template,
       supplier_invoice_number_template: data.supplier_invoice_number_template,
+      default_price_cours: data.default_price_cours,
+      default_price_adhesion: data.default_price_adhesion,
+      default_price_autres: data.default_price_autres,
       smtp_host: data.smtp_host,
       smtp_port: data.smtp_port,
       smtp_user: data.smtp_user,
@@ -337,6 +394,9 @@ async function save(): Promise<void> {
       client_invoice_seq_digits: form.value.client_invoice_seq_digits,
       client_invoice_number_template: form.value.client_invoice_number_template,
       supplier_invoice_number_template: form.value.supplier_invoice_number_template,
+      default_price_cours: form.value.default_price_cours,
+      default_price_adhesion: form.value.default_price_adhesion,
+      default_price_autres: form.value.default_price_autres,
       smtp_host: form.value.smtp_host,
       smtp_port: form.value.smtp_port,
       smtp_user: form.value.smtp_user,

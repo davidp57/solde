@@ -10,6 +10,9 @@ export interface AppSettings {
   client_invoice_seq_digits: number
   client_invoice_number_template: string
   supplier_invoice_number_template: string
+  default_price_cours: number | null
+  default_price_adhesion: number | null
+  default_price_autres: number | null
   smtp_host: string | null
   smtp_port: number
   smtp_user: string | null
@@ -27,6 +30,9 @@ export interface AppSettingsUpdate {
   client_invoice_seq_digits?: number
   client_invoice_number_template?: string
   supplier_invoice_number_template?: string
+  default_price_cours?: number | null
+  default_price_adhesion?: number | null
+  default_price_autres?: number | null
   smtp_host?: string | null
   smtp_port?: number
   smtp_user?: string | null

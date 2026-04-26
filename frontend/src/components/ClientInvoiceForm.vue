@@ -160,6 +160,11 @@ const initialSnapshot = ref('')
 const isEditing = computed(() => props.invoice !== null)
 const defaultInvoiceDueDays = ref<number | null>(null)
 const suggestedDueDateIso = ref<string | null>(null)
+const defaultPrices = ref<Record<string, number | null>>({
+  cours: null,
+  adhesion: null,
+  autres: null,
+})
 
 interface LineForm {
   line_type: InvoiceLineType | null
@@ -256,14 +261,21 @@ function onLineTypeChange(line: LineForm) {
   ) {
     line.description = defaultLineDescriptions[line.line_type]
   }
+  if (line.unit_price === 0) {
+    const defaultPrice = defaultPrices.value[line.line_type]
+    if (defaultPrice !== null && defaultPrice !== undefined) {
+      line.unit_price = defaultPrice
+    }
+  }
 }
 
 function addLine() {
+  const defaultUnitPrice = defaultPrices.value['cours'] ?? 0
   form.lines.push({
     line_type: 'cours',
     description: 'Cours de soutien',
     quantity: 1,
-    unit_price: 0,
+    unit_price: defaultUnitPrice,
   })
 }
 
@@ -394,6 +406,11 @@ onMounted(() => {
   void getSettingsApi()
     .then((settings) => {
       defaultInvoiceDueDays.value = settings.default_invoice_due_days
+      defaultPrices.value = {
+        cours: settings.default_price_cours,
+        adhesion: settings.default_price_adhesion,
+        autres: settings.default_price_autres,
+      }
       applySuggestedDueDate()
     })
     .catch(() => {
