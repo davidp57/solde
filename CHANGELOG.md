@@ -48,6 +48,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - BIZ-109 : Labels des actions d'audit traduits en français dans l'écran de supervision (clés i18n imbriquées `system.action.*`)
 - BIZ-109 : Horodatages affichés en heure locale — SQLite stockant les dates sans suffixe de fuseau, elles étaient interprétées comme heure locale plutôt qu'UTC (décalage −2h)
 - TEC-110 (REC-016) : Fix SPA — `index.html` servi avec `Cache-Control: no-store, no-cache, must-revalidate` ; assets hachés `/assets/*` avec `immutable, max-age=1 an`. Élimine l'erreur `TypeError: error loading dynamically imported module` après un rebuild Docker (navigateur chargeait un `index.html` mis en cache référençant des hashes de chunks obsolètes)
+- REC-019 : `ClientInvoiceForm.vue`, `SupplierInvoiceForm.vue` — ajout de `:show-on-focus="false"` sur les `DatePicker` (date et échéance) pour empêcher le calendrier de s'ouvrir automatiquement à l'ouverture du dialog
 - `doc/dev/exploitation.md` : section déploiement Portainer / NAS Synology — stack YAML, variables d'environnement, données persistantes, procédure de mise à jour (CHR-019, REC-004)
 - Écran Salaires rendu accessible au rôle `secretaire` (Management) en plus des rôles `tresorier` et `admin` (REC-005)
 - CRUD complet des règles comptables réservé aux admins : création, modification, suppression avec confirmation ; dialog formulaire avec sélecteur de déclencheur, lignes comptables éditables ; 26 libellés et descriptions métier en français par déclencheur (REC-008)

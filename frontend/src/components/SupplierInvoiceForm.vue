@@ -33,12 +33,12 @@
         <div class="app-form-grid">
           <div class="app-field">
             <label class="app-field__label">{{ t('invoices.date') }}</label>
-            <DatePicker v-model="form.date" date-format="dd/mm/yy" class="w-full" required />
+            <DatePicker v-model="form.date" date-format="dd/mm/yy" class="w-full" :show-on-focus="false" required />
             <small v-if="fieldErrors['date']" class="p-error">{{ fieldErrors['date'] }}</small>
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('invoices.due_date') }}</label>
-            <DatePicker v-model="form.due_date" date-format="dd/mm/yy" class="w-full" show-clear />
+            <DatePicker v-model="form.due_date" date-format="dd/mm/yy" class="w-full" :show-on-focus="false" show-clear />
           </div>
         </div>
 
