@@ -2,6 +2,7 @@
   <div class="app-date-picker" :class="[wrapperClass, { 'app-date-picker--clearable': showClear }]">
     <input
       type="date"
+      lang="fr-FR"
       class="p-inputtext app-date-picker__input"
       :id="id"
       :required="required"
