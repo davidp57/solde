@@ -49,7 +49,11 @@ _STOP_KEYWORDS_RE = re.compile(
     r"^(objet|référence|ref\.|facture\s*n|date\s*:|n°\s*facture|doit\s*|bon\s*de\s*commande|tva|siret|rib\b|iban\b|bic\b)",
     re.IGNORECASE,
 )
-
+# "Metz, le 18 janvier 2025" or "Paris, le 01/04/2025" — city+date header, not an address line
+_CITY_DATE_RE = re.compile(
+    r"^[A-Za-z\u00C0-\u00FF][A-Za-z\u00C0-\u00FF\s-]+,\s*le\b",
+    re.IGNORECASE,
+)
 _FRENCH_MONTHS = {
     "janvier": 1,
     "février": 2,
@@ -229,8 +233,8 @@ def _extract_address_block(
     for para in paragraphs[name_idx + 1 :]:
         if _STOP_KEYWORDS_RE.match(para):
             break
-        # Stop at lines that look like section headers (all caps, short)
-        if para.isupper() and len(para) > 3:
+        # Stop at city+date header: "Metz, le 18 janvier 2025"
+        if _CITY_DATE_RE.match(para):
             break
         # Stop if we see another invoice-number-like pattern that isn't part of address
         if _INVOICE_NUMBER_RE.match(para) and not _POSTAL_CODE_RE.search(para):
@@ -246,6 +250,12 @@ def _extract_address_block(
         return None
 
     address = "\n".join(address_lines)
+    # Sanity check: a French postal address must contain a 5-digit postal code
+    if not _POSTAL_CODE_RE.search(address):
+        if verbose:
+            print(f"    [address] Rejected (no postal code): {address!r}")
+        return None
+
     if verbose:
         print(f"    [address] Extracted: {address!r}")
     return address
@@ -381,24 +391,24 @@ def run(
         elif error == "no_invoice_number":
             report.no_invoice_number.append(path)
             if verbose:
-                print("    → SKIP: no invoice number found")
+                print("    >> SKIP: no invoice number found")
         elif error and error.startswith("unresolved:"):
             inv_num = error.split(":", 1)[1]
             report.unresolved.append((inv_num, path))
             if verbose:
-                print(f"    → SKIP: invoice {inv_num!r} not found in DB")
+                print(f"    >> SKIP: invoice {inv_num!r} not found in DB")
         elif error and error.startswith("no_address:"):
             cid = int(error.split(":", 1)[1])
             row = conn.execute("SELECT nom, prenom FROM contacts WHERE id=?", (cid,)).fetchone()
             nom_str = f"{row['nom']} {row['prenom'] or ''}".strip() if row else str(cid)
             report.skipped_no_address.append((cid, path.name))
             if verbose:
-                print(f"    → SKIP: could not extract address for contact #{cid} {nom_str}")
+                print(f"    >> SKIP: could not extract address for contact #{cid} {nom_str}")
         else:
             if verbose:
-                print(f"    → SKIP: {error}")
+                print(f"    >> SKIP: {error}")
 
-    # Sort by date descending — most recent first
+    # Sort by date descending - most recent first
     extractions.sort(
         key=lambda e: e.invoice_date or date.min,
         reverse=True,
@@ -425,7 +435,7 @@ def run(
             if verbose:
                 print(
                     f"\n  [{ext.file.name}] Contact #{ext.contact_id} {ext.contact_nom}: "
-                    f"already has address — skip"
+                    f"already has address -- skip"
                 )
             continue
 
@@ -433,12 +443,12 @@ def run(
         if commit:
             _update_contact_address(conn, ext.contact_id, ext.address)
             print(
-                f"  ✔ Updated  #{ext.contact_id} {ext.contact_nom}: "
+                f"  [OK] Updated  #{ext.contact_id} {ext.contact_nom}: "
                 f"{ext.address[:60].replace(chr(10), ' / ')!r}"
             )
         else:
             print(
-                f"  ~ Would update #{ext.contact_id} {ext.contact_nom}: "
+                f"  [--] Would update #{ext.contact_id} {ext.contact_nom}: "
                 f"{ext.address[:60].replace(chr(10), ' / ')!r}"
             )
 
