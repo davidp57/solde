@@ -8,7 +8,7 @@
 
     <template v-else>
       <section class="dashboard-quick-actions" :aria-label="t('dashboard.quick_actions_title')">
-        <button class="dashboard-action-card" @click="router.push({ name: 'invoices-client', query: { create: '1' } })">
+        <button class="dashboard-action-card" @click="invoiceWizardVisible = true">
           <span class="dashboard-action-card__icon">
             <i class="pi pi-file-plus" />
           </span>
@@ -161,6 +161,7 @@
     </template>
 
     <QuickPaymentWizard v-model:visible="paymentWizardVisible" />
+    <QuickInvoiceWizard v-model:visible="invoiceWizardVisible" />
   </AppPage>
 </template>
 
@@ -179,6 +180,7 @@ import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import QuickPaymentWizard from '../components/QuickPaymentWizard.vue'
+import QuickInvoiceWizard from '../components/QuickInvoiceWizard.vue'
 import { getDashboardApi, getMonthlyChartApi, getResourcesChartApi } from '../api/accounting'
 import type {
   DashboardKPIs,
@@ -191,6 +193,7 @@ const { t } = useI18n()
 const router = useRouter()
 const fiscalYearStore = useFiscalYearStore()
 
+const invoiceWizardVisible = ref(false)
 const paymentWizardVisible = ref(false)
 
 const loading = ref(true)

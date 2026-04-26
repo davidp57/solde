@@ -1242,6 +1242,14 @@ export default {
       close: 'Fermer',
       encode_another: 'Encoder un autre paiement',
     },
+    invoice_wizard: {
+      title: 'Saisir une facture client',
+      loading: 'Chargement des contacts…',
+      success_title: 'Facture créée',
+      success_msg: 'La facture a bien été enregistrée.',
+      close: 'Fermer',
+      create_another: 'Saisir une autre facture',
+    },
   },
   import: {
     title: 'Import Excel',
