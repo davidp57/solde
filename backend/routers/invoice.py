@@ -407,6 +407,7 @@ async def send_invoice_email(
             invoice_number=invoice.number,
             association_name=app_settings.association_name,
             pdf_bytes=pdf_bytes,
+            description=invoice.description,
         )
     except email_service.EmailSendError as exc:
         raise HTTPException(

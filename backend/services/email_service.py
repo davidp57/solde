@@ -28,15 +28,20 @@ def send_invoice_email(
     association_name: str,
     pdf_bytes: bytes,
     bcc: str | None = None,
+    description: str | None = None,
 ) -> None:
     """Send an invoice PDF by email.
 
     Raises EmailSendError if delivery fails.
     """
+    subject = f"Facture {invoice_number} — {association_name}"
+    if description:
+        subject = f"Facture {invoice_number} — {description}"
+
     msg = MIMEMultipart()
     msg["From"] = smtp_from_email
     msg["To"] = recipient_email
-    msg["Subject"] = f"Facture {invoice_number} — {association_name}"
+    msg["Subject"] = subject
     if bcc:
         msg["Bcc"] = bcc
 
