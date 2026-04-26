@@ -18,7 +18,7 @@
           </span>
           <i class="pi pi-chevron-right dashboard-action-card__arrow" />
         </button>
-        <button class="dashboard-action-card" @click="router.push({ name: 'invoices-client', query: { unpaid: '1' } })">
+        <button class="dashboard-action-card" @click="paymentWizardVisible = true">
           <span class="dashboard-action-card__icon">
             <i class="pi pi-credit-card" />
           </span>
@@ -159,6 +159,8 @@
         </AppPanel>
       </div>
     </template>
+
+    <QuickPaymentWizard v-model:visible="paymentWizardVisible" />
   </AppPage>
 </template>
 
@@ -176,6 +178,7 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
+import QuickPaymentWizard from '../components/QuickPaymentWizard.vue'
 import { getDashboardApi, getMonthlyChartApi, getResourcesChartApi } from '../api/accounting'
 import type {
   DashboardKPIs,
@@ -187,6 +190,8 @@ import { useFiscalYearStore } from '../stores/fiscalYear'
 const { t } = useI18n()
 const router = useRouter()
 const fiscalYearStore = useFiscalYearStore()
+
+const paymentWizardVisible = ref(false)
 
 const loading = ref(true)
 const kpis = ref<DashboardKPIs | null>(null)
