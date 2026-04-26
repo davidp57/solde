@@ -40,7 +40,7 @@ async def export_journal_csv(
         to_date=to_date,
         account_number=account_number,
         fiscal_year_id=fiscal_year_id,
-        limit=100_000,
+        limit=None,
     )
 
     headers = ["N° pièce", "Date", "Compte", "Libellé", "Débit", "Crédit", "Source"]

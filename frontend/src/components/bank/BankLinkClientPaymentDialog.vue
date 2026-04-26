@@ -97,6 +97,7 @@ import { listPayments, type Payment } from '@/api/payments'
 import { scorePaymentSuggestion } from '@/utils/bankReconciliation'
 import { formatContactDisplayName } from '@/utils/contact'
 import { formatDisplayDate } from '@/utils/format'
+import { getErrorDetail } from '@/utils/errorUtils'
 
 const props = defineProps<{
   visible: boolean
@@ -215,10 +216,9 @@ watch(
       contacts.value = conts
       selections.value = buildSelections()
     } catch (error) {
-      const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
       toast.add({
         severity: 'error',
-        summary: typeof detail === 'string' ? detail : t('common.error.unknown'),
+        summary: getErrorDetail(error, t('common.error.unknown')),
         life: 3000,
       })
     } finally {
@@ -246,10 +246,9 @@ async function submit(): Promise<void> {
     })
     emit('saved')
   } catch (error) {
-    const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
     toast.add({
       severity: 'error',
-      summary: typeof detail === 'string' ? detail : t('common.error.unknown'),
+      summary: getErrorDetail(error, t('common.error.unknown')),
       life: 3000,
     })
   } finally {
