@@ -487,7 +487,7 @@
           <div class="app-form-grid">
             <div class="app-field">
               <label class="app-field__label">{{ t('payments.date') }}</label>
-              <DatePicker v-model="paymentForm.date" date-format="yy-mm-dd" show-icon />
+              <AppDatePicker v-model="paymentForm.date" />
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('payments.amount') }}</label>
@@ -541,7 +541,7 @@ import Button from 'primevue/button'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
-import DatePicker from 'primevue/datepicker'
+import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'

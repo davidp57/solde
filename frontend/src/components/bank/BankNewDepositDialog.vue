@@ -15,7 +15,7 @@
         <div class="app-form-grid">
           <div class="app-field">
             <label class="app-field__label">{{ t('bank.deposit_date') }}</label>
-            <DatePicker v-model="form.date" date-format="yy-mm-dd" show-icon />
+            <AppDatePicker v-model="form.date" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('bank.deposit_type') }}</label>
@@ -82,7 +82,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
-import DatePicker from 'primevue/datepicker'
+import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
