@@ -97,6 +97,8 @@
               data-key="id"
               size="small"
               row-hover
+              sort-field="date"
+              :sort-order="-1"
               removable-sort
               @value-change="syncDisplayedEntries"
             >

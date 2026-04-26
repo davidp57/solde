@@ -89,6 +89,8 @@
           'net_pay_value',
           'total_cost_value',
         ]"
+        sort-field="month"
+        :sort-order="-1"
         removable-sort
         @value-change="syncDisplayedSalaries"
       >
