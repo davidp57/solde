@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
@@ -91,10 +91,10 @@ interface ChatForm {
   chat_model: string | null
 }
 
-const providerOptions = [
-  { label: 'Google Gemini', value: 'gemini' },
-  { label: 'OpenAI', value: 'openai' },
-]
+const providerOptions = computed(() => [
+  { label: t('settings.chat_provider_gemini'), value: 'gemini' },
+  { label: t('settings.chat_provider_openai'), value: 'openai' },
+])
 
 const defaultForm = (): ChatForm => ({
   chat_provider: 'gemini',
