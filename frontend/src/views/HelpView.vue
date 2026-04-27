@@ -19,8 +19,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { marked } from 'marked'
 import Message from 'primevue/message'
+import { renderMarkdown } from '@/utils/renderMarkdown'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import { getManual } from '@/api/help'
@@ -32,8 +32,7 @@ const error = ref(false)
 
 const renderedManual = computed(() => {
   if (!manualText.value) return ''
-  const result = marked.parse(manualText.value, { async: false })
-  return result as string
+  return renderMarkdown(manualText.value)
 })
 
 onMounted(async () => {

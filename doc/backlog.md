@@ -49,7 +49,7 @@ Deux fonctionnalités complémentaires autour de la documentation embarquée :
 - `backend/routers/chat.py` : `POST /api/chat` (auth requise), `GET /api/help/manual`
 - Colonnes `AppSettings` : `chat_provider` (`gemini` | `openai`, défaut `gemini`), `chat_api_key` (nullable), `chat_model` (nullable)
 - Migration Alembic 0035 dédiée
-- `chat_api_key` exclu du schéma `AppSettingsRead` (même pattern que `smtp_password`)
+- `chat_api_key` exclue du schéma `AppSettingsRead` (même pattern que `smtp_password`)
 
 **Périmètre frontend :**
 - `HelpView.vue` + route `/aide`
