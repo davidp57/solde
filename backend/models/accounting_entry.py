@@ -22,21 +22,10 @@ class EntrySourceType(StrEnum):
     PAYMENT = "payment"
     DEPOSIT = "deposit"
     SALARY = "salary"
-    GESTION = "gestion"
     MANUAL = "manual"
     CASH = "cash"
     CLOTURE = "cloture"
     WRITE_OFF = "write_off"
-
-
-def build_entry_group_key(
-    source_type: EntrySourceType | str | None,
-    source_id: int | None,
-) -> str | None:
-    if source_type is None or source_id is None:
-        return None
-    source_value = source_type.value if isinstance(source_type, EntrySourceType) else source_type
-    return f"{source_value}:{source_id}"
 
 
 def build_entry_group_key(
