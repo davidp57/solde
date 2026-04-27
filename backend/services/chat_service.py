@@ -125,9 +125,9 @@ async def stream_chat(
         yield _sse({"error": msg})
         logger.debug("Original exception: %s", exc)
 
-    yield _sse("[DONE]")
-
-    # Log the question (fire-and-forget; errors are non-fatal)
+    # Log the question BEFORE yielding [DONE]: after the last yield Starlette
+    # may close the DB session before the generator resumes, causing the commit
+    # to silently fail.
     try:
         log_entry = ChatLog(
             user_id=user.id,
@@ -151,6 +151,8 @@ async def stream_chat(
         await db.commit()
     except Exception:  # noqa: BLE001
         logger.exception("Failed to log chat question")
+
+    yield _sse("[DONE]")
 
 
 def _sse(data: object) -> str:
