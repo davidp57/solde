@@ -24,8 +24,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 - BIZ-126 : `SettingsAssociationSmtpPanel.vue` — remplacé par les deux composants ci-dessus
 
----
-
+### Ajouté
 
 - CHR-079 : `doc/admin/installation.md` — guide d'installation Docker bilingue (FR+EN) avec Docker Compose complet, configuration `.env`, option Synology Portainer
 - CHR-079 : `doc/admin/configuration.md` — référence des variables d'environnement et paramètres association, bilingue

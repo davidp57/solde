@@ -87,8 +87,9 @@
     <!-- Chat sidebar (floating, authenticated pages only) -->
     <ChatSidebar />
 
-    <!-- Chat toggle button (always visible for authenticated users) -->
+    <!-- Chat toggle button (visible when chat is enabled) -->
     <Button
+      v-if="chatStore.isEnabled"
       icon="pi pi-sparkles"
       class="chat-fab"
       rounded

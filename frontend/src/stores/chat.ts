@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { type ChatMessage, getChatConfig, streamChat } from '@/api/chat'
+import i18n from '@/i18n'
 
 export const useChatStore = defineStore('chat', () => {
   const isOpen = ref(false)
@@ -67,7 +68,7 @@ export const useChatStore = defineStore('chat', () => {
       if (err instanceof Error && err.name === 'AbortError') return
       messages.value.push({
         role: 'assistant',
-        content: '__Erreur lors de la génération de la réponse.__',
+        content: `_${i18n.global.t('chat.error')}_`,
       })
     } finally {
       streamingText.value = ''

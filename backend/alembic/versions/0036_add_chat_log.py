@@ -1,12 +1,14 @@
 """Migration 0036 — create chat_log table."""
 
+from collections.abc import Sequence
+
 import sqlalchemy as sa
 from alembic import op
 
 revision: str = "0036"
 down_revision: str = "0035"
-branch_labels: None = None
-depends_on: None = None
+branch_labels: Sequence[str] | None = None
+depends_on: Sequence[str] | None = None
 
 
 def upgrade() -> None:

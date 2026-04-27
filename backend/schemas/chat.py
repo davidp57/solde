@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -10,7 +11,7 @@ from pydantic import BaseModel
 class ChatMessage(BaseModel):
     """A single message in the conversation history."""
 
-    role: str  # "user" or "assistant"
+    role: Literal["user", "assistant"]
     content: str
 
 
