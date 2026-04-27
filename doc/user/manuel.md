@@ -83,9 +83,31 @@ Cliquer sur une facture impayée dans le tableau de bord ouvre directement la fi
 
 ### Consulter la liste des contacts
 
-**Contacts** → la liste s'affiche avec nom, prénom, e-mail, et la dernière facture émise.
+**Contacts** → la liste affiche les colonnes suivantes :
 
-Utilisez la barre de recherche pour filtrer par nom ou e-mail.
+| Colonne | Description |
+|---|---|
+| Nom | Nom de famille |
+| Prénom | Prénom |
+| Type | Client, Fournisseur, Les deux, ou Employé |
+| E-mail | Adresse e-mail |
+| Téléphone | Numéro de téléphone |
+| Dernière facture | Référence et date de la dernière facture émise |
+
+Toutes les colonnes sont **triables** : cliquer sur l'en-tête de colonne pour trier en ordre croissant, recliquer pour l'ordre décroissant. Un troisième clic supprime le tri.
+
+**Filtrer la liste**
+
+Deux mécanismes de filtrage sont disponibles, cumulables :
+
+1. **Recherche globale** (barre au-dessus du tableau) — filtre simultanément sur le nom, le prénom, le type, l'e-mail et le téléphone.
+2. **Filtres par colonne** — cliquer sur l'icône de filtre dans chaque en-tête de colonne :
+   - Nom, Prénom, E-mail, Téléphone : saisie de texte libre.
+   - Type : liste de cases à cocher (Client, Fournisseur, Les deux, Employé).
+
+Les filtres actifs sont affichés sous forme de libellés au-dessus du tableau. Le bouton **Réinitialiser les filtres** efface tous les filtres en un clic.
+
+Un onglet rapide permet aussi de basculer entre **Tous**, **Clients** et **Fournisseurs** sans saisir de filtre.
 
 ### Créer un contact
 
@@ -285,24 +307,70 @@ Une remise en banque regroupe plusieurs paiements remis ensemble à la banque (c
 
 ### Gérer les employés
 
-**Salaires → Employés** → liste des employés.
+**Salaires → Employés** → liste des employés actifs. Le bouton **Afficher les inactifs** permet d'afficher également les employés désactivés.
 
-Pour créer un employé :
+Les colonnes (Nom, Prénom, E-mail, Téléphone, Statut) sont toutes **triables et filtrables** (cliquer sur l'icône de filtre dans chaque en-tête de colonne).
+
+#### Créer un employé
+
 1. Cliquer sur **Nouvel employé**.
-2. Renseigner le nom, le prénom, le numéro de sécurité sociale (optionnel), les données de contrat.
-3. Enregistrer.
+2. Renseigner le **nom** (obligatoire), le prénom, l'e-mail, le téléphone, l'adresse et les notes.
+3. Dans la section **Contrat** :
+   - **Type de contrat** : CDI, CDD, ou aucun.
+   - **Auto-entrepreneur** : activer ce toggle si l'intervenant facture en tant qu'auto-entrepreneur (il apparaîtra dans le récapitulatif coût de la main d'œuvre à la colonne AE).
+   - Si CDI : renseigner le **brut de base mensuel** (optionnel) et les **heures mensuelles de base** (optionnel) — servent de référence mais ne pré-remplissent pas automatiquement les fiches.
+   - Si CDD : renseigner le **taux horaire** (€/h) — utilisé pour le calcul automatique du brut dans les fiches de salaire.
+4. Cliquer sur **Enregistrer**.
 
-### Saisir une fiche de salaire
+#### Désactiver / réactiver un employé
 
-1. Aller dans **Salaires → Fiches de salaire**.
-2. Cliquer sur **Nouvelle fiche de salaire**.
-3. Sélectionner l'employé, la période (mois/année).
-4. Saisir le salaire brut, les cotisations patronales, les cotisations salariales, le net à payer.
-5. Enregistrer.
+Un employé ne peut pas être supprimé s'il a des fiches de salaire. Utilisez le bouton **Désactiver** (icône interdiction) pour le masquer de la liste par défaut. Le bouton **Réactiver** (icône coche) permet de le remettre en service.
 
-### Valider une fiche de salaire
+---
 
-Une fiche validée génère automatiquement les écritures comptables correspondantes (selon les règles configurées).
+### Fiches de salaire
+
+**Salaires → Fiches de salaire** → la page regroupe trois sections :
+
+1. **Liste des fiches** — le tableau principal des fiches du mois ou de la période sélectionnée.
+2. **Récapitulatif mensuel** — total des salaires par mois (nombre de fiches, brut total, cotisations patronales totales, net total, coût total).
+3. **Coût de la main d'œuvre** — synthèse mensuelle par type de contrat (CDI, CDD, auto-entrepreneurs) avec filtrage par période.
+
+En haut de page, quatre indicateurs affichent en temps réel le nombre de fiches affichées, le brut total, le net total et le coût total employeur.
+
+#### Filtrer la liste des fiches
+
+- **Filtre employé** : sélectionner un employé dans le menu déroulant.
+- **Filtre mois** : saisir une période au format `YYYY-MM` (ex. `2026-04`).
+- **Recherche libre** : filtre sur toutes les colonnes visibles.
+- Les colonnes Employé, Mois, Heures, Brut, Net à payer, Coût total sont **triables** et disposent chacune d'un **filtre par colonne** (cliquer sur l'icône de filtre dans l'en-tête).
+
+#### Créer une fiche de salaire
+
+Les données à saisir proviennent de la fiche de paie éditée par la plateforme CEA (ou équivalent).
+
+1. Cliquer sur **Nouvelle fiche de salaire**.
+2. Sélectionner l'**employé** dans la liste déroulante.
+3. Saisir la **période** au format `YYYY-MM` (ex. `2026-04`).
+4. **Section Brut** :
+   - **Pour un employé en CDD** : saisir les **heures travaillées** — le brut déclaré (heures × taux horaire), les congés payés (10 %) et l'indemnité de précarité (10 %) sont calculés automatiquement. Le brut total est affiché en lecture seule.
+   - **Pour un employé en CDI** : saisir les **heures travaillées** et le **salaire brut** manuellement.
+5. **Section CEA** (données issues du bulletin de salaire) :
+   - **Cotisations salariales** : retenues sur le brut à la charge de l'employé.
+   - **Cotisations patronales** : charges sociales à la charge de l'employeur.
+   - **Prélèvement à la source** : impôt retenu à la source.
+   - **Net à payer** : montant net versé à l'employé (tel qu'il figure sur le bulletin).
+   - Un champ **Net calculé** (lecture seule) affiche `brut − cotisations salariales − prélèvement à la source` pour vérification.
+6. Optionnel : saisir des **notes** libres.
+7. Bouton **Copier la fiche précédente** : pré-remplit les cotisations (salariales, patronales, PAS) à partir de la dernière fiche enregistrée pour cet employé, pour gagner du temps entre deux mois similaires.
+8. Cliquer sur **Enregistrer**.
+
+Une fiche de salaire enregistrée génère automatiquement les écritures comptables correspondantes selon les règles configurées.
+
+#### Modifier ou supprimer une fiche
+
+- **Modifier** : cliquer sur l'icône crayon dans la colonne Actions.
+- **Supprimer** : cliquer sur l'icône corbeille, puis confirmer. La suppression annule les écritures comptables associées.
 
 ---
 
