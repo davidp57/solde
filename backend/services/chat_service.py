@@ -152,31 +152,28 @@ async def _stream_gemini(
     system_prompt: str,
     messages: list[dict[str, str]],
 ) -> AsyncIterator[tuple[str, dict[str, int] | None]]:
-    import google.generativeai as genai  # noqa: PLC0415
+    from google import genai  # noqa: PLC0415
+    from google.genai import types  # noqa: PLC0415
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(
-        model_name=model_name,
-        system_instruction=system_prompt,
-    )
+    client = genai.Client(api_key=api_key)
     contents = _to_gemini_contents(messages)
-    response = await model.generate_content_async(contents, stream=True)
-    async for chunk in response:
-        text = chunk.text if hasattr(chunk, "text") and chunk.text else ""
+    config = types.GenerateContentConfig(system_instruction=system_prompt)
+    last_usage: dict[str, int] | None = None
+    async for chunk in client.aio.models.generate_content_stream(
+        model=model_name,
+        contents=contents,
+        config=config,
+    ):
+        text = chunk.text or ""
         if text:
             yield text, None
-    # Try to extract token usage from the final response
-    try:
-        usage_meta = response.usage_metadata
-        yield (
-            "",
-            {
-                "prompt_tokens": usage_meta.prompt_token_count,
-                "completion_tokens": usage_meta.candidates_token_count,
-            },
-        )
-    except Exception:  # noqa: BLE001
-        pass
+        if chunk.usage_metadata:
+            last_usage = {
+                "prompt_tokens": chunk.usage_metadata.prompt_token_count or 0,
+                "completion_tokens": chunk.usage_metadata.candidates_token_count or 0,
+            }
+    if last_usage:
+        yield "", last_usage
 
 
 async def _stream_openai(
