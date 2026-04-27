@@ -33,6 +33,14 @@ class RowIgnoredIssue:
 
 
 @dataclass(slots=True)
+class RowWarningIssue:
+    """Non-blocking warning attached to a source row."""
+
+    source_row_number: int
+    message: str
+
+
+@dataclass(slots=True)
 class NormalizedInvoiceRow:
     """Validated invoice row ready for preview or persistence."""
 
@@ -42,6 +50,8 @@ class NormalizedInvoiceRow:
     contact_name: str
     invoice_number: str | None
     label: str
+    course_amount: Decimal | None = None
+    adhesion_amount: Decimal | None = None
 
 
 @dataclass(slots=True)
@@ -72,6 +82,10 @@ class NormalizedSalaryRow:
     employer_charges: Decimal
     tax: Decimal
     net_pay: Decimal
+    # CDD-specific fields — None for CDI rows
+    brut_declared: Decimal | None = None
+    conges_payes: Decimal | None = None
+    precarite: Decimal | None = None
 
 
 @dataclass(slots=True)

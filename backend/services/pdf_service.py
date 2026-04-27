@@ -10,21 +10,36 @@ def _template_env() -> Environment:
     return Environment(loader=FileSystemLoader(str(template_dir)), autoescape=True)
 
 
-def render_invoice_html(invoice: object, contact_name: str, settings: object) -> str:
+def render_invoice_html(
+    invoice: object,
+    contact_name: str,
+    settings: object,
+    contact_address: str | None = None,
+) -> str:
     """Render the invoice Jinja2 template to an HTML string."""
     env = _template_env()
     template = env.get_template("invoice.html")
-    return template.render(invoice=invoice, contact_name=contact_name, settings=settings)
+    return template.render(
+        invoice=invoice,
+        contact_name=contact_name,
+        contact_address=contact_address,
+        settings=settings,
+    )
 
 
-def generate_invoice_pdf(invoice: object, contact_name: str, settings: object) -> bytes:
+def generate_invoice_pdf(
+    invoice: object,
+    contact_name: str,
+    settings: object,
+    contact_address: str | None = None,
+) -> bytes:
     """Generate a PDF from the invoice template.
 
     WeasyPrint is imported lazily to avoid loading ~50 MB at startup.
     """
     from weasyprint import HTML  # noqa: PLC0415
 
-    html_content = render_invoice_html(invoice, contact_name, settings)
+    html_content = render_invoice_html(invoice, contact_name, settings, contact_address)
     return bytes(HTML(string=html_content).write_pdf())
 
 

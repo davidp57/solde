@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from calendar import monthrange
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.cash import CashCount, CashMovementType, CashRegister
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.models.cash import CashCount, CashEntrySource, CashMovementType, CashRegister
 from backend.schemas.cash import CashCountCreate, CashEntryCreate, CashEntryUpdate
 
 # Denomination values in euros
@@ -28,6 +31,36 @@ _DENOMINATIONS: dict[str, Decimal] = {
 }
 
 
+def _shift_month(value: date, months: int) -> date:
+    year = value.year
+    month = value.month + months
+    while month <= 0:
+        year -= 1
+        month += 12
+    while month > 12:
+        year += 1
+        month -= 12
+    return date(year, month, 1)
+
+
+def _month_windows(months: int) -> list[tuple[str, date]]:
+    today = date.today()
+    current_month = today.replace(day=1)
+    first_month = _shift_month(current_month, -(months - 1))
+    windows: list[tuple[str, date]] = []
+    month_cursor = first_month
+    while month_cursor <= current_month:
+        month_end = month_cursor.replace(day=monthrange(month_cursor.year, month_cursor.month)[1])
+        windows.append(
+            (
+                month_cursor.strftime("%Y-%m"),
+                today if month_cursor == current_month else month_end,
+            )
+        )
+        month_cursor = _shift_month(month_cursor, 1)
+    return windows
+
+
 async def _current_balance(db: AsyncSession) -> Decimal:
     """Return the current cash register balance (sum of IN - sum of OUT)."""
     result = await db.execute(
@@ -41,22 +74,28 @@ async def _current_balance(db: AsyncSession) -> Decimal:
     return Decimal(str(total_in)) - Decimal(str(total_out))
 
 
-async def _recompute_balances(db: AsyncSession) -> None:
+async def recompute_cash_balances(db: AsyncSession) -> bool:
+    """Recompute running balances and report whether persisted values changed."""
     result = await db.execute(
         select(CashRegister).order_by(CashRegister.date.asc(), CashRegister.id.asc())
     )
     running_balance = Decimal("0")
+    changed = False
     for entry in result.scalars().all():
         if entry.type == CashMovementType.IN:
-            running_balance += Decimal(str(entry.amount))
+            running_balance += entry.amount
         else:
-            running_balance -= Decimal(str(entry.amount))
-        entry.balance_after = running_balance
+            running_balance -= entry.amount
+        if entry.balance_after != running_balance:
+            entry.balance_after = running_balance
+            changed = True
+    return changed
 
 
 async def add_cash_entry(db: AsyncSession, payload: CashEntryCreate) -> CashRegister:
     """Add a cash register entry and recompute running balances in journal order."""
-    entry = CashRegister(
+    entry = await create_cash_entry_record(
+        db,
         date=payload.date,
         amount=payload.amount,
         type=payload.type,
@@ -64,19 +103,80 @@ async def add_cash_entry(db: AsyncSession, payload: CashEntryCreate) -> CashRegi
         payment_id=payload.payment_id,
         reference=payload.reference,
         description=payload.description,
-        balance_after=Decimal("0"),
+        source=CashEntrySource.MANUAL,
     )
-    db.add(entry)
-    await db.flush()
-    await _recompute_balances(db)
     await db.commit()
     await db.refresh(entry)
     return entry
 
 
+async def create_cash_entry_record(
+    db: AsyncSession,
+    *,
+    date: date,
+    amount: Decimal,
+    type: CashMovementType,
+    contact_id: int | None = None,
+    payment_id: int | None = None,
+    reference: str | None = None,
+    description: str = "",
+    source: CashEntrySource = CashEntrySource.MANUAL,
+) -> CashRegister:
+    """Create a cash entry without committing, then recompute balances."""
+    entry = CashRegister(
+        date=date,
+        amount=amount,
+        type=type,
+        contact_id=contact_id,
+        payment_id=payment_id,
+        reference=reference,
+        description=description,
+        source=source,
+        balance_after=Decimal("0"),
+    )
+    db.add(entry)
+    await db.flush()
+    await recompute_cash_balances(db)
+    return entry
+
+
 async def get_cash_entry(db: AsyncSession, entry_id: int) -> CashRegister | None:
+    if await recompute_cash_balances(db):
+        await db.commit()
     result = await db.execute(select(CashRegister).where(CashRegister.id == entry_id))
     return result.scalar_one_or_none()
+
+
+async def get_cash_entry_accounting_entries(
+    db: AsyncSession,
+    entry_id: int,
+) -> list[AccountingEntry]:
+    """Return accounting entries generated from a given cash register entry."""
+    result = await db.execute(
+        select(AccountingEntry).where(
+            AccountingEntry.source_type == EntrySourceType.CASH,
+            AccountingEntry.source_id == entry_id,
+        )
+    )
+    return list(result.scalars().all())
+
+
+async def delete_cash_entry(db: AsyncSession, entry: CashRegister) -> int:
+    """Delete a manual cash register entry, cascade to linked accounting entries.
+
+    Returns the number of accounting entries also deleted.
+    Raises ValueError if the entry is linked to a payment (use import undo instead).
+    """
+    if entry.payment_id is not None:
+        raise ValueError("This cash entry is linked to a payment. Use import undo to remove it.")
+    linked_entries = await get_cash_entry_accounting_entries(db, entry.id)
+    for acc_entry in linked_entries:
+        await db.delete(acc_entry)
+    await db.delete(entry)
+    await db.flush()
+    await recompute_cash_balances(db)
+    await db.commit()
+    return len(linked_entries)
 
 
 async def update_cash_entry(
@@ -87,7 +187,7 @@ async def update_cash_entry(
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(entry, field, value)
     await db.flush()
-    await _recompute_balances(db)
+    await recompute_cash_balances(db)
     await db.commit()
     await db.refresh(entry)
     return entry
@@ -96,16 +196,51 @@ async def update_cash_entry(
 async def list_cash_entries(
     db: AsyncSession,
     *,
+    from_date: date | None = None,
+    to_date: date | None = None,
     skip: int = 0,
     limit: int = 100,
 ) -> list[CashRegister]:
-    result = await db.execute(
-        select(CashRegister)
-        .order_by(CashRegister.date.desc(), CashRegister.id.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    if await recompute_cash_balances(db):
+        await db.commit()
+    query = select(CashRegister)
+    if from_date is not None:
+        query = query.where(CashRegister.date >= from_date)
+    if to_date is not None:
+        query = query.where(CashRegister.date <= to_date)
+    query = query.order_by(CashRegister.date.desc(), CashRegister.id.desc())
+    query = query.offset(skip)
+    query = query.limit(limit)
+    result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def get_monthly_funds_series(
+    db: AsyncSession,
+    *,
+    months: int = 6,
+) -> list[dict[str, Decimal | str]]:
+    if await recompute_cash_balances(db):
+        await db.commit()
+
+    result = await db.execute(
+        select(CashRegister.date, CashRegister.balance_after).order_by(
+            CashRegister.date.asc(), CashRegister.id.asc()
+        )
+    )
+    balance_points = [
+        (point_date, Decimal(str(balance_after))) for point_date, balance_after in result.all()
+    ]
+
+    rows: list[dict[str, Decimal | str]] = []
+    current_balance = Decimal("0")
+    point_index = 0
+    for month_label, period_end in _month_windows(months):
+        while point_index < len(balance_points) and balance_points[point_index][0] <= period_end:
+            current_balance = balance_points[point_index][1]
+            point_index += 1
+        rows.append({"month": month_label, "balance": current_balance})
+    return rows
 
 
 async def create_cash_count(db: AsyncSession, payload: CashCountCreate) -> CashCount:
@@ -131,15 +266,20 @@ async def create_cash_count(db: AsyncSession, payload: CashCountCreate) -> CashC
 async def list_cash_counts(
     db: AsyncSession,
     *,
+    from_date: date | None = None,
+    to_date: date | None = None,
     skip: int = 0,
-    limit: int = 50,
+    limit: int = 100,
 ) -> list[CashCount]:
-    result = await db.execute(
-        select(CashCount)
-        .order_by(CashCount.date.desc(), CashCount.id.desc())
-        .offset(skip)
-        .limit(limit)
-    )
+    query = select(CashCount)
+    if from_date is not None:
+        query = query.where(CashCount.date >= from_date)
+    if to_date is not None:
+        query = query.where(CashCount.date <= to_date)
+    query = query.order_by(CashCount.date.desc(), CashCount.id.desc())
+    query = query.offset(skip)
+    query = query.limit(limit)
+    result = await db.execute(query)
     return list(result.scalars().all())
 
 

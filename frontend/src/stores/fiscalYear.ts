@@ -1,11 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import {
-  getCurrentFiscalYearApi,
-  listFiscalYearsApi,
-  type FiscalYearRead,
-} from '../api/accounting'
+import { getCurrentFiscalYearApi, listFiscalYearsApi, type FiscalYearRead } from '../api/accounting'
 
 const STORAGE_KEY = 'selected_fiscal_year_id'
 const STORAGE_SOURCE_KEY = 'selected_fiscal_year_source'
@@ -75,8 +71,7 @@ export const useFiscalYearStore = defineStore('fiscalYear', () => {
           years[0]?.id,
         ].find(
           (candidateId) =>
-            candidateId !== undefined
-            && years.some((fiscalYear) => fiscalYear.id === candidateId),
+            candidateId !== undefined && years.some((fiscalYear) => fiscalYear.id === candidateId),
         )
 
         selectedFiscalYearId.value = validSelection

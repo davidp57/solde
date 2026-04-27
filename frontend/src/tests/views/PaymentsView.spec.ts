@@ -61,6 +61,10 @@ vi.mock('../../stores/fiscalYear', () => ({
   useFiscalYearStore: () => fiscalYearStoreMock,
 }))
 
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {} }),
+}))
+
 import PaymentsView from '../../views/PaymentsView.vue'
 import { listPayments, updatePayment } from '../../api/payments'
 
@@ -123,7 +127,8 @@ const InputTextStub = defineComponent({
         type: props.type,
         value: props.modelValue ?? '',
         disabled: props.disabled,
-        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+        onInput: (event: Event) =>
+          emit('update:modelValue', (event.target as HTMLInputElement).value),
         onBlur: () => emit('blur'),
       })
   },
@@ -135,6 +140,7 @@ const SelectStub = defineComponent({
     options: { type: Array, default: () => [] },
     optionLabel: { type: String, default: 'label' },
     optionValue: { type: String, default: 'value' },
+    disabled: { type: Boolean, default: false },
   },
   emits: ['update:modelValue', 'change'],
   setup(props, { attrs, emit }) {
@@ -144,6 +150,7 @@ const SelectStub = defineComponent({
         {
           'data-testid': attrs['data-testid'],
           value: props.modelValue ?? '',
+          disabled: props.disabled,
           onChange: (event: Event) => {
             const value = (event.target as HTMLSelectElement).value || undefined
             emit('update:modelValue', value)
@@ -153,7 +160,11 @@ const SelectStub = defineComponent({
         [
           h('option', { value: '' }, ''),
           ...(props.options as Array<Record<string, string>>).map((option) =>
-            h('option', { key: option[props.optionValue], value: option[props.optionValue] }, option[props.optionLabel]),
+            h(
+              'option',
+              { key: option[props.optionValue], value: option[props.optionValue] },
+              option[props.optionLabel],
+            ),
           ),
         ],
       )
@@ -239,6 +250,7 @@ const ColumnStub = defineComponent({
 
 async function flushView() {
   await Promise.resolve()
+  await Promise.resolve()
   await nextTick()
 }
 
@@ -259,6 +271,7 @@ function mountView() {
         Select: SelectStub,
         Tag: TagStub,
         ToggleButton: ToggleButtonStub,
+        AppTableSkeleton: { template: '<div />' },
       },
     },
   })
@@ -333,14 +346,23 @@ describe('PaymentsView', () => {
 
     expect(mockUpdatePayment).toHaveBeenCalledWith(
       1,
-      expect.objectContaining({
-        amount: '60.00',
-        date: '2025-02-01',
-        method: 'cheque',
+      {
         cheque_number: 'CHQ-001',
         reference: 'REF-2025-002',
         notes: 'Premier reglement',
-      }),
+      },
     )
+  })
+
+  it('locks structural payment fields in the edit dialog', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    await wrapper.get('[data-testid="payment-edit-button"]').trigger('click')
+    await flushView()
+
+    expect(wrapper.get('input[type="date"]').element).toHaveProperty('disabled', true)
+    expect(wrapper.get('input[type="number"]').element).toHaveProperty('disabled', true)
+    expect(wrapper.get('select').element).toHaveProperty('disabled', true)
   })
 })

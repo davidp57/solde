@@ -7,14 +7,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
 from backend.models.user import User, UserRole
-from backend.routers.auth import get_current_user, require_role
+from backend.routers.auth import require_role
 from backend.schemas.salary import (
     SalaryCreate,
+    SalaryPreviousRead,
     SalaryRead,
     SalarySummaryRow,
     SalaryUpdate,
+    WorkforceCostRow,
 )
 from backend.services import salary_service
+from backend.services.audit_service import AuditAction, record_audit
 
 if TYPE_CHECKING:
     from backend.models.salary import Salary
@@ -22,7 +25,10 @@ if TYPE_CHECKING:
 router = APIRouter(prefix="/salaries", tags=["salaries"])
 
 _WriteAccess = Annotated[User, Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN))]
-_ReadAccess = Annotated[User, Depends(get_current_user)]
+_ReadAccess = Annotated[
+    User,
+    Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
+]
 
 
 def _to_read(salary: "Salary") -> SalaryRead:
@@ -40,6 +46,9 @@ def _to_read(salary: "Salary") -> SalaryRead:
         tax=salary.tax,
         net_pay=salary.net_pay,
         total_cost=salary.total_cost,
+        brut_declared=salary.brut_declared,
+        conges_payes=salary.conges_payes,
+        precarite=salary.precarite,
         notes=salary.notes,
         created_at=salary.created_at,
     )
@@ -54,7 +63,7 @@ async def list_salaries(
     from_month: str | None = Query(default=None),
     to_month: str | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[SalaryRead]:
     salaries = await salary_service.list_salaries(
         db,
@@ -82,13 +91,36 @@ async def get_monthly_summary(
     )
 
 
+@router.get("/workforce-cost", response_model=list[WorkforceCostRow])
+async def get_workforce_cost(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    from_month: str | None = Query(default=None),
+    to_month: str | None = Query(default=None),
+) -> list[WorkforceCostRow]:
+    """Consolidated workforce cost: employee salaries + AE contractor invoices."""
+    return await salary_service.get_workforce_cost(
+        db,
+        from_month=from_month,
+        to_month=to_month,
+    )
+
+
 @router.post("/", response_model=SalaryRead, status_code=status.HTTP_201_CREATED)
 async def create_salary(
     payload: SalaryCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> SalaryRead:
     salary = await salary_service.create_salary(db, payload)
+    await record_audit(
+        db,
+        action=AuditAction.SALARY_CREATED,
+        actor=current_user,
+        target_id=salary.id,
+        target_type="salary",
+        detail={"employee_id": salary.employee_id, "month": salary.month},
+    )
     return _to_read(salary)
 
 
@@ -109,12 +141,19 @@ async def update_salary(
     salary_id: int,
     payload: SalaryUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> SalaryRead:
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
     updated = await salary_service.update_salary(db, salary, payload)
+    await record_audit(
+        db,
+        action=AuditAction.SALARY_UPDATED,
+        actor=current_user,
+        target_id=salary_id,
+        target_type="salary",
+    )
     return _to_read(updated)
 
 
@@ -122,9 +161,34 @@ async def update_salary(
 async def delete_salary(
     salary_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> None:
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
+    detail = {"employee_id": salary.employee_id, "month": salary.month}
     await salary_service.delete_salary(db, salary)
+    await record_audit(
+        db,
+        action=AuditAction.SALARY_DELETED,
+        actor=current_user,
+        target_id=salary_id,
+        target_type="salary",
+        detail=detail,
+    )
+
+
+@router.get("/previous/{employee_id}", response_model=SalaryPreviousRead)
+async def get_previous_salary(
+    employee_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+) -> SalaryPreviousRead:
+    """Return pre-CEA fields from the most recent salary for quick copy."""
+    previous = await salary_service.get_previous_salary(db, employee_id)
+    if previous is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No previous salary found for this employee",
+        )
+    return previous

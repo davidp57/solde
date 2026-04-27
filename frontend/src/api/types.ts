@@ -5,20 +5,36 @@ export interface LoginRequest {
 
 export interface TokenResponse {
   access_token: string
-  refresh_token: string
   token_type: string
+  must_change_password: boolean
 }
+
+export type UserRole = 'readonly' | 'secretaire' | 'tresorier' | 'admin'
 
 export interface UserRead {
   id: number
   username: string
   email: string
-  role: 'readonly' | 'secretaire' | 'tresorier' | 'admin'
+  role: UserRole
+  must_change_password: boolean
   is_active: boolean
   created_at: string
 }
 
-export type ContactType = 'client' | 'fournisseur' | 'les_deux'
+export interface UserSelfUpdate {
+  email: string
+}
+
+export interface PasswordChangeRequest {
+  current_password: string
+  new_password: string
+}
+
+export interface UserPasswordResetRequest {
+  new_password: string
+}
+
+export type ContactType = 'client' | 'fournisseur' | 'les_deux' | 'employe'
 
 // ---------------------------------------------------------------------------
 // Salary
@@ -114,6 +130,7 @@ export interface ImportResult {
 }
 
 export interface ImportIssueDetail {
+  category?: string | null
   severity: 'warning' | 'error'
   sheet_name: string | null
   kind: string | null

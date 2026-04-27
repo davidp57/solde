@@ -1,37 +1,57 @@
 <template>
   <AppPage width="wide">
-    <AppPageHeader :eyebrow="t('ui.page.accounting_eyebrow')" :title="t('accounting.accounts.title')">
+    <AppPageHeader
+      :eyebrow="t('ui.page.accounting_eyebrow')"
+      :title="t('accounting.accounts.title')"
+    >
       <template #actions>
         <div class="app-page-header__actions">
-        <Button
-          :label="t('accounting.accounts.seed')"
-          icon="pi pi-database"
-          severity="secondary"
-          :loading="seeding"
-          @click="runSeed"
-        />
-        <Button
-          :label="t('accounting.accounts.new')"
-          icon="pi pi-plus"
-          @click="openCreateDialog"
-        />
+          <Button
+            :label="t('accounting.accounts.seed')"
+            icon="pi pi-database"
+            severity="secondary"
+            :loading="seeding"
+            @click="runSeed"
+          />
+          <Button
+            :label="t('accounting.accounts.new')"
+            icon="pi pi-plus"
+            @click="openCreateDialog"
+          />
         </div>
       </template>
     </AppPageHeader>
 
     <AppPanel :title="t('accounting.accounts.title')" dense>
       <div class="account-type-toolbar">
-      <Button
-        v-for="opt in typeOptions"
-        :key="opt.value ?? 'all'"
-        :label="opt.label"
-        :severity="typeFilter === opt.value ? 'primary' : 'secondary'"
-        size="small"
-        @click="typeFilter = opt.value; void loadAccounts()"
-      />
+        <Button
+          v-for="opt in typeOptions"
+          :key="opt.value ?? 'all'"
+          :label="opt.label"
+          :severity="typeFilter === opt.value ? 'primary' : 'secondary'"
+          size="small"
+          @click="applyTypeFilter(opt.value)"
+        />
       </div>
-
       <div class="app-toolbar">
+        <div class="app-toolbar__meta">
+          <AppListState
+            :displayed-count="displayedAccounts.length"
+            :total-count="accounts.length"
+            :loading="loading"
+            :search-text="filterText"
+            :active-filters="activeFilterLabels"
+          />
+          <Button
+            :label="t('common.reset_filters')"
+            icon="pi pi-filter-slash"
+            severity="secondary"
+            outlined
+            size="small"
+            :disabled="!hasAnyFilters"
+            @click="resetAllFilters"
+          />
+        </div>
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
@@ -39,33 +59,118 @@
           </div>
         </div>
       </div>
-
-    <DataTable :value="filtered" :loading="loading" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" data-key="id" size="small" row-hover>
-      <Column field="number" :header="t('accounting.accounts.number')" sortable style="width:8rem" />
-      <Column field="label" :header="t('accounting.accounts.label')" sortable />
-      <Column field="type" :header="t('accounting.accounts.type')" style="width:7rem">
-        <template #body="{ data }">
-          <Tag :value="t(`accounting.account_types.${data.type}`)" :severity="typeSeverity(data.type)" />
-        </template>
-      </Column>
-      <Column field="is_default" :header="t('accounting.accounts.default')" style="width:6rem">
-        <template #body="{ data }">
-          <i v-if="data.is_default" class="pi pi-check text-green-500" />
-        </template>
-      </Column>
-      <Column :header="t('common.actions')" style="width:6rem">
-        <template #body="{ data }">
-          <Button
-            icon="pi pi-pencil"
-            size="small"
-            severity="secondary"
-            text
-            @click="openEditDialog(data)"
-          />
-        </template>
-      </Column>
-      <template #empty><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template>
-    </DataTable>
+      <DataTable
+        v-model:filters="tableFilters"
+        :value="accountRows"
+        :row-class="rowClass"
+        :loading="loading"
+        class="app-data-table"
+        filter-display="menu"
+        striped-rows
+        paginator
+        :rows="20"
+        :rows-per-page-options="[20, 50, 100, 500]"
+        data-key="id"
+        size="small"
+        row-hover
+        :global-filter-fields="['number', 'label', 'type', 'is_default']"
+        removable-sort
+        @value-change="syncDisplayedAccounts"
+      >
+        <Column
+          field="number"
+          :header="t('accounting.accounts.number')"
+          sortable
+          style="width: 8rem"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #body="{ data }">
+            <span :class="{ 'account-number--focus': data.focus_key }">{{ data.number }}</span>
+          </template>
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('accounting.accounts.number')" />
+          </template>
+        </Column>
+        <Column
+          field="label"
+          :header="t('accounting.accounts.label')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('accounting.accounts.label')" />
+          </template>
+        </Column>
+        <Column
+          field="type_label"
+          :header="t('accounting.accounts.type')"
+          style="width: 7rem"
+          sortable
+          filter-field="type"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #body="{ data }">
+            <Tag
+              :value="t(`accounting.account_types.${data.type}`)"
+              :severity="typeSeverity(data.type)"
+            />
+          </template>
+          <template #filter="{ filterModel, filterCallback }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="tableTypeOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              display="chip"
+              show-clear
+              :filter-callback="filterCallback"
+            />
+          </template>
+        </Column>
+        <Column
+          field="is_default_label"
+          :header="t('accounting.accounts.default')"
+          style="width: 6rem"
+          sortable
+          filter-field="is_default"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #body="{ data }">
+            <i v-if="data.is_default" class="pi pi-check text-green-500" />
+          </template>
+          <template #filter="{ filterModel, filterCallback }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="yesNoOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              display="chip"
+              show-clear
+              :filter-callback="filterCallback"
+            />
+          </template>
+        </Column>
+        <Column :header="t('common.actions')" style="width: 6rem">
+          <template #body="{ data }">
+            <Button
+              icon="pi pi-pencil"
+              size="small"
+              severity="secondary"
+              text
+              @click="openEditDialog(data)"
+            />
+          </template>
+        </Column>
+        <template #empty
+          ><div class="app-empty-state">{{ t('accounting.balance.empty') }}</div></template
+        >
+      </DataTable>
     </AppPanel>
 
     <!-- Create / Edit Dialog -->
@@ -75,11 +180,7 @@
       modal
       class="app-dialog app-dialog--medium account-dialog"
     >
-      <AccountForm
-        :account="editingAccount"
-        @saved="onSaved"
-        @cancel="dialogVisible = false"
-      />
+      <AccountForm :account="editingAccount" @saved="onSaved" @cancel="dialogVisible = false" />
     </Dialog>
 
     <Toast />
@@ -95,8 +196,10 @@ import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
+import AppListState from '@/components/ui/AppListState.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
@@ -107,18 +210,25 @@ import {
   type AccountType,
 } from '@/api/accounting'
 import AccountForm from '@/components/AccountForm.vue'
-import { useTableFilter } from '../composables/useTableFilter'
+import {
+  collectActiveFilterLabels,
+  findSelectedFilterLabel,
+} from '../composables/activeFilterLabels'
+import { inFilter, textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
+import { getFocusAccountKey, type FocusAccountKey } from '../utils/focusAccounts'
 
 const { t } = useI18n()
 const toast = useToast()
 
 const accounts = ref<AccountingAccount[]>([])
-const { filterText, filtered } = useTableFilter(accounts)
 const loading = ref(false)
 const seeding = ref(false)
 const typeFilter = ref<AccountType | undefined>(undefined)
 const dialogVisible = ref(false)
 const editingAccount = ref<AccountingAccount | null>(null)
+const accountRows = ref<
+  Array<AccountingAccount & { type_label: string; is_default_label: string; focus_key: FocusAccountKey | null }>
+>([])
 
 const typeOptions: Array<{ label: string; value: AccountType | undefined }> = [
   { label: t('common.all'), value: undefined },
@@ -127,6 +237,44 @@ const typeOptions: Array<{ label: string; value: AccountType | undefined }> = [
   { label: t('accounting.account_types.charge'), value: 'charge' },
   { label: t('accounting.account_types.produit'), value: 'produit' },
 ]
+
+const activeFilterLabels = computed(() =>
+  collectActiveFilterLabels(findSelectedFilterLabel(typeOptions, typeFilter.value)),
+)
+const tableTypeOptions = typeOptions.filter(
+  (option): option is { label: string; value: AccountType } => option.value !== undefined,
+)
+const yesNoOptions = [
+  { label: t('common.yes'), value: true },
+  { label: t('common.no'), value: false },
+]
+const {
+  filters: tableFilters,
+  globalFilter: filterText,
+  displayedRows: displayedAccounts,
+  syncDisplayedRows: syncDisplayedAccounts,
+  resetFilters,
+  hasActiveFilters,
+} = useDataTableFilters(accountRows, {
+  global: textFilter(''),
+  number: textFilter(),
+  label: textFilter(),
+  type: inFilter(),
+  is_default: inFilter(),
+})
+
+function applyTypeFilter(nextType: AccountType | undefined): void {
+  typeFilter.value = nextType
+  void loadAccounts()
+}
+
+const hasAnyFilters = computed(() => hasActiveFilters.value || typeFilter.value !== undefined)
+
+function resetAllFilters(): void {
+  resetFilters()
+  typeFilter.value = undefined
+  void loadAccounts()
+}
 
 function typeSeverity(type: AccountType): 'info' | 'success' | 'warn' | 'danger' {
   const map: Record<AccountType, 'info' | 'success' | 'warn' | 'danger'> = {
@@ -142,11 +290,21 @@ async function loadAccounts(): Promise<void> {
   loading.value = true
   try {
     accounts.value = await listAccountsApi(typeFilter.value)
+    accountRows.value = accounts.value.map((account) => ({
+      ...account,
+      type_label: t(`accounting.account_types.${account.type}`),
+      is_default_label: account.is_default ? t('common.yes') : t('common.no'),
+      focus_key: getFocusAccountKey(account.number),
+    }))
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
     loading.value = false
   }
+}
+
+function rowClass(row: { focus_key: FocusAccountKey | null }): string[] {
+  return row.focus_key ? ['account-row--focus', `account-row--focus-${row.focus_key}`] : []
 }
 
 async function runSeed(): Promise<void> {
@@ -198,6 +356,18 @@ onMounted(loadAccounts)
   gap: var(--app-space-2);
   flex-wrap: wrap;
   margin-bottom: var(--app-space-4);
+}
+
+.account-number--focus {
+  font-weight: 700;
+}
+
+:deep(.account-row--focus-member_receivables),
+:deep(.account-row--focus-supplier_payables),
+:deep(.account-row--focus-cash),
+:deep(.account-row--focus-current_account),
+:deep(.account-row--focus-cheques_to_deposit) {
+  box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--app-surface-muted) 78%, transparent 22%);
 }
 
 .account-dialog :deep(.p-dialog-header) {

@@ -1,9 +1,10 @@
 """Contact service — CRUD and search."""
 
+import unicodedata
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
@@ -13,6 +14,8 @@ from backend.models.invoice import Invoice, InvoiceStatus
 from backend.models.payment import Payment
 from backend.schemas.contact import (
     ContactCreate,
+    ContactEmailImportResult,
+    ContactEmailImportRow,
     ContactHistory,
     ContactInvoiceSummary,
     ContactPaymentSummary,
@@ -57,9 +60,64 @@ async def list_contacts(
                 Contact.email.ilike(term),
             )
         )
-    query = query.order_by(Contact.nom, Contact.prenom).offset(skip).limit(limit)
+    query = query.order_by(Contact.nom, Contact.prenom).offset(skip)
+    query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def list_contacts_enriched(
+    db: AsyncSession,
+    *,
+    type: ContactType | None = None,
+    search: str | None = None,
+    active_only: bool = True,
+    skip: int = 0,
+    limit: int = 100,
+) -> list[ContactRead]:
+    """List contacts with last_invoice_ref and last_invoice_date enriched."""
+    contacts = await list_contacts(
+        db, type=type, search=search, active_only=active_only, skip=skip, limit=limit
+    )
+    if not contacts:
+        return []
+
+    contact_ids = [c.id for c in contacts]
+
+    # Subquery: latest invoice date per contact
+    latest_date_subq = (
+        select(Invoice.contact_id, func.max(Invoice.date).label("max_date"))
+        .where(Invoice.contact_id.in_(contact_ids))
+        .group_by(Invoice.contact_id)
+        .subquery()
+    )
+
+    # Join to retrieve the invoice number for that max date
+    inv_result = await db.execute(
+        select(Invoice.contact_id, Invoice.number, Invoice.date).join(
+            latest_date_subq,
+            and_(
+                Invoice.contact_id == latest_date_subq.c.contact_id,
+                Invoice.date == latest_date_subq.c.max_date,
+            ),
+        )
+    )
+    last_inv_by_contact: dict[int, tuple[str, date]] = {
+        row.contact_id: (row.number, row.date) for row in inv_result.all()
+    }
+
+    result_list: list[ContactRead] = []
+    for c in contacts:
+        last = last_inv_by_contact.get(c.id)
+        read = ContactRead.model_validate(c)
+        read = read.model_copy(
+            update={
+                "last_invoice_ref": last[0] if last else None,
+                "last_invoice_date": last[1] if last else None,
+            }
+        )
+        result_list.append(read)
+    return result_list
 
 
 async def update_contact(db: AsyncSession, contact: Contact, payload: ContactUpdate) -> Contact:
@@ -105,9 +163,9 @@ async def get_contact_history(db: AsyncSession, contact_id: int) -> ContactHisto
             date=inv.date,
             due_date=inv.due_date,
             status=inv.status,
-            total_amount=Decimal(str(inv.total_amount)),
-            paid_amount=Decimal(str(inv.paid_amount)),
-            balance_due=Decimal(str(inv.total_amount)) - Decimal(str(inv.paid_amount)),
+            total_amount=inv.total_amount,
+            paid_amount=inv.paid_amount,
+            balance_due=inv.total_amount - inv.paid_amount,
         )
         for inv in invoices_raw
     ]
@@ -123,8 +181,8 @@ async def get_contact_history(db: AsyncSession, contact_id: int) -> ContactHisto
         for row in payments_raw
     ]
 
-    total_invoiced = sum((Decimal(str(inv.total_amount)) for inv in invoices_raw), Decimal("0"))
-    total_paid_inv = sum((Decimal(str(inv.paid_amount)) for inv in invoices_raw), Decimal("0"))
+    total_invoiced = sum((inv.total_amount for inv in invoices_raw), Decimal("0"))
+    total_paid_inv = sum((inv.paid_amount for inv in invoices_raw), Decimal("0"))
 
     contact_read = ContactRead.model_validate(contact)
 
@@ -211,3 +269,71 @@ async def mark_creance_douteuse(
     await db.refresh(debit_entry)
     await db.refresh(credit_entry)
     return debit_entry, credit_entry
+
+
+def _normalize_name(name: str) -> str:
+    """Normalize a name for fuzzy matching: lowercase, strip accents, collapse whitespace."""
+    nfkd = unicodedata.normalize("NFKD", name.lower().strip())
+    no_accents = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return " ".join(no_accents.split())
+
+
+async def import_emails_from_rows(
+    db: AsyncSession,
+    rows: list[ContactEmailImportRow],
+) -> ContactEmailImportResult:
+    """Bulk-enrich contacts with email addresses matched by name."""
+    result = await db.execute(
+        select(Contact).where(Contact.is_active == True).order_by(Contact.id)  # noqa: E712
+    )
+    all_contacts = list(result.scalars().all())
+
+    # Build lookup: normalized name → list of contacts.
+    # Keys with multiple matches are ambiguous and will be skipped to avoid
+    # updating the wrong contact.
+    contact_by_key: dict[str, list[Contact]] = {}
+    for contact in all_contacts:
+        keys = {_normalize_name(contact.nom)}
+        if contact.prenom:
+            full = f"{contact.nom} {contact.prenom}"
+            reversed_full = f"{contact.prenom} {contact.nom}"
+            keys.add(_normalize_name(full))
+            keys.add(_normalize_name(reversed_full))
+        for key in keys:
+            contact_by_key.setdefault(key, []).append(contact)
+
+    updated = 0
+    not_found = 0
+    already_has_email = 0
+    updated_indices: list[int] = []
+    not_found_indices: list[int] = []
+    already_has_email_indices: list[int] = []
+
+    for i, row in enumerate(rows):
+        key = _normalize_name(row.nom)
+        matches = contact_by_key.get(key, [])
+        if len(matches) != 1:
+            not_found += 1
+            not_found_indices.append(i)
+            continue
+        found = matches[0]
+        if found.email:
+            already_has_email += 1
+            already_has_email_indices.append(i)
+            continue
+        found.email = row.email
+        updated += 1
+        updated_indices.append(i)
+
+    if updated > 0:
+        await db.commit()
+
+    return ContactEmailImportResult(
+        rows_processed=len(rows),
+        updated=updated,
+        not_found=not_found,
+        already_has_email=already_has_email,
+        updated_indices=updated_indices,
+        not_found_indices=not_found_indices,
+        already_has_email_indices=already_has_email_indices,
+    )

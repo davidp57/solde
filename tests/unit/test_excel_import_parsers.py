@@ -20,10 +20,12 @@ from backend.services.excel_import_policy import (
     BANK_BALANCE_DESCRIPTION_MESSAGE,
     CASH_INITIAL_BALANCE_MESSAGE,
     CASH_PENDING_DEPOSIT_MESSAGE,
+    INVOICE_INVALID_COMPONENT_BREAKDOWN_MESSAGE,
     INVOICE_INVALID_DATE_MESSAGE,
     INVOICE_TOTAL_MESSAGE,
     ZERO_JOURNAL_ENTRY_MESSAGE,
 )
+from backend.services.excel_import_types import RowValidationIssue
 
 
 def _make_sheet(title: str, rows: list[list[object | None]]) -> Worksheet:
@@ -79,6 +81,91 @@ def test_parse_invoice_sheet_blocks_missing_or_invalid_invoice_date() -> None:
     assert [issue.message for issue in issues] == [
         INVOICE_INVALID_DATE_MESSAGE,
         INVOICE_INVALID_DATE_MESSAGE,
+    ]
+
+
+def test_parse_invoice_sheet_extracts_optional_cs_a_components() -> None:
+    sheet = _make_sheet(
+        "Factures",
+        [
+            [
+                "Date facture",
+                "Réf facture",
+                "Client",
+                "Montant",
+                "Montant cours",
+                "Montant adhésion",
+                "Type",
+            ],
+            ["2025-08-01", "2025-0142", "Christine LOPES", 160, 130, 30, "CS+A"],
+        ],
+    )
+
+    parsed_sheet, rows, issues, ignored_issues = parse_invoice_sheet(sheet)
+
+    assert parsed_sheet is not None
+    assert issues == []
+    assert ignored_issues == []
+    assert len(rows) == 1
+    assert rows[0].label == "cs+a"
+    assert rows[0].course_amount == Decimal("130")
+    assert rows[0].adhesion_amount == Decimal("30")
+
+
+def test_parse_invoice_sheet_accepts_zero_value_cs_a_component() -> None:
+    sheet = _make_sheet(
+        "Factures",
+        [
+            [
+                "Date facture",
+                "Réf facture",
+                "Client",
+                "Montant",
+                "Montant cours",
+                "Montant adhésion",
+                "Type",
+            ],
+            ["2025-08-01", "2025-0142", "Christine LOPES", 160, 160, 0, "CS+A"],
+        ],
+    )
+
+    parsed_sheet, rows, issues, ignored_issues = parse_invoice_sheet(sheet)
+
+    assert parsed_sheet is not None
+    assert issues == []
+    assert ignored_issues == []
+    assert len(rows) == 1
+    assert rows[0].course_amount == Decimal("160")
+    assert rows[0].adhesion_amount == Decimal("0")
+
+
+def test_parse_invoice_sheet_blocks_inconsistent_explicit_cs_a_components() -> None:
+    sheet = _make_sheet(
+        "Factures",
+        [
+            [
+                "Date facture",
+                "Réf facture",
+                "Client",
+                "Montant",
+                "Montant cours",
+                "Montant adhésion",
+                "Type",
+            ],
+            ["2025-08-01", "2025-0142", "Christine LOPES", 160, 120, 30, "CS+A"],
+        ],
+    )
+
+    parsed_sheet, rows, issues, ignored_issues = parse_invoice_sheet(sheet)
+
+    assert parsed_sheet is not None
+    assert rows == []
+    assert ignored_issues == []
+    assert issues == [
+        RowValidationIssue(
+            source_row_number=2,
+            message=INVOICE_INVALID_COMPONENT_BREAKDOWN_MESSAGE,
+        )
     ]
 
 

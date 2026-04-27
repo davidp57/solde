@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import get_db
 from backend.models.accounting_entry import EntrySourceType
 from backend.models.user import User, UserRole
-from backend.routers.auth import get_current_user, require_role
+from backend.routers.auth import require_role
 from backend.schemas.accounting_entry import (
     AccountingEntryGroupRead,
     AccountingEntryRead,
@@ -29,7 +29,10 @@ _WriteAccess = Annotated[
     User,
     Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
 ]
-_ReadAccess = Annotated[User, Depends(get_current_user)]
+_ReadAccess = Annotated[
+    User,
+    Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
+]
 
 
 @router.get("/journal", response_model=list[AccountingEntryRead])
@@ -42,7 +45,7 @@ async def get_journal(
     source_type: EntrySourceType | None = Query(default=None),
     fiscal_year_id: int | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=5000, ge=1, le=10000),
 ) -> list[AccountingEntryRead]:
     return await accounting_entry_service.get_journal(
         db,
@@ -66,7 +69,7 @@ async def get_grouped_journal(
     source_type: EntrySourceType | None = Query(default=None),
     fiscal_year_id: int | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=5000, ge=1, le=10000),
 ) -> list[AccountingEntryGroupRead]:
     return await accounting_entry_service.get_grouped_journal(
         db,
@@ -100,7 +103,7 @@ async def get_ledger(
     _: _ReadAccess,
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
-    fiscal_year_id: int | None = Query(default=None),
+    fiscal_year_id: int = Query(...),
 ) -> LedgerRead:
     return await accounting_entry_service.get_ledger(
         db,
@@ -148,7 +151,7 @@ async def update_manual_entry(
         status_code = (
             status.HTTP_404_NOT_FOUND
             if "not found" in detail
-            else status.HTTP_422_UNPROCESSABLE_ENTITY
+            else status.HTTP_422_UNPROCESSABLE_CONTENT
         )
         raise HTTPException(status_code=status_code, detail=detail) from exc
     return cast(list[AccountingEntryRead], [debit, credit])

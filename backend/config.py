@@ -1,6 +1,14 @@
 """Application configuration — loaded from environment variables or .env file."""
 
 import sys
+from functools import lru_cache
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _pkg_version
+
+try:
+    _SOLDE_VERSION = _pkg_version("solde")
+except PackageNotFoundError:
+    _SOLDE_VERSION = "0.0.0"
 
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,8 +26,9 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "Solde"
-    app_version: str = "0.1.0"
+    app_version: str = _SOLDE_VERSION
     debug: bool = False
+    swagger_enabled: bool = False
 
     # Database
     database_url: str = "sqlite+aiosqlite:///data/solde.db"
@@ -33,12 +42,6 @@ class Settings(BaseSettings):
     # Fiscal year (month number: 8 = August)
     fiscal_year_start_month: int = 8
 
-    # Association info (shown on invoices)
-    association_name: str = "Mon Association"
-    association_address: str = ""
-    association_siret: str = ""
-    association_logo_path: str = ""
-
     # Bootstrap admin (created on first startup if no user exists)
     admin_username: str = "admin"
     admin_password: str = "changeme"
@@ -51,13 +54,9 @@ class Settings(BaseSettings):
     test_import_comptabilite_2024_path: str | None = None
     test_import_comptabilite_2025_path: str | None = None
 
-    # SMTP (optional)
-    smtp_host: str | None = None
-    smtp_port: int = 587
-    smtp_user: str | None = None
-    smtp_password: str | None = None
-    smtp_from_email: str | None = None
-    smtp_use_tls: bool = True
+    # CORS — allowed origins (comma-separated in env: CORS_ALLOWED_ORIGINS=http://a.com,http://b.com)
+    # Empty list → ["*"] in debug mode, [] in production
+    cors_allowed_origins: list[str] = []
 
     @field_validator("fiscal_year_start_month")
     @classmethod
@@ -86,12 +85,7 @@ class Settings(BaseSettings):
         raise ValueError("jwt_secret_key must be configured outside debug/test environments")
 
 
+@lru_cache
 def get_settings() -> Settings:
-    """Return application settings singleton."""
-    global _settings
-    if _settings is None:
-        _settings = Settings()
-    return _settings
-
-
-_settings: Settings | None = None
+    """Return application settings singleton (cached after first call)."""
+    return Settings()

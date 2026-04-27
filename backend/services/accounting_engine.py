@@ -8,7 +8,7 @@ received, deposit created, etc.).
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
@@ -22,9 +22,18 @@ from backend.models.accounting_entry import (
     EntrySourceType,
     build_entry_group_key,
 )
-from backend.models.accounting_rule import AccountingRule, TriggerType
+from backend.models.accounting_rule import AccountingRule, AccountingRuleEntry, TriggerType
 from backend.models.bank import Deposit, DepositType
-from backend.models.invoice import Invoice, InvoiceLabel, InvoiceType
+from backend.models.contact import Contact
+from backend.models.invoice import (
+    Invoice,
+    InvoiceLabel,
+    InvoiceLine,
+    InvoiceLineType,
+    InvoiceType,
+    derive_client_invoice_label,
+    infer_client_line_type,
+)
 from backend.models.payment import Payment, PaymentMethod
 from backend.services.fiscal_year_service import find_fiscal_year_id_for_date
 
@@ -37,10 +46,21 @@ if TYPE_CHECKING:
 
 
 async def _next_entry_number(db: AsyncSession) -> str:
-    """Return the next sequential entry number (globally unique, 6 digits)."""
-    result = await db.execute(select(func.count(AccountingEntry.id)))
-    count = result.scalar_one_or_none() or 0
-    return f"{count + 1:06d}"
+    """Return the next sequential entry number (globally unique, 6 digits).
+
+    Filters to numeric-only entry_number values (GLOB '[0-9]*') to avoid
+    being misled by non-numeric entries such as 'RUN-*' import entries,
+    which are lexicographically greater than '000NNN' and would otherwise
+    cause the int() conversion to fail and silently reset the counter to 1.
+    """
+    result = await db.execute(
+        select(func.max(AccountingEntry.entry_number)).where(
+            AccountingEntry.entry_number.op("GLOB")("[0-9][0-9][0-9][0-9][0-9][0-9]")
+        )
+    )
+    current_max: str | None = result.scalar_one_or_none()
+    next_num = 1 if current_max is None else int(current_max) + 1
+    return f"{next_num:06d}"
 
 
 def _render_template(template: str, context: Mapping[str, object]) -> str:
@@ -65,9 +85,34 @@ async def _apply_rule(
     group_key: str | None = None,
 ) -> list[AccountingEntry]:
     """Create accounting entries for all rule_entries of a rule."""
+    return await _apply_rule_entries(
+        db,
+        rule.entries,
+        amount,
+        entry_date,
+        context,
+        source_type,
+        source_id,
+        fiscal_year_id,
+        group_key,
+    )
+
+
+async def _apply_rule_entries(
+    db: AsyncSession,
+    rule_entries: Sequence[AccountingRuleEntry],
+    amount: Decimal,
+    entry_date: date,
+    context: Mapping[str, object],
+    source_type: EntrySourceType | None,
+    source_id: int | None,
+    fiscal_year_id: int | None,
+    group_key: str | None = None,
+) -> list[AccountingEntry]:
+    """Create accounting entries for a selected subset of rule entries."""
     created: list[AccountingEntry] = []
     resolved_group_key = group_key or build_entry_group_key(source_type, source_id)
-    for rule_entry in rule.entries:
+    for rule_entry in rule_entries:
         entry_number = await _next_entry_number(db)
         label = _render_template(rule_entry.description_template, context)
 
@@ -90,6 +135,105 @@ async def _apply_rule(
         await db.flush()  # ensure COUNT is accurate for the next entry in the loop
         created.append(entry)
 
+    return created
+
+
+def _resolve_client_invoice_line_type(
+    line: InvoiceLine,
+    fallback_label: InvoiceLabel | None,
+) -> InvoiceLineType:
+    return line.line_type or infer_client_line_type(line.description, fallback_label)
+
+
+def _trigger_for_client_line_type(line_type: InvoiceLineType) -> TriggerType:
+    return {
+        InvoiceLineType.COURSE: TriggerType.INVOICE_CLIENT_CS,
+        InvoiceLineType.ADHESION: TriggerType.INVOICE_CLIENT_A,
+        InvoiceLineType.OTHER: TriggerType.INVOICE_CLIENT_GENERAL,
+    }[line_type]
+
+
+def _trigger_for_client_invoice_label(label: InvoiceLabel) -> TriggerType:
+    return {
+        InvoiceLabel.CS: TriggerType.INVOICE_CLIENT_CS,
+        InvoiceLabel.ADHESION: TriggerType.INVOICE_CLIENT_A,
+        InvoiceLabel.CS_ADHESION: TriggerType.INVOICE_CLIENT_CS_A,
+        InvoiceLabel.GENERAL: TriggerType.INVOICE_CLIENT_GENERAL,
+    }[label]
+
+
+async def _generate_split_client_invoice_entries(
+    db: AsyncSession,
+    invoice: Invoice,
+    *,
+    context: Mapping[str, object],
+    fiscal_year_id: int | None,
+) -> list[AccountingEntry] | None:
+    if invoice.type != InvoiceType.CLIENT or not invoice.lines:
+        return None
+
+    grouped_amounts: dict[InvoiceLineType, Decimal] = {
+        InvoiceLineType.COURSE: Decimal("0"),
+        InvoiceLineType.ADHESION: Decimal("0"),
+        InvoiceLineType.OTHER: Decimal("0"),
+    }
+    for line in invoice.lines:
+        component_type = _resolve_client_invoice_line_type(line, invoice.label)
+        grouped_amounts[component_type] += line.amount
+
+    total_amount = sum(grouped_amounts.values(), Decimal("0"))
+    if total_amount != invoice.total_amount:
+        return None
+    if total_amount <= 0:
+        return []
+
+    positive_line_types = {line_type for line_type, amount in grouped_amounts.items() if amount > 0}
+    derived_label = derive_client_invoice_label(positive_line_types)
+
+    debit_rule = await _get_rule(db, _trigger_for_client_invoice_label(derived_label))
+    if debit_rule is None:
+        return None
+
+    debit_entries = [entry for entry in debit_rule.entries if entry.side == "debit"]
+    if not debit_entries:
+        return None
+
+    credit_entries_by_type: dict[InvoiceLineType, Sequence[AccountingRuleEntry]] = {}
+    for line_type in positive_line_types:
+        component_rule = await _get_rule(db, _trigger_for_client_line_type(line_type))
+        if component_rule is None:
+            return None
+        credit_entries = [entry for entry in component_rule.entries if entry.side == "credit"]
+        if not credit_entries:
+            return None
+        credit_entries_by_type[line_type] = credit_entries
+
+    created: list[AccountingEntry] = []
+    created.extend(
+        await _apply_rule_entries(
+            db,
+            debit_entries,
+            total_amount,
+            invoice.date,
+            context,
+            EntrySourceType.INVOICE,
+            invoice.id,
+            fiscal_year_id,
+        )
+    )
+    for line_type in sorted(positive_line_types, key=lambda value: value.value):
+        created.extend(
+            await _apply_rule_entries(
+                db,
+                credit_entries_by_type[line_type],
+                grouped_amounts[line_type],
+                invoice.date,
+                context,
+                EntrySourceType.INVOICE,
+                invoice.id,
+                fiscal_year_id,
+            )
+        )
     return created
 
 
@@ -161,6 +305,32 @@ async def generate_entries_for_invoice(
     Determines trigger type from invoice.type + invoice.label.
     Returns an empty list if no matching active rule exists.
     """
+    fiscal_year_id = await find_fiscal_year_id_for_date(db, invoice.date)
+    contact_result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
+    contact = contact_result.scalar_one_or_none()
+    contact_name = (
+        f"{contact.prenom} {contact.nom}"
+        if contact is not None and contact.prenom
+        else (contact.nom if contact is not None else str(invoice.contact_id))
+    )
+    context = {
+        "number": invoice.number,
+        "contact": contact_name,
+        "label": invoice.description or invoice.number,
+        "amount": str(invoice.total_amount),
+        "date": str(invoice.date),
+    }
+
+    split_entries = await _generate_split_client_invoice_entries(
+        db,
+        invoice,
+        context=context,
+        fiscal_year_id=fiscal_year_id,
+    )
+    if split_entries is not None:
+        await db.flush()
+        return split_entries
+
     if invoice.type == InvoiceType.CLIENT:
         label_map: dict[InvoiceLabel | None, TriggerType] = {
             InvoiceLabel.CS: TriggerType.INVOICE_CLIENT_CS,
@@ -170,30 +340,19 @@ async def generate_entries_for_invoice(
             None: TriggerType.INVOICE_CLIENT_GENERAL,
         }
         trigger = label_map.get(invoice.label, TriggerType.INVOICE_CLIENT_GENERAL)
+    elif invoice.label == InvoiceLabel.CS:
+        trigger = TriggerType.INVOICE_FOURNISSEUR_SUBCONTRACTING
     else:
-        # Fournisseur — use CS as proxy for sous-traitance (label-based heuristic)
-        if invoice.label == InvoiceLabel.CS:
-            trigger = TriggerType.INVOICE_FOURNISSEUR_SUBCONTRACTING
-        else:
-            trigger = TriggerType.INVOICE_FOURNISSEUR_GENERAL
+        trigger = TriggerType.INVOICE_FOURNISSEUR_GENERAL
 
     rule = await _get_rule(db, trigger)
     if rule is None:
         return []
 
-    fiscal_year_id = await find_fiscal_year_id_for_date(db, invoice.date)
-    context = {
-        "number": invoice.number,
-        "contact": str(invoice.contact_id),
-        "label": invoice.description or invoice.number,
-        "amount": str(invoice.total_amount),
-        "date": str(invoice.date),
-    }
-
     entries = await _apply_rule(
         db,
         rule,
-        Decimal(str(invoice.total_amount)),
+        invoice.total_amount,
         invoice.date,
         context,
         EntrySourceType.INVOICE,
@@ -233,8 +392,11 @@ async def generate_entries_for_payment(
         return []
 
     fiscal_year_id = await find_fiscal_year_id_for_date(db, payment.date)
+    invoice_result = await db.execute(select(Invoice).where(Invoice.id == payment.invoice_id))
+    invoice = invoice_result.scalar_one_or_none()
+    invoice_ref = invoice.number if invoice is not None else str(payment.invoice_id)
     context = {
-        "label": f"Règlement facture #{payment.invoice_id}",
+        "label": f"Règlement facture {invoice_ref}",
         "amount": str(payment.amount),
         "date": str(payment.date),
         "method": str(payment.method),
@@ -245,7 +407,7 @@ async def generate_entries_for_payment(
     entries = await _apply_rule(
         db,
         rule,
-        Decimal(str(payment.amount)),
+        payment.amount,
         payment.date,
         context,
         EntrySourceType.PAYMENT,
@@ -284,7 +446,7 @@ async def generate_entries_for_deposit(
     entries = await _apply_rule(
         db,
         rule,
-        Decimal(str(deposit.total_amount)),
+        deposit.total_amount,
         deposit.date,
         context,
         EntrySourceType.DEPOSIT,
@@ -337,11 +499,11 @@ async def generate_entries_for_salary(
 
     # 1. Gross salary
     rule_gross = await _get_rule(db, TriggerType.SALARY_GROSS)
-    if rule_gross and Decimal(str(salary.gross)) > 0:
+    if rule_gross and salary.gross > 0:
         entries = await _apply_rule(
             db,
             rule_gross,
-            Decimal(str(salary.gross)),
+            salary.gross,
             entry_date,
             context,
             EntrySourceType.SALARY,
@@ -361,7 +523,7 @@ async def generate_entries_for_salary(
     )
 
     # 2. Employee charges
-    employee_charges_amount = Decimal(str(salary.employee_charges))
+    employee_charges_amount = salary.employee_charges
     rule_employee_charges = await _get_rule(db, TriggerType.SALARY_EMPLOYEE_CHARGES)
     if rule_employee_charges and employee_charges_amount > 0:
         entries = await _apply_rule(
@@ -392,7 +554,7 @@ async def generate_entries_for_salary(
         all_entries.extend(entries)
 
     # 3. Employer charges
-    employer_charges_amount = Decimal(str(salary.employer_charges))
+    employer_charges_amount = salary.employer_charges
     rule_employer_charges = await _get_rule(db, TriggerType.SALARY_EMPLOYER_CHARGES)
     if rule_employer_charges and employer_charges_amount > 0:
         entries = await _apply_rule(
@@ -409,7 +571,7 @@ async def generate_entries_for_salary(
         all_entries.extend(entries)
 
     # 4. Withholding tax
-    withholding_tax_amount = Decimal(str(salary.tax))
+    withholding_tax_amount = salary.tax
     rule_withholding_tax = await _get_rule(db, TriggerType.SALARY_WITHHOLDING_TAX)
     if rule_withholding_tax and withholding_tax_amount > 0:
         entries = await _apply_rule(
@@ -441,11 +603,11 @@ async def generate_entries_for_salary(
 
     # 5. Net payment
     rule_payment = await _get_rule(db, TriggerType.SALARY_PAYMENT)
-    if rule_payment and Decimal(str(salary.net_pay)) > 0:
+    if rule_payment and salary.net_pay > 0:
         entries = await _apply_rule(
             db,
             rule_payment,
-            Decimal(str(salary.net_pay)),
+            salary.net_pay,
             entry_date,
             context,
             EntrySourceType.SALARY,
@@ -497,6 +659,123 @@ async def generate_entries_for_trigger(
 # ---------------------------------------------------------------------------
 # Default rules seeding
 # ---------------------------------------------------------------------------
+
+
+async def generate_entries_for_write_off(
+    db: AsyncSession,
+    invoice: Invoice,
+    remaining_amount: Decimal,
+) -> list[AccountingEntry]:
+    """Generate accounting entries when a client invoice is written off as irrecoverable.
+
+    Creates a balanced pair:
+    - Debit  654000 (Pertes sur créances irrécouvrables)
+    - Credit 411100 (Adhérents — clients)
+
+    The entry date is today's date.
+    """
+    today = date.today()
+    fiscal_year_id = await find_fiscal_year_id_for_date(db, today)
+    label = f"Créance irrécouvrable — {invoice.number or invoice.reference or str(invoice.id)}"
+    group_key = build_entry_group_key(EntrySourceType.WRITE_OFF, invoice.id)
+
+    entries: list[AccountingEntry] = []
+
+    debit_num = await _next_entry_number(db)
+    debit_entry = AccountingEntry(
+        entry_number=debit_num,
+        date=today,
+        account_number="654000",
+        label=label,
+        debit=remaining_amount,
+        credit=Decimal("0"),
+        fiscal_year_id=fiscal_year_id,
+        source_type=EntrySourceType.WRITE_OFF,
+        source_id=invoice.id,
+        group_key=group_key,
+    )
+    db.add(debit_entry)
+    await db.flush()
+    entries.append(debit_entry)
+
+    credit_num = await _next_entry_number(db)
+    credit_entry = AccountingEntry(
+        entry_number=credit_num,
+        date=today,
+        account_number="411100",
+        label=label,
+        debit=Decimal("0"),
+        credit=remaining_amount,
+        fiscal_year_id=fiscal_year_id,
+        source_type=EntrySourceType.WRITE_OFF,
+        source_id=invoice.id,
+        group_key=group_key,
+    )
+    db.add(credit_entry)
+    await db.flush()
+    entries.append(credit_entry)
+
+    return entries
+
+
+async def generate_entries_for_restore_from_writeoff(
+    db: AsyncSession,
+    invoice: Invoice,
+    amount: Decimal,
+) -> list[AccountingEntry]:
+    """Generate reversal entries when an irrecoverable invoice is restored.
+
+    Creates a balanced pair:
+    - Debit  411100 (Adhérents — clients)
+    - Credit 754000 (Reprises sur créances amorties)
+
+    The entry date is today's date.
+    """
+    today = date.today()
+    fiscal_year_id = await find_fiscal_year_id_for_date(db, today)
+    label = (
+        f"Annulation créance irrécouvrable — "
+        f"{invoice.number or invoice.reference or str(invoice.id)}"
+    )
+    group_key = build_entry_group_key(EntrySourceType.WRITE_OFF, invoice.id)
+
+    entries: list[AccountingEntry] = []
+
+    debit_num = await _next_entry_number(db)
+    debit_entry = AccountingEntry(
+        entry_number=debit_num,
+        date=today,
+        account_number="411100",
+        label=label,
+        debit=amount,
+        credit=Decimal("0"),
+        fiscal_year_id=fiscal_year_id,
+        source_type=EntrySourceType.WRITE_OFF,
+        source_id=invoice.id,
+        group_key=group_key,
+    )
+    db.add(debit_entry)
+    await db.flush()
+    entries.append(debit_entry)
+
+    credit_num = await _next_entry_number(db)
+    credit_entry = AccountingEntry(
+        entry_number=credit_num,
+        date=today,
+        account_number="754000",
+        label=label,
+        debit=Decimal("0"),
+        credit=amount,
+        fiscal_year_id=fiscal_year_id,
+        source_type=EntrySourceType.WRITE_OFF,
+        source_id=invoice.id,
+        group_key=group_key,
+    )
+    db.add(credit_entry)
+    await db.flush()
+    entries.append(credit_entry)
+
+    return entries
 
 
 async def seed_default_rules(db: AsyncSession) -> int:

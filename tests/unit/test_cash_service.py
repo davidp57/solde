@@ -115,6 +115,38 @@ async def test_list_cash_entries_pagination(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_cash_entries_heals_stale_running_balances(db_session: AsyncSession) -> None:
+    first_entry = await cash_service.add_cash_entry(
+        db_session,
+        CashEntryCreate(
+            date=date(2024, 3, 1),
+            amount=Decimal("100.00"),
+            type=CashMovementType.IN,
+        ),
+    )
+    second_entry = await cash_service.add_cash_entry(
+        db_session,
+        CashEntryCreate(
+            date=date(2024, 3, 2),
+            amount=Decimal("30.00"),
+            type=CashMovementType.OUT,
+        ),
+    )
+
+    first_entry.balance_after = Decimal("0")
+    second_entry.balance_after = Decimal("0")
+    await db_session.commit()
+
+    entries = await cash_service.list_cash_entries(db_session)
+    healed_entry = await cash_service.get_cash_entry(db_session, second_entry.id)
+
+    assert entries[1].balance_after == Decimal("100.00")
+    assert entries[0].balance_after == Decimal("70.00")
+    assert healed_entry is not None
+    assert healed_entry.balance_after == Decimal("70.00")
+
+
+@pytest.mark.asyncio
 async def test_update_cash_entry_recomputes_running_balances(db_session: AsyncSession) -> None:
     first_entry = await cash_service.add_cash_entry(
         db_session,

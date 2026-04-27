@@ -5,13 +5,19 @@ from decimal import Decimal
 from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.models.bank import BankTransaction
 from backend.models.user import User, UserRole
-from backend.routers.auth import get_current_user, require_role
+from backend.routers.auth import require_role
 from backend.schemas.bank import (
     BankBalanceRead,
+    BankTransactionClientPaymentCreate,
+    BankTransactionClientPaymentLink,
+    BankTransactionClientPaymentLinks,
+    BankTransactionClientPaymentsCreate,
     BankTransactionCreate,
     BankTransactionRead,
     BankTransactionUpdate,
@@ -19,6 +25,7 @@ from backend.schemas.bank import (
     DepositRead,
 )
 from backend.services import bank_service
+from backend.services.audit_service import AuditAction, record_audit
 from backend.services.bank_import import (
     BankImportError,
     parse_credit_mutuel_csv,
@@ -30,9 +37,44 @@ router = APIRouter(prefix="/bank", tags=["bank"])
 
 _WriteAccess = Annotated[
     User,
-    Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
+    Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
 ]
-_ReadAccess = Annotated[User, Depends(get_current_user)]
+_ReadAccess = Annotated[
+    User,
+    Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
+]
+
+
+def _serialize_transaction_with_payment_ids(
+    tx: BankTransaction,
+    payment_ids: list[int],
+) -> BankTransactionRead:
+    return BankTransactionRead.model_validate(tx).model_copy(update={"payment_ids": payment_ids})
+
+
+async def _serialize_transaction(
+    db: AsyncSession,
+    tx: BankTransaction,
+) -> BankTransactionRead:
+    payment_ids = await bank_service.get_transaction_payment_ids(db, tx.id)
+    return _serialize_transaction_with_payment_ids(tx, payment_ids)
+
+
+async def _serialize_transactions(
+    db: AsyncSession,
+    txs: list[BankTransaction],
+) -> list[BankTransactionRead]:
+    if not txs:
+        return []
+
+    payment_ids_by_tx_id = await bank_service.get_transaction_payment_ids_map(
+        db,
+        [tx.id for tx in txs],
+    )
+    return [
+        _serialize_transaction_with_payment_ids(tx, payment_ids_by_tx_id.get(tx.id, []))
+        for tx in txs
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -49,6 +91,15 @@ async def get_balance(
     return BankBalanceRead(balance=balance)
 
 
+@router.get("/chart/funds")
+async def get_funds_chart(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _ReadAccess,
+    months: int = Query(default=6, ge=1, le=24),
+) -> list[dict[str, Decimal | str]]:
+    return await bank_service.get_monthly_funds_series(db, months=months)
+
+
 @router.get("/transactions", response_model=list[BankTransactionRead])
 async def list_transactions(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -57,7 +108,7 @@ async def list_transactions(
     to_date: date | None = Query(default=None),
     unreconciled_only: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
-    limit: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[BankTransactionRead]:
     txs = await bank_service.list_transactions(
         db,
@@ -67,7 +118,7 @@ async def list_transactions(
         skip=skip,
         limit=limit,
     )
-    return cast(list[BankTransactionRead], txs)
+    return await _serialize_transactions(db, txs)
 
 
 @router.post(
@@ -78,10 +129,18 @@ async def list_transactions(
 async def add_transaction(
     payload: BankTransactionCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> BankTransactionRead:
     tx = await bank_service.add_transaction(db, payload)
-    return cast(BankTransactionRead, tx)
+    await record_audit(
+        db,
+        action=AuditAction.BANK_TRANSACTION_CREATED,
+        actor=current_user,
+        target_id=tx.id,
+        target_type="bank_transaction",
+        detail={"date": str(tx.date), "amount": str(tx.amount)},
+    )
+    return await _serialize_transaction(db, tx)
 
 
 @router.put("/transactions/{tx_id}", response_model=BankTransactionRead)
@@ -89,13 +148,218 @@ async def update_transaction(
     tx_id: int,
     payload: BankTransactionUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> BankTransactionRead:
     tx = await bank_service.get_transaction(db, tx_id)
     if tx is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
     updated = await bank_service.update_transaction(db, tx, payload)
-    return cast(BankTransactionRead, updated)
+    await record_audit(
+        db,
+        action=AuditAction.BANK_TRANSACTION_UPDATED,
+        actor=current_user,
+        target_id=tx_id,
+        target_type="bank_transaction",
+    )
+    return await _serialize_transaction(db, updated)
+
+
+@router.post(
+    "/transactions/{tx_id}/create-client-payment",
+    response_model=BankTransactionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_client_payment_from_transaction(
+    tx_id: int,
+    payload: BankTransactionClientPaymentCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> BankTransactionRead:
+    try:
+        tx = await bank_service.create_client_payment_from_transaction(
+            db,
+            tx_id=tx_id,
+            invoice_id=payload.invoice_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_PAYMENT_CREATED,
+        actor=current_user,
+        target_id=tx_id,
+        target_type="bank_transaction",
+        detail={"invoice_id": payload.invoice_id, "type": "client"},
+    )
+    return await _serialize_transaction(db, tx)
+
+
+@router.post(
+    "/transactions/{tx_id}/create-client-payments",
+    response_model=BankTransactionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_client_payments_from_transaction(
+    tx_id: int,
+    payload: BankTransactionClientPaymentsCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> BankTransactionRead:
+    try:
+        tx = await bank_service.create_client_payments_from_transaction(
+            db,
+            tx_id=tx_id,
+            payload=payload,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_PAYMENT_CREATED,
+        actor=current_user,
+        target_id=tx_id,
+        target_type="bank_transaction",
+        detail={"type": "client_multi"},
+    )
+    return await _serialize_transaction(db, tx)
+
+
+@router.post(
+    "/transactions/{tx_id}/create-supplier-payment",
+    response_model=BankTransactionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_supplier_payment_from_transaction(
+    tx_id: int,
+    payload: BankTransactionClientPaymentCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> BankTransactionRead:
+    try:
+        tx = await bank_service.create_supplier_payment_from_transaction(
+            db,
+            tx_id=tx_id,
+            invoice_id=payload.invoice_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_PAYMENT_CREATED,
+        actor=current_user,
+        target_id=tx_id,
+        target_type="bank_transaction",
+        detail={"invoice_id": payload.invoice_id, "type": "supplier"},
+    )
+    return await _serialize_transaction(db, tx)
+
+
+@router.post("/transactions/{tx_id}/link-client-payment", response_model=BankTransactionRead)
+async def link_client_payment_to_transaction(
+    tx_id: int,
+    payload: BankTransactionClientPaymentLink,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> BankTransactionRead:
+    try:
+        tx = await bank_service.link_client_payment_to_transaction(
+            db,
+            tx_id=tx_id,
+            payment_id=payload.payment_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_PAYMENT_CREATED,
+        actor=current_user,
+        target_id=tx_id,
+        target_type="bank_transaction",
+        detail={"payment_id": payload.payment_id, "type": "link_client"},
+    )
+    return await _serialize_transaction(db, tx)
+
+
+@router.post("/transactions/{tx_id}/link-client-payments", response_model=BankTransactionRead)
+async def link_client_payments_to_transaction(
+    tx_id: int,
+    payload: BankTransactionClientPaymentLinks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> BankTransactionRead:
+    try:
+        tx = await bank_service.link_client_payments_to_transaction(
+            db,
+            tx_id=tx_id,
+            payment_ids=payload.payment_ids,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_PAYMENT_CREATED,
+        actor=current_user,
+        target_id=tx_id,
+        target_type="bank_transaction",
+        detail={"count": len(payload.payment_ids), "type": "link_client_multi"},
+    )
+    return await _serialize_transaction(db, tx)
+
+
+@router.post("/transactions/{tx_id}/link-supplier-payment", response_model=BankTransactionRead)
+async def link_supplier_payment_to_transaction(
+    tx_id: int,
+    payload: BankTransactionClientPaymentLink,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> BankTransactionRead:
+    try:
+        tx = await bank_service.link_supplier_payment_to_transaction(
+            db,
+            tx_id=tx_id,
+            payment_id=payload.payment_id,
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_PAYMENT_CREATED,
+        actor=current_user,
+        target_id=tx_id,
+        target_type="bank_transaction",
+        detail={"payment_id": payload.payment_id, "type": "link_supplier"},
+    )
+    return await _serialize_transaction(db, tx)
 
 
 # ---------------------------------------------------------------------------
@@ -111,9 +375,6 @@ class _CsvImportRequest:
     content: str
 
 
-from pydantic import BaseModel  # noqa: E402
-
-
 class CsvImportRequest(BaseModel):
     content: str  # raw CSV text
 
@@ -126,14 +387,14 @@ class CsvImportRequest(BaseModel):
 async def import_csv(
     payload: CsvImportRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> list[BankTransactionRead]:
     """Import transactions from a Crédit Mutuel CSV export."""
     try:
         rows = parse_credit_mutuel_csv(payload.content)
     except BankImportError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
     created: list[BankTransactionRead] = []
@@ -147,7 +408,14 @@ async def import_csv(
             source="import",
         )
         tx = await bank_service.add_transaction(db, tx_payload)
-        created.append(cast(BankTransactionRead, tx))
+        created.append(await _serialize_transaction(db, tx))
+    await record_audit(
+        db,
+        action=AuditAction.BANK_IMPORTED,
+        actor=current_user,
+        target_type="bank_import",
+        detail={"format": "csv", "count": len(created)},
+    )
     return created
 
 
@@ -167,7 +435,7 @@ async def _import_rows(
             source="import",
         )
         tx = await bank_service.add_transaction(db, tx_payload)
-        created.append(cast(BankTransactionRead, tx))
+        created.append(await _serialize_transaction(db, tx))
     return created
 
 
@@ -187,16 +455,24 @@ class QIFImportRequest(BaseModel):
 async def import_ofx(
     payload: OFXImportRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> list[BankTransactionRead]:
     """Import transactions from an OFX/QFX bank statement export."""
     try:
         rows = parse_ofx(payload.content)
     except BankImportError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
-    return await _import_rows(rows, db)
+    created = await _import_rows(rows, db)
+    await record_audit(
+        db,
+        action=AuditAction.BANK_IMPORTED,
+        actor=current_user,
+        target_type="bank_import",
+        detail={"format": "ofx", "count": len(created)},
+    )
+    return created
 
 
 @router.post(
@@ -207,16 +483,24 @@ async def import_ofx(
 async def import_qif(
     payload: QIFImportRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> list[BankTransactionRead]:
     """Import transactions from a QIF bank statement export."""
     try:
         rows = parse_qif(payload.content)
     except BankImportError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
-    return await _import_rows(rows, db)
+    created = await _import_rows(rows, db)
+    await record_audit(
+        db,
+        action=AuditAction.BANK_IMPORTED,
+        actor=current_user,
+        target_type="bank_import",
+        detail={"format": "qif", "count": len(created)},
+    )
+    return created
 
 
 # ---------------------------------------------------------------------------
@@ -231,7 +515,7 @@ async def list_deposits(
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int | None = Query(default=None, ge=1),
+    limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[DepositRead]:
     deposits = await bank_service.list_deposits(
         db,
@@ -261,15 +545,27 @@ async def list_deposits(
 async def create_deposit(
     payload: DepositCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _WriteAccess,
+    current_user: _WriteAccess,
 ) -> DepositRead:
     try:
         deposit = await bank_service.create_deposit(db, payload)
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     pids = await bank_service.get_deposit_payment_ids(db, deposit.id)
+    await record_audit(
+        db,
+        action=AuditAction.BANK_DEPOSIT_CREATED,
+        actor=current_user,
+        target_id=deposit.id,
+        target_type="bank_deposit",
+        detail={
+            "date": str(deposit.date),
+            "total_amount": str(deposit.total_amount),
+            "payment_count": len(pids),
+        },
+    )
     return DepositRead(
         id=deposit.id,
         date=deposit.date,

@@ -1,9 +1,11 @@
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
+import { markNetworkError, markNetworkOk } from '../composables/useNetworkStatus'
 
 const apiClient = axios.create({
   baseURL: '',
   timeout: 15000,
+  withCredentials: true,
 })
 
 // Inject Authorization header on every request
@@ -35,9 +37,18 @@ function processQueueError(error: unknown): void {
 
 // Handle 401: refresh token then retry, or logout
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Clear offline state on any successful response
+    markNetworkOk()
+    return response
+  },
   async (error) => {
     const original = error.config
+
+    // Detect network-level errors only (avoids false positives on timeouts/cancellations)
+    if (axios.isAxiosError(error) && error.code === 'ERR_NETWORK') {
+      markNetworkError()
+    }
 
     if (error.response?.status !== 401 || !original || original._retry) {
       return Promise.reject(error)
@@ -45,7 +56,7 @@ apiClient.interceptors.response.use(
 
     const auth = useAuthStore()
 
-    if (!auth.refreshToken) {
+    if (!auth.isAuthenticated) {
       auth.logout()
       return Promise.reject(error)
     }

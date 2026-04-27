@@ -114,8 +114,8 @@ async def pre_close_checks(db: AsyncSession, fy: FiscalYear) -> list[str]:
         select(AccountingEntry).where(AccountingEntry.fiscal_year_id == fy.id)
     )
     entries = entries_result.scalars().all()
-    total_debit = sum(Decimal(str(e.debit)) for e in entries)
-    total_credit = sum(Decimal(str(e.credit)) for e in entries)
+    total_debit = sum(e.debit for e in entries)
+    total_credit = sum(e.credit for e in entries)
     if total_debit != total_credit:
         warnings.append(
             f"Balance déséquilibrée : total débit {total_debit} ≠ total crédit {total_credit}."
@@ -249,11 +249,7 @@ async def open_new_fiscal_year(
     for e in entries:
         if e.account_number not in acct_map:
             continue
-        soldes[e.account_number] = (
-            soldes.get(e.account_number, Decimal("0"))
-            + Decimal(str(e.debit))
-            - Decimal(str(e.credit))
-        )
+        soldes[e.account_number] = soldes.get(e.account_number, Decimal("0")) + e.debit - e.credit
 
     # Generate RAN entries
     ran_date = new_fy.start_date

@@ -25,13 +25,15 @@ async def _create_fy(
     db: AsyncSession,
     name: str = "2024",
     status: FiscalYearStatus = FiscalYearStatus.OPEN,
+    start: date | None = None,
+    end: date | None = None,
     start_date: date = date(2024, 1, 1),
     end_date: date = date(2024, 12, 31),
 ) -> FiscalYear:
     fy = FiscalYear(
         name=name,
-        start_date=start_date,
-        end_date=end_date,
+        start_date=start or start_date,
+        end_date=end or end_date,
         status=status,
     )
     db.add(fy)
@@ -118,6 +120,24 @@ class TestFiscalYearAPI:
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 2
+
+    @pytest.mark.asyncio
+    async def test_gestionnaire_can_list_fiscal_years(
+        self, client: AsyncClient, secretaire_auth_headers: dict, db_session: AsyncSession
+    ) -> None:
+        await _create_fy(db_session, "2024")
+        response = await client.get(
+            "/api/accounting/fiscal-years/", headers=secretaire_auth_headers
+        )
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_readonly_cannot_list_fiscal_years(
+        self, client: AsyncClient, readonly_auth_headers: dict, db_session: AsyncSession
+    ) -> None:
+        await _create_fy(db_session, "2024")
+        response = await client.get("/api/accounting/fiscal-years/", headers=readonly_auth_headers)
+        assert response.status_code == 403
 
     @pytest.mark.asyncio
     async def test_get_current_fiscal_year(
@@ -237,10 +257,48 @@ class TestFiscalYearAPI:
 
 class TestJournalAPI:
     @pytest.mark.asyncio
+    async def test_requires_comptable_or_admin_for_read(
+        self, client: AsyncClient, secretaire_auth_headers: dict
+    ) -> None:
+        response = await client.get(
+            "/api/accounting/entries/journal", headers=secretaire_auth_headers
+        )
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
     async def test_empty_journal(self, client: AsyncClient, auth_headers: dict) -> None:
         response = await client.get("/api/accounting/entries/journal", headers=auth_headers)
         assert response.status_code == 200
         assert response.json() == []
+
+    @pytest.mark.asyncio
+    async def test_returns_legacy_gestion_entries(
+        self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+    ) -> None:
+        fiscal_year = await _create_fy(db_session, "2025")
+        db_session.add(
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2025, 1, 15),
+                account_number="411100",
+                label="Historique gestion",
+                debit=Decimal("100"),
+                credit=Decimal("0"),
+                fiscal_year_id=fiscal_year.id,
+                source_type="gestion",
+            )
+        )
+        await db_session.commit()
+
+        response = await client.get(
+            f"/api/accounting/entries/journal?fiscal_year_id={fiscal_year.id}&limit=500",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["source_type"] == "gestion"
 
     @pytest.mark.asyncio
     async def test_returns_entries(
@@ -372,23 +430,29 @@ class TestBalanceAPI:
 
 class TestLedgerAPI:
     @pytest.mark.asyncio
-    async def test_empty_ledger(self, client: AsyncClient, auth_headers: dict) -> None:
+    async def test_requires_fiscal_year_filter(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
         response = await client.get("/api/accounting/entries/ledger/411100", headers=auth_headers)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["entries"] == []
-        assert float(data["closing_balance"]) == 0.0
+        assert response.status_code == 422
 
     @pytest.mark.asyncio
     async def test_ledger_with_entries(
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
     ) -> None:
+        fy = await _create_fy(
+            db_session,
+            "2024",
+            start=date(2024, 1, 1),
+            end=date(2024, 12, 31),
+        )
         await _add_entry(
             db_session,
             "000001",
             "411100",
             debit=Decimal("100"),
             entry_date=date(2024, 1, 5),
+            fiscal_year_id=fy.id,
         )
         await _add_entry(
             db_session,
@@ -396,12 +460,110 @@ class TestLedgerAPI:
             "411100",
             credit=Decimal("40"),
             entry_date=date(2024, 1, 10),
+            fiscal_year_id=fy.id,
         )
-        response = await client.get("/api/accounting/entries/ledger/411100", headers=auth_headers)
+        response = await client.get(
+            f"/api/accounting/entries/ledger/411100?fiscal_year_id={fy.id}",
+            headers=auth_headers,
+        )
         assert response.status_code == 200
         data = response.json()
         assert len(data["entries"]) == 2
         assert float(data["closing_balance"]) == 60.0
+
+    @pytest.mark.asyncio
+    async def test_ledger_filters_by_fiscal_year(
+        self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+    ) -> None:
+        fy_2024 = await _create_fy(
+            db_session,
+            "2024",
+            start=date(2024, 1, 1),
+            end=date(2024, 12, 31),
+        )
+        fy_2025 = await _create_fy(
+            db_session,
+            "2025",
+            start=date(2025, 1, 1),
+            end=date(2025, 12, 31),
+        )
+
+        await _add_entry(
+            db_session,
+            "000001",
+            "512102",
+            debit=Decimal("100"),
+            entry_date=date(2024, 12, 31),
+            fiscal_year_id=fy_2024.id,
+        )
+        await _add_entry(
+            db_session,
+            "000002",
+            "512102",
+            debit=Decimal("100"),
+            entry_date=date(2025, 1, 1),
+            fiscal_year_id=fy_2025.id,
+        )
+
+        response = await client.get(
+            f"/api/accounting/entries/ledger/512102?fiscal_year_id={fy_2025.id}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert [entry["entry_number"] for entry in data["entries"]] == ["000002"]
+
+    @pytest.mark.asyncio
+    async def test_ledger_returns_opening_balance_before_from_date(
+        self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+    ) -> None:
+        fy_2025 = await _create_fy(
+            db_session,
+            "2025",
+            start=date(2025, 1, 1),
+            end=date(2025, 12, 31),
+        )
+
+        await _add_entry(
+            db_session,
+            "000001",
+            "512102",
+            debit=Decimal("100"),
+            entry_date=date(2025, 1, 1),
+            fiscal_year_id=fy_2025.id,
+        )
+        await _add_entry(
+            db_session,
+            "000002",
+            "512102",
+            debit=Decimal("50"),
+            entry_date=date(2025, 1, 15),
+            fiscal_year_id=fy_2025.id,
+        )
+        await _add_entry(
+            db_session,
+            "000003",
+            "512102",
+            credit=Decimal("30"),
+            entry_date=date(2025, 2, 10),
+            fiscal_year_id=fy_2025.id,
+        )
+
+        response = await client.get(
+            (
+                f"/api/accounting/entries/ledger/512102?fiscal_year_id={fy_2025.id}"
+                "&from_date=2025-02-01"
+            ),
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert float(data["opening_balance"]) == 150.0
+        assert len(data["entries"]) == 1
+        assert float(data["entries"][0]["running_balance"]) == 120.0
+        assert float(data["closing_balance"]) == 120.0
 
 
 # ---------------------------------------------------------------------------

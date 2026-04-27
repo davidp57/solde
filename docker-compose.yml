@@ -1,6 +1,8 @@
 services:
   solde:
-    build: .
+    image: ${SOLDE_IMAGE:-ghcr.io/davidp57/solde:latest}
+    build:
+      context: .
     container_name: solde
     restart: unless-stopped
     ports:
@@ -11,3 +13,9 @@ services:
       - .env
     environment:
       DATABASE_URL: "sqlite+aiosqlite:///data/solde.db"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3

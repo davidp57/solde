@@ -5,13 +5,14 @@ from __future__ import annotations
 import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from backend.models.invoice import InvoiceLabel, InvoiceStatus, InvoiceType
+from backend.models.invoice import InvoiceLabel, InvoiceLineType, InvoiceStatus, InvoiceType
 
 
 class InvoiceLineBase(BaseModel):
-    description: str
+    description: str = Field(max_length=500)
+    line_type: InvoiceLineType | None = None
     quantity: Decimal = Decimal("1")
     unit_price: Decimal = Decimal("0")
 
@@ -27,13 +28,6 @@ class InvoiceLineBase(BaseModel):
     def quantity_positive(cls, v: Decimal) -> Decimal:
         if v <= 0:
             raise ValueError("quantity must be positive")
-        return v
-
-    @field_validator("unit_price")
-    @classmethod
-    def unit_price_non_negative(cls, v: Decimal) -> Decimal:
-        if v < 0:
-            raise ValueError("unit_price must be non-negative")
         return v
 
 
@@ -55,13 +49,21 @@ class InvoiceBase(BaseModel):
     date: datetime.date
     due_date: datetime.date | None = None
     label: InvoiceLabel | None = None
-    description: str | None = None
-    reference: str | None = None
+    description: str | None = Field(default=None, max_length=1000)
+    reference: str | None = Field(default=None, max_length=100)
 
 
 class InvoiceCreate(InvoiceBase):
     lines: list[InvoiceLineCreate] = []
     total_amount: Decimal | None = None  # required for supplier invoices without lines
+    hours: Decimal | None = None  # optional, for AE/contractor invoices
+
+    @field_validator("hours")
+    @classmethod
+    def hours_non_negative(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v < 0:
+            raise ValueError("hours must be non-negative")
+        return v
 
     @field_validator("total_amount")
     @classmethod
@@ -69,6 +71,18 @@ class InvoiceCreate(InvoiceBase):
         if v is not None and v < 0:
             raise ValueError("total_amount must be non-negative")
         return v
+
+    @model_validator(mode="after")
+    def validate_client_total(self) -> InvoiceCreate:
+        if self.type != InvoiceType.CLIENT or not self.lines:
+            return self
+        computed_total = sum(
+            (line.quantity * line.unit_price for line in self.lines),
+            start=Decimal("0"),
+        )
+        if computed_total < 0:
+            raise ValueError("client invoice total must not be negative")
+        return self
 
 
 class InvoiceUpdate(BaseModel):
@@ -78,10 +92,30 @@ class InvoiceUpdate(BaseModel):
     date: datetime.date | None = None
     due_date: datetime.date | None = None
     label: InvoiceLabel | None = None
-    description: str | None = None
-    reference: str | None = None
+    description: str | None = Field(default=None, max_length=1000)
+    reference: str | None = Field(default=None, max_length=100)
     lines: list[InvoiceLineCreate] | None = None
     total_amount: Decimal | None = None
+    hours: Decimal | None = None  # optional, for AE/contractor invoices
+
+    @field_validator("hours")
+    @classmethod
+    def hours_non_negative(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v < 0:
+            raise ValueError("hours must be non-negative")
+        return v
+
+    @model_validator(mode="after")
+    def validate_client_total(self) -> InvoiceUpdate:
+        if self.lines is None:
+            return self
+        computed_total = sum(
+            (line.quantity * line.unit_price for line in self.lines),
+            start=Decimal("0"),
+        )
+        if computed_total < 0:
+            raise ValueError("client invoice total must not be negative")
+        return self
 
 
 class InvoiceStatusUpdate(BaseModel):
@@ -94,10 +128,25 @@ class InvoiceRead(InvoiceBase):
     total_amount: Decimal
     paid_amount: Decimal
     status: InvoiceStatus
+    hours: Decimal | None = None
     pdf_path: str | None = None
     file_path: str | None = None
+    lines: list[InvoiceLineRead] = []
     created_at: datetime.datetime
     updated_at: datetime.datetime
-    lines: list[InvoiceLineRead] = []
-
     model_config = {"from_attributes": True}
+
+
+class InvoiceEmailPreview(BaseModel):
+    """Email preview returned by GET /{invoice_id}/email-preview."""
+
+    recipient: str
+    subject: str
+    body: str
+
+
+class InvoiceEmailSendRequest(BaseModel):
+    """User-edited email fields submitted to POST /{invoice_id}/send-email."""
+
+    subject: str
+    body: str

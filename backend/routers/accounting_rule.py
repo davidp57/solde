@@ -7,8 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
 from backend.models.user import User, UserRole
-from backend.routers.auth import get_current_user, require_role
+from backend.routers.auth import require_role
 from backend.schemas.accounting_rule import (
+    AccountingRuleCreate,
     AccountingRuleRead,
     AccountingRuleUpdate,
     RulePreviewEntry,
@@ -21,9 +22,12 @@ router = APIRouter(prefix="/accounting/rules", tags=["accounting"])
 
 _AdminAccess = Annotated[
     User,
+    Depends(require_role(UserRole.ADMIN)),
+]
+_ReadAccess = Annotated[
+    User,
     Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
 ]
-_ReadAccess = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("/", response_model=list[AccountingRuleRead])
@@ -45,6 +49,34 @@ async def get_rule(
     if rule is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
     return rule  # type: ignore[return-value]
+
+
+@router.post("/", response_model=AccountingRuleRead, status_code=status.HTTP_201_CREATED)
+async def create_rule(
+    payload: AccountingRuleCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _AdminAccess,
+) -> AccountingRuleRead:
+    existing = await accounting_rule_service.list_rules(db)
+    if any(r.trigger_type == payload.trigger_type for r in existing):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A rule with this trigger_type already exists",
+        )
+    rule = await accounting_rule_service.create_rule(db, payload)
+    return rule  # type: ignore[return-value]
+
+
+@router.delete("/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_rule(
+    rule_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _AdminAccess,
+) -> None:
+    rule = await accounting_rule_service.get_rule(db, rule_id)
+    if rule is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+    await accounting_rule_service.delete_rule(db, rule)
 
 
 @router.put("/{rule_id}", response_model=AccountingRuleRead)

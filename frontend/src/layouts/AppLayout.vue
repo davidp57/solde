@@ -10,7 +10,7 @@
         @click="sidebarVisible = true"
       />
       <span class="topbar-title">{{ t('app.name') }}</span>
-      <div class="topbar-context">
+      <div v-if="auth.canAccessManagement" class="topbar-context">
         <span class="topbar-context__label">{{ t('app.active_fiscal_year') }}</span>
         <Select
           v-model="selectedFiscalYearOptionId"
@@ -24,7 +24,7 @@
         />
       </div>
       <div class="topbar-user">
-        <span class="topbar-username">{{ auth.user?.username }}</span>
+        <RouterLink to="/profile" class="topbar-username">{{ displayedUsername }}</RouterLink>
         <Button
           :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
           text
@@ -56,10 +56,10 @@
       <aside class="sidebar">
         <NavMenu />
         <div class="sidebar-footer">
-          <div class="sidebar-user">
-            <span class="sidebar-username">{{ auth.user?.username }}</span>
-            <span class="sidebar-role">{{ auth.user?.role ? t(`user.role.${auth.user.role}`) : '' }}</span>
-          </div>
+          <RouterLink to="/profile" class="sidebar-user">
+            <span class="sidebar-username">{{ displayedUsername }}</span>
+            <span class="sidebar-role">{{ displayedRoleLabel }}</span>
+          </RouterLink>
           <Button
             :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
             text
@@ -75,6 +75,7 @@
             @click="handleLogout"
           />
         </div>
+        <span class="sidebar-version">v{{ appVersion }}</span>
       </aside>
 
       <!-- Main content -->
@@ -82,6 +83,20 @@
         <RouterView />
       </main>
     </div>
+
+    <!-- Chat sidebar (floating, authenticated pages only) -->
+    <ChatSidebar />
+
+    <!-- Chat toggle button (visible when chat is enabled) -->
+    <Button
+      v-if="chatStore.isEnabled"
+      icon="pi pi-sparkles"
+      class="chat-fab"
+      rounded
+      :severity="chatStore.isOpen ? 'secondary' : 'primary'"
+      :title="chatStore.isOpen ? t('nav.chat_close') : t('nav.chat_open')"
+      @click="chatStore.toggle()"
+    />
   </div>
 </template>
 
@@ -94,9 +109,10 @@ import Drawer from 'primevue/drawer'
 import Select from 'primevue/select'
 import { useAuthStore } from '../stores/auth'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { useChatStore } from '../stores/chat'
 import NavMenu from '../components/NavMenu.vue'
+import ChatSidebar from '../components/chat/ChatSidebar.vue'
 import { useDarkMode } from '../composables/useDarkMode'
-
 const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
@@ -104,6 +120,11 @@ const fiscalYearStore = useFiscalYearStore()
 const { isDark, toggle: toggleDark } = useDarkMode()
 
 const sidebarVisible = ref(false)
+const appVersion = __APP_VERSION__
+const displayedUsername = computed(() => auth.user?.username ?? t('auth.me'))
+const displayedRoleLabel = computed(() =>
+  auth.user?.role ? t(`user.role.${auth.user.role}`) : t('auth.session_active'),
+)
 const fiscalYearOptions = computed(() => [
   { id: null, name: t('app.all_fiscal_years') },
   ...fiscalYearStore.fiscalYears,
@@ -114,17 +135,22 @@ const selectedFiscalYearOptionId = computed<number | null>({
 })
 
 // Reactive backgrounds for dark/light mode (v-bind in CSS)
-const panelBg = computed(() => isDark.value ? 'var(--p-surface-900)' : 'var(--p-surface-0)')
-const mainBg = computed(() => isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-50)')
-const borderColor = computed(() => isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)')
+const panelBg = computed(() => (isDark.value ? 'var(--p-surface-900)' : 'var(--p-surface-0)'))
+const mainBg = computed(() => (isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-50)'))
+const borderColor = computed(() => (isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)'))
 
 async function handleLogout(): Promise<void> {
-  auth.logout()
+  auth.logout({ preventDevAutoLogin: true })
   await router.push('/login')
 }
 
+const chatStore = useChatStore()
+
 onMounted(() => {
-  void fiscalYearStore.initialize()
+  if (auth.canAccessManagement) {
+    void fiscalYearStore.initialize()
+  }
+  void chatStore.loadConfig()
 })
 </script>
 
@@ -197,6 +223,7 @@ onMounted(() => {
 .layout-body {
   display: flex;
   flex: 1;
+  min-height: calc(100vh - 53px);
 }
 
 /* Desktop sidebar */
@@ -207,9 +234,9 @@ onMounted(() => {
   flex-shrink: 0;
   background: v-bind(panelBg);
   border-right: 1px solid v-bind(borderColor);
-  min-height: calc(100vh - 53px);
+  height: calc(100vh - 53px);
+  overflow: hidden;
 }
-
 
 .sidebar-footer {
   margin-top: auto;
@@ -218,6 +245,7 @@ onMounted(() => {
   padding: 0.75rem 1rem;
   border-top: 1px solid v-bind(borderColor);
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .sidebar-user {
@@ -225,6 +253,15 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  padding: 0.25rem 0.375rem;
+  border-radius: 0.375rem;
+  transition: background 0.15s;
+}
+
+.sidebar-user:hover {
+  background: v-bind(hoverBg);
 }
 
 .sidebar-username {
@@ -240,6 +277,14 @@ onMounted(() => {
   color: var(--p-text-muted-color);
 }
 
+.sidebar-version {
+  font-size: 0.7rem;
+  color: var(--p-text-muted-color);
+  padding: 0.25rem 1rem 0.5rem;
+  display: block;
+  opacity: 0.6;
+}
+
 /* Main content */
 .main-content {
   flex: 1;
@@ -247,6 +292,7 @@ onMounted(() => {
   overflow-y: auto;
   background: v-bind(mainBg);
   min-height: calc(100vh - 53px);
+  min-width: 0;
 }
 
 /* Desktop breakpoint */
@@ -261,6 +307,8 @@ onMounted(() => {
 
   .sidebar {
     display: flex;
+    position: sticky;
+    top: 53px;
   }
 }
 
@@ -272,5 +320,14 @@ onMounted(() => {
   .topbar-context__select {
     width: 8.5rem;
   }
+}
+
+/* Chat FAB */
+.chat-fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 999;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 </style>

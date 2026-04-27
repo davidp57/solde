@@ -1,5 +1,7 @@
 # Changelog
 
+<!-- markdownlint-disable MD024 MD036 -->
+
 Toutes les modifications notables apportées à Solde ⚖️ sont documentées ici.
 
 Le format suit [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
@@ -7,35 +9,380 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
-## [Non publié]
+## [1.0.0] — 2026-04-27
 
 ### Ajouté
 
+- BIZ-129 : Notes de crédit (avoirs) — nouveau type de document `avoir` sur les factures ; numérotation séparée `AV-YYYY-NNN` ; endpoint `POST /api/invoices/{id}/credit-note` pré-remplissant les lignes inversées ; contrainte total ≥ 0 levée pour les avoirs ; badge « Avoir » dans les listes et formulaires ; template PDF dédié avec en-tête « NOTE DE CRÉDIT » ; bouton « Créer un avoir » sur les factures envoyées/payées
+- BIZ-129 : Migration Alembic 0038 — colonnes `invoice_type` (défaut `facture`) et `credit_note_for_id` (FK nullable vers `invoices.id`) sur la table `invoices`
+- BIZ-128 : Modèles d'e-mail configurables dans les paramètres SMTP — le sujet et le corps par défaut des e-mails de factures peuvent être personnalisés via l'interface admin ; variables disponibles : `{invoice_number}`, `{description}`, `{association_name}`, `{invoice_ref}` ; laisser vide conserve le comportement automatique
+- BIZ-128 : Migration 0037 — colonnes `email_subject_template` et `email_body_template` (nullable) dans `app_settings`
+- BIZ-128 : `_SafeFormatMap` dans `email_service.py` — variables inconnues dans un modèle sont conservées telles quelles (pas de `KeyError`)
+- BIZ-128 : 7 nouveaux tests unitaires pour `compose_subject`/`compose_body` avec modèle, variable `{invoice_ref}`, et variable inconnue
+
+### Ajouté
+
+- BIZ-127 : Dialogue de confirmation avant envoi de facture par e-mail — sélection de la facture ouvre un dialog avec le destinataire (lecture seule), le sujet et le corps du message (éditables), et un aperçu PDF de la facture ; l'envoi est déclenché avec le contenu édité par l'utilisateur
+- BIZ-127 : Endpoint `GET /api/invoices/{id}/email-preview` — retourne le destinataire, le sujet et le corps pré-composés sans envoyer de mail
+- BIZ-127 : `POST /api/invoices/{id}/send-email` accepte désormais un payload JSON `{subject, body}` (contenu édité par l'utilisateur) ; l'audit log inclut le sujet
+- BIZ-127 : Helpers `compose_subject()` et `compose_body()` extraits de `email_service.py` ; `send_invoice_email` accepte `override_subject`/`override_body`
+- BIZ-127 : 8 nouveaux tests unitaires pour `compose_subject`, `compose_body` et les paramètres `override_subject`/`override_body`
+
+### Ajouté
+
+- BIZ-125 : Chatbot IA — sidebar de chat flottante avec streaming SSE (Google Gemini ou OpenAI), bouton FAB dans AppLayout, annulation du flux, rendu Markdown via `marked`
+- BIZ-125 : Page `/aide` — affichage du manuel utilisateur `doc/user/manuel.md` rendu en HTML avec styles prose
+- BIZ-125 : Panneau admin « Assistant IA » dans les Paramètres — configuration du fournisseur (gemini/openai), clé API et modèle ; badge d'état activé/non configuré
+- BIZ-125 : Backend — endpoint `POST /api/chat` (streaming SSE), `GET /api/chat/config`, `GET /api/chat/logs` (admin), `GET /api/help/manual` ; migration 0035 (colonnes chat dans `app_settings`) et 0036 (table `chat_log`)
+- BIZ-126 : Refactoring UX écran Paramètres — `SettingsAssociationSmtpPanel.vue` (413 lignes) remplacé par `SettingsAssociationPanel.vue` (association/facturation) et `SettingsSmtpPanel.vue` (SMTP) ; chaque panneau sauvegarde indépendamment
+- Nav : lien « Aide » visible dans la section accueil de la barre de navigation (tous les utilisateurs authentifiés)
+
+### Supprimé
+
+- BIZ-126 : `SettingsAssociationSmtpPanel.vue` — remplacé par les deux composants ci-dessus
+
+### Ajouté
+
+- CHR-079 : `doc/admin/installation.md` — guide d'installation Docker bilingue (FR+EN) avec Docker Compose complet, configuration `.env`, option Synology Portainer
+- CHR-079 : `doc/admin/configuration.md` — référence des variables d'environnement et paramètres association, bilingue
+- CHR-079 : `doc/admin/excel-import.md` — procédure complète d'import Excel bilingue : types de fichiers, structure attendue, prérequis, ordre recommandé, pas à pas, historique/undo, reset sélectif
+- CHR-079 : `doc/admin/administration.md` — guide d'administration bilingue : montée de version, sauvegardes, restauration, gestion des utilisateurs et rôles
+- CHR-079 : `doc/dev/architecture.md`, `doc/dev/contributing.md`, `doc/dev/testing.md`, `doc/dev/development-process.md` — documentation développeur complète en anglais
+- CHR-079 : `doc/user/manuel.md` — manuel utilisateur FR complet par cas d'usage (connexion, contacts, factures, paiements, caisse, banque, salaires, comptabilité, profil)
+- CHR-079 : `doc/llm/reference.md` — référence dense en anglais pour assistants IA (modèle de données complet, API, règles métier, conventions)
+
+### Corrigé
+
+- fix(invoice) : champ `lines` restauré dans `InvoiceRead` — retiré accidentellement lors de BIZ-127, rendait le formulaire d'édition vide (champs et lignes)
+- fix(invoice) : bouton « Supprimer » masqué pour les factures non-brouillon — le bouton n'est affiché que pour les factures au statut `draft`
+- fix(invoice) : dialog d'envoi d'e-mail élargi (`min(95vw, 1180px)`) et aperçu PDF corrigé (`<embed>` au lieu de `<iframe>`) ; CSP étendue à `object-src blob: ; frame-src blob:`
+- fix(settings) : variables de modèle d'e-mail affichées correctement — les accolades dans les clés i18n étaient interprétées comme interpolation vue-i18n v11 (résultat : « , , , »)
+- fix(tests) : test `test_swagger_disabled_in_production` corrigé — la route SPA catch-all interceptait `/api/*` quand `frontend/dist` existe ; `chat_log` manquait dans le schéma de test
+
+### Supprimé
+
+- CHR-079 : Suppression des fichiers de documentation obsolètes — `doc/recette.md`, `doc/import-excel-plan.md`, `doc/plan-reprise-post-imp.md`, `doc/architecture.md`, `doc/dev/audit-report-2026-04.md`, `doc/dev/bl-*`, `doc/dev/contribuer.md`, `doc/dev/exploitation.md`, `doc/dev/gestion-utilisateurs-et-permissions.md`, `doc/dev/import-excel-contract.md`, `doc/dev/import-excel-procedure.md`, anciens fichiers `doc/user/`
+
+---
+
+## [Précédent — v0.7.13]
+
+### Ajouté
+
+- BIZ-111 : Script one-shot `scripts/import_addresses_from_docx.py` — extrait les adresses postales depuis les factures Word historiques (`.docx`) et enrichit `Contact.adresse` ; dry-run par défaut, `--commit` pour appliquer, `--verbose` pour le détail extraction par fichier
+- TEC-106 : Audit i18n complet — 2 clés manquantes identifiées et ajoutées dans `fr.ts` : `common.active` ('Actif') et `common.inactive` ('Inactif'), utilisées dans la vue Employés
+- BIZ-122 : Intégration du champ `description` de la facture dans l'objet de l'e-mail d'envoi — si renseigné, le sujet devient `Facture {numéro} — {description}` au lieu de `Facture {numéro} — {association}`
+- BIZ-122 : `tests/unit/test_email_service.py` — test `test_send_invoice_email_subject_with_description` ajouté
+- BIZ-124 : Numérotation configurable pour les factures clients et fournisseurs — champ `client_invoice_number_template` (`{year}` + `{seq}`, ex. `{year}-{seq}` → `2026-001`) et `supplier_invoice_number_template` (strftime Python, ex. `FF-%Y%m%d%H.%M.%S` → `FF-2026040717.56.01`) modifiables dans les paramètres de l'association
+- BIZ-124 : Migrations Alembic 0032 (`client_invoice_seq_digits`) et 0033 (`client_invoice_number_template` + `supplier_invoice_number_template`)
+- BIZ-123 : Prix par défaut par type de ligne de facture — colonnes `default_price_cours`, `default_price_adhesion`, `default_price_autres` sur `AppSettings` (migration 0034) ; section « Prix unitaires par défaut » dans les paramètres ; pré-remplissage automatique au `addLine()` et au changement de `line_type` dans `ClientInvoiceForm`
+- BIZ-111 (suite) : Adresse postale du contact (`Contact.adresse`) affichée dans la section Destinataire des factures PDF — chaque ligne rendue séparément
+- BIZ-111 (suite) : SIRET de l’émetteur supprimé de la carte Émetteur dans les factures PDF (déjà présent dans l’en-tête et le pied de page)
+
+- BIZ-119 : Panneau « Actions rapides » sur le tableau de bord — 3 cartes d'accès direct (nouvelle facture client, encoder un paiement, nouvelle entrée de caisse) ; navigation vers la vue cible avec ouverture automatique du dialog de création via le paramètre `?create=1`
+- BIZ-119 : Carte « Saisir une facture client » — ouvre désormais un wizard inline (dialog) avec formulaire de création et bouton « Saisir une autre facture » après succès, sur le modèle du wizard de paiement
+- BIZ-112 : Numéro de facture affiché dans le titre du dialog de modification (factures clients et fournisseurs) — header dynamique `Modifier — F-2025-042` au lieu du libellé générique
+- BIZ-113 : Statut `IRRECOVERABLE` sur les factures clients — passage en irrécouvrable avec écriture comptable automatique 654/411 (Pertes sur créances irrécouvrables / Adhérents) et bouton de restauration du statut avec écriture de reprise 411/754
+- BIZ-113 : Comptes PCG `654000` (Pertes sur créances irrécouvrables) et `754000` (Reprises sur créances amorties) ajoutés aux comptes par défaut
+- BIZ-113 : Endpoints `POST /api/invoices/{id}/write-off` et `POST /api/invoices/{id}/restore-from-writeoff` — transitions gérées par service dédié avec validation d'état et génération d'écritures
+- BIZ-113 : Migration Alembic documentaire `0031` — marqueur de version, aucun changement de schéma (statuts stockés en VARCHAR)
+- BIZ-113 : Bouton « Passer en irrécouvrable » dans la colonne actions des factures clients (dialog de confirmation avec mention des écritures) ; bouton « Annuler le statut irrécouvrable » pour les factures IRRECOVERABLE ; toggle « Afficher/Masquer les irrécouvrables » (masqués par défaut)
+- BIZ-115 : Libellé optionnel (champ texte libre) sur les sauvegardes — saisie avant création, inclus dans le nom de fichier et affiché en colonne dans la liste
+- BIZ-116 : Restauration d'une sauvegarde depuis la vue système — double confirmation (saisie de « RESTAURER » + récapitulatif) ; polling `/api/health` après déclenchement ; rechargement automatique de la page
+- BIZ-116 : Endpoint `POST /api/settings/backups/{filename}/restore` — validation du nom de fichier par regex, audit `admin.backup.restore`, arrêt du processus via `SIGTERM` après `_engine.dispose()`
+- TEC-099 : Contrainte `ON DELETE CASCADE` sur la FK `payments.invoice_id → invoices.id` (migration Alembic `0030_payment_invoice_cascade`) — suppression d'une facture en base entraîne désormais la suppression en cascade des paiements associés, éliminant le risque d'enregistrements orphelins
+- TEC-100 : `tests/unit/test_pdf_service.py` — 13 tests couvrant `render_invoice_html` (contenu HTML) et `generate_invoice_pdf` / `save_invoice_pdf` (WeasyPrint mocké via `sys.modules` pour éviter l'import natif GTK)
+- TEC-100 : `tests/unit/test_email_service.py` — 11 tests couvrant STARTTLS, SSL, BCC optionnel, sujet du message, et gestion des erreurs SMTP/OS/auth
+- TEC-101 : Composable `frontend/src/composables/useInvoiceMetrics.ts` — extrait `receivableMetrics` et `portfolioMetrics` de `ClientInvoicesView.vue`, avec export des helpers purs `remainingForInvoice`, `isOpenReceivableInvoice`, `isOverdueInvoice`
+- TEC-102 : Utilitaire `frontend/src/utils/errorUtils.ts` — fonction `getErrorDetail(error, fallback)` qui extrait le message `detail` des erreurs FastAPI structurées
+- TEC-103 : Debounce 300 ms sur le filtre global de `ClientInvoicesView.vue` via `globalFilterInput` ref + `setTimeout`/`clearTimeout` natif — évite les re-renders à chaque frappe sur de longues listes
+- BIZ-108 : Écran de supervision système (`/system`) — panneau état (version, taille DB, uptime, badge statut), panneau sauvegardes (création + liste), journaux applicatifs (filtres niveau + texte, couleur par niveau, défilement)
+- BIZ-109 : Journal d'audit — endpoint `GET /api/settings/audit-logs` et panneau dédié dans l'écran système (tableau horodatage / acteur / action / cible / détail)
+- BIZ-108 : Schémas Pydantic `SystemInfoRead`, `BackupFileRead`, `LogEntryRead`, `AuditLogRead` dans `backend/schemas/settings.py`
+- BIZ-108 : Endpoints admin `GET /api/settings/system-info`, `GET /api/settings/backups`, `GET /api/settings/logs` avec parsing des fichiers de rotation
+- BIZ-108 : Fonctions API TypeScript `getSystemInfoApi`, `listBackupsApi`, `getLogsApi`, `getAuditLogsApi` dans `frontend/src/api/settings.ts`
+- BIZ-107 : Colonne « Dernière facture » dans le tableau des contacts (référence + date) — enrichissement backend avec sous-requête SQLAlchemy MAX(date) par contact
+- BIZ-107 : Historique contact en Dialog centré (au lieu d'une navigation vers une page dédiée) — composant `ContactHistoryContent` partagé entre la vue pleine page et le dialog
+- BIZ-107 : `ContactHistoryContent.vue` — composant extrait de `ContactDetailView`, réutilisable via prop `contactId` et événement `contact-loaded`
+- BIZ-107 : `ContactHistoryDialog.vue` — enveloppe `ContactHistoryContent` dans un `<Dialog>` PrimeVue avec le nom du contact en titre
+
+### Modifié
+
+- BIZ-121 : Couverture d'audit étendue à toutes les mutations métier — `AuditAction` enrichi de 40 nouvelles valeurs (paiements, factures, caisse, salaires, transactions bancaires, rapprochements, imports CSV/OFX/QIF, remises, contacts, import Excel) ; `record_audit()` appelé après chaque opération réussie dans 7 routers (`payment`, `invoice`, `cash`, `salary`, `contact`, `bank`, `excel_import`) ; libellés i18n français ajoutés dans `fr.ts`
+- BIZ-120 : Tri par date décroissante par défaut sur toutes les listes — journal, grand livre, banque, caisse, salaires, paiements, factures clients et fournisseurs
+- TEC-098 : `backend/services/accounting_entry_service.py` — suppression de `limit=100_000` ; `get_balance`, `get_resultat`, `get_bilan` utilisent désormais des agrégations SQL (`GROUP BY + SUM`) ; `get_grouped_journal` utilise une pagination SQL réelle (`OFFSET/LIMIT` poussés dans la requête SQLAlchemy, plus de slice Python)
+- TEC-098 : `backend/services/export_service.py` — `export_journal_csv` passe `limit=None` pour lever le plafond de 100 000 lignes sans charger en mémoire
+- TEC-102 : `BankClientPaymentDialog.vue`, `BankSupplierPaymentDialog.vue`, `BankLinkClientPaymentDialog.vue`, `BankLinkSupplierPaymentDialog.vue` — extraction d'erreur inline remplacée par `getErrorDetail()`
+- TEC-104 : `CashView.vue` — type `CashDenomField` dédié élimine le cast `as unknown as Record<string, number>` dans le template ; `CashEntryFormState.date` déclaré `Date | string` élimine les deux casts `as unknown as Date`
+- Navigation : page « Employés » déplacée de la section Comptabilité vers la section Gestion
+- Navigation : ajout de l'entrée « Supervision système » dans la section Administration (admins uniquement)
+- BIZ-107 : `ContactDetailView.vue` — réécrit comme wrapper léger autour de `ContactHistoryContent`
+- BIZ-107 : `ContactsView.vue` — bouton historique ouvre le dialog au lieu de naviguer, nouvelle colonne « Dernière facture »
+- `PUT /api/accounting/rules/{id}` : accès resserré de trésorier+admin à **admin uniquement**, cohérent avec `POST /` et `DELETE /{id}` (REC-008)
+
+### Corrigé
+
+- BIZ-108 : Ordre de lecture des fichiers de rotation inversé — `.log.1` (plus récent) était lu après `.log.2` (plus ancien), masquant les entrées récentes
+- BIZ-108 : Filtre de niveau des journaux passé côté serveur — le filtre s'applique maintenant avant la limite de 500 lignes, rechargement automatique à chaque changement de filtre
+- BIZ-109 : Labels des actions d'audit traduits en français dans l'écran de supervision (clés i18n imbriquées `system.action.*`)
+- BIZ-109 : Horodatages affichés en heure locale — SQLite stockant les dates sans suffixe de fuseau, elles étaient interprétées comme heure locale plutôt qu'UTC (décalage −2h)
+- TEC-110 (REC-016) : Fix SPA — `index.html` servi avec `Cache-Control: no-store, no-cache, must-revalidate` ; assets hachés `/assets/*` avec `immutable, max-age=1 an`. Élimine l'erreur `TypeError: error loading dynamically imported module` après un rebuild Docker (navigateur chargeait un `index.html` mis en cache référençant des hashes de chunks obsolètes)
+- BIZ-118 : Saisie de dates pénible dans tous les formulaires (`DatePicker` PrimeVue reformate à chaque frappe) — nouveau composant `AppDatePicker.vue` basé sur `<input type="date">` natif ; segment jour/mois/année éditable indépendamment, aucun reformatage pendant la frappe ; date émise à midi pour éviter les décalages DST
+- BIZ-106 : Journal comptable et caisse limités à 100 lignes — valeur par défaut du paramètre `limit` passée de 100 à 5000 (max 10 000) dans les endpoints `/api/accounting/journal`, `/api/accounting/journal-grouped`, `/api/cash/entries` et `/api/cash/counts`
+- BIZ-114 : Suppression des entrées caisse manuelles impossible — endpoint `DELETE /api/cash/entries/{id}` avec cascade sur les écritures comptables liées (`source_type='cash'`) ; endpoint `GET /api/cash/entries/{id}/connections` pour aperçu avant suppression ; bouton de suppression avec confirmation dans `CashView.vue`
+- REC-019 : `ClientInvoiceForm.vue`, `SupplierInvoiceForm.vue` — ajout de `:show-on-focus="false"` sur les `DatePicker` (date et échéance) pour empêcher le calendrier de s'ouvrir automatiquement à l'ouverture du dialog
+- `doc/dev/exploitation.md` : section déploiement Portainer / NAS Synology — stack YAML, variables d'environnement, données persistantes, procédure de mise à jour (CHR-019, REC-004)
+- Écran Salaires rendu accessible au rôle `secretaire` (Management) en plus des rôles `tresorier` et `admin` (REC-005)
+- CRUD complet des règles comptables réservé aux admins : création, modification, suppression avec confirmation ; dialog formulaire avec sélecteur de déclencheur, lignes comptables éditables ; 26 libellés et descriptions métier en français par déclencheur (REC-008)
+- Docker : rechargement direct sur une route Vue retournait 404 — FastAPI sert désormais `index.html` en fallback pour toutes les routes hors `/api/**` (REC-003)
+- Docker : `libgdk-pixbuf2.0-0` absent de Debian Trixie remplacé par `libgdk-pixbuf-xlib-2.0-0` — génération PDF WeasyPrint rétablie (REC-002)
+- Docker : `pyproject.toml` absent du stage `frontend-builder`, causant un échec de build de l'image (REC-007)
+- `.gitattributes` ajouté pour forcer LF sur `entrypoint.sh` et éviter les erreurs de syntaxe shell après checkout Windows (REC-003)
+
+### Technique
+
+- Version de l'application lue depuis `pyproject.toml` via `importlib.metadata` (backend) et regex Vite (frontend) — `APP_VERSION` supprimé de `.env` (REC-001, REC-006)
+
+### UX & Formulaires
+
+- BIZ-094 : Confirmation avant « Recréer le socle comptable » — dialog warn avec annulation (SettingsDangerZonePanel)
+- BIZ-095 : Avertissement modifications non sauvegardées sur tous les formulaires — garde `@update:visible` + `onBeforeRouteLeave` (ClientInvoicesView, SupplierInvoicesView, ContactsView, EmployeesView, SalaryView)
+- BIZ-096 : Feedback de validation champ par champ — parsing erreurs Pydantic 422 dans ClientInvoiceForm, SupplierInvoiceForm, ContactForm
+- BIZ-097 : Accessibilité : `aria-label` sur tous les boutons icône, focus automatique sur le premier champ à l'ouverture des dialogs
+
+### Performances
+
+- TEC-105 : Fix N+1 dans `payment.list_payments()` — Invoice jointe dans la requête principale (1 query au lieu de N+1)
+- TEC-105 : Dashboard — filtres `unpaid` et `overdue` déplacés en SQL (`WHERE total_amount > paid_amount`, `WHERE due_date < today`) au lieu d'un chargement en mémoire de toutes les factures
+- TEC-105 : Index SQL ajouté sur `invoices.due_date` (migration 0028) — accélère les requêtes de factures en retard
+
+### Sécurité
+
+- TEC-091 : Logging serveur ajouté sur les routeurs `invoice`, `excel_import`, `settings` — les exceptions inattendues sont désormais tracées (`logger.exception`) avant relance
+- TEC-092 : Validation du contenu réel des fichiers uploadés par magic bytes (PDF, JPEG, PNG, WebP) dans `upload_invoice_file` — le header `Content-Type` client ne suffit plus
+- TEC-093 : Contraintes Pydantic sur les schémas `contact`, `invoice`, `salary`, `payment` — `max_length` sur tous les champs texte libres, `ge=0` sur les montants salaires, validation plage `hours` (0–744)
+
+- `backend/models/contact.py` : enum `ContractType` (CDI/CDD) + 5 nouveaux champs sur `Contact` : `contract_type`, `base_gross`, `base_hours`, `hourly_rate`, `is_contractor` (BIZ-089)
+- `backend/models/salary.py` : 3 champs CDD nullable : `brut_declared`, `conges_payes`, `precarite` (BIZ-089)
+- `backend/models/invoice.py` : champ `hours` nullable (pour factures AE) (BIZ-089)
+- `backend/alembic/versions/0025_add_employee_contract_fields.py` : migration des champs contrat sur la table `contacts` (BIZ-089)
+- `backend/alembic/versions/0026_add_salary_cdd_fields.py` : migration des champs CDD sur la table `salaries` (BIZ-089)
+- `backend/alembic/versions/0027_add_invoice_hours.py` : migration du champ `hours` sur la table `invoices` (BIZ-089)
+- `backend/schemas/salary.py` : `SalaryPreviousRead` (données pré-CEA d'un salaire précédent) et `WorkforceCostRow` (vue coûts du personnel) (BIZ-089)
+- `backend/services/salary_service.py` : `get_previous_salary` (dernier salaire d'un employé) et `get_workforce_cost` (consolide CDI + CDD + AE) (BIZ-089)
+- `backend/routers/salary.py` : `GET /salaries/previous/{employee_id}` et `GET /salaries/workforce-cost` (BIZ-089)
+- `frontend/src/api/contacts.ts` : champs contrat sur `Contact`, `ContactCreate`, `ContactUpdate` (BIZ-089)
+- `frontend/src/api/accounting.ts` : champs CDD sur `SalaryRead`/`SalaryCreate` ; nouveaux types `SalaryPreviousRead` et `WorkforceCostRow` ; `getPreviousSalaryApi` et `getWorkforceCostApi` (BIZ-089)
+- `frontend/src/views/EmployeesView.vue` : section « Contrat » dans le dialog — type CDI/CDD (conditionne les champs brut de base / taux horaire), flag auto-entrepreneur (BIZ-089)
+- `frontend/src/views/SalaryView.vue` : formulaire restructuré en 3 étapes (calcul du brut, saisie CEA, notes) ; calcul automatique CDD (brut déclaré → CP → précarité → brut total) ; bouton « Reprendre le salaire précédent » ; panneau « Coûts du personnel » (CDI + CDD + AE) (BIZ-089)
+- `backend/services/excel_import_types.py` : `NormalizedSalaryRow` étendu avec `brut_declared`, `conges_payes`, `precarite` (optionnels) (BIZ-090)
+- `backend/services/excel_import_parsers.py` : `parse_salary_sheet` lit désormais les colonnes CDD (cols 2/3/4) du format détaillé de la feuille « Aide Salaires » — les lignes CDD obtiennent leurs 3 champs, les lignes CDI conservent `None` (BIZ-090)
+- `backend/services/excel_import/_import_payments_salaries.py` : `_import_salaries_sheet` passe `brut_declared`, `conges_payes`, `precarite` au constructeur `Salary` lors de l'import (BIZ-090)
+
+- `backend/models/invoice.py` : relation ORM `contact` ajoutée sur `Invoice` (nécessaire pour `selectinload` dans `get_workforce_cost`) (BIZ-089)
+- `backend/routers/salary.py` : route `GET /salaries/workforce-cost` déplacée avant `GET /salaries/{salary_id}` — Starlette essayait de convertir "workforce-cost" en `int` → 422 (BIZ-089)
+- `frontend/src/views/SalaryView.vue` : panneau « Coûts du personnel » refondu en tableau pivoté 5 colonnes (mois, CDI, CDD, Auto-E, total du mois) — agrégation `total_cost` par type par mois (BIZ-089)
+- `frontend/src/components/ContactForm.vue` : toggle « Auto-entrepreneur / prestataire » (`is_contractor`) ajouté dans le formulaire contact — permet de marquer un fournisseur comme auto-E pour l'inclure dans la vue coûts du personnel (BIZ-089)
+- `frontend/src/i18n/fr.ts` : clé `common.refresh` ajoutée ; `workforce_col_total` ajouté ; libellé `workforce_type_ae` abrégé en "Auto-E" (BIZ-089)
+
+- `backend/models/contact.py` : valeur `EMPLOYE = "employe"` ajoutée à `ContactType` — les employés sont désormais des contacts d'un sous-type dédié (BIZ-088)
+- `backend/alembic/versions/0024_add_employe_contact_type.py` : migration documentant la nouvelle valeur enum (colonne `VARCHAR(20)`, pas de DDL) (BIZ-088)
+- `frontend/src/views/EmployeesView.vue` : nouvel écran de gestion des employés — liste (filtrable par nom/prénom/e-mail/téléphone, toggle actifs/inactifs), création, édition, activation/désactivation (BIZ-088)
+- Route `/employees` ajoutée au router Vue, accessible aux rôles `tresorier` et `admin` (BIZ-088)
+- Menu de navigation : entrée « Employés » dans la section Comptabilité, avant « Salaires » (BIZ-088)
+- `frontend/src/views/SalaryView.vue` : `loadEmployees` filtre désormais sur `type=employe` — seuls les contacts de type employé apparaissent dans la liste de sélection (BIZ-088)
+
+### Corrigé
+
+- `backend/services/excel_import/_import_payments_salaries.py` et `import_reversible.py` : les contacts employés créés lors de l'import Excel utilisent désormais `ContactType.EMPLOYE` au lieu de `FOURNISSEUR` (BIZ-088)
+
+- `doc/user/installation.md` : option A — image pré-construite depuis GHCR (`SOLDE_IMAGE=ghcr.io/davidp57/solde:latest`) et option B — build local ; sections FR + EN (CHR-019)
+- `doc/dev/exploitation.md` : nouvelle section « Image deployment options » présentant GHCR vs build local + variable `SOLDE_IMAGE` ; `SWAGGER_ENABLED` ajouté au tableau de configuration (CHR-019, CHR-082)
+- `backend/config.py` : paramètre `SWAGGER_ENABLED` — active Swagger UI (`/api/docs`) et ReDoc (`/api/redoc`) indépendamment de `DEBUG` (CHR-082)
+- `.env.example` : entrée `SWAGGER_ENABLED=false` documentée (CHR-082)
+- `backend/main.py` : `openapi_tags` avec descriptions pour les 12 groupes d'endpoints ; `/api/docs`, `/api/redoc` et `/api/openapi.json` activés si `debug` ou `swagger_enabled` est vrai (CHR-082)
+
+
+- `.github/workflows/ci.yml` : workflow CI GitHub Actions (jobs `backend` + `frontend`) — ruff check + format, mypy, pytest sur toutes les branches actives ; ESLint, vue-tsc, vitest sur le frontend (CHR-086)
+- `.github/workflows/docker.yml` : workflow Docker — build multi-stage + push image `ghcr.io/davidp57/solde` sur push `main` avec tags `latest` + `sha-<short>` et cache GitHub Actions (CHR-087)
+- `docker-compose.yml` : commentaire indiquant comment substituer le `build:` par `image: ghcr.io/davidp57/solde:latest` pour déploiement NAS sans rebuild local (CHR-087)
+
+- `frontend/src/views/ContactsView.vue` : onglets Tous / Clients / Fournisseurs via `Tabs` PrimeVue — filtrage frontend (`les_deux` visible dans les deux onglets), remplacement du `Select` type par les onglets (BIZ-035)
+- `POST /api/contacts/import-emails` : endpoint d'import d'e-mails en masse pour enrichir les contacts existants par correspondance sur le nom (normalisation des accents, matching prénom+nom et nom seul) — schémas `ContactEmailImportRow` / `ContactEmailImportResult`, 9 nouveaux tests (BIZ-040)
+- `frontend/src/views/ContactsView.vue` : bouton « Importer e-mails » + dialogue avec zone de texte collée (`Nom, email` par ligne) + affichage du bilan (mis à jour / non trouvés / déjà renseignés) (BIZ-040)
+- `frontend/src/layouts/AppLayout.vue` : nom d'utilisateur (sidebar et topbar) cliquable via `RouterLink` vers `/profile` — suppression de l'entrée « Mon profil » du menu de navigation (BIZ-037)
+- `frontend/src/layouts/AppLayout.vue` : numéro de version discret en bas de la sidebar, injecté depuis `package.json` via `vite.config.ts` `define.__APP_VERSION__` (CHR-038)
+
+- `frontend/src/tests/composables/useDarkMode.spec.ts` : tests unitaires Vitest pour le composable `useDarkMode` — toggle, persistance dans localStorage, classe CSS `dark-mode` (TEC-079)
+- `frontend/src/tests/composables/useTableFilter.spec.ts` : tests unitaires Vitest pour `applyFilter` et `useTableFilter` — filtrage par sous-chaîne insensible à la casse, réactivité, cas limites null/undefined (TEC-079)
+- `frontend/src/tests/composables/activeFilterLabels.spec.ts` : tests unitaires Vitest pour `findSelectedFilterLabel` et `collectActiveFilterLabels` — matching, valeurs nulles, types numériques (TEC-079)
+- `frontend/e2e/smoke.spec.ts` : smoke test E2E Playwright couvrant login → changement de mot de passe obligatoire → dashboard → contacts → factures clients → paiements (TEC-080)
+- `frontend/playwright.config.ts` : configuration Playwright avec webServer auto-start (backend Uvicorn + frontend Vite) et DB E2E dédiée (TEC-080)
+- `tests/integration/test_accounting_rules_api.py` : tests d'intégration complets pour l'API des règles comptables — CRUD, seed, auth, rôles (TEC-081)
+- `tests/integration/test_fiscal_year_api.py` : tests d'intégration pour les endpoints pre-close-checks, open-next, close 404, auth/rôles (TEC-081)
+- `tests/integration/test_salary_api.py` : tests complémentaires — get by id, update, delete not found, accès trésorier (TEC-081)
+- `tests/integration/test_dashboard_api.py` : test d'authentification pour le graphique ressources (TEC-081)
+
+- `frontend/src/components/ui/AppTableSkeleton.vue` : composant de skeleton réutilisable (grille de cellules PrimeVue `Skeleton`, props `rows`/`cols` avec valeurs par défaut 8×4) remplaçant les `ProgressSpinner` dans toutes les vues de liste au premier chargement (BIZ-071)
+- `frontend/src/components/ui/AppAccountSelect.vue` : composant combo comptes comptables avec point coloré pour les 5 comptes de suivi (créances membres, fournisseurs, caisse, courant, chèques à déposer) via `AppAccountSelect` wrappant PrimeVue `Select` avec slots `#option` et `#value` (BIZ-043)
+- `frontend/src/assets/main.css` : classes globales `.app-table-skeleton`, `.app-table-skeleton__row`, `.account-select-option`, `.account-select-dot` et variantes couleur par compte de suivi
+
+### Modifié
+
+- `frontend/src/views/DashboardView.vue` : remplacement du `ProgressSpinner` central par 7 `<Skeleton height="132px">` dans la grille KPI au chargement — cohérence visuelle avec le layout final (BIZ-071)
+- `frontend/src/views/AccountingBilanView.vue` : remplacement du `ProgressSpinner` par `AppTableSkeleton :rows="10" :cols="3"` (BIZ-071)
+- `frontend/src/views/ContactDetailView.vue` : remplacement du `ProgressSpinner` par une grille de 3 `Skeleton` de stat + `AppTableSkeleton` (BIZ-071)
+- `frontend/src/views/ClientInvoicesView.vue` : skeleton sur la liste principale (`loading && !invoices.length`) et dans le dialogue historique (BIZ-071)
+- `frontend/src/views/ContactsView.vue` + `PaymentsView.vue` : skeleton sur liste principale au premier chargement (`loading && !*.length`) (BIZ-071)
+- `frontend/src/views/AccountingJournalView.vue` : skeleton liste + filtre compte remplacé par `AppAccountSelect` avec rechargement automatique à la sélection (BIZ-071, BIZ-043)
+- `frontend/src/views/AccountingLedgerView.vue` : select compte remplacé par `AppAccountSelect` avec points colorés (BIZ-043)
+
+- `frontend/src/composables/useKeyboardShortcuts.ts` : composable Vue 3 gérant les raccourcis clavier Ctrl/Cmd+N (nouveau), Ctrl/Cmd+S (sauvegarder) et Escape (fermer) avec gestion du focus (Ctrl+N ignoré dans les champs de saisie) et nettoyage automatique au démontage (BIZ-073)
+- `frontend/src/components/ui/AppStatCard.vue` : prop optionnelle `to` (route Vue Router) rendant la carte KPI cliquable via `<RouterLink>` avec animation hover et focus-visible accessible (BIZ-075)
+- `frontend/src/views/DashboardView.vue` : tous les KPI (solde banque, caisse, factures impayées/en retard, chèques non déposés, exercice courant, résultat) sont désormais cliquables vers les vues filtrées correspondantes (BIZ-075)
+- `frontend/src/views/ClientInvoicesView.vue` + `PaymentsView.vue` : support des query params URL (`status=overdue`, `undeposited=1`) pour pré-filtrer les listes depuis le dashboard (BIZ-075)
+- `frontend/src/views/ClientInvoicesView.vue` + `ContactsView.vue` : intégration de `useKeyboardShortcuts` pour Ctrl+N / Ctrl+S / Escape dans les vues avec dialogue (BIZ-073)
+- `doc/user/migration.md` + `doc/user/migration.en.md` : guide de migration / montée de version bilingue FR + EN pour les déploiements Docker sur Synology NAS — couvre la préparation, la mise à jour, la vérification, le rollback et les bonnes pratiques (CHR-083)
+- `frontend/src/assets/print.css` : styles `@media print` pour l'impression des vues comptables (journal, balance, grand livre, bilan, résultat) — masque la sidebar, les filtres et les boutons ; optimise les tables en noir et blanc A4 paysage pour impression AG (BIZ-076)
+- `backend/main.py` : middleware ASGI `UnhandledExceptionMiddleware` interceptant toutes les exceptions non gérées pour renvoyer un JSON structuré `{"detail": ..., "code": "INTERNAL_SERVER_ERROR"}` au lieu d'un 500 HTML avec stack trace — log complet côté serveur (TEC-067)
+- `backend/main.py` : `/api/docs`, `/api/redoc` et `/api/openapi.json` désormais désactivés quand `debug=False` — réduit la surface d'attaque en production (TEC-068)
+- `backend/services/backup_service.py` + `POST /api/settings/backup` : endpoint admin de sauvegarde SQLite utilisant `sqlite3.backup()` avec rotation automatique (5 derniers backups), téléchargement direct du fichier en réponse (BIZ-069)
+- `backend/schemas/auth.py` : politique de complexité de mot de passe — minimum 8 caractères, au moins une majuscule et un chiffre, appliquée sur la création utilisateur, le changement et le reset de mot de passe (TEC-085)
+
+**Qualité / Sécurité (audit 2026-04-22)**
+
+- `backend/routers/auth.py` : le refresh token est désormais transmis via un cookie `HttpOnly`, `Secure`, `SameSite=Strict` au lieu du corps JSON — `/auth/login` et `/auth/refresh` posent le cookie, nouvel endpoint `POST /auth/logout` (204) l'efface (TEC-046)
+- Frontend : `refreshApi()` et `logoutApi()` utilisent le cookie automatiquement (`withCredentials: true`), le store auth ne stocke plus le refresh token en `localStorage` (TEC-046)
+- `entrypoint.sh` : script d'entrée Docker dédié avec `set -e` — les migrations Alembic échouent explicitement au lieu d'être masquées par le `&&` shell (CHR-054)
+- `GET /api/health` : endpoint de health check léger (200, `{"status": "ok"}`) + `HEALTHCHECK` Docker + `healthcheck:` docker-compose pour la supervision Synology (CHR-061)
+- `backend/models/user.py` : champ `must_change_password` obligeant l'utilisateur à changer son mot de passe avant d'accéder à l'application — activé au bootstrap admin, à la réinitialisation de mot de passe par un administrateur, et désactivé automatiquement après changement effectif (BIZ-053)
+- `backend/main.py` : middleware `MustChangePasswordMiddleware` bloquant (HTTP 403) toute requête API hors `/api/auth/` quand le JWT porte le flag `mcp=True` (BIZ-053)
+- Frontend : redirection automatique vers la page Profil avec bannière d'avertissement lorsque `must_change_password` est actif ; le router guard empêche la navigation vers d'autres pages (BIZ-053)
+- `backend/config.py` : `get_settings()` utilise désormais `@lru_cache` au lieu d'un pattern `global` mutable — plus idiomatique et thread-safe (TEC-066)
+- `backend/main.py` : middleware `SecurityHeadersMiddleware` ajoutant `Content-Security-Policy`, `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security` et `Referrer-Policy` sur toutes les réponses (TEC-047)
+- `backend/config.py` : paramètre `cors_allowed_origins` (liste, variable d'environnement `CORS_ALLOWED_ORIGINS`) permettant de configurer explicitement les origines CORS autorisées en production — wildcard `*` seulement en mode debug sans origines configurées (TEC-055)
+- `frontend/public/dark-mode-init.js` : script d'initialisation du mode sombre extrait inline vers un fichier statique dédié pour respecter la politique `script-src 'self'` de la CSP (TEC-047)
+- Endpoints de liste : paramètre `limit` désormais borné (`default=100`, `le=1000`) sur tous les routers de liste — caisse, banque, paiements, factures, contacts, salaires, écritures — pour limiter le volume de données retourné en une seule requête (TEC-059)
+- `backend/models/types.py` : nouveau `TypeDecorator` `DecimalType` (wrapping `Numeric`) garantissant que SQLAlchemy renvoie toujours un `Decimal` pour les colonnes monétaires au lieu d'un `float` SQLite — élimine les quelque 60 casts `Decimal(str(obj.attr))` répartis dans les services (TEC-057)
+- `backend/models/payment.py` : suppression de `__allow_unmapped__` et des attributs transients `invoice_number` / `invoice_type` — ces champs sont désormais calculés à la lecture dans `PaymentRead` via une requête ciblée sur `Invoice` (TEC-065)
+- `backend/models/audit_log.py` : table `audit_logs` + service `record_audit` + enum `AuditAction` pour le journal d'audit structuré — traçabilité des connexions (succès/échec), déconnexions, changements de mot de passe, création/modification d'utilisateurs, réinitialisations de mot de passe admin, et opérations de reset base. Migration Alembic `0023` (BIZ-056)
+- Tests : +44 tests unitaires (812 → 856) pour les services critiques — `fiscal_year_service` (pre_close_checks, report à nouveau), `contact` (historique, créance douteuse), `dashboard_service` (KPIs, alertes, graphiques), `salary_service` (update, filtre par mois), `accounting_rule_service` (CRUD, preview, template). Couverture globale backend ~71 % (TEC-049)
+
+### Refactorisé
+
+- `frontend/src/views/SettingsView.vue` → 24 lignes (depuis 1 077 L) : extraction de `SettingsAssociationSmtpPanel`, `SettingsSystemOpeningPanel`, `SettingsDangerZonePanel` dans `src/components/settings/` (TEC-077)
+- `frontend/src/views/BankView.vue` → 917 lignes (depuis 2 215 L) : extraction de 7 composants de dialogue dans `src/components/bank/` — `BankNewTransactionDialog`, `BankImportStatementDialog`, `BankClientPaymentDialog`, `BankLinkClientPaymentDialog`, `BankSupplierPaymentDialog`, `BankLinkSupplierPaymentDialog`, `BankNewDepositDialog` — chaque dialogue est auto-suffisant (chargement interne, émet `@saved`) (TEC-077)
+- `frontend/src/views/ImportExcelView.vue` → 1 191 lignes (depuis 2 873 L) : extraction de `ImportExcelFormPanel`, `ImportExcelShortcutsPanel`, `ImportExcelPreviewPanel`, `ImportExcelResultPanel` dans `src/components/import/` — la vue orchestre, les composants gèrent l'affichage et les opérations locales (TEC-077)
+
+**Qualité / Sécurité (audit 2026-04-22)**
+
+- `backend/services/excel_import.py` : monolith de 5 567 lignes éclaté en package `backend/services/excel_import/` avec 16 sous-modules thématiques (`_constants`, `_salary`, `_invoices`, `_loaders`, `_comparison`, `_comparison_loaders`, `_comparison_domains`, `_entry_groups`, `_sheet_wrappers`, `_orchestrator`, `_import_contacts_invoices`, `_import_payments_salaries`, `_import_cash_bank`, `_import_entries`, `_preview_existing`, `_preview_sheets`) — refactoring purement structurel, interfaces publiques inchangées, zéro dépendance circulaire (TEC-050)
+- `backend/services/excel_import/_exceptions.py` : introduction de `ImportFileOpenError` et `ImportSheetError` en remplacement des `except Exception` généralisés — `_ImportSheetFailure(RuntimeError)` remplacé par alias vers `ImportSheetError`, orchestrateur avec catch séparés par type, routeur avec mapping HTTP typé (TEC-058)
+
+### Corrigé
+
+**Import — chèques inter-exercices (BIZ-033)**
+
+- `backend/services/excel_import/excel_import_parsers.py` : parsing de la colonne « Encaissé » corrigé — `deposited_idx` ne se résolvait plus sur « Date encaissement » quand « encaisse » est sous-chaîne de ce libellé
+- `backend/services/excel_import/_loaders.py` : nouvelle fonction `_load_existing_payments_deposit_map` pour retrouver le statut de remise des paiements existants
+- `backend/services/import_reversible.py` : nouvelle opération `update_payment_deposit_status` — lors de l'import d'un fichier ultérieur, un paiement existant avec `deposited=False` est mis à jour vers `deposited=True` au lieu d'être silencieusement ignoré comme doublon exact
+
+**Dashboard — corrections KPI et paiements non remis**
+
+- `backend/services/dashboard_service.py` : KPI « chèques non remis » filtre désormais uniquement les paiements `CLIENT` en `chèque` ou `espèces`, excluant correctement les remises fournisseurs
+- `frontend/src/views/ClientInvoicesView.vue` : filtre « en retard » calculé côté client ; limite portée à 1 000 ; `skipDateFilter` actif quand le paramètre URL `status=overdue` est présent
+- `frontend/src/views/DashboardView.vue` : carte « Factures impayées » dirige désormais vers la liste avec `?unpaid=1`
+- `frontend/src/views/PaymentsView.vue` : la liste des paiements non remis ignore le filtre de période exercice (un chèque inter-exercices peut s'étaler sur deux années)
+
+**Import — bouton import séquentiel de test**
+
+- `frontend/src/components/import/ImportExcelShortcutsPanel.vue` + `ImportExcelView.vue` : bouton « Tout importer dans l'ordre » dans le panneau de raccourcis de test — enchaîne `gestion-2024 → comptabilite-2024 → gestion-2025 → comptabilite-2025` avec fenêtre de comparaison auto-calculée par fichier, toast par étape et arrêt au premier échec
+
+**Qualité / Sécurité (audit 2026-04-22)**
+
+- `frontend/src/stores/counter.ts` : suppression du fichier de scaffolding Vue non utilisé (CHR-064)
+- `frontend/package.json` : version alignée sur `0.1.0` pour correspondre au backend (CHR-062)
+- `backend/models/accounting_account.py` : remplacement des noms de personnes réelles dans le plan comptable par défaut par des libellés génériques (`Client litigieux 1`, `Client litigieux 2`) — conformité RGPD (TEC-063)
+- `tests/integration/test_import_api.py` : adaptation du test `test_test_import_shortcuts_list_and_run_configured_file` pour utiliser `unittest.mock.patch` au lieu d'accéder directement au singleton `_settings` supprimé (TEC-066)
+- `backend/routers/settings.py` : endpoint `POST /settings/reset-db` désormais protégé — retourne HTTP 403 si `settings.debug` est `False`, évitant une remise à zéro accidentelle en production (TEC-052)
+- `backend/database.py` : suppression de `Base.metadata.create_all` de `init_db()` — le schéma est exclusivement géré par les migrations Alembic ; `init_db()` ne configure plus que les PRAGMAs SQLite (TEC-060)
+- `backend/services/accounting_engine.py` : `_next_entry_number` utilise désormais `SELECT MAX(entry_number)` au lieu de `SELECT COUNT(*)` pour éviter les collisions de numéros après suppressions ou imports partiels (TEC-051)
+
+**Documentation projet**
+
+- `README.md` recentré comme point d'entrée synthétique bilingue `FR + EN` avec renvoi vers les guides détaillés
+- Nouvelle documentation technique `doc/dev/exploitation.md` rédigée en anglais pour l'exploitation Docker, la configuration, les volumes, les sauvegardes et les opérations courantes
+- Nouvelle documentation développeur `doc/dev/contribuer.md` rédigée en anglais pour la mise en route locale, les commandes qualité, les conventions de développement et le workflow de contribution
+- Nouvelle documentation utilisateur / installation disponible en `FR + EN` avec index bilingue `doc/user/README.md`, guide d'installation `doc/user/installation.md` et versions anglaises des guides utilisateur déjà rédigés
+
+**Import Excel réversible**
+
+- Journal d'import réversible persistant avec `import_runs`, `import_operations` et `import_effects`
+- Nouveaux endpoints API pour préparer, exécuter, annuler et rejouer un import ou une opération unitaire
+- Historique des imports dédié dans l'interface, séparé de l'écran de préparation
+- Prévisualisation détaillée des opérations préparées, de leurs effets prévus et des données source Excel associées
+
+**Gestion des utilisateurs**
+
+- Documentation de cadrage `doc/dev/gestion-utilisateurs-et-permissions.md` pour clarifier la cible produit des rôles et la matrice simplifiée des permissions
+- Administration des comptes réservée à l'administrateur avec liste, création, activation/désactivation et changement de rôle
+- Espace `Mon profil` permettant à chaque utilisateur authentifié de consulter son compte, de mettre à jour son e-mail et de changer son mot de passe
+- Procédure de réinitialisation d'accès par l'administrateur avec mot de passe temporaire pour le contexte auto-hébergé
+
+**Administration des reprises d'import**
+
+- Reset sélectif de reprise dans `Paramètres` avec prévisualisation puis suppression confirmée d'un périmètre `Gestion` ou `Comptabilite` borné à un exercice
+- Plan de suppression construit à partir des traces d'import (`import_logs` legacy et `import_runs` réversibles) et enrichi, côté `Gestion`, par les dépendances métier dérivées créées ensuite dans Solde
+- Documentation utilisateur consolidée pour expliquer la place respective de l'historique réversible, du reset sélectif et de la réinitialisation complète
+
 **Frontend — filtre générique**
+
 - Composable `useTableFilter` + `applyFilter` (`composables/useTableFilter.ts`) : filtre client-side fuzzy sur tous les champs d'un tableau
 - Champ de recherche générique ajouté dans les 11 écrans avec DataTable : Paiements, Exercices, Règles comptables, Plan comptable, Journal, Balance, Salaires, Factures clients, Factures fournisseurs, Banque (transactions + remises), Caisse (journal + comptages)
 - i18n : clé `common.filter_placeholder` → « Rechercher… »
 
 **Frontend — mode sombre**
+
 - `useDarkMode.ts` : watcher déplacé au niveau module (singleton) pour éviter les problèmes de lifecycle component
 - `main.css` : `body` reçoit `background: var(--p-surface-ground)` et `color: var(--p-text-color)` avec transition douce
 - `index.html` : script inline synchrone pour appliquer la classe `.dark-mode` avant le rendu (suppression du flash blanc au chargement)
 - `index.html` : titre corrigé « Solde ⚖️ », `lang="fr"`
 
 **Frontend — système d’interface partagé**
+
 - `AppPage.vue`, `AppPageHeader.vue`, `AppPanel.vue`, `AppStatCard.vue` : primitives communes pour homogénéiser les pages, les en-têtes, les panneaux et les cartes de synthèse
 - `main.css` : langage visuel partagé pour les mises en page, les métriques, les en-têtes de contenu et les dialogues de formulaire
 
 ### Modifié
 
+**Édition métier des factures, paiements et imports**
+
+- Une facture `sent` non réglée reste modifiable, mais toute modification régénère désormais ses écritures comptables auto-générées au lieu de laisser des écritures obsolètes en base
+- Une facture déjà consommée (`paid`, ou plus généralement hors cas `draft` / `sent` non réglée) ne peut plus être modifiée directement via l'API
+- Les paiements deviennent quasi immuables après création : seules les corrections mineures sans impact structurel (`référence`, `notes`, `n° de chèque`) restent éditables depuis l'écran `Paiements`, et la suppression standard est désormais bloquée en attendant un vrai flux d'annulation métier
+- Le rejeu strict des imports réversibles reste désormais explicitement protégé même après retouche manuelle d'un objet importé via l'API, y compris quand l'instance SQLAlchemy a été expirée entre-temps
+
+**Paiements et trésorerie**
+
+- Les règlements clients en `chèque` et `espèces` se saisissent désormais depuis la facture client et son historique, avec un parcours dédié pour enregistrer date, montant, mode, référence et note
+- Le journal `Caisse` affiche explicitement les mouvements issus d'un paiement client, et les bordereaux bancaires filtrent les paiements selon le type de remise choisi
+
+**Authentification et permissions**
+
+- Les rôles techniques existants restent inchangés côté API, mais leur présentation est clarifiée côté produit pour préparer l'administration des comptes sans casser les autorisations existantes
+
 **Outillage**
+
 - `dev.ps1` : remplacement de `Start-Process pwsh` (2 fenêtres séparées) par `Start-Job` — backend et frontend tournent dans la même session PowerShell, Ctrl+C arrête les deux proprement
 
 **Frontend — modernisation de l’interface**
+
 - Refonte des vues principales avec une présentation plus aérée et cohérente : tableau de bord, contacts, détail contact, factures clients et fournisseurs, paiements, banque, caisse, import Excel, exercices, salaires et écrans comptables (journal, balance, grand livre, résultat, bilan, règles, plan comptable)
 - Harmonisation des dialogues et formulaires métier avec une structure commune (introduction, sections, aides contextuelles) pour les comptes comptables, contacts, factures, salaires, dépôts bancaires, imports, opérations de caisse et saisie manuelle d’écritures
+- L'écran d'import Excel a été réorganisé autour d'une synthèse courte, d'onglets dédiés (`Détails`, `Synthèse complète`, `Avertissements`) et d'une table d'opérations filtrable
 
 **Frontend — mode sombre (dark mode)**
+
 - `AppLayout.vue`, `LoginView.vue`, `NavMenu.vue`, `SettingsView.vue` : fonds et couleurs rendus réactifs via `v-bind()` CSS couplé à des `computed` Vue (les tokens `--p-surface-N` du thème Aura sont absolus, non réactifs au mode)
 - `AppLayout.vue` : suppression de l'en-tête de sidebar « ⚖️ Solde ⚖️ » (redondant avec le titre de la page)
 - `NavMenu.vue` : couleur et fond de l'élément de navigation actif adoucis en dark mode (`rgba(52,211,153,0.12)` + texte `primary-300`)
@@ -43,11 +390,21 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+**Paiements et trésorerie**
+
+- Un règlement en `espèces` crée désormais immédiatement une entrée en caisse, tandis que la remise d'espèces en banque sort explicitement la somme de la caisse au moment du dépôt
+- Un règlement par `chèque` reste en attente d'une remise manuelle en banque au lieu d'être assimilé à un dépôt automatique
+
 **Backend**
+
+- invalidation des anciens jetons JWT après changement ou réinitialisation de mot de passe pour éviter qu'une ancienne session reste active
 - `excel_import.py` : support des feuilles Caisse (`caisse`/`cash`) et Banque (`banque`/`bank`/`relev`) dans l'import Excel de gestion ; déduplication des numéros de factures dans le même batch ; création automatique du contact si absent (plutôt que saut de ligne silencieux)
 - sécurité et robustesse revues après commentaires de PR : secret JWT obligatoire hors dev/test, conversion propre des erreurs d'édition manuelle en réponses HTTP, metadata Alembic complétée pour l'autogénération
+- factures clients mixtes `cs+a` : quand la feuille `Factures` expose des montants distincts `cours` et `adhésion`, l'import historique crée les lignes de facture correspondantes et la génération comptable ventile désormais les produits sur les comptes dédiés au lieu d'un seul produit global
+- import réversible BIZ-004 stabilisé : un paiement préparé peut maintenant se rapprocher d'une facture du même classeur déjà planifiée dans le run, même si l'ordre des onglets est défavorable, et l'exécution facture/paiement ne déclenche plus d'erreurs async sur les snapshots enregistrés
 
 **Frontend — bugfixes interface**
+
 - `index.html` : correction de `<\/script>` → `</script>` (artefact d'échappement introduit lors de la création du fichier)
 - `main.ts` : enregistrement de `ConfirmationService` manquant — toutes les views utilisant `useConfirm()` (Contacts, Factures, Paiements, Exercices, Salaires) crashaient au chargement
 - `DashboardView.vue` : imports PrimeVue manquants (`Card`, `ProgressSpinner`, `Message`, `Select`) — la vue du tableau de bord était vide
@@ -60,6 +417,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ### Ajouté
 
 **Backend (Phase 7 — Complétion du plan)**
+
 - `ContactHistory` schéma + `get_contact_history()` service + `GET /contacts/{id}/history`
 - `POST /contacts/{id}/mark-douteux` : génère les écritures 411xxx → 416xxx pour créances douteuses
 - `BilanRead` schéma + `get_bilan()` service + `GET /accounting/entries/bilan` : bilan simplifié actif/passif
@@ -75,6 +433,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 19 nouveaux tests (5 fichiers) — 342 tests au total
 
 **Frontend (Phase 7)**
+
 - `accounting.ts` : types `BilanRead`, `ContactHistory`, `RulePreviewEntry`, `PreviewResult` + fonctions `getBilanApi`, `getExportCsvUrl`, `getContactHistoryApi`, `markCreanceDouteuse`, `previewRuleApi`, `previewGestionFileApi`, `previewComptabiliteFileApi`, `importOFXApi`, `importQIFApi`
 - `AccountingBilanView.vue` : bilan actif/passif avec filtre exercice + bouton export CSV
 - `ContactDetailView.vue` : fiche contact avec historique factures/paiements + action mark-douteux
@@ -86,6 +445,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - i18n `fr.ts` : clés `bilan.*`, `contact_history.*`, `rule_preview.*`, `bank_import.*`, `import.preview*`
 
 **Backend (Phase 6 — Fonctions avancées)**
+
 - Modèle `Salary` + migration `0010` : salaire mensuel par employé (brut, charges salariales/patronales, PAS, net, total_cost)
 - Schémas `SalaryCreate/Update/Read` (validateur YYYY-MM) + `SalarySummaryRow`
 - `salary_service.py` : CRUD + `get_monthly_summary` + hook `generate_entries_for_salary`
@@ -102,6 +462,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 22 nouveaux tests (4 fichiers) — 323 tests au total, 78 % couverture
 
 **Frontend (Phase 6)**
+
 - `DashboardView.vue` : KPIs temps réel (cards PrimeVue) + tableau mensuel charges/produits
 - `SalaryView.vue` : liste CRUD des salaires + résumé mensuel agrégé + dialog de saisie
 - `ImportExcelView.vue` : upload fichier Excel (gestion ou comptabilité) + affichage du rapport d'import
@@ -111,6 +472,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - NavMenu : entrées Salaires (pi-id-card) et Import Excel (pi-file-excel)
 
 **Backend (Phase 5 — Comptabilité)**
+
 - Modèle `FiscalYear` : exercice comptable avec statuts `open/closing/closed`
 - Modèle `AccountingEntry` : écriture en partie double (numéro, date, compte, libellé, débit, crédit, exercice, source)
 - Modèle `AccountingRule` + `AccountingRuleEntry` : règles configurables par déclencheur (`TriggerType` — 14 valeurs), libellés avec templates `{{key}}`
@@ -125,6 +487,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 93 nouveaux tests (3 fichiers unitaires + 1 intégration) — 87 % couverture globale (301 tests au total)
 
 **Frontend (Phase 5)**
+
 - Types et fonctions API dans `accounting.ts` : journal, balance, grand livre, résultat, saisie manuelle, règles, exercices
 - `AccountingJournalView.vue` : journal filtrable + dialog saisie manuelle
 - `AccountingBalanceView.vue` : balance agrégée par compte avec totaux débit/crédit/solde
@@ -139,6 +502,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ---
 
 ## [0.4.0] — Phase 4 — Paiements & Trésorerie
+
 - Modèle `Payment` : paiement par facture, méthode (espèces/chèque/virement), suivi dépôt en banque
 - Modèle `CashRegister` + `CashCount` : journal de caisse avec solde glissant, comptage physique par coupure
 - Modèle `BankTransaction` + `Deposit` + table d'association `deposit_payments`
@@ -152,6 +516,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 208 tests (12 nouveaux fichiers de tests) — 84 % de couverture globale
 
 **Frontend (Phase 4)**
+
 - `api/payments.ts`, `api/cash.ts`, `api/bank.ts` : clients API typés
 - `PaymentsView.vue` : liste globale des paiements, filtre "à remettre en banque"
 - `CashView.vue` : journal de caisse + interface comptage par coupure (onglets)
@@ -170,6 +535,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 145 tests pytest (unitaires + intégration) — 79 % de couverture
 
 **Frontend (Phase 3)**
+
 - `api/invoices.ts` : toutes les fonctions CRUD + status + duplicate + pdf + email + upload
 - `ClientInvoicesView.vue` : liste filtrée (statut, année), actions PDF/email/dupliquer/supprimer
 - `ClientInvoiceForm.vue` : formulaire avec lignes dynamiques et total calculé
@@ -182,6 +548,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ---
 
 **Backend (Phase 2)**
+
 - Migration Alembic `0002` : table `contacts`
 - Service contacts : CRUD complet, recherche insensible à la casse sur nom/prénom/email, filtrage par type, pagination
 - Routeur `/api/contacts/` : CRUD REST avec guards rôle (`SECRETAIRE+`)
@@ -193,6 +560,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 103 tests pytest (unitaires + intégration) — 89 % de couverture
 
 **Frontend**
+
 - `api/contacts.ts` : fonctions CRUD vers `/api/contacts/`
 - `api/accounting.ts` : fonctions CRUD vers `/api/accounting/accounts/` + seed
 - `ContactsView.vue` : DataTable PrimeVue avec recherche (debounce 300 ms) et filtre par type, Dialog création/édition, suppression avec confirmation
@@ -206,6 +574,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ---
 
 **Backend (Phase 1)**
+
 - Fabrique d'application FastAPI (`create_app()`) avec lifespan, CORS, service des fichiers statiques Vue.js
 - Configuration Pydantic Settings avec validation : `JWT_SECRET_KEY` (min 32 caractères), `FISCAL_YEAR_START_MONTH` (défaut 8 = août), paramètres SMTP optionnels
 - Moteur SQLAlchemy 2 async avec SQLite en mode WAL et contrôle des clés étrangères
@@ -220,6 +589,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 44 tests pytest (unitaires + intégration) — 88 % de couverture
 
 **Frontend**
+
 - Scaffold Vue.js 3 avec TypeScript, Vue Router, Pinia, Vitest, ESLint + Prettier
 - PrimeVue 4 avec preset Aura (`@primeuix/themes`) et primeicons
 - `vue-i18n` v11 avec locale française (auth, navigation, paramètres, rôles utilisateurs)
@@ -234,6 +604,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - 11 tests Vitest unitaires pour le store auth — tous verts
 
 **Infra**
+
 - `Dockerfile` multi-stage : `node:22-alpine` pour le build Vue.js, `python:3.13-slim` pour le runtime, utilisateur non-root `solde`
 - `docker-compose.yml` : 1 service, 1 volume `./data`, port 8000
 - `.dockerignore`

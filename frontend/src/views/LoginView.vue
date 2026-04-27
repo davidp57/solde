@@ -47,6 +47,8 @@
             :loading="auth.loading"
             class="w-full"
           />
+
+          <p class="login-help">{{ t('auth.login.reset_hint') }}</p>
         </form>
       </template>
     </Card>
@@ -71,7 +73,7 @@ const route = useRoute()
 const auth = useAuthStore()
 const { isDark } = useDarkMode()
 
-const wrapperBg = computed(() => isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-100)')
+const wrapperBg = computed(() => (isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-100)'))
 
 const username = ref('')
 const password = ref('')
@@ -92,8 +94,12 @@ async function handleSubmit(): Promise<void> {
   if (!username.value || !password.value) return
   await auth.login(username.value, password.value)
   if (auth.isAuthenticated) {
-    const redirect = (route.query.redirect as string) || '/dashboard'
-    await router.push(redirect)
+    if (auth.mustChangePassword) {
+      await router.push('/profile')
+    } else {
+      const redirect = (route.query.redirect as string) || '/dashboard'
+      await router.push(redirect)
+    }
   }
 }
 </script>
@@ -156,5 +162,12 @@ async function handleSubmit(): Promise<void> {
   font-weight: 500;
   font-size: 0.875rem;
   color: var(--p-text-color);
+}
+
+.login-help {
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--p-text-muted-color);
 }
 </style>

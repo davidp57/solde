@@ -1,8 +1,13 @@
 """Integration tests for the invoices API."""
 
 from datetime import date
+from decimal import Decimal
 
 from httpx import AsyncClient
+from sqlalchemy import select
+
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.services.accounting_engine import seed_default_rules
 
 
 async def _create_contact(client: AsyncClient, headers: dict, nom: str = "Dupont") -> int:
@@ -21,6 +26,7 @@ async def _create_invoice(
     contact_id: int,
     *,
     invoice_type: str = "client",
+    label: str | None = None,
     lines: list | None = None,
     total_amount: float | None = None,
     invoice_date: date = date(2025, 9, 1),
@@ -31,6 +37,8 @@ async def _create_invoice(
         "date": str(invoice_date),
         "lines": lines or [],
     }
+    if label is not None:
+        payload["label"] = label
     if total_amount is not None:
         payload["total_amount"] = str(total_amount)
     r = await client.post("/api/invoices/", json=payload, headers=headers)
@@ -43,10 +51,22 @@ class TestListInvoices:
         r = await client.get("/api/invoices/")
         assert r.status_code == 401
 
+    async def test_readonly_cannot_list_invoices(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ):
+        r = await client.get("/api/invoices/", headers=readonly_auth_headers)
+        assert r.status_code == 403
+
     async def test_returns_empty_list(self, client: AsyncClient, auth_headers: dict):
         r = await client.get("/api/invoices/", headers=auth_headers)
         assert r.status_code == 200
         assert r.json() == []
+
+    async def test_gestionnaire_can_list_invoices(
+        self, client: AsyncClient, secretaire_auth_headers: dict
+    ):
+        r = await client.get("/api/invoices/", headers=secretaire_auth_headers)
+        assert r.status_code == 200
 
     async def test_filter_by_type(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
@@ -89,21 +109,32 @@ class TestCreateInvoice:
     async def test_create_client_invoice_with_lines(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
         lines = [
-            {"description": "Cours maths", "quantity": "2", "unit_price": "30.00"},
-            {"description": "Adhésion", "quantity": "1", "unit_price": "20.00"},
+            {
+                "description": "Cours maths",
+                "line_type": "cours",
+                "quantity": "2",
+                "unit_price": "30.00",
+            },
+            {
+                "description": "Adhésion",
+                "line_type": "adhesion",
+                "quantity": "1",
+                "unit_price": "20.00",
+            },
         ]
         invoice = await _create_invoice(client, auth_headers, cid, lines=lines)
-        assert invoice["number"] == "2025-C-0001"
+        assert invoice["number"] == "2025-001"
         assert float(invoice["total_amount"]) == 80.0
         assert invoice["status"] == "draft"
         assert len(invoice["lines"]) == 2
+        assert invoice["label"] == "cs+a"
 
     async def test_create_supplier_invoice(self, client: AsyncClient, auth_headers: dict):
         cid = await _create_contact(client, auth_headers)
         invoice = await _create_invoice(
             client, auth_headers, cid, invoice_type="fournisseur", total_amount=250.0
         )
-        assert invoice["number"] == "2025-F-0001"
+        assert invoice["number"].startswith("FF-")
         assert float(invoice["total_amount"]) == 250.0
 
     async def test_requires_auth(self, client: AsyncClient):
@@ -117,8 +148,8 @@ class TestCreateInvoice:
         cid = await _create_contact(client, auth_headers)
         inv1 = await _create_invoice(client, auth_headers, cid)
         inv2 = await _create_invoice(client, auth_headers, cid)
-        assert inv1["number"] == "2025-C-0001"
-        assert inv2["number"] == "2025-C-0002"
+        assert inv1["number"] == "2025-001"
+        assert inv2["number"] == "2025-002"
 
 
 class TestGetInvoice:
@@ -145,6 +176,129 @@ class TestUpdateInvoice:
         )
         assert r.status_code == 200
         assert r.json()["description"] == "Updated"
+
+    async def test_update_sent_invoice_regenerates_accounting_entries(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        db_session,
+    ):
+        await seed_default_rules(db_session)
+        cid = await _create_contact(client, auth_headers)
+        created = await _create_invoice(
+            client,
+            auth_headers,
+            cid,
+            lines=[
+                {
+                    "description": "Cours de soutien",
+                    "line_type": "cours",
+                    "quantity": "1",
+                    "unit_price": "130.00",
+                },
+                {
+                    "description": "Adhesion annuelle",
+                    "line_type": "adhesion",
+                    "quantity": "1",
+                    "unit_price": "30.00",
+                },
+            ],
+        )
+        sent_response = await client.patch(
+            f"/api/invoices/{created['id']}/status",
+            json={"status": "sent"},
+            headers=auth_headers,
+        )
+        assert sent_response.status_code == 200
+
+        initial_entries = list(
+            (
+                await db_session.execute(
+                    select(AccountingEntry)
+                    .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                    .where(AccountingEntry.source_id == created["id"])
+                    .order_by(AccountingEntry.entry_number.asc())
+                )
+            ).scalars()
+        )
+        assert len(initial_entries) == 3
+
+        update_response = await client.put(
+            f"/api/invoices/{created['id']}",
+            json={
+                "lines": [
+                    {
+                        "description": "Cours de soutien",
+                        "line_type": "cours",
+                        "quantity": "1",
+                        "unit_price": "150.00",
+                    }
+                ]
+            },
+            headers=auth_headers,
+        )
+
+        assert update_response.status_code == 200
+        assert update_response.json()["total_amount"] == "150.00"
+
+        regenerated_entries = list(
+            (
+                await db_session.execute(
+                    select(AccountingEntry)
+                    .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                    .where(AccountingEntry.source_id == created["id"])
+                    .order_by(AccountingEntry.entry_number.asc())
+                )
+            ).scalars()
+        )
+        assert len(regenerated_entries) == 2
+        assert any(entry.debit == Decimal("150.00") for entry in regenerated_entries)
+        assert any(entry.credit == Decimal("150.00") for entry in regenerated_entries)
+
+    async def test_update_paid_invoice_returns_conflict(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+    ):
+        cid = await _create_contact(client, auth_headers)
+        created = await _create_invoice(
+            client,
+            auth_headers,
+            cid,
+            lines=[
+                {
+                    "description": "Cours de soutien",
+                    "line_type": "cours",
+                    "quantity": "1",
+                    "unit_price": "130.00",
+                }
+            ],
+        )
+        await client.patch(
+            f"/api/invoices/{created['id']}/status",
+            json={"status": "sent"},
+            headers=auth_headers,
+        )
+        payment_response = await client.post(
+            "/api/payments/",
+            json={
+                "invoice_id": created["id"],
+                "contact_id": cid,
+                "amount": "130.00",
+                "date": "2025-09-02",
+                "method": "cheque",
+            },
+            headers=auth_headers,
+        )
+        assert payment_response.status_code == 201
+
+        update_response = await client.put(
+            f"/api/invoices/{created['id']}",
+            json={"description": "Updated"},
+            headers=auth_headers,
+        )
+
+        assert update_response.status_code == 409
 
 
 class TestStatusChange:
@@ -173,6 +327,65 @@ class TestStatusChange:
             headers=auth_headers,
         )
         assert r.status_code == 409
+
+    async def test_sent_client_cs_a_invoice_splits_entries_from_user_lines(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+        db_session,
+    ):
+        await seed_default_rules(db_session)
+        cid = await _create_contact(client, auth_headers)
+        created = await _create_invoice(
+            client,
+            auth_headers,
+            cid,
+            lines=[
+                {
+                    "description": "Cours de soutien",
+                    "line_type": "cours",
+                    "quantity": "1",
+                    "unit_price": "130.00",
+                },
+                {
+                    "description": "Adhesion annuelle",
+                    "line_type": "adhesion",
+                    "quantity": "1",
+                    "unit_price": "30.00",
+                },
+            ],
+        )
+
+        r = await client.patch(
+            f"/api/invoices/{created['id']}/status",
+            json={"status": "sent"},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 200
+        entries = list(
+            (
+                await db_session.execute(
+                    select(AccountingEntry)
+                    .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                    .where(AccountingEntry.source_id == created["id"])
+                    .order_by(AccountingEntry.entry_number.asc())
+                )
+            ).scalars()
+        )
+        assert len(entries) == 3
+        assert any(
+            entry.account_number == "411100" and entry.debit == Decimal("160.00")
+            for entry in entries
+        )
+        assert any(
+            entry.account_number == "706110" and entry.credit == Decimal("130.00")
+            for entry in entries
+        )
+        assert any(
+            entry.account_number == "756000" and entry.credit == Decimal("30.00")
+            for entry in entries
+        )
 
 
 class TestDuplicate:

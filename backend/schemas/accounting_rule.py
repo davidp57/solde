@@ -37,6 +37,15 @@ class AccountingRuleRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AccountingRuleCreate(BaseModel):
+    name: str
+    trigger_type: TriggerType
+    is_active: bool = True
+    priority: int = 10
+    description: str | None = None
+    entries: list[AccountingRuleEntryCreate] = []
+
+
 class AccountingRuleUpdate(BaseModel):
     name: str | None = None
     is_active: bool | None = None

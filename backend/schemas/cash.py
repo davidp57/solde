@@ -7,7 +7,7 @@ from decimal import Decimal as _Decimal
 
 from pydantic import BaseModel, field_validator
 
-from backend.models.cash import CashMovementType
+from backend.models.cash import CashEntrySource, CashMovementType
 
 
 class CashEntryCreate(BaseModel):
@@ -53,9 +53,31 @@ class CashEntryRead(BaseModel):
     payment_id: int | None
     reference: str | None
     description: str
+    source: CashEntrySource
     balance_after: _Decimal
+    is_system_opening: bool
 
     model_config = {"from_attributes": True}
+
+
+class LinkedAccountingEntry(BaseModel):
+    """Minimal accounting entry info returned in cash connection checks."""
+
+    id: int
+    account_number: str
+    label: str
+    debit: _Decimal
+    credit: _Decimal
+
+    model_config = {"from_attributes": True}
+
+
+class CashEntryConnectionsRead(BaseModel):
+    """Result of checking what is connected to a cash entry before deletion."""
+
+    can_delete: bool
+    blocking_reason: str | None = None
+    accounting_entries: list[LinkedAccountingEntry] = []
 
 
 class CashCountCreate(BaseModel):

@@ -1,320 +1,226 @@
+<!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-## État d'avancement
-
-> Dernière mise à jour : 2026-04-09 — branche active `develop`
-
-| Phase | Statut | Tâches complètes |
-|---|---|---|
-| **1. Fondations** | ✅ Terminé | 9/9 |
-| **2. Gestion de base** | ✅ Terminé | 7/7 |
-| **3. Facturation** | ✅ Terminé | 7/7 |
-| **4. Paiements & Trésorerie** | ✅ Terminé | 14/14 |
-| **5. Comptabilité** | ✅ Terminé | 16/16 |
-| **6. Avancé** | ✅ Terminé | 14/14 |
-| **7. Complétion plan** | ✅ Terminé | 9/9 |
-
-### ✅ Plan.md 100 % implémenté — application fonctionnelle complète
-
-Toutes les fonctionnalités du plan initial sont développées et testées.
-**357 tests backend (74 % couverture) + 11 tests Vitest frontend — 0 échec.**
-
-### Stack mise en place
-
-**Backend** (`backend/`)
-- `config.py` — Pydantic Settings (`JWT_SECRET_KEY`, `FISCAL_YEAR_START_MONTH=8`, SMTP optionnel)
-- `database.py` — SQLAlchemy 2 async + SQLite WAL + `get_db()` dependency
-- `models/user.py` — `User`, `UserRole` (READONLY/SECRETAIRE/TRESORIER/ADMIN)
-- `services/auth.py` — bcrypt direct (Python 3.13), JWT create/decode
-- `schemas/auth.py` — `LoginRequest`, `TokenResponse`, `UserCreate`, `UserRead`
-- `routers/auth.py` — `/api/auth/login`, `/refresh`, `/me`, `/users` (admin)
-- `main.py` — `create_app()`, lifespan, CORS, mount `frontend/dist/`
-- Tests : `tests/unit/test_config.py` (7), `tests/unit/test_auth_service.py` (8), `tests/integration/test_auth_api.py` (9) → **24 passing, 83% coverage**
-
-**Frontend** (`frontend/src/`)
-- `main.ts` — PrimeVue 4 (Aura theme), vue-i18n v11, Pinia, Vue Router
-- `i18n/fr.ts` — toutes les clés UI (auth, nav, settings, user.role)
-- `api/auth.ts` — `loginApi`, `refreshApi`, `getMeApi`
-- `api/settings.ts` — `getSettingsApi`, `updateSettingsApi`
-- `api/client.ts` — axios avec intercepteur JWT + auto-refresh 401
-- `api/types.ts` — `LoginRequest`, `TokenResponse`, `UserRead`
-- `stores/auth.ts` — login/logout/refresh, persistance localStorage, computed `isAdmin`/`isTresorier`
-- `views/LoginView.vue` — formulaire PrimeVue complet avec gestion d'erreurs i18n
-- `views/SettingsView.vue` — formulaire complet (infos asso + SMTP avec TLS toggle)
-- `layouts/AppLayout.vue` — sidebar desktop + Drawer mobile responsive
-- `components/NavMenu.vue` — menu dynamique selon le rôle
-- `views/DashboardView.vue` — placeholder
-- `router/index.ts` — guards `requiresAuth` et `requiresAdmin`, lazy-loading
-- Tests : `tests/stores/auth.spec.ts` (11) + setup localStorage mock → **11 passing**
+> Last updated: 2026-04-27 — active branch `develop` — current version: 1.0.0
 
 ---
 
-```text
-Phase 1    Phase 2    Phase 3    Phase 4         Phase 5       Phase 6       Phase 7
-Fond.  ──► Gestion ──► Fact. ──► Paiements & ──► Comptab. ──► Avancé   ──►  Complétion
-                               Trésorerie
-├─ Docker  ├─Contacts ├─Clients  ├─Paiements     ├─Moteur      ├─Clôture     ├─Bilan
-├─FastAPI  └─Plan     ├─Fourn.   ├─Caisse        ├─Journal     ├─Salaires    ├─Créances
-├─SQLite   comptable  ├─PDF      ├─Comptage      ├─Balance     ├─Import XLS  │  douteuses
-├─Auth JWT            └─Email    ├─Banque        ├─GdLivre     └─Dashboard   ├─Export CSV
-└─Vue.js                         ├─Bordereaux    └─Saisie man.              ├─Preview XLS
-                                 ├─Import OFX                               ├─Preview règles
-                                 └─Rapprochement                            └─Import OFX/QIF
-```
+## Version overview
+
+| Version | Scope | Status |
+| --- | --- | --- |
+| **0.1** | Plan phases 1–7 (full application) | ✅ Completed |
+| **0.2** | Technical audit lots 1–8 | ✅ Completed |
+| **0.3** | UX audit lots A–D + standalone fixes | ✅ Completed |
+| **0.4** | Lot F (tests) + process & quality gates | ✅ Completed |
+| **0.5** | Lots E, G, I, K + documentation + P1 fixes | ✅ Completed |
+| **0.6** | Lots L, M — employee management + security | ✅ Completed |
+| **0.7** | Lots N, O, P, Q — UX, forms, quality | ✅ Completed |
+| **0.8** | Lots R, S — supervision, i18n, doc restructure | ✅ Completed |
+| **1.0** | Lots T — chatbot, email templates, credit notes — first stable release | ✅ Completed |
+| **1.1** | Lot H — multi-account bank + remaining items | ⬜ Planned |
+
+Test suite: **992 backend + 131 frontend Vitest + 1 Playwright E2E — 0 failures.**
 
 ---
 
-## Phase 1 — Fondations
+## v0.1 — Full application (plan.md)
 
-> **Objectif** : infrastructure fonctionnelle de bout en bout (Docker → login → page de config)
+All features from the initial `plan.md` are implemented across 7 phases (75 tasks).
 
-| # | Statut | Tâche | Détails |
-|---|---|---|---|
-| 1.1 | ✅ | Setup projet | Structure de dossiers, `.gitignore`, `pyproject.toml` |
-| 1.2 | ✅ | Docker | `Dockerfile` multi-stage (build Vue.js + Python runtime), `docker-compose.yml` (1 service, 1 volume `./data`) |
-| 1.3 | ✅ | Backend FastAPI | `main.py`, `config.py` (Settings Pydantic), `database.py` (SQLite WAL, AsyncSession) |
-| 1.4 | ✅ | Alembic | Init, `env.py` async, migration `0001` (users + app_settings) |
-| 1.5 | ✅ | Auth JWT | Login/logout, refresh token, middleware de vérification, modèle User + rôles (admin, trésorier, secrétaire, readonly) |
-| 1.6 | ✅ | Frontend scaffold | Vue.js 3 + Vite + PrimeVue 4 + Pinia + Vue Router, layout responsive (sidebar + drawer mobile), page de login |
-| 1.7 | ✅ | Page de configuration | Modèle `AppSettings`, API `GET/PUT /api/settings` (admin), `SettingsView.vue` complet (infos asso + SMTP) |
-| 1.8 | ✅ | Servir le frontend | FastAPI `StaticFiles` pour servir le build Vue.js (`frontend/dist/`) |
-| 1.9 | ✅ | `.env.example` + README | Variables d'environnement documentées, README installation dev |
+<details>
+<summary>Phase summary — click to expand</summary>
 
-**Critère de validation** : `docker-compose up` → navigateur → login → page de configuration fonctionnelle ✅
+| Phase | Goal | Tasks |
+| --- | --- | --- |
+| 1. Foundations | Docker, FastAPI, SQLite, JWT auth, Vue.js scaffold | 9 |
+| 2. Core management | Contacts, chart of accounts | 7 |
+| 3. Invoicing | Client/supplier invoices, PDF, e-mail | 7 |
+| 4. Payments & Treasury | Payments, cash, bank, deposits, OFX import, reconciliation | 14 |
+| 5. Accounting | Rules engine, journal, balance, ledger, manual entries | 16 |
+| 6. Advanced features | Year close, salaries, Excel import, dashboard | 14 |
+| 7. Plan completion | Balance sheet, bad debt, CSV export, preview, OFX/QIF | 9 |
 
-**État final (branche `feature/phase1-foundations`)** :
+**Stack**: FastAPI + SQLAlchemy 2 async + SQLite WAL + Alembic + Vue.js 3 + PrimeVue 4 + Pinia + WeasyPrint (lazy).
 
-- Backend : FastAPI + SQLite WAL + Alembic + auth JWT bcrypt + settings API → **44 tests, 88% coverage**
-- Frontend : scaffold + login + layout + guards + store auth + SettingsView complet → **11 tests Vitest**
-- Infra : Dockerfile multi-stage, docker-compose.yml, .dockerignore, .env.example
-
-### Dépendances
-
-- Aucune (point de départ)
+</details>
 
 ---
 
-## Phase 2 — Gestion de base
+## v0.2 — Technical audit (lots 1–8) ✅
 
-> **Objectif** : pouvoir gérer les contacts et le plan comptable
+Completed 2026-04-22. Refactoring, security hardening, test coverage, DevOps.
 
-| # | Statut | Tâche | Détails |
-|---|---|---|---|
-| 2.1 | ✅ | Modèle Contact | SQLAlchemy `Contact` + migration Alembic 0002 |
-| 2.2 | ✅ | API Contacts | CRUD REST, recherche (nom/prénom/email), filtres par type, soft-delete |
-| 2.3 | ✅ | Vue Contacts | DataTable PrimeVue, Dialog création/édition (`ContactForm.vue`), suppression confirmée |
-| 2.4 | ✅ | Modèle AccountingAccount | SQLAlchemy + migration Alembic 0003 |
-| 2.5 | ✅ | Plan comptable par défaut | 24 comptes pré-configurés, seed idempotent |
-| 2.6 | ✅ | API Plan comptable | CRUD REST + `POST /api/accounting/accounts/seed` |
-| 2.7 | ✅ | Vue Plan comptable | DataTable avec filtre par type, Dialog création/édition (`AccountForm.vue`) |
-
-**Critère de validation** : créer, modifier, rechercher, supprimer des contacts et des comptes comptables ✅
-
-**État final (branche `feature/phase2-base`)** :
-
-- Backend : modèles Contact + AccountingAccount, services, schemas, routers → **103 tests, 89% coverage**
-- Frontend : ContactsView, ContactForm, AccountingAccountsView, AccountForm, routes, i18n
-- Alembic : migrations 0002 (contacts) + 0003 (accounting_accounts)
-
-### Dépendances
-
-- Phase 1 (auth + DB)
+| Lot | Summary |
+| --- | --- |
+| 1 — Quick wins | Code cleanup (CHR-064, CHR-062, TEC-066, TEC-063) |
+| 2 — Tests au vert | Fix 11 failing tests (TEC-048) |
+| 3 — Security | HTTP headers, CORS, DB schema, entry numbering (TEC-047, TEC-052, TEC-055, TEC-060, TEC-051) |
+| 4 — Backend quality | Decimal TypeDecorator, pagination, DTO (TEC-065, TEC-057, TEC-059) |
+| 5 — Auth security | Rate limit, HttpOnly cookie, forced pwd change (TEC-045, BIZ-053, TEC-046) |
+| 6 — DevOps | Entrypoint, healthcheck (CHR-054, CHR-061) |
+| 7 — Refactoring | Excel import split, typed exceptions (TEC-050, TEC-058) |
+| 8 — Long-running | Audit log, test coverage 29%→71% (BIZ-056, TEC-049) |
 
 ---
 
-## Phase 3 — Facturation
+## v0.3 — UX audit (lots A–D) ✅
 
-> **Objectif** : créer des factures, générer des PDF, envoyer par email
+Completed 2026-04-23. UX improvements and new features.
 
-| # | Statut | Tâche | Détails |
-|---|---|---|---|
-| 3.1 | ✅ | Modèle Invoice + InvoiceLine | Numéro YYYY-C/F-NNNN, type client/fournisseur, label (cs\|a\|cs+a\|general), lignes multi, statuts |
-| 3.2 | ✅ | API Factures clients | CRUD, numérotation auto séquentielle, changement de statut, duplication, migration 0004 |
-| 3.3 | ✅ | Vue Factures clients | `ClientInvoicesView.vue`, `ClientInvoiceForm.vue` avec lignes dynamiques, filtres statut/année |
-| 3.4 | ✅ | API Factures fournisseurs | CRUD, upload fichier PDF/image/WebP (10 MB max, UUID filename) |
-| 3.5 | ✅ | Vue Factures fournisseurs | `SupplierInvoicesView.vue`, `SupplierInvoiceForm.vue`, dialog upload |
-| 3.6 | ✅ | Génération PDF | WeasyPrint (import paresseux) + template Jinja2 `invoice.html` |
-| 3.7 | ✅ | Envoi email | smtplib + STARTTLS/SSL, facture PDF en pièce jointe, transition draft→sent automatique |
+| Lot | Summary |
+| --- | --- |
+| A — Backend rapide | Password complexity policy (TEC-085) |
+| B — UX quick wins | 404 page, breadcrumb, offline banner, session expiry, filter reset (BIZ-070, BIZ-072, BIZ-074, BIZ-084, BIZ-042) |
+| C — Dashboard interactif | Clickable KPIs, keyboard shortcuts (BIZ-075, BIZ-073) |
+| D — Polish UI | Skeleton loaders, colored account combos (BIZ-071, BIZ-043) |
 
-**Critère de validation** : créer une facture client cs+a → générer le PDF → l'envoyer par email → la retrouver dans la liste ; enregistrer une facture fournisseur avec un fichier joint ✅
-
-**État final (branche `feature/phase3-invoicing`)** :
-
-- Backend : modèles Invoice + InvoiceLine, service (numérotation, transitions, duplication), schemas, router, pdf_service, email_service → **145 tests, 79% coverage**
-- Frontend : ClientInvoicesView, SupplierInvoicesView, ClientInvoiceForm, SupplierInvoiceForm, routes, i18n
-- Alembic : migration 0004 (invoices + invoice_lines)
-
-### Dépendances
-- Phase 2 (contacts pour `contact_id`)
+Standalone: error handler (TEC-067), Swagger disabled in prod (TEC-068), backup endpoint (BIZ-069), print styles (BIZ-076), migration guide (CHR-083).
 
 ---
 
-## Phase 4 — Paiements & Trésorerie
+## v0.4 — Tests & process ✅
 
-> **Objectif** : gérer le cycle de vie complet des paiements (réception → dépôt → banque)
+Completed 2026-04-24. Test coverage, quality gates, project process.
 
-| # | Tâche | Détails |
-|---|---|---|
-| 4.1 | Modèle Payment | Montant, mode (espèces\|chèque\|virement), N° chèque, dates, statut de dépôt |
-| 4.2 | API Paiements | Enregistrement sur facture, paiement partiel, mise à jour auto du statut facture |
-| 4.3 | Vue Paiements | Liste par facture et globale, formulaire, vue "à encaisser" |
-| 4.4 | Modèle CashRegister + CashCount | Mouvements caisse (in/out), comptages physiques par coupure |
-| 4.5 | API Caisse | Journal auto-alimenté par paiements espèces, saisie manuelle de sorties, comptage + rapprochement |
-| 4.6 | Vue Caisse | Journal avec solde glissant, interface de comptage par coupure (100€→centimes), affichage différence |
-| 4.7 | Modèle BankTransaction | Date, montant, référence, libellé, solde, source (manual\|import), rapprochement |
-| 4.8 | API Banque | Journal, saisie manuelle, solde glissant |
-| 4.9 | Modèle Deposit | Bordereaux de remise (chèques/espèces), liaison avec paiements |
-| 4.10 | API Bordereaux | Création (sélection de paiements non déposés), marquage des paiements comme déposés |
-| 4.11 | Vue Bordereaux | Sélection interactive des paiements, récapitulatif chèques + décomposition billets |
-| 4.12 | Import relevés bancaires | Parser CSV format Crédit Mutuel + OFX/QIF |
-| 4.13 | Vue Import bancaire | Upload fichier, prévisualisation, import |
-| 4.14 | Rapprochement bancaire | API + vue pour associer transactions importées ↔ paiements/factures existants |
+| Lot | Summary |
+| --- | --- |
+| F — Tests | Composable tests, Playwright E2E smoke, integration API gaps (TEC-079, TEC-080, TEC-081) |
 
-**Critère de validation** :
-1. Enregistrer un paiement espèces → visible en caisse → faire un comptage physique → rapprochement OK
-2. Créer un bordereau d'espèces → remettre en banque → visible au compte bancaire
-3. Importer un CSV Crédit Mutuel → rapprocher les transactions
-
-### Dépendances
-- Phase 3 (factures pour `invoice_id`)
+Also: backlog restructuring, copilot-instructions codification, all quality gates green.
 
 ---
 
-## Phase 5 — Comptabilité
+## v0.5 — Contacts, refactoring & documentation ✅
 
-> **Objectif** : génération automatique des écritures comptables et vues comptables
+Completed 2026-04-24.
 
-| # | Tâche | Détails |
-|---|---|---|
-| 5.1 | Modèle AccountingRule + AccountingRuleEntry | Règle : trigger_type, priorité, actif ; Entrée : compte, sens, champ montant, template libellé |
-| 5.2 | Modèle AccountingEntry + FiscalYear | Écritures (double entrée, traçabilité source), exercices comptables |
-| 5.3 | Moteur de règles | Service `accounting_engine.py` : prend un événement → applique les règles → génère les écritures |
-| 5.4 | Seed règles par défaut | 15 règles pré-configurées (facture cs, paiement espèces, etc.) |
-| 5.5 | Intégration automatique | Hook dans les services factures/paiements/dépôts → appel moteur de règles |
-| 5.6 | API Règles comptables | CRUD, activation/désactivation, prévisualisation |
-| 5.7 | Vue Règles comptables | Liste des règles, éditeur visuel (drag-and-drop lignes d'écriture), prévisualisation |
-| 5.8 | API Journal général | Liste écritures, filtres (date, compte, source, exercice) |
-| 5.9 | Vue Journal | DataTable avec filtres avancés, lien vers la source (facture, paiement...) |
-| 5.10 | API Balance des comptes | Calcul agrégé débit/crédit/solde par compte |
-| 5.11 | Vue Balance | Tableau synthétique avec totaux, drill-down vers grand livre |
-| 5.12 | API Grand livre | Extrait par compte avec solde glissant |
-| 5.13 | Vue Grand livre | Similaire aux feuilles "Extrait Clients", "Extrait Caisse", "Extrait Compte Courant" actuelles |
-| 5.14 | État des factures | Vue pivot : solde de chaque facture (débit, crédit, reste dû) |
-| 5.15 | Saisie manuelle | API + formulaire pour écritures manuelles (cas exceptionnels) |
-| 5.16 | Export | CSV et PDF des vues comptables |
+Target: next release. Functional lots with detail, documentation and P1 fixes.
 
-**Critère de validation** :
-1. Créer une facture cs → 2 écritures auto générées (411100/706110) → visibles dans le journal → balance impactée
-2. Enregistrer un paiement espèces → 2 écritures auto (531000/411100) → facture soldée dans l'état des factures
-3. Modifier une règle → vérifier que les nouvelles écritures suivent la nouvelle règle
+### Lot E — Contacts & import (~25 min)
 
-### Dépendances
-- Phase 4 (tous les événements de gestion qui déclenchent les écritures)
+Séparer clients et fournisseurs dans l'écran contacts, et permettre l'enrichissement
+des adresses e-mail par import ponctuel.
 
----
+| ID | Titre | Est. |
+| --- | --- | --- |
+| BIZ-035 | Onglets clients / fournisseurs | ~15 min |
+| BIZ-040 | Import one-shot emails contacts | ~10 min |
 
-## Phase 6 — Fonctions avancées
+**BIZ-035**: ajouter un `TabView` PrimeVue sur `ContactsView` avec onglets Clients /
+Fournisseurs / Tous, filtré par `is_client` / `is_supplier`. Pas de changement backend.
 
-> **Objectif** : clôture comptable, salaires, import des données existantes, dashboard
+**BIZ-040**: endpoint `POST /contacts/import-emails` acceptant un CSV ou un copier-coller
+d'adresses pour enrichir les contacts existants par correspondance sur le nom.
 
-| # | Tâche | Détails |
-|---|---|---|
-| 6.1 | Modèle FiscalYear (compléments) | Statuts open→closing→closed, écritures de clôture et report |
-| 6.2 | API Clôture | Vérifications pré-clôture, calcul résultat, génération bilan + compte de résultat, verrouillage |
-| 6.3 | Vue Clôture | Wizard étape par étape : vérifications → résultat → bilan → verrouillage → ouverture nouvel exercice |
-| 6.4 | Report à nouveau | Écritures d'à-nouveau automatiques pour le nouvel exercice |
-| 6.5 | Consultation exercices clôturés | Filtrage par exercice dans toutes les vues comptables, lecture seule |
-| 6.6 | Modèle Salary | Mois, heures, brut, charges patronales, charges salariales, impôts, net (données CEA) |
-| 6.7 | API Salaires | CRUD mensuel, lien sous-traitance → factures fournisseurs |
-| 6.8 | Vue Salaires | Tableau mensuel par employé, historique, coût total, lien sous-traitants |
-| 6.9 | Écritures salaires | Intégration moteur de règles pour les salaires (641000, 645100, 421000, 431100) |
-| 6.10 | Import Excel | Parser Gestion 2025.xlsx + Comptabilité 2025.xlsx, mapping colonnes, validation |
-| 6.11 | Vue Import Excel | Upload, prévisualisation, rapport de validation, confirmation import |
-| 6.12 | Dashboard | Indicateurs clés (solde banque, solde caisse, impayés, résultat en cours) |
-| 6.13 | Dashboard — graphiques | Évolution recettes/dépenses par mois (Chart.js ou vue-chartjs) |
-| 6.14 | Dashboard — alertes | Factures en retard, caisse non rapprochée, échéances |
+### Lot G — Refactoring frontend (~30 min)
 
-**Critère de validation** :
-1. Clôturer l'exercice → bilan + compte de résultat cohérents → report à nouveau → nouvel exercice ouvert
-2. Saisir un salaire mensuel → écritures comptables auto générées
-3. Importer les 2 fichiers Excel réels → vérifier que les données importées correspondent aux originaux
-4. Dashboard affiche les bons indicateurs et alertes
+Éclater les 3 vues volumineuses en sous-composants < 500 lignes.
 
-### Dépendances
-- Phase 5 (comptabilité complète nécessaire pour la clôture)
+| ID | Titre | Est. |
+| --- | --- | --- |
+| TEC-077 | Refactoring vues volumineuses | ~30 min |
+
+**TEC-077**: `ImportExcelView` (2 873 L) → panels preview/history/upload.
+`BankView` (2 215 L) → panels journal/reconciliation/deposit.
+`SettingsView` (1 077 L) → tabs association/SMTP/admin.
+
+### Documentation & P1 fixes
+
+| ID | Titre | Est. |
+| --- | --- | --- |
+| CHR-019 | README et documentation technique | ~10 min |
+| CHR-021 | Manuel utilisateur illustré | ~20 min |
+| BIZ-033 | Comparaison chèques inter-exercices | ~15 min |
+| TEC-039 | Revalidation scénarios facture / email | ~10 min |
+| CHR-020 | Documentation de contribution | ~5 min |
+
+### P3 quick wins (v0.5)
+
+| ID | Titre | Est. |
+| --- | --- | --- |
+| BIZ-037 | Profil via clic sur le nom | ~5 min |
+| CHR-038 | Numéro de version dans l'UI | ~5 min |
+| CHR-078 | Squelette i18n anglais | ~5 min |
+| CHR-082 | Descriptions Swagger enrichies | ~10 min |
 
 ---
 
-## Phase 7 — Complétion du plan
+## v0.6 — Employee management & security ✅
 
-> **Objectif** : implémenter tous les modules identifiés dans `plan.md` mais non couverts par les phases 1-6
+Completed 2026-04-25.
 
-| # | Statut | Tâche | Détails |
-|---|---|---|---|
-| 7.1 | ✅ | Fiche contact avec historique | `ContactHistory` schema + service + `GET /contacts/{id}/history` ; `ContactDetailView.vue` |
-| 7.2 | ✅ | Créances douteuses 416xxx | `mark_creance_douteuse()` : écritures 411xxx → 416xxx + `POST /contacts/{id}/mark-douteux` |
-| 7.3 | ✅ | Bilan simplifié actif/passif | `BilanRead` schema + `get_bilan()` + `GET /accounting/entries/bilan` ; `AccountingBilanView.vue` |
-| 7.4 | ✅ | Export CSV comptabilité | `export_service.py` : journal, balance, résultat, bilan (UTF-8 BOM, séparateur `;`) |
-| 7.5 | ✅ | Preview import Excel | `PreviewResult` + `preview_gestion_file/comptabilite_file` + 2 endpoints preview (dry-run) |
-| 7.6 | ✅ | Prévisualisation règles | `preview_rule()` service + `POST /accounting/rules/{id}/preview` (simulation sans commit) |
-| 7.7 | ✅ | Import OFX/QIF | `parse_ofx()` (SGML + XML) + `parse_qif()` (multi-format dates) + 2 endpoints |
-| 7.8 | ✅ | Dockerfile WeasyPrint | Ajout libs système : libpango, libcairo, libgdk-pixbuf2.0, shared-mime-info |
-| 7.9 | ✅ | Tests Phase 7 | 19 nouveaux tests (OFX/QIF unit + 4 fichiers intégration) → 357 tests au total |
-
-**Critère de validation** :
-1. `POST /contacts/{id}/mark-douteux` → 2 écritures 411xxx/416xxx créées ✅
-2. `GET /accounting/entries/bilan` → actif et passif équilibrés ✅
-3. `GET /accounting/entries/journal/export/csv` → téléchargement CSV UTF-8 ✅
-4. `POST /import/excel/gestion/preview` → estimation lignes sans import ✅
-5. `POST /bank/transactions/import-ofx` → transactions créées depuis un fichier OFX ✅
-
-**État final** :
-- Backend : 357 tests, 0 échec, 74 % couverture
-- Frontend : `AccountingBilanView.vue`, `ContactDetailView.vue`, export CSV journal, preview import, nouvelles routes, i18n complète
-- Ruff : 0 erreur
-
-### Dépendances
-- Phases 1-6 (toutes les couches précédentes)
+| Lot | Summary |
+| --- | --- |
+| L — Employee management | Full employee + payroll module (BIZ-088, BIZ-089, BIZ-090) |
+| M — Security | UnhandledExceptionMiddleware, SWAGGER_ENABLED flag, i18n audit prep (TEC-091, TEC-092, TEC-093) |
 
 ---
 
-## Résumé des livrables par phase
+## v0.7 — UX & forms ✅
 
-| Phase | Modules | Tâches |
-|---|---|---|
-| **1. Fondations** | Auth, Config | 8 tâches |
-| **2. Gestion de base** | Contacts, Plan comptable | 7 tâches |
-| **3. Facturation** | Factures clients, Factures fournisseurs, PDF, Email | 7 tâches |
-| **4. Paiements & Trésorerie** | Paiements, Caisse, Banque, Bordereaux, Import bancaire, Rapprochement | 14 tâches |
-| **5. Comptabilité** | Moteur de règles, Journal, Balance, Grand livre, État factures | 16 tâches |
-| **6. Avancé** | Clôture, Salaires, Import Excel, Dashboard | 14 tâches |
-| **7. Complétion plan** | Bilan, créances douteuses, exports CSV, preview import, OFX/QIF | 9 tâches |
-| **Total** | **14 modules** | **75 tâches** |
+Completed 2026-04-26.
+
+| Lot | Summary |
+| --- | --- |
+| N — UX & forms | Supplier invoices, email attachments, invoice email body, numbering templates, default prices, dashboard wizards (BIZ-094–BIZ-097, BIZ-119, BIZ-122, BIZ-123, BIZ-124) |
+| O — Backend quality | Ruff/mypy pass, test coverage improvements (TEC-098, TEC-099, TEC-100) |
+| P — Frontend quality | ESLint pass, vue-tsc, Vitest improvements (TEC-101, TEC-102, TEC-103, TEC-104) |
+| Q — Post-merge recette | REC-001..REC-015 regressions fixed |
 
 ---
 
-## Diagramme de dépendances
+## v0.8 — Supervision, i18n & documentation ✅
 
-```
-Phase 1 (Fondations)
-    │
-    ▼
-Phase 2 (Contacts + Plan comptable)
-    │
-    ▼
-Phase 3 (Facturation)
-    │
-    ▼
-Phase 4 (Paiements & Trésorerie)
-    │
-    ▼
-Phase 5 (Comptabilité + Moteur de règles)
-    │
-    ▼
-Phase 6 (Clôture + Salaires + Import + Dashboard)
-    │
-    ▼
-Phase 7 (Bilan, Créances douteuses, Export CSV, Preview, OFX/QIF)
-```
+Completed 2026-04-27.
 
-> Chaque phase dépend de la précédente. Au sein d'une phase, certaines tâches sont parallélisables (ex: 2.1-2.3 Contacts et 2.4-2.7 Plan comptable).
+| Lot | Summary |
+| --- | --- |
+| R — System supervision | System supervision screen, audit log viewer (BIZ-108, BIZ-109) |
+| S — Documentation & i18n | i18n audit + missing keys (TEC-106), full doc restructure (CHR-020, CHR-021, CHR-079) |
+
+---
+
+## v1.0 — Chatbot IA, e-mail templates & credit notes ✅
+
+Completed 2026-04-27. First stable production release.
+
+| Lot | Summary |
+| --- | --- |
+| T — Chatbot IA + refactor Paramètres | AI assistant sidebar + help page + settings refactor (BIZ-125, BIZ-126) |
+
+### BIZ-127 — Email confirmation dialog
+Pre-send preview dialog with editable subject/body and embedded PDF preview.
+
+### BIZ-128 — Configurable email templates
+Admin-configurable subject and body templates for invoice emails (variables: `{invoice_number}`, `{description}`, `{association_name}`, `{invoice_ref}`).
+
+### BIZ-129 — Credit notes (avoirs)
+Full credit note support: `avoir` document type, separate `AV-YYYY-NNN` numbering, pre-filled reversed lines, dedicated PDF template, `credit_note_for_id` traceability.
+
+---
+
+## v1.1 — Multi-account bank ⬜
+
+### Lot H — Architecture multi-compte (~45 min)
+
+Introduire un support multi-compte explicite pour la banque afin de distinguer
+compte courant et compte épargne dans les données, imports et écrans.
+
+| ID | Titre | Est. |
+| --- | --- | --- |
+| BIZ-034 | Support multi-compte banque | ~45 min |
+
+**BIZ-034**: modèle `BankAccount` (label, IBAN, type), migration, FK sur `BankTransaction`,
+filtre par compte dans `BankView`, adaptation imports OFX/CSV.
+Prérequis : décisions métier sur la granularité (2 comptes fixes ou N comptes dynamiques).
+
+### Remaining items
+
+| ID | Titre | Est. |
+| --- | --- | --- |
+| CHR-078 | Squelette i18n anglais | ~5 min |
+
+---
+
+## Not yet planned
