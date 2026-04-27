@@ -57,3 +57,7 @@ class AppSettings(Base):
     chat_provider: Mapped[str] = mapped_column(String(50), nullable=False, default="gemini")
     chat_api_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     chat_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    # Email templates (null = use built-in defaults)
+    email_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    email_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)

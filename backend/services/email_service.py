@@ -19,8 +19,29 @@ def compose_subject(
     invoice_number: str,
     description: str | None,
     association_name: str,
+    template: str | None = None,
 ) -> str:
-    """Return the default email subject for an invoice."""
+    """Return the email subject for an invoice.
+
+    If *template* is provided it is formatted with these variables:
+    - ``{invoice_number}`` — the invoice number
+    - ``{description}``   — the invoice description (empty string when absent)
+    - ``{association_name}`` — the association name
+    - ``{invoice_ref}``   — ``{invoice_number} — {description}`` when description
+                            is set, otherwise just ``{invoice_number}``
+
+    Unknown keys are left as-is (safe substitution).
+    """
+    if template:
+        invoice_ref = f"{invoice_number} — {description}" if description else invoice_number
+        return template.format_map(
+            _SafeFormatMap(
+                invoice_number=invoice_number,
+                description=description or "",
+                association_name=association_name,
+                invoice_ref=invoice_ref,
+            )
+        )
     if description:
         return f"Facture {invoice_number} — {description}"
     return f"Facture {invoice_number} — {association_name}"
@@ -30,14 +51,35 @@ def compose_body(
     invoice_number: str,
     description: str | None,
     association_name: str,
+    template: str | None = None,
 ) -> str:
-    """Return the default email body for an invoice."""
+    """Return the email body for an invoice.
+
+    Supports the same template variables as :func:`compose_subject`.
+    """
+    if template:
+        invoice_ref = f"{invoice_number} — {description}" if description else invoice_number
+        return template.format_map(
+            _SafeFormatMap(
+                invoice_number=invoice_number,
+                description=description or "",
+                association_name=association_name,
+                invoice_ref=invoice_ref,
+            )
+        )
     invoice_ref = f"{invoice_number} — {description}" if description else invoice_number
     return (
         f"Bonjour,\n\n"
         f"Veuillez trouver ci-joint votre facture {invoice_ref}.\n\n"
         f"Cordialement,\n{association_name}"
     )
+
+
+class _SafeFormatMap(dict):  # type: ignore[type-arg]
+    """dict subclass that returns ``{key}`` for missing keys instead of raising KeyError."""
+
+    def __missing__(self, key: str) -> str:
+        return f"{{{key}}}"
 
 
 def send_invoice_email(

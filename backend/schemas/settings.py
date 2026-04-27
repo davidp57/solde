@@ -45,6 +45,10 @@ class AppSettingsRead(BaseModel):
     chat_model: str | None
     chat_enabled: bool = False
 
+    # Email templates (null = use built-in defaults)
+    email_subject_template: str | None
+    email_body_template: str | None
+
     @model_validator(mode="before")
     @classmethod
     def inject_chat_enabled(cls, data: Any) -> Any:
@@ -93,6 +97,10 @@ class AppSettingsUpdate(BaseModel):
     chat_provider: str | None = None
     chat_api_key: str | None = None
     chat_model: str | None = None
+
+    # Email templates (null = use built-in defaults; empty string clears the template)
+    email_subject_template: str | None = None
+    email_body_template: str | None = None
 
     @field_validator("fiscal_year_start_month")
     @classmethod

@@ -380,10 +380,16 @@ async def get_invoice_email_preview(
     return InvoiceEmailPreview(
         recipient=contact.email,
         subject=email_service.compose_subject(
-            invoice.number, invoice.description, app_settings.association_name
+            invoice.number,
+            invoice.description,
+            app_settings.association_name,
+            template=app_settings.email_subject_template,
         ),
         body=email_service.compose_body(
-            invoice.number, invoice.description, app_settings.association_name
+            invoice.number,
+            invoice.description,
+            app_settings.association_name,
+            template=app_settings.email_body_template,
         ),
     )
 

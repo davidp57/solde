@@ -839,6 +839,16 @@ export default {
     smtp_bcc: 'Adresse BCC (copie cachée)',
     smtp_bcc_help: 'Recevez une copie de chaque facture envoyée (optionnel).',
     smtp_use_tls: 'Utiliser TLS',
+    section_email_templates: "Modèles d'e-mail",
+    section_email_templates_subtitle:
+      "Personnalisez le sujet et le corps par défaut des e-mails d'envoi de factures. Laissez vide pour utiliser les messages automatiques.",
+    email_subject_template: 'Sujet (modèle)',
+    email_subject_template_placeholder: 'Facture {invoice_number} — {association_name}',
+    email_body_template: 'Corps (modèle)',
+    email_body_template_placeholder:
+      'Bonjour,\n\nVeuillez trouver ci-joint votre facture {invoice_ref}.\n\nCordialement,\n{association_name}',
+    email_template_vars_help:
+      'Variables disponibles : {invoice_number}, {description}, {association_name}, {invoice_ref}',
     saved: 'Paramètres enregistrés avec succès.',
     save_error: "Échec de l'enregistrement des paramètres.",
     section_chat: 'Assistant IA',
