@@ -54,7 +54,7 @@ async def _get_chat_settings(db: AsyncSession) -> tuple[str, str | None, str | N
 def _default_model(provider: str) -> str:
     if provider == "openai":
         return "gpt-4o-mini"
-    return "gemini-1.5-flash"
+    return "gemini-2.0-flash-lite"
 
 
 def _to_gemini_contents(messages: list[dict[str, str]]) -> list[dict[str, object]]:
