@@ -19,6 +19,9 @@ export interface AppSettings {
   smtp_from_email: string | null
   smtp_use_tls: boolean
   smtp_bcc: string | null
+  chat_provider: string
+  chat_model: string | null
+  chat_enabled: boolean
 }
 
 export interface AppSettingsUpdate {
@@ -40,6 +43,9 @@ export interface AppSettingsUpdate {
   smtp_from_email?: string | null
   smtp_use_tls?: boolean
   smtp_bcc?: string | null
+  chat_provider?: string
+  chat_api_key?: string | null
+  chat_model?: string | null
 }
 
 export interface SystemOpening {

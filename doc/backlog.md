@@ -19,8 +19,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé |
 | --- | --- | --- | --- | --- |
-| BIZ-125 | Chatbot IA + page Aide | P2 | ~8h | 2026-04-27 |
-| BIZ-126 | Refactor UX écran Paramètres | P2 | ~2h | 2026-04-27 |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 |
 
 ---
@@ -132,6 +130,7 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 | O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-26 |
 | P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-26 |
 | S | Documentation & i18n | v0.8 | TEC-106, CHR-021, CHR-020, CHR-079 | 2026-04-27 |
+| T | Chatbot IA + refactor Paramètres | v0.8 | BIZ-125, BIZ-126 | 2026-04-28 |
 
 <details>
 <summary>Lot S — Documentation & i18n (2026-04-27)</summary>
@@ -188,6 +187,21 @@ Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – 
 
 - **Terminé** : 2026-04-26
 - **Livré** : `client_invoice_number_template` (`{year}`, `{seq}`) + `client_invoice_seq_digits` + `supplier_invoice_number_template` (strftime) sur `AppSettings` (migrations 0032, 0033) ; service `_next_number` avec regex ; endpoint `GET /api/invoices/next_number` (aperçu sans side-effect) ; affichage du numéro prévu dans le formulaire de création et dans la confirmation du wizard.
+
+</details>
+
+<details>
+<summary>Lot T — Chatbot IA + refactor Paramètres (2026-04-28)</summary>
+
+### BIZ-125 — Chatbot IA + page Aide
+
+- **Terminé** : 2026-04-28
+- **Livré** : sidebar chatbot flottante (SSE, Gemini/OpenAI), bouton FAB dans AppLayout, annulation, rendu Markdown via `marked` ; page `/aide` affichant `doc/user/manuel.md` en HTML ; panneau admin `SettingsChatPanel` (provider, clé API, modèle) ; backend : endpoints `/api/chat`, `/api/chat/config`, `/api/chat/logs`, `/api/help/manual` ; migrations 0035 (colonnes chat dans `app_settings`) et 0036 (table `chat_log`).
+
+### BIZ-126 — Refactor UX écran Paramètres
+
+- **Terminé** : 2026-04-28
+- **Livré** : `SettingsAssociationSmtpPanel.vue` (413 lignes) scindé en `SettingsAssociationPanel.vue` (infos association + facturation) et `SettingsSmtpPanel.vue` (SMTP) ; chaque panneau sauvegarde indépendamment. Réalisé sur la même branche que BIZ-125.
 
 </details>
 
