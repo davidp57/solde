@@ -9,6 +9,8 @@ import pytest
 
 from backend.services.email_service import (
     EmailSendError,
+    compose_body,
+    compose_subject,
     send_invoice_email,
 )
 
@@ -230,3 +232,79 @@ def test_send_invoice_email_raises_email_send_error_on_auth_failure() -> None:
 
     with patch("smtplib.SMTP", return_value=_FakeSMTP()), pytest.raises(EmailSendError):
         send_invoice_email(**_COMMON_KWARGS)
+
+
+# ---------------------------------------------------------------------------
+# compose_subject helper
+# ---------------------------------------------------------------------------
+
+
+def test_compose_subject_without_description() -> None:
+    result = compose_subject("2024-001", None, "Mon Asso")
+    assert "2024-001" in result
+    assert "Mon Asso" in result
+
+
+def test_compose_subject_with_description() -> None:
+    result = compose_subject("2024-001", "cours d'avril", "Mon Asso")
+    assert "2024-001" in result
+    assert "cours d'avril" in result
+    assert "Mon Asso" not in result
+
+
+# ---------------------------------------------------------------------------
+# compose_body helper
+# ---------------------------------------------------------------------------
+
+
+def test_compose_body_without_description() -> None:
+    result = compose_body("2024-001", None, "Mon Asso")
+    assert "2024-001" in result
+    assert "Mon Asso" in result
+
+
+def test_compose_body_with_description() -> None:
+    result = compose_body("2024-001", "cours d'avril", "Mon Asso")
+    assert "2024-001" in result
+    assert "cours d'avril" in result
+
+
+# ---------------------------------------------------------------------------
+# override_subject / override_body
+# ---------------------------------------------------------------------------
+
+
+def test_send_invoice_email_override_subject_and_body() -> None:
+    """When override_subject/override_body are provided, they are used verbatim."""
+    sent_messages: list = []
+
+    class _FakeSMTP:
+        def __enter__(self) -> _FakeSMTP:
+            return self
+
+        def __exit__(self, *args: object) -> bool:
+            return False
+
+        def ehlo(self) -> None:
+            pass
+
+        def starttls(self, **kwargs: object) -> None:
+            pass
+
+        def login(self, user: str, password: str) -> None:
+            pass
+
+        def send_message(self, msg: object) -> None:
+            sent_messages.append(msg)
+
+    with patch("smtplib.SMTP", return_value=_FakeSMTP()):
+        send_invoice_email(
+            **_COMMON_KWARGS,
+            override_subject="Sujet personnalisé",
+            override_body="Corps personnalisé",
+        )
+
+    assert sent_messages
+    assert sent_messages[0]["Subject"] == "Sujet personnalisé"
+    body_text = sent_messages[0].get_payload(0).get_payload(decode=True).decode()
+    assert "Corps personnalisé" in body_text

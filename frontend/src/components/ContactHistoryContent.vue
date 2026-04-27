@@ -377,7 +377,6 @@
           v-if="contactEmail && invoiceDetail.type === 'client'"
           icon="pi pi-send"
           :label="t('invoices.send_email')"
-          :loading="sendingEmail"
           @click="sendEmail(invoiceDetail)"
         />
       </div>
@@ -435,6 +434,12 @@
 
   <ConfirmDialog />
   <Toast />
+
+  <InvoiceEmailDialog
+    :invoice-id="emailDialogInvoiceId"
+    @sent="emailDialogInvoiceId = null"
+    @close="emailDialogInvoiceId = null"
+  />
 </template>
 
 <script setup lang="ts">
@@ -459,7 +464,7 @@ import AppStatCard from './ui/AppStatCard.vue'
 import AppTableSkeleton from './ui/AppTableSkeleton.vue'
 import { getContactHistoryApi, markCreanceDouteuse } from '../api/accounting'
 import type { ContactHistory, ContactInvoiceSummary, ContactPaymentSummary } from '../api/accounting'
-import { downloadInvoicePdfApi, getInvoiceApi, sendInvoiceEmailApi } from '../api/invoices'
+import { downloadInvoicePdfApi, getInvoiceApi } from '../api/invoices'
 import type { Invoice } from '../api/invoices'
 import { getPayment } from '../api/payments'
 import type { Payment } from '../api/payments'
@@ -471,6 +476,7 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { formatDisplayDate } from '@/utils/format'
+import InvoiceEmailDialog from './InvoiceEmailDialog.vue'
 
 const props = defineProps<{ contactId: number }>()
 const emit = defineEmits<{ 'contact-loaded': [name: string] }>()
@@ -488,7 +494,7 @@ const paymentDetailVisible = ref(false)
 const paymentDetail = ref<Payment | null>(null)
 const paymentDetailLoading = ref(false)
 const downloadingPdf = ref(false)
-const sendingEmail = ref(false)
+const emailDialogInvoiceId = ref<number | null>(null)
 
 const contactEmail = computed((): string | null => {
   const email = history.value?.contact.email
@@ -626,16 +632,8 @@ async function downloadPdf(invoice: Invoice): Promise<void> {
   }
 }
 
-async function sendEmail(invoice: Invoice): Promise<void> {
-  sendingEmail.value = true
-  try {
-    await sendInvoiceEmailApi(invoice.id)
-    toast.add({ severity: 'success', summary: t('invoices.email_sent'), life: 3000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
-  } finally {
-    sendingEmail.value = false
-  }
+function sendEmail(invoice: Invoice): void {
+  emailDialogInvoiceId.value = invoice.id
 }
 
 function confirmMarkDouteux() {

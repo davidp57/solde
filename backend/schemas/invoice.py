@@ -133,6 +133,19 @@ class InvoiceRead(InvoiceBase):
     file_path: str | None = None
     created_at: datetime.datetime
     updated_at: datetime.datetime
-    lines: list[InvoiceLineRead] = []
-
     model_config = {"from_attributes": True}
+
+
+class InvoiceEmailPreview(BaseModel):
+    """Email preview returned by GET /{invoice_id}/email-preview."""
+
+    recipient: str
+    subject: str
+    body: str
+
+
+class InvoiceEmailSendRequest(BaseModel):
+    """User-edited email fields submitted to POST /{invoice_id}/send-email."""
+
+    subject: str
+    body: str

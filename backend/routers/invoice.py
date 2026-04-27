@@ -24,6 +24,8 @@ from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.invoice import (
     InvoiceCreate,
+    InvoiceEmailPreview,
+    InvoiceEmailSendRequest,
     InvoiceRead,
     InvoiceStatusUpdate,
     InvoiceUpdate,
@@ -344,9 +346,52 @@ async def get_invoice_pdf(
     )
 
 
+@router.get("/{invoice_id}/email-preview", response_model=InvoiceEmailPreview)
+async def get_invoice_email_preview(
+    invoice_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _ReadAccess,
+) -> InvoiceEmailPreview:
+    """Return the pre-composed email subject, body and recipient for an invoice."""
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.contact import Contact  # noqa: PLC0415
+    from backend.services import email_service  # noqa: PLC0415
+
+    invoice = await invoice_service.get_invoice(db, invoice_id)
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    if invoice.type != InvoiceType.CLIENT:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email preview is only available for client invoices",
+        )
+
+    app_settings = await settings_service.get_settings(db)
+
+    result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
+    contact = result.scalar_one_or_none()
+    if contact is None or not contact.email:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Contact has no email address",
+        )
+
+    return InvoiceEmailPreview(
+        recipient=contact.email,
+        subject=email_service.compose_subject(
+            invoice.number, invoice.description, app_settings.association_name
+        ),
+        body=email_service.compose_body(
+            invoice.number, invoice.description, app_settings.association_name
+        ),
+    )
+
+
 @router.post("/{invoice_id}/send-email", status_code=status.HTTP_204_NO_CONTENT)
 async def send_invoice_email(
     invoice_id: int,
+    payload: InvoiceEmailSendRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _WriteAccess,
 ) -> None:
@@ -412,6 +457,8 @@ async def send_invoice_email(
             association_name=app_settings.association_name,
             pdf_bytes=pdf_bytes,
             description=invoice.description,
+            override_subject=payload.subject,
+            override_body=payload.body,
         )
     except email_service.EmailSendError as exc:
         raise HTTPException(
@@ -430,7 +477,7 @@ async def send_invoice_email(
         actor=current_user,
         target_id=invoice_id,
         target_type="invoice",
-        detail={"number": invoice.number, "recipient": contact.email},
+        detail={"number": invoice.number, "recipient": contact.email, "subject": payload.subject},
     )
 
 
