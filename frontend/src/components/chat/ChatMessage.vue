@@ -9,9 +9,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { marked } from 'marked'
 import type { ChatMessage } from '@/api/chat'
 import { useDarkMode } from '@/composables/useDarkMode'
+import { renderMarkdown } from '@/utils/renderMarkdown'
 
 const props = defineProps<{
   message: ChatMessage
@@ -20,10 +20,7 @@ const props = defineProps<{
 const { isDark } = useDarkMode()
 const assistantBg = computed(() => isDark.value ? 'var(--p-surface-800)' : 'var(--p-surface-100)')
 
-const renderedContent = computed(() => {
-  const result = marked.parse(props.message.content, { async: false })
-  return result as string
-})
+const renderedContent = computed(() => renderMarkdown(props.message.content))
 </script>
 
 <style scoped>

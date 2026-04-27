@@ -88,8 +88,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { marked } from 'marked'
 import Button from 'primevue/button'
+import { renderMarkdown } from '@/utils/renderMarkdown'
 import Textarea from 'primevue/textarea'
 import { useChatStore } from '@/stores/chat'
 import { useDarkMode } from '@/composables/useDarkMode'
@@ -130,10 +130,7 @@ const sidebarBg = computed(() => isDark.value ? 'var(--p-surface-900)' : 'var(--
 const borderColor = computed(() => isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)')
 const bubbleBg = computed(() => isDark.value ? 'var(--p-surface-800)' : 'var(--p-surface-100)')
 
-const renderedStreamingText = computed(() => {
-  const result = marked.parse(store.streamingText, { async: false })
-  return result as string
-})
+const renderedStreamingText = computed(() => renderMarkdown(store.streamingText))
 
 function submit(): void {
   const text = inputText.value.trim()
