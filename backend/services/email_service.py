@@ -45,9 +45,10 @@ def send_invoice_email(
     if bcc:
         msg["Bcc"] = bcc
 
+    invoice_ref = f"{invoice_number} — {description}" if description else invoice_number
     body = (
         f"Bonjour,\n\n"
-        f"Veuillez trouver ci-joint votre facture {invoice_number}.\n\n"
+        f"Veuillez trouver ci-joint votre facture {invoice_ref}.\n\n"
         f"Cordialement,\n{association_name}"
     )
     msg.attach(MIMEText(body, "plain", "utf-8"))

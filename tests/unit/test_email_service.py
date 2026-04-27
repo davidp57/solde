@@ -149,7 +149,7 @@ def test_send_invoice_email_message_subject() -> None:
 
 
 def test_send_invoice_email_subject_with_description() -> None:
-    """With description, subject contains invoice number and description (not association name)."""
+    """With description, subject and body contain invoice number and description."""
     sent_messages: list = []
 
     class _FakeSMTP:
@@ -179,6 +179,11 @@ def test_send_invoice_email_subject_with_description() -> None:
     assert "2024-001" in subject
     assert "cours du mois d'avril 2026" in subject
     assert "Association Test" not in subject
+
+    # Description must also appear in the email body
+    body_part = sent_messages[0].get_payload(0)
+    body_text = body_part.get_payload(decode=True).decode()
+    assert "cours du mois d'avril 2026" in body_text
 
 
 # ---------------------------------------------------------------------------
