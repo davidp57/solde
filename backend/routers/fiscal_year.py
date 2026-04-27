@@ -114,6 +114,25 @@ async def administrative_close_fiscal_year(
     return closed  # type: ignore[return-value]
 
 
+@router.post("/{fy_id}/close-administrative", response_model=FiscalYearRead)
+async def administrative_close_fiscal_year(
+    fy_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _AdminAccess,
+) -> FiscalYearRead:
+    """Close a fiscal year without generating new accounting entries."""
+    fy = await fiscal_year_service.get_fiscal_year(db, fy_id)
+    if fy is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found")
+    try:
+        closed = await fiscal_year_service.administrative_close_fiscal_year(db, fy)
+    except FiscalYearError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+        ) from exc
+    return closed  # type: ignore[return-value]
+
+
 @router.post(
     "/{fy_id}/open-next",
     response_model=FiscalYearRead,
