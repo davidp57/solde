@@ -19,7 +19,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé |
 | --- | --- | --- | --- | --- |
-| BIZ-125 | Chatbot IA + page Aide | P2 | ~6h | 2026-04-27 |
+| BIZ-125 | Chatbot IA + page Aide | P2 | ~7h | 2026-04-27 |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 |
 
 ---
@@ -57,7 +57,14 @@ Deux fonctionnalités complémentaires autour de la documentation embarquée :
 - Dépendance : `marked` (rendu Markdown)
 - Clés i18n pour les libellés
 
-**Hors périmètre :** persistance de l’historique, multi-utilisateurs, fine-tuning, TTS/STT.
+**Audit des questions :**
+- Chaque question utilisateur est enregistrée dans une table `chat_log` (migration Alembic dédiée)
+- Colonnes : `id`, `user_id` (FK → User), `asked_at`, `question` (texte brut), `prompt_tokens`, `completion_tokens`
+- Endpoint `GET /api/chat/logs` réservé aux admins (pagination, filtre par utilisateur / période)
+- Aucune réponse du LLM ni donnée métier n’est stockée dans le log
+
+**Hors périmètre :** persistance de l’historique complet, multi-utilisateurs, fine-tuning, TTS/STT.
+
 ### BIZ-034 — Support multi-compte banque
 
 Distinguer compte courant et compte épargne dans les données, imports et écrans.
