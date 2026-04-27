@@ -87,12 +87,12 @@
     <!-- Chat sidebar (floating, authenticated pages only) -->
     <ChatSidebar />
 
-    <!-- Chat toggle button (only when enabled) -->
+    <!-- Chat toggle button (always visible for authenticated users) -->
     <Button
-      v-if="chatStore.isEnabled"
-      :icon="chatStore.isOpen ? 'pi pi-times' : 'pi pi-sparkles'"
+      icon="pi pi-sparkles"
       class="chat-fab"
       rounded
+      :severity="chatStore.isOpen ? 'secondary' : 'primary'"
       :title="chatStore.isOpen ? t('nav.chat_close') : t('nav.chat_open')"
       @click="chatStore.toggle()"
     />
