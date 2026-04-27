@@ -484,6 +484,7 @@ export default {
     email_subject: 'Sujet',
     email_body: 'Corps du message',
     email_preview: 'Aperçu de la facture',
+    email_preview_unavailable: 'Aperçu non disponible',
     email_send: 'Envoyer',
     duplicate: 'Dupliquer',
     duplicated: 'Facture dupliquée.',
