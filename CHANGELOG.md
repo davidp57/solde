@@ -13,6 +13,25 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- CHR-079 : Restructuration complète de la documentation — nouvelle arborescence `doc/admin/`, `doc/dev/`, `doc/user/`, `doc/llm/` avec `README.md` d'entrée bilingue par section ; `doc/README.md` global ; `README.md` racine mis à jour
+- CHR-079 : `doc/admin/installation.md` — guide d'installation Docker bilingue (FR+EN) avec Docker Compose complet, configuration `.env`, option Synology Portainer
+- CHR-079 : `doc/admin/configuration.md` — référence des variables d'environnement et paramètres association, bilingue
+- CHR-079 : `doc/admin/excel-import.md` — procédure complète d'import Excel bilingue : types de fichiers, structure attendue, prérequis, ordre recommandé, pas à pas, historique/undo, reset sélectif
+- CHR-079 : `doc/admin/administration.md` — guide d'administration bilingue : montée de version, sauvegardes, restauration, gestion des utilisateurs et rôles
+- CHR-079 : `doc/dev/architecture.md`, `doc/dev/contributing.md`, `doc/dev/testing.md`, `doc/dev/development-process.md` — documentation développeur complète en anglais
+- CHR-079 : `doc/user/manuel.md` — manuel utilisateur FR complet par cas d'usage (connexion, contacts, factures, paiements, caisse, banque, salaires, comptabilité, profil)
+- CHR-079 : `doc/llm/reference.md` — référence dense en anglais pour assistants IA (modèle de données complet, API, règles métier, conventions)
+
+### Supprimé
+
+- CHR-079 : Suppression des fichiers de documentation obsolètes — `doc/recette.md`, `doc/import-excel-plan.md`, `doc/plan-reprise-post-imp.md`, `doc/architecture.md`, `doc/dev/audit-report-2026-04.md`, `doc/dev/bl-*`, `doc/dev/contribuer.md`, `doc/dev/exploitation.md`, `doc/dev/gestion-utilisateurs-et-permissions.md`, `doc/dev/import-excel-contract.md`, `doc/dev/import-excel-procedure.md`, anciens fichiers `doc/user/`
+
+---
+
+## [Précédent — v0.7.13]
+
+### Ajouté
+
 - BIZ-111 : Script one-shot `scripts/import_addresses_from_docx.py` — extrait les adresses postales depuis les factures Word historiques (`.docx`) et enrichit `Contact.adresse` ; dry-run par défaut, `--commit` pour appliquer, `--verbose` pour le détail extraction par fichier
 - TEC-106 : Audit i18n complet — 2 clés manquantes identifiées et ajoutées dans `fr.ts` : `common.active` ('Actif') et `common.inactive` ('Inactif'), utilisées dans la vue Employés
 - BIZ-122 : Intégration du champ `description` de la facture dans l'objet de l'e-mail d'envoi — si renseigné, le sujet devient `Facture {numéro} — {description}` au lieu de `Facture {numéro} — {association}`

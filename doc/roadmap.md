@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-04-24 — active branch `develop`
+> Last updated: 2026-04-27 — active branch `develop` — current version: 0.7.13
 
 ---
 
@@ -13,8 +13,11 @@
 | **0.2** | Technical audit lots 1–8 | ✅ Completed |
 | **0.3** | UX audit lots A–D + standalone fixes | ✅ Completed |
 | **0.4** | Lot F (tests) + process & quality gates | ✅ Completed |
-| **0.5** | Lots E, G + documentation + P1 fixes | 🔄 In progress |
-| **0.6** | Lot H — multi-account bank | ⬜ Planned |
+| **0.5** | Lots E, G, I, K + documentation + P1 fixes | ✅ Completed |
+| **0.6** | Lots L, M — employee management + security | ✅ Completed |
+| **0.7** | Lots N, O, P, Q — UX, forms, quality | ✅ Completed |
+| **0.8** | Lots R, S — supervision, i18n, doc restructure | ✅ Completed |
+| **0.9** | Lot H — multi-account bank + remaining items | ⬜ Planned |
 
 Test suite: **913 backend (~71% coverage) + 126 frontend Vitest + 1 Playwright E2E — 0 failures.**
 
@@ -87,7 +90,9 @@ Also: backlog restructuring, copilot-instructions codification, all quality gate
 
 ---
 
-## v0.5 — Contacts, refactoring & documentation 🔄
+## v0.5 — Contacts, refactoring & documentation ✅
+
+Completed 2026-04-24.
 
 Target: next release. Functional lots with detail, documentation and P1 fixes.
 
@@ -140,7 +145,42 @@ d'adresses pour enrichir les contacts existants par correspondance sur le nom.
 
 ---
 
-## v0.6 — Multi-account bank ⬜
+## v0.6 — Employee management & security ✅
+
+Completed 2026-04-25.
+
+| Lot | Summary |
+| --- | --- |
+| L — Employee management | Full employee + payroll module (BIZ-088, BIZ-089, BIZ-090) |
+| M — Security | UnhandledExceptionMiddleware, SWAGGER_ENABLED flag, i18n audit prep (TEC-091, TEC-092, TEC-093) |
+
+---
+
+## v0.7 — UX & forms ✅
+
+Completed 2026-04-26.
+
+| Lot | Summary |
+| --- | --- |
+| N — UX & forms | Supplier invoices, email attachments, invoice email body, numbering templates, default prices, dashboard wizards (BIZ-094–BIZ-097, BIZ-119, BIZ-122, BIZ-123, BIZ-124) |
+| O — Backend quality | Ruff/mypy pass, test coverage improvements (TEC-098, TEC-099, TEC-100) |
+| P — Frontend quality | ESLint pass, vue-tsc, Vitest improvements (TEC-101, TEC-102, TEC-103, TEC-104) |
+| Q — Post-merge recette | REC-001..REC-015 regressions fixed |
+
+---
+
+## v0.8 — Supervision, i18n & documentation ✅
+
+Completed 2026-04-27.
+
+| Lot | Summary |
+| --- | --- |
+| R — System supervision | System supervision screen, audit log viewer (BIZ-108, BIZ-109) |
+| S — Documentation & i18n | i18n audit + missing keys (TEC-106), full doc restructure (CHR-020, CHR-021, CHR-079) |
+
+---
+
+## v0.9 — Multi-account bank ⬜
 
 ### Lot H — Architecture multi-compte (~45 min)
 
@@ -155,9 +195,14 @@ compte courant et compte épargne dans les données, imports et écrans.
 filtre par compte dans `BankView`, adaptation imports OFX/CSV.
 Prérequis : décisions métier sur la granularité (2 comptes fixes ou N comptes dynamiques).
 
+### Remaining items
+
+| ID | Titre | Est. |
+| --- | --- | --- |
+| CHR-078 | Squelette i18n anglais | ~5 min |
+
 ---
 
 ## Not yet planned
 
-Items with roadmap visibility but no target version yet. None currently — all open
-tickets are assigned to v0.5 or v0.6.
+No items without a target version currently.
