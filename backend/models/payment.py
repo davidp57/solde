@@ -5,12 +5,16 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
 from backend.models.types import DecimalType
+
+if TYPE_CHECKING:
+    from backend.models.invoice import InvoiceType
 
 _Date = date
 _Decimal = Decimal
@@ -24,6 +28,10 @@ class PaymentMethod(StrEnum):
 
 class Payment(Base):
     __tablename__ = "payments"
+    __allow_unmapped__ = True
+
+    invoice_number: str | None = None
+    invoice_type: InvoiceType | None = None
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     invoice_id: Mapped[int] = mapped_column(
