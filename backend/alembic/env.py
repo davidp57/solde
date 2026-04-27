@@ -31,6 +31,7 @@ for module_name in (
     "backend.models.import_log",
     "backend.models.invoice",
     "backend.models.payment",
+    "backend.models.chat_log",
     "backend.models.salary",
     "backend.models.user",
 ):

@@ -8,7 +8,7 @@ from datetime import datetime as _Datetime
 from decimal import Decimal as _Decimal
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from backend.models.import_log import ImportLogType
 
@@ -40,6 +40,28 @@ class AppSettingsRead(BaseModel):
     smtp_use_tls: bool
     smtp_bcc: str | None
 
+    # Chat / AI assistant (api key intentionally excluded)
+    chat_provider: str
+    chat_model: str | None
+    chat_enabled: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def inject_chat_enabled(cls, data: Any) -> Any:
+        """Compute chat_enabled from chat_api_key without exposing the key."""
+        if isinstance(data, dict):
+            if "chat_enabled" not in data:
+                data["chat_enabled"] = bool(data.get("chat_api_key"))
+            return data
+        # ORM object: extract all schema fields + inject computed ones
+        out: dict[str, Any] = {}
+        for field_name in cls.model_fields:
+            if field_name == "chat_enabled":
+                out["chat_enabled"] = bool(getattr(data, "chat_api_key", None))
+            else:
+                out[field_name] = getattr(data, field_name, None)
+        return out
+
     model_config = {"from_attributes": True}
 
 
@@ -66,6 +88,11 @@ class AppSettingsUpdate(BaseModel):
     smtp_from_email: str | None = None
     smtp_use_tls: bool | None = None
     smtp_bcc: str | None = None
+
+    # Chat / AI assistant
+    chat_provider: str | None = None
+    chat_api_key: str | None = None
+    chat_model: str | None = None
 
     @field_validator("fiscal_year_start_month")
     @classmethod

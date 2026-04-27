@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "0.1.8",
+  "version": "0.7.14",
   "private": true,
   "type": "module",
   "scripts": {
@@ -19,6 +19,7 @@
   "dependencies": {
     "@primeuix/themes": "^2.0.3",
     "axios": "^1.14.0",
+    "marked": "^18.0.2",
     "pinia": "^3.0.4",
     "primeicons": "^7.0.0",
     "primevue": "^4.5.5",

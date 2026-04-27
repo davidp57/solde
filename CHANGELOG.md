@@ -13,7 +13,20 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
-- CHR-079 : Restructuration complète de la documentation — nouvelle arborescence `doc/admin/`, `doc/dev/`, `doc/user/`, `doc/llm/` avec `README.md` d'entrée bilingue par section ; `doc/README.md` global ; `README.md` racine mis à jour
+- BIZ-125 : Chatbot IA — sidebar de chat flottante avec streaming SSE (Google Gemini ou OpenAI), bouton FAB dans AppLayout, annulation du flux, rendu Markdown via `marked`
+- BIZ-125 : Page `/aide` — affichage du manuel utilisateur `doc/user/manuel.md` rendu en HTML avec styles prose
+- BIZ-125 : Panneau admin « Assistant IA » dans les Paramètres — configuration du fournisseur (gemini/openai), clé API et modèle ; badge d'état activé/non configuré
+- BIZ-125 : Backend — endpoint `POST /api/chat` (streaming SSE), `GET /api/chat/config`, `GET /api/chat/logs` (admin), `GET /api/help/manual` ; migration 0035 (colonnes chat dans `app_settings`) et 0036 (table `chat_log`)
+- BIZ-126 : Refactoring UX écran Paramètres — `SettingsAssociationSmtpPanel.vue` (413 lignes) remplacé par `SettingsAssociationPanel.vue` (association/facturation) et `SettingsSmtpPanel.vue` (SMTP) ; chaque panneau sauvegarde indépendamment
+- Nav : lien « Aide » visible dans la section accueil de la barre de navigation (tous les utilisateurs authentifiés)
+
+### Supprimé
+
+- BIZ-126 : `SettingsAssociationSmtpPanel.vue` — remplacé par les deux composants ci-dessus
+
+---
+
+
 - CHR-079 : `doc/admin/installation.md` — guide d'installation Docker bilingue (FR+EN) avec Docker Compose complet, configuration `.env`, option Synology Portainer
 - CHR-079 : `doc/admin/configuration.md` — référence des variables d'environnement et paramètres association, bilingue
 - CHR-079 : `doc/admin/excel-import.md` — procédure complète d'import Excel bilingue : types de fichiers, structure attendue, prérequis, ordre recommandé, pas à pas, historique/undo, reset sélectif

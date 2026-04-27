@@ -123,7 +123,11 @@
         </div>
       </div>
     </AppPanel>
-    <AppPanel :title="t('settings.section_default_prices')" :subtitle="t('settings.section_default_prices_subtitle')">
+
+    <AppPanel
+      :title="t('settings.section_default_prices')"
+      :subtitle="t('settings.section_default_prices_subtitle')"
+    >
       <div class="app-form-grid">
         <div class="app-field">
           <label for="default_price_cours" class="app-field__label">
@@ -172,92 +176,6 @@
         </div>
       </div>
     </AppPanel>
-    <AppPanel :title="t('settings.section_smtp')" :subtitle="t('settings.section_smtp_subtitle')">
-      <div class="app-form-grid">
-        <div class="app-field">
-          <label for="smtp_host" class="app-field__label">{{ t('settings.smtp_host') }}</label>
-          <InputText
-            id="smtp_host"
-            v-model="form.smtp_host"
-            :placeholder="t('settings.smtp_host')"
-            class="w-full"
-          />
-        </div>
-
-        <div class="app-field">
-          <label for="smtp_port" class="app-field__label">{{ t('settings.smtp_port') }}</label>
-          <InputNumber
-            id="smtp_port"
-            v-model="form.smtp_port"
-            :min="1"
-            :max="65535"
-            :use-grouping="false"
-            class="w-full"
-          />
-        </div>
-
-        <div class="app-field">
-          <label for="smtp_user" class="app-field__label">
-            {{ t('settings.smtp_username') }}
-          </label>
-          <InputText
-            id="smtp_user"
-            v-model="form.smtp_user"
-            :placeholder="t('settings.smtp_username')"
-            autocomplete="username"
-            class="w-full"
-          />
-        </div>
-
-        <div class="app-field">
-          <label for="smtp_password" class="app-field__label">
-            {{ t('settings.smtp_password') }}
-          </label>
-          <Password
-            id="smtp_password"
-            v-model="form.smtp_password"
-            :placeholder="t('settings.smtp_password_placeholder')"
-            :feedback="false"
-            toggle-mask
-            class="w-full"
-          />
-        </div>
-
-        <div class="app-field">
-          <label for="smtp_from_email" class="app-field__label">
-            {{ t('settings.smtp_from') }}
-          </label>
-          <InputText
-            id="smtp_from_email"
-            v-model="form.smtp_from_email"
-            :placeholder="t('settings.smtp_from')"
-            type="email"
-            class="w-full"
-          />
-        </div>
-
-        <div class="app-field">
-          <label for="smtp_bcc" class="app-field__label">
-            {{ t('settings.smtp_bcc') }}
-          </label>
-          <InputText
-            id="smtp_bcc"
-            v-model="form.smtp_bcc"
-            :placeholder="t('settings.smtp_bcc')"
-            type="email"
-            class="w-full"
-          />
-          <small class="app-field__help">{{ t('settings.smtp_bcc_help') }}</small>
-        </div>
-
-        <div class="settings-switch">
-          <ToggleSwitch id="smtp_use_tls" v-model="form.smtp_use_tls" />
-          <label for="smtp_use_tls" class="app-field__label">
-            {{ t('settings.smtp_use_tls') }}
-          </label>
-        </div>
-      </div>
-    </AppPanel>
 
     <div class="app-form-actions">
       <Button
@@ -286,20 +204,14 @@ import Button from 'primevue/button'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
-import Password from 'primevue/password'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
-import ToggleSwitch from 'primevue/toggleswitch'
-import {
-  getSettingsApi,
-  updateSettingsApi,
-  type AppSettingsUpdate,
-} from '@/api/settings'
+import { getSettingsApi, updateSettingsApi } from '@/api/settings'
 import AppPanel from '@/components/ui/AppPanel.vue'
 
 const { t } = useI18n()
 
-interface SettingsForm {
+interface AssociationForm {
   association_name: string
   association_address: string
   association_siret: string
@@ -311,13 +223,6 @@ interface SettingsForm {
   default_price_cours: number | null
   default_price_adhesion: number | null
   default_price_autres: number | null
-  smtp_host: string | null
-  smtp_port: number
-  smtp_user: string | null
-  smtp_password: string | null
-  smtp_from_email: string | null
-  smtp_use_tls: boolean
-  smtp_bcc: string | null
 }
 
 const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long' })
@@ -326,7 +231,7 @@ const monthOptions = Array.from({ length: 12 }, (_, i) => {
   return { label: label.charAt(0).toUpperCase() + label.slice(1), value: i + 1 }
 })
 
-const defaultForm = (): SettingsForm => ({
+const defaultForm = (): AssociationForm => ({
   association_name: '',
   association_address: '',
   association_siret: '',
@@ -338,16 +243,9 @@ const defaultForm = (): SettingsForm => ({
   default_price_cours: null,
   default_price_adhesion: null,
   default_price_autres: null,
-  smtp_host: null,
-  smtp_port: 587,
-  smtp_user: null,
-  smtp_password: null,
-  smtp_from_email: null,
-  smtp_use_tls: true,
-  smtp_bcc: null,
 })
 
-const form = ref<SettingsForm>(defaultForm())
+const form = ref<AssociationForm>(defaultForm())
 const loading = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
@@ -367,13 +265,6 @@ async function load(): Promise<void> {
       default_price_cours: data.default_price_cours,
       default_price_adhesion: data.default_price_adhesion,
       default_price_autres: data.default_price_autres,
-      smtp_host: data.smtp_host,
-      smtp_port: data.smtp_port,
-      smtp_user: data.smtp_user,
-      smtp_password: null,
-      smtp_from_email: data.smtp_from_email,
-      smtp_use_tls: data.smtp_use_tls,
-      smtp_bcc: data.smtp_bcc,
     }
   } catch {
     errorMessage.value = t('common.error.unknown')
@@ -385,7 +276,7 @@ async function save(): Promise<void> {
   successMessage.value = ''
   errorMessage.value = ''
   try {
-    const payload: AppSettingsUpdate = {
+    await updateSettingsApi({
       association_name: form.value.association_name,
       association_address: form.value.association_address,
       association_siret: form.value.association_siret,
@@ -397,19 +288,8 @@ async function save(): Promise<void> {
       default_price_cours: form.value.default_price_cours,
       default_price_adhesion: form.value.default_price_adhesion,
       default_price_autres: form.value.default_price_autres,
-      smtp_host: form.value.smtp_host,
-      smtp_port: form.value.smtp_port,
-      smtp_user: form.value.smtp_user,
-      smtp_from_email: form.value.smtp_from_email,
-      smtp_use_tls: form.value.smtp_use_tls,
-      smtp_bcc: form.value.smtp_bcc,
-    }
-    if (form.value.smtp_password) {
-      payload.smtp_password = form.value.smtp_password
-    }
-    await updateSettingsApi(payload)
+    })
     successMessage.value = t('settings.saved')
-    form.value.smtp_password = null
   } catch {
     errorMessage.value = t('settings.save_error')
   } finally {
@@ -431,12 +311,5 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-6);
-}
-
-.settings-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--app-space-3);
-  padding-top: var(--app-space-4);
 }
 </style>
