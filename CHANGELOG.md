@@ -13,6 +13,14 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- BIZ-127 : Dialogue de confirmation avant envoi de facture par e-mail — sélection de la facture ouvre un dialog avec le destinataire (lecture seule), le sujet et le corps du message (éditables), et un aperçu PDF de la facture ; l'envoi est déclenché avec le contenu édité par l'utilisateur
+- BIZ-127 : Endpoint `GET /api/invoices/{id}/email-preview` — retourne le destinataire, le sujet et le corps pré-composés sans envoyer de mail
+- BIZ-127 : `POST /api/invoices/{id}/send-email` accepte désormais un payload JSON `{subject, body}` (contenu édité par l'utilisateur) ; l'audit log inclut le sujet
+- BIZ-127 : Helpers `compose_subject()` et `compose_body()` extraits de `email_service.py` ; `send_invoice_email` accepte `override_subject`/`override_body`
+- BIZ-127 : 8 nouveaux tests unitaires pour `compose_subject`, `compose_body` et les paramètres `override_subject`/`override_body`
+
+### Ajouté
+
 - BIZ-125 : Chatbot IA — sidebar de chat flottante avec streaming SSE (Google Gemini ou OpenAI), bouton FAB dans AppLayout, annulation du flux, rendu Markdown via `marked`
 - BIZ-125 : Page `/aide` — affichage du manuel utilisateur `doc/user/manuel.md` rendu en HTML avec styles prose
 - BIZ-125 : Panneau admin « Assistant IA » dans les Paramètres — configuration du fournisseur (gemini/openai), clé API et modèle ; badge d'état activé/non configuré
