@@ -1,295 +1,313 @@
-# Solde ⚖️ — LLM Reference
+# Solde ⚖️ — User Assistance Reference
 
-## Document purpose
+## Purpose
 
-This document is a dense, machine-readable reference for an LLM assistant working on or with the Solde application. It covers the complete data model, roles, workflows, business rules, API shape, and technology stack. No decorative formatting — facts only.
+This document is a reference for an LLM chatbot that assists end users of the Solde application. It covers every user-facing workflow, UI navigation, terminology, business rules, and role restrictions — written to help the LLM answer questions like "how do I create an invoice?", "why can't I delete this payment?", or "what does the 'irrécouvrable' status mean?".
+
+Language of the application interface: French. This document is in English.
 
 ---
 
 ## Application overview
 
-**Solde** is a web application for managing the accounting of a French *loi 1901* non-profit association (tutoring — *soutien scolaire*). It handles client invoicing, supplier invoices, payments, cash, bank transactions, payroll, and double-entry bookkeeping.
+Solde is a web application for managing the day-to-day finances of a French non-profit association (loi 1901). It handles:
+- Client invoicing and payment tracking
+- Supplier invoice recording
+- Cash register movements
+- Bank account transactions and reconciliation
+- Payroll (salary slips)
+- Double-entry bookkeeping (automated + manual)
+- Historical Excel data import
 
-Single-container Docker application. Target: Synology NAS, ≤ 384 MB RAM. One uvicorn worker.
+Users access Solde through a web browser. There is no mobile app.
 
 ---
 
-## Technology stack
+## Roles and permissions
 
-| Layer | Technology |
+Every user has one role. The role determines which menus and features are accessible.
+
+| Role | French label | What they can do |
+|---|---|---|
+| `secretaire` | Gestionnaire | Contacts, client invoices, payments, bank, cash, salaries |
+| `tresorier` | Comptable | Everything a Gestionnaire can do, plus the full Accounting module |
+| `admin` | Administrateur | Everything, plus: user management, application settings, system supervision, Excel import |
+| `readonly` | Lecture seule | View-only access to most screens |
+
+**Common confusion:** A Gestionnaire cannot access the Accounting menu. If a user says they cannot see "Comptabilité", they probably have the Gestionnaire role.
+
+---
+
+## Login and session
+
+- Session lasts 24 hours. After that, the user is redirected to the login page.
+- On first login (or after an admin resets their password), users must change their password immediately. They cannot skip this step.
+- **Password rules:** minimum 8 characters, at least one uppercase letter, at least one digit.
+- If a user forgets their password, an admin must reset it — there is no self-service "forgot password" link.
+
+---
+
+## Navigation
+
+The left sidebar contains all main navigation links. The visible links depend on the user's role.
+
+Main sections:
+- **Tableau de bord** — Dashboard with KPIs and quick-action cards
+- **Contacts** — Client and supplier contacts
+- **Factures** — Client and supplier invoices
+- **Paiements** — Payments received
+- **Banque** — Bank transactions, reconciliation, deposits
+- **Caisse** — Cash register
+- **Salaires** — Employees and payroll
+- **Comptabilité** — Journal, chart of accounts, accounting rules, ledger, balance sheet *(Comptable/Admin only)*
+- **Paramètres** — Application settings, users, fiscal years *(Admin only)*
+- **Administration** — System supervision, Excel import *(Admin only)*
+
+---
+
+## Dashboard
+
+The dashboard shows:
+- Key financial indicators for the current fiscal year (income, expenses, balance)
+- A list of overdue or nearly-due client invoices
+- **Quick-action cards**: create a client invoice, record a payment, add a cash entry — each opens an inline creation dialog
+
+---
+
+## Contacts
+
+**What a contact is:** a person or organisation linked to invoices, payments, and cash movements. A contact can be a client, a supplier, or both.
+
+**Creating a contact:** click "Nouveau contact". Only the name is required. Email is optional but needed to send invoices by email.
+
+**Editing a contact:** click the contact in the list, modify, save.
+
+**Contact history:** the "Historique" tab on a contact's record shows all their invoices and payments.
+
+**Why can't I delete a contact?** Contacts that have invoices or payments linked to them cannot be deleted. Deactivate them instead.
+
+**Searching contacts:** use the search bar at the top of the contact list to filter by name or email.
+
+---
+
+## Client invoices
+
+### Statuses
+
+| Status | Meaning |
 |---|---|
-| Backend | Python 3.12, FastAPI, SQLAlchemy 2 async, Alembic, Pydantic v2 |
-| Database | SQLite in WAL mode (`sqlite+aiosqlite:///data/solde.db`) |
-| PDF generation | WeasyPrint (lazy-loaded at generation time) |
-| Email | SMTP via aiosmtplib or smtplib |
-| Frontend | Vue.js 3, Composition API + `<script setup>`, PrimeVue 4, Pinia, vue-i18n |
-| Build | Vite 5 |
-| Auth | JWT in HttpOnly cookies (24h expiry), bcrypt password hashing |
-| Migrations | Alembic (auto-applied at startup) |
-| Container | Single Docker container, serves static frontend + FastAPI backend |
+| Brouillon | Draft — not yet finalised, can be freely edited |
+| Validée | Validated — finalised, awaiting payment |
+| Payée | Fully paid |
+| Partiellement payée | One or more payments received, balance remaining |
+| En retard | Past due date, not paid |
+| Irrécouvrable | Written off as a bad debt |
 
----
+### Creating an invoice
 
-## Authentication and roles
+1. Click "Nouvelle facture" (from Factures menu or dashboard quick card).
+2. Select the contact (required).
+3. Set the date. The due date is filled automatically based on the default delay configured in settings.
+4. Add invoice lines: choose the type (cours / adhésion / autre), enter a description, quantity, and unit price. Prices are pre-filled from defaults configured in settings.
+5. Save as draft (Enregistrer) or finalise (Valider).
 
-JWT stored in HttpOnly cookie. All API routes except `/api/auth/login` and `/api/health` require a valid JWT.
+The invoice number is assigned automatically when the invoice is validated. It cannot be changed manually.
 
-### Roles (ascending privilege)
+### Editing an invoice
 
-| Role value | Product label | Access |
-|---|---|---|
-| `readonly` | Read-only | Transitional/legacy — view only |
-| `secretaire` | Manager | Full Management area |
-| `tresorier` | Accountant | Management + Accounting |
-| `admin` | Administrator | Everything + settings + users + system + Excel import |
+- **Draft invoices** can be fully edited.
+- **Validated invoices**: the due date and notes can be modified, but the lines cannot.
 
-### Password policy
+### Deleting an invoice
 
-Enforced in Pydantic `backend/schemas/auth.py`: minimum 8 characters, at least one uppercase ASCII letter (`A-Z`), at least one ASCII digit (`0-9`).
+Only **draft invoices with no payments** can be deleted.
 
-### Forced password change
+### Sending an invoice by email
 
-A user with `must_change_password=True` on their model is redirected to the password change page on every login. Flag is set on account creation and after admin password reset.
+Open the invoice → click "Envoyer par e-mail". The recipient is pre-filled from the contact's email. A PDF is attached automatically.
 
----
+**Why can't I send?** Either the contact has no email address, or the SMTP is not configured (ask an admin).
 
-## Data model
+### Downloading the PDF
 
-All monetary amounts use Python `Decimal`. Primary keys are integer auto-increment. Timestamps are UTC.
+Open the invoice → click "Télécharger PDF".
 
-### User
+### Writing off an invoice (irrécouvrable)
 
-Fields: `id`, `username`, `email`, `hashed_password`, `role` (enum), `is_active`, `must_change_password`, `created_at`.
+Open the invoice → "Passer en irrécouvrable". This marks the invoice as a bad debt and generates accounting entries automatically. The invoice disappears from the unpaid list.
 
-### Contact
-
-Fields: `id`, `name`, `first_name`, `email`, `phone`, `address`, `notes`, `is_active`, `created_at`. Normalized name used for duplicate detection during Excel import.
-
-### FiscalYear
-
-Fields: `id`, `name`, `start_date`, `end_date`, `status` (`open` / `closed`). Only one fiscal year can be active at a time. Closing is irreversible.
-
-### Invoice (client invoice)
-
-Fields: `id`, `number` (auto-generated on validation), `contact_id`, `date`, `due_date`, `status` (enum), `total_amount` (Decimal), `paid_amount` (Decimal), `is_bad_debt`, `notes`, `fiscal_year_id`, `created_at`, `updated_at`.
-
-Invoice line: `id`, `invoice_id`, `description`, `line_type` (`cours` / `adhesion` / `autre`), `quantity`, `unit_price`, `total`.
-
-Status transitions: `draft` → `validated` → (`paid` | `partially_paid` | `overdue` | `bad_debt`). Validated invoices cannot have their lines edited.
-
-### SupplierInvoice
-
-Fields: `id`, `number`, `contact_id` (nullable), `supplier_name` (free text fallback), `date`, `due_date`, `status`, `total_amount`, `paid_amount`, `notes`, `fiscal_year_id`.
-
-### Payment
-
-Fields: `id`, `contact_id`, `amount`, `date`, `reference`, `payment_method`, `notes`, `fiscal_year_id`, `bank_deposit_id` (nullable), `invoice_id` (nullable — linked invoice).
-
-### CashMovement
-
-Fields: `id`, `date`, `amount` (positive = in, negative = out), `description`, `contact_id` (nullable), `fiscal_year_id`.
-
-### BankTransaction
-
-Fields: `id`, `date`, `amount`, `description`, `reference`, `reconciled`, `fiscal_year_id`, `import_run_id` (nullable).
-
-### BankDeposit
-
-Fields: `id`, `date`, `reference`, `total_amount`, `fiscal_year_id`. Groups multiple payments remitted to the bank together.
-
-### Employee
-
-Fields: `id`, `last_name`, `first_name`, `ssn` (nullable), `email`, `contract_type`, `contract_start_date`, `contract_end_date` (nullable), `hourly_rate` (nullable), `monthly_rate` (nullable), `is_active`.
-
-### Salary
-
-Fields: `id`, `employee_id`, `period_month`, `period_year`, `gross_amount`, `employer_contributions`, `employee_contributions`, `net_amount`, `status`, `fiscal_year_id`.
-
-### AccountingAccount
-
-Fields: `id`, `number` (string, e.g. `"707000"`), `label`, `account_type` (`asset` / `liability` / `equity` / `revenue` / `expense`), `is_active`.
-
-### AccountingEntry
-
-Fields: `id`, `date`, `label`, `debit`, `credit`, `account_id`, `fiscal_year_id`, `source_type` (nullable), `source_id` (nullable), `group_key` (nullable).
-
-**Runtime group key convention:** `group_key` if set, else `"{source_type}:{source_id}"` if both present, else `"entry:{id}"`.
-
-Entries are always balanced: sum of debits = sum of credits within a group.
-
-### AccountingRule
-
-Fields: `id`, `name`, `trigger_type` (e.g. `invoice_validated`, `payment_received`), `is_active`, plus rule lines defining which accounts to debit/credit and with what amount formula.
-
-### AppSettings (singleton, id=1)
-
-Fields: `association_name`, `association_address`, `association_siret`, `logo_path`, `social_purpose`, `invoice_number_template`, `invoice_sequence_digits`, `supplier_invoice_number_template`, `default_invoice_due_days` (0–365), `default_price_cours`, `default_price_adhesion`, `default_price_autre`, `smtp_host`, `smtp_port`, `smtp_use_ssl`, `smtp_username`, `smtp_password`, `smtp_sender_email`, `smtp_bcc`.
-
-### ImportRun / ImportLog
-
-ImportRun: one record per Excel import attempt. Fields: `id`, `filename`, `file_hash`, `import_type` (`gestion` / `comptabilite`), `status`, `created_at`, `executed_by`.
-
-ImportLog: diagnostic rows linked to an ImportRun. Fields: `id`, `run_id`, `sheet`, `row_num`, `level` (`info` / `warning` / `error`), `message`, `object_type`, `object_id` (nullable).
-
-### AuditLog
-
-Fields: `id`, `timestamp`, `user_id`, `action`, `entity_type`, `entity_id`, `details`.
-
----
-
-## API shape
-
-Base URL: `/api`. All responses are JSON. Errors use `{"detail": "...", "code": "..."}`.
-
-### Authentication
-
-| Method | Path | Description |
-|---|---|---|
-| POST | `/api/auth/login` | Login with username/password. Sets JWT cookie. |
-| POST | `/api/auth/logout` | Clears JWT cookie. |
-| POST | `/api/auth/change-password` | Change own password. |
-| GET | `/api/auth/me` | Get current user profile. |
-
-### Core resources (standard CRUD pattern)
-
-Each resource follows: `GET /api/{resource}` (list), `POST /api/{resource}` (create), `GET /api/{resource}/{id}` (detail), `PUT /api/{resource}/{id}` (update), `DELETE /api/{resource}/{id}` (delete where allowed).
-
-Resources: `contacts`, `invoices`, `supplier-invoices`, `payments`, `cash`, `bank`, `bank-deposits`, `employees`, `salaries`, `accounting-accounts`, `accounting-entries`, `accounting-rules`, `fiscal-years`.
-
-### Notable endpoints
-
-| Method | Path | Notes |
-|---|---|---|
-| POST | `/api/invoices/{id}/validate` | Validates invoice, assigns number |
-| POST | `/api/invoices/{id}/send-email` | Sends PDF by email |
-| GET | `/api/invoices/{id}/pdf` | Returns PDF binary |
-| POST | `/api/invoices/{id}/bad-debt` | Marks as bad debt |
-| POST | `/api/bank/import-ofx` | Imports OFX bank file |
-| POST | `/api/excel-import/preview` | Preview Excel import (admin only) |
-| POST | `/api/excel-import/execute` | Execute Excel import (admin only) |
-| GET | `/api/excel-import/history` | List import runs (admin only) |
-| POST | `/api/excel-import/undo/{run_id}` | Undo an import run (admin only) |
-| POST | `/api/excel-import/redo/{run_id}` | Redo an undone import run (admin only) |
-| GET | `/api/dashboard` | Dashboard aggregates |
-| GET | `/api/accounting/ledger` | General ledger (grand livre) |
-| GET | `/api/accounting/balance` | Balance sheet |
-| POST | `/api/settings/backup` | Create in-app backup (admin only) |
-| POST | `/api/settings/restore` | Restore from backup (admin only) |
-| GET | `/api/health` | Health check (unauthenticated) |
-
-### Pagination
-
-List endpoints accept `?page=1&per_page=20`. Responses include `total`, `page`, `per_page`, `items`.
-
----
-
-## Excel import system
-
-### File types
-
-**Gestion** (`Gestion AAAA.xlsx`): processes sheets `Contacts`, `Factures`, `Paiements`, `Caisse`, `Banque`. Also generates accounting entries via rules.
-
-**Comptabilite** (`Comptabilite AAAA.xlsx`): processes sheet `Journal`.
-
-### Coexistence rules
-
-- Exact file re-import (same SHA-256 hash) is automatically rejected.
-- Objects already present in the database (exact match) are silently ignored.
-- Blocking ambiguities: multiple contacts with the same normalized name; multiple invoice candidates for a payment.
-- Exact duplicate journal entries (same date, account, normalized label, debit, credit) are ignored.
-
-### Scope of reset
-
-Selective reset identifies in-scope runs by checking whether the fiscal year name appears as a substring of the imported file name. A full reset wipes all business data but keeps users, settings, and chart of accounts.
-
-### Undo/redo
-
-Each ImportRun tracks which DB rows it created. Undo deletes those rows (blocked if any were subsequently modified). Redo re-executes the same run.
-
----
-
-## Business rules
+To reverse this: open the invoice → "Annuler le statut irrécouvrable".
 
 ### Invoice numbering
 
-Template variables: `{year}` (4-digit year), `{seq}` (zero-padded sequence per year). Sequence resets each year. Digits count is configurable (default: 3).
-
-### Due date
-
-`due_date = invoice_date + AppSettings.default_invoice_due_days days` when not explicitly provided.
-
-### Accounting entry grouping
-
-A group of accounting entries representing one business event shares either a `group_key` value, or a common `source_type`/`source_id` pair. The runtime key for display and grouping is: `group_key || "{source_type}:{source_id}" || "entry:{id}"`.
-
-### Fiscal year assignment
-
-Objects (invoices, payments, entries) are assigned to a fiscal year based on their date falling within the year's `start_date`..`end_date` range.
-
-### WAL mode
-
-SQLite runs in WAL mode. Backup procedures must copy `solde.db`, `solde.db-wal`, and `solde.db-shm` together.
+The format is configured by an admin (e.g. `2026-001`, `F-2026-001`). The sequence increments automatically. Users cannot manually set the number.
 
 ---
 
-## Configuration (environment variables)
+## Payments
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `JWT_SECRET_KEY` | Yes | — | JWT signing key |
-| `DATABASE_URL` | Yes | — | `sqlite+aiosqlite:///data/solde.db` |
-| `ADMIN_USERNAME` | No | `admin` | Bootstrap admin (first run only) |
-| `ADMIN_PASSWORD` | No | `changeme` | Bootstrap password (first run only) |
-| `ADMIN_EMAIL` | No | `admin@exemple.fr` | Bootstrap email |
-| `DEBUG` | No | `false` | Enables verbose errors and Swagger |
-| `SWAGGER_ENABLED` | No | `false` | Exposes `/api/docs` independently of `DEBUG` |
-| `FISCAL_YEAR_START_MONTH` | No | `8` | First month of the fiscal year |
+### Recording a payment
 
----
+1. Click "Nouveau paiement".
+2. Select the contact (optional if the invoice is known).
+3. Enter the amount, date, and reference (cheque number, transfer reference, etc.).
+4. Optionally link the payment to one or more invoices.
+5. Save.
 
-## Project directory structure (key paths)
+When a payment is linked to an invoice, the invoice status updates automatically.
 
-```
-backend/
-  main.py              FastAPI app factory, middleware, router registration
-  config.py            Settings (pydantic-settings, reads .env)
-  database.py          Async SQLAlchemy engine, session factory, WAL setup
-  models/              SQLAlchemy ORM models
-  schemas/             Pydantic request/response schemas
-  routers/             FastAPI routers (one per resource)
-  services/            Business logic layer
-  alembic/             Alembic migrations (auto-applied at startup)
-frontend/
-  src/
-    views/             Vue page components
-    components/        Reusable UI components
-    stores/            Pinia stores
-    composables/       Vue composables
-    router/            Vue Router (includes admin guards)
-    locales/           i18n translation files (FR)
-tests/
-  unit/                pytest unit tests (services, engines)
-  integration/         pytest integration tests (API endpoints)
-  conftest.py          Fixtures: async test client, in-memory SQLite DB
-data/
-  solde.db             Main SQLite database
-  solde.db-wal         WAL file (must be backed up with solde.db)
-  solde.db-shm         Shared memory file
-  backups/             In-app backup files
-  pdfs/                Generated invoice PDFs
-  logs/                Rotating application logs
-```
+### Why is an invoice still shown as unpaid after I recorded a payment?
+
+The payment must be explicitly **linked to the invoice**. Check the payment record and verify the invoice is selected in the "Factures liées" section.
+
+### Bank deposits (remises en banque)
+
+A bank deposit groups several payments remitted to the bank at the same time (e.g. a batch of cheques). Create a deposit from Banque → Remises en banque.
 
 ---
 
-## Key conventions
+## Supplier invoices
 
-- All monetary values: Python `Decimal`, never `float`.
-- All API inputs validated by Pydantic v2 schemas at the router boundary.
-- Services raise typed exceptions; routers catch and convert to HTTP errors.
-- Unhandled exceptions bubble to `UnhandledExceptionMiddleware` → JSON 500 `{detail, code}`.
-- All DB access through SQLAlchemy 2 async sessions (no raw SQL with string concatenation).
-- Alembic migrations type-annotated (`revision: str`, `down_revision: str | None`, etc.).
-- Vue components use Composition API + `<script setup>` only. No Options API.
-- All user-facing strings go through vue-i18n translation keys. Never hardcode strings in components.
-- Admin-only routes: `/settings`, `/users`, `/system`, `/import` — guarded in both router (`requiresAdmin`) and API middleware.
+Record invoices received from suppliers under Factures → Fournisseurs. The workflow is similar to client invoices. You can attach the supplier's PDF file.
+
+---
+
+## Cash register (Caisse)
+
+The cash register tracks physical cash movements.
+
+- **Creating a movement:** click "Nouveau mouvement". Amount: positive = cash in, negative = cash out.
+- **Counting (comptage):** enter the physical amount counted. The app computes and displays the discrepancy.
+- **Deleting a movement:** only possible if no validated accounting entry is linked to it.
+
+---
+
+## Bank (Banque)
+
+### Importing bank transactions
+
+Import an OFX file exported from your bank: click "Importer", select the file, confirm. Exact duplicates are skipped automatically.
+
+### Reconciliation
+
+Match bank transactions to recorded payments. Go to the "Rapprochement" tab, tick matched pairs, confirm.
+
+---
+
+## Salaries (Salaires)
+
+### Employees
+
+Manage employees under Salaires → Employés. Create an employee with name, optional contract details, and optional hourly/monthly rate.
+
+### Salary slips
+
+Create a salary slip under Salaires → Fiches de salaire. Select the employee, the period (month/year), enter gross salary, employer contributions, employee contributions, net pay. Validating a salary slip generates accounting entries automatically.
+
+---
+
+## Accounting (Comptabilité) — Comptable and Admin only
+
+### Journal
+
+Lists all accounting entries. Entries are generated automatically from invoices, payments, cash, bank, and salaries. Manual entries can also be created. Manual entries must be balanced (total debit = total credit).
+
+### Chart of accounts (Plan comptable)
+
+Lists all accounts. Accounts are identified by a number (e.g. `707000`) and a label.
+
+### Accounting rules
+
+Rules define what journal entries are generated automatically when an invoice is validated, a payment is received, etc. Managed by a Comptable or Admin.
+
+### General ledger (Grand livre)
+
+Shows the balance of each account with all its movements. Filterable by account and period.
+
+### Balance sheet and income statement
+
+The Bilan screen shows assets and liabilities. The Résultat screen shows income vs expenses for the fiscal year.
+
+---
+
+## Fiscal years (Exercices)
+
+Each accounting period is a fiscal year. Objects (invoices, entries) are assigned to a fiscal year based on their date.
+
+**Closing a fiscal year** is irreversible. Only do it when all entries for the period are final.
+
+---
+
+## My profile (Mon profil)
+
+Accessible by clicking the username in the top-right corner → Mon profil.
+
+- Change name and email.
+- Change password: requires entering the current password first.
+
+---
+
+## Settings (Paramètres) — Admin only
+
+- **Association information**: name, address, SIRET, logo — shown on invoices.
+- **Invoice numbering templates**: format of invoice numbers.
+- **Default due date**: days added to invoice date to auto-compute the due date.
+- **Default prices**: pre-filled unit prices by invoice line type.
+- **SMTP**: email sending configuration.
+- **Users**: create, edit, deactivate accounts; reset passwords.
+- **Fiscal years**: create and manage accounting periods.
+
+---
+
+## Administration — Admin only
+
+### System supervision
+
+Located at Administration → Supervision système. Shows application version, database size, uptime, log viewer, and audit log.
+
+### Excel import
+
+Allows importing historical data from Excel workbooks. End users should not need to use this. Redirect to the administrator.
+
+---
+
+## Common questions and answers
+
+**Q: I can't see the Comptabilité menu.**
+A: Your role is Gestionnaire (secretaire). Only Comptable (tresorier) and Admin roles can access accounting.
+
+**Q: I can't send an invoice by email.**
+A: Either the contact has no email address, or the SMTP server is not configured. Ask your administrator.
+
+**Q: The invoice number was skipped — there's a gap in the sequence.**
+A: A number is reserved when an invoice is validated. If a validated invoice was deleted after being tested, the number is consumed. This is normal.
+
+**Q: I recorded a payment but the invoice still shows as unpaid.**
+A: The payment must be linked to the invoice. Edit the payment and verify the invoice is selected in the related invoices list.
+
+**Q: I can't delete a contact.**
+A: The contact has invoices or payments linked to them. Deactivate the contact instead of deleting.
+
+**Q: I can't edit the lines of an invoice.**
+A: The invoice has already been validated. Validated invoices cannot have their lines changed. Only the due date and notes can be modified.
+
+**Q: The session expired.**
+A: Sessions last 24 hours. Log in again. If this happens frequently on a long work session, it is expected behaviour.
+
+**Q: I forgot my password.**
+A: Contact your administrator — they can reset your password from the user management screen.
+
+**Q: How do I change the invoice numbering format?**
+A: Only an administrator can change the invoice number template in Paramètres → Association.
+
+**Q: Can I undo a fiscal year closing?**
+A: No. Closing a fiscal year is irreversible. Make sure all entries are final before closing.
+
+**Q: What happens when I mark an invoice as irrécouvrable?**
+A: The invoice is marked as a bad debt. It is removed from the unpaid invoice list. Accounting entries for the loss are generated automatically. The operation can be reversed if needed.
+
+**Q: I see a red "En retard" status on an invoice.**
+A: The due date has passed and the invoice is not fully paid. Record a payment to clear it.
+
+**Q: How do I see what a contact owes?**
+A: Open the contact's record → the Historique tab shows all their invoices and payments, including outstanding balances.
