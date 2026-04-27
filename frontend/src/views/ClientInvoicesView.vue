@@ -926,7 +926,7 @@ function openEditDialog(invoice: Invoice) {
   dialogVisible.value = true
 }
 
-function onSaved(_invoice: import('../api/invoices').Invoice) {
+function onSaved() {
   dialogVisible.value = false
   void refreshInvoicesData()
 }

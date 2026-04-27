@@ -8,12 +8,15 @@ Solde centralise la facturation, les paiements, la trésorerie, les imports hist
 
 ### Liens rapides
 
-- Installation / premiers pas : [doc/user/installation.md](doc/user/installation.md)
-- Documentation utilisateur : [doc/user/README.md](doc/user/README.md)
-- Exploitation technique et opérations Docker : [doc/dev/exploitation.md](doc/dev/exploitation.md)
-- Contribution et développement local : [doc/dev/contribuer.md](doc/dev/contribuer.md)
-- Architecture et cadrage projet : [doc/architecture.md](doc/architecture.md), [doc/plan.md](doc/plan.md), [doc/roadmap.md](doc/roadmap.md) (migration EN encore à faire sur ces documents historiques)
-- Changelog : [CHANGELOG.md](CHANGELOG.md)
+- **Installation et administration** : [doc/admin/README.md](doc/admin/README.md)
+  - [Installation Docker](doc/admin/installation.md)
+  - [Configuration](doc/admin/configuration.md)
+  - [Import Excel](doc/admin/excel-import.md)
+  - [Administration système](doc/admin/administration.md)
+- **Manuel utilisateur** : [doc/user/manuel.md](doc/user/manuel.md)
+- **Documentation développeur** : [doc/dev/README.md](doc/dev/README.md)
+- **Changelog** : [CHANGELOG.md](CHANGELOG.md)
+- **Roadmap** : [doc/roadmap.md](doc/roadmap.md)
 
 ## English
 
@@ -21,22 +24,37 @@ Solde brings invoicing, payments, treasury workflows, historical imports, and do
 
 ### Quick links
 
-- Installation / getting started: [doc/user/installation.md](doc/user/installation.md)
-- User documentation: [doc/user/README.md](doc/user/README.md)
-- Technical operations and Docker runtime guide: [doc/dev/exploitation.md](doc/dev/exploitation.md)
-- Contribution and local development guide: [doc/dev/contribuer.md](doc/dev/contribuer.md)
-- Architecture and project planning: [doc/architecture.md](doc/architecture.md), [doc/plan.md](doc/plan.md), [doc/roadmap.md](doc/roadmap.md) (legacy French documents, English migration still pending)
-- Changelog: [CHANGELOG.md](CHANGELOG.md)
+- **Installation and administration**: [doc/admin/README.md](doc/admin/README.md)
+  - [Docker installation](doc/admin/installation.md)
+  - [Configuration](doc/admin/configuration.md)
+  - [Excel import](doc/admin/excel-import.md)
+  - [System administration](doc/admin/administration.md)
+- **User manual**: [doc/user/manuel.md](doc/user/manuel.md)
+- **Developer documentation**: [doc/dev/README.md](doc/dev/README.md)
+- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+- **Roadmap**: [doc/roadmap.md](doc/roadmap.md)
 
-## Structure / Repository layout
+## Documentation structure
 
-```text
+```
+doc/
+├── admin/          Installation, configuration, Excel import, system administration (FR+EN)
+├── dev/            Architecture, contributing, testing, development process (EN)
+├── user/           User manual (FR)
+├── llm/            LLM reference (EN)
+├── backlog.md      Project backlog (FR)
+└── roadmap.md      Delivery roadmap
+```
+
+## Repository layout
+
+```
 solde/
-├── backend/
-├── frontend/
-├── tests/
-├── data/
-├── doc/
+├── backend/        FastAPI application
+├── frontend/       Vue.js 3 application
+├── tests/          pytest test suite
+├── data/           Runtime data (SQLite DB, PDFs, backups, logs)
+├── doc/            Documentation
 ├── Dockerfile
 ├── docker-compose.yml
 ├── dev.ps1
