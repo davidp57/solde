@@ -165,6 +165,12 @@ const router = createRouter({
           component: () => import('../views/SystemView.vue'),
           meta: { requiresAdmin: true, label: 'nav.system' },
         },
+        {
+          path: 'aide',
+          name: 'aide',
+          component: () => import('../views/HelpView.vue'),
+          meta: { label: 'nav.help' },
+        },
       ],
     },
     {

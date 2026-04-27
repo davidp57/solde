@@ -19,7 +19,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé |
 | --- | --- | --- | --- | --- |
-| BIZ-125 | Chatbot IA + page Aide | P2 | ~7h | 2026-04-27 |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 |
 
 ---
@@ -40,7 +39,7 @@ Deux fonctionnalités complémentaires autour de la documentation embarquée :
 - Panneau latéral ouvrable/fermable depuis un bouton persistant dans la nav
 - Provider : Google Gemini Flash (tier gratuit — 15 req/min, 1 M tokens/jour) ; OpenAI en alternative
 - System prompt = `doc/llm/reference.md` + `doc/user/manuel.md` injectés au début de chaque session — aucune donnée comptable transmise
-- Clé API en `.env` backend (`CHAT_PROVIDER`, `CHAT_API_KEY`) — jamais exposée au navigateur
+- Clé API stockée dans `AppSettings` (colonnes `chat_provider`, `chat_api_key`, `chat_model`) — éditable par l’admin dans les paramètres, jamais renvoyée dans les réponses API (comme `smtp_password`)
 - `POST /api/chat` : reçoit `{messages}`, ajoute le system prompt, proxifie vers le LLM, renvoie en streaming SSE
 - Historique en mémoire session (non persisté) ; réinitialisé à la fermeture
 - Si `CHAT_API_KEY` absent : bouton masqué
@@ -48,10 +47,13 @@ Deux fonctionnalités complémentaires autour de la documentation embarquée :
 **Périmètre backend :**
 - `backend/services/chat_service.py` : injection system prompt, appel LLM, streaming
 - `backend/routers/chat.py` : `POST /api/chat` (auth requise), `GET /api/help/manual`
-- Config : `CHAT_PROVIDER` (`gemini` | `openai`), `CHAT_API_KEY`, `CHAT_MODEL` (optionnel)
+- Colonnes `AppSettings` : `chat_provider` (`gemini` | `openai`, défaut `gemini`), `chat_api_key` (nullable), `chat_model` (nullable)
+- Migration Alembic 0035 dédiée
+- `chat_api_key` exclue du schéma `AppSettingsRead` (même pattern que `smtp_password`)
 
 **Périmètre frontend :**
 - `HelpView.vue` + route `/aide`
+- `SettingsChatPanel.vue` (nouvelle section dans les paramètres admin)
 - `ChatSidebar.vue` (panneau latéral, ouvrable/fermable)
 - Store Pinia léger (état ouvert/fermé + historique)
 - Dépendance : `marked` (rendu Markdown)
@@ -64,6 +66,29 @@ Deux fonctionnalités complémentaires autour de la documentation embarquée :
 - Aucune réponse du LLM ni donnée métier n’est stockée dans le log
 
 **Hors périmètre :** persistance de l’historique complet, multi-utilisateurs, fine-tuning, TTS/STT.
+
+### BIZ-126 — Refactor UX écran Paramètres
+
+L’écran Paramètres contient 4 panels dont deux devenus trop longs (413 et 322 lignes) et
+mélangeant des responsabilités distinctes. L’ajout du panel Chatbot (BIZ-125) est le bon
+moment pour réorganiser.
+
+**Découpage cible :**
+| Composant | Contenu actuel | Action |
+|---|---|---|
+| `SettingsAssociationSmtpPanel` | Infos assoc. + SMTP + Logo | Scinder en 2 |
+| `SettingsAssociationPanel` (nouveau) | Nom, adresse, SIRET, logo | Créer |
+| `SettingsSmtpPanel` (nouveau) | SMTP (hôte, port, user, mdp, TLS, BCC) | Extraire |
+| `SettingsSystemOpeningPanel` | Banque + Caisse + Année fiscale + Numérotation + Prix | Réorganiser |
+| `SettingsChatPanel` (nouveau) | Provider, clé API, modèle (admin only) | Créer (BIZ-125) |
+| `SettingsBackupPanel` | Sauvegarde | Inchangé |
+| `SettingsDangerZonePanel` | Zone danger | Inchangé |
+
+**Ordre final des panels dans `SettingsView.vue` :**
+1. Association — 2. SMTP — 3. Ouverture système — 4. IA / Chatbot — 5. Sauvegarde — 6. Zone danger
+
+**Périmètre :** refactoring pur (pas de changement fonctionnel) + clés i18n à conserver.
+Fait sur la même branche que BIZ-125 (`feature/biz-125-chatbot-aide`).
 
 ### BIZ-034 — Support multi-compte banque
 
@@ -105,6 +130,7 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 | O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-26 |
 | P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-26 |
 | S | Documentation & i18n | v0.8 | TEC-106, CHR-021, CHR-020, CHR-079 | 2026-04-27 |
+| T | Chatbot IA + refactor Paramètres | v0.8 | BIZ-125, BIZ-126 | 2026-04-28 |
 
 <details>
 <summary>Lot S — Documentation & i18n (2026-04-27)</summary>
@@ -161,6 +187,21 @@ Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – 
 
 - **Terminé** : 2026-04-26
 - **Livré** : `client_invoice_number_template` (`{year}`, `{seq}`) + `client_invoice_seq_digits` + `supplier_invoice_number_template` (strftime) sur `AppSettings` (migrations 0032, 0033) ; service `_next_number` avec regex ; endpoint `GET /api/invoices/next_number` (aperçu sans side-effect) ; affichage du numéro prévu dans le formulaire de création et dans la confirmation du wizard.
+
+</details>
+
+<details>
+<summary>Lot T — Chatbot IA + refactor Paramètres (2026-04-28)</summary>
+
+### BIZ-125 — Chatbot IA + page Aide
+
+- **Terminé** : 2026-04-28
+- **Livré** : sidebar chatbot flottante (SSE, Gemini/OpenAI), bouton FAB dans AppLayout, annulation, rendu Markdown via `marked` ; page `/aide` affichant `doc/user/manuel.md` en HTML ; panneau admin `SettingsChatPanel` (provider, clé API, modèle) ; backend : endpoints `/api/chat`, `/api/chat/config`, `/api/chat/logs`, `/api/help/manual` ; migrations 0035 (colonnes chat dans `app_settings`) et 0036 (table `chat_log`).
+
+### BIZ-126 — Refactor UX écran Paramètres
+
+- **Terminé** : 2026-04-28
+- **Livré** : `SettingsAssociationSmtpPanel.vue` (413 lignes) scindé en `SettingsAssociationPanel.vue` (infos association + facturation) et `SettingsSmtpPanel.vue` (SMTP) ; chaque panneau sauvegarde indépendamment. Réalisé sur la même branche que BIZ-125.
 
 </details>
 

@@ -40,6 +40,8 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy backend source
 COPY backend/ ./backend/
 COPY alembic.ini ./
+COPY doc/ ./doc/
+
 
 # Copy built Vue.js frontend from stage 1
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
