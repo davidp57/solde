@@ -25,26 +25,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Détails
 
-### TEC-106 — Audit et complétion des clés i18n manquantes ✅
-
-Audit complet des 1 096 clés `t('...')` utilisées dans le frontend (1 358 appels bruts filtrés). Résultat : 2 clés manquantes (`common.active`, `common.inactive`) utilisées dans `EmployeesView.vue` — ajoutées dans `fr.ts`. Les 361 clés sans appel direct sont des accès dynamiques légitimes (ex. `t('accounting.rules.trigger_types.' + type)`).
-
-### CHR-020 — Documentation de contribution
-
-`doc/dev/contribuer.md` centralise setup local, `dev.ps1`, checks backend/frontend,
-conventions et workflow Git. Reste à valider sur un vrai cycle setup → checks → PR.
-
-### CHR-021 — Manuel utilisateur illustré
-
-Manuel FR pas à pas couvrant les parcours métier essentiels. Structure posée, socle
-textuel consolidé. Reste : enrichissement visuel (captures annotées homogènes).
-Séquence : lot 1 (connexion, contacts, facture, paiement) → lot 2 (achat, caisse,
-banque) → lot 3 (import Excel, comptabilité, FAQ) → lot 4 (captures, stabilisation).
-
-**Deux versions par langue (4 fichiers au total)** :
-- **Version humaine** : Markdown illustré (captures d'écran annotées), exporté en PDF — destinée à être lue ou imprimée par un utilisateur final.
-- **Version LLM** : Markdown épuré, dense, sans images, optimisé pour être ingéré comme source de vérité par un assistant IA (ChatGPT, Gemini, etc.) — structure explicite, pas de mise en page décorative, terminologie cohérente et exhaustive.
-
 ### BIZ-034 — Support multi-compte banque
 
 Distinguer compte courant et compte épargne dans les données, imports et écrans.
@@ -85,6 +65,27 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 | O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-26 |
 | P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-26 |
 | S | Documentation & i18n | v0.8 | TEC-106, CHR-021, CHR-020, CHR-079 | 2026-04-27 |
+
+<details>
+<summary>Lot S — Documentation & i18n (2026-04-27)</summary>
+
+### TEC-106 — Audit et complétion des clés i18n manquantes
+
+Audit complet des 1 096 clés `t('...')` utilisées dans le frontend (1 358 appels bruts filtrés). Résultat : 2 clés manquantes (`common.active`, `common.inactive`) utilisées dans `EmployeesView.vue` — ajoutées dans `fr.ts`.
+
+### CHR-020 — Documentation de contribution
+
+`doc/dev/contributing.md` : setup local, `dev.ps1`, quality gate backend/frontend, conventions Git et workflow. Validé via PR #54.
+
+### CHR-021 — Manuel utilisateur illustré
+
+Manuel FR `doc/user/manuel.md` + référence LLM `doc/llm/reference.md`. Version textuelle complète, structure par rôle et parcours métier. Illustrations (captures annotées) reportées à une future itération.
+
+### CHR-079 — Restructuration et nettoyage de la documentation
+
+Restructuration complète du répertoire `doc/` : nouvelles arborescences `doc/admin/`, `doc/dev/`, `doc/user/`, `doc/llm/` ; suppression de 25 fichiers obsolètes ; README par section ; split des docs bilingues en fichiers par langue (`*.fr.md` / `*.en.md`). Corrections factuelles : `DATABASE_URL`, Vue Router 5, fixtures de test, durée de session, rôles règles comptables, version sync.
+
+</details>
 
 Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**, **BIZ-111**.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
