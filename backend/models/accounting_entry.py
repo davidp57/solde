@@ -22,7 +22,6 @@ class EntrySourceType(StrEnum):
     PAYMENT = "payment"
     DEPOSIT = "deposit"
     SALARY = "salary"
-    GESTION = "gestion"
     MANUAL = "manual"
     CASH = "cash"
     CLOTURE = "cloture"
