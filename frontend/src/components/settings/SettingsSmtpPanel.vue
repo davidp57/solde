@@ -101,7 +101,7 @@
           :placeholder="t('settings.email_subject_template_placeholder')"
           class="w-full"
         />
-        <small class="app-field__help">{{ t('settings.email_template_vars_help') }}</small>
+        <small class="app-field__help">{{ t('settings.email_template_vars_help', { v1: '{invoice_number}', v2: '{description}', v3: '{association_name}', v4: '{invoice_ref}' }) }}</small>
       </div>
       <div class="app-field mt-3">
         <label for="email_body_template" class="app-field__label">
@@ -115,7 +115,7 @@
           rows="7"
           auto-resize
         />
-        <small class="app-field__help">{{ t('settings.email_template_vars_help') }}</small>
+        <small class="app-field__help">{{ t('settings.email_template_vars_help', { v1: '{invoice_number}', v2: '{description}', v3: '{association_name}', v4: '{invoice_ref}' }) }}</small>
       </div>
     </AppPanel>
 
