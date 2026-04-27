@@ -117,8 +117,7 @@ async def stream_chat(
             )
         elif is_auth:
             msg = (
-                "Clé API invalide ou non autorisée."
-                " Vérifiez la configuration dans les Paramètres."
+                "Clé API invalide ou non autorisée. Vérifiez la configuration dans les Paramètres."
             )
         else:
             msg = "Erreur lors de la génération de la réponse."
