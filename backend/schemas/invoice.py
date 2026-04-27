@@ -131,6 +131,7 @@ class InvoiceRead(InvoiceBase):
     hours: Decimal | None = None
     pdf_path: str | None = None
     file_path: str | None = None
+    lines: list[InvoiceLineRead] = []
     created_at: datetime.datetime
     updated_at: datetime.datetime
     model_config = {"from_attributes": True}
