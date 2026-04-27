@@ -49,7 +49,7 @@ ADMIN_PASSWORD=change-this-password
 ADMIN_EMAIL=admin@your-association.org
 
 # Database (do not change in a standard Docker deployment)
-DATABASE_URL=sqlite+aiosqlite:///data/solde.db
+DATABASE_URL=sqlite+aiosqlite:///app/data/solde.db
 
 # Disabled by default in production
 DEBUG=false

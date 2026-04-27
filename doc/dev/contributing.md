@@ -7,7 +7,7 @@
 | Python | 3.11+ | |
 | Node.js | 20+ (22 recommended) | Matches the Docker build image |
 | npm | bundled with Node.js | |
-| Docker + Docker Compose | recent stable | Optional for local runs, required for integration tests |
+| Docker + Docker Compose | recent stable | Optional — backend integration tests run without Docker (in-memory ASGI + SQLite) |
 | PowerShell | any recent version | Windows only; `dev.ps1` script |
 
 ---

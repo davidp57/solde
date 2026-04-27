@@ -16,7 +16,7 @@ La configuration de Solde se fait à deux niveaux :
 | Variable | Description |
 |---|---|
 | `JWT_SECRET_KEY` | Clé de signature JWT. Chaîne aléatoire d'au moins 32 caractères. Ne jamais utiliser la valeur par défaut en production. |
-| `DATABASE_URL` | URL SQLite. En déploiement Docker standard, garder `sqlite+aiosqlite:///data/solde.db`. |
+| `DATABASE_URL` | URL SQLite. En déploiement Docker standard, garder `sqlite+aiosqlite:///app/data/solde.db` (chemin dans le volume monté sur `/app/data`). |
 
 #### Administrateur bootstrap
 
