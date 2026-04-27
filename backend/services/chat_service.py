@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.app_settings import AppSettings
 from backend.models.chat_log import ChatLog
+from backend.services.audit_service import AuditAction, record_audit
 
 if TYPE_CHECKING:
     from backend.models.user import User
@@ -135,6 +136,18 @@ async def stream_chat(
             completion_tokens=completion_tokens,
         )
         db.add(log_entry)
+        await record_audit(
+            db,
+            action=AuditAction.CHAT_QUERIED,
+            actor=user,
+            detail={
+                "model": model_name,
+                "provider": provider,
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "question": last_question[:200] if last_question else None,
+            },
+        )
         await db.commit()
     except Exception:  # noqa: BLE001
         logger.exception("Failed to log chat question")

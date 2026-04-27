@@ -1833,6 +1833,7 @@ export default {
           redo: 'Import Excel rétabli',
         },
       },
+      chat: {
+        query: 'Question posée au chatbot IA',
+      },
     },
-  },
-}
