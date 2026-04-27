@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is a reference for an LLM chatbot that assists end users of the Solde application. It covers every user-facing workflow, UI navigation, terminology, business rules, and role restrictions — written to help the LLM answer questions like "how do I create an invoice?", "why can't I delete this payment?", or "what does the 'irrécouvrable' status mean?".
+This document is a reference for an LLM chatbot that assists end users of the Solde application. It covers every user-facing workflow, UI navigation, terminology, business rules, role restrictions, administrator actions available to users, and guidance on reporting bugs — written to help the LLM answer questions like "how do I create an invoice?", "why can't I delete this payment?", "I forgot my password — what do I do?", or "I think I found a bug — where do I report it?".
 
 Language of the application interface: French. This document is in English.
 
@@ -271,6 +271,54 @@ Allows importing historical data from Excel workbooks. End users should not need
 
 ---
 
+## What the administrator can do for users
+
+When a user cannot resolve a problem themselves, they need to contact their administrator. Here is what requires admin intervention:
+
+### Account and access
+- **Create a new user account** — Paramètres → Utilisateurs → Nouvel utilisateur. The admin sets the name, email, username, role, and a temporary password. The user will be forced to change it on first login.
+- **Reset a forgotten password** — Paramètres → Utilisateurs → click the user → Réinitialiser le mot de passe. The admin sets a new temporary password and communicates it to the user.
+- **Change a user's role** — same screen, edit the role field.
+- **Deactivate a user account** — prevents login without deleting the user's history.
+
+### Email sending
+- **Configure SMTP** — Paramètres → SMTP. Required for the "Envoyer par e-mail" feature on invoices to work. Fields: host, port, username, password, sender address, TLS/SSL options.
+- If SMTP is not configured, sending invoices by email is disabled for all users.
+
+### Invoice numbering and defaults
+- **Change the invoice number format** — Paramètres → Association → Numérotation des factures.
+- **Change the default due date delay** — Paramètres → Association → Délai d'échéance par défaut (days added to invoice date).
+- **Change default unit prices** — Paramètres → Prix par défaut (pre-filled prices per invoice line type).
+
+### Fiscal years
+- **Create a new fiscal year** — Paramètres → Exercices → Nouvel exercice. Required at the start of each accounting year.
+- **Close a fiscal year** — irreversible operation. All entries for the period must be finalised first.
+
+### Backups
+- The administrator is responsible for regular database backups. Users cannot trigger backups themselves.
+- If data appears lost or corrupted, contact the administrator immediately — do not attempt to re-enter data.
+
+### System supervision
+- The admin can view application logs and the audit trail (Paramètres → Administration → Supervision système) to investigate issues reported by users.
+
+---
+
+## Reporting bugs and technical questions
+
+If a user encounters a behaviour that appears to be a bug (e.g. an error message, a calculation that seems wrong, a missing feature), they should:
+
+1. Note the exact error message or describe the unexpected behaviour precisely.
+2. Contact their administrator.
+3. The administrator can check the logs at Administration → Supervision système.
+
+For technical issues, feature requests, or confirmed bugs, the source code and issue tracker are available at:
+
+**https://github.com/davidp57/solde**
+
+The administrator or a developer can open a GitHub issue with details of the problem.
+
+---
+
 ## Common questions and answers
 
 **Q: I can't see the Comptabilité menu.**
@@ -311,3 +359,21 @@ A: The due date has passed and the invoice is not fully paid. Record a payment t
 
 **Q: How do I see what a contact owes?**
 A: Open the contact's record → the Historique tab shows all their invoices and payments, including outstanding balances.
+
+**Q: I forgot my password / I can't log in.**
+A: Contact your administrator. They can reset your password from Paramètres → Utilisateurs. There is no self-service "forgot password" link.
+
+**Q: I need a new user account created.**
+A: Contact your administrator. They create accounts from Paramètres → Utilisateurs → Nouvel utilisateur.
+
+**Q: Sending an invoice by email does not work.**
+A: Either the contact has no email address, or the SMTP server is not configured. Ask your administrator to check Paramètres → SMTP.
+
+**Q: The default due date or default prices on invoices seem wrong.**
+A: These are configurable by an administrator in Paramètres → Association. Ask them to adjust the settings.
+
+**Q: I think I found a bug or something is not working correctly.**
+A: Note the exact error message or describe the behaviour precisely, then contact your administrator. For confirmed bugs, the administrator can open an issue on the GitHub repository: https://github.com/davidp57/solde
+
+**Q: I have a feature request or suggestion.**
+A: Pass it on to your administrator, who can open a feature request on GitHub: https://github.com/davidp57/solde
