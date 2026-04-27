@@ -15,6 +15,31 @@ class EmailSendError(Exception):
     """Raised when the email cannot be sent."""
 
 
+def compose_subject(
+    invoice_number: str,
+    description: str | None,
+    association_name: str,
+) -> str:
+    """Return the default email subject for an invoice."""
+    if description:
+        return f"Facture {invoice_number} — {description}"
+    return f"Facture {invoice_number} — {association_name}"
+
+
+def compose_body(
+    invoice_number: str,
+    description: str | None,
+    association_name: str,
+) -> str:
+    """Return the default email body for an invoice."""
+    invoice_ref = f"{invoice_number} — {description}" if description else invoice_number
+    return (
+        f"Bonjour,\n\n"
+        f"Veuillez trouver ci-joint votre facture {invoice_ref}.\n\n"
+        f"Cordialement,\n{association_name}"
+    )
+
+
 def send_invoice_email(
     *,
     smtp_host: str,
@@ -29,14 +54,18 @@ def send_invoice_email(
     pdf_bytes: bytes,
     bcc: str | None = None,
     description: str | None = None,
+    override_subject: str | None = None,
+    override_body: str | None = None,
 ) -> None:
     """Send an invoice PDF by email.
 
+    If override_subject / override_body are provided they take precedence over
+    the automatically composed defaults (used when the user edits before sending).
+
     Raises EmailSendError if delivery fails.
     """
-    subject = f"Facture {invoice_number} — {association_name}"
-    if description:
-        subject = f"Facture {invoice_number} — {description}"
+    subject = override_subject or compose_subject(invoice_number, description, association_name)
+    body = override_body or compose_body(invoice_number, description, association_name)
 
     msg = MIMEMultipart()
     msg["From"] = smtp_from_email
@@ -45,12 +74,6 @@ def send_invoice_email(
     if bcc:
         msg["Bcc"] = bcc
 
-    invoice_ref = f"{invoice_number} — {description}" if description else invoice_number
-    body = (
-        f"Bonjour,\n\n"
-        f"Veuillez trouver ci-joint votre facture {invoice_ref}.\n\n"
-        f"Cordialement,\n{association_name}"
-    )
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
     attachment = MIMEApplication(pdf_bytes, _subtype="pdf")

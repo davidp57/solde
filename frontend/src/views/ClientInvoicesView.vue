@@ -370,6 +370,13 @@
 
     <ConfirmDialog />
 
+    <!-- Email send dialog -->
+    <InvoiceEmailDialog
+      :invoice-id="emailDialogInvoiceId"
+      @sent="onEmailSent"
+      @close="emailDialogInvoiceId = null"
+    />
+
     <!-- Write-off confirmation dialog -->
     <Dialog
       v-model:visible="writeOffDialogVisible"
@@ -622,7 +629,6 @@ import {
   duplicateInvoiceApi,
   downloadInvoicePdfApi,
   listInvoicesApi,
-  sendInvoiceEmailApi,
   writeOffInvoiceApi,
   restoreFromWriteoffApi,
   type Invoice,
@@ -630,6 +636,7 @@ import {
 } from '../api/invoices'
 import { createPayment, listPayments, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
+import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
@@ -687,6 +694,9 @@ const editingInvoice = ref<Invoice | null>(null)
 const statusFilter = ref<InvoiceStatus | null>(null)
 const unpaidOnly = ref(false)
 const showIrrecoverable = ref(false)
+
+// Email dialog
+const emailDialogInvoiceId = ref<number | null>(null)
 
 // Write-off dialog
 const writeOffDialogVisible = ref(false)
@@ -957,14 +967,13 @@ async function openPdf(invoice: Invoice) {
   }
 }
 
-async function sendEmail(invoice: Invoice) {
-  try {
-    await sendInvoiceEmailApi(invoice.id)
-    toast.add({ severity: 'success', summary: t('invoices.email_sent'), life: 3000 })
-    await refreshInvoicesData()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
-  }
+function sendEmail(invoice: Invoice): void {
+  emailDialogInvoiceId.value = invoice.id
+}
+
+async function onEmailSent(): Promise<void> {
+  emailDialogInvoiceId.value = null
+  await refreshInvoicesData()
 }
 
 function openWriteOffDialog(invoice: Invoice): void {

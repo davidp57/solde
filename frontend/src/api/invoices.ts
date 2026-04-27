@@ -136,8 +136,22 @@ export async function downloadInvoicePdfApi(id: number): Promise<Blob> {
   return response.data
 }
 
-export async function sendInvoiceEmailApi(id: number): Promise<void> {
-  await apiClient.post(`/api/invoices/${id}/send-email`)
+export interface InvoiceEmailPreview {
+  recipient: string
+  subject: string
+  body: string
+}
+
+export async function getInvoiceEmailPreviewApi(id: number): Promise<InvoiceEmailPreview> {
+  const response = await apiClient.get<InvoiceEmailPreview>(`/api/invoices/${id}/email-preview`)
+  return response.data
+}
+
+export async function sendInvoiceEmailApi(
+  id: number,
+  payload: { subject: string; body: string },
+): Promise<void> {
+  await apiClient.post(`/api/invoices/${id}/send-email`, payload)
 }
 
 export async function writeOffInvoiceApi(id: number): Promise<Invoice> {
