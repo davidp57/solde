@@ -7,7 +7,7 @@ import logging
 from collections.abc import AsyncIterator
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -57,7 +57,7 @@ def _default_model(provider: str) -> str:
     return "gemini-2.0-flash-lite"
 
 
-def _to_gemini_contents(messages: list[dict[str, str]]) -> list[dict[str, object]]:
+def _to_gemini_contents(messages: list[dict[str, str]]) -> list[Any]:
     """Convert [{role, content}] to Gemini contents format."""
     role_map = {"user": "user", "assistant": "model"}
     return [
@@ -185,8 +185,8 @@ async def _stream_openai(
     from openai import AsyncOpenAI  # noqa: PLC0415
 
     client = AsyncOpenAI(api_key=api_key)
-    openai_messages = [{"role": "system", "content": system_prompt}] + messages
-    stream = await client.chat.completions.create(
+    openai_messages: list[Any] = [{"role": "system", "content": system_prompt}] + messages
+    stream: Any = await client.chat.completions.create(
         model=model_name,
         messages=openai_messages,
         stream=True,
