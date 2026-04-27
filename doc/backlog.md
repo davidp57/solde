@@ -21,6 +21,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | — |
 | BIZ-128 | Modèles d'e-mail configurables dans les paramètres | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
+| BIZ-129 | Notes de crédit (avoirs) | P2 | ~3 h | 2026-04-27 | — |
 
 ---
 
@@ -101,6 +102,30 @@ Décisions métier nécessaires avant implémentation.
 Créer `en.ts` avec les clés structurelles pour préparer la localisation anglaise.
 
 ---
+
+### BIZ-129 — Notes de crédit (avoirs)
+
+Permettre l'émission d'un avoir (note de crédit) pour annuler partiellement ou totalement une facture client.
+
+**Contexte :** un avoir est comptablement un document à total négatif. La contrainte actuelle `total ≥ 0` est correcte pour une facture ordinaire mais invalide pour un avoir. Il faut distinguer les deux types.
+
+**Périmètre backend :**
+- Ajouter `invoice_type: Mapped[str]` sur le modèle `Invoice` — valeurs `facture` (défaut) | `avoir`
+- Migration Alembic dédiée (`0038_add_invoice_type`)
+- Lever la contrainte de total négatif uniquement pour les avoirs (validation dans le service)
+- Numérotation séparée : séquence `AV-YYYY-NNN` (nouvelle colonne ou préfixe dans le service de numérotation)
+- Nouveau endpoint `POST /api/invoices/{id}/credit-note` : crée un avoir pré-rempli avec les lignes inversées et un lien `credit_note_for_id` vers la facture d'origine (nullable, optionnel dans un premier temps)
+- Schémas : exposer `invoice_type` dans `InvoiceRead` / `InvoiceCreate` / `InvoiceUpdate`
+
+**Périmètre frontend :**
+- Bouton « Créer un avoir » sur les factures envoyées/payées (pas sur les brouillons)
+- Badge / libellé « Avoir » dans les listes et en-tête du formulaire d'édition
+- Template PDF avoir : en-tête « NOTE DE CRÉDIT » / « AVOIR » à la place de « FACTURE »
+- Validation côté UI : bloquer le total ≥ 0 seulement pour `invoice_type === 'facture'`
+
+**Hors périmètre (V1) :** lien de réconciliation automatique avoir ↔ facture, lettrage comptable, workflow de validation spécifique.
+
+
 
 ## Lots terminés
 
