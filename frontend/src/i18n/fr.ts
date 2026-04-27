@@ -1837,3 +1837,5 @@ export default {
         query: 'Question posée au chatbot IA',
       },
     },
+  },
+}
