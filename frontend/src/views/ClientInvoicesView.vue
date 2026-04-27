@@ -332,6 +332,7 @@
                 @click="restoreFromWriteoff(data)"
               />
               <Button
+                v-if="data.status === 'draft'"
                 icon="pi pi-trash"
                 size="small"
                 severity="danger"
@@ -667,6 +668,7 @@ import {
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatContactDisplayName } from '../utils/contact'
 import { formatDisplayDate } from '@/utils/format'
+import { getErrorDetail } from '@/utils/errorUtils'
 
 const { t } = useI18n()
 const confirm = useConfirm()
@@ -1121,8 +1123,12 @@ function confirmDelete(invoice: Invoice) {
         await deleteInvoiceApi(invoice.id)
         toast.add({ severity: 'success', summary: t('invoices.deleted'), life: 3000 })
         await refreshInvoicesData()
-      } catch {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+      } catch (error) {
+        toast.add({
+          severity: 'error',
+          summary: getErrorDetail(error, t('common.error.unknown')),
+          life: 5000,
+        })
       }
     },
   })
