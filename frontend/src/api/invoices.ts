@@ -2,12 +2,21 @@ import apiClient from './client'
 
 export type InvoiceType = 'client' | 'fournisseur'
 export type InvoiceLabel = 'cs' | 'a' | 'cs+a' | 'general'
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'partial' | 'overdue' | 'disputed'
+export type InvoiceLineType = 'cours' | 'adhesion' | 'autres'
+export type InvoiceStatus =
+  | 'draft'
+  | 'sent'
+  | 'paid'
+  | 'partial'
+  | 'overdue'
+  | 'disputed'
+  | 'irrecoverable'
 
 export interface InvoiceLine {
   id: number
   invoice_id: number
   description: string
+  line_type: InvoiceLineType | null
   quantity: string
   unit_price: string
   amount: string
@@ -15,6 +24,7 @@ export interface InvoiceLine {
 
 export interface InvoiceLineCreate {
   description: string
+  line_type?: InvoiceLineType | null
   quantity?: string
   unit_price?: string
 }
@@ -97,15 +107,17 @@ export async function createInvoiceApi(data: InvoiceCreate): Promise<Invoice> {
   return response.data
 }
 
+export async function getNextClientInvoiceNumberApi(): Promise<string> {
+  const response = await apiClient.get<{ number: string }>('/api/invoices/next_number')
+  return response.data.number
+}
+
 export async function updateInvoiceApi(id: number, data: InvoiceUpdate): Promise<Invoice> {
   const response = await apiClient.put<Invoice>(`/api/invoices/${id}`, data)
   return response.data
 }
 
-export async function updateInvoiceStatusApi(
-  id: number,
-  status: InvoiceStatus,
-): Promise<Invoice> {
+export async function updateInvoiceStatusApi(id: number, status: InvoiceStatus): Promise<Invoice> {
   const response = await apiClient.patch<Invoice>(`/api/invoices/${id}/status`, { status })
   return response.data
 }
@@ -119,12 +131,37 @@ export async function deleteInvoiceApi(id: number): Promise<void> {
   await apiClient.delete(`/api/invoices/${id}`)
 }
 
-export function getInvoicePdfUrl(id: number): string {
-  return `/api/invoices/${id}/pdf`
+export async function downloadInvoicePdfApi(id: number): Promise<Blob> {
+  const response = await apiClient.get(`/api/invoices/${id}/pdf`, { responseType: 'blob' })
+  return response.data
 }
 
-export async function sendInvoiceEmailApi(id: number): Promise<void> {
-  await apiClient.post(`/api/invoices/${id}/send-email`)
+export interface InvoiceEmailPreview {
+  recipient: string
+  subject: string
+  body: string
+}
+
+export async function getInvoiceEmailPreviewApi(id: number): Promise<InvoiceEmailPreview> {
+  const response = await apiClient.get<InvoiceEmailPreview>(`/api/invoices/${id}/email-preview`)
+  return response.data
+}
+
+export async function sendInvoiceEmailApi(
+  id: number,
+  payload: { subject: string; body: string },
+): Promise<void> {
+  await apiClient.post(`/api/invoices/${id}/send-email`, payload)
+}
+
+export async function writeOffInvoiceApi(id: number): Promise<Invoice> {
+  const response = await apiClient.post<Invoice>(`/api/invoices/${id}/write-off`)
+  return response.data
+}
+
+export async function restoreFromWriteoffApi(id: number): Promise<Invoice> {
+  const response = await apiClient.post<Invoice>(`/api/invoices/${id}/restore-from-writeoff`)
+  return response.data
 }
 
 export async function uploadInvoiceFileApi(id: number, file: File): Promise<Invoice> {

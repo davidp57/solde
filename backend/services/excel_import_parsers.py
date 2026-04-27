@@ -34,6 +34,7 @@ from backend.services.excel_import_policy import (
     ENTRY_MISSING_ACCOUNT_MESSAGE,
     ENTRY_SUSPICIOUS_DATE_MESSAGE,
     INVOICE_INVALID_AMOUNT_MESSAGE,
+    INVOICE_INVALID_COMPONENT_BREAKDOWN_MESSAGE,
     INVOICE_INVALID_DATE_MESSAGE,
     INVOICE_REQUIRED_CONTACT_MESSAGE,
     INVOICE_TOTAL_MESSAGE,
@@ -142,6 +143,10 @@ def _parse_salary_month(value: Any) -> str | None:
     return f"{match.group(1)}-{match.group(2)}"
 
 
+def _has_explicit_component_value(value: Any) -> bool:
+    return parse_str(value) != ""
+
+
 def _salary_decimal_or_zero(value: Any) -> Decimal:
     return parse_decimal(value) or Decimal("0")
 
@@ -183,6 +188,14 @@ def parse_invoice_sheet(
     nom_idx = find_col_idx(col_map, "nom", "client", "adhérent", "adherent")
     numero_idx = find_invoice_number_idx(col_map, exclude_idx=date_idx)
     label_idx = find_col_idx(col_map, "motif", "libellé", "libelle", "type")
+    course_amount_idx = find_col_idx(col_map, "montant cours", "cours")
+    adhesion_amount_idx = find_col_idx(
+        col_map,
+        "montant adhésion",
+        "montant adhesion",
+        "adhésion",
+        "adhesion",
+    )
 
     missing_columns = invoice_missing_columns(
         date_idx=date_idx,
@@ -238,11 +251,53 @@ def parse_invoice_sheet(
         assert amount is not None
         assert invoice_date is not None
         raw_number = get_row_value(row, numero_idx)
+        normalized_label = normalize_invoice_label(get_row_value(row, label_idx))
         invoice_number: str | None = None
         if not isinstance(raw_number, (date, datetime)):
             candidate = parse_str(raw_number)
             if candidate and not _DATE_LIKE_TEXT_RE.match(candidate):
                 invoice_number = candidate
+
+        raw_course_amount = get_row_value(row, course_amount_idx)
+        raw_adhesion_amount = get_row_value(row, adhesion_amount_idx)
+        course_amount = parse_decimal(raw_course_amount)
+        adhesion_amount = parse_decimal(raw_adhesion_amount)
+        if normalized_label == "cs+a":
+            has_explicit_breakdown = _has_explicit_component_value(
+                raw_course_amount
+            ) or _has_explicit_component_value(raw_adhesion_amount)
+            if has_explicit_breakdown:
+                valid_course_amount = (
+                    course_amount if course_amount is not None and course_amount >= 0 else None
+                )
+                valid_adhesion_amount = (
+                    adhesion_amount
+                    if adhesion_amount is not None and adhesion_amount >= 0
+                    else None
+                )
+                component_total = (valid_course_amount or Decimal("0")) + (
+                    valid_adhesion_amount or Decimal("0")
+                )
+                if (
+                    valid_course_amount is None
+                    or valid_adhesion_amount is None
+                    or component_total != amount
+                ):
+                    issues.append(
+                        make_validation_issue(
+                            source_row_number,
+                            [INVOICE_INVALID_COMPONENT_BREAKDOWN_MESSAGE],
+                        )
+                    )
+                    continue
+                course_amount = valid_course_amount
+                adhesion_amount = valid_adhesion_amount
+            else:
+                course_amount = None
+                adhesion_amount = None
+        else:
+            course_amount = None
+            adhesion_amount = None
 
         rows.append(
             NormalizedInvoiceRow(
@@ -251,7 +306,9 @@ def parse_invoice_sheet(
                 amount=amount,
                 contact_name=contact_name,
                 invoice_number=invoice_number,
-                label=normalize_invoice_label(get_row_value(row, label_idx)),
+                label=normalized_label,
+                course_amount=course_amount,
+                adhesion_amount=adhesion_amount,
             )
         )
 
@@ -288,8 +345,13 @@ def parse_payment_sheet(
         "chèque",
         "cheque",
     )
-    deposited_idx = find_col_idx(col_map, "encaissé", "encaisse")
+    # Resolve deposit_date_idx first: "date encaissement" must not bleed into deposited_idx
+    # because "encaisse" is a substring of "date encaissement".
     deposit_date_idx = find_col_idx(col_map, "date encaissement")
+    deposited_idx = find_col_idx(col_map, "encaissé", "encaisse")
+    if deposited_idx is not None and deposited_idx == deposit_date_idx:
+        # Substring match grabbed the wrong column — fall back to exact key lookup
+        deposited_idx = col_map.get("encaisse")
 
     missing_columns = payment_missing_columns(
         montant_idx=montant_idx,
@@ -404,11 +466,23 @@ def parse_salary_sheet(
 
         if current_format == "detailed":
             hours = _salary_decimal_or_zero(get_row_value(row, 1))
+            _brut_declared_raw = _salary_decimal_or_zero(get_row_value(row, 2))
+            _conges_raw = _salary_decimal_or_zero(get_row_value(row, 3))
+            _precarite_raw = _salary_decimal_or_zero(get_row_value(row, 4))
             gross = _salary_decimal_or_zero(get_row_value(row, 6))
             employee_charges = _salary_decimal_or_zero(get_row_value(row, 7))
             employer_charges = _salary_decimal_or_zero(get_row_value(row, 8))
             tax = _salary_decimal_or_zero(get_row_value(row, 9))
             net_pay = _salary_decimal_or_zero(get_row_value(row, 10))
+            # Store CDD breakdown only when CP or précarité are non-zero (CDI rows have 0)
+            if _conges_raw > 0 or _precarite_raw > 0:
+                brut_declared: Decimal | None = _brut_declared_raw
+                conges_payes: Decimal | None = _conges_raw
+                precarite: Decimal | None = _precarite_raw
+            else:
+                brut_declared = None
+                conges_payes = None
+                precarite = None
         else:
             hours = _salary_decimal_or_zero(get_row_value(row, 1))
             gross = _salary_decimal_or_zero(get_row_value(row, 2))
@@ -416,6 +490,9 @@ def parse_salary_sheet(
             employer_charges = _salary_decimal_or_zero(get_row_value(row, 4))
             tax = _salary_decimal_or_zero(get_row_value(row, 5))
             net_pay = _salary_decimal_or_zero(get_row_value(row, 6))
+            brut_declared = None
+            conges_payes = None
+            precarite = None
 
         row_errors: list[str] = []
         if not first_cell:
@@ -442,6 +519,9 @@ def parse_salary_sheet(
                 employer_charges=employer_charges,
                 tax=tax,
                 net_pay=net_pay,
+                brut_declared=brut_declared,
+                conges_payes=conges_payes,
+                precarite=precarite,
             )
         )
 
@@ -719,20 +799,21 @@ def parse_bank_sheet(
             amount = parse_decimal(get_row_value(row, montant_idx))
 
         entry_date = parse_date(get_row_value(row, date_idx))
-        if entry_date is None:
-            if should_ignore_bank_balance_description(
-                entry_date=entry_date,
-                amount=amount,
-                label=parse_str(get_row_value(row, libelle_idx)),
-                balance=parse_decimal(get_row_value(row, solde_idx)),
-            ):
-                ignored_issues.append(
-                    RowIgnoredIssue(
-                        source_row_number=source_row_number,
-                        message=BANK_BALANCE_DESCRIPTION_MESSAGE,
-                    )
+        if should_ignore_bank_balance_description(
+            entry_date=entry_date,
+            amount=amount,
+            label=parse_str(get_row_value(row, libelle_idx)),
+            balance=parse_decimal(get_row_value(row, solde_idx)),
+        ):
+            ignored_issues.append(
+                RowIgnoredIssue(
+                    source_row_number=source_row_number,
+                    message=BANK_BALANCE_DESCRIPTION_MESSAGE,
                 )
-                continue
+            )
+            continue
+
+        if entry_date is None:
             issues.append(make_validation_issue(source_row_number, [BANK_INVALID_DATE_MESSAGE]))
             continue
 

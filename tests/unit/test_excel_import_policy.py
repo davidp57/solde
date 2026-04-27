@@ -23,10 +23,12 @@ from backend.services.excel_import_policy import (
     CONTACT_REQUIRED_NAME_MESSAGE,
     DUPLICATE_CONTACT_MESSAGE,
     DUPLICATE_INVOICE_MESSAGE,
+    ENTRY_COVERED_BY_SOLDE_MESSAGE,
     ENTRY_INVALID_CREDIT_MESSAGE,
     ENTRY_INVALID_DATE_MESSAGE,
     ENTRY_INVALID_DEBIT_MESSAGE,
     ENTRY_MISSING_ACCOUNT_MESSAGE,
+    ENTRY_NEAR_EXISTING_MANUAL_MESSAGE,
     ENTRY_REQUIRED_ACCOUNT_OR_AMOUNT_COLUMNS,
     EXISTING_CONTACT_MESSAGE,
     EXISTING_INVOICE_MESSAGE,
@@ -165,6 +167,18 @@ def test_should_ignore_bank_balance_description() -> None:
         amount=Decimal("0"),
         label="Solde au 01/01",
         balance=Decimal("1250.00"),
+    )
+    assert should_ignore_bank_balance_description(
+        entry_date=date(2024, 8, 1),
+        amount=None,
+        label="Solde initial",
+        balance=Decimal("1250.00"),
+    )
+    assert not should_ignore_bank_balance_description(
+        entry_date=date(2024, 8, 2),
+        amount=None,
+        label="Paiement carte",
+        balance=Decimal("1232.00"),
     )
     assert BANK_BALANCE_DESCRIPTION_MESSAGE == "ligne descriptive de solde ignoree"
 
@@ -453,6 +467,8 @@ def test_issue_category_for_message_uses_global_prefixes() -> None:
         )
         == "comptabilite-coexistence"
     )
+    assert issue_category_for_message(ENTRY_COVERED_BY_SOLDE_MESSAGE) == "entry-covered-by-solde"
+    assert issue_category_for_message(ENTRY_NEAR_EXISTING_MANUAL_MESSAGE) == "entry-near-manual"
     assert issue_category_for_message("Erreur import gestion : boom") == "import-error"
 
 

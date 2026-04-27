@@ -2,7 +2,11 @@
   <form class="app-dialog-form" @submit.prevent="submit">
     <section class="app-dialog-intro">
       <p class="app-dialog-intro__eyebrow">{{ t('invoices.supplier.title') }}</p>
-      <p class="app-dialog-intro__text">{{ t(isEditing ? 'invoices.supplier.form_intro_edit' : 'invoices.supplier.form_intro_create') }}</p>
+      <p class="app-dialog-intro__text">
+        {{
+          t(isEditing ? 'invoices.supplier.form_intro_edit' : 'invoices.supplier.form_intro_create')
+        }}
+      </p>
     </section>
 
     <section class="app-dialog-section">
@@ -15,24 +19,26 @@
           <label class="app-field__label">{{ t('invoices.contact') }}</label>
           <Select
             v-model="form.contact_id"
-            :options="contacts"
-            option-label="nom"
+            :options="contactOptions"
+            option-label="displayName"
             option-value="id"
             :placeholder="t('invoices.contact_placeholder')"
             filter
             class="w-full"
             required
           />
+          <small v-if="fieldErrors['contact_id']" class="p-error">{{ fieldErrors['contact_id'] }}</small>
         </div>
 
         <div class="app-form-grid">
           <div class="app-field">
             <label class="app-field__label">{{ t('invoices.date') }}</label>
-            <DatePicker v-model="form.date" date-format="dd/mm/yy" class="w-full" required />
+            <AppDatePicker v-model="form.date" class="w-full" required />
+            <small v-if="fieldErrors['date']" class="p-error">{{ fieldErrors['date'] }}</small>
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('invoices.due_date') }}</label>
-            <DatePicker v-model="form.due_date" date-format="dd/mm/yy" class="w-full" show-clear />
+            <AppDatePicker v-model="form.due_date" class="w-full" show-clear />
           </div>
         </div>
 
@@ -54,6 +60,7 @@
               class="w-full"
               required
             />
+            <small v-if="fieldErrors['total_amount']" class="p-error">{{ fieldErrors['total_amount'] }}</small>
           </div>
         </div>
       </div>
@@ -70,32 +77,35 @@
       </div>
     </section>
 
-      <div class="app-form-actions">
-        <Button
-          :label="t('common.cancel')"
-          severity="secondary"
-          type="button"
-          outlined
-          @click="emit('cancel')"
-        />
-        <Button :label="t('common.save')" type="submit" :loading="saving" />
-      </div>
+    <div class="app-form-actions">
+      <Button
+        :label="t('common.cancel')"
+        severity="secondary"
+        type="button"
+        outlined
+        @click="emit('cancel')"
+      />
+      <Button :label="t('common.save')" type="submit" :loading="saving" />
+    </div>
   </form>
 </template>
 
 <script setup lang="ts">
 import Button from 'primevue/button'
-import DatePicker from 'primevue/datepicker'
+import AppDatePicker from './ui/AppDatePicker.vue'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
-import { computed, reactive, ref, watch } from 'vue'
+import axios from 'axios'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Contact } from '../api/contacts'
 import { createInvoiceApi, updateInvoiceApi, type Invoice } from '../api/invoices'
+import { getSettingsApi } from '../api/settings'
+import { formatContactDisplayName } from '../utils/contact'
 
 const props = defineProps<{
   invoice: Invoice | null
@@ -109,7 +119,11 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 const saving = ref(false)
+const fieldErrors = ref<Record<string, string>>({})
+const initialSnapshot = ref('')
 const isEditing = computed(() => props.invoice !== null)
+const defaultInvoiceDueDays = ref<number | null>(null)
+const suggestedDueDateIso = ref<string | null>(null)
 
 interface FormState {
   contact_id: number | null
@@ -129,6 +143,26 @@ const form = reactive<FormState>({
   description: '',
 })
 
+function formSnapshot(): string {
+  return JSON.stringify({
+    contact_id: form.contact_id,
+    date: form.date?.toISOString().slice(0, 10) ?? null,
+    due_date: form.due_date?.toISOString().slice(0, 10) ?? null,
+    reference: form.reference,
+    total_amount: form.total_amount,
+    description: form.description,
+  })
+}
+
+const isDirty = computed(() => formSnapshot() !== initialSnapshot.value)
+
+const contactOptions = computed(() =>
+  props.contacts.map((contact) => ({
+    ...contact,
+    displayName: formatContactDisplayName(contact),
+  })),
+)
+
 function resetForm() {
   form.contact_id = null
   form.date = null
@@ -136,6 +170,7 @@ function resetForm() {
   form.reference = ''
   form.total_amount = null
   form.description = ''
+  suggestedDueDateIso.value = null
 }
 
 function setFromInvoice(inv: Invoice) {
@@ -145,6 +180,7 @@ function setFromInvoice(inv: Invoice) {
   form.reference = inv.reference ?? ''
   form.total_amount = parseFloat(inv.total_amount)
   form.description = inv.description ?? ''
+  suggestedDueDateIso.value = inv.due_date
 }
 
 watch(
@@ -152,8 +188,41 @@ watch(
   (inv) => {
     if (inv) setFromInvoice(inv)
     else resetForm()
+    nextTick(() => { initialSnapshot.value = formSnapshot() })
   },
   { immediate: true },
+)
+
+function toIsoDate(value: Date | null): string | null {
+  if (!value) {
+    return null
+  }
+  return value.toISOString().slice(0, 10)
+}
+
+function addDays(value: Date, days: number): Date {
+  const next = new Date(value)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function applySuggestedDueDate(): void {
+  if (isEditing.value || !form.date || defaultInvoiceDueDays.value === null) {
+    return
+  }
+  const currentDueDateIso = toIsoDate(form.due_date)
+  if (form.due_date !== null && currentDueDateIso !== suggestedDueDateIso.value) {
+    return
+  }
+  form.due_date = addDays(form.date, defaultInvoiceDueDays.value)
+  suggestedDueDateIso.value = toIsoDate(form.due_date)
+}
+
+watch(
+  () => [form.date, defaultInvoiceDueDays.value] as const,
+  () => {
+    applySuggestedDueDate()
+  },
 )
 
 function formatDate(d: Date): string {
@@ -163,6 +232,7 @@ function formatDate(d: Date): string {
 async function submit() {
   if (!form.contact_id || !form.date || form.total_amount === null) return
   saving.value = true
+  fieldErrors.value = {}
   try {
     const payload = {
       type: 'fournisseur' as const,
@@ -179,12 +249,38 @@ async function submit() {
       await createInvoiceApi(payload)
     }
     emit('saved')
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 422) {
+      const detail = error.response.data?.detail
+      if (Array.isArray(detail)) {
+        const errors: Record<string, string> = {}
+        for (const item of detail) {
+          if (Array.isArray(item.loc) && item.loc.length > 0) {
+            errors[String(item.loc[item.loc.length - 1])] = item.msg
+          }
+        }
+        fieldErrors.value = errors
+      } else {
+        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+      }
+    } else {
+      toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+    }
   } finally {
     saving.value = false
   }
 }
+
+void getSettingsApi()
+  .then((settings) => {
+    defaultInvoiceDueDays.value = settings.default_invoice_due_days
+    applySuggestedDueDate()
+  })
+  .catch(() => {
+    defaultInvoiceDueDays.value = null
+  })
+
+defineExpose({ isDirty })
 </script>
 
 <style scoped>

@@ -6,23 +6,37 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import Date, DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import Date, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
+from backend.models.types import DecimalType
 
 _Date = date
 _Decimal = Decimal
 
 
 class EntrySourceType(StrEnum):
+    GESTION = "gestion"
     INVOICE = "invoice"
     PAYMENT = "payment"
     DEPOSIT = "deposit"
     SALARY = "salary"
     GESTION = "gestion"
     MANUAL = "manual"
+    CASH = "cash"
     CLOTURE = "cloture"
+    WRITE_OFF = "write_off"
+
+
+def build_entry_group_key(
+    source_type: EntrySourceType | str | None,
+    source_id: int | None,
+) -> str | None:
+    if source_type is None or source_id is None:
+        return None
+    source_value = source_type.value if isinstance(source_type, EntrySourceType) else source_type
+    return f"{source_value}:{source_id}"
 
 
 def build_entry_group_key(
@@ -46,8 +60,12 @@ class AccountingEntry(Base):
     # Denormalized account number (no FK — history must survive account changes)
     account_number: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     label: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    debit: Mapped[_Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=Decimal("0"))
-    credit: Mapped[_Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=Decimal("0"))
+    debit: Mapped[_Decimal] = mapped_column(
+        DecimalType(12, 2), nullable=False, default=Decimal("0")
+    )
+    credit: Mapped[_Decimal] = mapped_column(
+        DecimalType(12, 2), nullable=False, default=Decimal("0")
+    )
     fiscal_year_id: Mapped[int | None] = mapped_column(
         ForeignKey("fiscal_years.id"), nullable=True, index=True
     )

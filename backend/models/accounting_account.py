@@ -69,7 +69,7 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
     },
     {
         "number": "416001",
-        "label": "Client litigieux : Riad ALIOUCHE",
+        "label": "Client litigieux 1",
         "type": "actif",
         "parent_number": "416000",
         "description": "Sous-compte historique conservé pour les imports Excel.",
@@ -78,7 +78,7 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
     },
     {
         "number": "416002",
-        "label": "Client litigieux : Fatou NDOYE/AST",
+        "label": "Client litigieux 2",
         "type": "actif",
         "parent_number": "416000",
         "description": "Sous-compte historique conservé pour les imports Excel.",
@@ -223,6 +223,12 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
         "is_default": True,
     },
     {
+        "number": "654000",
+        "label": "Pertes sur créances irrécouvrables",
+        "type": "charge",
+        "is_default": True,
+    },
+    {
         "number": "443000",
         "label": (
             "Opérations particulières avec l'Etat, les collectivités publiques, "
@@ -251,6 +257,12 @@ DEFAULT_ACCOUNTS: list[dict[str, str | bool]] = [
         "is_default": True,
     },
     {"number": "756000", "label": "Cotisations", "type": "produit", "is_default": True},
+    {
+        "number": "754000",
+        "label": "Reprises sur créances amorties",
+        "type": "produit",
+        "is_default": True,
+    },
     {
         "number": "758000",
         "label": "Produits divers de gestion",

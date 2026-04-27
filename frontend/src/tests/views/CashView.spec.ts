@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { defineComponent, h, inject, nextTick, provide } from 'vue'
+import { defineComponent, h, inject, nextTick, provide, reactive } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('vue-i18n', () => ({
@@ -8,7 +8,19 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ replace: vi.fn() }),
+}))
+
 const toastAdd = vi.fn()
+const confirmRequire = vi.fn()
+
+vi.mock('primevue/useconfirm', () => ({
+  useConfirm: () => ({
+    require: confirmRequire,
+  }),
+}))
 
 vi.mock('primevue/usetoast', () => ({
   useToast: () => ({
@@ -16,20 +28,46 @@ vi.mock('primevue/usetoast', () => ({
   }),
 }))
 
+const fiscalYearStoreMock = reactive({
+  selectedFiscalYearId: 2 as number | undefined,
+  selectedFiscalYear: {
+    id: 2,
+    name: 'Exercice 2025',
+    start_date: '2025-01-01',
+    end_date: '2025-12-31',
+  } as { id: number; name: string; start_date: string; end_date: string } | undefined,
+  initialized: true,
+  initialize: vi.fn().mockResolvedValue(undefined),
+})
+
+vi.mock('../../stores/fiscalYear', () => ({
+  useFiscalYearStore: () => fiscalYearStoreMock,
+}))
+
 vi.mock('../../api/cash', () => ({
   getCashBalance: vi.fn(),
+  getCashFundsChart: vi.fn(),
   listCashEntries: vi.fn(),
   addCashEntry: vi.fn(),
   getCashEntry: vi.fn(),
   updateCashEntry: vi.fn(),
+  deleteCashEntry: vi.fn(),
+  getCashEntryConnections: vi.fn(),
   listCashCounts: vi.fn(),
   addCashCount: vi.fn(),
 }))
 
 import CashView from '../../views/CashView.vue'
-import { getCashBalance, listCashEntries, listCashCounts, updateCashEntry } from '../../api/cash'
+import {
+  getCashBalance,
+  getCashFundsChart,
+  listCashEntries,
+  listCashCounts,
+  updateCashEntry,
+} from '../../api/cash'
 
 const mockGetCashBalance = vi.mocked(getCashBalance)
+const mockGetCashFundsChart = vi.mocked(getCashFundsChart)
 const mockListCashEntries = vi.mocked(listCashEntries)
 const mockListCashCounts = vi.mocked(listCashCounts)
 const mockUpdateCashEntry = vi.mocked(updateCashEntry)
@@ -43,11 +81,23 @@ const cashEntryFixture = {
   payment_id: null,
   reference: 'CAISSE-2025-001',
   description: 'Participation sortie',
+  source: 'manual' as const,
   balance_after: '145.00',
+  is_system_opening: false,
 }
 
 const ContainerStub = defineComponent({
   template: '<div><slot /></div>',
+})
+
+const AppStatCardStub = defineComponent({
+  props: {
+    label: { type: String, default: '' },
+    value: { type: [String, Number], default: '' },
+    caption: { type: String, default: '' },
+    tone: { type: String, default: '' },
+  },
+  template: '<div>{{ label }} {{ value }} {{ caption }} {{ tone }}</div>',
 })
 
 const ButtonStub = defineComponent({
@@ -85,7 +135,8 @@ const InputTextStub = defineComponent({
         type: props.type,
         value: props.modelValue ?? '',
         disabled: props.disabled,
-        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+        onInput: (event: Event) =>
+          emit('update:modelValue', (event.target as HTMLInputElement).value),
       })
   },
 })
@@ -101,7 +152,8 @@ const InputNumberStub = defineComponent({
         'data-testid': attrs['data-testid'],
         type: 'number',
         value: props.modelValue ?? 0,
-        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+        onInput: (event: Event) =>
+          emit('update:modelValue', (event.target as HTMLInputElement).value),
       })
   },
 })
@@ -116,8 +168,12 @@ const DatePickerStub = defineComponent({
       h('input', {
         'data-testid': attrs['data-testid'],
         type: 'date',
-        value: props.modelValue instanceof Date ? props.modelValue.toISOString().slice(0, 10) : props.modelValue,
-        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLInputElement).value),
+        value:
+          props.modelValue instanceof Date
+            ? props.modelValue.toISOString().slice(0, 10)
+            : props.modelValue,
+        onInput: (event: Event) =>
+          emit('update:modelValue', (event.target as HTMLInputElement).value),
       })
   },
 })
@@ -137,10 +193,15 @@ const SelectStub = defineComponent({
         {
           'data-testid': attrs['data-testid'],
           value: props.modelValue ?? '',
-          onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value),
+          onChange: (event: Event) =>
+            emit('update:modelValue', (event.target as HTMLSelectElement).value),
         },
         (props.options as Array<Record<string, string>>).map((option) =>
-          h('option', { key: option[props.optionValue], value: option[props.optionValue] }, option[props.optionLabel]),
+          h(
+            'option',
+            { key: option[props.optionValue], value: option[props.optionValue] },
+            option[props.optionLabel],
+          ),
         ),
       )
   },
@@ -156,7 +217,8 @@ const TextareaStub = defineComponent({
       h('textarea', {
         'data-testid': attrs['data-testid'],
         value: props.modelValue,
-        onInput: (event: Event) => emit('update:modelValue', (event.target as HTMLTextAreaElement).value),
+        onInput: (event: Event) =>
+          emit('update:modelValue', (event.target as HTMLTextAreaElement).value),
       })
   },
 })
@@ -222,6 +284,7 @@ const ColumnStub = defineComponent({
 
 async function flushView() {
   await Promise.resolve()
+  await Promise.resolve()
   await nextTick()
 }
 
@@ -232,11 +295,11 @@ function mountView() {
         AppPage: ContainerStub,
         AppPageHeader: ContainerStub,
         AppPanel: ContainerStub,
-        AppStatCard: ContainerStub,
+        AppStatCard: AppStatCardStub,
         Button: ButtonStub,
         Column: ColumnStub,
         DataTable: DataTableStub,
-        DatePicker: DatePickerStub,
+        AppDatePicker: DatePickerStub,
         Dialog: DialogStub,
         InputNumber: InputNumberStub,
         InputText: InputTextStub,
@@ -248,6 +311,8 @@ function mountView() {
         Tabs: TabsStub,
         Tag: TagStub,
         Textarea: TextareaStub,
+        TrendLineChart: ContainerStub,
+        ConfirmDialog: ContainerStub,
       },
     },
   })
@@ -256,10 +321,50 @@ function mountView() {
 describe('CashView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    fiscalYearStoreMock.selectedFiscalYearId = 2
+    fiscalYearStoreMock.selectedFiscalYear = {
+      id: 2,
+      name: 'Exercice 2025',
+      start_date: '2025-01-01',
+      end_date: '2025-12-31',
+    }
+    fiscalYearStoreMock.initialized = true
     mockGetCashBalance.mockResolvedValue({ balance: '145.00' })
+    mockGetCashFundsChart.mockResolvedValue([
+      { month: '2025-01', balance: 110 },
+      { month: '2025-02', balance: 145 },
+    ])
     mockListCashEntries.mockResolvedValue([cashEntryFixture])
     mockListCashCounts.mockResolvedValue([])
     mockUpdateCashEntry.mockResolvedValue({ ...cashEntryFixture, reference: 'CAISSE-2025-002' })
+  })
+
+  it('loads journal and counts using the selected fiscal year dates', async () => {
+    mountView()
+    await flushView()
+
+    expect(fiscalYearStoreMock.initialize).toHaveBeenCalled()
+    expect(mockListCashEntries).toHaveBeenCalledWith({
+      from_date: '2025-01-01',
+      to_date: '2025-12-31',
+    })
+    expect(mockListCashCounts).toHaveBeenCalledWith({
+      from_date: '2025-01-01',
+      to_date: '2025-12-31',
+    })
+    expect(mockGetCashFundsChart).toHaveBeenCalledWith(6)
+  })
+
+  it('displays a global current balance and the selected fiscal year variation', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    expect(wrapper.text()).toContain('cash.current_balance')
+    expect(wrapper.text()).toContain('145.00 €')
+    expect(wrapper.text()).toContain('cash.metrics.visible_scope_caption')
+    expect(wrapper.text()).toContain('cash.period_variation')
+    expect(wrapper.text()).toContain('+45.00 €')
+    expect(wrapper.text()).toContain('cash.metrics.period_variation_caption')
   })
 
   it('displays the cash entry reference in the journal', async () => {
@@ -279,6 +384,18 @@ describe('CashView', () => {
 
     expect(wrapper.text()).toContain('cash.entry_details')
     expect(wrapper.text()).toContain('Participation sortie')
+  })
+
+  it('renders the system opening indicator when a cash entry is flagged', async () => {
+    mockListCashEntries.mockResolvedValue([
+      { ...cashEntryFixture, source: 'system_opening', is_system_opening: true },
+    ])
+
+    const wrapper = mountView()
+    await flushView()
+
+    expect(wrapper.text()).toContain('cash.origins.system_opening')
+    expect(wrapper.find('.cash-entry-type__system-opening').exists()).toBe(true)
   })
 
   it('edits a cash entry from the journal', async () => {

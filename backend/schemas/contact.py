@@ -4,19 +4,24 @@ from datetime import date as date_value
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from backend.models.contact import ContactType
+from backend.models.contact import ContactType, ContractType
 
 
-class ContactBase(BaseModel):
+class ContactWriteBase(BaseModel):
     type: ContactType
-    nom: str
-    prenom: str | None = None
+    nom: str = Field(max_length=100)
+    prenom: str | None = Field(default=None, max_length=100)
     email: EmailStr | None = None
-    telephone: str | None = None
-    adresse: str | None = None
-    notes: str | None = None
+    telephone: str | None = Field(default=None, max_length=30)
+    adresse: str | None = Field(default=None, max_length=500)
+    notes: str | None = Field(default=None, max_length=2000)
+    contract_type: ContractType | None = None
+    base_gross: Decimal | None = Field(default=None, ge=0)
+    base_hours: Decimal | None = Field(default=None, ge=0)
+    hourly_rate: Decimal | None = Field(default=None, ge=0)
+    is_contractor: bool = False
 
     @field_validator("nom")
     @classmethod
@@ -26,7 +31,7 @@ class ContactBase(BaseModel):
         return v.strip()
 
 
-class ContactCreate(ContactBase):
+class ContactCreate(ContactWriteBase):
     pass
 
 
@@ -34,13 +39,18 @@ class ContactUpdate(BaseModel):
     """All fields optional for partial update."""
 
     type: ContactType | None = None
-    nom: str | None = None
-    prenom: str | None = None
+    nom: str | None = Field(default=None, max_length=100)
+    prenom: str | None = Field(default=None, max_length=100)
     email: EmailStr | None = None
-    telephone: str | None = None
-    adresse: str | None = None
-    notes: str | None = None
+    telephone: str | None = Field(default=None, max_length=30)
+    adresse: str | None = Field(default=None, max_length=500)
+    notes: str | None = Field(default=None, max_length=2000)
     is_active: bool | None = None
+    contract_type: ContractType | None = None
+    base_gross: Decimal | None = Field(default=None, ge=0)
+    base_hours: Decimal | None = Field(default=None, ge=0)
+    hourly_rate: Decimal | None = Field(default=None, ge=0)
+    is_contractor: bool | None = None
 
     @field_validator("nom")
     @classmethod
@@ -50,11 +60,25 @@ class ContactUpdate(BaseModel):
         return v.strip() if v else v
 
 
-class ContactRead(ContactBase):
+class ContactRead(BaseModel):
     id: int
+    type: ContactType
+    nom: str
+    prenom: str | None = None
+    email: str | None = None
+    telephone: str | None = None
+    adresse: str | None = None
+    notes: str | None = None
     is_active: bool
+    contract_type: ContractType | None = None
+    base_gross: Decimal | None = None
+    base_hours: Decimal | None = None
+    hourly_rate: Decimal | None = None
+    is_contractor: bool
     created_at: datetime
     updated_at: datetime
+    last_invoice_ref: str | None = None
+    last_invoice_date: date_value | None = None
 
     model_config = {"from_attributes": True}
 
@@ -90,3 +114,30 @@ class ContactHistory(BaseModel):
     total_invoiced: Decimal
     total_paid: Decimal
     total_due: Decimal
+
+
+class ContactEmailImportRow(BaseModel):
+    nom: str
+    email: EmailStr
+
+    @field_validator("nom")
+    @classmethod
+    def nom_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("nom must not be empty")
+        return v.strip()
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def email_strip(cls, v: str) -> str:
+        return v.strip()
+
+
+class ContactEmailImportResult(BaseModel):
+    rows_processed: int
+    updated: int
+    not_found: int
+    already_has_email: int
+    updated_indices: list[int] = []
+    not_found_indices: list[int] = []
+    already_has_email_indices: list[int] = []

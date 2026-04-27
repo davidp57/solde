@@ -19,27 +19,84 @@
       <AppStatCard
         :label="t('invoices.client.metrics.total_amount')"
         :value="formatAmount(portfolioMetrics.totalAmount) + ' €'"
-        :caption="t('invoices.client.metrics.average_amount', { amount: formatAmount(portfolioMetrics.averageAmount) })"
+        :caption="
+          t('invoices.client.metrics.average_amount', {
+            amount: formatAmount(portfolioMetrics.averageAmount),
+          })
+        "
       />
       <AppStatCard
         :label="t('invoices.client.metrics.paid_amount')"
         :value="formatAmount(portfolioMetrics.paidAmount) + ' €'"
-        :caption="t('invoices.client.metrics.partial_count', { count: portfolioMetrics.partialCount })"
+        :caption="
+          t('invoices.client.metrics.partial_count', { count: portfolioMetrics.partialCount })
+        "
         tone="success"
+      />
+      <AppStatCard
+        :label="t('invoices.client.metrics.remaining_exercise_amount')"
+        :value="formatAmount(receivableMetrics.exerciseAmount) + ' €'"
+        :caption="
+          selectedFiscalYearLabel
+            ? t('invoices.client.metrics.exercise_count', {
+                count: receivableMetrics.exerciseCount,
+                fiscal_year: selectedFiscalYearLabel,
+              })
+            : t('invoices.client.metrics.exercise_count_all', {
+                count: receivableMetrics.exerciseCount,
+              })
+        "
+        :tone="receivableMetrics.exerciseCount > 0 ? 'warn' : 'success'"
+      />
+      <AppStatCard
+        :label="t('invoices.client.metrics.total_receivables_amount')"
+        :value="formatAmount(receivableMetrics.totalAmount) + ' €'"
+        :caption="
+          receivableMetrics.historicalCount > 0
+            ? t('invoices.client.metrics.historical_carryover', {
+                count: receivableMetrics.historicalCount,
+                amount: formatAmount(receivableMetrics.historicalAmount),
+              })
+            : t('invoices.client.metrics.total_receivables_count', {
+                count: receivableMetrics.totalCount,
+              })
+        "
+        :tone="receivableMetrics.totalCount > 0 ? 'warn' : 'success'"
       />
       <AppStatCard
         :label="t('invoices.client.metrics.overdue_amount')"
         :value="formatAmount(portfolioMetrics.overdueAmount) + ' €'"
-        :caption="t('invoices.client.metrics.overdue_count', { count: portfolioMetrics.overdueCount })"
+        :caption="
+          t('invoices.client.metrics.overdue_count', { count: portfolioMetrics.overdueCount })
+        "
         :tone="portfolioMetrics.overdueCount > 0 ? 'danger' : 'warn'"
       />
     </section>
 
-    <AppPanel :title="t('invoices.client.portfolio_title')" :subtitle="t('invoices.client.portfolio_subtitle')">
+    <AppPanel
+      :title="t('invoices.client.portfolio_title')"
+      :subtitle="t('invoices.client.portfolio_subtitle')"
+    >
       <div class="app-toolbar">
         <div class="app-toolbar__meta">
           <p class="app-toolbar__hint">{{ t('invoices.client.filters_hint') }}</p>
-          <span class="app-chip">{{ t('invoices.client.results_label', { count: filteredInvoices.length }) }}</span>
+          <div class="app-toolbar__meta-actions">
+            <AppListState
+              :displayed-count="displayedInvoices.length"
+              :total-count="invoices.length"
+              :loading="loading"
+              :search-text="globalFilter"
+              :active-filters="activeFilterLabels"
+            />
+            <Button
+              v-if="hasActiveFilters"
+              icon="pi pi-filter-slash"
+              severity="secondary"
+              text
+              :title="t('common.reset_filters')"
+              @click="resetAllFilters"
+            />
+          </div>
         </div>
 
         <div class="app-filter-grid">
@@ -57,45 +114,142 @@
           </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+            <InputText v-model="globalFilterInput" :placeholder="t('common.filter_placeholder')" />
+          </div>
+          <div class="app-field">
+            <Button
+              :label="showIrrecoverable ? t('invoices.hide_irrecoverable') : t('invoices.show_irrecoverable')"
+              :icon="showIrrecoverable ? 'pi pi-eye-slash' : 'pi pi-eye'"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="showIrrecoverable = !showIrrecoverable; loadInvoices()"
+            />
           </div>
         </div>
       </div>
 
+      <AppTableSkeleton v-if="loading && !invoices.length" :rows="8" :cols="5" />
       <DataTable
-        :value="filteredInvoices"
+        v-else
+        v-model:filters="tableFilters"
+        :value="invoiceRows"
         :loading="loading"
         class="app-data-table invoices-table"
+        filter-display="menu"
         striped-rows
         paginator
         :rows="20"
         :rows-per-page-options="[20, 50, 100, 500]"
+        :global-filter-fields="[
+          'number',
+          'date',
+          'contact_name',
+          'label_label',
+          'total_amount',
+          'status_label',
+        ]"
         data-key="id"
         size="small"
         row-hover
+        sort-field="date"
+        :sort-order="-1"
+        removable-sort
+        @value-change="syncDisplayedInvoices"
       >
-        <Column field="number" :header="t('invoices.number')" sortable />
-        <Column field="date" :header="t('invoices.date')" sortable>
-          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+        <Column field="number" :header="t('invoices.number')" sortable>
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('invoices.number')" />
+          </template>
         </Column>
-        <Column field="contact_id" :header="t('invoices.contact')">
+        <Column
+          field="date"
+          :header="t('invoices.date')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+          <template #filter="{ filterModel }">
+            <AppDateRangeFilter v-model="filterModel.value" />
+          </template>
+        </Column>
+        <Column
+          field="contact_name"
+          :header="t('invoices.contact')"
+          sortable
+          filter-field="contact_name"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             {{ contactName(data.contact_id) }}
           </template>
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('invoices.contact')" />
+          </template>
         </Column>
-        <Column field="label" :header="t('invoices.label')">
+        <Column
+          field="label_label"
+          :header="t('invoices.label')"
+          sortable
+          filter-field="label"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag v-if="data.label" :value="t(`invoices.labels.${data.label}`)" severity="info" />
           </template>
+          <template #filter="{ filterModel, filterCallback }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="labelOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              show-clear
+              :filter-callback="filterCallback"
+            />
+          </template>
         </Column>
-        <Column field="total_amount" :header="t('invoices.total')" class="app-money">
+        <Column
+          field="total_amount_value"
+          :header="t('invoices.total')"
+          class="app-money"
+          sortable
+          filter-field="total_amount_value"
+          data-type="numeric"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">{{ formatAmount(data.total_amount) }} €</template>
+          <template #filter="{ filterModel }">
+            <AppNumberRangeFilter v-model="filterModel.value" />
+          </template>
         </Column>
-        <Column field="status" :header="t('invoices.status')">
+        <Column
+          field="status_label"
+          :header="t('invoices.status')"
+          sortable
+          filter-field="status"
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
           <template #body="{ data }">
             <Tag
               :value="t(`invoices.statuses.${data.status}`)"
               :severity="statusSeverity(data.status)"
+            />
+          </template>
+          <template #filter="{ filterModel, filterCallback }">
+            <AppFilterMultiSelect
+              v-model="filterModel.value"
+              :options="statusOptions"
+              option-label="label"
+              option-value="value"
+              :placeholder="t('common.all')"
+              show-clear
+              :filter-callback="filterCallback"
             />
           </template>
         </Column>
@@ -108,13 +262,26 @@
                 severity="secondary"
                 text
                 :title="t('invoices.history')"
+                :aria-label="t('invoices.history')"
                 @click="openHistory(data)"
+              />
+              <Button
+                v-if="canRecordPayment(data)"
+                icon="pi pi-wallet"
+                size="small"
+                severity="success"
+                text
+                :title="t('invoices.record_payment')"
+                :aria-label="t('invoices.record_payment')"
+                @click="openPaymentDialog(data)"
               />
               <Button
                 icon="pi pi-pencil"
                 size="small"
                 severity="secondary"
                 text
+                :title="t('invoices.edit')"
+                :aria-label="t('invoices.edit')"
                 @click="openEditDialog(data)"
               />
               <Button
@@ -123,6 +290,7 @@
                 severity="secondary"
                 text
                 :title="t('invoices.generate_pdf')"
+                :aria-label="t('invoices.generate_pdf')"
                 @click="openPdf(data)"
               />
               <Button
@@ -131,6 +299,7 @@
                 severity="secondary"
                 text
                 :title="t('invoices.send_email')"
+                :aria-label="t('invoices.send_email')"
                 @click="sendEmail(data)"
               />
               <Button
@@ -139,13 +308,37 @@
                 severity="secondary"
                 text
                 :title="t('invoices.duplicate')"
+                :aria-label="t('invoices.duplicate')"
                 @click="duplicate(data)"
               />
               <Button
+                v-if="data.status !== 'draft' && data.status !== 'paid' && data.status !== 'irrecoverable' && parseFloat(data.total_amount) - parseFloat(data.paid_amount) > 0"
+                icon="pi pi-ban"
+                size="small"
+                severity="danger"
+                text
+                :title="t('invoices.write_off')"
+                :aria-label="t('invoices.write_off')"
+                @click="openWriteOffDialog(data)"
+              />
+              <Button
+                v-if="data.status === 'irrecoverable'"
+                icon="pi pi-refresh"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.restore_from_writeoff')"
+                :aria-label="t('invoices.restore_from_writeoff')"
+                @click="restoreFromWriteoff(data)"
+              />
+              <Button
+                v-if="data.status === 'draft'"
                 icon="pi pi-trash"
                 size="small"
                 severity="danger"
                 text
+                :title="t('common.delete')"
+                :aria-label="t('common.delete')"
                 @click="confirmDelete(data)"
               />
             </div>
@@ -158,20 +351,62 @@
     </AppPanel>
 
     <Dialog
-      v-model:visible="dialogVisible"
-      :header="editingInvoice ? t('invoices.edit') : t('invoices.new')"
+      :visible="dialogVisible"
+      @update:visible="onCloseDialog"
+      @show="focusFormInput"
+      :header="editingInvoice ? `${t('invoices.edit')} — ${editingInvoice.number}` : t('invoices.new')"
       modal
       class="app-dialog app-dialog--large"
     >
-      <ClientInvoiceForm
-        :invoice="editingInvoice"
-        :contacts="contacts"
-        @saved="onSaved"
-        @cancel="dialogVisible = false"
-      />
+      <div ref="formWrapperEl">
+        <ClientInvoiceForm
+          ref="invoiceFormRef"
+          :invoice="editingInvoice"
+          :contacts="contacts"
+          @saved="onSaved"
+          @cancel="onCloseDialog(false)"
+        />
+      </div>
     </Dialog>
 
     <ConfirmDialog />
+
+    <!-- Email send dialog -->
+    <InvoiceEmailDialog
+      :invoice-id="emailDialogInvoiceId"
+      @sent="onEmailSent"
+      @close="emailDialogInvoiceId = null"
+    />
+
+    <!-- Write-off confirmation dialog -->
+    <Dialog
+      v-model:visible="writeOffDialogVisible"
+      :header="t('invoices.write_off_confirm_title')"
+      modal
+      :style="{ width: '30rem' }"
+    >
+      <div class="write-off-dialog-body">
+        <p>{{ t('invoices.write_off_confirm_msg') }}</p>
+        <p v-if="writeOffTarget" class="write-off-invoice-ref">
+          {{ writeOffTarget.number }} — {{ parseFloat(writeOffTarget.total_amount).toFixed(2) }} €
+        </p>
+      </div>
+      <template #footer>
+        <Button
+          :label="t('common.cancel')"
+          severity="secondary"
+          outlined
+          @click="writeOffDialogVisible = false"
+        />
+        <Button
+          :label="t('invoices.write_off')"
+          icon="pi pi-ban"
+          severity="danger"
+          :loading="writeOffLoading"
+          @click="confirmWriteOff"
+        />
+      </template>
+    </Dialog>
 
     <Dialog
       v-model:visible="historyVisible"
@@ -180,44 +415,193 @@
       class="app-dialog app-dialog--medium"
     >
       <div v-if="historyInvoice" class="history-dialog">
-        <section class="app-dialog-intro">
-          <p class="app-dialog-intro__eyebrow">{{ t('invoices.history') }}</p>
-          <p class="app-dialog-intro__text">{{ t('invoices.client.history_intro') }}</p>
+        <section class="app-dialog-intro history-dialog__intro">
+          <div>
+            <p class="app-dialog-intro__eyebrow">{{ t('invoices.history') }}</p>
+            <p class="app-dialog-intro__text">{{ t('invoices.client.history_intro') }}</p>
+          </div>
+          <Button
+            v-if="canRecordPayment(historyInvoice)"
+            :label="t('invoices.record_payment')"
+            icon="pi pi-wallet"
+            size="small"
+            @click="openPaymentDialog(historyInvoice)"
+          />
         </section>
         <div class="history-dialog__summary">
           <div class="history-dialog__metric">
             <div class="history-dialog__label">{{ t('invoices.total') }}</div>
-            <div class="history-dialog__value">{{ formatAmount(historyInvoice.total_amount) }} €</div>
+            <div class="history-dialog__value">
+              {{ formatAmount(historyInvoice.total_amount) }} €
+            </div>
           </div>
           <div class="history-dialog__metric">
             <div class="history-dialog__label">{{ t('invoices.paid') }}</div>
-            <div class="history-dialog__value history-dialog__value--success">{{ formatAmount(historyInvoice.paid_amount) }} €</div>
+            <div class="history-dialog__value history-dialog__value--success">
+              {{ formatAmount(historyInvoice.paid_amount) }} €
+            </div>
           </div>
           <div class="history-dialog__metric">
             <div class="history-dialog__label">{{ t('invoices.remaining') }}</div>
-            <div class="history-dialog__value" :class="remaining > 0 ? 'history-dialog__value--warn' : 'history-dialog__value--success'">
+            <div
+              class="history-dialog__value"
+              :class="
+                remaining > 0 ? 'history-dialog__value--warn' : 'history-dialog__value--success'
+              "
+            >
               {{ remaining.toFixed(2) }} €
             </div>
           </div>
         </div>
 
-        <div v-if="historyLoading" class="history-dialog__loading"><ProgressSpinner style="width:32px;height:32px"/></div>
+        <AppTableSkeleton v-if="historyLoading" :rows="5" :cols="3" />
         <div v-else-if="historyPayments.length === 0" class="app-empty-state">
           {{ t('invoices.no_payments') }}
         </div>
-        <DataTable v-else :value="historyPayments" class="app-data-table" paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" size="small">
-          <Column field="date" :header="t('payments.date')">
+        <DataTable
+          v-else
+          v-model:filters="historyTableFilters"
+          :value="historyPaymentRows"
+          class="app-data-table"
+          filter-display="menu"
+          paginator
+          :rows="20"
+          :rows-per-page-options="[20, 50, 100, 500]"
+          size="small"
+          :global-filter-fields="['date', 'amount_value', 'method', 'cheque_number']"
+          removable-sort
+        >
+          <Column
+            field="date"
+            :header="t('payments.date')"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+            <template #filter="{ filterModel }">
+              <AppDateRangeFilter v-model="filterModel.value" />
+            </template>
           </Column>
-          <Column field="amount" :header="t('payments.amount')" class="app-money">
+          <Column
+            field="amount_value"
+            :header="t('payments.amount')"
+            class="app-money"
+            sortable
+            data-type="numeric"
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">{{ parseFloat(data.amount).toFixed(2) }} €</template>
+            <template #filter="{ filterModel }">
+              <AppNumberRangeFilter v-model="filterModel.value" />
+            </template>
           </Column>
-          <Column field="method" :header="t('payments.method')">
+          <Column
+            field="method_label"
+            :header="t('payments.method')"
+            filter-field="method"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
             <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
+            <template #filter="{ filterModel, filterCallback }">
+              <AppFilterMultiSelect
+                v-model="filterModel.value"
+                :options="paymentMethodOptions"
+                option-label="label"
+                option-value="value"
+                :placeholder="t('common.all')"
+                display="chip"
+                show-clear
+                :filter-callback="filterCallback"
+              />
+            </template>
           </Column>
-          <Column field="cheque_number" :header="t('payments.cheque_number')" />
+          <Column
+            field="cheque_number"
+            :header="t('payments.cheque_number')"
+            sortable
+            :show-filter-match-modes="false"
+            :show-add-button="false"
+          >
+            <template #filter="{ filterModel }">
+              <InputText v-model="filterModel.value" :placeholder="t('payments.cheque_number')" />
+            </template>
+          </Column>
         </DataTable>
       </div>
+    </Dialog>
+
+    <Dialog
+      v-model:visible="paymentDialogVisible"
+      :header="paymentInvoice ? t('invoices.record_payment') : ''"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <form class="app-dialog-form" @submit.prevent="submitPayment">
+        <section v-if="paymentInvoice" class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ paymentInvoice.number }}</p>
+          <p class="app-dialog-intro__text">{{ t('invoices.client.payment_intro') }}</p>
+        </section>
+        <section class="app-dialog-section">
+          <div class="history-dialog__summary">
+            <div class="history-dialog__metric">
+              <div class="history-dialog__label">{{ t('invoices.remaining') }}</div>
+              <div class="history-dialog__value history-dialog__value--warn">
+                {{ paymentRemaining.toFixed(2) }} €
+              </div>
+            </div>
+          </div>
+          <div class="app-form-grid">
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.date') }}</label>
+              <AppDatePicker v-model="paymentForm.date" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.amount') }}</label>
+              <InputNumber
+                v-model="paymentForm.amount"
+                mode="decimal"
+                :min="0.01"
+                :min-fraction-digits="2"
+                :max-fraction-digits="2"
+              />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.method') }}</label>
+              <Select
+                v-model="paymentForm.method"
+                :options="paymentMethodOptions"
+                option-label="label"
+                option-value="value"
+              />
+            </div>
+            <div v-if="paymentForm.method === 'cheque'" class="app-field">
+              <label class="app-field__label">{{ t('payments.cheque_number') }}</label>
+              <InputText v-model="paymentForm.cheque_number" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.reference') }}</label>
+              <InputText v-model="paymentForm.reference" />
+            </div>
+            <div class="app-field app-field--span-2">
+              <label class="app-field__label">{{ t('payments.notes') }}</label>
+              <Textarea v-model="paymentForm.notes" rows="3" />
+            </div>
+          </div>
+        </section>
+        <div class="app-form-actions">
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            @click="paymentDialogVisible = false"
+          />
+          <Button type="submit" :label="t('common.save')" :loading="paymentSaving" />
+        </div>
+      </form>
     </Dialog>
   </AppPage>
 </template>
@@ -227,14 +611,16 @@ import Button from 'primevue/button'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
+import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import Dialog from 'primevue/dialog'
+import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
-import ProgressSpinner from 'primevue/progressspinner'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
+import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
@@ -242,21 +628,47 @@ import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
   duplicateInvoiceApi,
-  getInvoicePdfUrl,
+  downloadInvoicePdfApi,
   listInvoicesApi,
-  sendInvoiceEmailApi,
+  writeOffInvoiceApi,
+  restoreFromWriteoffApi,
   type Invoice,
   type InvoiceStatus,
 } from '../api/invoices'
-import { listPayments, type Payment } from '../api/payments'
+import { createPayment, listPayments, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
+import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
+import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
+import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
+import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
+import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
+import AppListState from '../components/ui/AppListState.vue'
+import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
-import { useTableFilter } from '../composables/useTableFilter'
+import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
+import {
+  dateRangeFilter,
+  inFilter,
+  numericRangeFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
+import {
+  collectActiveFilterLabels,
+  findSelectedFilterLabel,
+} from '../composables/activeFilterLabels'
+import {
+  useInvoiceMetrics,
+  remainingForInvoice,
+  isOverdueInvoice,
+} from '../composables/useInvoiceMetrics'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatContactDisplayName } from '../utils/contact'
 import { formatDisplayDate } from '@/utils/format'
+import { getErrorDetail } from '@/utils/errorUtils'
 
 const { t } = useI18n()
 const confirm = useConfirm()
@@ -266,44 +678,133 @@ const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
 const invoices = ref<Invoice[]>([])
-const { filterText, filtered: filteredInvoices } = useTableFilter(invoices)
+const allClientInvoices = ref<Invoice[]>([])
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
+const invoiceFormRef = ref<InstanceType<typeof ClientInvoiceForm> | null>(null)
+const formWrapperEl = ref<HTMLElement | null>(null)
+
+function focusFormInput(): void {
+  nextTick(() => {
+    formWrapperEl.value?.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled])')?.focus()
+  })
+}
+
+const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => Boolean(invoiceFormRef.value?.isDirty))
 const editingInvoice = ref<Invoice | null>(null)
 const statusFilter = ref<InvoiceStatus | null>(null)
+const unpaidOnly = ref(false)
+const showIrrecoverable = ref(false)
+
+// Email dialog
+const emailDialogInvoiceId = ref<number | null>(null)
+
+// Write-off dialog
+const writeOffDialogVisible = ref(false)
+const writeOffTarget = ref<Invoice | null>(null)
+const writeOffLoading = ref(false)
 
 // History dialog
 const historyVisible = ref(false)
 const historyInvoice = ref<Invoice | null>(null)
 const historyLoading = ref(false)
 const historyPayments = ref<Payment[]>([])
+const paymentDialogVisible = ref(false)
+const paymentInvoice = ref<Invoice | null>(null)
+const paymentSaving = ref(false)
+const paymentForm = ref({
+  date: new Date(),
+  amount: 0,
+  method: 'cheque' as 'especes' | 'cheque',
+  cheque_number: '',
+  reference: '',
+  notes: '',
+})
+const historyPaymentRows = computed(() =>
+  historyPayments.value.map((payment) => ({
+    ...payment,
+    amount_value: parseFloat(payment.amount),
+    method_label: t(`payments.methods.${payment.method}`),
+  })),
+)
+
+const invoiceRows = computed(() =>
+  invoices.value.map((invoice) => ({
+    ...invoice,
+    contact_name: contactName(invoice.contact_id),
+    label_label: invoice.label ? t(`invoices.labels.${invoice.label}`) : '',
+    total_amount_value: parseFloat(invoice.total_amount),
+    status_label: t(`invoices.statuses.${invoice.status}`),
+  })),
+)
+
+const {
+  filters: tableFilters,
+  globalFilter,
+  displayedRows: displayedInvoices,
+  activeColumnFilterCount,
+  hasActiveFilters,
+  resetFilters,
+  syncDisplayedRows: syncDisplayedInvoices,
+} = useDataTableFilters(invoiceRows, {
+  global: textFilter(''),
+  number: textFilter(),
+  date: dateRangeFilter(),
+  contact_name: textFilter(),
+  label: inFilter(),
+  total_amount_value: numericRangeFilter(),
+  status: inFilter(),
+})
+
+// Debounced input: avoids filtering on every keystroke
+const globalFilterInput = ref(globalFilter.value)
+let _filterDebounce: ReturnType<typeof setTimeout> | null = null
+watch(globalFilterInput, (val) => {
+  if (_filterDebounce) clearTimeout(_filterDebounce)
+  _filterDebounce = setTimeout(() => {
+    globalFilter.value = val
+  }, 300)
+})
+onUnmounted(() => {
+  if (_filterDebounce) clearTimeout(_filterDebounce)
+})
+
+function resetAllFilters(): void {
+  globalFilterInput.value = ''
+  globalFilter.value = ''
+  resetFilters()
+}
+const { filters: historyTableFilters } = useDataTableFilters(historyPaymentRows, {
+  global: textFilter(''),
+  date: dateRangeFilter(),
+  amount_value: numericRangeFilter(),
+  method: inFilter(),
+  cheque_number: textFilter(),
+})
 
 const remaining = computed(() => {
   if (!historyInvoice.value) return 0
-  return parseFloat(historyInvoice.value.total_amount) - parseFloat(historyInvoice.value.paid_amount)
+  return remainingForInvoice(historyInvoice.value)
 })
 
-const portfolioMetrics = computed(() => {
-  const visible = filteredInvoices.value
-  const totalAmount = visible.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0)
-  const paidAmount = visible.reduce((sum, invoice) => sum + parseFloat(invoice.paid_amount), 0)
-  const overdueInvoices = visible.filter((invoice) => invoice.status === 'overdue')
-  const overdueAmount = overdueInvoices.reduce((sum, invoice) => {
-    return sum + Math.max(0, parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount))
-  }, 0)
-  const partialCount = visible.filter((invoice) => invoice.status === 'partial').length
-
-  return {
-    visibleCount: visible.length,
-    totalAmount,
-    paidAmount,
-    overdueAmount,
-    overdueCount: overdueInvoices.length,
-    partialCount,
-    averageAmount: visible.length > 0 ? totalAmount / visible.length : 0,
-  }
+const paymentRemaining = computed(() => {
+  if (!paymentInvoice.value) return 0
+  return remainingForInvoice(paymentInvoice.value)
 })
+
+const selectedFiscalYearLabel = computed(() => fiscalYearStore.selectedFiscalYear?.name ?? null)
+
+const { receivableMetrics, portfolioMetrics } = useInvoiceMetrics(allClientInvoices, displayedInvoices)
+
+const activeFilterLabels = computed(() =>
+  collectActiveFilterLabels(
+    findSelectedFilterLabel(statusOptions, statusFilter.value),
+    activeColumnFilterCount.value > 0
+      ? t('common.list.column_filters_chip', { count: activeColumnFilterCount.value })
+      : undefined,
+  ),
+)
 
 const statusOptions = [
   { label: t('invoices.statuses.draft'), value: 'draft' },
@@ -312,16 +813,43 @@ const statusOptions = [
   { label: t('invoices.statuses.partial'), value: 'partial' },
   { label: t('invoices.statuses.overdue'), value: 'overdue' },
   { label: t('invoices.statuses.disputed'), value: 'disputed' },
+  { label: t('invoices.statuses.irrecoverable'), value: 'irrecoverable' },
+]
+
+const paymentMethodOptions = [
+  { label: t('payments.methods.especes'), value: 'especes' },
+  { label: t('payments.methods.cheque'), value: 'cheque' },
+]
+
+const labelOptions = [
+  { label: t('invoices.labels.cs'), value: 'cs' },
+  { label: t('invoices.labels.a'), value: 'a' },
+  { label: t('invoices.labels.cs+a'), value: 'cs+a' },
+  { label: t('invoices.labels.general'), value: 'general' },
 ]
 
 function formatAmount(val: string | number) {
   return parseFloat(String(val)).toFixed(2)
 }
 
+function toIsoDate(value: Date | string): string {
+  if (typeof value === 'string') return value
+  return value.toISOString().slice(0, 10)
+}
+
+function canRecordPayment(invoice: Invoice | null): boolean {
+  if (!invoice) return false
+  return (
+    invoice.status !== 'draft' &&
+    invoice.status !== 'irrecoverable' &&
+    remainingForInvoice(invoice) > 0
+  )
+}
+
 function contactName(id: number): string {
   const c = contacts.value.find((c) => c.id === id)
   if (!c) return String(id)
-  return c.prenom ? `${c.prenom} ${c.nom}` : c.nom
+  return formatContactDisplayName(c)
 }
 
 function statusSeverity(s: InvoiceStatus): string {
@@ -332,6 +860,7 @@ function statusSeverity(s: InvoiceStatus): string {
     partial: 'warn',
     overdue: 'danger',
     disputed: 'danger',
+    irrecoverable: 'secondary',
   }
   return map[s] ?? 'secondary'
 }
@@ -339,21 +868,51 @@ function statusSeverity(s: InvoiceStatus): string {
 async function loadInvoices() {
   loading.value = true
   try {
-    const filters: Record<string, unknown> = { invoice_type: 'client' }
-    if (fiscalYearStore.selectedFiscalYear) {
+    const filters: Record<string, unknown> = { invoice_type: 'client', limit: 1000 }
+    // Skip fiscal-year date filter for cross-year queries (overdue, unpaid from dashboard)
+    const skipDateFilter = unpaidOnly.value || statusFilter.value === 'overdue'
+    if (fiscalYearStore.selectedFiscalYear && !skipDateFilter) {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
       filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
     }
-    if (statusFilter.value) filters.invoice_status = statusFilter.value
-    invoices.value = await listInvoicesApi(filters)
+    // For 'overdue', don't pass invoice_status to API — the DB field may be stale.
+    // Filter client-side via isOverdueInvoice() to match dashboard logic.
+    if (statusFilter.value && statusFilter.value !== 'overdue') {
+      filters.invoice_status = statusFilter.value
+    }
+    const all = await listInvoicesApi(filters)
+    if (unpaidOnly.value) {
+      invoices.value = all.filter(
+        (inv) =>
+          inv.status !== 'draft' &&
+          inv.status !== 'irrecoverable' &&
+          parseFloat(inv.total_amount) - parseFloat(inv.paid_amount) > 0,
+      )
+    } else if (statusFilter.value === 'overdue') {
+      invoices.value = all.filter(isOverdueInvoice)
+    } else if (!showIrrecoverable.value && !statusFilter.value) {
+      invoices.value = all.filter((inv) => inv.status !== 'irrecoverable')
+    } else {
+      invoices.value = all
+    }
     openInvoiceFromQuery()
   } finally {
     loading.value = false
   }
 }
 
+async function loadReceivablesSnapshot() {
+  allClientInvoices.value = await listInvoicesApi({ invoice_type: 'client', limit: 1000 })
+}
+
+async function refreshInvoicesData() {
+  await Promise.all([loadInvoices(), loadReceivablesSnapshot()])
+}
+
 function openInvoiceFromQuery() {
-  const rawInvoiceId = Array.isArray(route.query.invoiceId) ? route.query.invoiceId[0] : route.query.invoiceId
+  const rawInvoiceId = Array.isArray(route.query.invoiceId)
+    ? route.query.invoiceId[0]
+    : route.query.invoiceId
   const invoiceId = Number(rawInvoiceId)
   if (!invoiceId) return
   const invoice = invoices.value.find((candidate) => candidate.id === invoiceId)
@@ -365,7 +924,8 @@ function openInvoiceFromQuery() {
 }
 
 async function loadContacts() {
-  contacts.value = await listContactsApi({ limit: 500 })
+  const all = await listContactsApi()
+  contacts.value = all.filter((c) => c.type === 'client' || c.type === 'les_deux')
 }
 
 function openCreateDialog() {
@@ -380,18 +940,69 @@ function openEditDialog(invoice: Invoice) {
 
 function onSaved() {
   dialogVisible.value = false
-  void loadInvoices()
+  void refreshInvoicesData()
 }
 
-function openPdf(invoice: Invoice) {
-  window.open(getInvoicePdfUrl(invoice.id), '_blank')
-}
+useKeyboardShortcuts({
+  onNew: () => {
+    if (!dialogVisible.value) openCreateDialog()
+  },
+  onSave: () => {
+    if (dialogVisible.value) void invoiceFormRef.value?.submit()
+  },
+  onClose: () => {
+    if (dialogVisible.value) dialogVisible.value = false
+  },
+})
 
-async function sendEmail(invoice: Invoice) {
+async function openPdf(invoice: Invoice) {
   try {
-    await sendInvoiceEmailApi(invoice.id)
-    toast.add({ severity: 'success', summary: t('invoices.email_sent'), life: 3000 })
-    await loadInvoices()
+    const blob = await downloadInvoicePdfApi(invoice.id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `facture-${invoice.number ?? invoice.id}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  }
+}
+
+function sendEmail(invoice: Invoice): void {
+  emailDialogInvoiceId.value = invoice.id
+}
+
+async function onEmailSent(): Promise<void> {
+  emailDialogInvoiceId.value = null
+  await refreshInvoicesData()
+}
+
+function openWriteOffDialog(invoice: Invoice): void {
+  writeOffTarget.value = invoice
+  writeOffDialogVisible.value = true
+}
+
+async function confirmWriteOff(): Promise<void> {
+  if (!writeOffTarget.value) return
+  writeOffLoading.value = true
+  try {
+    await writeOffInvoiceApi(writeOffTarget.value.id)
+    writeOffDialogVisible.value = false
+    toast.add({ severity: 'success', summary: t('invoices.write_off'), life: 3000 })
+    await refreshInvoicesData()
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } finally {
+    writeOffLoading.value = false
+  }
+}
+
+async function restoreFromWriteoff(invoice: Invoice): Promise<void> {
+  try {
+    await restoreFromWriteoffApi(invoice.id)
+    toast.add({ severity: 'success', summary: t('invoices.restore_from_writeoff'), life: 3000 })
+    await refreshInvoicesData()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   }
@@ -401,7 +1012,7 @@ async function duplicate(invoice: Invoice) {
   try {
     await duplicateInvoiceApi(invoice.id)
     toast.add({ severity: 'success', summary: t('invoices.duplicated'), life: 3000 })
-    await loadInvoices()
+    await refreshInvoicesData()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   }
@@ -410,12 +1021,93 @@ async function duplicate(invoice: Invoice) {
 async function openHistory(invoice: Invoice) {
   historyInvoice.value = invoice
   historyVisible.value = true
+  await loadHistoryPayments(invoice.id)
+}
+
+async function loadHistoryPayments(invoiceId: number) {
   historyLoading.value = true
   historyPayments.value = []
   try {
-    historyPayments.value = await listPayments({ invoice_id: invoice.id })
+    historyPayments.value = await listPayments({ invoice_id: invoiceId })
+    const refreshedInvoice = invoices.value.find((candidate) => candidate.id === invoiceId)
+    if (refreshedInvoice) {
+      historyInvoice.value = refreshedInvoice
+    }
   } finally {
     historyLoading.value = false
+  }
+}
+
+function openPaymentDialog(invoice: Invoice) {
+  paymentInvoice.value = invoice
+  paymentForm.value = {
+    date: new Date(),
+    amount: remainingForInvoice(invoice),
+    method: 'cheque',
+    cheque_number: '',
+    reference: '',
+    notes: '',
+  }
+  paymentDialogVisible.value = true
+}
+
+async function submitPayment() {
+  if (!paymentInvoice.value) {
+    return
+  }
+
+  const amount = Number(paymentForm.value.amount)
+  if (!(amount > 0)) {
+    toast.add({ severity: 'warn', summary: t('payments.errors.amount_positive'), life: 3500 })
+    return
+  }
+  if (amount - paymentRemaining.value > 0.001) {
+    toast.add({
+      severity: 'warn',
+      summary: t('payments.errors.amount_exceeds_remaining'),
+      life: 3500,
+    })
+    return
+  }
+  if (
+    paymentForm.value.method === 'cheque' &&
+    paymentForm.value.cheque_number.trim().length === 0
+  ) {
+    toast.add({
+      severity: 'warn',
+      summary: t('payments.errors.cheque_number_required'),
+      life: 3500,
+    })
+    return
+  }
+
+  paymentSaving.value = true
+  try {
+    await createPayment({
+      invoice_id: paymentInvoice.value.id,
+      contact_id: paymentInvoice.value.contact_id,
+      amount: amount.toFixed(2),
+      date: toIsoDate(paymentForm.value.date),
+      method: paymentForm.value.method,
+      cheque_number:
+        paymentForm.value.method === 'cheque'
+          ? paymentForm.value.cheque_number.trim() || null
+          : null,
+      reference: paymentForm.value.reference.trim() || null,
+      notes: paymentForm.value.notes.trim() || null,
+    })
+    paymentDialogVisible.value = false
+    toast.add({ severity: 'success', summary: t('payments.created'), life: 3000 })
+    const invoiceId = paymentInvoice.value.id
+    await refreshInvoicesData()
+    paymentInvoice.value = invoices.value.find((invoice) => invoice.id === invoiceId) ?? null
+    if (historyVisible.value && historyInvoice.value?.id === invoiceId) {
+      await loadHistoryPayments(invoiceId)
+    }
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } finally {
+    paymentSaving.value = false
   }
 }
 
@@ -430,9 +1122,13 @@ function confirmDelete(invoice: Invoice) {
       try {
         await deleteInvoiceApi(invoice.id)
         toast.add({ severity: 'success', summary: t('invoices.deleted'), life: 3000 })
-        await loadInvoices()
-      } catch {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+        await refreshInvoicesData()
+      } catch (error) {
+        toast.add({
+          severity: 'error',
+          summary: getErrorDetail(error, t('common.error.unknown')),
+          life: 5000,
+        })
       }
     },
   })
@@ -442,7 +1138,7 @@ watch(
   () => fiscalYearStore.selectedFiscalYearId,
   (newId, oldId) => {
     if (!fiscalYearStore.initialized || newId === oldId) return
-    void loadInvoices()
+    void refreshInvoicesData()
   },
 )
 
@@ -453,21 +1149,54 @@ watch(
   },
 )
 
+watch(
+  () => route.query.status,
+  (newStatus) => {
+    const status = Array.isArray(newStatus) ? newStatus[0] : newStatus
+    statusFilter.value = status ? (status as InvoiceStatus) : null
+  },
+)
+
+watch(
+  () => route.query.unpaid,
+  (newVal) => {
+    unpaidOnly.value = newVal === '1'
+  },
+)
+
 onMounted(async () => {
   await fiscalYearStore.initialize()
-  await Promise.all([loadInvoices(), loadContacts()])
+  const queryStatus = Array.isArray(route.query.status)
+    ? route.query.status[0]
+    : route.query.status
+  if (queryStatus) {
+    statusFilter.value = queryStatus as InvoiceStatus
+  }
+  unpaidOnly.value = route.query.unpaid === '1'
+  await Promise.all([refreshInvoicesData(), loadContacts()])
+  if (route.query.create === '1') {
+    openCreateDialog()
+    void router.replace({ name: 'invoices-client', query: { ...route.query, create: undefined } })
+  }
 })
 </script>
 
 <style scoped>
 .invoices-table__actions-column {
-  width: 13.5rem;
+  width: 16rem;
 }
 
 .history-dialog {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
+}
+
+.history-dialog__intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
 }
 
 .history-dialog__summary {
@@ -506,13 +1235,12 @@ onMounted(async () => {
   color: var(--p-orange-500);
 }
 
-.history-dialog__loading {
-  display: flex;
-  justify-content: center;
-  padding: var(--app-space-5) 0;
-}
-
 @media (max-width: 767px) {
+  .history-dialog__intro {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .history-dialog__summary {
     grid-template-columns: 1fr;
   }

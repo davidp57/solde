@@ -23,6 +23,7 @@ for module_name in (
     "backend.models.accounting_entry",
     "backend.models.accounting_rule",
     "backend.models.app_settings",
+    "backend.models.audit_log",
     "backend.models.bank",
     "backend.models.cash",
     "backend.models.contact",
@@ -30,6 +31,7 @@ for module_name in (
     "backend.models.import_log",
     "backend.models.invoice",
     "backend.models.payment",
+    "backend.models.chat_log",
     "backend.models.salary",
     "backend.models.user",
 ):

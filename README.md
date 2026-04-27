@@ -1,162 +1,66 @@
 # Solde ⚖️
 
-Application web de gestion comptable pour une association loi 1901 (soutien scolaire).
-Remplace deux fichiers Excel par une solution intégrée : facturation, paiements, caisse, banque, comptabilité en partie double.
+Solde is a web application for bookkeeping and day-to-day financial management for a French loi 1901 non-profit.
 
----
+## Français
 
-## Fonctionnalités
+Solde centralise la facturation, les paiements, la trésorerie, les imports historiques et la comptabilité en partie double dans une seule application.
 
-- **Facturation** clients et fournisseurs (PDF, envoi email)
-- **Paiements** multi-modes (espèces, chèque, virement)
-- **Caisse** avec comptage physique et rapprochement
-- **Banque** avec import CSV/OFX et rapprochement
-- **Comptabilité** en partie double avec moteur de règles configurable
-- **Multi-utilisateurs** avec rôles (Admin, Trésorier, Secrétaire, Lecture seule)
-- **Plan comptable** associatif simplifié pré-configuré
+### Liens rapides
 
----
+- **Installation et administration** : [doc/admin/README.md](doc/admin/README.md)
+  - [Installation Docker](doc/admin/installation.md)
+  - [Configuration](doc/admin/configuration.md)
+  - [Import Excel](doc/admin/excel-import.md)
+  - [Administration système](doc/admin/administration.md)
+- **Manuel utilisateur** : [doc/user/manuel.md](doc/user/manuel.md)
+- **Documentation développeur** : [doc/dev/README.md](doc/dev/README.md)
+- **Changelog** : [CHANGELOG.md](CHANGELOG.md)
+- **Roadmap** : [doc/roadmap.md](doc/roadmap.md)
 
-## Prérequis
+## English
 
-- [Docker](https://docs.docker.com/get-docker/) et Docker Compose
-- Ou pour le développement local : Python 3.11+ et Node.js 20+
+Solde brings invoicing, payments, treasury workflows, historical imports, and double-entry accounting into a single application.
 
----
+### Quick links
 
-## Démarrage rapide (Docker)
+- **Installation and administration**: [doc/admin/README.md](doc/admin/README.md)
+  - [Docker installation](doc/admin/installation.md)
+  - [Configuration](doc/admin/configuration.md)
+  - [Excel import](doc/admin/excel-import.md)
+  - [System administration](doc/admin/administration.md)
+- **User manual**: [doc/user/manuel.md](doc/user/manuel.md)
+- **Developer documentation**: [doc/dev/README.md](doc/dev/README.md)
+- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+- **Roadmap**: [doc/roadmap.md](doc/roadmap.md)
 
-```bash
-# 1. Cloner le dépôt
-git clone git@github.com:davidp57/solde.git
-cd solde
+## Documentation structure
 
-# 2. Configurer l'environnement
-cp .env.example .env
-# Éditer .env et renseigner JWT_SECRET_KEY (32+ caractères), paramètres SMTP, etc.
-
-# 3. Lancer
-docker-compose up -d
-
-# 4. Ouvrir dans le navigateur
-# http://localhost:8000
+```
+doc/
+├── admin/          Installation, configuration, Excel import, system administration (FR+EN)
+├── dev/            Architecture, contributing, testing, development process (EN)
+├── user/           User manual (FR)
+├── llm/            LLM reference (EN)
+├── backlog.md      Project backlog (FR)
+└── roadmap.md      Delivery roadmap
 ```
 
-Le premier démarrage crée automatiquement la base de données et un compte administrateur
-avec les identifiants définis dans `.env`.
-
----
-
-## Développement local
-
-### Backend (Python)
-
-```bash
-# Créer et activer l'environnement virtuel
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-source .venv/bin/activate       # Linux/macOS
-
-# Installer les dépendances
-pip install -e ".[dev]"
-
-# Configurer l'environnement
-cp .env.example .env
-# Éditer .env (JWT_SECRET_KEY obligatoire)
-
-# Appliquer les migrations
-alembic upgrade head
-
-# Lancer le serveur de développement
-uvicorn backend.main:app --reload --port 8000
-```
-
-### Frontend (Vue.js)
-
-```bash
-cd frontend
-npm install
-npm run dev
-# Ouvre http://localhost:5173
-# Le proxy Vite redirige /api vers le backend sur le port 8000
-```
-
-### Tests
-
-```bash
-# Backend
-pytest tests/ -v --cov=backend
-
-# Frontend
-cd frontend
-npm run test:unit
-```
-
----
-
-## Variables d'environnement
-
-Voir `.env.example` pour la liste complète. Variables obligatoires :
-
-| Variable | Description |
-|---|---|
-| `JWT_SECRET_KEY` | Clé secrète JWT (minimum 32 caractères) |
-| `DATABASE_URL` | Chemin vers la base SQLite (défaut : `sqlite+aiosqlite:///./data/solde.db`) |
-
-Variables optionnelles (email) :
-
-| Variable | Description |
-|---|---|
-| `SMTP_HOST` | Serveur SMTP pour l'envoi des factures |
-| `SMTP_PORT` | Port SMTP (défaut : 587) |
-| `SMTP_USER` | Identifiant SMTP |
-| `SMTP_PASSWORD` | Mot de passe SMTP |
-| `SMTP_FROM_EMAIL` | Adresse expéditeur |
-
----
-
-## Structure du projet
+## Repository layout
 
 ```
 solde/
-├── backend/            # API FastAPI
-│   ├── main.py         # Point d'entrée
-│   ├── config.py       # Configuration Pydantic Settings
-│   ├── database.py     # SQLAlchemy async + SQLite WAL
-│   ├── models/         # Modèles SQLAlchemy
-│   ├── routers/        # Routes API par module
-│   ├── services/       # Logique métier
-│   ├── schemas/        # Validation Pydantic (entrées/sorties)
-│   └── templates/      # Templates Jinja2 pour les PDFs
-├── frontend/           # Application Vue.js 3
-│   └── src/
-│       ├── api/        # Client axios + types
-│       ├── layouts/    # AppLayout responsive
-│       ├── stores/     # État Pinia (auth, ...)
-│       ├── views/      # Pages
-│       └── i18n/       # Traductions françaises
-├── tests/              # Tests Python (pytest)
-├── data/               # Volume Docker : base SQLite + fichiers
-├── doc/                # Documentation technique
-│   ├── plan.md         # Architecture et décisions techniques
-│   ├── roadmap.md      # Avancement et prochaines étapes
-│   └── architecture.md # Diagrammes et choix d'architecture
+├── backend/        FastAPI application
+├── frontend/       Vue.js 3 application
+├── tests/          pytest test suite
+├── data/           Runtime data (SQLite DB, PDFs, backups, logs)
+├── doc/            Documentation
 ├── Dockerfile
 ├── docker-compose.yml
-└── .env.example
+├── dev.ps1
+└── pyproject.toml
 ```
 
----
-
-## Documentation
-
-- [Architecture technique](doc/architecture.md)
-- [Plan complet du projet](doc/plan.md)
-- [Roadmap et état d'avancement](doc/roadmap.md)
-- [Changelog](CHANGELOG.md)
-
----
-
-## Licence
+## Licence / License
 
 [Elastic License 2.0 (ELv2)](LICENSE) — auto-hébergement libre, redistribution et offre SaaS commerciale réservées.

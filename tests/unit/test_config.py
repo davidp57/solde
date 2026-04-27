@@ -62,14 +62,6 @@ def test_jwt_secret_key_has_minimum_length() -> None:
         Settings(jwt_secret_key="short")
 
 
-def test_smtp_settings_optional() -> None:
-    """SMTP settings are optional (can be None for dev)."""
-    from backend.config import Settings
-
-    settings = Settings(jwt_secret_key=_VALID_SECRET)
-    assert settings.smtp_host is None or isinstance(settings.smtp_host, str)
-
-
 def test_app_name() -> None:
     """App name is Solde."""
     from backend.config import Settings

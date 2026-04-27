@@ -73,11 +73,16 @@ async def _add_account(
     return a
 
 
-async def _create_fy(db: AsyncSession, name: str = "2024") -> FiscalYear:
+async def _create_fy(
+    db: AsyncSession,
+    name: str = "2024",
+    start: date | None = None,
+    end: date | None = None,
+) -> FiscalYear:
     fy = FiscalYear(
         name=name,
-        start_date=date(2024, 1, 1),
-        end_date=date(2024, 12, 31),
+        start_date=start or date(2024, 1, 1),
+        end_date=end or date(2024, 12, 31),
         status=FiscalYearStatus.OPEN,
     )
     db.add(fy)
@@ -568,6 +573,180 @@ class TestGetLedger:
         )
         result = await get_ledger(db_session, "411100")
         assert result.account_label == "Clients débiteurs"
+
+    @pytest.mark.asyncio
+    async def test_filters_entries_by_fiscal_year(self, db_session: AsyncSession) -> None:
+        fy_2024 = await _create_fy(
+            db_session,
+            "2024",
+            start=date(2024, 1, 1),
+            end=date(2024, 12, 31),
+        )
+        fy_2025 = await _create_fy(
+            db_session,
+            "2025",
+            start=date(2025, 1, 1),
+            end=date(2025, 12, 31),
+        )
+
+        await _add_entry(
+            db_session,
+            entry_number="000001",
+            entry_date=date(2024, 12, 31),
+            account_number="512102",
+            debit=Decimal("100"),
+            fiscal_year_id=fy_2024.id,
+            label="Solde 2024",
+        )
+        await _add_entry(
+            db_session,
+            entry_number="000002",
+            entry_date=date(2025, 1, 1),
+            account_number="512102",
+            debit=Decimal("100"),
+            fiscal_year_id=fy_2025.id,
+            source_type=EntrySourceType.CLOTURE,
+            label="RAN 2024",
+        )
+        await _add_entry(
+            db_session,
+            entry_number="000003",
+            entry_date=date(2025, 2, 10),
+            account_number="512102",
+            credit=Decimal("30"),
+            fiscal_year_id=fy_2025.id,
+            label="Dépense 2025",
+        )
+
+        result = await get_ledger(db_session, "512102", fiscal_year_id=fy_2025.id)
+
+        assert [entry.entry_number for entry in result.entries] == ["000002", "000003"]
+        assert result.opening_balance == Decimal("0")
+        assert result.closing_balance == Decimal("70")
+
+    @pytest.mark.asyncio
+    async def test_uses_prior_entries_as_opening_balance_within_fiscal_year(
+        self, db_session: AsyncSession
+    ) -> None:
+        fy_2025 = await _create_fy(
+            db_session,
+            "2025",
+            start=date(2025, 1, 1),
+            end=date(2025, 12, 31),
+        )
+
+        await _add_entry(
+            db_session,
+            entry_number="000001",
+            entry_date=date(2025, 1, 1),
+            account_number="512102",
+            debit=Decimal("100"),
+            fiscal_year_id=fy_2025.id,
+            source_type=EntrySourceType.CLOTURE,
+            label="RAN 2024",
+        )
+        await _add_entry(
+            db_session,
+            entry_number="000002",
+            entry_date=date(2025, 1, 15),
+            account_number="512102",
+            debit=Decimal("50"),
+            fiscal_year_id=fy_2025.id,
+            label="Encaissement janvier",
+        )
+        await _add_entry(
+            db_session,
+            entry_number="000003",
+            entry_date=date(2025, 2, 10),
+            account_number="512102",
+            credit=Decimal("30"),
+            fiscal_year_id=fy_2025.id,
+            label="Dépense février",
+        )
+
+        result = await get_ledger(
+            db_session,
+            "512102",
+            fiscal_year_id=fy_2025.id,
+            from_date=date(2025, 2, 1),
+        )
+
+        assert result.opening_balance == Decimal("150")
+        assert [entry.entry_number for entry in result.entries] == ["000003"]
+        assert result.entries[0].running_balance == Decimal("120")
+        assert result.closing_balance == Decimal("120")
+
+    @pytest.mark.asyncio
+    async def test_from_date_equal_to_first_entry_keeps_zero_opening_balance(
+        self, db_session: AsyncSession
+    ) -> None:
+        fy_2025 = await _create_fy(
+            db_session,
+            "2025",
+            start=date(2025, 1, 1),
+            end=date(2025, 12, 31),
+        )
+
+        await _add_entry(
+            db_session,
+            entry_number="000001",
+            entry_date=date(2025, 1, 1),
+            account_number="512102",
+            debit=Decimal("100"),
+            fiscal_year_id=fy_2025.id,
+            source_type=EntrySourceType.CLOTURE,
+            label="RAN 2024",
+        )
+        await _add_entry(
+            db_session,
+            entry_number="000002",
+            entry_date=date(2025, 1, 15),
+            account_number="512102",
+            credit=Decimal("30"),
+            fiscal_year_id=fy_2025.id,
+            label="Dépense janvier",
+        )
+
+        result = await get_ledger(
+            db_session,
+            "512102",
+            fiscal_year_id=fy_2025.id,
+            from_date=date(2025, 1, 1),
+        )
+
+        assert result.opening_balance == Decimal("0")
+        assert [entry.entry_number for entry in result.entries] == ["000001", "000002"]
+
+    @pytest.mark.asyncio
+    async def test_from_date_before_first_entry_keeps_zero_opening_balance(
+        self, db_session: AsyncSession
+    ) -> None:
+        fy_2025 = await _create_fy(
+            db_session,
+            "2025",
+            start=date(2025, 1, 1),
+            end=date(2025, 12, 31),
+        )
+
+        await _add_entry(
+            db_session,
+            entry_number="000001",
+            entry_date=date(2025, 1, 10),
+            account_number="512102",
+            debit=Decimal("100"),
+            fiscal_year_id=fy_2025.id,
+            label="Encaissement janvier",
+        )
+
+        result = await get_ledger(
+            db_session,
+            "512102",
+            fiscal_year_id=fy_2025.id,
+            from_date=date(2025, 1, 5),
+        )
+
+        assert result.opening_balance == Decimal("0")
+        assert [entry.entry_number for entry in result.entries] == ["000001"]
 
 
 # ---------------------------------------------------------------------------

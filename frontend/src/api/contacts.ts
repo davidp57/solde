@@ -11,8 +11,15 @@ export interface Contact {
   adresse: string | null
   notes: string | null
   is_active: boolean
+  contract_type: 'cdi' | 'cdd' | null
+  base_gross: number | null
+  base_hours: number | null
+  hourly_rate: number | null
+  is_contractor: boolean
   created_at: string
   updated_at: string
+  last_invoice_ref: string | null
+  last_invoice_date: string | null
 }
 
 export interface ContactCreate {
@@ -23,6 +30,11 @@ export interface ContactCreate {
   telephone?: string | null
   adresse?: string | null
   notes?: string | null
+  contract_type?: 'cdi' | 'cdd' | null
+  base_gross?: number | null
+  base_hours?: number | null
+  hourly_rate?: number | null
+  is_contractor?: boolean
 }
 
 export interface ContactUpdate {
@@ -34,6 +46,11 @@ export interface ContactUpdate {
   adresse?: string | null
   notes?: string | null
   is_active?: boolean
+  contract_type?: 'cdi' | 'cdd' | null
+  base_gross?: number | null
+  base_hours?: number | null
+  hourly_rate?: number | null
+  is_contractor?: boolean
 }
 
 export interface ContactFilters {
@@ -72,4 +89,24 @@ export async function updateContactApi(id: number, payload: ContactUpdate): Prom
 
 export async function deleteContactApi(id: number): Promise<void> {
   await apiClient.delete(`/api/contacts/${id}`)
+}
+
+export interface ContactEmailImportRow {
+  nom: string
+  email: string
+}
+
+export interface ContactEmailImportResult {
+  rows_processed: number
+  updated: number
+  not_found: number
+  already_has_email: number
+  updated_indices: number[]
+  not_found_indices: number[]
+  already_has_email_indices: number[]
+}
+
+export async function importContactEmailsApi(rows: ContactEmailImportRow[]): Promise<ContactEmailImportResult> {
+  const response = await apiClient.post<ContactEmailImportResult>('/api/contacts/import-emails', rows)
+  return response.data
 }

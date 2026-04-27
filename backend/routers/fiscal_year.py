@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
 from backend.models.user import User, UserRole
-from backend.routers.auth import get_current_user, require_role
+from backend.routers.auth import require_role
 from backend.schemas.fiscal_year import FiscalYearCreate, FiscalYearRead
 from backend.services import fiscal_year_service
 from backend.services.fiscal_year_service import FiscalYearError
@@ -18,7 +18,10 @@ _AdminAccess = Annotated[
     User,
     Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
 ]
-_ReadAccess = Annotated[User, Depends(get_current_user)]
+_ReadAccess = Annotated[
+    User,
+    Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
+]
 
 
 @router.get("/", response_model=list[FiscalYearRead])
@@ -87,7 +90,26 @@ async def close_fiscal_year(
         closed = await fiscal_year_service.close_fiscal_year(db, fy)
     except FiscalYearError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
+    return closed  # type: ignore[return-value]
+
+
+@router.post("/{fy_id}/close-administrative", response_model=FiscalYearRead)
+async def administrative_close_fiscal_year(
+    fy_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _AdminAccess,
+) -> FiscalYearRead:
+    """Close a fiscal year without generating new accounting entries."""
+    fy = await fiscal_year_service.get_fiscal_year(db, fy_id)
+    if fy is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fiscal year not found")
+    try:
+        closed = await fiscal_year_service.administrative_close_fiscal_year(db, fy)
+    except FiscalYearError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     return closed  # type: ignore[return-value]
 
@@ -130,6 +152,6 @@ async def open_new_fiscal_year(
         new_fy = await fiscal_year_service.open_new_fiscal_year(db, closed_fy, payload)
     except FiscalYearError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
     return new_fy  # type: ignore[return-value]

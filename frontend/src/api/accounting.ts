@@ -36,26 +36,19 @@ export async function listAccountsApi(
   const params = new URLSearchParams()
   if (type) params.set('type', type)
   params.set('active_only', String(activeOnly))
-  const response = await apiClient.get<AccountingAccount[]>(
-    `/api/accounting/accounts/?${params}`,
-  )
+  const response = await apiClient.get<AccountingAccount[]>(`/api/accounting/accounts/?${params}`)
   return response.data
 }
 
 export async function seedAccountsApi(): Promise<{ inserted: number }> {
-  const response = await apiClient.post<{ inserted: number }>(
-    '/api/accounting/accounts/seed',
-  )
+  const response = await apiClient.post<{ inserted: number }>('/api/accounting/accounts/seed')
   return response.data
 }
 
 export async function createAccountApi(
   payload: AccountingAccountCreate,
 ): Promise<AccountingAccount> {
-  const response = await apiClient.post<AccountingAccount>(
-    '/api/accounting/accounts/',
-    payload,
-  )
+  const response = await apiClient.post<AccountingAccount>('/api/accounting/accounts/', payload)
   return response.data
 }
 
@@ -63,10 +56,7 @@ export async function updateAccountApi(
   id: number,
   payload: AccountingAccountUpdate,
 ): Promise<AccountingAccount> {
-  const response = await apiClient.put<AccountingAccount>(
-    `/api/accounting/accounts/${id}`,
-    payload,
-  )
+  const response = await apiClient.put<AccountingAccount>(`/api/accounting/accounts/${id}`, payload)
   return response.data
 }
 
@@ -75,6 +65,7 @@ export async function updateAccountApi(
 // -----------------------------------------------------------------------
 
 export type EntrySourceType =
+  | 'gestion'
   | 'invoice'
   | 'payment'
   | 'deposit'
@@ -218,11 +209,13 @@ export async function getJournalGroupsApi(
   return response.data
 }
 
-export async function getBalanceApi(filters: {
-  from_date?: string
-  to_date?: string
-  fiscal_year_id?: number
-} = {}): Promise<BalanceRow[]> {
+export async function getBalanceApi(
+  filters: {
+    from_date?: string
+    to_date?: string
+    fiscal_year_id?: number
+  } = {},
+): Promise<BalanceRow[]> {
   const params = new URLSearchParams()
   if (filters.from_date) params.set('from_date', filters.from_date)
   if (filters.to_date) params.set('to_date', filters.to_date)
@@ -299,7 +292,9 @@ export async function listFiscalYearsApi(): Promise<FiscalYearRead[]> {
 }
 
 export async function getCurrentFiscalYearApi(): Promise<FiscalYearRead | null> {
-  const response = await apiClient.get<FiscalYearRead | null>('/api/accounting/fiscal-years/current')
+  const response = await apiClient.get<FiscalYearRead | null>(
+    '/api/accounting/fiscal-years/current',
+  )
   return response.data
 }
 
@@ -331,6 +326,12 @@ export interface AccountingRuleEntrySchema {
   description_template: string
 }
 
+export interface AccountingRuleEntryCreate {
+  account_number: string
+  side: 'debit' | 'credit'
+  description_template: string
+}
+
 export interface AccountingRuleRead {
   id: number
   name: string
@@ -341,15 +342,30 @@ export interface AccountingRuleRead {
   entries: AccountingRuleEntrySchema[]
 }
 
+export interface AccountingRuleCreate {
+  name: string
+  trigger_type: string
+  is_active?: boolean
+  priority?: number
+  description?: string | null
+  entries?: AccountingRuleEntryCreate[]
+}
+
 export interface AccountingRuleUpdate {
   name?: string
   is_active?: boolean
   priority?: number
   description?: string | null
+  entries?: AccountingRuleEntryCreate[]
 }
 
 export async function listRulesApi(): Promise<AccountingRuleRead[]> {
   const response = await apiClient.get<AccountingRuleRead[]>('/api/accounting/rules/')
+  return response.data
+}
+
+export async function createRuleApi(payload: AccountingRuleCreate): Promise<AccountingRuleRead> {
+  const response = await apiClient.post<AccountingRuleRead>('/api/accounting/rules/', payload)
   return response.data
 }
 
@@ -359,6 +375,10 @@ export async function updateRuleApi(
 ): Promise<AccountingRuleRead> {
   const response = await apiClient.put<AccountingRuleRead>(`/api/accounting/rules/${id}`, payload)
   return response.data
+}
+
+export async function deleteRuleApi(id: number): Promise<void> {
+  await apiClient.delete(`/api/accounting/rules/${id}`)
 }
 
 export async function seedRulesApi(): Promise<{ inserted: number }> {
@@ -383,6 +403,9 @@ export interface SalaryRead {
   net_pay: number
   total_cost: number
   notes: string | null
+  brut_declared: number | null
+  conges_payes: number | null
+  precarite: number | null
   created_at: string
 }
 
@@ -396,9 +419,34 @@ export interface SalaryCreate {
   tax: number
   net_pay: number
   notes?: string | null
+  brut_declared?: number | null
+  conges_payes?: number | null
+  precarite?: number | null
 }
 
 export type SalaryUpdate = Partial<SalaryCreate>
+
+export interface SalaryPreviousRead {
+  employee_id: number
+  hours: number
+  gross: number
+  brut_declared: number | null
+  conges_payes: number | null
+  precarite: number | null
+}
+
+export type WorkforceCostPersonType = 'CDI' | 'CDD' | 'AE'
+
+export interface WorkforceCostRow {
+  month: string
+  person_id: number
+  person_name: string
+  person_type: WorkforceCostPersonType
+  hours: number | null
+  amount: number
+  total_cost: number
+  hourly_cost: number | null
+}
 
 export interface SalarySummaryRow {
   month: string
@@ -430,6 +478,9 @@ function normalizeSalaryRead(salary: SalaryRead): SalaryRead {
     tax: parseSalaryNumericValue(salary.tax),
     net_pay: parseSalaryNumericValue(salary.net_pay),
     total_cost: parseSalaryNumericValue(salary.total_cost),
+    brut_declared: salary.brut_declared != null ? parseSalaryNumericValue(salary.brut_declared) : null,
+    conges_payes: salary.conges_payes != null ? parseSalaryNumericValue(salary.conges_payes) : null,
+    precarite: salary.precarite != null ? parseSalaryNumericValue(salary.precarite) : null,
   }
 }
 
@@ -477,6 +528,41 @@ export async function deleteSalaryApi(id: number): Promise<void> {
   await apiClient.delete(`/api/salaries/${id}`)
 }
 
+export async function getPreviousSalaryApi(employeeId: number): Promise<SalaryPreviousRead> {
+  const response = await apiClient.get<SalaryPreviousRead>(
+    `/api/salaries/previous/${employeeId}`,
+  )
+  const d = response.data
+  return {
+    employee_id: d.employee_id,
+    hours: parseSalaryNumericValue(d.hours),
+    gross: parseSalaryNumericValue(d.gross),
+    brut_declared: d.brut_declared != null ? parseSalaryNumericValue(d.brut_declared) : null,
+    conges_payes: d.conges_payes != null ? parseSalaryNumericValue(d.conges_payes) : null,
+    precarite: d.precarite != null ? parseSalaryNumericValue(d.precarite) : null,
+  }
+}
+
+function parseWorkforceCostRow(row: WorkforceCostRow): WorkforceCostRow {
+  return {
+    ...row,
+    hours: row.hours != null ? parseSalaryNumericValue(row.hours) : null,
+    amount: parseSalaryNumericValue(row.amount),
+    total_cost: parseSalaryNumericValue(row.total_cost),
+    hourly_cost: row.hourly_cost != null ? parseSalaryNumericValue(row.hourly_cost) : null,
+  }
+}
+
+export async function getWorkforceCostApi(params?: {
+  from_month?: string
+  to_month?: string
+}): Promise<WorkforceCostRow[]> {
+  const response = await apiClient.get<WorkforceCostRow[]>('/api/salaries/workforce-cost', {
+    params,
+  })
+  return response.data.map(parseWorkforceCostRow)
+}
+
 // -----------------------------------------------------------------------
 // Dashboard types & API
 // -----------------------------------------------------------------------
@@ -505,14 +591,31 @@ export interface MonthlyChartRow {
   produits: number
 }
 
+export interface DashboardResourcesChartRow {
+  month: string
+  funds: number
+  liquidities: number
+  client_receivables: number
+  undeposited_cheques: number
+  supplier_payables: number
+  net_resources: number
+}
+
 export async function getDashboardApi(): Promise<DashboardKPIs> {
   const response = await apiClient.get<DashboardKPIs>('/api/dashboard/')
   return response.data
 }
 
-export async function getMonthlyChartApi(year: number): Promise<MonthlyChartRow[]> {
+export async function getMonthlyChartApi(fiscalYearId: number): Promise<MonthlyChartRow[]> {
   const response = await apiClient.get<MonthlyChartRow[]>('/api/dashboard/chart/monthly', {
-    params: { year },
+    params: { fiscal_year_id: fiscalYearId },
+  })
+  return response.data
+}
+
+export async function getResourcesChartApi(months = 12): Promise<DashboardResourcesChartRow[]> {
+  const response = await apiClient.get<DashboardResourcesChartRow[]>('/api/dashboard/chart/resources', {
+    params: { months },
   })
   return response.data
 }
@@ -537,9 +640,20 @@ export interface ImportResult {
   error_details: ImportIssueDetail[]
   warning_details: ImportIssueDetail[]
   sheets: ImportSheetResult[]
+  created_objects: ImportCreatedObject[]
+}
+
+export interface ImportCreatedObject {
+  sheet_name: string | null
+  kind: string | null
+  object_type: string
+  object_id: number | null
+  reference: string | null
+  details: Record<string, unknown>
 }
 
 export interface ImportIssueDetail {
+  category?: string | null
   severity: 'warning' | 'error'
   sheet_name: string | null
   kind: string | null
@@ -573,14 +687,18 @@ export interface TestImportShortcut {
 export async function importGestionFileApi(file: File): Promise<ImportResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<ImportResult>('/api/import/excel/gestion', form)
+  const response = await apiClient.post<ImportResult>('/api/import/excel/gestion', form, {
+    timeout: 120000,
+  })
   return response.data
 }
 
 export async function importComptabiliteFileApi(file: File): Promise<ImportResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<ImportResult>('/api/import/excel/comptabilite', form)
+  const response = await apiClient.post<ImportResult>('/api/import/excel/comptabilite', form, {
+    timeout: 120000,
+  })
   return response.data
 }
 
@@ -589,8 +707,18 @@ export async function listTestImportShortcutsApi(): Promise<TestImportShortcut[]
   return response.data
 }
 
-export async function importTestShortcutApi(alias: string): Promise<ImportResult> {
-  const response = await apiClient.post<ImportResult>(`/api/import/excel/test-shortcuts/${alias}`)
+export async function importTestShortcutApi(
+  alias: string,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(
+    `/api/import/excel/test-shortcuts/${alias}`,
+    undefined,
+    {
+      params: comparisonWindow,
+      timeout: 120000,
+    },
+  )
   return response.data
 }
 
@@ -599,7 +727,9 @@ export async function importTestShortcutApi(alias: string): Promise<ImportResult
 // -----------------------------------------------------------------------
 
 export async function getFiscalYearPreCloseChecksApi(id: number): Promise<string[]> {
-  const response = await apiClient.get<string[]>(`/api/accounting/fiscal-years/${id}/pre-close-checks`)
+  const response = await apiClient.get<string[]>(
+    `/api/accounting/fiscal-years/${id}/pre-close-checks`,
+  )
   return response.data
 }
 
@@ -734,15 +864,48 @@ export interface PreviewSheetResult {
   status: PreviewSheetStatus
   header_row: number | null
   rows: number
+  source_rows?: number
   detected_columns: string[]
   missing_columns: string[]
   ignored_rows: number
+  policy_ignored_rows?: number
   blocked_rows: number
+  initial_blocked_rows?: number
   sample_rows: Record<string, string>[]
   warnings: string[]
   errors: string[]
   warning_details: ImportIssueDetail[]
   error_details: ImportIssueDetail[]
+}
+
+export interface PreviewComparisonDomain {
+  kind: string
+  file_rows: number
+  already_in_solde: number
+  missing_in_solde: number
+  extra_in_solde: number
+  extra_in_solde_details?: PreviewComparisonExtraDetail[]
+  ignored_by_policy: number
+  blocked: number
+}
+
+export interface PreviewComparisonExtraDetail {
+  summary: string
+  [key: string]: string | undefined
+}
+
+export interface PreviewComparisonSummary {
+  mode: 'gestion-excel-to-solde' | 'global-convergence'
+  direction: 'excel-to-solde' | 'bidirectional'
+  domains: PreviewComparisonDomain[]
+  totals: {
+    file_rows: number
+    already_in_solde: number
+    missing_in_solde: number
+    extra_in_solde: number
+    ignored_by_policy: number
+    blocked: number
+  }
 }
 
 export interface PreviewResult {
@@ -758,19 +921,204 @@ export interface PreviewResult {
   warning_details: ImportIssueDetail[]
   can_import: boolean
   sample_rows: Record<string, unknown>[]
+  comparison?: PreviewComparisonSummary
 }
 
-export async function previewGestionFileApi(file: File): Promise<PreviewResult> {
+export interface ImportEffectRead {
+  id: number | null
+  entity_type: string
+  action: 'create' | 'update' | 'delete'
+  entity_id: number | null
+  entity_reference: string | null
+  details: Record<string, unknown>
+  status: 'planned' | 'applied' | 'undone'
+}
+
+export interface ImportOperationRead {
+  id: number
+  position: number
+  operation_type: string
+  title: string
+  description: string | null
+  source_sheet: string | null
+  source_row_numbers: number[]
+  decision: 'apply' | 'ignore' | 'block'
+  status: 'prepared' | 'ignored' | 'blocked' | 'applied' | 'undone' | 'failed'
+  diagnostics: string[]
+  error_message: string | null
+  can_undo: boolean
+  can_redo: boolean
+  effects: ImportEffectRead[]
+  planned_effects?: ImportEffectRead[]
+  source_data?: Record<string, unknown>[]
+}
+
+export interface ImportRunRead {
+  id: number
+  kind: 'run'
+  import_type: 'gestion' | 'comptabilite'
+  status: 'prepared' | 'blocked' | 'completed' | 'failed' | 'partially_reverted' | 'reverted'
+  file_name: string | null
+  file_hash: string
+  comparison_start_date: string | null
+  comparison_end_date: string | null
+  created_at: string | null
+  updated_at: string | null
+  preview: PreviewResult | null
+  summary: ImportResult | null
+  operations: ImportOperationRead[]
+  can_execute: boolean
+  can_undo: boolean
+  can_redo: boolean
+}
+
+export interface LegacyImportHistoryItem {
+  id: number
+  kind: 'legacy_log'
+  import_type: 'gestion' | 'comptabilite'
+  status: string
+  file_name: string | null
+  file_hash: string
+  comparison_start_date: string | null
+  comparison_end_date: string | null
+  created_at: string | null
+  updated_at: string | null
+  preview: null
+  summary: ImportResult | null
+  operations: []
+  can_execute: false
+  can_undo: false
+  can_redo: false
+}
+
+export type ImportHistoryItem = ImportRunRead | LegacyImportHistoryItem
+
+export interface PreviewComparisonWindow {
+  comparison_start_date?: string
+  comparison_end_date?: string
+}
+
+async function prepareImportRunApi(
+  path: string,
+  file: File,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<ImportRunRead> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<PreviewResult>('/api/import/excel/gestion/preview', form)
+  if (comparisonWindow.comparison_start_date) {
+    form.append('comparison_start_date', comparisonWindow.comparison_start_date)
+  }
+  if (comparisonWindow.comparison_end_date) {
+    form.append('comparison_end_date', comparisonWindow.comparison_end_date)
+  }
+  const response = await apiClient.post<ImportRunRead>(path, form, { timeout: 60000 })
   return response.data
 }
 
-export async function previewComptabiliteFileApi(file: File): Promise<PreviewResult> {
+export async function prepareGestionRunApi(
+  file: File,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<ImportRunRead> {
+  return prepareImportRunApi('/api/import/runs/prepare/gestion', file, comparisonWindow)
+}
+
+export async function prepareComptabiliteRunApi(
+  file: File,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<ImportRunRead> {
+  return prepareImportRunApi('/api/import/runs/prepare/comptabilite', file, comparisonWindow)
+}
+
+export async function getImportRunApi(runId: number): Promise<ImportRunRead> {
+  const response = await apiClient.get<ImportRunRead>(`/api/import/runs/${runId}`)
+  return response.data
+}
+
+export async function executeImportRunApi(runId: number): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/execute`, undefined, {
+    timeout: 120000,
+  })
+  return response.data
+}
+
+export async function undoImportRunApi(runId: number): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/undo`, undefined, {
+    timeout: 120000,
+  })
+  return response.data
+}
+
+export async function redoImportRunApi(runId: number): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(`/api/import/runs/${runId}/redo`, undefined, {
+    timeout: 120000,
+  })
+  return response.data
+}
+
+export async function undoImportOperationApi(operationId: number): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(
+    `/api/import/operations/${operationId}/undo`,
+    undefined,
+    {
+      timeout: 120000,
+    },
+  )
+  return response.data
+}
+
+export async function redoImportOperationApi(operationId: number): Promise<ImportRunRead> {
+  const response = await apiClient.post<ImportRunRead>(
+    `/api/import/operations/${operationId}/redo`,
+    undefined,
+    {
+      timeout: 120000,
+    },
+  )
+  return response.data
+}
+
+export async function listImportHistoryApi(): Promise<ImportHistoryItem[]> {
+  const response = await apiClient.get<ImportHistoryItem[]>('/api/import/history')
+  return response.data
+}
+
+export async function previewGestionFileApi(
+  file: File,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<PreviewResult> {
   const form = new FormData()
   form.append('file', file)
-  const response = await apiClient.post<PreviewResult>('/api/import/excel/comptabilite/preview', form)
+  if (comparisonWindow.comparison_start_date) {
+    form.append('comparison_start_date', comparisonWindow.comparison_start_date)
+  }
+  if (comparisonWindow.comparison_end_date) {
+    form.append('comparison_end_date', comparisonWindow.comparison_end_date)
+  }
+  const response = await apiClient.post<PreviewResult>('/api/import/excel/gestion/preview', form, {
+    timeout: 60000,
+  })
+  return response.data
+}
+
+export async function previewComptabiliteFileApi(
+  file: File,
+  comparisonWindow: PreviewComparisonWindow = {},
+): Promise<PreviewResult> {
+  const form = new FormData()
+  form.append('file', file)
+  if (comparisonWindow.comparison_start_date) {
+    form.append('comparison_start_date', comparisonWindow.comparison_start_date)
+  }
+  if (comparisonWindow.comparison_end_date) {
+    form.append('comparison_end_date', comparisonWindow.comparison_end_date)
+  }
+  const response = await apiClient.post<PreviewResult>(
+    '/api/import/excel/comptabilite/preview',
+    form,
+    {
+      timeout: 60000,
+    },
+  )
   return response.data
 }
 

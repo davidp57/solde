@@ -4,498 +4,244 @@
       :eyebrow="t('ui.page.collection_eyebrow')"
       :title="t('import.title')"
       :subtitle="t('import.subtitle')"
+    >
+      <template #actions>
+        <Button
+          :label="t('import.open_history')"
+          icon="pi pi-history"
+          severity="secondary"
+          outlined
+          @click="router.push('/import/history')"
+        />
+      </template>
+    </AppPageHeader>
+
+    <ImportExcelFormPanel
+      ref="formPanelRef"
+      v-model:import-type="importType"
+      v-model:comparison-start-date="comparisonStartDate"
+      v-model:comparison-end-date="comparisonEndDate"
+      :selected-file="selectedFile"
+      :preview="preview"
+      :result="result"
+      :active-run="activeRun"
+      :importing="importing"
+      :previewing="previewing"
+      @file-selected="onFileSelected"
+      @preview-click="doPreview"
+      @import-click="doImport"
     />
 
-    <AppPanel :title="t('import.type_label')" :subtitle="t('import.preview_subtitle')">
-      <div class="import-form">
-          <!-- File type selection -->
-          <div class="app-field">
-            <label class="app-field__label">{{ t('import.type_label') }}</label>
-            <div class="import-type-row">
-              <div class="import-radio-item">
-                <RadioButton v-model="importType" input-id="type-gestion" value="gestion" />
-                <label for="type-gestion">{{ t('import.type_gestion') }}</label>
-              </div>
-              <div class="import-radio-item">
-                <RadioButton v-model="importType" input-id="type-compta" value="comptabilite" />
-                <label for="type-compta">{{ t('import.type_comptabilite') }}</label>
-              </div>
-            </div>
-          </div>
-
-          <div class="import-guidance">
-            <article class="import-guidance-card">
-              <h3 class="import-guidance-card__title">{{ t('import.guidance_common_title') }}</h3>
-              <ul class="import-guidance-card__list">
-                <li>{{ t('import.guidance_common_exercise') }}</li>
-                <li>{{ t('import.guidance_common_seed_accounts') }}</li>
-                <li>{{ t('import.guidance_common_seed_rules') }}</li>
-              </ul>
-            </article>
-            <article class="import-guidance-card">
-              <h3 class="import-guidance-card__title">
-                {{ importType === 'gestion' ? t('import.type_gestion') : t('import.type_comptabilite') }}
-              </h3>
-              <ul v-if="importType === 'gestion'" class="import-guidance-card__list">
-                <li>{{ t('import.guidance_gestion_scope') }}</li>
-                <li>{{ t('import.guidance_gestion_fiscal_year') }}</li>
-                <li>{{ t('import.guidance_gestion_supplier') }}</li>
-              </ul>
-              <ul v-else class="import-guidance-card__list">
-                <li>{{ t('import.guidance_compta_scope') }}</li>
-                <li>{{ t('import.guidance_compta_coexistence') }}</li>
-                <li>{{ t('import.guidance_compta_chart') }}</li>
-              </ul>
-            </article>
-          </div>
-
-          <!-- File picker -->
-          <div class="app-field">
-            <label class="app-field__label">{{ t('import.file_label') }}</label>
-            <input
-              ref="fileInput"
-              type="file"
-              accept=".xlsx,.xls"
-              class="hidden"
-              @change="onFileChange"
-            />
-            <p v-if="selectedFile && preview" class="import-preview-state" :class="previewStateClass">
-              {{ previewStateMessage }}
-            </p>
-            <div class="import-file-row">
-              <Button
-                :label="t('import.choose_file')"
-                icon="pi pi-upload"
-                severity="secondary"
-                outlined
-                @click="fileInput?.click()"
-              />
-              <span v-if="selectedFile" class="import-file-name">{{ selectedFile.name }}</span>
-              <span v-else class="import-file-name import-file-name--empty">—</span>
-            </div>
-          </div>
-
-          <!-- Submit / Preview buttons -->
-          <div class="app-form-actions">
-            <Button
-              data-testid="preview-button"
-              :label="t('import.preview')"
-              icon="pi pi-eye"
-              severity="secondary"
-              outlined
-              :loading="previewing"
-              :disabled="!selectedFile"
-              @click="doPreview"
-            />
-            <Button
-              data-testid="primary-import-button"
-              :label="t('import.submit')"
-              icon="pi pi-check"
-              :loading="importing"
-              :disabled="!canConfirmImport"
-              @click="doImport"
-            />
-          </div>
-          <p class="import-action-hint">{{ importActionHint }}</p>
-          <div
-            v-if="result"
-            data-testid="import-result-banner"
-            class="import-result-banner"
-            :class="resultHasIssues ? 'import-result-banner--warning' : 'import-result-banner--success'"
-          >
-            <strong>{{ resultStateMessage }}</strong>
-            <p>{{ resultStateDetail }}</p>
-          </div>
-       </div>
-     </AppPanel>
-
-    <AppPanel
+    <ImportExcelShortcutsPanel
       v-if="testShortcuts.length"
-      :title="t('import.test_shortcuts_title')"
-      :subtitle="t('import.test_shortcuts_subtitle')"
-      dense
-    >
-      <p class="import-action-hint">{{ t('import.test_shortcuts_hint') }}</p>
-      <div class="import-shortcuts-grid">
-        <article v-for="shortcut in testShortcuts" :key="shortcut.alias" class="import-shortcut-card">
-          <div class="import-shortcut-card__body">
-            <div>
-              <h3 class="import-shortcut-card__title">{{ shortcut.label }}</h3>
-              <p class="import-shortcut-card__meta">{{ shortcut.file_name ?? t('import.test_shortcuts_missing_file') }}</p>
-            </div>
-            <p v-if="shortcut.message" class="import-shortcut-card__message">{{ shortcut.message }}</p>
-          </div>
-          <Button
-            :data-testid="`quick-import-${shortcut.alias}`"
-            :label="t('import.test_shortcuts_run', { label: shortcut.label })"
-            icon="pi pi-bolt"
-            severity="contrast"
-            outlined
-            :disabled="!shortcut.available || importing"
-            :loading="runningShortcutAlias === shortcut.alias"
-            @click="runTestShortcut(shortcut.alias)"
-          />
-        </article>
+      :test-shortcuts="testShortcuts"
+      :importing="importing"
+      :running-shortcut-alias="runningShortcutAlias"
+      :running-all="runningAllShortcuts"
+      @run-shortcut="runTestShortcut"
+      @run-all-shortcuts="runAllTestShortcuts"
+    />
+
+    <div v-if="preview || result" class="import-surface-shell">
+      <div v-if="preview" ref="previewPanel">
+        <ImportExcelPreviewPanel
+          :preview="preview"
+          :active-run="activeRun"
+          :importing="importing"
+          :busy-run-id="busyRunId"
+          :busy-operation-id="busyOperationId"
+          :can-confirm-import="canConfirmImport"
+          @undo-operation="undoOperation"
+          @redo-operation="redoOperation"
+          @undo-run="undoRun"
+          @redo-run="redoRun"
+          @do-import="doImport"
+        />
       </div>
-    </AppPanel>
-
-    <!-- Preview -->
-    <AppPanel v-if="preview" :title="t('import.preview_title')" dense>
-      <div class="import-summary-grid">
-          <div class="import-summary-row">
-            <span>{{ t('import.estimated_contacts') }}</span>
-            <span class="font-medium">{{ preview.estimated_contacts }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.estimated_invoices') }}</span>
-            <span class="font-medium">{{ preview.estimated_invoices }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.estimated_payments') }}</span>
-            <span class="font-medium">{{ preview.estimated_payments }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.estimated_salaries') }}</span>
-            <span class="font-medium">{{ preview.estimated_salaries }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.estimated_entries') }}</span>
-            <span class="font-medium">{{ preview.estimated_entries }}</span>
-          </div>
-        </div>
-        <p class="import-preview-state" :class="preview.can_import ? 'import-preview-state--ready' : 'import-preview-state--blocked'">
-          {{ preview.can_import ? t('import.preview_ready') : t('import.preview_blocked') }}
-        </p>
-        <div v-if="preview.warnings.length" class="import-warnings-block">
-          <span class="app-field__label">{{ t('import.warnings') }}</span>
-          <ul class="import-warnings">
-            <li v-for="(warning, idx) in preview.warnings" :key="`warning-${idx}`">{{ warning }}</li>
-          </ul>
-        </div>
-        <div v-if="hasPreviewWarnings && preview.can_import" class="import-confirmation-guard">
-          <label class="import-confirmation-guard__checkbox">
-            <Checkbox
-              v-model="warningsAcknowledged"
-              binary
-              data-testid="warning-ack-checkbox"
-            />
-            <span>{{ t('import.warning_ack_label') }}</span>
-          </label>
-          <p class="import-confirmation-guard__help">{{ t('import.warning_ack_help') }}</p>
-        </div>
-        <div v-if="preview.errors.length" class="import-errors">
-          <span class="app-field__label">{{ t('import.errors') }}</span>
-          <ul>
-            <li v-for="(err, idx) in preview.errors" :key="idx">{{ err }}</li>
-          </ul>
-        </div>
-        <div v-if="preview.sheets.length" class="import-sheet-list">
-          <h3 class="import-sheet-list__title">{{ t('import.sheets_title') }}</h3>
-          <article v-for="sheet in preview.sheets" :key="sheet.name" class="import-sheet-card">
-            <div class="import-sheet-card__header">
-              <div>
-                <h4 class="import-sheet-card__title">{{ sheet.name }}</h4>
-                <p class="import-sheet-card__meta">
-                  {{ previewSheetKindLabel(sheet.kind) }} · {{ previewSheetStatusLabel(sheet.status) }}
-                </p>
-              </div>
-              <div class="import-sheet-card__stats">
-                <strong class="import-sheet-card__rows">{{ t('import.sheet_rows', { count: sheet.rows }) }}</strong>
-                <span v-if="sheet.ignored_rows" class="import-sheet-card__stat import-sheet-card__stat--warning">
-                  {{ t('import.sheet_ignored_rows', { count: sheet.ignored_rows }) }}
-                </span>
-                <span v-if="sheet.blocked_rows" class="import-sheet-card__stat import-sheet-card__stat--danger">
-                  {{ t('import.sheet_blocked_rows', { count: sheet.blocked_rows }) }}
-                </span>
-              </div>
-            </div>
-
-            <div v-if="sheet.detected_columns.length" class="import-sheet-card__section">
-              <span class="app-field__label">{{ t('import.detected_columns') }}</span>
-              <div class="import-chip-row">
-                <span v-for="column in sheet.detected_columns" :key="column" class="import-chip">{{ column }}</span>
-              </div>
-            </div>
-
-            <div v-if="sheet.missing_columns.length" class="import-sheet-card__section">
-              <span class="app-field__label">{{ t('import.missing_columns') }}</span>
-              <div class="import-chip-row">
-                <span v-for="column in sheet.missing_columns" :key="column" class="import-chip import-chip--danger">{{ column }}</span>
-              </div>
-            </div>
-
-            <ul v-if="sheet.warnings.length" class="import-warnings">
-              <li v-for="(warning, idx) in sheet.warnings" :key="`${sheet.name}-warning-${idx}`">{{ warning }}</li>
-            </ul>
-            <ul v-if="sheet.errors.length" class="import-errors">
-              <li v-for="(error, idx) in sheet.errors" :key="`${sheet.name}-error-${idx}`">{{ error }}</li>
-            </ul>
-          </article>
-        </div>
-        <div class="app-form-actions import-confirm">
-          <Button
-            data-testid="confirm-import-button"
-            :label="t('import.confirm_import')"
-            icon="pi pi-check"
-            :loading="importing"
-            :disabled="!canConfirmImport"
-            @click="doImport"
-          />
-        </div>
-    </AppPanel>
-
-    <!-- Result -->
-    <AppPanel v-if="result" :title="t('import.result_title')" dense>
-        <div class="import-result-list">
-          <div class="import-summary-row">
-            <span>{{ t('import.contacts_created') }}</span>
-            <span class="font-medium">{{ result.contacts_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.invoices_created') }}</span>
-            <span class="font-medium">{{ result.invoices_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.payments_created') }}</span>
-            <span class="font-medium">{{ result.payments_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.salaries_created') }}</span>
-            <span class="font-medium">{{ result.salaries_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.entries_created') }}</span>
-            <span class="font-medium">{{ result.entries_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.cash_created') }}</span>
-            <span class="font-medium">{{ result.cash_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.bank_created') }}</span>
-            <span class="font-medium">{{ result.bank_created }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.ignored_rows') }}</span>
-            <span class="font-medium">{{ result.ignored_rows }}</span>
-          </div>
-          <div class="import-summary-row">
-            <span>{{ t('import.blocked_rows') }}</span>
-            <span class="font-medium">{{ result.blocked_rows }}</span>
-          </div>
-
-          <div v-if="result.warnings.length" class="import-warnings-block">
-            <span class="app-field__label">{{ t('import.warnings') }}</span>
-            <ul class="import-warnings">
-              <li v-for="(warning, idx) in result.warnings" :key="`result-warning-${idx}`">{{ warning }}</li>
-            </ul>
-          </div>
-
-          <div class="import-errors-block">
-            <span class="app-field__label">{{ t('import.errors') }}</span>
-            <div v-if="result.errors.length === 0" class="app-empty-state import-empty-inline">
-              {{ t('import.no_errors') }}
-            </div>
-            <ul v-else class="import-errors">
-              <li v-for="(err, idx) in result.errors" :key="idx">{{ err }}</li>
-            </ul>
-          </div>
-
-          <div v-if="result.sheets.length" class="import-sheet-list">
-            <h3 class="import-sheet-list__title">{{ t('import.result_sheets_title') }}</h3>
-            <article v-for="sheet in result.sheets" :key="`result-${sheet.name}-${sheet.kind}`" class="import-sheet-card">
-              <div class="import-sheet-card__header">
-                <div>
-                  <h4 class="import-sheet-card__title">{{ sheet.name }}</h4>
-                  <p class="import-sheet-card__meta">{{ importSheetKindLabel(sheet.kind) }}</p>
-                </div>
-                <div class="import-sheet-card__stats">
-                  <span class="import-sheet-card__stat import-sheet-card__stat--success">
-                    {{ t('import.sheet_imported_rows', { count: sheet.imported_rows }) }}
-                  </span>
-                  <span v-if="sheet.ignored_rows" class="import-sheet-card__stat import-sheet-card__stat--warning">
-                    {{ t('import.sheet_ignored_rows', { count: sheet.ignored_rows }) }}
-                  </span>
-                  <span v-if="sheet.blocked_rows" class="import-sheet-card__stat import-sheet-card__stat--danger">
-                    {{ t('import.sheet_blocked_rows', { count: sheet.blocked_rows }) }}
-                  </span>
-                </div>
-              </div>
-
-              <ul v-if="sheet.warnings.length" class="import-warnings">
-                <li v-for="(warning, idx) in sheet.warnings" :key="`${sheet.name}-result-warning-${idx}`">{{ warning }}</li>
-              </ul>
-              <ul v-if="sheet.errors.length" class="import-errors">
-                <li v-for="(error, idx) in sheet.errors" :key="`${sheet.name}-result-error-${idx}`">{{ error }}</li>
-              </ul>
-            </article>
-          </div>
-        </div>
-    </AppPanel>
+      <ImportExcelResultPanel v-if="result" :result="result" />
+    </div>
 
     <Toast />
   </AppPage>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
-import RadioButton from 'primevue/radiobutton'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
-import AppPanel from '../components/ui/AppPanel.vue'
+import ImportExcelFormPanel from '../components/import/ImportExcelFormPanel.vue'
+import ImportExcelShortcutsPanel from '../components/import/ImportExcelShortcutsPanel.vue'
+import ImportExcelPreviewPanel from '../components/import/ImportExcelPreviewPanel.vue'
+import ImportExcelResultPanel from '../components/import/ImportExcelResultPanel.vue'
+import { getSettingsApi } from '../api/settings'
 import {
-  importGestionFileApi,
   importTestShortcutApi,
-  importComptabiliteFileApi,
+  executeImportRunApi,
+  getImportRunApi,
   listTestImportShortcutsApi,
-  previewGestionFileApi,
-  previewComptabiliteFileApi,
+  prepareComptabiliteRunApi,
+  prepareGestionRunApi,
+  redoImportOperationApi,
+  redoImportRunApi,
+  undoImportOperationApi,
+  undoImportRunApi,
   type ImportResult,
-  type PreviewSheetResult,
+  type ImportRunRead,
   type PreviewResult,
   type TestImportShortcut,
 } from '../api/accounting'
 
 const { t } = useI18n()
 const toast = useToast()
+const router = useRouter()
 
+const formPanelRef = ref<{ resetFile: () => void } | null>(null)
 const importType = ref<'gestion' | 'comptabilite'>('gestion')
 const selectedFile = ref<File | null>(null)
-const fileInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
 const previewing = ref(false)
+const fiscalYearStartMonth = ref(8)
 const result = ref<ImportResult | null>(null)
 const preview = ref<PreviewResult | null>(null)
-const warningsAcknowledged = ref(false)
+const previewPanel = ref<HTMLElement | null>(null)
+const activeRun = ref<ImportRunRead | null>(null)
+const busyRunId = ref<number | null>(null)
+const busyOperationId = ref<number | null>(null)
+const comparisonStartDate = ref('')
+const comparisonEndDate = ref('')
 const testShortcuts = ref<TestImportShortcut[]>([])
 const runningShortcutAlias = ref<string | null>(null)
-const resultHasIssues = computed(() => Boolean(
-  result.value && (result.value.errors.length > 0 || result.value.warnings.length > 0),
-))
-const resultCreatedCount = computed(() => {
-  if (!result.value) return 0
-  return (
-    result.value.contacts_created
-    + result.value.invoices_created
-    + result.value.payments_created
-    + result.value.salaries_created
-    + result.value.entries_created
-    + result.value.cash_created
-    + result.value.bank_created
-  )
-})
-const resultStateMessage = computed(() => {
-  if (!result.value) return ''
-  return resultHasIssues.value ? t('import.completed_with_issues') : t('import.success')
-})
-const resultStateDetail = computed(() => {
-  if (!result.value) return ''
-  return t('import.result_persistent_hint', {
-    count: resultCreatedCount.value,
-    ignored: result.value.ignored_rows,
-    blocked: result.value.blocked_rows,
-  })
-})
-const hasPreviewWarnings = computed(() => Boolean(
-  preview.value
-  && (
-    preview.value.warnings.length > 0
-    || preview.value.warning_details.length > 0
-    || preview.value.sheets.some((sheet) => sheet.warnings.length > 0 || sheet.warning_details.length > 0)
-  ),
-))
-const canConfirmImport = computed(() => Boolean(
-  selectedFile.value
-  && preview.value?.can_import
-  && (!hasPreviewWarnings.value || warningsAcknowledged.value),
-))
-const previewState = computed<'ready' | 'noop' | 'blocked'>(() => {
-  if (!preview.value) return 'blocked'
-  if (preview.value.can_import) return 'ready'
-  if (preview.value.errors.length === 0) return 'noop'
-  return 'blocked'
-})
-const previewStateClass = computed(() => {
-  if (previewState.value === 'ready') return 'import-preview-state--ready'
-  if (previewState.value === 'noop') return 'import-preview-state--noop'
-  return 'import-preview-state--blocked'
-})
-const previewStateMessage = computed(() => {
-  if (previewState.value === 'ready') return t('import.preview_ready')
-  if (previewState.value === 'noop') return t('import.preview_noop')
-  return t('import.preview_blocked')
-})
-const importActionHint = computed(() => {
-  if (!selectedFile.value) return t('import.file_required')
-  if (!preview.value) return t('import.preview_required')
-  if (hasPreviewWarnings.value && !warningsAcknowledged.value) return t('import.warning_ack_required')
-  if (!preview.value.can_import) return t('import.preview_blocked')
-  return t('import.import_ready')
-})
+const runningAllShortcuts = ref(false)
+
+const canConfirmImport = computed(() =>
+  Boolean(selectedFile.value && preview.value?.can_import && activeRun.value?.can_execute !== false),
+)
 
 function resetImportFlow() {
   result.value = null
   preview.value = null
-  warningsAcknowledged.value = false
+  activeRun.value = null
 }
 
-watch(importType, () => {
-  resetImportFlow()
-})
-
-onMounted(async () => {
-  await loadTestShortcuts()
-})
-
-function previewSheetKindLabel(kind: PreviewSheetResult['kind']) {
-  return t(`import.sheet_kind.${kind}`)
+function shouldDisplayRunSummary(run: ImportRunRead) {
+  return run.status !== 'prepared' && run.status !== 'blocked'
 }
 
-function previewSheetStatusLabel(status: PreviewSheetResult['status']) {
-  return t(`import.sheet_status.${status}`)
+function syncRunState(run: ImportRunRead) {
+  activeRun.value = run
+  preview.value = run.preview
+  result.value = shouldDisplayRunSummary(run) ? run.summary : null
 }
 
-function importSheetKindLabel(kind: string) {
-  return t(`import.sheet_kind.${kind}`)
+function padMonth(value: number) {
+  return String(value).padStart(2, '0')
 }
 
-function onFileChange(event: Event) {
-  const input = event.target as HTMLInputElement
-  selectedFile.value = input.files?.[0] ?? null
-  resetImportFlow()
+function formatIsoDate(value: Date) {
+  return `${value.getFullYear()}-${padMonth(value.getMonth() + 1)}-${padMonth(value.getDate())}`
+}
+
+function buildDefaultComparisonRange(fileName: string | undefined) {
+  if (!fileName) return { start: '', end: '' }
+  const yearMatch = fileName.match(/(20\d{2})/)
+  if (!yearMatch || !yearMatch[1]) return { start: '', end: '' }
+  const startYear = Number.parseInt(yearMatch[1], 10)
+  const startMonth = Math.min(Math.max(fiscalYearStartMonth.value, 1), 12)
+  const startDate = new Date(startYear, startMonth - 1, 1)
+  const nextFiscalYearStart = new Date(startYear + 1, startMonth - 1, 1)
+  const endDate = new Date(nextFiscalYearStart.getTime() - 24 * 60 * 60 * 1000)
+  return { start: formatIsoDate(startDate), end: formatIsoDate(endDate) }
+}
+
+function applyDefaultComparisonRange(fileName: string | undefined = selectedFile.value?.name) {
+  const defaults = buildDefaultComparisonRange(fileName)
+  comparisonStartDate.value = defaults.start
+  comparisonEndDate.value = defaults.end
+}
+
+function getImportErrorSummary(error: unknown): string {
+  const responseData = (error as { response?: { data?: unknown } }).response?.data
+  const detail = responseData && typeof responseData === 'object'
+    ? (responseData as { detail?: unknown }).detail
+    : undefined
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if ((error as { code?: string }).code === 'ECONNABORTED') return t('import.request_timeout')
+  const message = (error as { message?: unknown }).message
+  if (typeof message === 'string' && message.trim()) return message
+  return t('common.error.unknown')
+}
+
+function isRequestTimeout(error: unknown): boolean {
+  return (error as { code?: string }).code === 'ECONNABORTED'
+}
+
+async function refreshRunAfterTimeout(runId: number) {
+  try {
+    const refreshedRun = await getImportRunApi(runId)
+    syncRunState(refreshedRun)
+    toast.add({ severity: 'info', summary: t('import.request_timeout_refreshed'), life: 5000 })
+  } catch {
+    toast.add({ severity: 'warn', summary: t('import.request_timeout'), life: 5000 })
+  }
+}
+
+async function scrollToPreviewPanel() {
+  await nextTick()
+  previewPanel.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 async function loadTestShortcuts() {
   try {
-    testShortcuts.value = (await listTestImportShortcutsApi()).sort((left, right) => left.order - right.order)
+    testShortcuts.value = (await listTestImportShortcutsApi()).sort(
+      (left, right) => left.order - right.order,
+    )
   } catch (error: unknown) {
     const status = (error as { response?: { status?: number } }).response?.status
-    if (status !== 404) {
-      toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
-    }
+    if (status !== 404) toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
     testShortcuts.value = []
   }
+}
+
+async function loadSettings() {
+  try {
+    const data = await getSettingsApi()
+    fiscalYearStartMonth.value = data.fiscal_year_start_month
+    applyDefaultComparisonRange()
+  } catch {
+    fiscalYearStartMonth.value = 8
+  }
+}
+
+function onFileSelected(file: File | null) {
+  selectedFile.value = file
+  resetImportFlow()
+  applyDefaultComparisonRange(file?.name)
 }
 
 async function doPreview() {
   if (!selectedFile.value) return
   previewing.value = true
-  warningsAcknowledged.value = false
   preview.value = null
   result.value = null
+  activeRun.value = null
   try {
-    if (importType.value === 'gestion') {
-      preview.value = await previewGestionFileApi(selectedFile.value)
-    } else {
-      preview.value = await previewComptabiliteFileApi(selectedFile.value)
+    const comparisonWindow = {
+      comparison_start_date: comparisonStartDate.value || undefined,
+      comparison_end_date: comparisonEndDate.value || undefined,
     }
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+    if (importType.value === 'gestion') {
+      syncRunState(await prepareGestionRunApi(selectedFile.value, comparisonWindow))
+    } else {
+      syncRunState(await prepareComptabiliteRunApi(selectedFile.value, comparisonWindow))
+    }
+    await scrollToPreviewPanel()
+  } catch (error: unknown) {
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     previewing.value = false
   }
@@ -510,32 +256,94 @@ async function doImport() {
     toast.add({ severity: 'warn', summary: t('import.preview_required'), life: 3000 })
     return
   }
-  if (hasPreviewWarnings.value && !warningsAcknowledged.value) {
-    toast.add({ severity: 'warn', summary: t('import.warning_ack_required'), life: 3500 })
-    return
-  }
   if (!preview.value.can_import) {
     toast.add({ severity: 'warn', summary: t('import.preview_blocked'), life: 3500 })
+    return
+  }
+  if (!activeRun.value?.can_execute) {
+    toast.add({ severity: 'warn', summary: t('import.run_not_executable'), life: 3500 })
     return
   }
   importing.value = true
   result.value = null
   try {
-    if (importType.value === 'gestion') {
-      result.value = await importGestionFileApi(selectedFile.value)
-    } else {
-      result.value = await importComptabiliteFileApi(selectedFile.value)
-    }
-    const hasIssues = result.value.errors.length > 0 || result.value.warnings.length > 0
+    const run = await executeImportRunApi(activeRun.value.id)
+    syncRunState(run)
+    const runResult = run.summary
+    const hasFailed = run.status === 'failed'
+    const hasIssues = Boolean(hasFailed || (runResult && (runResult.errors.length > 0 || runResult.warnings.length > 0)))
     toast.add({
-      severity: hasIssues ? 'warn' : 'success',
-      summary: hasIssues ? t('import.completed_with_issues') : t('import.success'),
-      life: 3500,
+      severity: hasFailed ? 'error' : hasIssues ? 'warn' : 'success',
+      summary: hasFailed ? t('import.failed') : hasIssues ? t('import.completed_with_issues') : t('import.success'),
+      detail: hasFailed ? getImportErrorSummary(runResult) : undefined,
+      life: hasFailed ? 5000 : 3500,
     })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (error: unknown) {
+    if (isRequestTimeout(error) && activeRun.value?.id != null) {
+      await refreshRunAfterTimeout(activeRun.value.id)
+      return
+    }
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
   } finally {
     importing.value = false
+  }
+}
+
+async function undoRun(runId: number) {
+  busyRunId.value = runId
+  try {
+    const run = await undoImportRunApi(runId)
+    if (activeRun.value?.id === runId) syncRunState(run)
+  } catch (error: unknown) {
+    if (isRequestTimeout(error)) { await refreshRunAfterTimeout(runId); return }
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
+  } finally {
+    busyRunId.value = null
+  }
+}
+
+async function redoRun(runId: number) {
+  busyRunId.value = runId
+  try {
+    const run = await redoImportRunApi(runId)
+    if (activeRun.value?.id === runId) syncRunState(run)
+  } catch (error: unknown) {
+    if (isRequestTimeout(error)) { await refreshRunAfterTimeout(runId); return }
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
+  } finally {
+    busyRunId.value = null
+  }
+}
+
+async function undoOperation(operationId: number) {
+  busyOperationId.value = operationId
+  try {
+    const run = await undoImportOperationApi(operationId)
+    syncRunState(run)
+  } catch (error: unknown) {
+    if (isRequestTimeout(error) && activeRun.value?.id != null) {
+      await refreshRunAfterTimeout(activeRun.value.id)
+      return
+    }
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
+  } finally {
+    busyOperationId.value = null
+  }
+}
+
+async function redoOperation(operationId: number) {
+  busyOperationId.value = operationId
+  try {
+    const run = await redoImportOperationApi(operationId)
+    syncRunState(run)
+  } catch (error: unknown) {
+    if (isRequestTimeout(error) && activeRun.value?.id != null) {
+      await refreshRunAfterTimeout(activeRun.value.id)
+      return
+    }
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 5000 })
+  } finally {
+    busyOperationId.value = null
   }
 }
 
@@ -543,36 +351,108 @@ async function runTestShortcut(alias: string) {
   importing.value = true
   runningShortcutAlias.value = alias
   selectedFile.value = null
-  if (fileInput.value) {
-    fileInput.value.value = ''
-  }
+  formPanelRef.value?.resetFile()
   preview.value = null
-  warningsAcknowledged.value = false
   result.value = null
   try {
     const shortcut = testShortcuts.value.find((item) => item.alias === alias)
     if (shortcut) {
       importType.value = shortcut.import_type
+      applyDefaultComparisonRange(shortcut.file_name ?? undefined)
     }
-    result.value = await importTestShortcutApi(alias)
-    const hasIssues = result.value.errors.length > 0 || result.value.warnings.length > 0
-    toast.add({
-      severity: hasIssues ? 'warn' : 'success',
-      summary: hasIssues ? t('import.completed_with_issues') : t('import.success'),
-      life: 3500,
-    })
+    const comparisonWindow = {
+      comparison_start_date: comparisonStartDate.value || undefined,
+      comparison_end_date: comparisonEndDate.value || undefined,
+    }
+    const run = await importTestShortcutApi(alias, comparisonWindow)
+    syncRunState(run)
+    if (run.summary) {
+      const hasFailed = run.status === 'failed'
+      const hasIssues = Boolean(hasFailed || run.summary.errors.length > 0 || run.summary.warnings.length > 0)
+      toast.add({
+        severity: hasFailed ? 'error' : hasIssues ? 'warn' : 'success',
+        summary: hasFailed ? t('import.failed') : hasIssues ? t('import.completed_with_issues') : t('import.success'),
+        detail: hasFailed ? getImportErrorSummary(run.summary) : undefined,
+        life: hasFailed ? 5000 : 3500,
+      })
+    } else {
+      toast.add({
+        severity: 'warn',
+        summary: run.preview?.can_import ? t('import.run_not_executable') : t('import.preview_blocked'),
+        life: 4000,
+      })
+    }
+    await scrollToPreviewPanel()
     await loadTestShortcuts()
   } catch (error: unknown) {
-    const detail = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail
-    toast.add({ severity: 'error', summary: detail ?? t('common.error.unknown'), life: 4500 })
+    toast.add({ severity: 'error', summary: getImportErrorSummary(error), life: 4500 })
   } finally {
     importing.value = false
     runningShortcutAlias.value = null
   }
 }
+
+const ALL_SHORTCUTS_ORDER = ['gestion-2024', 'comptabilite-2024', 'gestion-2025', 'comptabilite-2025']
+
+async function runAllTestShortcuts() {
+  runningAllShortcuts.value = true
+  importing.value = true
+  selectedFile.value = null
+  formPanelRef.value?.resetFile()
+  preview.value = null
+  result.value = null
+
+  for (const alias of ALL_SHORTCUTS_ORDER) {
+    const shortcut = testShortcuts.value.find((item) => item.alias === alias)
+    if (!shortcut?.available) continue
+    runningShortcutAlias.value = alias
+    if (shortcut) {
+      importType.value = shortcut.import_type as 'gestion' | 'comptabilite'
+      applyDefaultComparisonRange(shortcut.file_name ?? undefined)
+    }
+    const comparisonWindow = {
+      comparison_start_date: comparisonStartDate.value || undefined,
+      comparison_end_date: comparisonEndDate.value || undefined,
+    }
+    try {
+      const run = await importTestShortcutApi(alias, comparisonWindow)
+      syncRunState(run)
+      const hasFailed = run.status === 'failed'
+      const hasIssues = Boolean(hasFailed || (run.summary && (run.summary.errors.length > 0 || run.summary.warnings.length > 0)))
+      toast.add({
+        severity: hasFailed ? 'error' : hasIssues ? 'warn' : 'success',
+        summary: `${shortcut.label} : ${hasFailed ? t('import.failed') : hasIssues ? t('import.completed_with_issues') : t('import.success')}`,
+        life: hasFailed ? 6000 : 3500,
+      })
+      if (hasFailed) break
+    } catch (error: unknown) {
+      toast.add({ severity: 'error', summary: `${shortcut.label} : ${getImportErrorSummary(error)}`, life: 6000 })
+      break
+    }
+  }
+
+  runningShortcutAlias.value = null
+  runningAllShortcuts.value = false
+  importing.value = false
+  await loadTestShortcuts()
+}
+
+watch(importType, () => {
+  resetImportFlow()
+  applyDefaultComparisonRange()
+})
+
+watch([comparisonStartDate, comparisonEndDate], () => {
+  if (preview.value !== null) resetImportFlow()
+})
+
+onMounted(async () => {
+  await loadSettings()
+  await loadTestShortcuts()
+})
 </script>
 
-<style scoped>
+<style>
 .import-form {
   display: flex;
   flex-direction: column;
@@ -605,6 +485,22 @@ async function runTestShortcut(alias: string) {
 
 .import-file-name--empty {
   color: var(--p-text-muted-color);
+}
+
+.import-comparison-window-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-radius-md);
+  background: linear-gradient(180deg, var(--app-surface-bg), var(--app-surface-muted));
+}
+
+.import-comparison-window-grid {
+  display: grid;
+  gap: var(--app-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
 }
 
 .import-guidance {
@@ -672,6 +568,10 @@ async function runTestShortcut(alias: string) {
   font-size: 0.95rem;
 }
 
+.import-action-hint--warning {
+  color: color-mix(in srgb, var(--p-amber-700) 78%, var(--p-text-color) 22%);
+}
+
 .import-result-banner {
   display: flex;
   flex-direction: column;
@@ -685,6 +585,15 @@ async function runTestShortcut(alias: string) {
   margin: 0;
 }
 
+.import-result-banner-errors {
+  padding-top: var(--app-space-1);
+  border-top: 1px solid currentColor;
+}
+
+.import-result-banner-errors .import-errors {
+  margin: 0;
+}
+
 .import-result-banner--success {
   background: color-mix(in srgb, var(--p-green-500) 12%, var(--app-surface-bg) 88%);
   color: color-mix(in srgb, var(--p-green-700) 78%, var(--p-text-color) 22%);
@@ -695,11 +604,112 @@ async function runTestShortcut(alias: string) {
   color: color-mix(in srgb, var(--p-amber-700) 78%, var(--p-text-color) 22%);
 }
 
+.import-surface-shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.import-preview-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--app-space-3);
+  margin-bottom: var(--app-space-3);
+}
+
+.import-preview-overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: var(--app-space-3);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-radius-md);
+  background: linear-gradient(180deg, var(--app-surface-bg), var(--app-surface-muted));
+}
+
+.import-preview-overview-card__label {
+  color: var(--p-text-muted-color);
+  font-size: 0.85rem;
+}
+
+.import-preview-overview-card__value {
+  font-size: 1.3rem;
+}
+
+.import-preview-overview-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-3);
+  margin-bottom: var(--app-space-3);
+}
+
+.import-preview-overview-meta .import-preview-state {
+  margin: 0;
+}
+
+.import-preview-inline-alert {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--app-space-3);
+  margin-bottom: var(--app-space-4);
+  padding: var(--app-space-3) var(--app-space-4);
+  border: 1px solid color-mix(in srgb, var(--p-amber-500) 35%, var(--app-surface-border) 65%);
+  border-radius: var(--app-radius-md);
+  background: color-mix(in srgb, var(--p-amber-500) 10%, var(--app-surface-bg) 90%);
+}
+
+.import-preview-tabs {
+  display: inline-flex;
+  gap: var(--app-space-2);
+  margin-bottom: var(--app-space-4);
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-muted) 86%, var(--app-surface-bg) 14%);
+}
+
+.import-preview-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.95rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--p-text-muted-color);
+  cursor: pointer;
+  font: inherit;
+}
+
+.import-preview-tab--active {
+  background: var(--app-surface-bg);
+  color: var(--p-text-color);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.import-preview-tab__count {
+  min-width: 1.4rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-border) 28%, transparent 72%);
+  text-align: center;
+  font-size: 0.8rem;
+}
+
 .import-summary-grid,
 .import-result-list {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
+}
+
+.import-inline-actions {
+  justify-content: flex-start;
+}
+
+.import-summary-grid--compact {
+  gap: var(--app-space-2);
 }
 
 .import-summary-row {
@@ -715,6 +725,10 @@ async function runTestShortcut(alias: string) {
   padding: var(--app-space-3) var(--app-space-4);
   border-radius: var(--app-radius-md);
   font-size: 0.95rem;
+}
+
+.import-operation-metrics--inline {
+  flex-wrap: wrap;
 }
 
 .import-preview-state--ready {
@@ -747,33 +761,329 @@ async function runTestShortcut(alias: string) {
   font-size: 0.92rem;
 }
 
-.import-confirmation-guard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-2);
-  padding: var(--app-space-3) var(--app-space-4);
-  border: 1px solid color-mix(in srgb, var(--p-amber-500) 35%, var(--app-surface-border) 65%);
-  border-radius: var(--app-radius-md);
-  background: color-mix(in srgb, var(--p-amber-500) 10%, var(--app-surface-bg) 90%);
-}
-
-.import-confirmation-guard__checkbox {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: var(--app-space-3);
-}
-
-.import-confirmation-guard__help {
-  margin: 0;
-  color: var(--p-text-muted-color);
-  font-size: 0.95rem;
-}
-
 .import-sheet-list {
   margin-top: var(--app-space-5);
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
+}
+
+.import-section-eyebrow {
+  margin: 0 0 var(--app-space-1);
+  color: var(--p-text-muted-color);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.import-comparison-block {
+  margin-top: var(--app-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.import-diagnostic-block {
+  margin-top: var(--app-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.import-blocked-guidance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  margin-top: var(--app-space-4);
+  padding: var(--app-space-4);
+  border: 1px solid color-mix(in srgb, var(--p-red-500) 22%, var(--app-surface-border) 78%);
+  border-radius: var(--app-radius-md);
+  background: color-mix(in srgb, var(--p-red-500) 7%, var(--app-surface-bg) 93%);
+}
+
+.import-blocked-guidance__steps {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--p-text-color);
+}
+
+.import-operation-block {
+  margin-top: var(--app-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.import-operation-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--app-space-2);
+}
+
+.import-operation-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-muted) 88%, var(--app-surface-bg) 12%);
+  color: var(--p-text-muted-color);
+  font-size: 0.84rem;
+}
+
+.import-operation-metric--success {
+  color: color-mix(in srgb, var(--p-green-700) 74%, var(--p-text-color) 26%);
+}
+
+.import-operation-metric--muted {
+  color: var(--p-text-muted-color);
+}
+
+.import-operation-metric--danger {
+  color: var(--p-red-500);
+}
+
+.import-operation-toolbar {
+  display: grid;
+  gap: var(--app-space-3);
+  grid-template-columns: minmax(18rem, 2fr) repeat(2, minmax(12rem, 1fr));
+}
+
+.import-operation-toolbar__search {
+  min-width: 0;
+}
+
+.import-operation-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-radius-md);
+  background: linear-gradient(180deg, var(--app-surface-bg), var(--app-surface-muted));
+}
+
+.import-operation-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 48rem;
+}
+
+.import-operation-table th,
+.import-operation-table td {
+  padding: 0.9rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--app-surface-border);
+  vertical-align: top;
+}
+
+.import-operation-table thead th {
+  background: color-mix(in srgb, var(--app-surface-muted) 72%, var(--app-surface-bg) 28%);
+  font-size: 0.84rem;
+}
+
+.import-operation-table tbody:last-child tr:last-child td {
+  border-bottom: none;
+}
+
+.import-operation-table__expander-column {
+  width: 6.5rem;
+}
+
+.import-operation-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.import-operation-sort__indicator {
+  min-width: 0.75rem;
+  color: var(--p-text-muted-color);
+}
+
+.import-operation-group-row th {
+  padding-block: 0.7rem;
+  background: color-mix(in srgb, var(--app-surface-border) 24%, var(--app-surface-bg) 76%);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.import-operation-group-row__content {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  align-items: center;
+}
+
+.import-operation-group-row__count {
+  color: var(--p-text-muted-color);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.import-operation-row:hover td {
+  background: color-mix(in srgb, var(--app-surface-muted) 70%, transparent 30%);
+}
+
+.import-operation-toggle {
+  padding: 0.32rem 0.6rem;
+  border: 1px solid var(--app-surface-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--p-text-color);
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.import-operation-summary-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.import-operation-summary-cell__meta,
+.import-operation-status-stack__meta {
+  color: var(--p-text-muted-color);
+  font-size: 0.82rem;
+}
+
+.import-operation-status-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.import-operation-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.import-operation-badge--default {
+  background: color-mix(in srgb, var(--app-surface-border) 24%, var(--app-surface-bg) 76%);
+  color: var(--p-text-color);
+}
+
+.import-operation-badge--success {
+  background: color-mix(in srgb, var(--p-green-500) 12%, var(--app-surface-bg) 88%);
+  color: color-mix(in srgb, var(--p-green-700) 78%, var(--p-text-color) 22%);
+}
+
+.import-operation-badge--warning {
+  background: color-mix(in srgb, var(--p-amber-500) 14%, var(--app-surface-bg) 86%);
+  color: var(--p-amber-700);
+}
+
+.import-operation-badge--danger {
+  background: color-mix(in srgb, var(--p-red-500) 12%, var(--app-surface-bg) 88%);
+  color: var(--p-red-500);
+}
+
+.import-operation-badge--muted {
+  background: color-mix(in srgb, var(--app-surface-border) 18%, var(--app-surface-bg) 82%);
+  color: var(--p-text-muted-color);
+}
+
+.import-operation-detail-row td {
+  padding-top: 0;
+  background: color-mix(in srgb, var(--app-surface-muted) 64%, transparent 36%);
+}
+
+.import-operation-detail-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) 0 var(--app-space-2);
+}
+
+.import-operation-detail-card__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.import-operation-detail-grid {
+  display: grid;
+  gap: var(--app-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.import-operation-detail-card__error {
+  color: var(--p-red-500);
+}
+
+.import-diagnostic-block__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--app-space-4);
+  align-items: flex-start;
+}
+
+.import-comparison-block__header {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--app-space-4);
+  align-items: flex-start;
+}
+
+.import-comparison-grid {
+  display: grid;
+  gap: var(--app-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.import-comparison-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-4);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-radius-md);
+  background: linear-gradient(180deg, var(--app-surface-bg), var(--app-surface-muted));
+}
+
+.import-comparison-detail-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.import-comparison-detail-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.import-comparison-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-2);
+  padding: var(--app-space-3);
+  border-radius: var(--app-radius-md);
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.import-comparison-detail-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+}
+
+.import-comparison-detail-field {
+  font-size: 0.82rem;
+  color: var(--app-text-muted);
 }
 
 .import-sheet-list__title {
@@ -897,7 +1207,33 @@ async function runTestShortcut(alias: string) {
   color: var(--p-red-200);
 }
 
+@media (max-width: 720px) {
+  .import-preview-inline-alert {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .import-comparison-block__header,
+  .import-sheet-card__header,
+  .import-diagnostic-block__header {
+    flex-direction: column;
+  }
+
+  .import-sheet-card__stats {
+    align-items: flex-start;
+  }
+
+  .import-operation-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .import-operation-metrics {
+    justify-content: flex-start;
+  }
+}
+
 :global(html.dark-mode) .import-chip--danger {
   color: var(--p-red-100);
 }
 </style>
+

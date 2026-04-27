@@ -2,14 +2,22 @@
 
 import io
 import json
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from backend.models.import_log import ImportLog
+from backend.models.import_log import ImportLog, ImportLogStatus, ImportLogType
+from backend.models.import_run import (
+    ImportOperation,
+    ImportOperationDecision,
+    ImportOperationStatus,
+    ImportRun,
+    ImportRunStatus,
+)
 
 try:
     import openpyxl
@@ -20,6 +28,28 @@ except ImportError:
 
 
 _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _build_import_log_summary(**overrides: object) -> dict[str, object]:
+    return {
+        "contacts_created": 0,
+        "invoices_created": 0,
+        "payments_created": 0,
+        "salaries_created": 0,
+        "entries_created": 0,
+        "cash_created": 0,
+        "bank_created": 0,
+        "skipped": 0,
+        "ignored_rows": 0,
+        "blocked_rows": 0,
+        "warnings": [],
+        "errors": [],
+        "warning_details": [],
+        "error_details": [],
+        "sheets": [],
+        "created_objects": [],
+        **overrides,
+    }
 
 
 def _make_simple_xlsx(headers: list[str], rows: list[list]) -> bytes:
@@ -78,6 +108,205 @@ async def test_import_requires_auth(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_import_history_requires_auth(client: AsyncClient) -> None:
+    """Import history endpoint requires authentication."""
+    response = await client.get("/api/import/history")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_import_endpoints_are_reserved_to_admin(
+    client: AsyncClient, tresorier_auth_headers: dict
+) -> None:
+    """Import endpoints reject authenticated non-admin users."""
+    response = await client.get("/api/import/history", headers=tresorier_auth_headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_import_history_lists_recent_logs_with_parsed_summary(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Import history should expose recent logs with parsed counters and traceability."""
+    older_log = ImportLog(
+        import_type=ImportLogType.GESTION,
+        status=ImportLogStatus.SUCCESS,
+        file_hash="a" * 64,
+        file_name="Gestion 2024.xlsx",
+        summary=json.dumps(
+            _build_import_log_summary(
+                contacts_created=1,
+                warnings=["Factures — Ligne ignorée"],
+                created_objects=[
+                    {
+                        "sheet_name": "Factures",
+                        "kind": "invoices",
+                        "object_type": "invoice",
+                        "object_id": 12,
+                        "reference": "FAC-2024-001",
+                        "details": {"contact_name": "Alice Martin"},
+                    }
+                ],
+            ),
+            ensure_ascii=False,
+        ),
+        created_at=date(2026, 4, 18),
+    )
+    newer_log = ImportLog(
+        import_type=ImportLogType.COMPTABILITE,
+        status=ImportLogStatus.FAILED,
+        file_hash="b" * 64,
+        file_name="Comptabilite 2025.xlsx",
+        summary=json.dumps(
+            _build_import_log_summary(
+                entries_created=4,
+                blocked_rows=2,
+                errors=["Journal — Compte manquant"],
+                sheets=[
+                    {
+                        "name": "Journal",
+                        "kind": "entries",
+                        "imported_rows": 4,
+                        "ignored_rows": 0,
+                        "blocked_rows": 2,
+                        "warnings": [],
+                        "errors": ["Compte manquant"],
+                    }
+                ],
+            ),
+            ensure_ascii=False,
+        ),
+        created_at=date(2026, 4, 20),
+    )
+    db_session.add_all([older_log, newer_log])
+    await db_session.commit()
+
+    response = await client.get("/api/import/history", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [item["file_name"] for item in data] == [
+        "Comptabilite 2025.xlsx",
+        "Gestion 2024.xlsx",
+    ]
+    assert data[0]["status"] == "failed"
+    assert data[0]["summary"]["entries_created"] == 4
+    assert data[0]["summary"]["blocked_rows"] == 2
+    assert data[0]["summary"]["errors"] == ["Journal — Compte manquant"]
+    assert data[0]["summary"]["sheets"][0]["name"] == "Journal"
+    assert data[1]["summary"]["contacts_created"] == 1
+    assert data[1]["summary"]["created_objects"][0]["reference"] == "FAC-2024-001"
+
+
+@pytest.mark.asyncio
+async def test_import_history_tolerates_invalid_serialized_summary(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Import history should not fail when a legacy log contains invalid JSON."""
+    db_session.add(
+        ImportLog(
+            import_type=ImportLogType.GESTION,
+            status=ImportLogStatus.BLOCKED,
+            file_hash="c" * 64,
+            file_name="Gestion legacy.xlsx",
+            summary="{invalid",
+            created_at=date(2026, 4, 19),
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/import/history", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data[0]["file_name"] == "Gestion legacy.xlsx"
+    assert data[0]["summary"] is None
+
+
+@pytest.mark.asyncio
+async def test_get_import_run_exposes_source_data_for_blocked_operations(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Prepared runs should expose normalized Excel source data for blocked operations."""
+    run = ImportRun(
+        import_type="comptabilite",
+        status=ImportRunStatus.BLOCKED,
+        file_hash="d" * 64,
+        file_name="Comptabilite 2025.xlsx",
+        created_at=datetime(2026, 4, 20, 10, 0, 0),
+        updated_at=datetime(2026, 4, 20, 10, 0, 0),
+    )
+    db_session.add(run)
+    await db_session.flush()
+
+    db_session.add(
+        ImportOperation(
+            run_id=run.id,
+            position=1,
+            operation_type="blocked_by_validation",
+            title="Ligne 14",
+            description="Compte 706200 absent du plan comptable",
+            source_sheet="Journal",
+            source_row_numbers_json=json.dumps([14], ensure_ascii=False),
+            decision=ImportOperationDecision.BLOCK,
+            status=ImportOperationStatus.BLOCKED,
+            payload_json=json.dumps(
+                {
+                    "row": {
+                        "source_row_number": 14,
+                        "entry_date": "2025-09-15",
+                        "account_number": "706200",
+                        "label": "Cours septembre",
+                        "debit": "0",
+                        "credit": "85",
+                    }
+                },
+                ensure_ascii=False,
+            ),
+            diagnostics_json=json.dumps(
+                ["Journal — Ligne 14 : compte comptable introuvable"],
+                ensure_ascii=False,
+            ),
+            error_message="Compte comptable introuvable",
+        )
+    )
+    await db_session.commit()
+
+    response = await client.get(f"/api/import/runs/{run.id}", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["operations"][0]["source_data"] == [
+        {
+            "source_row_number": 14,
+            "entry_date": "2025-09-15",
+            "account_number": "706200",
+            "label": "Cours septembre",
+            "debit": "0",
+            "credit": "85",
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_get_import_run_returns_localized_404(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    """Missing reversible runs should return a localized not-found message."""
+    response = await client.get("/api/import/runs/999999", headers=auth_headers)
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Import préparé introuvable (id : 999999)"}
+
+
+@pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
 async def test_import_gestion_empty_sheet(client: AsyncClient, auth_headers: dict) -> None:
     """Uploading an xlsx with empty valid sheet returns a result dict."""
@@ -120,19 +349,30 @@ async def test_test_import_shortcuts_list_and_run_configured_file(
     auth_headers: dict,
     tmp_path,
 ) -> None:
-    """Configured test shortcuts should be listed and executable."""
-    from backend import config as config_module
+    """Configured test shortcuts should create and execute a reversible import run."""
+    from backend.config import Settings, get_settings
 
     shortcut_file = tmp_path / "Gestion 2024.xlsx"
-    shortcut_file.write_bytes(_make_simple_xlsx(["date", "montant", "nom"], [[]]))
+    shortcut_file.write_bytes(
+        _make_multi_sheet_xlsx(
+            {
+                "Contacts": (
+                    ["Nom", "Email"],
+                    [
+                        ["Christine LOPES", "christine@example.test"],
+                        ["Thi BE NGUYEN", "thi@example.test"],
+                    ],
+                )
+            }
+        )
+    )
 
-    original_settings = config_module._settings
-    config_module._settings = config_module.Settings(
-        jwt_secret_key=original_settings.jwt_secret_key,
+    test_settings = Settings(
+        jwt_secret_key=get_settings().jwt_secret_key,
         enable_test_import_shortcuts=True,
         test_import_gestion_2024_path=str(shortcut_file),
     )
-    try:
+    with patch("backend.routers.excel_import.get_settings", return_value=test_settings):
         shortcuts_response = await client.get(
             "/api/import/excel/test-shortcuts",
             headers=auth_headers,
@@ -146,15 +386,22 @@ async def test_test_import_shortcuts_list_and_run_configured_file(
 
         import_response = await client.post(
             "/api/import/excel/test-shortcuts/gestion-2024",
+            params={
+                "comparison_start_date": "2024-08-01",
+                "comparison_end_date": "2025-07-31",
+            },
             headers=auth_headers,
         )
 
         assert import_response.status_code == 200
         data = import_response.json()
-        assert "contacts_created" in data
-        assert data["entries_created"] == 0
-    finally:
-        config_module._settings = original_settings
+        assert data["kind"] == "run"
+        assert data["status"] == "completed"
+        assert data["comparison_start_date"] == "2024-08-01"
+        assert data["comparison_end_date"] == "2025-07-31"
+        assert data["summary"]["contacts_created"] == 2
+        assert data["summary"]["entries_created"] == 0
+        assert data["can_undo"] is True
 
 
 @pytest.mark.asyncio
@@ -166,6 +413,70 @@ async def test_import_rejects_non_excel(client: AsyncClient, auth_headers: dict)
         headers=auth_headers,
     )
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_rejects_invalid_comparison_date_range(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    """Preview should reject a comparison window where start_date is after end_date."""
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        data={
+            "comparison_start_date": "2025-08-02",
+            "comparison_end_date": "2025-08-01",
+        },
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "La date de début doit être inférieure ou égale à la date de fin"
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_comptabilite_rejects_invalid_comparison_date_range(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    """Comptabilité preview should reject a comparison window where start_date is after end_date."""
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit"],
+                [["2025-08-01", "401100", "Facture fournisseur", 10, None]],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        data={
+            "comparison_start_date": "2025-08-02",
+            "comparison_end_date": "2025-08-01",
+        },
+        files={"file": ("Comptabilite 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": "La date de début doit être inférieure ou égale à la date de fin"
+    }
 
 
 @pytest.mark.asyncio
@@ -258,8 +569,1074 @@ async def test_preview_gestion_estimates_contacts_from_invoices_and_payments(
     assert response.status_code == 200
     data = response.json()
     assert data["estimated_invoices"] == 2
-    assert data["estimated_payments"] == 2
+    assert data["estimated_payments"] == 1
     assert data["estimated_contacts"] == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_comparison_summarizes_existing_missing_and_ignored_invoices(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+
+    contact = Contact(nom="LOPES", prenom="Christine", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+    db_session.add(
+        Invoice(
+            number="2025-0142",
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 8, 1),
+            total_amount=Decimal("55.00"),
+            paid_amount=Decimal("0.00"),
+            status=InvoiceStatus.DRAFT,
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [
+                    ["2025-08-01", "2025-0142", "Christine LOPES", 55],
+                    ["2025-08-02", "2025-0143", "Christine LOPES", 75],
+                    ["2025-08-02", "2025-0143", "Christine LOPES", 75],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["comparison"]["mode"] == "gestion-excel-to-solde"
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["invoices"] == {
+        "kind": "invoices",
+        "file_rows": 3,
+        "already_in_solde": 1,
+        "missing_in_solde": 1,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 1,
+        "blocked": 0,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_prepare_run_keeps_source_data_for_ignored_operations(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+
+    contact = Contact(nom="LOPES", prenom="Christine", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+    db_session.add(
+        Invoice(
+            number="2025-0142",
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 8, 1),
+            total_amount=Decimal("55.00"),
+            paid_amount=Decimal("0.00"),
+            status=InvoiceStatus.DRAFT,
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [
+                    ["2025-08-01", "2025-0142", "Christine LOPES", 55],
+                    ["2025-08-02", "2025-0143", "Christine LOPES", 75],
+                    ["2025-08-02", "2025-0143", "Christine LOPES", 75],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    ignored_operations = [
+        operation for operation in data["operations"] if operation["decision"] == "ignore"
+    ]
+    assert ignored_operations
+    assert all(operation["source_data"] for operation in ignored_operations)
+    assert any(
+        source_row.get("invoice_number") == "2025-0142"
+        for operation in ignored_operations
+        for source_row in operation["source_data"]
+    )
+    assert any(
+        source_row.get("Réf facture") == "2025-0143"
+        for operation in ignored_operations
+        for source_row in operation["source_data"]
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_prepare_accepts_payment_matched_against_planned_invoice(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    """Prepared runs should accept payments matched to invoices planned in the same workbook."""
+    content = _make_multi_sheet_xlsx(
+        {
+            "Paiements": (
+                ["Réf facture", "Adhérent", "Montant", "Date paiement"],
+                [["2025-0142", "Christine LOPES", 55, "2025-08-02"]],
+            ),
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    prepared_run = prepare_response.json()
+    assert prepared_run["status"] == "prepared"
+    assert prepared_run["can_execute"] is True
+    assert [operation["operation_type"] for operation in prepared_run["operations"]] == [
+        "client_invoice_row_import",
+        "client_payment_row_import",
+    ]
+    assert all(operation["decision"] == "apply" for operation in prepared_run["operations"])
+
+    execute_response = await client.post(
+        f"/api/import/runs/{prepared_run['id']}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    assert executed_run["status"] == "completed"
+    assert executed_run["summary"]["contacts_created"] == 1
+    assert executed_run["summary"]["invoices_created"] == 1
+    assert executed_run["summary"]["payments_created"] == 1
+    assert all(operation["status"] == "applied" for operation in executed_run["operations"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_execute_applies_default_due_date_to_imported_invoice(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from sqlalchemy import select
+
+    from backend.models.invoice import Invoice
+
+    settings_response = await client.put(
+        "/api/settings/",
+        json={"default_invoice_due_days": 15},
+        headers=auth_headers,
+    )
+    assert settings_response.status_code == 200
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0143", "Christine LOPES", 55]],
+            ),
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+    assert prepare_response.status_code == 200
+
+    execute_response = await client.post(
+        f"/api/import/runs/{prepare_response.json()['id']}/execute",
+        headers=auth_headers,
+    )
+    assert execute_response.status_code == 200
+
+    invoice = (
+        (await db_session.execute(select(Invoice).where(Invoice.number == "2025-0143")))
+        .scalars()
+        .one()
+    )
+    assert invoice.due_date == date(2025, 8, 16)
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_prepare_accepts_distinct_cheques_same_invoice_amount_and_date(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Prepared runs should keep distinct cheque rows when only the cheque number differs."""
+    from backend.models.payment import Payment
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-05-02", "2025-0072", "Christine LOPES", 60]],
+            ),
+            "Paiements": (
+                [
+                    "Date",
+                    "Montant",
+                    "Référence facture",
+                    "Client",
+                    "Mode",
+                    "Numéro chèque",
+                    "Déposé",
+                    "Date dépôt",
+                ],
+                [
+                    [
+                        "2025-05-02",
+                        30,
+                        "2025-0072",
+                        "Christine LOPES",
+                        "Chèque",
+                        "2025.05.02.05",
+                        False,
+                        None,
+                    ],
+                    [
+                        "2025-05-02",
+                        30,
+                        "2025-0072",
+                        "Christine LOPES",
+                        "Chèque",
+                        "2025.05.02.06",
+                        False,
+                        None,
+                    ],
+                ],
+            ),
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    prepared_run = prepare_response.json()
+    assert prepared_run["status"] == "prepared"
+    assert prepared_run["can_execute"] is True
+    assert [operation["operation_type"] for operation in prepared_run["operations"]] == [
+        "client_invoice_row_import",
+        "client_payment_row_import",
+        "client_payment_row_import",
+    ]
+
+    execute_response = await client.post(
+        f"/api/import/runs/{prepared_run['id']}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    assert executed_run["status"] == "completed"
+    assert executed_run["summary"]["payments_created"] == 2
+
+    payments = list(
+        (await db_session.execute(select(Payment).order_by(Payment.cheque_number))).scalars()
+    )
+    assert [payment.cheque_number for payment in payments] == [
+        "2025.05.02.05",
+        "2025.05.02.06",
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_comparison_counts_blocked_unmatched_payments(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    content = _make_multi_sheet_xlsx(
+        {
+            "Paiements": (
+                ["Réf facture", "Adhérent", "Montant", "Date paiement"],
+                [["2025-0999", "Christine LOPES", 55, "2025-08-02"]],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["payments"] == {
+        "kind": "payments",
+        "file_rows": 1,
+        "already_in_solde": 0,
+        "missing_in_solde": 0,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 1,
+    }
+    assert data["can_import"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_comparison_counts_extra_invoices_in_solde(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+
+    contact = Contact(nom="LOPES", prenom="Christine", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+    db_session.add_all(
+        [
+            Invoice(
+                number="2025-0142",
+                type=InvoiceType.CLIENT,
+                contact_id=contact.id,
+                date=date(2025, 8, 1),
+                total_amount=Decimal("55.00"),
+                paid_amount=Decimal("0.00"),
+                status=InvoiceStatus.DRAFT,
+            ),
+            Invoice(
+                number="2025-0199",
+                type=InvoiceType.CLIENT,
+                contact_id=contact.id,
+                date=date(2025, 8, 2),
+                total_amount=Decimal("80.00"),
+                paid_amount=Decimal("0.00"),
+                status=InvoiceStatus.DRAFT,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [
+                    ["2025-08-01", "2025-0142", "Christine LOPES", 55],
+                    ["2025-08-02", "2025-0143", "Christine LOPES", 75],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["invoices"] == {
+        "kind": "invoices",
+        "file_rows": 2,
+        "already_in_solde": 1,
+        "missing_in_solde": 1,
+        "extra_in_solde": 1,
+        "extra_in_solde_details": [
+            {
+                "summary": "2025-0199 · 2025-08-02",
+                "number": "2025-0199",
+                "date": "2025-08-02",
+            }
+        ],
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+    assert data["comparison"]["totals"]["extra_in_solde"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_comparison_filters_only_convergence_section_by_date_window(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+
+    contact = Contact(nom="LOPES", prenom="Christine", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+    db_session.add_all(
+        [
+            Invoice(
+                number="2025-0142",
+                type=InvoiceType.CLIENT,
+                contact_id=contact.id,
+                date=date(2025, 8, 1),
+                total_amount=Decimal("55.00"),
+                paid_amount=Decimal("0.00"),
+                status=InvoiceStatus.DRAFT,
+            ),
+            Invoice(
+                number="2025-0199",
+                type=InvoiceType.CLIENT,
+                contact_id=contact.id,
+                date=date(2025, 8, 2),
+                total_amount=Decimal("80.00"),
+                paid_amount=Decimal("0.00"),
+                status=InvoiceStatus.DRAFT,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [
+                    ["2025-08-01", "2025-0142", "Christine LOPES", 55],
+                    ["2025-08-02", "2025-0143", "Christine LOPES", 75],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        data={
+            "comparison_start_date": "2025-08-01",
+            "comparison_end_date": "2025-08-01",
+        },
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["invoices"] == {
+        "kind": "invoices",
+        "file_rows": 1,
+        "already_in_solde": 1,
+        "missing_in_solde": 0,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+    sheets = {sheet["name"]: sheet for sheet in data["sheets"]}
+    assert sheets["Factures"]["rows"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_invoice_extra_in_solde_uses_file_exercise_not_old_open_invoice_dates(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+
+    contact = Contact(nom="LOPES", prenom="Christine", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+    db_session.add(
+        Invoice(
+            number="2024-0199",
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2024, 10, 12),
+            total_amount=Decimal("80.00"),
+            paid_amount=Decimal("0.00"),
+            status=InvoiceStatus.DRAFT,
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [
+                    ["2025-08-01", "2025-0142", "Christine LOPES", 55],
+                    ["2022-11-27", "2022-0007", "Christine LOPES", 45],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["invoices"] == {
+        "kind": "invoices",
+        "file_rows": 2,
+        "already_in_solde": 0,
+        "missing_in_solde": 2,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_invoice_extra_in_solde_counts_next_year_in_exercise(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+
+    contact = Contact(nom="LOPES", prenom="Christine", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+    db_session.add(
+        Invoice(
+            number="2026-0004",
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2026, 3, 5),
+            total_amount=Decimal("90.00"),
+            paid_amount=Decimal("0.00"),
+            status=InvoiceStatus.DRAFT,
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["invoices"] == {
+        "kind": "invoices",
+        "file_rows": 1,
+        "already_in_solde": 0,
+        "missing_in_solde": 1,
+        "extra_in_solde": 1,
+        "extra_in_solde_details": [
+            {
+                "summary": "2026-0004 · 2026-03-05",
+                "number": "2026-0004",
+                "date": "2026-03-05",
+            }
+        ],
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_payment_extra_in_solde_uses_file_exercise_window(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+    from backend.models.payment import Payment, PaymentMethod
+
+    contact = Contact(nom="LOPES", prenom="Christine", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+
+    extra_invoice = Invoice(
+        number="2025-0199",
+        type=InvoiceType.CLIENT,
+        contact_id=contact.id,
+        date=date(2025, 11, 2),
+        total_amount=Decimal("80.00"),
+        paid_amount=Decimal("80.00"),
+        status=InvoiceStatus.PAID,
+    )
+    db_session.add(extra_invoice)
+    await db_session.flush()
+    db_session.add(
+        Payment(
+            invoice_id=extra_invoice.id,
+            contact_id=contact.id,
+            date=date(2026, 5, 10),
+            amount=Decimal("80.00"),
+            method=PaymentMethod.VIREMENT,
+            reference="2025-0199",
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+            "Paiements": (
+                ["Réf facture", "Adhérent", "Montant", "Date paiement"],
+                [["2025-0142", "Christine LOPES", 55, "2025-08-02"]],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["payments"] == {
+        "kind": "payments",
+        "file_rows": 1,
+        "already_in_solde": 0,
+        "missing_in_solde": 1,
+        "extra_in_solde": 1,
+        "extra_in_solde_details": [
+            {
+                "summary": "2025-0199 · 2026-05-10 · 80 · 512100",
+                "reference": "2025-0199",
+                "payment_date": "2026-05-10",
+                "amount": "80",
+                "settlement_account": "512100",
+                "invoice_number": "2025-0199",
+            }
+        ],
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_comparison_counts_existing_payments_bank_and_cash_rows(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+            "Paiements": (
+                ["Réf facture", "Adhérent", "Montant", "Date paiement"],
+                [["2025-0142", "Christine LOPES", 55, "2025-08-02"]],
+            ),
+            "Banque": (
+                ["Date", "Libellé", "Débit", "Crédit", "Solde"],
+                [["2025-08-03", "Paiement CB cantine", 18, None, 482]],
+            ),
+            "Caisse": (
+                ["Date", "Libellé", "Entrée", "Sortie"],
+                [["2025-08-04", "Recette adhesion", 55, None]],
+            ),
+        }
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+
+    preview_response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    data = preview_response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["invoices"] == {
+        "kind": "invoices",
+        "file_rows": 1,
+        "already_in_solde": 1,
+        "missing_in_solde": 0,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+    assert domains["payments"] == {
+        "kind": "payments",
+        "file_rows": 1,
+        "already_in_solde": 1,
+        "missing_in_solde": 0,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+    assert domains["bank"] == {
+        "kind": "bank",
+        "file_rows": 1,
+        "already_in_solde": 1,
+        "missing_in_solde": 0,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+    assert domains["cash"] == {
+        "kind": "cash",
+        "file_rows": 1,
+        "already_in_solde": 1,
+        "missing_in_solde": 0,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+    assert data["comparison"]["totals"]["missing_in_solde"] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_comparison_distinguishes_cheques_with_same_amount(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Preview comparison should keep cheque rows distinct when cheque numbers differ."""
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+    from backend.models.payment import Payment, PaymentMethod
+
+    contact = Contact(nom="Christine", prenom="LOPES", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+
+    invoice = Invoice(
+        number="2025-0072",
+        reference="2025-0072",
+        type=InvoiceType.CLIENT,
+        contact_id=contact.id,
+        date=date(2025, 5, 2),
+        due_date=date(2025, 5, 2),
+        total_amount=Decimal("60"),
+        paid_amount=Decimal("30"),
+        status=InvoiceStatus.PARTIAL,
+        description="Cours mai",
+    )
+    db_session.add(invoice)
+    await db_session.flush()
+
+    db_session.add(
+        Payment(
+            invoice_id=invoice.id,
+            contact_id=contact.id,
+            date=date(2025, 5, 2),
+            amount=Decimal("30"),
+            method=PaymentMethod.CHEQUE,
+            cheque_number="2025.05.02.05",
+            reference="2025-0072",
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Paiements": (
+                [
+                    "Date",
+                    "Montant",
+                    "Référence facture",
+                    "Client",
+                    "Mode",
+                    "Numéro chèque",
+                    "Déposé",
+                    "Date dépôt",
+                ],
+                [
+                    [
+                        "2025-05-02",
+                        30,
+                        "2025-0072",
+                        "Christine LOPES",
+                        "Chèque",
+                        "2025.05.02.05",
+                        False,
+                        None,
+                    ],
+                    [
+                        "2025-05-02",
+                        30,
+                        "2025-0072",
+                        "Christine LOPES",
+                        "Chèque",
+                        "2025.05.02.06",
+                        False,
+                        None,
+                    ],
+                ],
+            )
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+        data={
+            "comparison_start_date": "2025-05-01",
+            "comparison_end_date": "2025-05-31",
+        },
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    assert preview_data["estimated_payments"] == 1
+    domains = {domain["kind"]: domain for domain in preview_data["comparison"]["domains"]}
+    assert domains["payments"] == {
+        "kind": "payments",
+        "file_rows": 2,
+        "already_in_solde": 1,
+        "missing_in_solde": 1,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_comparison_ignores_extra_bank_rows_outside_workbook_date_range(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.bank import BankTransaction
+
+    db_session.add(
+        BankTransaction(
+            date=date(2024, 1, 15),
+            amount=Decimal("18.00"),
+            description="Paiement CB ancien",
+            reference=None,
+            balance_after=Decimal("100.00"),
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Banque": (
+                ["Date", "Libellé", "Débit", "Crédit", "Solde"],
+                [
+                    ["2024-09-03", "Paiement CB rentree", 18, None, 482],
+                    ["2025-01-12", "Virement recu", None, 55, 537],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["bank"] == {
+        "kind": "bank",
+        "file_rows": 2,
+        "already_in_solde": 0,
+        "missing_in_solde": 2,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_bank_extra_in_solde_counts_intermediate_year(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.bank import BankTransaction
+
+    db_session.add(
+        BankTransaction(
+            date=date(2025, 5, 15),
+            amount=Decimal("42.00"),
+            description="Virement intermediaire",
+            reference="INT-2025",
+            balance_after=Decimal("210.00"),
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Banque": (
+                ["Date", "Libellé", "Débit", "Crédit", "Solde"],
+                [
+                    ["2024-09-03", "Paiement CB rentree", 18, None, 482],
+                    ["2026-01-12", "Virement recu", None, 55, 537],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["bank"] == {
+        "kind": "bank",
+        "file_rows": 2,
+        "already_in_solde": 0,
+        "missing_in_solde": 2,
+        "extra_in_solde": 1,
+        "extra_in_solde_details": [
+            {
+                "summary": "2025-05-15 · 42 · Virement intermediaire · INT-2025",
+                "entry_date": "2025-05-15",
+                "amount": "42",
+                "description": "Virement intermediaire",
+                "reference": "INT-2025",
+            }
+        ],
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_cash_extra_in_solde_counts_intermediate_year(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.cash import CashMovementType, CashRegister
+
+    db_session.add(
+        CashRegister(
+            date=date(2025, 5, 15),
+            type=CashMovementType.IN,
+            amount=Decimal("42.00"),
+            description="Don intermediaire",
+            reference="CAISSE-2025",
+            balance_after=Decimal("210.00"),
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Caisse": (
+                ["Date", "Libellé", "Entrée", "Sortie"],
+                [
+                    ["2024-09-03", "Recette rentree", 18, None],
+                    ["2026-01-12", "Achat fournitures", None, 55],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["cash"] == {
+        "kind": "cash",
+        "file_rows": 2,
+        "already_in_solde": 0,
+        "missing_in_solde": 2,
+        "extra_in_solde": 1,
+        "extra_in_solde_details": [
+            {
+                "summary": "2025-05-15 · in · 42 · Don intermediaire · CAISSE-2025",
+                "entry_date": "2025-05-15",
+                "movement_type": "in",
+                "amount": "42",
+                "description": "Don intermediaire",
+                "reference": "CAISSE-2025",
+            }
+        ],
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
 
 
 @pytest.mark.asyncio
@@ -316,6 +1693,916 @@ async def test_preview_and_import_gestion_accept_contacts_sheet_without_prenom(
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_import_run_prepare_execute_undo_redo_cycle(
+    client: AsyncClient, auth_headers: dict, db_session
+) -> None:
+    """A prepared reversible run should execute, undo, and redo a simple contacts import."""
+    from backend.models.contact import Contact
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Contacts": (
+                ["Nom", "Email"],
+                [
+                    ["Christine LOPES", "christine@example.test"],
+                    ["Thi BE NGUYEN", "thi@example.test"],
+                ],
+            )
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    prepared_run = prepare_response.json()
+    run_id = prepared_run["id"]
+    assert prepared_run["status"] == "prepared"
+    assert prepared_run["can_execute"] is True
+    assert prepared_run["preview"]["estimated_contacts"] == 2
+    assert [operation["operation_type"] for operation in prepared_run["operations"]] == [
+        "contact_row_import",
+        "contact_row_import",
+    ]
+
+    execute_response = await client.post(
+        f"/api/import/runs/{run_id}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    assert executed_run["status"] == "completed"
+    assert executed_run["summary"]["contacts_created"] == 2
+    assert executed_run["can_undo"] is True
+    assert all(operation["status"] == "applied" for operation in executed_run["operations"])
+
+    contacts = list((await db_session.execute(select(Contact).order_by(Contact.nom))).scalars())
+    assert [(contact.nom, contact.prenom) for contact in contacts] == [
+        ("BE NGUYEN", "Thi"),
+        ("LOPES", "Christine"),
+    ]
+
+    history_response = await client.get("/api/import/history", headers=auth_headers)
+
+    assert history_response.status_code == 200
+    history = history_response.json()
+    assert history[0]["kind"] == "run"
+    assert history[0]["id"] == run_id
+    assert history[0]["status"] == "completed"
+    assert history[0]["summary"]["contacts_created"] == 2
+
+    undo_response = await client.post(
+        f"/api/import/runs/{run_id}/undo",
+        headers=auth_headers,
+    )
+
+    assert undo_response.status_code == 200
+    undone_run = undo_response.json()
+    assert undone_run["status"] == "reverted"
+    assert undone_run["can_redo"] is True
+    assert all(operation["status"] == "undone" for operation in undone_run["operations"])
+
+    contacts_after_undo = list(
+        (await db_session.execute(select(Contact).order_by(Contact.nom))).scalars()
+    )
+    assert contacts_after_undo == []
+
+    redo_response = await client.post(
+        f"/api/import/runs/{run_id}/redo",
+        headers=auth_headers,
+    )
+
+    assert redo_response.status_code == 200
+    redone_run = redo_response.json()
+    assert redone_run["status"] == "completed"
+    assert redone_run["can_undo"] is True
+    assert all(operation["status"] == "applied" for operation in redone_run["operations"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_comptabilite_run_undo_tolerates_decimal_scale_differences(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Undo should accept semantically identical Numeric values.
+
+    This remains true even if SQLite round-trips them with a different scale.
+    """
+    from backend.models.accounting_account import AccountingAccount, AccountType
+    from backend.models.accounting_entry import AccountingEntry
+
+    db_session.add(
+        AccountingAccount(number="401100", label="Fournisseurs", type=AccountType.PASSIF)
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit"],
+                [["2025-08-01", "401100", "Facture fournisseur", None, 261.5]],
+            ),
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/comptabilite",
+        files={"file": ("Comptabilite 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    run_id = prepare_response.json()["id"]
+
+    execute_response = await client.post(
+        f"/api/import/runs/{run_id}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    assert executed_run["status"] == "completed"
+    assert executed_run["can_undo"] is True
+    assert executed_run["summary"]["entries_created"] == 1
+
+    entries_before_undo = list((await db_session.execute(select(AccountingEntry))).scalars())
+    assert len(entries_before_undo) == 1
+
+    undo_response = await client.post(
+        f"/api/import/runs/{run_id}/undo",
+        headers=auth_headers,
+    )
+
+    assert undo_response.status_code == 200
+    undone_run = undo_response.json()
+    assert undone_run["status"] == "reverted"
+    remaining_entries = list((await db_session.execute(select(AccountingEntry))).scalars())
+    assert not remaining_entries
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_bank_operation_failure_rolls_back_payment_side_effects(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed bank operation must not leave a paid invoice or created payment behind."""
+    from backend.models.bank import BankTransaction
+    from backend.models.invoice import Invoice, InvoiceStatus
+    from backend.models.payment import Payment
+    from backend.services import import_reversible
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+            "Banque": (
+                ["Date", "Montant", "Référence", "Libellé", "Solde"],
+                [["2025-08-02", 55, "2025-0142", "Paiement facture client", 537]],
+            ),
+        }
+    )
+
+    async def _crash_generate_entries_for_payment(*args, **kwargs):
+        raise RuntimeError("forced payment generation failure")
+
+    monkeypatch.setattr(
+        import_reversible,
+        "generate_entries_for_payment",
+        _crash_generate_entries_for_payment,
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    run_id = prepare_response.json()["id"]
+
+    execute_response = await client.post(
+        f"/api/import/runs/{run_id}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    assert executed_run["status"] == "failed"
+    assert executed_run["can_undo"] is True
+    assert [operation["status"] for operation in executed_run["operations"]] == [
+        "applied",
+        "failed",
+    ]
+    assert executed_run["operations"][1]["error_message"] == "forced payment generation failure"
+    assert executed_run["operations"][1]["effects"] == []
+    assert any(
+        "forced payment generation failure" in error for error in executed_run["summary"]["errors"]
+    )
+
+    invoices = list((await db_session.execute(select(Invoice).order_by(Invoice.id))).scalars())
+    assert len(invoices) == 1
+    assert invoices[0].number == "2025-0142"
+    assert invoices[0].paid_amount == Decimal("0.00")
+    assert invoices[0].status == InvoiceStatus.SENT
+
+    payments = list((await db_session.execute(select(Payment).order_by(Payment.id))).scalars())
+    bank_entries = list(
+        (await db_session.execute(select(BankTransaction).order_by(BankTransaction.id))).scalars()
+    )
+    assert payments == []
+    assert bank_entries == []
+
+    undo_response = await client.post(
+        f"/api/import/runs/{run_id}/undo",
+        headers=auth_headers,
+    )
+
+    assert undo_response.status_code == 200
+    undone_run = undo_response.json()
+    assert undone_run["status"] == "reverted"
+    remaining_invoices = list((await db_session.execute(select(Invoice))).scalars())
+    remaining_payments = list((await db_session.execute(select(Payment))).scalars())
+    assert remaining_invoices == []
+    assert remaining_payments == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_bank_virement_run_executes_with_accounting_rules(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """A reversible bank client-payment run should complete.
+
+    This covers the case where payment accounting rules are active.
+    """
+    from backend.models.accounting_entry import AccountingEntry
+    from backend.models.invoice import Invoice, InvoiceStatus
+    from backend.models.payment import Payment, PaymentMethod
+    from backend.services.accounting_engine import seed_default_rules
+
+    await seed_default_rules(db_session)
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+            "Banque": (
+                ["Date", "Montant", "Référence", "Libellé", "Solde"],
+                [["2025-08-02", 55, "2025-0142", "Paiement facture client", 537]],
+            ),
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    run_id = prepare_response.json()["id"]
+
+    execute_response = await client.post(
+        f"/api/import/runs/{run_id}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    assert executed_run["status"] == "completed"
+    assert all(operation["status"] == "applied" for operation in executed_run["operations"])
+    assert executed_run["summary"]["payments_created"] == 1
+    assert executed_run["summary"]["entries_created"] >= 2
+
+    invoice = (await db_session.execute(select(Invoice))).scalar_one()
+    payment = (await db_session.execute(select(Payment))).scalar_one()
+    entries = list((await db_session.execute(select(AccountingEntry))).scalars())
+
+    assert invoice.number == "2025-0142"
+    assert invoice.paid_amount == Decimal("55.00")
+    assert invoice.status == InvoiceStatus.PAID
+    assert payment.method == PaymentMethod.VIREMENT
+    assert len(entries) >= 2
+
+    undo_response = await client.post(
+        f"/api/import/runs/{run_id}/undo",
+        headers=auth_headers,
+    )
+
+    assert undo_response.status_code == 200
+    undone_run = undo_response.json()
+    assert undone_run["status"] == "reverted"
+    assert list((await db_session.execute(select(Invoice))).scalars()) == []
+    assert list((await db_session.execute(select(Payment))).scalars()) == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_gestion_salary_run_undo_tolerates_float_rounding_noise(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Undo should succeed when salary imports contain Excel float rounding noise."""
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+    from backend.models.salary import Salary
+    from backend.services.accounting_engine import seed_default_rules
+
+    await seed_default_rules(db_session)
+
+    content = _make_multi_sheet_xlsx_rows(
+        {
+            "Aide Salaires": [
+                ["2026.03"],
+                ["NOM", "Heures", "Brut", "Salariales", "Patronales", "Impôts", "Net"],
+                ["LAY", 12, 1605, 355.36, 370.86, 0, "1249.6399999999999"],
+            ]
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    run_id = prepare_response.json()["id"]
+
+    execute_response = await client.post(
+        f"/api/import/runs/{run_id}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    assert executed_run["status"] == "completed"
+    assert executed_run["summary"]["salaries_created"] == 1
+    assert executed_run["can_undo"] is True
+
+    salary_entries = list(
+        (
+            await db_session.execute(
+                select(AccountingEntry)
+                .where(AccountingEntry.source_type == EntrySourceType.SALARY)
+                .order_by(AccountingEntry.id)
+            )
+        ).scalars()
+    )
+    assert salary_entries
+    assert any(entry.credit == Decimal("1249.64") for entry in salary_entries)
+
+    undo_response = await client.post(
+        f"/api/import/runs/{run_id}/undo",
+        headers=auth_headers,
+    )
+
+    assert undo_response.status_code == 200
+    undone_run = undo_response.json()
+    assert undone_run["status"] == "reverted"
+    assert list((await db_session.execute(select(Salary))).scalars()) == []
+    assert (
+        list(
+            (
+                await db_session.execute(
+                    select(AccountingEntry).where(
+                        AccountingEntry.source_type == EntrySourceType.SALARY
+                    )
+                )
+            ).scalars()
+        )
+        == []
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_prepare_and_execute_ignore_duplicate_salary_rows_in_same_file(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    """Reversible preview/prepare should ignore duplicate salary employee-month rows.
+
+    This applies when the same workbook already contains the employee-month pair.
+    """
+    content = _make_multi_sheet_xlsx_rows(
+        {
+            "Aide Salaires": [
+                ["2025.03"],
+                ["NOM", "Heures", "Brut", "Salariales", "Patronales", "Impôts", "Net"],
+                ["LAY", 104, 1605, 355.36, 350.47, 0, 1249.64],
+                ["WOLFF P.", 10, 249.99, 54.33, 110.12, 1.62, 194.04],
+                ["LAY", 104, 1605, 355.36, 350.47, 0, 1249.64],
+                ["WOLFF P.", 2, 50, 11.16, 20.21, 0.32, 38.52],
+            ]
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    assert preview_data["estimated_salaries"] == 2
+    assert preview_data["warnings"]
+    assert any("ligne ignoree" in warning.lower() for warning in preview_data["warnings"])
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    prepared_run = prepare_response.json()
+    assert prepared_run["can_execute"] is True
+    salary_operations = [
+        operation
+        for operation in prepared_run["operations"]
+        if operation["operation_type"] == "salary_month_import"
+    ]
+    ignored_operations = [
+        operation
+        for operation in prepared_run["operations"]
+        if operation["operation_type"] == "ignored_by_policy"
+    ]
+    assert len(salary_operations) == 1
+    assert salary_operations[0]["title"] == "2025-03"
+    assert salary_operations[0]["source_row_numbers"] == [3, 4]
+    assert len(ignored_operations) == 2
+    assert all("Salaire ligne" in operation["title"] for operation in ignored_operations)
+
+    execute_response = await client.post(
+        f"/api/import/runs/{prepared_run['id']}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    assert executed_run["status"] == "completed"
+    assert executed_run["summary"]["salaries_created"] == 2
+    assert executed_run["summary"]["ignored_rows"] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_prepare_ignores_existing_client_payment_rows(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Reversible gestion prepare should ignore a client payment row already present in Solde."""
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+    from backend.models.payment import Payment, PaymentMethod
+
+    contact = Contact(nom="Valérie", prenom="POIROT", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+
+    invoice = Invoice(
+        number="2024-0170",
+        reference="2024-0170",
+        type=InvoiceType.CLIENT,
+        contact_id=contact.id,
+        date=date(2024, 8, 7),
+        due_date=date(2024, 8, 7),
+        total_amount=Decimal("78"),
+        paid_amount=Decimal("78"),
+        status=InvoiceStatus.PAID,
+        description="Cours août",
+    )
+    db_session.add(invoice)
+    await db_session.flush()
+
+    db_session.add(
+        Payment(
+            invoice_id=invoice.id,
+            contact_id=contact.id,
+            date=date(2024, 8, 7),
+            amount=Decimal("78"),
+            method=PaymentMethod.VIREMENT,
+            reference="2024-0170",
+            deposited=True,
+            deposit_date=date(2024, 8, 7),
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Paiements": (
+                [
+                    "Date",
+                    "Montant",
+                    "Référence facture",
+                    "Client",
+                    "Mode",
+                    "Numéro chèque",
+                    "Déposé",
+                    "Date dépôt",
+                ],
+                [
+                    [
+                        "2024-08-07",
+                        78,
+                        "2024-0170",
+                        "Valérie POIROT",
+                        "virement",
+                        None,
+                        True,
+                        "2024-08-07",
+                    ]
+                ],
+            )
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    assert preview_data["estimated_payments"] == 0
+    assert any("ligne ignoree" in warning.lower() for warning in preview_data["warnings"])
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+        data={
+            "comparison_start_date": "2024-08-01",
+            "comparison_end_date": "2025-07-31",
+        },
+    )
+
+    assert prepare_response.status_code == 200
+    prepared_run = prepare_response.json()
+    assert prepared_run["can_execute"] is False
+    payment_operations = [
+        operation
+        for operation in prepared_run["operations"]
+        if operation["operation_type"] == "client_payment_row_import"
+    ]
+    ignored_operations = [
+        operation
+        for operation in prepared_run["operations"]
+        if operation["operation_type"] == "ignored_by_policy"
+    ]
+    assert not payment_operations
+    assert len(ignored_operations) == 1
+    assert ignored_operations[0]["title"] == "Paiement ligne 2"
+    assert "ligne ignoree" in ignored_operations[0]["diagnostics"][0].lower()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_prepare_ignores_existing_bank_client_transfer_rows(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Reversible gestion prepare should ignore a bank transfer row already present in Solde."""
+    from backend.models.bank import BankTransaction, BankTransactionSource
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+    from backend.models.payment import Payment, PaymentMethod
+
+    contact = Contact(nom="RIBEIRO", prenom="", type=ContactType.CLIENT)
+    db_session.add(contact)
+    await db_session.flush()
+
+    invoice = Invoice(
+        number="2025-0141",
+        reference="2025-0141",
+        type=InvoiceType.CLIENT,
+        contact_id=contact.id,
+        date=date(2025, 7, 21),
+        due_date=date(2025, 7, 21),
+        total_amount=Decimal("170"),
+        paid_amount=Decimal("170"),
+        status=InvoiceStatus.PAID,
+        description="Cours été",
+    )
+    db_session.add(invoice)
+    await db_session.flush()
+
+    payment = Payment(
+        invoice_id=invoice.id,
+        contact_id=contact.id,
+        date=date(2025, 8, 1),
+        amount=Decimal("170"),
+        method=PaymentMethod.VIREMENT,
+        reference="2025-0141",
+        notes="Paiement facture client",
+        deposited=True,
+        deposit_date=date(2025, 8, 1),
+    )
+    db_session.add(payment)
+    await db_session.flush()
+
+    db_session.add(
+        BankTransaction(
+            date=date(2025, 8, 1),
+            amount=Decimal("170"),
+            reference="2025-0141",
+            description="Paiement facture client",
+            source=BankTransactionSource.IMPORT,
+            payment_id=payment.id,
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Banque": (
+                ["Date", "Montant", "Référence", "Libellé", "Solde"],
+                [["2025-08-01", 170, "2025-0141", "Paiement facture client", 2844.77]],
+            ),
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    prepared_run = prepare_response.json()
+    bank_operations = [
+        operation
+        for operation in prepared_run["operations"]
+        if operation["operation_type"] == "bank_row_import"
+    ]
+    ignored_operations = [
+        operation
+        for operation in prepared_run["operations"]
+        if operation["operation_type"] == "ignored_by_policy"
+    ]
+    assert not bank_operations
+    assert len(ignored_operations) == 1
+    assert ignored_operations[0]["title"] == "2025-0141"
+    assert "ligne ignoree" in ignored_operations[0]["diagnostics"][0].lower()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_prepare_ignores_payment_row_already_covered_by_bank_row(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    """A bank client transfer should suppress the duplicate payment-sheet row.
+
+    This applies when the duplicate appears in the same workbook.
+    """
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+            "Banque": (
+                ["Date", "Montant", "Référence", "Libellé", "Solde"],
+                [["2025-08-02", 55, "2025-0142", "Paiement facture client", 1000]],
+            ),
+            "Paiements": (
+                ["Réf facture", "Adhérent", "Montant", "Date paiement"],
+                [["2025-0142", "Christine LOPES", 55, "2025-08-02"]],
+            ),
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    prepared_run = prepare_response.json()
+    assert prepared_run["status"] == "prepared"
+    assert [operation["operation_type"] for operation in prepared_run["operations"]] == [
+        "client_invoice_row_import",
+        "bank_row_import",
+        "ignored_by_policy",
+    ]
+    ignored_operation = prepared_run["operations"][2]
+    assert ignored_operation["title"] == "Paiement ligne 2"
+    assert "paiement deja couvert" in ignored_operation["diagnostics"][0].lower()
+
+    execute_response = await client.post(
+        f"/api/import/runs/{prepared_run['id']}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    assert executed_run["status"] == "completed"
+    assert executed_run["summary"]["payments_created"] == 1
+    assert executed_run["summary"]["ignored_rows"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_import_prepare_exposes_planned_effects_for_invoice_operation(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Prepared runs should expose detailed planned effects before execution."""
+    from backend.services.accounting_engine import seed_default_rules
+
+    await seed_default_rules(db_session)
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0142", "Christine LOPES", 55]],
+            ),
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert prepare_response.status_code == 200
+    prepared_run = prepare_response.json()
+    invoice_operation = next(
+        operation
+        for operation in prepared_run["operations"]
+        if operation["operation_type"] == "client_invoice_row_import"
+    )
+
+    invoice_effect_types = {
+        effect["entity_type"] for effect in invoice_operation["planned_effects"]
+    }
+    assert {"contact", "invoice", "invoice_line", "accounting_entry"} <= invoice_effect_types
+
+    accounting_effect = next(
+        effect
+        for effect in invoice_operation["planned_effects"]
+        if effect["entity_type"] == "accounting_entry"
+    )
+    assert accounting_effect["status"] == "planned"
+    assert accounting_effect["details"]["account_number"]
+    assert accounting_effect["details"]["date"] == "2025-08-01"
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_import_operation_undo_redo_targets_single_prepared_effect(
+    client: AsyncClient, auth_headers: dict, db_session
+) -> None:
+    """Per-operation undo/redo should only affect the selected imported object."""
+    from backend.models.contact import Contact
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Contacts": (
+                ["Nom", "Email"],
+                [
+                    ["Christine LOPES", "christine@example.test"],
+                    ["Thi BE NGUYEN", "thi@example.test"],
+                ],
+            )
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+    run_id = prepare_response.json()["id"]
+
+    execute_response = await client.post(
+        f"/api/import/runs/{run_id}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+    executed_run = execute_response.json()
+    operation_id = executed_run["operations"][0]["id"]
+
+    undo_operation_response = await client.post(
+        f"/api/import/operations/{operation_id}/undo",
+        headers=auth_headers,
+    )
+
+    assert undo_operation_response.status_code == 200
+    partially_undone_run = undo_operation_response.json()
+    assert partially_undone_run["status"] == "partially_reverted"
+    assert partially_undone_run["operations"][0]["status"] == "undone"
+    assert partially_undone_run["operations"][1]["status"] == "applied"
+
+    contacts_after_operation_undo = list(
+        (await db_session.execute(select(Contact).order_by(Contact.nom))).scalars()
+    )
+    assert [(contact.nom, contact.prenom) for contact in contacts_after_operation_undo] == [
+        ("BE NGUYEN", "Thi"),
+    ]
+
+    redo_operation_response = await client.post(
+        f"/api/import/operations/{operation_id}/redo",
+        headers=auth_headers,
+    )
+
+    assert redo_operation_response.status_code == 200
+    redone_run = redo_operation_response.json()
+    assert redone_run["status"] == "completed"
+    assert redone_run["operations"][0]["status"] == "applied"
+    assert redone_run["operations"][1]["status"] == "applied"
+
+    contacts_after_operation_redo = list(
+        (await db_session.execute(select(Contact).order_by(Contact.nom))).scalars()
+    )
+    assert [(contact.nom, contact.prenom) for contact in contacts_after_operation_redo] == [
+        ("BE NGUYEN", "Thi"),
+        ("LOPES", "Christine"),
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_reversible_import_run_undo_rejects_manually_modified_object(
+    client: AsyncClient, auth_headers: dict, db_session
+) -> None:
+    """Undo must fail once an imported object diverged from the expected strict state."""
+    from backend.models.contact import Contact
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Contacts": (
+                ["Nom", "Email"],
+                [["Christine LOPES", "christine@example.test"]],
+            )
+        }
+    )
+
+    prepare_response = await client.post(
+        "/api/import/runs/prepare/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+    run_id = prepare_response.json()["id"]
+
+    execute_response = await client.post(
+        f"/api/import/runs/{run_id}/execute",
+        headers=auth_headers,
+    )
+
+    assert execute_response.status_code == 200
+
+    imported_contact = (
+        await db_session.execute(select(Contact).where(Contact.nom == "LOPES"))
+    ).scalar_one()
+
+    update_response = await client.put(
+        f"/api/contacts/{imported_contact.id}",
+        json={"notes": "Retouche manuelle"},
+        headers=auth_headers,
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["notes"] == "Retouche manuelle"
+
+    undo_response = await client.post(
+        f"/api/import/runs/{run_id}/undo",
+        headers=auth_headers,
+    )
+
+    assert undo_response.status_code == 409
+    assert undo_response.json()["detail"] == "L'état courant ne correspond plus à l'état attendu"
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
 async def test_preview_and_import_gestion_accept_payment_matched_by_contact(
     client: AsyncClient, auth_headers: dict
 ) -> None:
@@ -355,6 +2642,244 @@ async def test_preview_and_import_gestion_accept_payment_matched_by_contact(
     import_data = import_response.json()
     assert import_data["invoices_created"] == 1
     assert import_data["payments_created"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_import_gestion_applies_default_due_date_to_imported_invoice(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from sqlalchemy import select
+
+    from backend.models.invoice import Invoice
+
+    settings_response = await client.put(
+        "/api/settings/",
+        json={"default_invoice_due_days": 30},
+        headers=auth_headers,
+    )
+    assert settings_response.status_code == 200
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant"],
+                [["2025-08-01", "2025-0144", "Christine LOPES", 55]],
+            ),
+        }
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    invoice = (
+        (await db_session.execute(select(Invoice).where(Invoice.number == "2025-0144")))
+        .scalars()
+        .one()
+    )
+    assert invoice.due_date == date(2025, 8, 31)
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_import_gestion_splits_cs_a_invoice_when_component_columns_exist(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from sqlalchemy.orm import selectinload
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+    from backend.models.invoice import Invoice, InvoiceLabel, InvoiceLineType
+    from backend.services.accounting_engine import seed_default_rules
+
+    await seed_default_rules(db_session)
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                [
+                    "Date facture",
+                    "Réf facture",
+                    "Client",
+                    "Montant",
+                    "Montant cours",
+                    "Montant adhésion",
+                    "Type",
+                ],
+                [["2024-08-26", "2024-0186", "Alexandre ELEZI", 160, 130, 30, "cs+a"]],
+            ),
+        }
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    import_data = import_response.json()
+    assert import_data["invoices_created"] == 1
+    assert import_data["entries_created"] == 3
+
+    invoice = (
+        (
+            await db_session.execute(
+                select(Invoice)
+                .where(Invoice.number == "2024-0186")
+                .options(selectinload(Invoice.lines))
+            )
+        )
+        .scalars()
+        .one()
+    )
+    assert [(line.description, line.line_type, line.amount) for line in invoice.lines] == [
+        ("Cours de soutien", InvoiceLineType.COURSE, Decimal("130.00")),
+        ("Adhesion annuelle", InvoiceLineType.ADHESION, Decimal("30.00")),
+    ]
+    assert invoice.has_explicit_breakdown is True
+    assert invoice.label == InvoiceLabel.CS_ADHESION
+
+    entries = (
+        (
+            await db_session.execute(
+                select(AccountingEntry)
+                .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                .where(AccountingEntry.source_id == invoice.id)
+                .order_by(AccountingEntry.entry_number.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(entries) == 3
+    assert any(
+        entry.account_number == "411100" and entry.debit == Decimal("160.00") for entry in entries
+    )
+    assert any(
+        entry.account_number == "706110" and entry.credit == Decimal("130.00") for entry in entries
+    )
+    assert any(
+        entry.account_number == "756000" and entry.credit == Decimal("30.00") for entry in entries
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_import_gestion_maps_mixed_client_invoice_to_other_line_when_no_split_exists(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from sqlalchemy.orm import selectinload
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+    from backend.models.invoice import Invoice, InvoiceLabel, InvoiceLineType
+    from backend.services.accounting_engine import seed_default_rules
+
+    await seed_default_rules(db_session)
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                ["Date facture", "Réf facture", "Client", "Montant", "Type"],
+                [["2024-08-30", "2024-0192", "Aleksander ELEZI", 100, "cs+a"]],
+            ),
+        }
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    import_data = import_response.json()
+    assert import_data["invoices_created"] == 1
+    assert import_data["entries_created"] == 2
+
+    invoice = (
+        (
+            await db_session.execute(
+                select(Invoice)
+                .where(Invoice.number == "2024-0192")
+                .options(selectinload(Invoice.lines))
+            )
+        )
+        .scalars()
+        .one()
+    )
+    assert invoice.label == InvoiceLabel.GENERAL
+    assert invoice.has_explicit_breakdown is False
+    assert [(line.line_type, line.amount) for line in invoice.lines] == [
+        (InvoiceLineType.OTHER, Decimal("100.00"))
+    ]
+
+    entries = (
+        (
+            await db_session.execute(
+                select(AccountingEntry)
+                .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                .where(AccountingEntry.source_id == invoice.id)
+                .order_by(AccountingEntry.entry_number.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(entries) == 2
+    assert any(
+        entry.account_number == "758000" and entry.credit == Decimal("100.00") for entry in entries
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_gestion_blocks_inconsistent_cs_a_component_columns(
+    client: AsyncClient,
+    auth_headers: dict,
+) -> None:
+    content = _make_multi_sheet_xlsx(
+        {
+            "Factures": (
+                [
+                    "Date facture",
+                    "Réf facture",
+                    "Client",
+                    "Montant",
+                    "Montant cours",
+                    "Montant adhésion",
+                    "Type",
+                ],
+                [["2024-08-26", "2024-0186", "Alexandre ELEZI", 160, 120, 30, "cs+a"]],
+            ),
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    sheets = {sheet["name"]: sheet for sheet in preview_data["sheets"]}
+    assert preview_data["can_import"] is False
+    assert preview_data["estimated_invoices"] == 0
+    assert sheets["Factures"]["rows"] == 0
+    assert any(
+        "ventilation cours/adhesion incoherente" in error.lower()
+        for error in sheets["Factures"]["errors"]
+    )
 
 
 @pytest.mark.asyncio
@@ -573,6 +3098,7 @@ async def test_preview_and_import_gestion_create_supplier_invoice_and_payment_fr
     assert cash_entry.reference == "FF-2025080412.00.00"
     assert cash_entry.contact_id == contact.id
     assert cash_entry.payment_id == payment.id
+    assert cash_entry.balance_after == Decimal("-20")
 
 
 @pytest.mark.asyncio
@@ -852,6 +3378,141 @@ async def test_preview_and_import_gestion_import_salary_sheet(
     assert tax_entry.label == "Impôt sur le revenu 2025.07"
     assert tax_entry.debit == 0
     assert tax_entry.credit == 10
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_import_gestion_attaches_july_salary_entries_to_previous_fiscal_year(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """July salary entries should stay inside the fiscal year ending on July 31."""
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+    from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
+
+    fiscal_year_2024 = FiscalYear(
+        name="2024",
+        start_date=date(2024, 8, 1),
+        end_date=date(2025, 7, 31),
+        status=FiscalYearStatus.OPEN,
+    )
+    fiscal_year_2025 = FiscalYear(
+        name="2025",
+        start_date=date(2025, 8, 1),
+        end_date=date(2026, 7, 31),
+        status=FiscalYearStatus.OPEN,
+    )
+    db_session.add_all([fiscal_year_2024, fiscal_year_2025])
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx_rows(
+        {
+            "Aide Salaires": [
+                ["2025.07"],
+                ["NOM", "Heures", "Brut", "Salariales", "Patronales", "Impôts", "Net"],
+                ["LAY", 12, 1200, 150, 250, 10, 1040],
+            ]
+        }
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+
+    salary_entries = list(
+        (
+            await db_session.execute(
+                select(AccountingEntry)
+                .where(AccountingEntry.source_type == EntrySourceType.SALARY)
+                .order_by(AccountingEntry.entry_number)
+            )
+        ).scalars()
+    )
+
+    assert salary_entries
+    assert {entry.date for entry in salary_entries} == {date(2025, 7, 1)}
+    assert {entry.fiscal_year_id for entry in salary_entries} == {fiscal_year_2024.id}
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_import_gestion_salary_detailed_format_stores_cdd_fields(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Detailed Aide Salaires format should populate CDD-specific fields on CDD rows."""
+    from backend.models.salary import Salary
+
+    # Reproduce the "detailed" header format: month row col 1 == "Heures" triggers detailed mode
+    content = _make_multi_sheet_xlsx_rows(
+        {
+            "Aide Salaires": [
+                # Detailed header: month + column headers
+                [
+                    "2025.09",
+                    "Heures",
+                    "Brut déclaré",
+                    "Congés",
+                    "Précarité",
+                    "Brut total",
+                    "Brut",
+                    "Salariales",
+                    "Patronales",
+                    "Impôts",
+                    "Net",
+                ],
+                # CDI row: conges=0, precarite=0 → CDD fields should be None
+                ["LAY", 104, 1605, 0, 0, 1605, 1605, 355, 350, 0, 1250],
+                # CDD row: conges>0 → CDD fields should be stored
+                ["WOLFF", 8, 200, 20, 22, 242, 242, 51, 97, 0, 191],
+                ["Total charges fixes", 500],
+            ]
+        }
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    data = import_response.json()
+    assert data["contacts_created"] == 2
+    assert data["salaries_created"] == 2
+
+    from sqlalchemy.orm import selectinload
+
+    salary_rows = list(
+        (
+            await db_session.execute(
+                select(Salary).options(selectinload(Salary.employee)).order_by(Salary.id)
+            )
+        ).scalars()
+    )
+    assert len(salary_rows) == 2
+
+    lay_salary = next(s for s in salary_rows if "LAY" in s.employee.nom.upper())
+    wolff_salary = next(s for s in salary_rows if "WOLFF" in s.employee.nom.upper())
+
+    # CDI row: CDD fields must be None
+    assert lay_salary.brut_declared is None
+    assert lay_salary.conges_payes is None
+    assert lay_salary.precarite is None
+
+    # CDD row: CDD fields must be populated
+    from decimal import Decimal
+
+    assert wolff_salary.brut_declared == Decimal("200")
+    assert wolff_salary.conges_payes == Decimal("20")
+    assert wolff_salary.precarite == Decimal("22")
+    assert wolff_salary.gross == Decimal("242")
 
 
 @pytest.mark.asyncio
@@ -2672,6 +5333,56 @@ async def test_preview_and_import_gestion_ignore_bank_opening_descriptive_rows(
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_and_import_gestion_ignore_dated_bank_opening_balance_rows(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    """Bank preview and import should ignore dated opening balance rows without movement."""
+    content = _make_multi_sheet_xlsx(
+        {
+            "Banque": (
+                ["Date", "Montant", "Libellé", "Solde"],
+                [
+                    ["2024-08-01", None, "Solde initial", 566.76],
+                    [None, None, "Assurance MAIF", 566.76],
+                    ["2024-08-02", -18, "Paiement CB", 548.76],
+                ],
+            )
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/gestion/preview",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    sheets = {sheet["name"]: sheet for sheet in preview_data["sheets"]}
+    assert preview_data["can_import"] is True
+    assert sheets["Banque"]["rows"] == 1
+    assert sheets["Banque"]["ignored_rows"] == 2
+    assert sheets["Banque"]["blocked_rows"] == 0
+    assert any(
+        "descriptive" in warning.lower() or "solde" in warning.lower()
+        for warning in sheets["Banque"]["warnings"]
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/gestion",
+        files={"file": ("Gestion 2024.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    import_data = import_response.json()
+    assert import_data["bank_created"] == 1
+    assert import_data["ignored_rows"] == 2
+    assert import_data["blocked_rows"] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
 async def test_preview_and_import_gestion_block_bank_row_with_isolated_year(
     client: AsyncClient, auth_headers: dict
 ) -> None:
@@ -2902,6 +5613,206 @@ async def test_preview_comptabilite_ignores_journal_saisie(
     assert sheets["Journal"]["status"] == "recognized"
     assert sheets["Journal (saisie)"]["status"] == "ignored"
     assert any("Journal (saisie)" in warning for warning in data["warnings"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_comptabilite_ignores_existing_generated_group(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    db_session.add_all(
+        [
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2025, 8, 1),
+                account_number="658000",
+                label="Frais divers",
+                debit=Decimal("10.00"),
+                credit=Decimal("0.00"),
+                source_type=EntrySourceType.GESTION,
+                source_id=1,
+                group_key="gestion:1",
+            ),
+            AccountingEntry(
+                entry_number="000002",
+                date=date(2025, 8, 1),
+                account_number="512000",
+                label="Frais divers",
+                debit=Decimal("0.00"),
+                credit=Decimal("10.00"),
+                source_type=EntrySourceType.GESTION,
+                source_id=1,
+                group_key="gestion:1",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit", "ChangeNum"],
+                [
+                    ["2025-08-01", "658000", "Frais divers", 10, None, 1],
+                    ["2025-08-01", "512000", "Frais divers", None, 10, 1],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        files={"file": ("Comptabilite 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["estimated_entries"] == 0
+    assert data["can_import"] is False
+    journal_sheet = next(sheet for sheet in data["sheets"] if sheet["name"] == "Journal")
+    assert journal_sheet["ignored_rows"] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_comptabilite_comparison_counts_extra_entries_in_solde(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    db_session.add_all(
+        [
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2025, 8, 1),
+                account_number="401100",
+                label="Facture fournisseur",
+                debit=Decimal("10.00"),
+                credit=Decimal("0.00"),
+                source_type=EntrySourceType.MANUAL,
+            ),
+            AccountingEntry(
+                entry_number="000002",
+                date=date(2025, 8, 3),
+                account_number="512000",
+                label="Virement en trop",
+                debit=Decimal("0.00"),
+                credit=Decimal("20.00"),
+                source_type=EntrySourceType.MANUAL,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit"],
+                [
+                    ["2025-08-01", "401100", "Facture fournisseur", 10, None],
+                    ["2025-08-02", "512000", "Virement nouveau", None, 20],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        files={"file": ("Comptabilite 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["comparison"]["mode"] == "global-convergence"
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["entries"] == {
+        "kind": "entries",
+        "file_rows": 2,
+        "already_in_solde": 1,
+        "missing_in_solde": 1,
+        "extra_in_solde": 1,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_comptabilite_comparison_filters_only_convergence_section_by_date_window(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    db_session.add_all(
+        [
+            AccountingEntry(
+                entry_number="000001",
+                date=date(2025, 8, 1),
+                account_number="401100",
+                label="Facture fournisseur",
+                debit=Decimal("10.00"),
+                credit=Decimal("0.00"),
+                source_type=EntrySourceType.MANUAL,
+            ),
+            AccountingEntry(
+                entry_number="000002",
+                date=date(2025, 8, 3),
+                account_number="512000",
+                label="Virement en trop",
+                debit=Decimal("0.00"),
+                credit=Decimal("20.00"),
+                source_type=EntrySourceType.MANUAL,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit"],
+                [
+                    ["2025-08-01", "401100", "Facture fournisseur", 10, None],
+                    ["2025-08-02", "512000", "Virement nouveau", None, 20],
+                ],
+            ),
+        }
+    )
+
+    response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        data={
+            "comparison_start_date": "2025-08-01",
+            "comparison_end_date": "2025-08-01",
+        },
+        files={"file": ("Comptabilite 2025.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    domains = {domain["kind"]: domain for domain in data["comparison"]["domains"]}
+    assert domains["entries"] == {
+        "kind": "entries",
+        "file_rows": 1,
+        "already_in_solde": 1,
+        "missing_in_solde": 0,
+        "extra_in_solde": 0,
+        "ignored_by_policy": 0,
+        "blocked": 0,
+    }
+    journal_sheet = next(sheet for sheet in data["sheets"] if sheet["name"] == "Journal")
+    assert journal_sheet["rows"] == 1
 
 
 @pytest.mark.asyncio
@@ -3331,18 +6242,28 @@ async def test_import_comptabilite_ignores_generated_group_even_when_label_diffe
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
-async def test_import_comptabilite_ignores_client_invoice_groups_when_split(
+async def test_import_comptabilite_clarifies_existing_client_invoice_other_line_when_split_is_safe(
     client: AsyncClient,
     auth_headers: dict,
     db_session,
 ) -> None:
-    """Client invoice journal rows should be ignored.
+    """Client invoice journal rows can clarify an existing imported mixed invoice."""
+    from sqlalchemy.orm import selectinload
 
-    This remains true when an existing invoice is split differently.
-    """
     from backend.models.accounting_entry import AccountingEntry, EntrySourceType
     from backend.models.contact import Contact, ContactType
-    from backend.models.invoice import Invoice, InvoiceLabel, InvoiceStatus, InvoiceType
+    from backend.models.invoice import (
+        Invoice,
+        InvoiceLabel,
+        InvoiceLine,
+        InvoiceLineType,
+        InvoiceStatus,
+        InvoiceType,
+    )
+    from backend.services.accounting_engine import seed_default_rules
+
+    await seed_default_rules(db_session)
+    await db_session.commit()
 
     contact = Contact(nom="ELEZI", prenom="Aleksander", type=ContactType.CLIENT)
     db_session.add(contact)
@@ -3356,10 +6277,22 @@ async def test_import_comptabilite_ignores_client_invoice_groups_when_split(
         total_amount=Decimal("100.00"),
         paid_amount=Decimal("100.00"),
         status=InvoiceStatus.PAID,
-        label=InvoiceLabel.CS,
+        label=InvoiceLabel.GENERAL,
+        has_explicit_breakdown=False,
     )
     db_session.add(invoice)
     await db_session.flush()
+
+    db_session.add(
+        InvoiceLine(
+            invoice_id=invoice.id,
+            description="Autres prestations",
+            line_type=InvoiceLineType.OTHER,
+            quantity=Decimal("1.00"),
+            unit_price=Decimal("100.00"),
+            amount=Decimal("100.00"),
+        )
+    )
 
     db_session.add_all(
         [
@@ -3430,6 +6363,44 @@ async def test_import_comptabilite_ignores_client_invoice_groups_when_split(
         select(AccountingEntry).where(AccountingEntry.source_type == EntrySourceType.MANUAL)
     )
     assert result.scalars().all() == []
+
+    refreshed_invoice = (
+        (
+            await db_session.execute(
+                select(Invoice).where(Invoice.id == invoice.id).options(selectinload(Invoice.lines))
+            )
+        )
+        .scalars()
+        .one()
+    )
+    assert refreshed_invoice.label == InvoiceLabel.CS_ADHESION
+    assert refreshed_invoice.has_explicit_breakdown is True
+    assert {(line.line_type, line.amount) for line in refreshed_invoice.lines} == {
+        (InvoiceLineType.COURSE, Decimal("50.00")),
+        (InvoiceLineType.ADHESION, Decimal("50.00")),
+    }
+
+    invoice_entries = (
+        (
+            await db_session.execute(
+                select(AccountingEntry)
+                .where(AccountingEntry.source_type == EntrySourceType.INVOICE)
+                .where(AccountingEntry.source_id == invoice.id)
+                .order_by(AccountingEntry.entry_number.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(invoice_entries) == 3
+    assert any(
+        entry.account_number == "706110" and entry.credit == Decimal("50.00")
+        for entry in invoice_entries
+    )
+    assert any(
+        entry.account_number == "756000" and entry.credit == Decimal("50.00")
+        for entry in invoice_entries
+    )
 
 
 @pytest.mark.asyncio
@@ -3938,16 +6909,14 @@ async def test_import_comptabilite_blocks_reimport_of_same_file(
 
 @pytest.mark.asyncio
 @pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
-async def test_preview_and_import_comptabilite_ignores_exact_duplicates_and_keeps_new_rows(
+async def test_preview_and_import_comptabilite_ignores_rows_already_covered_by_solde(
     client: AsyncClient,
     auth_headers: dict,
     db_session,
 ) -> None:
-    """Comptabilité import should ignore exact duplicates and keep new rows."""
+    """Comptabilité import should ignore rows already covered by Solde and keep new rows."""
     from datetime import date
     from decimal import Decimal
-
-    from sqlalchemy import select
 
     from backend.models.accounting_entry import AccountingEntry, EntrySourceType
     from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
@@ -3999,7 +6968,12 @@ async def test_preview_and_import_comptabilite_ignores_exact_duplicates_and_keep
     assert preview_data["estimated_entries"] == 1
     assert preview_data["sheets"][0]["ignored_rows"] == 1
     assert any(
-        "deja existante" in warning.lower() for warning in preview_data["sheets"][0]["warnings"]
+        "deja couverte par solde" in warning.lower()
+        for warning in preview_data["sheets"][0]["warnings"]
+    )
+    assert any(
+        detail["category"] == "entry-covered-by-solde"
+        for detail in preview_data["sheets"][0]["warning_details"]
     )
 
     import_response = await client.post(
@@ -4014,6 +6988,79 @@ async def test_preview_and_import_comptabilite_ignores_exact_duplicates_and_keep
     assert import_data["ignored_rows"] == 1
     assert import_data["errors"] == []
 
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_and_import_comptabilite_ignores_exact_manual_duplicates_with_exact_category(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Exact duplicates against existing manual entries stay categorized as entry-existing."""
+    from datetime import date
+    from decimal import Decimal
+
+    from sqlalchemy import select
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    db_session.add(
+        AccountingEntry(
+            entry_number="000001",
+            date=date(2025, 8, 1),
+            account_number="411100",
+            label="Ecriture manuelle existante",
+            debit=Decimal("55"),
+            credit=Decimal("0"),
+            source_type=EntrySourceType.MANUAL,
+            source_id=None,
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit"],
+                [["2025-08-01", "411100", "Ecriture manuelle existante", 55, None]],
+            ),
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        files={"file": ("Comptabilite exact-duplicate.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    assert preview_data["estimated_entries"] == 0
+    assert preview_data["sheets"][0]["ignored_rows"] == 1
+    assert any(
+        "deja existante" in warning.lower() for warning in preview_data["sheets"][0]["warnings"]
+    )
+    assert any(
+        detail["category"] == "entry-existing"
+        for detail in preview_data["sheets"][0]["warning_details"]
+    )
+    assert all(
+        detail["category"] != "entry-near-manual"
+        for detail in preview_data["sheets"][0]["warning_details"]
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/comptabilite",
+        files={"file": ("Comptabilite exact-duplicate.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    import_data = import_response.json()
+    assert import_data["entries_created"] == 0
+    assert import_data["ignored_rows"] == 1
+    assert import_data["errors"] == []
+
     manual_entries = (
         (
             await db_session.execute(
@@ -4024,9 +7071,95 @@ async def test_preview_and_import_comptabilite_ignores_exact_duplicates_and_keep
         .all()
     )
     assert len(manual_entries) == 1
-    assert manual_entries[0].account_number == "706200"
-    assert manual_entries[0].label == "Nouvelle ecriture"
-    assert manual_entries[0].fiscal_year_id == fiscal_year.id
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(not OPENPYXL_AVAILABLE, reason="openpyxl not installed")
+async def test_preview_and_import_comptabilite_warns_for_near_manual_entries_without_blocking(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session,
+) -> None:
+    """Near matches with manual entries should warn but still import."""
+    from datetime import date
+    from decimal import Decimal
+
+    from sqlalchemy import select
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    db_session.add(
+        AccountingEntry(
+            entry_number="000001",
+            date=date(2025, 8, 1),
+            account_number="411100",
+            label="Libelle manuel",
+            debit=Decimal("55"),
+            credit=Decimal("0"),
+            source_type=EntrySourceType.MANUAL,
+            source_id=None,
+        )
+    )
+    await db_session.commit()
+
+    content = _make_multi_sheet_xlsx(
+        {
+            "Journal": (
+                ["Date", "N° compte", "Libellé de l'écriture", "Débit", "Crédit"],
+                [["2025-08-01", "411100", "Libelle importe", 55, None]],
+            ),
+        }
+    )
+
+    preview_response = await client.post(
+        "/api/import/excel/comptabilite/preview",
+        files={"file": ("Comptabilite near-manual.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert preview_response.status_code == 200
+    preview_data = preview_response.json()
+    assert preview_data["can_import"] is True
+    assert preview_data["estimated_entries"] == 1
+    assert preview_data["sheets"][0]["ignored_rows"] == 0
+    assert any(
+        "proche d'une ecriture manuelle existante" in warning.lower()
+        for warning in preview_data["sheets"][0]["warnings"]
+    )
+    assert any(
+        detail["category"] == "entry-near-manual"
+        for detail in preview_data["sheets"][0]["warning_details"]
+    )
+
+    import_response = await client.post(
+        "/api/import/excel/comptabilite",
+        files={"file": ("Comptabilite near-manual.xlsx", content, _XLSX_MIME)},
+        headers=auth_headers,
+    )
+
+    assert import_response.status_code == 200
+    import_data = import_response.json()
+    assert import_data["entries_created"] == 1
+    assert import_data["ignored_rows"] == 0
+    assert import_data["errors"] == []
+    assert any(
+        "proche d'une ecriture manuelle existante" in warning.lower()
+        for warning in import_data["warnings"]
+    )
+    assert any(
+        detail["category"] == "entry-near-manual" for detail in import_data["warning_details"]
+    )
+
+    manual_entries = (
+        (
+            await db_session.execute(
+                select(AccountingEntry).where(AccountingEntry.source_type == EntrySourceType.MANUAL)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(manual_entries) == 2
 
 
 @pytest.mark.asyncio

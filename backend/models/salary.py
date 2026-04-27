@@ -6,10 +6,11 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database import Base
+from backend.models.types import DecimalType
 
 if TYPE_CHECKING:
     from backend.models.contact import Contact
@@ -31,26 +32,34 @@ class Salary(Base):
     month: Mapped[str] = mapped_column(String(7), nullable=False, index=True)
 
     # Hours worked this month
-    hours: Mapped[_Decimal] = mapped_column(Numeric(8, 2), nullable=False, default=Decimal("0"))
+    hours: Mapped[_Decimal] = mapped_column(DecimalType(8, 2), nullable=False, default=Decimal("0"))
 
     # Gross salary (salaire brut)
-    gross: Mapped[_Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    gross: Mapped[_Decimal] = mapped_column(DecimalType(10, 2), nullable=False)
 
     # Employee social charges (cotisations salariales)
     employee_charges: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False, default=Decimal("0")
+        DecimalType(10, 2), nullable=False, default=Decimal("0")
     )
 
     # Employer social charges (cotisations patronales)
     employer_charges: Mapped[_Decimal] = mapped_column(
-        Numeric(10, 2), nullable=False, default=Decimal("0")
+        DecimalType(10, 2), nullable=False, default=Decimal("0")
     )
 
     # Income tax withheld at source (prélèvement à la source)
-    tax: Mapped[_Decimal] = mapped_column(Numeric(10, 2), nullable=False, default=Decimal("0"))
+    tax: Mapped[_Decimal] = mapped_column(DecimalType(10, 2), nullable=False, default=Decimal("0"))
 
     # Net salary paid to employee
-    net_pay: Mapped[_Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    net_pay: Mapped[_Decimal] = mapped_column(DecimalType(10, 2), nullable=False)
+
+    # CDD breakdown components (nullable — only stored for CDD contracts)
+    # brut_declared: base gross before CP/précarité additions (hours × hourly_rate)
+    brut_declared: Mapped[_Decimal | None] = mapped_column(DecimalType(10, 2), nullable=True)
+    # conges_payes: 10% holiday pay add-on
+    conges_payes: Mapped[_Decimal | None] = mapped_column(DecimalType(10, 2), nullable=True)
+    # precarite: 10% end-of-contract precarity add-on
+    precarite: Mapped[_Decimal | None] = mapped_column(DecimalType(10, 2), nullable=True)
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -64,4 +73,4 @@ class Salary(Base):
     @property
     def total_cost(self) -> _Decimal:
         """Total employer cost = gross + employer_charges."""
-        return _Decimal(str(self.gross)) + _Decimal(str(self.employer_charges))
+        return self.gross + self.employer_charges

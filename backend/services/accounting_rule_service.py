@@ -12,7 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.models.accounting_rule import AccountingRule, AccountingRuleEntry
-from backend.schemas.accounting_rule import AccountingRuleUpdate, RulePreviewEntry
+from backend.schemas.accounting_rule import (
+    AccountingRuleCreate,
+    AccountingRuleUpdate,
+    RulePreviewEntry,
+)
 
 
 async def list_rules(db: AsyncSession) -> list[AccountingRule]:
@@ -59,6 +63,36 @@ async def update_rule(
     await db.commit()
     await db.refresh(rule)
     return rule
+
+
+async def create_rule(db: AsyncSession, payload: AccountingRuleCreate) -> AccountingRule:
+    rule = AccountingRule(
+        name=payload.name,
+        trigger_type=payload.trigger_type,
+        is_active=payload.is_active,
+        priority=payload.priority,
+        description=payload.description,
+    )
+    db.add(rule)
+    await db.flush()
+    for entry_data in payload.entries:
+        db.add(
+            AccountingRuleEntry(
+                rule_id=rule.id,
+                account_number=entry_data.account_number,
+                side=entry_data.side,
+                description_template=entry_data.description_template,
+            )
+        )
+    await db.commit()
+    loaded = await get_rule(db, rule.id)
+    assert loaded is not None
+    return loaded
+
+
+async def delete_rule(db: AsyncSession, rule: AccountingRule) -> None:
+    await db.delete(rule)
+    await db.commit()
 
 
 def _render_template(template: str, context: Mapping[str, object]) -> str:

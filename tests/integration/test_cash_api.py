@@ -2,10 +2,32 @@
 
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal
+
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.models.cash import CashCount, CashMovementType, CashRegister
 from backend.models.user import User
+
+
+def _shift_month(value: date, months: int) -> date:
+    year = value.year
+    month = value.month + months
+    while month <= 0:
+        year -= 1
+        month += 12
+    while month > 12:
+        year += 1
+        month -= 12
+    return date(year, month, 1)
+
+
+def _month_fixture(months_ago: int, day: int = 10) -> date:
+    month_start = _shift_month(date.today().replace(day=1), -months_ago)
+    return month_start.replace(day=day)
 
 
 @pytest.mark.asyncio
@@ -34,6 +56,31 @@ async def test_add_entry_in(client: AsyncClient, admin_user: User, auth_headers:
 
 
 @pytest.mark.asyncio
+async def test_secretaire_can_add_entry(
+    client: AsyncClient, secretaire_user: User, secretaire_auth_headers: dict
+) -> None:
+    response = await client.post(
+        "/api/cash/entries",
+        json={
+            "date": "2024-03-01",
+            "amount": "150.00",
+            "type": "in",
+            "description": "Cotisations reçues",
+        },
+        headers=secretaire_auth_headers,
+    )
+    assert response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_readonly_cannot_access_cash_balance(
+    client: AsyncClient, readonly_user: User, readonly_auth_headers: dict
+) -> None:
+    response = await client.get("/api/cash/balance", headers=readonly_auth_headers)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_add_entry_unauthenticated(client: AsyncClient) -> None:
     response = await client.post(
         "/api/cash/entries",
@@ -53,6 +100,78 @@ async def test_list_entries(client: AsyncClient, admin_user: User, auth_headers:
     response = await client.get("/api/cash/entries", headers=auth_headers)
     assert response.status_code == 200
     assert len(response.json()) == 2
+
+
+@pytest.mark.asyncio
+async def test_list_entries_default_limit_is_5000(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+    db_session: AsyncSession,
+) -> None:
+    db_session.add_all(
+        [
+            CashRegister(
+                date=date(2024, 3, 1),
+                amount=Decimal("10.00"),
+                type=CashMovementType.IN,
+                description=f"Entry {index}",
+                balance_after=Decimal("10.00"),
+            )
+            for index in range(101)
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/cash/entries", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 101
+
+
+@pytest.mark.asyncio
+async def test_list_entries_filters_by_date_range(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+    db_session: AsyncSession,
+) -> None:
+    db_session.add_all(
+        [
+            CashRegister(
+                date=date(2024, 1, 15),
+                amount=Decimal("10.00"),
+                type=CashMovementType.IN,
+                description="Before range",
+                balance_after=Decimal("10.00"),
+            ),
+            CashRegister(
+                date=date(2024, 3, 15),
+                amount=Decimal("20.00"),
+                type=CashMovementType.IN,
+                description="Inside range",
+                balance_after=Decimal("30.00"),
+            ),
+            CashRegister(
+                date=date(2024, 5, 15),
+                amount=Decimal("30.00"),
+                type=CashMovementType.IN,
+                description="After range",
+                balance_after=Decimal("60.00"),
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/cash/entries?from_date=2024-02-01&to_date=2024-04-30",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["description"] == "Inside range"
 
 
 @pytest.mark.asyncio
@@ -157,3 +276,108 @@ async def test_list_cash_counts(client: AsyncClient, admin_user: User, auth_head
     response = await client.get("/api/cash/counts", headers=auth_headers)
     assert response.status_code == 200
     assert len(response.json()) == 1
+
+
+@pytest.mark.asyncio
+async def test_list_cash_counts_default_limit_is_5000(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+    db_session: AsyncSession,
+) -> None:
+    db_session.add_all(
+        [
+            CashCount(
+                date=date(2024, 3, 1),
+                total_counted=Decimal("0.00"),
+                balance_expected=Decimal("0.00"),
+                difference=Decimal("0.00"),
+            )
+            for _ in range(101)
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/cash/counts", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 101
+
+
+@pytest.mark.asyncio
+async def test_list_cash_counts_filters_by_date_range(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+    db_session: AsyncSession,
+) -> None:
+    db_session.add_all(
+        [
+            CashCount(
+                date=date(2024, 1, 31),
+                total_counted=Decimal("10.00"),
+                balance_expected=Decimal("10.00"),
+                difference=Decimal("0.00"),
+            ),
+            CashCount(
+                date=date(2024, 3, 31),
+                total_counted=Decimal("20.00"),
+                balance_expected=Decimal("20.00"),
+                difference=Decimal("0.00"),
+            ),
+            CashCount(
+                date=date(2024, 5, 31),
+                total_counted=Decimal("30.00"),
+                balance_expected=Decimal("30.00"),
+                difference=Decimal("0.00"),
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get(
+        "/api/cash/counts?from_date=2024-02-01&to_date=2024-04-30",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["total_counted"] == "20.00"
+
+
+@pytest.mark.asyncio
+async def test_cash_funds_chart_returns_last_six_month_closing_balances(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    fixtures = [
+        (_month_fixture(5, 4), "100.00", "in"),
+        (_month_fixture(3, 7), "40.00", "in"),
+        (_month_fixture(1, 15), "15.00", "out"),
+    ]
+    for entry_date, amount, movement_type in fixtures:
+        response = await client.post(
+            "/api/cash/entries",
+            json={"date": entry_date.isoformat(), "amount": amount, "type": movement_type},
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+
+    response = await client.get("/api/cash/chart/funds", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert [row["month"] for row in data] == [
+        _shift_month(date.today().replace(day=1), offset).strftime("%Y-%m")
+        for offset in range(-5, 1)
+    ]
+    assert [Decimal(str(row["balance"])) for row in data] == [
+        Decimal("100.00"),
+        Decimal("100.00"),
+        Decimal("140.00"),
+        Decimal("140.00"),
+        Decimal("125.00"),
+        Decimal("125.00"),
+    ]

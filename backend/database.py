@@ -24,12 +24,11 @@ class Base(DeclarativeBase):
 def _build_engine(database_url: str | None = None) -> AsyncEngine:
     """Create async SQLAlchemy engine with WAL journal mode."""
     url = database_url or get_settings().database_url
-    engine = create_async_engine(
+    return create_async_engine(
         url,
-        echo=get_settings().debug,
+        echo=False,
         connect_args={"check_same_thread": False},
     )
-    return engine
 
 
 # Module-level engine and session factory
@@ -43,28 +42,15 @@ _async_session_factory = async_sessionmaker(
 
 
 async def init_db() -> None:
-    """Create all tables and enable WAL mode. Called at application startup."""
+    """Enable WAL mode and foreign key constraints. Called at application startup.
+
+    Table creation is handled exclusively by Alembic migrations; this function
+    only configures SQLite connection-level PRAGMAs.
+    """
     async with _engine.begin() as conn:
         # Enable WAL mode for better concurrent read performance
         await conn.exec_driver_sql("PRAGMA journal_mode=WAL")
         await conn.exec_driver_sql("PRAGMA foreign_keys=ON")
-        from backend.models import (  # noqa: F401
-            accounting_account,
-            accounting_entry,
-            accounting_rule,
-            app_settings,
-            bank,
-            cash,
-            contact,
-            fiscal_year,
-            import_log,
-            invoice,
-            payment,
-            salary,
-            user,
-        )
-
-        await conn.run_sync(Base.metadata.create_all)
 
     await _bootstrap_admin()
 
@@ -89,6 +75,7 @@ async def _bootstrap_admin() -> None:
             password_hash=hash_password(cfg.admin_password),
             role=UserRole.ADMIN,
             is_active=True,
+            must_change_password=True,
         )
         session.add(user)
         logging.getLogger(__name__).warning(

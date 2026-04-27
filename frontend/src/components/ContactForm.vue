@@ -2,7 +2,9 @@
   <form class="app-dialog-form" @submit.prevent="submit">
     <section class="app-dialog-intro">
       <p class="app-dialog-intro__eyebrow">{{ t('contacts.title') }}</p>
-      <p class="app-dialog-intro__text">{{ t(isEditing ? 'contacts.form_intro_edit' : 'contacts.form_intro_create') }}</p>
+      <p class="app-dialog-intro__text">
+        {{ t(isEditing ? 'contacts.form_intro_edit' : 'contacts.form_intro_create') }}
+      </p>
     </section>
 
     <section class="app-dialog-section">
@@ -33,6 +35,7 @@
               required
               class="w-full"
             />
+            <small v-if="fieldErrors['nom']" class="p-error">{{ fieldErrors['nom'] }}</small>
           </div>
           <div class="app-field">
             <label for="cf-prenom" class="app-field__label">{{ t('contacts.prenom') }}</label>
@@ -62,6 +65,7 @@
             :placeholder="t('contacts.email')"
             class="w-full"
           />
+          <small v-if="fieldErrors['email']" class="p-error">{{ fieldErrors['email'] }}</small>
         </div>
 
         <div class="app-field">
@@ -96,26 +100,27 @@
           />
           <small class="app-dialog-note">{{ t('contacts.notes_help') }}</small>
         </div>
+
+        <div class="app-field">
+          <label class="app-field__label">{{ t('employees.is_contractor') }}</label>
+          <ToggleSwitch v-model="form.is_contractor" />
+          <small class="app-dialog-note">{{ t('employees.is_contractor_help') }}</small>
+        </div>
       </div>
     </section>
 
-      <Message v-if="errorMessage" severity="error">{{ errorMessage }}</Message>
+    <Message v-if="errorMessage" severity="error">{{ errorMessage }}</Message>
 
-      <div class="app-form-actions">
-        <Button
-          type="button"
-          :label="t('common.cancel')"
-          severity="secondary"
-          :disabled="saving"
-          @click="$emit('cancel')"
-        />
-        <Button
-          type="submit"
-          :label="t('common.save')"
-          :loading="saving"
-          icon="pi pi-check"
-        />
-      </div>
+    <div class="app-form-actions">
+      <Button
+        type="button"
+        :label="t('common.cancel')"
+        severity="secondary"
+        :disabled="saving"
+        @click="$emit('cancel')"
+      />
+      <Button type="submit" :label="t('common.save')" :loading="saving" icon="pi pi-check" />
+    </div>
   </form>
 </template>
 
@@ -125,8 +130,10 @@ import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
+import ToggleSwitch from 'primevue/toggleswitch'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import axios from 'axios'
 import { createContactApi, updateContactApi, type Contact } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
 
@@ -149,6 +156,7 @@ interface FormState {
   telephone: string
   adresse: string
   notes: string
+  is_contractor: boolean
 }
 
 function fromContact(c: Contact | null): FormState {
@@ -160,12 +168,16 @@ function fromContact(c: Contact | null): FormState {
     telephone: c?.telephone ?? '',
     adresse: c?.adresse ?? '',
     notes: c?.notes ?? '',
+    is_contractor: c?.is_contractor ?? false,
   }
 }
 
 const form = ref<FormState>(fromContact(props.contact))
 const saving = ref(false)
 const errorMessage = ref('')
+const fieldErrors = ref<Record<string, string>>({})
+const initialSnapshot = ref(JSON.stringify(fromContact(props.contact)))
+const isDirty = computed(() => JSON.stringify(form.value) !== initialSnapshot.value)
 const isEditing = computed(() => props.contact !== null)
 
 watch(
@@ -173,12 +185,15 @@ watch(
   (c) => {
     form.value = fromContact(c)
     errorMessage.value = ''
+    fieldErrors.value = {}
+    initialSnapshot.value = JSON.stringify(fromContact(c))
   },
 )
 
 async function submit(): Promise<void> {
   saving.value = true
   errorMessage.value = ''
+  fieldErrors.value = {}
   try {
     const payload = {
       type: form.value.type,
@@ -188,6 +203,7 @@ async function submit(): Promise<void> {
       telephone: form.value.telephone || null,
       adresse: form.value.adresse || null,
       notes: form.value.notes || null,
+      is_contractor: form.value.is_contractor,
     }
     if (props.contact) {
       await updateContactApi(props.contact.id, payload)
@@ -195,12 +211,29 @@ async function submit(): Promise<void> {
       await createContactApi(payload)
     }
     emit('saved')
-  } catch {
-    errorMessage.value = t('common.error.unknown')
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 422) {
+      const detail = error.response.data?.detail
+      if (Array.isArray(detail)) {
+        const errors: Record<string, string> = {}
+        for (const item of detail) {
+          if (Array.isArray(item.loc) && item.loc.length > 0) {
+            errors[String(item.loc[item.loc.length - 1])] = item.msg
+          }
+        }
+        fieldErrors.value = errors
+      } else {
+        errorMessage.value = t('common.error.unknown')
+      }
+    } else {
+      errorMessage.value = t('common.error.unknown')
+    }
   } finally {
     saving.value = false
   }
 }
+
+defineExpose({ submit, isDirty })
 </script>
 
 <style scoped>

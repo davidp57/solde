@@ -6,7 +6,9 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.models.accounting_entry import EntrySourceType
 from backend.models.accounting_rule import (
@@ -19,7 +21,14 @@ from backend.models.accounting_rule import (
 from backend.models.bank import Deposit, DepositType
 from backend.models.contact import Contact, ContactType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
-from backend.models.invoice import Invoice, InvoiceLabel, InvoiceStatus, InvoiceType
+from backend.models.invoice import (
+    Invoice,
+    InvoiceLabel,
+    InvoiceLine,
+    InvoiceLineType,
+    InvoiceStatus,
+    InvoiceType,
+)
 from backend.models.payment import Payment, PaymentMethod
 from backend.models.salary import Salary
 from backend.services.accounting_engine import (
@@ -78,21 +87,41 @@ async def _make_invoice(
     inv_type: InvoiceType = InvoiceType.CLIENT,
     label: InvoiceLabel | None = InvoiceLabel.CS,
     total: Decimal = Decimal("100.00"),
+    lines: list[tuple[str, Decimal] | tuple[str, Decimal, InvoiceLineType | None]] | None = None,
+    has_explicit_breakdown: bool = False,
 ) -> Invoice:
+    invoice_total = sum((line[1] for line in lines), Decimal("0")) if lines else total
     inv = Invoice(
         number="2024-C-0001",
         type=inv_type,
         contact_id=1,
         date=date(2024, 1, 15),
-        total_amount=total,
+        total_amount=invoice_total,
         paid_amount=Decimal("0"),
         status=InvoiceStatus.SENT,
         label=label,
+        has_explicit_breakdown=has_explicit_breakdown,
     )
     db.add(inv)
+    await db.flush()
+    for line in lines or []:
+        description, amount = line[0], line[1]
+        line_type = line[2] if len(line) > 2 else None
+        db.add(
+            InvoiceLine(
+                invoice_id=inv.id,
+                description=description,
+                line_type=line_type,
+                quantity=Decimal("1"),
+                unit_price=amount,
+                amount=amount,
+            )
+        )
     await db.commit()
-    await db.refresh(inv)
-    return inv
+    result = await db.execute(
+        select(Invoice).where(Invoice.id == inv.id).options(selectinload(Invoice.lines))
+    )
+    return result.scalar_one()
 
 
 async def _make_payment(
@@ -215,6 +244,57 @@ class TestGenerateEntriesForInvoice:
         assert entries == []
 
     @pytest.mark.asyncio
+    async def test_label_uses_contact_name(self, db_session: AsyncSession) -> None:
+        """{{contact}} in the template must render as 'Prénom NOM', not the contact ID."""
+        contact = Contact(
+            id=1,
+            type=ContactType.CLIENT,
+            nom="DUPONT",
+            prenom="Marie",
+            is_active=True,
+        )
+        db_session.add(contact)
+        await db_session.flush()
+        rule = await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        result = await db_session.execute(
+            select(AccountingRuleEntry).where(AccountingRuleEntry.rule_id == rule.id)
+        )
+        for rule_entry in result.scalars():
+            rule_entry.description_template = "Fact. {{number}} {{contact}}"
+        await db_session.flush()
+        inv = await _make_invoice(db_session, label=InvoiceLabel.CS)
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert entries
+        assert all("Marie DUPONT" in e.label for e in entries)
+
+    @pytest.mark.asyncio
+    async def test_label_uses_nom_only_when_no_prenom(self, db_session: AsyncSession) -> None:
+        contact = Contact(
+            id=1,
+            type=ContactType.CLIENT,
+            nom="ASSOCIATION ABC",
+            prenom=None,
+            is_active=True,
+        )
+        db_session.add(contact)
+        await db_session.flush()
+        rule = await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        result = await db_session.execute(
+            select(AccountingRuleEntry).where(AccountingRuleEntry.rule_id == rule.id)
+        )
+        for rule_entry in result.scalars():
+            rule_entry.description_template = "Fact. {{number}} {{contact}}"
+        await db_session.flush()
+        inv = await _make_invoice(db_session, label=InvoiceLabel.CS)
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert entries
+        assert all("ASSOCIATION ABC" in e.label for e in entries)
+
+    @pytest.mark.asyncio
     async def test_client_cs_label(self, db_session: AsyncSession) -> None:
         await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
         inv = await _make_invoice(db_session, label=InvoiceLabel.CS)
@@ -257,6 +337,129 @@ class TestGenerateEntriesForInvoice:
         inv = await _make_invoice(db_session, label=InvoiceLabel.CS_ADHESION)
         entries = await generate_entries_for_invoice(db_session, inv)
         assert len(entries) == 2
+
+    @pytest.mark.asyncio
+    async def test_client_cs_a_lines_split_credit_accounts(self, db_session: AsyncSession) -> None:
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_A, "411100", "756000")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS_ADHESION,
+            lines=[
+                ("Cours de soutien", Decimal("130.00"), InvoiceLineType.COURSE),
+                ("Adhesion annuelle", Decimal("30.00"), InvoiceLineType.ADHESION),
+            ],
+            has_explicit_breakdown=True,
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 3
+        debit = next(entry for entry in entries if entry.debit > 0)
+        assert debit.account_number == "411100"
+        assert debit.debit == Decimal("160.00")
+        assert {entry.account_number: entry.credit for entry in entries if entry.credit > 0} == {
+            "706110": Decimal("130.00"),
+            "756000": Decimal("30.00"),
+        }
+
+    @pytest.mark.asyncio
+    async def test_client_other_lines_use_general_rule(self, db_session: AsyncSession) -> None:
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_GENERAL, "411100", "758000")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.GENERAL,
+            lines=[("Pack rentree", Decimal("100.00"), InvoiceLineType.OTHER)],
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 2
+        assert any(
+            entry.account_number == "758000" and entry.credit == Decimal("100.00")
+            for entry in entries
+        )
+
+    @pytest.mark.asyncio
+    async def test_client_typed_lines_split_without_extra_flag(
+        self, db_session: AsyncSession
+    ) -> None:
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_A, "411100", "756000")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS_ADHESION,
+            lines=[
+                ("Cours de soutien", Decimal("130.00"), InvoiceLineType.COURSE),
+                ("Adhesion annuelle", Decimal("30.00"), InvoiceLineType.ADHESION),
+            ],
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 3
+        assert {entry.account_number: entry.credit for entry in entries if entry.credit > 0} == {
+            "706110": Decimal("130.00"),
+            "756000": Decimal("30.00"),
+        }
+
+    @pytest.mark.asyncio
+    async def test_client_typed_lines_skip_zero_credit_entry(
+        self, db_session: AsyncSession
+    ) -> None:
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_A, "411100", "756000")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS_ADHESION,
+            lines=[
+                ("Cours de soutien", Decimal("160.00"), InvoiceLineType.COURSE),
+                ("Adhesion annuelle", Decimal("0.00"), InvoiceLineType.ADHESION),
+            ],
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 2
+        assert any(
+            entry.account_number == "411100" and entry.debit == Decimal("160.00")
+            for entry in entries
+        )
+        assert any(
+            entry.account_number == "706110" and entry.credit == Decimal("160.00")
+            for entry in entries
+        )
+        assert all(entry.account_number != "756000" for entry in entries)
+
+    @pytest.mark.asyncio
+    async def test_client_negative_line_is_aggregated_by_type(
+        self, db_session: AsyncSession
+    ) -> None:
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS_A, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS,
+            lines=[
+                ("Cours de soutien", Decimal("160.00"), InvoiceLineType.COURSE),
+                ("Remise cours", Decimal("-10.00"), InvoiceLineType.COURSE),
+            ],
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 2
+        assert any(
+            entry.account_number == "411100" and entry.debit == Decimal("150.00")
+            for entry in entries
+        )
+        assert any(
+            entry.account_number == "706110" and entry.credit == Decimal("150.00")
+            for entry in entries
+        )
 
     @pytest.mark.asyncio
     async def test_client_general_label(self, db_session: AsyncSession) -> None:
@@ -386,6 +589,17 @@ class TestGenerateEntriesForPayment:
         for e in entries:
             assert e.source_type == EntrySourceType.PAYMENT
             assert e.source_id == pay.id
+
+    @pytest.mark.asyncio
+    async def test_label_uses_invoice_number(self, db_session: AsyncSession) -> None:
+        """Regression: label must use invoice.number, not invoice.id."""
+        await _seed_one_rule(db_session, TriggerType.PAYMENT_RECEIVED_VIREMENT, "512100", "411100")
+        inv = await _make_invoice(db_session)  # number = "2024-C-0001"
+        pay = await _make_payment(db_session, method=PaymentMethod.VIREMENT, invoice_id=inv.id)
+        entries = await generate_entries_for_payment(db_session, pay, InvoiceType.CLIENT)
+        assert entries
+        assert all("2024-C-0001" in e.label for e in entries)
+        assert not any(f"#{inv.id}" in e.label for e in entries)
 
 
 # ---------------------------------------------------------------------------
@@ -547,3 +761,74 @@ class TestSeedDefaultRules:
         inv = await _make_invoice(db_session, label=InvoiceLabel.CS)
         entries = await generate_entries_for_invoice(db_session, inv)
         assert entries == []
+
+
+class TestNextEntryNumber:
+    """BL-051: _next_entry_number must use MAX+1 and never return duplicates."""
+
+    @pytest.mark.asyncio
+    async def test_first_entry_is_000001(self, db_session: AsyncSession) -> None:
+        from backend.services.accounting_engine import _next_entry_number
+
+        num = await _next_entry_number(db_session)
+        assert num == "000001"
+
+    @pytest.mark.asyncio
+    async def test_increments_based_on_max(self, db_session: AsyncSession) -> None:
+        from backend.models.accounting_entry import AccountingEntry
+        from backend.services.accounting_engine import _next_entry_number
+
+        # Insert a sparse set of entry_numbers (gaps intentional to verify MAX not COUNT)
+        for n in ("000001", "000005", "000003"):
+            entry = AccountingEntry(
+                entry_number=n,
+                date=date(2025, 1, 1),
+                account_number="706110",
+                label="test",
+                debit=Decimal("0"),
+                credit=Decimal("100"),
+                source_type=EntrySourceType.MANUAL,
+            )
+            db_session.add(entry)
+        await db_session.flush()
+
+        num = await _next_entry_number(db_session)
+        assert num == "000006"
+
+    @pytest.mark.asyncio
+    async def test_zero_pads_to_6_digits(self, db_session: AsyncSession) -> None:
+        from backend.services.accounting_engine import _next_entry_number
+
+        num = await _next_entry_number(db_session)
+        assert len(num) == 6
+        assert num.isdigit()
+
+    @pytest.mark.asyncio
+    async def test_ignores_non_numeric_run_entries(self, db_session: AsyncSession) -> None:
+        """Regression: MAX on string col would return 'RUN-*' > '000NNN', causing int()
+        to raise ValueError and silently resetting the counter to 000001."""
+        from backend.models.accounting_entry import AccountingEntry
+        from backend.services.accounting_engine import _next_entry_number
+
+        # Simulate state after an import: both numeric and RUN-* entries exist
+        for num, label in [
+            ("000003", "regular"),
+            ("000001", "regular"),
+            ("RUN-42-1", "import"),
+            ("RUN-42-2", "import"),
+        ]:
+            entry = AccountingEntry(
+                entry_number=num,
+                date=date(2025, 1, 1),
+                account_number="411100",
+                label=label,
+                debit=Decimal("0"),
+                credit=Decimal("100"),
+                source_type=EntrySourceType.MANUAL,
+            )
+            db_session.add(entry)
+        await db_session.flush()
+
+        # Must continue from 000004, not reset to 000001
+        result = await _next_entry_number(db_session)
+        assert result == "000004"

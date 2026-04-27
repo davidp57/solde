@@ -1,7 +1,25 @@
 """Integration tests for GET/PUT /api/settings."""
 
+import json
+from datetime import date
+from decimal import Decimal
+from unittest.mock import patch
+
 from httpx import AsyncClient
 from sqlalchemy import select
+
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.models.bank import BankTransaction, BankTransactionSource
+from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
+from backend.models.contact import Contact, ContactType
+from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
+from backend.models.import_log import ImportLog, ImportLogStatus, ImportLogType
+from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+from backend.models.payment import PaymentMethod
+from backend.schemas.bank import DepositCreate
+from backend.schemas.payment import PaymentCreate
+from backend.services import bank_service
+from backend.services import payment as payment_service
 
 
 class TestGetSettings:
@@ -20,6 +38,7 @@ class TestGetSettings:
 
         assert data["association_name"] == "Mon Association"
         assert data["fiscal_year_start_month"] == 8
+        assert data["default_invoice_due_days"] is None
         assert data["smtp_host"] is None
         assert data["smtp_port"] == 587
         assert data["smtp_use_tls"] is True
@@ -81,6 +100,14 @@ class TestUpdateSettings:
         )
         assert response.status_code == 422
 
+    async def test_invalid_default_invoice_due_days(self, client: AsyncClient, auth_headers: dict):
+        response = await client.put(
+            "/api/settings/",
+            json={"default_invoice_due_days": 366},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422
+
     async def test_invalid_smtp_port(self, client: AsyncClient, auth_headers: dict):
         response = await client.put(
             "/api/settings/",
@@ -106,8 +133,136 @@ class TestUpdateSettings:
         assert data["smtp_host"] == "smtp.gmail.com"
         assert data["smtp_user"] == "test@gmail.com"
 
+    async def test_update_default_invoice_due_days(self, client: AsyncClient, auth_headers: dict):
+        response = await client.put(
+            "/api/settings/",
+            json={"default_invoice_due_days": 30},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["default_invoice_due_days"] == 30
+
+
+class TestTreasurySystemOpening:
+    async def test_get_system_opening_requires_auth(self, client: AsyncClient) -> None:
+        response = await client.get("/api/settings/system-opening")
+        assert response.status_code == 401
+
+    async def test_get_system_opening_returns_default_date(
+        self, client: AsyncClient, auth_headers: dict, db_session
+    ) -> None:
+        db_session.add(
+            FiscalYear(
+                name="2024",
+                start_date=date(2024, 8, 1),
+                end_date=date(2025, 7, 31),
+                status=FiscalYearStatus.OPEN,
+            )
+        )
+        await db_session.commit()
+
+        response = await client.get("/api/settings/system-opening", headers=auth_headers)
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["default_date"] == "2024-08-01"
+        assert payload["bank"]["configured"] is False
+        assert payload["cash"]["configured"] is False
+
+    async def test_put_system_opening_creates_bank_and_cash_entries(
+        self, client: AsyncClient, auth_headers: dict, db_session
+    ) -> None:
+        response = await client.put(
+            "/api/settings/system-opening",
+            json={
+                "bank": {
+                    "date": "2024-08-01",
+                    "amount": "100.00",
+                    "reference": "Solde banque initial",
+                },
+                "cash": {
+                    "date": "2024-08-01",
+                    "amount": "-15.00",
+                    "reference": "Ajustement initial",
+                },
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["bank"]["configured"] is True
+        assert payload["bank"]["amount"] == "100.00"
+        assert payload["cash"]["configured"] is True
+        assert payload["cash"]["amount"] == "-15.00"
+
+        bank_entry = (await db_session.execute(select(BankTransaction))).scalar_one()
+        cash_entry = (await db_session.execute(select(CashRegister))).scalar_one()
+
+        assert bank_entry.source == BankTransactionSource.SYSTEM_OPENING
+        assert bank_entry.reference == "Solde banque initial"
+        assert cash_entry.source == CashEntrySource.SYSTEM_OPENING
+        assert cash_entry.type == CashMovementType.OUT
+        assert cash_entry.amount == 15
+        assert cash_entry.reference == "Ajustement initial"
+
 
 class TestNonAdminAccess:
+    async def test_tresorier_cannot_access_system_opening_get(
+        self, client: AsyncClient, db_session, auth_headers: dict
+    ):
+        from backend.models.user import User, UserRole
+        from backend.services.auth import hash_password
+
+        tresorier = User(
+            username="tresorier-system-opening-read",
+            email="tresorier-system-opening-read@test.com",
+            password_hash=hash_password("password123"),
+            role=UserRole.TRESORIER,
+            is_active=True,
+        )
+        db_session.add(tresorier)
+        await db_session.commit()
+
+        login = await client.post(
+            "/api/auth/login",
+            data={"username": "tresorier-system-opening-read", "password": "password123"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        response = await client.get("/api/settings/system-opening", headers=headers)
+        assert response.status_code == 403
+
+    async def test_tresorier_cannot_access_system_opening_put(
+        self, client: AsyncClient, db_session, auth_headers: dict
+    ):
+        from backend.models.user import User, UserRole
+        from backend.services.auth import hash_password
+
+        tresorier = User(
+            username="tresorier-system-opening-write",
+            email="tresorier-system-opening-write@test.com",
+            password_hash=hash_password("password123"),
+            role=UserRole.TRESORIER,
+            is_active=True,
+        )
+        db_session.add(tresorier)
+        await db_session.commit()
+
+        login = await client.post(
+            "/api/auth/login",
+            data={"username": "tresorier-system-opening-write", "password": "password123"},
+        )
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        response = await client.put(
+            "/api/settings/system-opening",
+            json={
+                "bank": {"date": "2024-08-01", "amount": "100.00"},
+                "cash": {"date": "2024-08-01", "amount": "50.00"},
+            },
+            headers=headers,
+        )
+        assert response.status_code == 403
+
     async def test_tresorier_cannot_access_settings(
         self, client: AsyncClient, db_session, auth_headers: dict
     ):
@@ -134,11 +289,23 @@ class TestNonAdminAccess:
 
 
 class TestResetDatabase:
+    async def test_reset_db_blocked_when_debug_is_false(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        from backend.config import Settings, get_settings
+
+        prod_settings = Settings(debug=False, jwt_secret_key=get_settings().jwt_secret_key)
+        with patch("backend.routers.settings.get_app_config", new=lambda: prod_settings):
+            response = await client.post("/api/settings/reset-db", headers=auth_headers)
+        assert response.status_code == 403
+        assert "debug" in response.json()["detail"].lower()
+
     async def test_reset_db_deletes_everything_except_users(
         self, client: AsyncClient, auth_headers: dict, db_session
     ) -> None:
         from datetime import date
 
+        from backend.config import Settings, get_settings
         from backend.models.accounting_account import AccountingAccount, AccountType
         from backend.models.accounting_rule import (
             AccountingRule,
@@ -199,7 +366,9 @@ class TestResetDatabase:
         await db_session.commit()
         user_count = len((await db_session.execute(select(User))).scalars().all())
 
-        response = await client.post("/api/settings/reset-db", headers=auth_headers)
+        debug_settings = Settings(debug=True, jwt_secret_key=get_settings().jwt_secret_key)
+        with patch("backend.routers.settings.get_app_config", new=lambda: debug_settings):
+            response = await client.post("/api/settings/reset-db", headers=auth_headers)
 
         assert response.status_code == 200
         assert response.json()["contacts"] == 1
@@ -221,6 +390,138 @@ class TestResetDatabase:
         settings_response = await client.get("/api/settings/", headers=auth_headers)
         assert settings_response.status_code == 200
         assert settings_response.json()["association_name"] == "Mon Association"
+
+
+class TestSelectiveReset:
+    async def test_selective_reset_returns_404_for_unknown_fiscal_year(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+    ) -> None:
+        for endpoint in (
+            "/api/settings/selective-reset/preview",
+            "/api/settings/selective-reset/apply",
+        ):
+            response = await client.post(
+                endpoint,
+                json={"import_type": "gestion", "fiscal_year_id": 999999},
+                headers=auth_headers,
+            )
+
+            assert response.status_code == 404
+            assert response.json()["detail"] == "Fiscal year not found"
+
+    async def test_selective_reset_preview_and_apply_for_gestion(
+        self, client: AsyncClient, auth_headers: dict, db_session
+    ) -> None:
+        fiscal_year = FiscalYear(
+            name="2025",
+            start_date=date(2025, 8, 1),
+            end_date=date(2026, 7, 31),
+            status=FiscalYearStatus.OPEN,
+        )
+        imported_contact = Contact(nom="Lopes", type=ContactType.CLIENT)
+        db_session.add_all([fiscal_year, imported_contact])
+        await db_session.flush()
+
+        imported_invoice = Invoice(
+            number="2025-C-0100",
+            type=InvoiceType.CLIENT,
+            contact_id=imported_contact.id,
+            date=date(2025, 9, 12),
+            total_amount=Decimal("90.00"),
+            paid_amount=Decimal("0.00"),
+            status=InvoiceStatus.SENT,
+        )
+        db_session.add(imported_invoice)
+        await db_session.flush()
+
+        db_session.add(
+            ImportLog(
+                import_type=ImportLogType.GESTION,
+                status=ImportLogStatus.SUCCESS,
+                file_hash="gestion-preview-2025",
+                file_name="Gestion 2025.xlsx",
+                summary=json.dumps(
+                    {
+                        "created_objects": [
+                            {
+                                "sheet_name": "Factures",
+                                "kind": "contacts",
+                                "object_type": "contact",
+                                "object_id": imported_contact.id,
+                            },
+                            {
+                                "sheet_name": "Factures",
+                                "kind": "invoices",
+                                "object_type": "invoice",
+                                "object_id": imported_invoice.id,
+                            },
+                        ]
+                    },
+                    ensure_ascii=False,
+                ),
+            )
+        )
+        await db_session.commit()
+
+        payment = await payment_service.create_payment(
+            db_session,
+            PaymentCreate(
+                invoice_id=imported_invoice.id,
+                contact_id=imported_contact.id,
+                amount=Decimal("90.00"),
+                date=date(2025, 9, 20),
+                method=PaymentMethod.ESPECES,
+            ),
+        )
+        deposit = await bank_service.create_deposit(
+            db_session,
+            DepositCreate(
+                date=date(2025, 9, 28),
+                type="especes",
+                payment_ids=[payment.id],
+            ),
+        )
+        db_session.add(
+            AccountingEntry(
+                entry_number="000301",
+                date=payment.date,
+                account_number="530000",
+                label="Paiement derive API",
+                debit=Decimal("90.00"),
+                credit=Decimal("0.00"),
+                fiscal_year_id=fiscal_year.id,
+                source_type=EntrySourceType.PAYMENT,
+                source_id=payment.id,
+            )
+        )
+        await db_session.commit()
+
+        preview_response = await client.post(
+            "/api/settings/selective-reset/preview",
+            json={"import_type": "gestion", "fiscal_year_id": fiscal_year.id},
+            headers=auth_headers,
+        )
+
+        assert preview_response.status_code == 200
+        preview_payload = preview_response.json()
+        assert preview_payload["matched_import_logs"] == 1
+        assert preview_payload["delete_plan"]["invoice"] == 1
+        assert preview_payload["delete_plan"]["payment"] == 1
+        assert preview_payload["delete_plan"]["deposit"] == 1
+
+        apply_response = await client.post(
+            "/api/settings/selective-reset/apply",
+            json={"import_type": "gestion", "fiscal_year_id": fiscal_year.id},
+            headers=auth_headers,
+        )
+
+        assert apply_response.status_code == 200
+        assert (await db_session.get(Contact, imported_contact.id)) is None
+        assert (await db_session.get(Invoice, imported_invoice.id)) is None
+        assert (await db_session.get(type(deposit), deposit.id)) is None
+        assert (await db_session.execute(select(ImportLog))).scalars().all() == []
 
 
 class TestBootstrapAccountingSetup:
@@ -253,3 +554,96 @@ class TestBootstrapAccountingSetup:
             ("2024", date(2024, 8, 1), date(2025, 7, 31)),
             ("2025", date(2025, 8, 1), date(2026, 7, 31)),
         ]
+
+
+# ---------------------------------------------------------------------------
+# BIZ-108 / BIZ-109: supervision endpoints (system-info, backups, logs, audit-logs)
+# ---------------------------------------------------------------------------
+
+
+class TestGetSystemInfo:
+    async def test_requires_auth(self, client: AsyncClient) -> None:
+        response = await client.get("/api/settings/system-info")
+        assert response.status_code == 401
+
+    async def test_requires_admin_role(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ) -> None:
+        response = await client.get("/api/settings/system-info", headers=readonly_auth_headers)
+        assert response.status_code == 403
+
+    async def test_returns_system_info(self, client: AsyncClient, auth_headers: dict) -> None:
+        response = await client.get("/api/settings/system-info", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert "app_version" in data
+        assert "db_size_bytes" in data
+        assert isinstance(data["db_size_bytes"], int)
+        assert "started_at" in data
+
+
+class TestListBackups:
+    async def test_requires_auth(self, client: AsyncClient) -> None:
+        response = await client.get("/api/settings/backups")
+        assert response.status_code == 401
+
+    async def test_requires_admin_role(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ) -> None:
+        response = await client.get("/api/settings/backups", headers=readonly_auth_headers)
+        assert response.status_code == 403
+
+    async def test_returns_list(self, client: AsyncClient, auth_headers: dict) -> None:
+        # Backup directory may not exist in CI — endpoint must return an empty list, not error.
+        response = await client.get("/api/settings/backups", headers=auth_headers)
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+
+class TestGetLogs:
+    async def test_requires_auth(self, client: AsyncClient) -> None:
+        response = await client.get("/api/settings/logs")
+        assert response.status_code == 401
+
+    async def test_requires_admin_role(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ) -> None:
+        response = await client.get("/api/settings/logs", headers=readonly_auth_headers)
+        assert response.status_code == 403
+
+    async def test_returns_list(self, client: AsyncClient, auth_headers: dict) -> None:
+        # Log files may not exist in CI — endpoint must return an empty list, not error.
+        response = await client.get("/api/settings/logs", headers=auth_headers)
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    async def test_level_filter_accepted(self, client: AsyncClient, auth_headers: dict) -> None:
+        # Verify the server accepts the levels query parameter without error.
+        response = await client.get(
+            "/api/settings/logs?levels=ERROR&levels=WARNING", headers=auth_headers
+        )
+        assert response.status_code == 200
+
+    async def test_limit_validation(self, client: AsyncClient, auth_headers: dict) -> None:
+        response = await client.get("/api/settings/logs?limit=0", headers=auth_headers)
+        assert response.status_code == 422
+
+        response = await client.get("/api/settings/logs?limit=5001", headers=auth_headers)
+        assert response.status_code == 422
+
+
+class TestGetAuditLogs:
+    async def test_requires_auth(self, client: AsyncClient) -> None:
+        response = await client.get("/api/settings/audit-logs")
+        assert response.status_code == 401
+
+    async def test_requires_admin_role(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ) -> None:
+        response = await client.get("/api/settings/audit-logs", headers=readonly_auth_headers)
+        assert response.status_code == 403
+
+    async def test_returns_list(self, client: AsyncClient, auth_headers: dict) -> None:
+        response = await client.get("/api/settings/audit-logs", headers=auth_headers)
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)

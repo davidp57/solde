@@ -2,306 +2,795 @@
   <AppPage width="wide">
     <AppPageHeader :eyebrow="t('ui.page.collection_eyebrow')" :title="t('bank.title')">
       <template #actions>
-        <Button :label="t('bank.import_csv')" icon="pi pi-upload" severity="secondary" @click="importDialogVisible = true" />
-        <Button :label="t('bank.new_deposit')" icon="pi pi-inbox" severity="secondary" @click="openDepositDialog" />
-        <Button :label="t('bank.new_transaction')" icon="pi pi-plus" @click="txDialogVisible = true" />
+        <Button
+          :label="t('bank.import_statement')"
+          icon="pi pi-upload"
+          severity="secondary"
+          @click="importDialogVisible = true"
+        />
+        <Button
+          :label="t('bank.new_deposit')"
+          icon="pi pi-inbox"
+          severity="secondary"
+          @click="openDepositDialog"
+        />
+        <Button
+          :label="t('bank.new_transaction')"
+          icon="pi pi-plus"
+          @click="txDialogVisible = true"
+        />
       </template>
     </AppPageHeader>
 
     <section class="app-stat-grid">
-      <AppStatCard :label="t('bank.balance')" :value="formatAmount(balance)" />
-      <AppStatCard :label="t('bank.transactions_title')" :value="filteredTransactions.length" :caption="`${transactions.length} total`" />
-      <AppStatCard :label="t('bank.deposits_title')" :value="filteredDeposits.length" :caption="`${undepositedPayments.length} paiements en attente`" tone="warn" />
+      <AppStatCard
+        :label="t('bank.current_balance')"
+        :value="displayBalanceValue"
+        :caption="currentBalanceCaption"
+      />
+      <AppStatCard
+        :label="t('bank.period_variation')"
+        :value="formatSignedAmount(displayedPeriodVariation)"
+        :caption="periodVariationCaption"
+        :tone="displayedPeriodVariationTone"
+      />
+      <AppStatCard
+        :label="t('bank.transactions_title')"
+        :value="displayedTransactions.length"
+        :caption="t('bank.metrics.transactions_total', { count: transactions.length })"
+      />
+      <AppStatCard
+        :label="t('bank.deposits_title')"
+        :value="displayedDeposits.length"
+        :caption="t('bank.metrics.pending_payments', { count: undepositedPayments.length })"
+        tone="warn"
+      />
     </section>
+
+    <AppPanel :title="t('bank.funds_chart_title')" dense>
+      <p class="bank-chart-panel__intro">{{ t('bank.funds_chart_intro') }}</p>
+      <TrendLineChart
+        :data="fundsChartData"
+        :series="fundsChartSeries"
+        :empty-label="t('bank.funds_chart_empty')"
+        :ariaLabel="t('bank.funds_chart_title')"
+      />
+    </AppPanel>
 
     <AppPanel :title="t('bank.title')" dense>
       <div class="app-toolbar">
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="filterText" :placeholder="t('common.filter_placeholder')" />
+            <InputText v-model="activeGlobalFilter" :placeholder="t('common.filter_placeholder')" />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('common.reset_filters') }}</label>
+            <Button
+              icon="pi pi-filter-slash"
+              severity="secondary"
+              outlined
+              :disabled="!activeHasFilters"
+              @click="resetActiveFilters"
+            />
           </div>
         </div>
       </div>
 
       <Tabs v-model:value="activeTab">
-      <TabList>
-        <Tab value="transactions">{{ t('bank.transactions_title') }}</Tab>
-        <Tab value="deposits">{{ t('bank.deposits_title') }}</Tab>
-      </TabList>
+        <TabList>
+          <Tab value="transactions">{{ t('bank.transactions_title') }}</Tab>
+          <Tab value="deposits">{{ t('bank.deposits_title') }}</Tab>
+        </TabList>
 
-      <TabPanels>
-        <TabPanel value="transactions">
-          <div class="bank-panel-toolbar">
-            <ToggleButton
-              v-model="unreconciledOnly"
-              :on-label="t('bank.tx_reconciled')"
-              :off-label="t('bank.tx_reconciled')"
-              @change="loadTransactions"
-            />
-          </div>
-          <DataTable :value="filteredTransactions" :loading="loadingTx" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" data-key="id" size="small" row-hover>
-            <Column field="date" :header="t('bank.tx_date')" sortable>
-              <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
-            </Column>
-            <Column field="amount" :header="t('bank.tx_amount')" class="app-money">
-              <template #body="{ data }">
-                <span :class="parseFloat(data.amount) >= 0 ? 'bank-positive' : 'bank-negative'">
-                  {{ formatAmount(data.amount) }}
-                </span>
+        <TabPanels>
+          <TabPanel value="transactions">
+            <div class="bank-panel-toolbar">
+              <ToggleButton
+                v-model="unreconciledOnly"
+                :on-label="t('bank.tx_reconciled')"
+                :off-label="t('bank.tx_reconciled')"
+                @change="loadTransactions"
+              />
+            </div>
+            <DataTable
+              v-model:filters="transactionTableFilters"
+              :value="transactionRows"
+              :loading="loadingTx"
+              class="app-data-table"
+              filter-display="menu"
+              striped-rows
+              paginator
+              :rows="20"
+              :rows-per-page-options="[20, 50, 100, 500]"
+              :global-filter-fields="[
+                'date',
+                'amount',
+                'description',
+                'reference',
+                'balance_after',
+                'reconciled_label',
+                'detected_category_label',
+                'source_label',
+              ]"
+              data-key="id"
+              size="small"
+              row-hover
+              sort-field="date"
+              :sort-order="-1"
+              removable-sort
+              @value-change="syncDisplayedTransactions"
+            >
+              <Column
+                field="date"
+                :header="t('bank.tx_date')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppDateRangeFilter v-model="filterModel.value" />
+                </template>
+              </Column>
+              <Column
+                field="amount_value"
+                :header="t('bank.tx_amount')"
+                class="app-money bank-table__amount"
+                sortable
+                filter-field="amount_value"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">
+                  <span :class="parseFloat(data.amount) >= 0 ? 'bank-positive' : 'bank-negative'">
+                    {{ formatAmount(data.amount) }}
+                  </span>
+                </template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
+              </Column>
+              <Column
+                field="description"
+                :header="t('bank.tx_description')"
+                class="bank-table__description"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #filter="{ filterModel }">
+                  <InputText v-model="filterModel.value" :placeholder="t('bank.tx_description')" />
+                </template>
+              </Column>
+              <Column
+                field="reference"
+                :header="t('bank.tx_reference')"
+                class="bank-table__reference"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #filter="{ filterModel }">
+                  <InputText v-model="filterModel.value" :placeholder="t('bank.tx_reference')" />
+                </template>
+              </Column>
+              <Column
+                field="balance_after_value"
+                :header="t('bank.tx_balance_short')"
+                class="bank-table__balance"
+                sortable
+                filter-field="balance_after_value"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">{{ formatAmount(data.balance_after) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
+              </Column>
+              <Column
+                field="reconciled_label"
+                :header="t('bank.tx_reconciled_short')"
+                class="bank-table__reconciled"
+                sortable
+                filter-field="reconciled"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">
+                  <i
+                    :class="
+                      data.reconciled
+                        ? 'pi pi-check-circle text-green-500'
+                        : 'pi pi-circle text-surface-400'
+                    "
+                  />
+                </template>
+                <template #filter="{ filterModel, filterCallback }">
+                  <AppFilterMultiSelect
+                    v-model="filterModel.value"
+                    :options="yesNoOptions"
+                    option-label="label"
+                    option-value="value"
+                    :placeholder="t('common.all')"
+                    display="chip"
+                    show-clear
+                    :filter-callback="filterCallback"
+                  />
+                </template>
+              </Column>
+              <Column
+                field="detected_category_label"
+                :header="t('bank.tx_category_short')"
+                class="bank-table__category"
+                sortable
+                filter-field="detected_category"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">
+                  <Tag
+                    class="bank-detected-category-tag"
+                    :value="t(`bank.categories.${data.detected_category}`)"
+                  />
+                </template>
+                <template #filter="{ filterModel, filterCallback }">
+                  <AppFilterMultiSelect
+                    v-model="filterModel.value"
+                    :options="categoryOptions"
+                    option-label="label"
+                    option-value="value"
+                    :placeholder="t('common.all')"
+                    display="chip"
+                    show-clear
+                    :filter-callback="filterCallback"
+                  />
+                </template>
+              </Column>
+              <Column
+                field="source_label"
+                :header="t('bank.tx_source_short')"
+                class="bank-table__source"
+                sortable
+                filter-field="source"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">
+                  <Tag
+                    :value="t(`bank.sources.${data.source}`)"
+                    :severity="data.source === 'system_opening' ? 'info' : 'secondary'"
+                  />
+                </template>
+                <template #filter="{ filterModel, filterCallback }">
+                  <AppFilterMultiSelect
+                    v-model="filterModel.value"
+                    :options="sourceOptions"
+                    option-label="label"
+                    option-value="value"
+                    :placeholder="t('common.all')"
+                    display="chip"
+                    show-clear
+                    :filter-callback="filterCallback"
+                  />
+                </template>
+              </Column>
+              <Column :header="t('common.actions')" style="width: 7.25rem">
+                <template #body="{ data }">
+                  <Button
+                    v-if="canLinkExistingSupplierPayment(data)"
+                    icon="pi pi-link"
+                    size="small"
+                    severity="secondary"
+                    text
+                    :title="t('bank.link_supplier_payment')"
+                    @click="openExistingSupplierPaymentDialog(data)"
+                  />
+                  <Button
+                    v-if="canCreateSupplierPayment(data)"
+                    icon="pi pi-arrow-up-right"
+                    size="small"
+                    severity="secondary"
+                    text
+                    :title="t('bank.create_supplier_payment')"
+                    @click="openSupplierPaymentDialog(data)"
+                  />
+                  <Button
+                    v-if="canLinkExistingClientPayment(data)"
+                    icon="pi pi-link"
+                    size="small"
+                    severity="secondary"
+                    text
+                    :title="t('bank.link_client_payment')"
+                    @click="openExistingClientPaymentDialog(data)"
+                  />
+                  <Button
+                    v-if="canCreateClientPayment(data)"
+                    icon="pi pi-wallet"
+                    size="small"
+                    severity="secondary"
+                    text
+                    :title="t('bank.create_client_payment')"
+                    @click="openClientPaymentDialog(data)"
+                  />
+                  <Button
+                    v-if="!data.reconciled"
+                    icon="pi pi-check"
+                    size="small"
+                    severity="success"
+                    text
+                    :title="t('bank.reconcile')"
+                    @click="reconcile(data)"
+                  />
+                </template>
+              </Column>
+              <template #empty>
+                <div class="app-empty-state">{{ t('bank.transactions_empty') }}</div>
               </template>
-            </Column>
-            <Column field="description" :header="t('bank.tx_description')" />
-            <Column field="reference" :header="t('bank.tx_reference')" />
-            <Column field="balance_after" :header="t('bank.tx_balance')">
-              <template #body="{ data }">{{ formatAmount(data.balance_after) }}</template>
-            </Column>
-            <Column field="reconciled" :header="t('bank.tx_reconciled')">
-              <template #body="{ data }">
-                <i :class="data.reconciled ? 'pi pi-check-circle text-green-500' : 'pi pi-circle text-surface-400'" />
-              </template>
-            </Column>
-            <Column field="source" :header="t('bank.tx_source')">
-              <template #body="{ data }">
-                <Tag :value="t(`bank.sources.${data.source}`)" severity="secondary" />
-              </template>
-            </Column>
-            <Column :header="t('common.actions')" style="width: 6rem">
-              <template #body="{ data }">
-                <Button
-                  v-if="!data.reconciled"
-                  icon="pi pi-check"
-                  size="small"
-                  severity="success"
-                  text
-                  :title="t('bank.reconcile')"
-                  @click="reconcile(data)"
-                />
-              </template>
-            </Column>
-            <template #empty>
-              <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
-            </template>
-          </DataTable>
-        </TabPanel>
+            </DataTable>
+          </TabPanel>
 
-        <TabPanel value="deposits">
-          <DataTable :value="filteredDeposits" :loading="loadingDeposits" class="app-data-table" striped-rows paginator :rows="20" :rows-per-page-options="[20, 50, 100, 500]" data-key="id" size="small" row-hover>
-            <Column field="date" :header="t('bank.deposit_date')" sortable>
-              <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
-            </Column>
-            <Column field="type" :header="t('bank.deposit_type')">
-              <template #body="{ data }">
-                <Tag :value="t(`bank.deposit_types.${data.type}`)" />
+          <TabPanel value="deposits">
+            <DataTable
+              v-model:filters="depositTableFilters"
+              :value="depositRows"
+              :loading="loadingDeposits"
+              class="app-data-table"
+              filter-display="menu"
+              striped-rows
+              paginator
+              :rows="20"
+              :rows-per-page-options="[20, 50, 100, 500]"
+              :global-filter-fields="[
+                'date',
+                'type_label',
+                'total_amount',
+                'bank_reference',
+                'payment_count_label',
+              ]"
+              data-key="id"
+              size="small"
+              row-hover
+              removable-sort
+              @value-change="syncDisplayedDeposits"
+            >
+              <Column
+                field="date"
+                :header="t('bank.deposit_date')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppDateRangeFilter v-model="filterModel.value" />
+                </template>
+              </Column>
+              <Column
+                field="type_label"
+                :header="t('bank.deposit_type')"
+                sortable
+                filter-field="type"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">
+                  <Tag :value="t(`bank.deposit_types.${data.type}`)" />
+                </template>
+                <template #filter="{ filterModel, filterCallback }">
+                  <AppFilterMultiSelect
+                    v-model="filterModel.value"
+                    :options="depositTypeOptions"
+                    option-label="label"
+                    option-value="value"
+                    :placeholder="t('common.all')"
+                    display="chip"
+                    show-clear
+                    :filter-callback="filterCallback"
+                  />
+                </template>
+              </Column>
+              <Column
+                field="total_amount_value"
+                :header="t('bank.deposit_total')"
+                class="app-money"
+                sortable
+                filter-field="total_amount_value"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">{{ formatAmount(data.total_amount) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
+              </Column>
+              <Column
+                field="bank_reference"
+                :header="t('bank.deposit_bank_ref')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #filter="{ filterModel }">
+                  <InputText
+                    v-model="filterModel.value"
+                    :placeholder="t('bank.deposit_bank_ref')"
+                  />
+                </template>
+              </Column>
+              <Column
+                field="payment_count"
+                :header="t('bank.deposit_payments')"
+                sortable
+                filter-field="payment_count"
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">
+                  {{
+                    t('bank.metrics.deposit_payment_count', {
+                      count: data.payment_ids?.length || 0,
+                    })
+                  }}
+                </template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
+              </Column>
+              <template #empty>
+                <div class="app-empty-state">{{ t('bank.deposits_empty') }}</div>
               </template>
-            </Column>
-            <Column field="total_amount" :header="t('bank.deposit_total')" class="app-money">
-              <template #body="{ data }">{{ formatAmount(data.total_amount) }}</template>
-            </Column>
-            <Column field="bank_reference" :header="t('bank.deposit_bank_ref')" />
-            <Column field="payment_ids" :header="t('bank.deposit_payments')">
-              <template #body="{ data }">
-                {{ data.payment_ids?.length || 0 }} paiements
-              </template>
-            </Column>
-            <template #empty>
-              <div class="app-empty-state">{{ t('accounting.balance.empty') }}</div>
-            </template>
-          </DataTable>
-        </TabPanel>
-      </TabPanels>
-    </Tabs>
+            </DataTable>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
     </AppPanel>
 
-    <!-- Add transaction dialog -->
-    <Dialog v-model:visible="txDialogVisible" :header="t('bank.new_transaction')" modal class="app-dialog app-dialog--medium">
-      <form class="app-dialog-form bank-form" @submit.prevent="submitTransaction">
-        <section class="app-dialog-intro">
-          <p class="app-dialog-intro__eyebrow">{{ t('bank.transactions_title') }}</p>
-          <p class="app-dialog-intro__text">{{ t('bank.transaction_intro') }}</p>
-        </section>
-        <section class="app-dialog-section">
-          <div class="app-form-grid">
-            <div class="app-field">
-              <label class="app-field__label">{{ t('bank.tx_date') }}</label>
-              <DatePicker v-model="txForm.date" date-format="yy-mm-dd" show-icon />
-            </div>
-            <div class="app-field">
-              <label class="app-field__label">{{ t('bank.tx_amount') }}</label>
-              <InputNumber v-model="txForm.amount" mode="decimal" :min-fraction-digits="2" :max-fraction-digits="2" />
-            </div>
-            <div class="app-field app-field--full">
-              <label class="app-field__label">{{ t('bank.tx_description') }}</label>
-              <InputText v-model="txForm.description" />
-            </div>
-            <div class="app-field">
-              <label class="app-field__label">{{ t('bank.tx_reference') }}</label>
-              <InputText v-model="txForm.reference" />
-            </div>
-            <div class="app-field">
-              <label class="app-field__label">{{ t('bank.tx_balance') }}</label>
-              <InputNumber v-model="txForm.balance_after" mode="decimal" :min-fraction-digits="2" :max-fraction-digits="2" />
-            </div>
-          </div>
-        </section>
-        <div class="app-form-actions">
-          <Button :label="t('common.cancel')" severity="secondary" text @click="txDialogVisible = false" />
-          <Button type="submit" :label="t('common.save')" :loading="saving" />
-        </div>
-      </form>
-    </Dialog>
+    <!-- Dialogs -->
+    <BankNewTransactionDialog
+      v-model:visible="txDialogVisible"
+      @saved="loadAll"
+    />
+    <BankImportStatementDialog
+      v-model:visible="importDialogVisible"
+      @saved="loadAll"
+    />
 
-    <!-- CSV import dialog -->
-    <Dialog v-model:visible="importDialogVisible" :header="t('bank.import_dialog_title')" modal class="app-dialog app-dialog--medium">
-      <div class="app-dialog-form bank-form">
-        <section class="app-dialog-intro">
-          <p class="app-dialog-intro__eyebrow">{{ t('bank.import_csv') }}</p>
-          <p class="app-dialog-intro__text">{{ t('bank.import_intro') }}</p>
-        </section>
-        <section class="app-dialog-section">
-          <div class="app-field">
-            <label class="app-field__label">{{ t('bank.import_paste_label') }}</label>
-            <Textarea v-model="csvContent" rows="8" class="font-mono text-sm" />
-          </div>
-        </section>
-        <div class="app-form-actions">
-          <Button :label="t('common.cancel')" severity="secondary" text @click="importDialogVisible = false" />
-          <Button :label="t('bank.import_csv')" icon="pi pi-upload" :loading="saving" @click="submitImport" />
-        </div>
-      </div>
-    </Dialog>
-
-    <!-- Create deposit dialog -->
-    <Dialog v-model:visible="depositDialogVisible" :header="t('bank.new_deposit')" modal class="app-dialog app-dialog--medium">
-      <div class="app-dialog-form bank-form">
-        <section class="app-dialog-intro">
-          <p class="app-dialog-intro__eyebrow">{{ t('bank.deposits_title') }}</p>
-          <p class="app-dialog-intro__text">{{ t('bank.deposit_intro') }}</p>
-        </section>
-        <section class="app-dialog-section">
-          <div class="app-form-grid">
-            <div class="app-field">
-              <label class="app-field__label">{{ t('bank.deposit_date') }}</label>
-              <DatePicker v-model="depositForm.date" date-format="yy-mm-dd" show-icon />
-            </div>
-            <div class="app-field">
-              <label class="app-field__label">{{ t('bank.deposit_type') }}</label>
-              <Select v-model="depositForm.type" :options="depositTypeOptions" option-label="label" option-value="value" />
-            </div>
-            <div class="app-field app-field--full">
-              <label class="app-field__label">{{ t('bank.deposit_bank_ref') }}</label>
-              <InputText v-model="depositForm.bank_reference" />
-            </div>
-          </div>
-        </section>
-        <section class="app-dialog-section">
-          <div class="app-dialog-section__header">
-            <h3 class="app-dialog-section__title">{{ t('bank.deposit_selection_title') }}</h3>
-            <p class="app-dialog-section__copy">{{ t('bank.deposit_selection_subtitle') }}</p>
-          </div>
-          <Message v-if="undepositedPayments.length === 0" severity="warn">
-            {{ t('bank.deposit_empty') }}
-          </Message>
-          <p v-if="undepositedPayments.length === 0" class="app-dialog-note">{{ t('bank.deposit_empty_hint') }}</p>
-          <div v-else class="app-dialog-list">
-            <label v-for="p in undepositedPayments" :key="p.id" class="app-dialog-list__item bank-payment-option">
-              <Checkbox v-model="depositForm.payment_ids" :value="p.id" />
-              <span class="app-dialog-list__meta">
-                <span class="app-dialog-list__title">{{ formatDisplayDate(p.date) }} — {{ formatAmount(p.amount) }}</span>
-                <span class="app-dialog-list__caption">{{ t(`payments.methods.${p.method}`) }}</span>
-              </span>
-            </label>
-          </div>
-        </section>
-        <div class="app-form-actions">
-          <Button :label="t('common.cancel')" severity="secondary" text @click="depositDialogVisible = false" />
-          <Button :label="t('common.save')" :loading="saving" :disabled="depositForm.payment_ids.length === 0" @click="submitDeposit" />
-        </div>
-      </div>
-    </Dialog>
+    <BankClientPaymentDialog
+      v-model:visible="clientPaymentDialogVisible"
+      :transaction="clientPaymentTransaction"
+      @saved="loadAll"
+    />
+    <BankLinkClientPaymentDialog
+      v-model:visible="existingClientPaymentDialogVisible"
+      :transaction="existingClientPaymentTransaction"
+      @saved="loadAll"
+    />
+    <BankSupplierPaymentDialog
+      v-model:visible="supplierPaymentDialogVisible"
+      :transaction="supplierPaymentTransaction"
+      @saved="loadAll"
+    />
+    <BankLinkSupplierPaymentDialog
+      v-model:visible="existingSupplierPaymentDialogVisible"
+      :transaction="existingSupplierPaymentTransaction"
+      @saved="loadAll"
+    />
+    <BankNewDepositDialog
+      v-model:visible="depositDialogVisible"
+      :payments="undepositedPayments"
+      @saved="loadAll"
+    />
   </AppPage>
 </template>
 
 <script setup lang="ts">
 import Button from 'primevue/button'
-import Checkbox from 'primevue/checkbox'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
-import DatePicker from 'primevue/datepicker'
-import Dialog from 'primevue/dialog'
-import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
-import Message from 'primevue/message'
-import Select from 'primevue/select'
 import Tab from 'primevue/tab'
 import TabList from 'primevue/tablist'
 import TabPanel from 'primevue/tabpanel'
 import TabPanels from 'primevue/tabpanels'
 import Tabs from 'primevue/tabs'
 import Tag from 'primevue/tag'
-import Textarea from 'primevue/textarea'
 import ToggleButton from 'primevue/togglebutton'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import TrendLineChart, { type TrendLineChartSeries } from '../components/charts/TrendLineChart.vue'
 import AppPage from '../components/ui/AppPage.vue'
+import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
+import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
+import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
+import BankNewTransactionDialog from '../components/bank/BankNewTransactionDialog.vue'
+import BankImportStatementDialog from '../components/bank/BankImportStatementDialog.vue'
+import BankClientPaymentDialog from '../components/bank/BankClientPaymentDialog.vue'
+import BankLinkClientPaymentDialog from '../components/bank/BankLinkClientPaymentDialog.vue'
+import BankSupplierPaymentDialog from '../components/bank/BankSupplierPaymentDialog.vue'
+import BankLinkSupplierPaymentDialog from '../components/bank/BankLinkSupplierPaymentDialog.vue'
+import BankNewDepositDialog from '../components/bank/BankNewDepositDialog.vue'
 import {
-  addTransaction,
-  createDeposit,
   getBankBalance,
-  importCsv,
+  getBankFundsChart,
   listDeposits,
   listTransactions,
   updateTransaction,
   type BankTransaction,
   type Deposit,
+  type FundsChartRow as BankFundsChartRow,
 } from '@/api/bank'
 import { listPayments, type Payment } from '@/api/payments'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
-import { useTableFilter, applyFilter } from '../composables/useTableFilter'
+import {
+  dateRangeFilter,
+  inFilter,
+  numericRangeFilter,
+  textFilter,
+  useDataTableFilters,
+} from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
+// Core bank data
 const balance = ref('0')
+const fundsChartData = ref<BankFundsChartRow[]>([])
 const transactions = ref<BankTransaction[]>([])
-const { filterText, filtered: filteredTransactions } = useTableFilter(transactions)
 const deposits = ref<Deposit[]>([])
-const filteredDeposits = computed(() => applyFilter(deposits.value, filterText.value))
 const undepositedPayments = ref<Payment[]>([])
 const loadingTx = ref(false)
 const loadingDeposits = ref(false)
 const activeTab = ref('transactions')
 const unreconciledOnly = ref(false)
+
+// Dialog visibility
 const txDialogVisible = ref(false)
 const importDialogVisible = ref(false)
 const depositDialogVisible = ref(false)
-const saving = ref(false)
-const csvContent = ref('')
+const clientPaymentDialogVisible = ref(false)
+const existingClientPaymentDialogVisible = ref(false)
+const supplierPaymentDialogVisible = ref(false)
+const existingSupplierPaymentDialogVisible = ref(false)
 
-const depositTypeOptions = [
-  { label: t('bank.deposit_types.cheques'), value: 'cheques' },
-  { label: t('bank.deposit_types.especes'), value: 'especes' },
+// Selected transactions for dialogs
+const clientPaymentTransaction = ref<BankTransaction | null>(null)
+const existingClientPaymentTransaction = ref<BankTransaction | null>(null)
+const supplierPaymentTransaction = ref<BankTransaction | null>(null)
+const existingSupplierPaymentTransaction = ref<BankTransaction | null>(null)
+
+const sourceOptions = [
+  { label: t('bank.sources.manual'), value: 'manual' },
+  { label: t('bank.sources.import'), value: 'import' },
+  { label: t('bank.sources.system_opening'), value: 'system_opening' },
 ]
 
-const txForm = ref({ date: new Date(), amount: 0, description: '', reference: '', balance_after: 0 })
-const depositForm = ref({ date: new Date(), type: 'cheques' as 'cheques' | 'especes', bank_reference: '', payment_ids: [] as number[] })
+const categoryOptions = [
+  { label: t('bank.categories.customer_payment'), value: 'customer_payment' },
+  { label: t('bank.categories.cheque_deposit'), value: 'cheque_deposit' },
+  { label: t('bank.categories.cash_deposit'), value: 'cash_deposit' },
+  { label: t('bank.categories.supplier_payment'), value: 'supplier_payment' },
+  { label: t('bank.categories.salary'), value: 'salary' },
+  { label: t('bank.categories.social_charge'), value: 'social_charge' },
+  { label: t('bank.categories.bank_fee'), value: 'bank_fee' },
+  { label: t('bank.categories.internal_transfer'), value: 'internal_transfer' },
+  { label: t('bank.categories.grant'), value: 'grant' },
+  { label: t('bank.categories.sepa_debit'), value: 'sepa_debit' },
+  { label: t('bank.categories.other_credit'), value: 'other_credit' },
+  { label: t('bank.categories.other_debit'), value: 'other_debit' },
+  { label: t('bank.categories.uncategorized'), value: 'uncategorized' },
+]
+
+const yesNoOptions = [
+  { label: t('common.yes'), value: true },
+  { label: t('common.no'), value: false },
+]
+
+const transactionRows = computed(() =>
+  transactions.value.map((tx) => ({
+    ...tx,
+    amount_value: parseFloat(tx.amount),
+    balance_after_value: parseFloat(tx.balance_after),
+    reconciled_label: tx.reconciled ? t('common.yes') : t('common.no'),
+    detected_category_label: t(`bank.categories.${tx.detected_category}`),
+    source_label: t(`bank.sources.${tx.source}`),
+  })),
+)
+
+const depositRows = computed(() =>
+  deposits.value.map((deposit) => ({
+    ...deposit,
+    type_label: t(`bank.deposit_types.${deposit.type}`),
+    total_amount_value: parseFloat(deposit.total_amount),
+    payment_count: deposit.payment_ids?.length || 0,
+    payment_count_label: `${deposit.payment_ids?.length || 0}`,
+  })),
+)
+
+const {
+  filters: transactionTableFilters,
+  globalFilter: transactionGlobalFilter,
+  displayedRows: displayedTransactions,
+  hasActiveFilters: transactionHasActiveFilters,
+  resetFilters: resetTransactionFilters,
+  syncDisplayedRows: syncDisplayedTransactions,
+} = useDataTableFilters(transactionRows, {
+  global: textFilter(''),
+  date: dateRangeFilter(),
+  amount_value: numericRangeFilter(),
+  description: textFilter(),
+  reference: textFilter(),
+  balance_after_value: numericRangeFilter(),
+  reconciled: inFilter(),
+  detected_category: inFilter(),
+  source: inFilter(),
+})
+
+const {
+  filters: depositTableFilters,
+  globalFilter: depositGlobalFilter,
+  displayedRows: displayedDeposits,
+  hasActiveFilters: depositHasActiveFilters,
+  resetFilters: resetDepositFilters,
+  syncDisplayedRows: syncDisplayedDeposits,
+} = useDataTableFilters(depositRows, {
+  global: textFilter(''),
+  date: dateRangeFilter(),
+  type: inFilter(),
+  total_amount_value: numericRangeFilter(),
+  bank_reference: textFilter(),
+  payment_count: numericRangeFilter(),
+})
+
+const activeGlobalFilter = computed({
+  get: () =>
+    activeTab.value === 'transactions' ? transactionGlobalFilter.value : depositGlobalFilter.value,
+  set: (value: string) => {
+    if (activeTab.value === 'transactions') {
+      transactionGlobalFilter.value = value
+    } else {
+      depositGlobalFilter.value = value
+    }
+  },
+})
+
+const activeHasFilters = computed(() =>
+  activeTab.value === 'transactions'
+    ? transactionHasActiveFilters.value
+    : depositHasActiveFilters.value,
+)
+
+function pickLatestVisibleBalanceAfter(
+  rows: Array<{ id: number; date: string; balance_after: string }>,
+): string | null {
+  if (rows.length === 0) return null
+  const latestRow = rows.reduce((latest, current) => {
+    if (current.date > latest.date) return current
+    if (current.date === latest.date && current.id > latest.id) return current
+    return latest
+  })
+  return latestRow.balance_after
+}
+
+const scopedBalance = computed(() => pickLatestVisibleBalanceAfter(displayedTransactions.value))
+const displayBalanceValue = computed(() => formatAmount(scopedBalance.value ?? balance.value))
+const selectedPeriodLabel = computed(
+  () => fiscalYearStore.selectedFiscalYear?.name ?? t('app.all_fiscal_years'),
+)
+const currentBalanceCaption = computed(() =>
+  transactionHasActiveFilters.value || fiscalYearStore.selectedFiscalYear
+    ? t('bank.metrics.visible_scope_caption')
+    : t('bank.metrics.current_balance_caption'),
+)
+const displayedPeriodVariation = computed(() =>
+  displayedTransactions.value.reduce(
+    (total, tx) => total + parseFloat(tx.amount),
+    0,
+  ),
+)
+const displayedPeriodVariationTone = computed(() => {
+  if (displayedPeriodVariation.value > 0) return 'success'
+  if (displayedPeriodVariation.value < 0) return 'danger'
+  return 'warn'
+})
+const periodVariationCaption = computed(() =>
+  transactionHasActiveFilters.value
+    ? t('bank.metrics.visible_scope_caption')
+    : t('bank.metrics.period_variation_caption', { period: selectedPeriodLabel.value }),
+)
+const fundsChartSeries = computed<TrendLineChartSeries[]>(() => [
+  { key: 'total', label: t('bank.funds_chart_total'), color: '#0f766e', fill: true },
+  { key: 'current_account', label: t('bank.funds_chart_current_account'), color: '#2563eb' },
+  { key: 'savings_account', label: t('bank.funds_chart_savings_account'), color: '#ea580c', dashed: true },
+])
 
 function formatAmount(value: string | number): string {
   return `${parseFloat(String(value)).toFixed(2)} €`
 }
 
-function toIsoDate(d: Date | string): string {
-  if (typeof d === 'string') return d
-  return d.toISOString().slice(0, 10)
+function formatSignedAmount(value: number): string {
+  return value > 0 ? `+${formatAmount(value)}` : formatAmount(value)
 }
 
-async function loadTransactions() {
+function resetActiveFilters() {
+  if (activeTab.value === 'transactions') {
+    resetTransactionFilters()
+  } else {
+    resetDepositFilters()
+  }
+}
+
+function canCreateClientPayment(tx: BankTransaction): boolean {
+  return (
+    !tx.reconciled &&
+    parseFloat(tx.amount) > 0 &&
+    ['customer_payment', 'other_credit'].includes(tx.detected_category)
+  )
+}
+
+function canLinkExistingClientPayment(tx: BankTransaction): boolean {
+  return canCreateClientPayment(tx)
+}
+
+function canCreateSupplierPayment(tx: BankTransaction): boolean {
+  return (
+    !tx.reconciled &&
+    parseFloat(tx.amount) < 0 &&
+    ['supplier_payment', 'other_debit'].includes(tx.detected_category)
+  )
+}
+
+function canLinkExistingSupplierPayment(tx: BankTransaction): boolean {
+  return canCreateSupplierPayment(tx)
+}
+
+async function reconcile(tx: BankTransaction): Promise<void> {
+  await updateTransaction(tx.id, { reconciled: true })
+  await loadTransactions()
+}
+
+function openClientPaymentDialog(tx: BankTransaction): void {
+  clientPaymentTransaction.value = tx
+  clientPaymentDialogVisible.value = true
+}
+
+function openExistingClientPaymentDialog(tx: BankTransaction): void {
+  existingClientPaymentTransaction.value = tx
+  existingClientPaymentDialogVisible.value = true
+}
+
+function openSupplierPaymentDialog(tx: BankTransaction): void {
+  supplierPaymentTransaction.value = tx
+  supplierPaymentDialogVisible.value = true
+}
+
+function openExistingSupplierPaymentDialog(tx: BankTransaction): void {
+  existingSupplierPaymentTransaction.value = tx
+  existingSupplierPaymentDialogVisible.value = true
+}
+
+async function openDepositDialog(): Promise<void> {
+  undepositedPayments.value = await listPayments({
+    invoice_type: 'client',
+    undeposited_only: true,
+    from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+    to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+  })
+  depositDialogVisible.value = true
+}
+
+async function loadTransactions(): Promise<void> {
   loadingTx.value = true
   try {
     transactions.value = await listTransactions({
@@ -316,7 +805,7 @@ async function loadTransactions() {
   }
 }
 
-async function loadDeposits() {
+async function loadDeposits(): Promise<void> {
   loadingDeposits.value = true
   try {
     deposits.value = await listDeposits({
@@ -330,77 +819,22 @@ async function loadDeposits() {
   }
 }
 
-async function loadAll() {
-  const [b] = await Promise.all([getBankBalance(), loadTransactions(), loadDeposits()])
+async function loadFundsChart(): Promise<void> {
+  try {
+    fundsChartData.value = await getBankFundsChart(6)
+  } catch {
+    fundsChartData.value = []
+  }
+}
+
+async function loadAll(): Promise<void> {
+  const [b] = await Promise.all([
+    getBankBalance(),
+    loadTransactions(),
+    loadDeposits(),
+    loadFundsChart(),
+  ])
   balance.value = b.balance
-}
-
-async function reconcile(tx: BankTransaction) {
-  await updateTransaction(tx.id, { reconciled: true })
-  await loadTransactions()
-}
-
-async function submitTransaction() {
-  saving.value = true
-  try {
-    await addTransaction({
-      date: toIsoDate(txForm.value.date),
-      amount: String(txForm.value.amount),
-      description: txForm.value.description,
-      reference: txForm.value.reference || null,
-      balance_after: String(txForm.value.balance_after),
-    })
-    txDialogVisible.value = false
-    await Promise.all([getBankBalance().then((b) => (balance.value = b.balance)), loadTransactions()])
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
-  } finally {
-    saving.value = false
-  }
-}
-
-async function submitImport() {
-  saving.value = true
-  try {
-    const imported = await importCsv(csvContent.value)
-    importDialogVisible.value = false
-    csvContent.value = ''
-    toast.add({ severity: 'success', summary: t('bank.import_success', { n: imported.length }), life: 3000 })
-    await Promise.all([getBankBalance().then((b) => (balance.value = b.balance)), loadTransactions()])
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
-  } finally {
-    saving.value = false
-  }
-}
-
-async function openDepositDialog() {
-  undepositedPayments.value = await listPayments({
-    invoice_type: 'client',
-    undeposited_only: true,
-    from_date: fiscalYearStore.selectedFiscalYear?.start_date,
-    to_date: fiscalYearStore.selectedFiscalYear?.end_date,
-  })
-  depositForm.value.payment_ids = []
-  depositDialogVisible.value = true
-}
-
-async function submitDeposit() {
-  saving.value = true
-  try {
-    await createDeposit({
-      date: toIsoDate(depositForm.value.date),
-      type: depositForm.value.type,
-      payment_ids: depositForm.value.payment_ids,
-      bank_reference: depositForm.value.bank_reference || null,
-    })
-    depositDialogVisible.value = false
-    await loadDeposits()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
-  } finally {
-    saving.value = false
-  }
 }
 
 watch(
@@ -418,14 +852,59 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.bank-chart-panel__intro {
+  margin: 0 0 var(--app-space-4);
+  color: var(--p-text-muted-color);
+}
+
 .bank-panel-toolbar {
   margin-bottom: var(--app-space-4);
 }
 
-.bank-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-4);
+:deep(.bank-table__description) {
+  min-width: 20rem;
+}
+
+:deep(.bank-table__reference) {
+  min-width: 12rem;
+}
+
+:deep(.bank-table__amount) {
+  width: 8rem;
+}
+
+:deep(.bank-table__balance) {
+  width: 6.5rem;
+}
+
+:deep(.bank-table__reconciled) {
+  width: 5.5rem;
+}
+
+:deep(.bank-table__category) {
+  width: 7.5rem;
+}
+
+:deep(.bank-table__source) {
+  width: 5.25rem;
+}
+
+:deep(.bank-detected-category-tag) {
+  border: 1px solid color-mix(in srgb, var(--app-surface-border) 82%, transparent 18%);
+  background: color-mix(in srgb, var(--app-surface-muted) 84%, var(--app-surface-bg) 16%);
+  color: color-mix(in srgb, var(--p-text-muted-color) 78%, var(--p-text-color) 22%);
+}
+
+:deep(.bank-detected-category-tag .p-tag-label) {
+  white-space: nowrap;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+
+:global(html.dark-mode) .bank-detected-category-tag {
+  color: color-mix(in srgb, var(--p-surface-100) 82%, var(--p-text-color) 18%);
+  border-color: color-mix(in srgb, var(--app-surface-border) 70%, transparent 30%);
+  background: color-mix(in srgb, var(--app-surface-muted) 70%, var(--app-surface-bg) 30%);
 }
 
 .bank-positive {
@@ -436,16 +915,9 @@ onMounted(async () => {
   color: var(--p-red-500);
 }
 
-.bank-payment-option {
-  cursor: pointer;
-}
-
-.bank-payment-option :deep(.p-checkbox) {
-  margin-top: 0.15rem;
-}
-
 :deep(.p-tabpanels) {
   padding-inline: 0;
   padding-bottom: 0;
 }
 </style>
+
