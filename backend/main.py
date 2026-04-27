@@ -6,7 +6,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -300,6 +300,11 @@ def create_app() -> FastAPI:
         # Hashed assets (/assets/*) get an immutable long-lived cache entry.
         @app.get("/{full_path:path}")
         async def serve_spa(full_path: str) -> Response:  # noqa: RUF029
+            # Never let the SPA catch-all intercept API paths.
+            # When an API route is disabled (e.g. /api/docs with swagger off),
+            # FastAPI should return 404, not index.html.
+            if full_path.startswith("api/"):
+                raise HTTPException(status_code=404)
             file_path = frontend_dist / full_path
             if file_path.is_file() and full_path != "index.html":
                 response = FileResponse(str(file_path))
