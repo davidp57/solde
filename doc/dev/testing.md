@@ -64,11 +64,14 @@ pytest tests/unit/test_accounting_engine.py::test_balance_calculation -v
 
 | Fixture | Scope | Purpose |
 |---|---|---|
-| `engine` | module | In-memory async SQLite engine with all migrations applied |
-| `db` | function | Fresh async session per test |
+| `_create_test_schema` | session | Creates all tables via `Base.metadata.create_all` once per test session |
+| `_cleanup_test_data` | function (autouse) | Truncates all tables after each test |
+| `db_session` | function | Fresh `AsyncSession` per test |
 | `client` | function | `AsyncClient` against the ASGI app with the test DB injected |
-| `admin_token` | function | JWT for an admin user |
-| `manager_token` | function | JWT for a `secretaire` (Manager) user |
+| `admin_user` | function | Persisted admin `User` instance |
+| `auth_headers` | function | `Authorization: Bearer …` headers for an admin user |
+| `secretaire_auth_headers` | function | Headers for a `secretaire` (Manager) user |
+| `tresorier_auth_headers` | function | Headers for a `tresorier` (Accountant) user |
 
 ### Writing a backend unit test
 
@@ -78,8 +81,8 @@ from decimal import Decimal
 from backend.services.accounting_engine import compute_balance
 
 @pytest.mark.asyncio
-async def test_balance_is_zero_on_empty_db(db):
-    result = await compute_balance(db, account_code="512000")
+async def test_balance_is_zero_on_empty_db(db_session):
+    result = await compute_balance(db_session, account_code="512000")
     assert result == Decimal("0")
 ```
 
@@ -95,11 +98,11 @@ async def test_create_contact_requires_auth(client: AsyncClient):
     assert response.status_code == 401
 
 @pytest.mark.asyncio
-async def test_create_contact_as_admin(client: AsyncClient, admin_token: str):
+async def test_create_contact_as_admin(client: AsyncClient, auth_headers: dict):
     response = await client.post(
         "/api/contacts",
         json={"nom": "Dupont", "prenom": "Jean"},
-        headers={"Authorization": f"Bearer {admin_token}"},
+        headers=auth_headers,
     )
     assert response.status_code == 201
     assert response.json()["nom"] == "Dupont"

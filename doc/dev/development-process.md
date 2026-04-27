@@ -15,9 +15,7 @@ Version numbers follow `MAJOR.MINOR.PATCH`:
 - `MINOR`: backward-compatible new feature
 - `PATCH`: backward-compatible bug fix
 
-The version is defined in **two places** (kept in sync manually):
-- `pyproject.toml` — `version = "x.y.z"`
-- `frontend/package.json` — `"version": "x.y.z"`
+The application version is defined in `pyproject.toml` (`version = "x.y.z"`) and read at runtime via `importlib.metadata.version("solde")`. The `frontend/package.json` contains a separate frontend package version that is not kept in sync with the backend version.
 
 The backend reads the version at runtime via `importlib.metadata.version("solde")` and exposes it at `GET /api/health`.
 

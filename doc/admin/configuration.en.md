@@ -16,7 +16,7 @@ Configuration is split across two levels:
 | Variable | Description |
 |---|---|
 | `JWT_SECRET_KEY` | JWT signing key. Random string of at least 32 characters. Never use the default value in production. |
-| `DATABASE_URL` | SQLite connection string. In a standard Docker deployment, keep `sqlite+aiosqlite:///data/solde.db`. |
+| `DATABASE_URL` | SQLite connection string. In a standard Docker deployment, keep `sqlite+aiosqlite:///app/data/solde.db` (path inside the volume mounted at `/app/data`). |
 
 #### Bootstrap administrator
 

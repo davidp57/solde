@@ -30,7 +30,7 @@ Il est destiné aux utilisateurs disposant d'un rôle **Gestionnaire**, **Compta
 2. Saisir l'identifiant et le mot de passe.
 3. Cliquer sur **Se connecter**.
 
-La session reste active 24 heures. Elle est stockée dans un cookie sécurisé — aucun stockage local des identifiants.
+La session reste active automatiquement grâce à un mécanisme de renouvellement silencieux. Le jeton d'accès expire au bout de 60 minutes, mais est renouvelé en arrière-plan pendant 30 jours sans que l'utilisateur ait à se reconnecter. Les identifiants ne sont jamais stockés localement.
 
 ### Changement de mot de passe forcé
 

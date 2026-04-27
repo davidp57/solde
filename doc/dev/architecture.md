@@ -57,7 +57,7 @@ WeasyPrint is imported on demand (not at startup) to respect this budget.
 | Frontend | Vue.js 3 + Vite | Composition API + `<script setup>` |
 | UI components | PrimeVue 4 | Aura CSS-only theme |
 | State management | Pinia | Composition API friendly |
-| Router | Vue Router 4 | Role-based navigation guards, lazy loading |
+| Router | Vue Router 5 | Role-based navigation guards, lazy loading |
 | i18n | vue-i18n 11 | All UI strings externalized in `fr.ts` |
 | HTTP client | axios | JWT interceptors, automatic 401 token refresh |
 | Backend tests | pytest + pytest-asyncio + httpx | Async tests, in-memory ASGI client |

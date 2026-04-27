@@ -40,7 +40,7 @@ Every user has one role. The role determines which menus and features are access
 
 ## Login and session
 
-- Session lasts 24 hours. After that, the user is redirected to the login page.
+- The access token expires after 60 minutes but is transparently refreshed in the background. The refresh token is valid for 30 days; after that, the user must log in again.
 - On first login (or after an admin resets their password), users must change their password immediately. They cannot skip this step.
 - **Password rules:** minimum 8 characters, at least one uppercase letter, at least one digit.
 - If a user forgets their password, an admin must reset it — there is no self-service "forgot password" link.
@@ -218,7 +218,7 @@ Lists all accounts. Accounts are identified by a number (e.g. `707000`) and a la
 
 ### Accounting rules
 
-Rules define what journal entries are generated automatically when an invoice is validated, a payment is received, etc. Managed by a Comptable or Admin.
+Rules define what journal entries are generated automatically when an invoice is validated, a payment is received, etc. Readable by Comptable and Admin; creation, modification, and deletion restricted to Admin only.
 
 ### General ledger (Grand livre)
 
