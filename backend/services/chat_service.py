@@ -105,7 +105,24 @@ async def stream_chat(
             yield _sse({"error": f"Fournisseur inconnu : {provider}"})
     except Exception as exc:  # noqa: BLE001
         logger.exception("Chat streaming error")
-        yield _sse({"error": "Erreur lors de la génération de la réponse."})
+        exc_str = str(exc)
+        is_quota = "429" in exc_str or "quota" in exc_str.lower()
+        is_quota = is_quota or "ResourceExhausted" in type(exc).__name__
+        is_auth = "401" in exc_str or "403" in exc_str
+        is_auth = is_auth or "API_KEY" in exc_str.upper() or "invalid" in exc_str.lower()
+        if is_quota:
+            msg = (
+                "Quota API dépassé. Réessayez dans quelques instants"
+                " ou vérifiez votre plan sur ai.dev/rate-limit."
+            )
+        elif is_auth:
+            msg = (
+                "Clé API invalide ou non autorisée."
+                " Vérifiez la configuration dans les Paramètres."
+            )
+        else:
+            msg = "Erreur lors de la génération de la réponse."
+        yield _sse({"error": msg})
         logger.debug("Original exception: %s", exc)
 
     yield _sse("[DONE]")
