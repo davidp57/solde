@@ -9,10 +9,12 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
-## [Non publié]
+## [1.0.0] — 2026-04-27
 
 ### Ajouté
 
+- BIZ-129 : Notes de crédit (avoirs) — nouveau type de document `avoir` sur les factures ; numérotation séparée `AV-YYYY-NNN` ; endpoint `POST /api/invoices/{id}/credit-note` pré-remplissant les lignes inversées ; contrainte total ≥ 0 levée pour les avoirs ; badge « Avoir » dans les listes et formulaires ; template PDF dédié avec en-tête « NOTE DE CRÉDIT » ; bouton « Créer un avoir » sur les factures envoyées/payées
+- BIZ-129 : Migration Alembic 0038 — colonnes `invoice_type` (défaut `facture`) et `credit_note_for_id` (FK nullable vers `invoices.id`) sur la table `invoices`
 - BIZ-128 : Modèles d'e-mail configurables dans les paramètres SMTP — le sujet et le corps par défaut des e-mails de factures peuvent être personnalisés via l'interface admin ; variables disponibles : `{invoice_number}`, `{description}`, `{association_name}`, `{invoice_ref}` ; laisser vide conserve le comportement automatique
 - BIZ-128 : Migration 0037 — colonnes `email_subject_template` et `email_body_template` (nullable) dans `app_settings`
 - BIZ-128 : `_SafeFormatMap` dans `email_service.py` — variables inconnues dans un modèle sont conservées telles quelles (pas de `KeyError`)
@@ -48,6 +50,14 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - CHR-079 : `doc/dev/architecture.md`, `doc/dev/contributing.md`, `doc/dev/testing.md`, `doc/dev/development-process.md` — documentation développeur complète en anglais
 - CHR-079 : `doc/user/manuel.md` — manuel utilisateur FR complet par cas d'usage (connexion, contacts, factures, paiements, caisse, banque, salaires, comptabilité, profil)
 - CHR-079 : `doc/llm/reference.md` — référence dense en anglais pour assistants IA (modèle de données complet, API, règles métier, conventions)
+
+### Corrigé
+
+- fix(invoice) : champ `lines` restauré dans `InvoiceRead` — retiré accidentellement lors de BIZ-127, rendait le formulaire d'édition vide (champs et lignes)
+- fix(invoice) : bouton « Supprimer » masqué pour les factures non-brouillon — le bouton n'est affiché que pour les factures au statut `draft`
+- fix(invoice) : dialog d'envoi d'e-mail élargi (`min(95vw, 1180px)`) et aperçu PDF corrigé (`<embed>` au lieu de `<iframe>`) ; CSP étendue à `object-src blob: ; frame-src blob:`
+- fix(settings) : variables de modèle d'e-mail affichées correctement — les accolades dans les clés i18n étaient interprétées comme interpolation vue-i18n v11 (résultat : « , , , »)
+- fix(tests) : test `test_swagger_disabled_in_production` corrigé — la route SPA catch-all interceptait `/api/*` quand `frontend/dist` existe ; `chat_log` manquait dans le schéma de test
 
 ### Supprimé
 

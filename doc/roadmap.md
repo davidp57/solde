@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-04-27 — active branch `develop` — current version: 0.7.13
+> Last updated: 2026-04-27 — active branch `develop` — current version: 1.0.0
 
 ---
 
@@ -17,9 +17,10 @@
 | **0.6** | Lots L, M — employee management + security | ✅ Completed |
 | **0.7** | Lots N, O, P, Q — UX, forms, quality | ✅ Completed |
 | **0.8** | Lots R, S — supervision, i18n, doc restructure | ✅ Completed |
-| **0.9** | Lot H — multi-account bank + remaining items | ⬜ Planned |
+| **1.0** | Lots T — chatbot, email templates, credit notes — first stable release | ✅ Completed |
+| **1.1** | Lot H — multi-account bank + remaining items | ⬜ Planned |
 
-Test suite: **913 backend (~71% coverage) + 126 frontend Vitest + 1 Playwright E2E — 0 failures.**
+Test suite: **992 backend + 131 frontend Vitest + 1 Playwright E2E — 0 failures.**
 
 ---
 
@@ -180,7 +181,26 @@ Completed 2026-04-27.
 
 ---
 
-## v0.9 — Multi-account bank ⬜
+## v1.0 — Chatbot IA, e-mail templates & credit notes ✅
+
+Completed 2026-04-27. First stable production release.
+
+| Lot | Summary |
+| --- | --- |
+| T — Chatbot IA + refactor Paramètres | AI assistant sidebar + help page + settings refactor (BIZ-125, BIZ-126) |
+
+### BIZ-127 — Email confirmation dialog
+Pre-send preview dialog with editable subject/body and embedded PDF preview.
+
+### BIZ-128 — Configurable email templates
+Admin-configurable subject and body templates for invoice emails (variables: `{invoice_number}`, `{description}`, `{association_name}`, `{invoice_ref}`).
+
+### BIZ-129 — Credit notes (avoirs)
+Full credit note support: `avoir` document type, separate `AV-YYYY-NNN` numbering, pre-filled reversed lines, dedicated PDF template, `credit_note_for_id` traceability.
+
+---
+
+## v1.1 — Multi-account bank ⬜
 
 ### Lot H — Architecture multi-compte (~45 min)
 
@@ -204,5 +224,3 @@ Prérequis : décisions métier sur la granularité (2 comptes fixes ou N compte
 ---
 
 ## Not yet planned
-
-No items without a target version currently.
