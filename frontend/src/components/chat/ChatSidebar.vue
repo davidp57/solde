@@ -1,6 +1,7 @@
 <template>
   <Transition name="chat-slide">
-    <aside v-if="store.isOpen" class="chat-sidebar">
+    <aside v-if="store.isOpen" class="chat-sidebar" :style="{ width: sidebarWidth + 'px' }">
+      <div class="chat-sidebar__resize-handle" @mousedown="startResize" />
       <header class="chat-sidebar__header">
         <span class="chat-sidebar__title">
           <i class="pi pi-sparkles" />
@@ -100,6 +101,30 @@ const { isDark } = useDarkMode()
 const inputText = ref('')
 const messagesEl = ref<HTMLElement | null>(null)
 
+// Resizable sidebar
+const MIN_WIDTH = 280
+const MAX_WIDTH = 800
+const sidebarWidth = ref(380)
+
+function startResize(e: MouseEvent): void {
+  e.preventDefault()
+  const startX = e.clientX
+  const startWidth = sidebarWidth.value
+
+  function onMove(ev: MouseEvent): void {
+    const delta = startX - ev.clientX
+    sidebarWidth.value = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta))
+  }
+
+  function onUp(): void {
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+  }
+
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+}
+
 // Reactive colors for dark/light mode
 const sidebarBg = computed(() => isDark.value ? 'var(--p-surface-900)' : 'var(--p-surface-0)')
 const borderColor = computed(() => isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)')
@@ -129,12 +154,27 @@ watch(
 </script>
 
 <style scoped>
+.chat-sidebar__resize-handle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.chat-sidebar__resize-handle:hover,
+.chat-sidebar__resize-handle:active {
+  background: var(--p-primary-500);
+  opacity: 0.4;
+}
+
 .chat-sidebar {
   position: fixed;
   right: 0;
   top: 0;
   bottom: 0;
-  width: 380px;
   max-width: 95vw;
   display: flex;
   flex-direction: column;
