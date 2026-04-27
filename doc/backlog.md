@@ -19,12 +19,45 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé |
 | --- | --- | --- | --- | --- |
+| BIZ-125 | Chatbot IA + page Aide | P2 | ~6h | 2026-04-27 |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 |
 
 ---
 
 ## Détails
 
+### BIZ-125 — Chatbot IA + page Aide
+
+Deux fonctionnalités complémentaires autour de la documentation embarquée :
+
+**1. Page Aide (`/aide`)**
+- Route dédiée accessible depuis la navigation (tous rôles)
+- Affiche `doc/user/manuel.md` rendu en HTML via `marked` côté frontend
+- Servi par le backend : `GET /api/help/manual` (lecture du fichier Markdown)
+- Table des matières auto-générée depuis les titres
+
+**2. Sidebar chatbot Gemini**
+- Panneau latéral ouvrable/fermable depuis un bouton persistant dans la nav
+- Provider : Google Gemini Flash (tier gratuit — 15 req/min, 1 M tokens/jour) ; OpenAI en alternative
+- System prompt = `doc/llm/reference.md` + `doc/user/manuel.md` injectés au début de chaque session — aucune donnée comptable transmise
+- Clé API en `.env` backend (`CHAT_PROVIDER`, `CHAT_API_KEY`) — jamais exposée au navigateur
+- `POST /api/chat` : reçoit `{messages}`, ajoute le system prompt, proxifie vers le LLM, renvoie en streaming SSE
+- Historique en mémoire session (non persisté) ; réinitialisé à la fermeture
+- Si `CHAT_API_KEY` absent : bouton masqué
+
+**Périmètre backend :**
+- `backend/services/chat_service.py` : injection system prompt, appel LLM, streaming
+- `backend/routers/chat.py` : `POST /api/chat` (auth requise), `GET /api/help/manual`
+- Config : `CHAT_PROVIDER` (`gemini` | `openai`), `CHAT_API_KEY`, `CHAT_MODEL` (optionnel)
+
+**Périmètre frontend :**
+- `HelpView.vue` + route `/aide`
+- `ChatSidebar.vue` (panneau latéral, ouvrable/fermable)
+- Store Pinia léger (état ouvert/fermé + historique)
+- Dépendance : `marked` (rendu Markdown)
+- Clés i18n pour les libellés
+
+**Hors périmètre :** persistance de l’historique, multi-utilisateurs, fine-tuning, TTS/STT.
 ### BIZ-034 — Support multi-compte banque
 
 Distinguer compte courant et compte épargne dans les données, imports et écrans.
