@@ -13,6 +13,13 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- BIZ-128 : Modèles d'e-mail configurables dans les paramètres SMTP — le sujet et le corps par défaut des e-mails de factures peuvent être personnalisés via l'interface admin ; variables disponibles : `{invoice_number}`, `{description}`, `{association_name}`, `{invoice_ref}` ; laisser vide conserve le comportement automatique
+- BIZ-128 : Migration 0037 — colonnes `email_subject_template` et `email_body_template` (nullable) dans `app_settings`
+- BIZ-128 : `_SafeFormatMap` dans `email_service.py` — variables inconnues dans un modèle sont conservées telles quelles (pas de `KeyError`)
+- BIZ-128 : 7 nouveaux tests unitaires pour `compose_subject`/`compose_body` avec modèle, variable `{invoice_ref}`, et variable inconnue
+
+### Ajouté
+
 - BIZ-127 : Dialogue de confirmation avant envoi de facture par e-mail — sélection de la facture ouvre un dialog avec le destinataire (lecture seule), le sujet et le corps du message (éditables), et un aperçu PDF de la facture ; l'envoi est déclenché avec le contenu édité par l'utilisateur
 - BIZ-127 : Endpoint `GET /api/invoices/{id}/email-preview` — retourne le destinataire, le sujet et le corps pré-composés sans envoyer de mail
 - BIZ-127 : `POST /api/invoices/{id}/send-email` accepte désormais un payload JSON `{subject, body}` (contenu édité par l'utilisateur) ; l'audit log inclut le sujet

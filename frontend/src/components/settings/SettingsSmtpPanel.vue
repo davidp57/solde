@@ -87,6 +87,38 @@
       </div>
     </AppPanel>
 
+    <AppPanel
+      :title="t('settings.section_email_templates')"
+      :subtitle="t('settings.section_email_templates_subtitle')"
+    >
+      <div class="app-field">
+        <label for="email_subject_template" class="app-field__label">
+          {{ t('settings.email_subject_template') }}
+        </label>
+        <InputText
+          id="email_subject_template"
+          v-model="form.email_subject_template"
+          :placeholder="t('settings.email_subject_template_placeholder')"
+          class="w-full"
+        />
+        <small class="app-field__help">{{ t('settings.email_template_vars_help') }}</small>
+      </div>
+      <div class="app-field mt-3">
+        <label for="email_body_template" class="app-field__label">
+          {{ t('settings.email_body_template') }}
+        </label>
+        <Textarea
+          id="email_body_template"
+          v-model="form.email_body_template"
+          :placeholder="t('settings.email_body_template_placeholder')"
+          class="w-full"
+          rows="7"
+          auto-resize
+        />
+        <small class="app-field__help">{{ t('settings.email_template_vars_help') }}</small>
+      </div>
+    </AppPanel>
+
     <div class="app-form-actions">
       <Button
         type="button"
@@ -115,6 +147,7 @@ import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Password from 'primevue/password'
+import Textarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
 import { getSettingsApi, updateSettingsApi } from '@/api/settings'
 import AppPanel from '@/components/ui/AppPanel.vue'
@@ -129,6 +162,8 @@ interface SmtpForm {
   smtp_from_email: string | null
   smtp_use_tls: boolean
   smtp_bcc: string | null
+  email_subject_template: string | null
+  email_body_template: string | null
 }
 
 const defaultForm = (): SmtpForm => ({
@@ -139,6 +174,8 @@ const defaultForm = (): SmtpForm => ({
   smtp_from_email: null,
   smtp_use_tls: true,
   smtp_bcc: null,
+  email_subject_template: null,
+  email_body_template: null,
 })
 
 const form = ref<SmtpForm>(defaultForm())
@@ -157,6 +194,8 @@ async function load(): Promise<void> {
       smtp_from_email: data.smtp_from_email,
       smtp_use_tls: data.smtp_use_tls,
       smtp_bcc: data.smtp_bcc,
+      email_subject_template: data.email_subject_template,
+      email_body_template: data.email_body_template,
     }
   } catch {
     errorMessage.value = t('common.error.unknown')
@@ -175,6 +214,9 @@ async function save(): Promise<void> {
       smtp_from_email: form.value.smtp_from_email,
       smtp_use_tls: form.value.smtp_use_tls,
       smtp_bcc: form.value.smtp_bcc,
+      // Send empty string as null to clear the template
+      email_subject_template: form.value.email_subject_template?.trim() || null,
+      email_body_template: form.value.email_body_template?.trim() || null,
     }
     if (form.value.smtp_password) {
       payload.smtp_password = form.value.smtp_password

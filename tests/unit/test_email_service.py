@@ -252,6 +252,23 @@ def test_compose_subject_with_description() -> None:
     assert "Mon Asso" not in result
 
 
+def test_compose_subject_with_template() -> None:
+    result = compose_subject(
+        "2024-001", "cours d'avril", "Mon Asso", template="Ref: {invoice_number}"
+    )
+    assert result == "Ref: 2024-001"
+
+
+def test_compose_subject_with_template_invoice_ref() -> None:
+    result = compose_subject("2024-001", "cours d'avril", "Mon Asso", template="Fact {invoice_ref}")
+    assert result == "Fact 2024-001 — cours d'avril"
+
+
+def test_compose_subject_with_template_no_description() -> None:
+    result = compose_subject("2024-001", None, "Mon Asso", template="Fact {invoice_ref}")
+    assert result == "Fact 2024-001"
+
+
 # ---------------------------------------------------------------------------
 # compose_body helper
 # ---------------------------------------------------------------------------
@@ -267,6 +284,21 @@ def test_compose_body_with_description() -> None:
     result = compose_body("2024-001", "cours d'avril", "Mon Asso")
     assert "2024-001" in result
     assert "cours d'avril" in result
+
+
+def test_compose_body_with_template() -> None:
+    tpl = "Bonjour,\n\nFacture {invoice_number} - {description}.\n\n{association_name}"
+    result = compose_body("2024-001", "cours d'avril", "Mon Asso", template=tpl)
+    assert "2024-001" in result
+    assert "cours d'avril" in result
+    assert "Mon Asso" in result
+
+
+def test_compose_body_with_template_unknown_var() -> None:
+    """Unknown variables in the template are kept as-is (safe format_map)."""
+    tpl = "Facture {invoice_number} {unknown_var}"
+    result = compose_body("2024-001", None, "Mon Asso", template=tpl)
+    assert "{unknown_var}" in result
 
 
 # ---------------------------------------------------------------------------

@@ -22,6 +22,8 @@ export interface AppSettings {
   chat_provider: string
   chat_model: string | null
   chat_enabled: boolean
+  email_subject_template: string | null
+  email_body_template: string | null
 }
 
 export interface AppSettingsUpdate {
@@ -46,6 +48,8 @@ export interface AppSettingsUpdate {
   chat_provider?: string
   chat_api_key?: string | null
   chat_model?: string | null
+  email_subject_template?: string | null
+  email_body_template?: string | null
 }
 
 export interface SystemOpening {
