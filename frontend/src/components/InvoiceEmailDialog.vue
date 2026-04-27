@@ -4,7 +4,7 @@
     :header="t('invoices.email_dialog_title')"
     modal
     class="app-dialog app-dialog--large"
-    :style="{ width: 'min(90vw, 860px)' }"
+    :style="{ width: 'min(95vw, 1180px)' }"
     @hide="onHide"
   >
     <div v-if="loading" class="invoice-email-dialog__loading">
@@ -43,16 +43,19 @@
       </div>
 
       <!-- PDF preview column -->
-      <div v-if="pdfBlobUrl" class="invoice-email-dialog__preview">
+      <div class="invoice-email-dialog__preview">
         <p class="invoice-email-dialog__preview-label">{{ t('invoices.email_preview') }}</p>
-        <iframe
+        <Skeleton v-if="pdfLoading" class="invoice-email-dialog__embed" border-radius="4px" />
+        <embed
+          v-else-if="pdfBlobUrl"
           :src="pdfBlobUrl"
-          class="invoice-email-dialog__iframe"
-          title="Aperçu facture"
+          type="application/pdf"
+          class="invoice-email-dialog__embed"
         />
-      </div>
-      <div v-else-if="pdfLoading" class="invoice-email-dialog__preview">
-        <Skeleton height="100%" border-radius="4px" />
+        <div v-else class="invoice-email-dialog__preview-empty">
+          <i class="pi pi-file-pdf" />
+          <span>{{ t('invoices.email_preview_unavailable') }}</span>
+        </div>
       </div>
     </div>
 
@@ -187,10 +190,11 @@ function onHide(): void {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
-  align-items: start;
+  align-items: stretch;
+  min-height: 480px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 700px) {
   .invoice-email-dialog__layout {
     grid-template-columns: 1fr;
   }
@@ -206,20 +210,41 @@ function onHide(): void {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 360px;
+  min-height: 480px;
 }
 
 .invoice-email-dialog__preview-label {
   font-size: 0.85rem;
   color: var(--p-text-muted-color, #6c757d);
   margin: 0;
+  flex-shrink: 0;
 }
 
-.invoice-email-dialog__iframe {
+.invoice-email-dialog__embed {
   width: 100%;
   flex: 1;
-  min-height: 340px;
+  min-height: 440px;
   border: 1px solid var(--p-content-border-color, #dee2e6);
   border-radius: 4px;
+  display: block;
+}
+
+.invoice-email-dialog__preview-empty {
+  flex: 1;
+  min-height: 440px;
+  border: 1px solid var(--p-content-border-color, #dee2e6);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: var(--p-text-muted-color, #6c757d);
+  font-size: 0.9rem;
+}
+
+.invoice-email-dialog__preview-empty .pi {
+  font-size: 2.5rem;
+  opacity: 0.4;
 }
 </style>

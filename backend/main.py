@@ -260,6 +260,8 @@ def create_app() -> FastAPI:
                     "img-src 'self' data:; "
                     "font-src 'self' data:; "
                     "connect-src 'self'; "
+                    "object-src 'self' blob:; "
+                    "frame-src 'self' blob:; "
                     "frame-ancestors 'none'"
                 )
         return response
