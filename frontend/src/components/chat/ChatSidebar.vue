@@ -91,12 +91,19 @@ import { marked } from 'marked'
 import Button from 'primevue/button'
 import Textarea from 'primevue/textarea'
 import { useChatStore } from '@/stores/chat'
+import { useDarkMode } from '@/composables/useDarkMode'
 import ChatMessage from './ChatMessage.vue'
 
 const { t } = useI18n()
 const store = useChatStore()
+const { isDark } = useDarkMode()
 const inputText = ref('')
 const messagesEl = ref<HTMLElement | null>(null)
+
+// Reactive colors for dark/light mode
+const sidebarBg = computed(() => isDark.value ? 'var(--p-surface-900)' : 'var(--p-surface-0)')
+const borderColor = computed(() => isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)')
+const bubbleBg = computed(() => isDark.value ? 'var(--p-surface-800)' : 'var(--p-surface-100)')
 
 const renderedStreamingText = computed(() => {
   const result = marked.parse(store.streamingText, { async: false })
@@ -131,8 +138,8 @@ watch(
   max-width: 95vw;
   display: flex;
   flex-direction: column;
-  background: var(--p-surface-0);
-  border-left: 1px solid var(--p-surface-200);
+  background: v-bind(sidebarBg);
+  border-left: 1px solid v-bind(borderColor);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
   z-index: 1000;
 }
@@ -142,7 +149,7 @@ watch(
   align-items: center;
   justify-content: space-between;
   padding: var(--app-space-4);
-  border-bottom: 1px solid var(--p-surface-200);
+  border-bottom: 1px solid v-bind(borderColor);
   gap: var(--app-space-3);
 }
 
@@ -222,7 +229,7 @@ watch(
   border-radius: var(--app-radius-lg);
   font-size: 0.9rem;
   line-height: 1.55;
-  background: var(--p-surface-100);
+  background: v-bind(bubbleBg);
   color: var(--app-text-primary);
 }
 
@@ -231,7 +238,7 @@ watch(
   align-items: flex-end;
   gap: var(--app-space-2);
   padding: var(--app-space-3) var(--app-space-4);
-  border-top: 1px solid var(--p-surface-200);
+  border-top: 1px solid v-bind(borderColor);
 }
 
 .chat-sidebar__textarea {
