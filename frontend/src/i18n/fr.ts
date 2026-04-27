@@ -849,7 +849,7 @@ export default {
     email_body_template_placeholder:
       'Bonjour,\n\nVeuillez trouver ci-joint votre facture {invoice_ref}.\n\nCordialement,\n{association_name}',
     email_template_vars_help:
-      'Variables disponibles : {invoice_number}, {description}, {association_name}, {invoice_ref}',
+      'Variables disponibles : {v1}, {v2}, {v3}, {v4}',
     saved: 'Paramètres enregistrés avec succès.',
     save_error: "Échec de l'enregistrement des paramètres.",
     section_chat: 'Assistant IA',
