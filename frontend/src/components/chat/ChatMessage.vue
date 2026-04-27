@@ -11,10 +11,14 @@
 import { computed } from 'vue'
 import { marked } from 'marked'
 import type { ChatMessage } from '@/api/chat'
+import { useDarkMode } from '@/composables/useDarkMode'
 
 const props = defineProps<{
   message: ChatMessage
 }>()
+
+const { isDark } = useDarkMode()
+const assistantBg = computed(() => isDark.value ? 'var(--p-surface-800)' : 'var(--p-surface-100)')
 
 const renderedContent = computed(() => {
   const result = marked.parse(props.message.content, { async: false })
@@ -50,7 +54,7 @@ const renderedContent = computed(() => {
 }
 
 .chat-message--assistant .chat-message__bubble {
-  background: var(--p-surface-100);
+  background: v-bind(assistantBg);
   color: var(--app-text-primary);
 }
 
