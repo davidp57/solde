@@ -159,11 +159,12 @@ async def _stream_gemini(
     contents = _to_gemini_contents(messages)
     config = types.GenerateContentConfig(system_instruction=system_prompt)
     last_usage: dict[str, int] | None = None
-    async for chunk in client.aio.models.generate_content_stream(
+    stream = await client.aio.models.generate_content_stream(
         model=model_name,
         contents=contents,
         config=config,
-    ):
+    )
+    async for chunk in stream:
         text = chunk.text or ""
         if text:
             yield text, None
