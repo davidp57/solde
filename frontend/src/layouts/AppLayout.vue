@@ -83,6 +83,20 @@
         <RouterView />
       </main>
     </div>
+
+    <!-- Chat sidebar (floating, authenticated pages only) -->
+    <ChatSidebar />
+
+    <!-- Chat toggle button (visible when chat is enabled) -->
+    <Button
+      v-if="chatStore.isEnabled"
+      icon="pi pi-sparkles"
+      class="chat-fab"
+      rounded
+      :severity="chatStore.isOpen ? 'secondary' : 'primary'"
+      :title="chatStore.isOpen ? t('nav.chat_close') : t('nav.chat_open')"
+      @click="chatStore.toggle()"
+    />
   </div>
 </template>
 
@@ -95,7 +109,9 @@ import Drawer from 'primevue/drawer'
 import Select from 'primevue/select'
 import { useAuthStore } from '../stores/auth'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { useChatStore } from '../stores/chat'
 import NavMenu from '../components/NavMenu.vue'
+import ChatSidebar from '../components/chat/ChatSidebar.vue'
 import { useDarkMode } from '../composables/useDarkMode'
 const { t } = useI18n()
 const router = useRouter()
@@ -128,10 +144,13 @@ async function handleLogout(): Promise<void> {
   await router.push('/login')
 }
 
+const chatStore = useChatStore()
+
 onMounted(() => {
   if (auth.canAccessManagement) {
     void fiscalYearStore.initialize()
   }
+  void chatStore.loadConfig()
 })
 </script>
 
@@ -301,5 +320,14 @@ onMounted(() => {
   .topbar-context__select {
     width: 8.5rem;
   }
+}
+
+/* Chat FAB */
+.chat-fab {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 999;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 </style>

@@ -52,3 +52,8 @@ class AppSettings(Base):
     smtp_from_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     smtp_use_tls: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     smtp_bcc: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Chat / AI assistant
+    chat_provider: Mapped[str] = mapped_column(String(50), nullable=False, default="gemini")
+    chat_api_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    chat_model: Mapped[str | None] = mapped_column(String(100), nullable=True)

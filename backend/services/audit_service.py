@@ -61,6 +61,8 @@ class AuditAction(StrEnum):
     IMPORT_EXECUTED = "import.run.execute"
     IMPORT_UNDONE = "import.run.undo"
     IMPORT_REDONE = "import.run.redo"
+    # Chat / AI assistant
+    CHAT_QUERIED = "chat.query"
 
 
 async def record_audit(
