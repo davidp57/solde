@@ -845,7 +845,7 @@ export default {
     chat_api_key_configured: 'Une clé API est déjà configurée.',
     chat_api_key_not_configured: 'Aucune clé API configurée — le chatbot est désactivé.',
     chat_model: 'Modèle (optionnel)',
-    chat_model_placeholder: 'Laisser vide pour utiliser le modèle par défaut',
+    chat_model_placeholder: 'Défaut : gemini-1.5-flash (Gemini) / gpt-4o-mini (OpenAI)',
     danger_zone: 'Zone de danger',
     backup_title: 'Sauvegarde',
     backup_subtitle: 'Télécharge une sauvegarde de la base de données SQLite (copie cohérente, service actif).',
