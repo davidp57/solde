@@ -73,7 +73,10 @@ Le tableau de bord affiche une synthèse en temps réel :
 
 - **Solde en cours** : encaissements vs dépenses de l'exercice en cours.
 - **Factures impayées** : liste des factures dont l'échéance est dépassée ou proche.
-- **Raccourcis** : bouton **Nouvelle facture** accessible directement depuis le tableau de bord.
+- **Tuiles d'accès rapide** : trois boutons d'action directe disponibles depuis le tableau de bord :
+  - **Nouvelle facture client** — ouvre le dialogue de création de facture
+  - **Nouveau paiement** — ouvre le dialogue d'enregistrement d'un paiement
+  - **Nouvelle entrée de caisse** — ouvre le dialogue d'ajout d'une entrée caisse
 
 Cliquer sur une facture impayée dans le tableau de bord ouvre directement la fiche facture.
 

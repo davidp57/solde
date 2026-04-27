@@ -70,7 +70,11 @@ Main sections:
 The dashboard shows:
 - Key financial indicators for the current fiscal year (income, expenses, balance)
 - A list of overdue or nearly-due client invoices
-- **Quick-action cards**: create a client invoice, record a payment, add a cash entry — each opens an inline creation dialog
+- **Quick-action cards** (three tiles in the dashboard body):
+  - **Nouvelle facture client** — opens the invoice creation dialog
+  - **Nouveau paiement** — opens the payment recording dialog
+  - **Nouvelle entrée de caisse** — opens the cash entry dialog
+  Each card opens the corresponding inline creation dialog without leaving the dashboard.
 
 ---
 
