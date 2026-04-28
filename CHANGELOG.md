@@ -9,6 +9,17 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
+## [Non publié]
+
+### Ajouté
+
+- BIZ-130 : Confirmation de dépôt bancaire — champ `confirmed` (booléen) et `confirmed_date` sur les bordereaux de dépôt (migration 0038) ; endpoint `POST /api/bank/deposits/{id}/confirm` ; audit log `bank.deposit.confirm`
+- BIZ-130 : Panneau « Dépôts en attente de confirmation » dans la vue Banque — liste les bordereaux préparés mais non encore remis à l'agence, avec résumé (nb chèques ou encaissements, montant) et bouton « Confirmer »
+- BIZ-130 : Colonne « Statut » (en attente / confirmé) dans le tableau des dépôts de la vue Banque, avec filtre
+- BIZ-130 : Vue Paiements — métriques séparées « Chèques à remettre » et « Espèces à déposer » en remplacement du compteur unique « Non remis » qui mélangeait les deux modes de paiement
+
+---
+
 ## [1.0.0] — 2026-04-27
 
 ### Ajouté

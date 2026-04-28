@@ -729,6 +729,7 @@ async def list_deposits(
     *,
     from_date: date | None = None,
     to_date: date | None = None,
+    confirmed: bool | None = None,
     skip: int = 0,
     limit: int = 100,
 ) -> list[Deposit]:
@@ -737,6 +738,8 @@ async def list_deposits(
         query = query.where(Deposit.date >= from_date)
     if to_date is not None:
         query = query.where(Deposit.date <= to_date)
+    if confirmed is not None:
+        query = query.where(Deposit.confirmed == confirmed)
     query = query.order_by(Deposit.date.desc(), Deposit.id.desc()).offset(skip)
     query = query.limit(limit)
     result = await db.execute(query)
@@ -748,3 +751,17 @@ async def get_deposit_payment_ids(db: AsyncSession, deposit_id: int) -> list[int
         select(deposit_payments.c.payment_id).where(deposit_payments.c.deposit_id == deposit_id)
     )
     return [row[0] for row in result.all()]
+
+
+async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
+    """Mark a deposit as confirmed (physically done at the bank)."""
+    deposit = await get_deposit(db, deposit_id)
+    if deposit is None:
+        raise LookupError("Deposit not found")
+    if deposit.confirmed:
+        raise ValueError("Deposit is already confirmed")
+    deposit.confirmed = True
+    deposit.confirmed_date = date.today()
+    await db.commit()
+    await db.refresh(deposit)
+    return deposit

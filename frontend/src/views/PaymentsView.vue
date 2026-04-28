@@ -18,9 +18,15 @@
         :caption="t('payments.metrics.average', { amount: formatAmount(averageAmount) })"
       />
       <AppStatCard
-        :label="t('payments.metrics.undeposited')"
-        :value="undepositedCount"
-        :caption="t('payments.metrics.cheques', { count: chequeCount })"
+        :label="t('payments.metrics.cheques_to_deposit')"
+        :value="formatAmount(chequesToDepositAmount)"
+        :caption="t('payments.metrics.cheques_caption', { count: chequesToDepositCount })"
+        tone="warn"
+      />
+      <AppStatCard
+        :label="t('payments.metrics.especes_to_deposit')"
+        :value="formatAmount(especesToDepositAmount)"
+        :caption="t('payments.metrics.especes_caption', { count: especesToDepositCount })"
         tone="warn"
       />
     </section>
@@ -359,11 +365,21 @@ const totalAmount = computed(() =>
 const averageAmount = computed(() =>
   filtered.value.length ? totalAmount.value / filtered.value.length : 0,
 )
-const undepositedCount = computed(
-  () => filtered.value.filter((payment) => !payment.deposited).length,
+const chequesToDepositCount = computed(
+  () => payments.value.filter((p) => p.method === 'cheque' && !p.deposited).length,
 )
-const chequeCount = computed(
-  () => filtered.value.filter((payment) => payment.method === 'cheque').length,
+const chequesToDepositAmount = computed(() =>
+  payments.value
+    .filter((p) => p.method === 'cheque' && !p.deposited)
+    .reduce((sum, p) => sum + parseFloat(p.amount), 0),
+)
+const especesToDepositCount = computed(
+  () => payments.value.filter((p) => p.method === 'especes' && !p.deposited).length,
+)
+const especesToDepositAmount = computed(() =>
+  payments.value
+    .filter((p) => p.method === 'especes' && !p.deposited)
+    .reduce((sum, p) => sum + parseFloat(p.amount), 0),
 )
 const activeFilterLabels = computed(() =>
   collectActiveFilterLabels(undepositedOnly.value ? t('payments.filter_undeposited') : undefined),

@@ -514,6 +514,7 @@ async def list_deposits(
     _current_user: _ReadAccess,
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
+    confirmed: bool | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=1000),
 ) -> list[DepositRead]:
@@ -521,6 +522,7 @@ async def list_deposits(
         db,
         from_date=from_date,
         to_date=to_date,
+        confirmed=confirmed,
         skip=skip,
         limit=limit,
     )
@@ -535,6 +537,8 @@ async def list_deposits(
                 total_amount=d.total_amount,
                 bank_reference=d.bank_reference,
                 notes=d.notes,
+                confirmed=d.confirmed,
+                confirmed_date=d.confirmed_date,
                 payment_ids=pids,
             )
         )
@@ -573,6 +577,44 @@ async def create_deposit(
         total_amount=deposit.total_amount,
         bank_reference=deposit.bank_reference,
         notes=deposit.notes,
+        confirmed=deposit.confirmed,
+        confirmed_date=deposit.confirmed_date,
+        payment_ids=pids,
+    )
+
+
+@router.post("/deposits/{deposit_id}/confirm", response_model=DepositRead)
+async def confirm_deposit(
+    deposit_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> DepositRead:
+    try:
+        deposit = await bank_service.confirm_deposit(db, deposit_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
+    pids = await bank_service.get_deposit_payment_ids(db, deposit.id)
+    await record_audit(
+        db,
+        action=AuditAction.BANK_DEPOSIT_CONFIRMED,
+        actor=current_user,
+        target_id=deposit.id,
+        target_type="bank_deposit",
+        detail={"confirmed_date": str(deposit.confirmed_date)},
+    )
+    return DepositRead(
+        id=deposit.id,
+        date=deposit.date,
+        type=deposit.type,
+        total_amount=deposit.total_amount,
+        bank_reference=deposit.bank_reference,
+        notes=deposit.notes,
+        confirmed=deposit.confirmed,
+        confirmed_date=deposit.confirmed_date,
         payment_ids=pids,
     )
 
@@ -594,5 +636,7 @@ async def get_deposit(
         total_amount=deposit.total_amount,
         bank_reference=deposit.bank_reference,
         notes=deposit.notes,
+        confirmed=deposit.confirmed,
+        confirmed_date=deposit.confirmed_date,
         payment_ids=pids,
     )

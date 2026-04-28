@@ -114,6 +114,8 @@ class DepositRead(BaseModel):
     total_amount: _Decimal
     bank_reference: str | None
     notes: str | None
+    confirmed: bool
+    confirmed_date: _Date | None
     payment_ids: list[int] = []
 
     model_config = {"from_attributes": True}
