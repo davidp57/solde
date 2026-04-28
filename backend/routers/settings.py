@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated, NoReturn
 
 import anyio
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -289,6 +289,7 @@ async def restore_backup(
     filename: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _AdminRequired,
+    background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
     """Restore a backup file and restart the application (admin only).
 
@@ -316,10 +317,13 @@ async def restore_backup(
         actor=current_user,
         detail={"filename": filename},
     )
+    # Commit the audit entry now — the engine will be disposed in the background task.
+    await db.commit()
 
     from backend.services.backup_service import restore_backup as do_restore  # noqa: PLC0415
 
-    await do_restore(
+    background_tasks.add_task(
+        do_restore,
         filename=filename,
         backup_dir=_BACKUP_DIR,
         db_path=db_path,
