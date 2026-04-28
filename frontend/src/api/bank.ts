@@ -69,6 +69,8 @@ export interface Deposit {
   total_amount: string
   bank_reference: string | null
   notes: string | null
+  confirmed: boolean
+  confirmed_date: string | null
   payment_ids: number[]
 }
 
@@ -240,10 +242,16 @@ export async function linkSupplierPaymentToTransaction(
 export async function listDeposits(params?: {
   from_date?: string
   to_date?: string
+  confirmed?: boolean
   skip?: number
   limit?: number
 }): Promise<Deposit[]> {
   const response = await apiClient.get<Deposit[]>('/api/bank/deposits', { params })
+  return response.data
+}
+
+export async function confirmDeposit(id: number): Promise<Deposit> {
+  const response = await apiClient.post<Deposit>(`/api/bank/deposits/${id}/confirm`)
   return response.data
 }
 

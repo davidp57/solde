@@ -42,7 +42,7 @@
       <AppStatCard
         :label="t('bank.deposits_title')"
         :value="displayedDeposits.length"
-        :caption="t('bank.metrics.pending_payments', { count: undepositedPayments.length })"
+        :caption="t('bank.metrics.pending_payments', { count: pendingDeposits.length })"
         tone="warn"
       />
     </section>
@@ -55,6 +55,46 @@
         :empty-label="t('bank.funds_chart_empty')"
         :ariaLabel="t('bank.funds_chart_title')"
       />
+    </AppPanel>
+
+    <AppPanel
+      v-if="pendingDeposits.length > 0"
+      :title="t('bank.pending_deposits_title')"
+      :subtitle="t('bank.pending_deposits_subtitle')"
+    >
+      <div class="bank-pending-deposits">
+        <div
+          v-for="deposit in pendingDeposits"
+          :key="deposit.id"
+          class="bank-pending-deposit-row"
+        >
+          <Tag
+            :value="t(`bank.deposit_types.${deposit.type}`)"
+            :severity="deposit.type === 'cheques' ? 'info' : 'warn'"
+            class="bank-pending-deposit-row__tag"
+          />
+          <span class="bank-pending-deposit-row__date">{{ formatDisplayDate(deposit.date) }}</span>
+          <span class="bank-pending-deposit-row__summary">
+            <template v-if="deposit.type === 'cheques'">
+              {{ t('bank.deposit_cheques_summary', { count: deposit.payment_ids.length }) }}
+            </template>
+            <template v-else>
+              {{ t('bank.deposit_especes_summary', { count: deposit.payment_ids.length }) }}
+            </template>
+          </span>
+          <span class="bank-pending-deposit-row__amount app-money">
+            {{ formatAmount(deposit.total_amount) }}
+          </span>
+          <Button
+            :label="t('bank.deposit_confirm')"
+            icon="pi pi-check"
+            severity="success"
+            size="small"
+            :loading="confirmingDepositId === deposit.id"
+            @click="confirmDeposit(deposit)"
+          />
+        </div>
+      </div>
     </AppPanel>
 
     <AppPanel :title="t('bank.title')" dense>
@@ -442,6 +482,33 @@
                   <AppNumberRangeFilter v-model="filterModel.value" />
                 </template>
               </Column>
+              <Column
+                field="confirmed_label"
+                :header="t('bank.deposit_status_col')"
+                sortable
+                filter-field="confirmed"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">
+                  <Tag
+                    :value="data.confirmed ? t('bank.deposit_status.confirmed') : t('bank.deposit_status.pending')"
+                    :severity="data.confirmed ? 'success' : 'warn'"
+                  />
+                </template>
+                <template #filter="{ filterModel, filterCallback }">
+                  <AppFilterMultiSelect
+                    v-model="filterModel.value"
+                    :options="yesNoOptions"
+                    option-label="label"
+                    option-value="value"
+                    :placeholder="t('common.all')"
+                    display="chip"
+                    show-clear
+                    :filter-callback="filterCallback"
+                  />
+                </template>
+              </Column>
               <template #empty>
                 <div class="app-empty-state">{{ t('bank.deposits_empty') }}</div>
               </template>
@@ -525,6 +592,7 @@ import {
   listDeposits,
   listTransactions,
   updateTransaction,
+  confirmDeposit as confirmDepositApi,
   type BankTransaction,
   type Deposit,
   type FundsChartRow as BankFundsChartRow,
@@ -549,9 +617,11 @@ const balance = ref('0')
 const fundsChartData = ref<BankFundsChartRow[]>([])
 const transactions = ref<BankTransaction[]>([])
 const deposits = ref<Deposit[]>([])
+const pendingDeposits = ref<Deposit[]>([])
 const undepositedPayments = ref<Payment[]>([])
 const loadingTx = ref(false)
 const loadingDeposits = ref(false)
+const confirmingDepositId = ref<number | null>(null)
 const activeTab = ref('transactions')
 const unreconciledOnly = ref(false)
 
@@ -615,6 +685,9 @@ const depositRows = computed(() =>
     total_amount_value: parseFloat(deposit.total_amount),
     payment_count: deposit.payment_ids?.length || 0,
     payment_count_label: `${deposit.payment_ids?.length || 0}`,
+    confirmed_label: deposit.confirmed
+      ? t('bank.deposit_status.confirmed')
+      : t('bank.deposit_status.pending'),
   })),
 )
 
@@ -651,6 +724,7 @@ const {
   total_amount_value: numericRangeFilter(),
   bank_reference: textFilter(),
   payment_count: numericRangeFilter(),
+  confirmed: inFilter(),
 })
 
 const activeGlobalFilter = computed({
@@ -805,13 +879,31 @@ async function loadTransactions(): Promise<void> {
   }
 }
 
+async function confirmDeposit(deposit: Deposit): Promise<void> {
+  confirmingDepositId.value = deposit.id
+  try {
+    await confirmDepositApi(deposit.id)
+    toast.add({ severity: 'success', summary: t('bank.deposit_confirmed_success'), life: 3000 })
+    await loadDeposits()
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } finally {
+    confirmingDepositId.value = null
+  }
+}
+
 async function loadDeposits(): Promise<void> {
   loadingDeposits.value = true
   try {
-    deposits.value = await listDeposits({
-      from_date: fiscalYearStore.selectedFiscalYear?.start_date,
-      to_date: fiscalYearStore.selectedFiscalYear?.end_date,
-    })
+    const [all, pending] = await Promise.all([
+      listDeposits({
+        from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+        to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+      }),
+      listDeposits({ confirmed: false }),
+    ])
+    deposits.value = all
+    pendingDeposits.value = pending
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -919,5 +1011,41 @@ onMounted(async () => {
   padding-inline: 0;
   padding-bottom: 0;
 }
-</style>
 
+.bank-pending-deposits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.bank-pending-deposit-row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4);
+  background: var(--app-surface-muted);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-radius);
+}
+
+.bank-pending-deposit-row__tag {
+  flex-shrink: 0;
+}
+
+.bank-pending-deposit-row__date {
+  font-variant-numeric: tabular-nums;
+  min-width: 6rem;
+}
+
+.bank-pending-deposit-row__summary {
+  flex: 1;
+  color: var(--p-text-muted-color);
+  font-size: 0.9rem;
+}
+
+.bank-pending-deposit-row__amount {
+  font-weight: 600;
+  min-width: 7rem;
+  text-align: right;
+}
+</style>

@@ -459,6 +459,105 @@ async def test_create_deposit(
     data = response.json()
     assert data["total_amount"] == "100.00"
     assert payment_id in data["payment_ids"]
+    assert data["confirmed"] is False
+    assert data["confirmed_date"] is None
+
+
+@pytest.mark.asyncio
+async def test_confirm_deposit(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    payment_id = await _make_payment(db_session)
+    create_response = await client.post(
+        "/api/bank/deposits",
+        json={
+            "date": "2024-03-01",
+            "type": "cheques",
+            "payment_ids": [payment_id],
+        },
+        headers=auth_headers,
+    )
+    assert create_response.status_code == 201
+    deposit_id = create_response.json()["id"]
+
+    confirm_response = await client.post(
+        f"/api/bank/deposits/{deposit_id}/confirm",
+        headers=auth_headers,
+    )
+    assert confirm_response.status_code == 200
+    data = confirm_response.json()
+    assert data["confirmed"] is True
+    assert data["confirmed_date"] is not None
+
+
+@pytest.mark.asyncio
+async def test_confirm_deposit_already_confirmed(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    payment_id = await _make_payment(db_session)
+    create_response = await client.post(
+        "/api/bank/deposits",
+        json={
+            "date": "2024-03-01",
+            "type": "cheques",
+            "payment_ids": [payment_id],
+        },
+        headers=auth_headers,
+    )
+    deposit_id = create_response.json()["id"]
+    await client.post(f"/api/bank/deposits/{deposit_id}/confirm", headers=auth_headers)
+    response = await client.post(
+        f"/api/bank/deposits/{deposit_id}/confirm",
+        headers=auth_headers,
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_confirm_deposit_not_found(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    response = await client.post("/api/bank/deposits/9999/confirm", headers=auth_headers)
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_list_deposits_filter_by_confirmed(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    payment_id = await _make_payment(db_session)
+    create_response = await client.post(
+        "/api/bank/deposits",
+        json={"date": "2024-03-01", "type": "cheques", "payment_ids": [payment_id]},
+        headers=auth_headers,
+    )
+    deposit_id = create_response.json()["id"]
+
+    pending_response = await client.get(
+        "/api/bank/deposits", params={"confirmed": "false"}, headers=auth_headers
+    )
+    assert any(d["id"] == deposit_id for d in pending_response.json())
+
+    await client.post(f"/api/bank/deposits/{deposit_id}/confirm", headers=auth_headers)
+
+    confirmed_response = await client.get(
+        "/api/bank/deposits", params={"confirmed": "true"}, headers=auth_headers
+    )
+    assert any(d["id"] == deposit_id for d in confirmed_response.json())
+
+    still_pending_response = await client.get(
+        "/api/bank/deposits", params={"confirmed": "false"}, headers=auth_headers
+    )
+    assert all(d["id"] != deposit_id for d in still_pending_response.json())
 
 
 @pytest.mark.asyncio
