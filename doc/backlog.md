@@ -20,9 +20,11 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | ID | Titre | Prio | Est. | Créé | Terminé |
 | --- | --- | --- | --- | --- | --- |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | — |
-| BIZ-128 | Modèles d'e-mail configurables dans les paramètres | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
+| BIZ-128 | Modèles d'e-mail configurables dans les paramètres | P2 | ~30 min | 2026-04-23 | 2026-05-02 |
 | BIZ-129 | Notes de crédit (avoirs) | P2 | ~3 h | 2026-04-27 | — |
 | BIZ-130 | Confirmation de dépôt bancaire + métriques espèces/chèques | P2 | ~2 h | 2026-05-02 | 2026-05-02 |
+| BIZ-131 | Refonte modèle dépôt espèces (auto-deposited + coupures) | P2 | ~3 h | 2026-05-26 | 2026-05-26 |
+| BIZ-132 | État intermédiaire « en bordereau » pour les chèques (transit + select all) | P2 | ~2 h | 2026-05-26 | 2026-05-26 |
 
 ---
 

@@ -23,12 +23,6 @@
         :caption="t('payments.metrics.cheques_caption', { count: chequesToDepositCount })"
         tone="warn"
       />
-      <AppStatCard
-        :label="t('payments.metrics.especes_to_deposit')"
-        :value="formatAmount(especesToDepositAmount)"
-        :caption="t('payments.metrics.especes_caption', { count: especesToDepositCount })"
-        tone="warn"
-      />
     </section>
 
     <AppPanel :title="t('payments.workspace_title')" :subtitle="t('payments.workspace_subtitle')">
@@ -182,7 +176,19 @@
         >
           <template #body="{ data }">
             <i
-              :class="data.deposited ? 'pi pi-check text-green-500' : 'pi pi-times text-red-400'"
+              v-if="data.deposited"
+              class="pi pi-check text-green-500"
+            />
+            <span
+              v-else-if="data.in_deposit"
+              class="payments-status--transit"
+            >
+              <i class="pi pi-clock" />
+              {{ t('payments.deposit_status_in_transit') }}
+            </span>
+            <i
+              v-else
+              class="pi pi-times text-red-400"
             />
           </template>
           <template #filter="{ filterModel }">
@@ -340,7 +346,11 @@ const paymentRows = computed(() =>
     amount_value: parseFloat(payment.amount),
     method_label: t(`payments.methods.${payment.method}`),
     reference_value: paymentReference(payment),
-    deposited_label: payment.deposited ? t('common.yes') : t('common.no'),
+    deposited_label: payment.deposited
+      ? t('common.yes')
+      : payment.in_deposit
+        ? t('payments.deposit_status_in_transit')
+        : t('common.no'),
   })),
 )
 const {
@@ -366,19 +376,11 @@ const averageAmount = computed(() =>
   filtered.value.length ? totalAmount.value / filtered.value.length : 0,
 )
 const chequesToDepositCount = computed(
-  () => payments.value.filter((p) => p.method === 'cheque' && !p.deposited).length,
+  () => payments.value.filter((p) => p.method === 'cheque' && !p.deposited && !p.in_deposit).length,
 )
 const chequesToDepositAmount = computed(() =>
   payments.value
-    .filter((p) => p.method === 'cheque' && !p.deposited)
-    .reduce((sum, p) => sum + parseFloat(p.amount), 0),
-)
-const especesToDepositCount = computed(
-  () => payments.value.filter((p) => p.method === 'especes' && !p.deposited).length,
-)
-const especesToDepositAmount = computed(() =>
-  payments.value
-    .filter((p) => p.method === 'especes' && !p.deposited)
+    .filter((p) => p.method === 'cheque' && !p.deposited && !p.in_deposit)
     .reduce((sum, p) => sum + parseFloat(p.amount), 0),
 )
 const activeFilterLabels = computed(() =>
@@ -526,5 +528,13 @@ onMounted(async () => {
 <style scoped>
 .payments-table__actions {
   width: 8rem;
+}
+
+.payments-status--transit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--p-yellow-600);
+  font-size: 0.85em;
 }
 </style>

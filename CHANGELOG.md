@@ -13,10 +13,27 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- BIZ-132 : État intermédiaire « en bordereau » (en transit) pour les chèques — un chèque intégré dans un bordereau non confirmé passe à `in_deposit=True, deposited=False` ; `deposited=True` n'est positionné qu'à la **confirmation** du bordereau (migration Alembic 0040)
+- BIZ-132 : Bouton « Tout sélectionner / Tout désélectionner » dans le dialogue de création de bordereau (chèques)
+- BIZ-132 : Colonne « Remis en banque » dans la vue Paiements — affiche trois états distincts : remis (✓), en bordereau (horloge, orange), à remettre (✗)
+
+### Modifié
+
+- BIZ-132 : Filtre `undeposited_only` sur les paiements — exclut désormais les chèques déjà en bordereau (état « en transit »)
+- BIZ-132 : Dashboard — le compteur de paiements non remis exclut les chèques en bordereau non confirmé
+
+### Modifié
+
+- BIZ-131 : Refonte sémantique du modèle de dépôt espèces — les paiements espèces sont désormais marqués `deposited=True` dès leur création (ils entrent immédiatement en caisse) ; un bordereau espèces est préparé à partir d'un montant et d'un détail optionnel de coupures (billets), sans lien vers des paiements individuels
+- BIZ-131 : Bordereau espèces — la caisse sort (CashEntry OUT) et les écritures comptables sont générées à la **confirmation** du bordereau, non à sa création
+- BIZ-131 : Migration Alembic 0039 — colonne `denomination_details` (TEXT nullable) sur `deposits` ; mise à jour des paiements espèces existants à `deposited=True`
+- BIZ-131 : Vue Paiements — suppression de la métrique « Espèces à déposer » (toujours 0 désormais) ; seule la métrique « Chèques à remettre » reste
+
+### Ajouté
+
 - BIZ-130 : Confirmation de dépôt bancaire — champ `confirmed` (booléen) et `confirmed_date` sur les bordereaux de dépôt (migration 0038) ; endpoint `POST /api/bank/deposits/{id}/confirm` ; audit log `bank.deposit.confirm`
 - BIZ-130 : Panneau « Dépôts en attente de confirmation » dans la vue Banque — liste les bordereaux préparés mais non encore remis à l'agence, avec résumé (nb chèques ou encaissements, montant) et bouton « Confirmer »
 - BIZ-130 : Colonne « Statut » (en attente / confirmé) dans le tableau des dépôts de la vue Banque, avec filtre
-- BIZ-130 : Vue Paiements — métriques séparées « Chèques à remettre » et « Espèces à déposer » en remplacement du compteur unique « Non remis » qui mélangeait les deux modes de paiement
 
 ---
 
