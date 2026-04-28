@@ -9,7 +9,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Lots actifs
 
-### Lot H — Architecture multi-compte (~45 min) — v0.9
+### Lot H — Architecture multi-compte (~45 min) — v1.2
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -20,11 +20,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | ID | Titre | Prio | Est. | Créé | Terminé |
 | --- | --- | --- | --- | --- | --- |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | — |
-| BIZ-128 | Modèles d'e-mail configurables dans les paramètres | P2 | ~30 min | 2026-04-23 | 2026-05-02 |
-| BIZ-129 | Notes de crédit (avoirs) | P2 | ~3 h | 2026-04-27 | — |
-| BIZ-130 | Confirmation de dépôt bancaire + métriques espèces/chèques | P2 | ~2 h | 2026-05-02 | 2026-05-02 |
-| BIZ-131 | Refonte modèle dépôt espèces (auto-deposited + coupures) | P2 | ~3 h | 2026-05-26 | 2026-05-26 |
-| BIZ-132 | État intermédiaire « en bordereau » pour les chèques (transit + select all) | P2 | ~2 h | 2026-05-26 | 2026-05-26 |
 
 ---
 
@@ -159,7 +154,8 @@ Permettre l'émission d'un avoir (note de crédit) pour annuler partiellement ou
 | O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-26 |
 | P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-26 |
 | S | Documentation & i18n | v0.8 | TEC-106, CHR-021, CHR-020, CHR-079 | 2026-04-27 |
-| T | Chatbot IA + refactor Paramètres | v0.8 | BIZ-125, BIZ-126 | 2026-04-27 |
+| T | Chatbot IA + refactor Paramètres | v1.0 | BIZ-125, BIZ-126 | 2026-04-27 |
+| H-UX | Améliorations UX (lot H) | v1.1 | settings gestionnaires, dialogue paiement, champs famille contacts, date facture, commentaires, PDF règlement, verrou édition | 2026-04-28 |
 
 <details>
 <summary>Lot S — Documentation & i18n (2026-04-27)</summary>
@@ -182,7 +178,7 @@ Restructuration complète du répertoire `doc/` : nouvelles arborescences `doc/a
 
 </details>
 
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**, **BIZ-111**, **BIZ-127**, **BIZ-128**, **BIZ-130**.
+Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**, **BIZ-111**, **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
 
 <details>
