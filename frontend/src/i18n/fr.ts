@@ -1905,5 +1905,8 @@ export default {
     your_comments: 'Vos notes',
     all_comments: 'Toutes les notes',
     by: 'Par {user}',
+    mark_resolved: 'Marquer comme traitée',
+    delete_confirm: 'Supprimer cette note ? Cette action est irréversible.',
+    deleted: 'Note supprimée.',
   },
 }

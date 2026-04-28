@@ -19,6 +19,7 @@ async def create_comment(db: AsyncSession, payload: AppCommentCreate, user: User
         user_id=comment.user_id,
         user_name=user.username,
         content=comment.content,
+        is_resolved=comment.is_resolved,
         created_at=comment.created_at,
     )
 
@@ -36,7 +37,41 @@ async def list_comments(db: AsyncSession, user: User, admin: bool = False) -> li
             user_id=comment.user_id,
             user_name=u.username,
             content=comment.content,
+            is_resolved=comment.is_resolved,
             created_at=comment.created_at,
         )
         for comment, u in rows
     ]
+
+
+async def toggle_resolved(db: AsyncSession, comment_id: int, value: bool) -> AppCommentRead | None:
+    """Set is_resolved on a comment. Returns None if not found."""
+    stmt = (
+        select(AppComment, User)
+        .join(User, User.id == AppComment.user_id)
+        .where(AppComment.id == comment_id)
+    )
+    row = (await db.execute(stmt)).first()
+    if row is None:
+        return None
+    comment, u = row
+    comment.is_resolved = value
+    await db.flush()
+    return AppCommentRead(
+        id=comment.id,
+        user_id=comment.user_id,
+        user_name=u.username,
+        content=comment.content,
+        is_resolved=comment.is_resolved,
+        created_at=comment.created_at,
+    )
+
+
+async def delete_comment(db: AsyncSession, comment_id: int) -> bool:
+    """Delete a comment by id. Returns False if not found."""
+    comment = await db.get(AppComment, comment_id)
+    if comment is None:
+        return False
+    await db.delete(comment)
+    await db.flush()
+    return True
