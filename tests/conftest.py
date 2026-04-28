@@ -30,6 +30,7 @@ from backend.models import (
 from backend.models import (
     accounting_rule as _rule_module,
 )
+from backend.models import app_comment as _app_comment_module
 from backend.models import (
     app_settings,
 )
@@ -89,6 +90,7 @@ _REGISTERED_MODEL_MODULES = (
     _payment_module,
     _salary_module,
     _user_module,
+    _app_comment_module,
 )
 
 # In-memory SQLite for tests — StaticPool keeps a single connection alive

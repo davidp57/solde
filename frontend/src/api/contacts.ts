@@ -16,6 +16,10 @@ export interface Contact {
   base_hours: number | null
   hourly_rate: number | null
   is_contractor: boolean
+  child_first_name: string | null
+  child_last_name: string | null
+  other_parent_first_name: string | null
+  other_parent_last_name: string | null
   created_at: string
   updated_at: string
   last_invoice_ref: string | null
@@ -35,6 +39,10 @@ export interface ContactCreate {
   base_hours?: number | null
   hourly_rate?: number | null
   is_contractor?: boolean
+  child_first_name?: string | null
+  child_last_name?: string | null
+  other_parent_first_name?: string | null
+  other_parent_last_name?: string | null
 }
 
 export interface ContactUpdate {
@@ -51,6 +59,10 @@ export interface ContactUpdate {
   base_hours?: number | null
   hourly_rate?: number | null
   is_contractor?: boolean
+  child_first_name?: string | null
+  child_last_name?: string | null
+  other_parent_first_name?: string | null
+  other_parent_last_name?: string | null
 }
 
 export interface ContactFilters {

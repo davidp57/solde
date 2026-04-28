@@ -22,6 +22,7 @@ for module_name in (
     "backend.models.accounting_account",
     "backend.models.accounting_entry",
     "backend.models.accounting_rule",
+    "backend.models.app_comment",
     "backend.models.app_settings",
     "backend.models.audit_log",
     "backend.models.bank",

@@ -13,6 +13,20 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Lot H : Paramètres (`GET /settings/` et `GET /settings/system-opening`) désormais accessibles aux gestionnaires (trésorier, comptable) en lecture — les mises à jour (`PUT`) restent réservées aux administrateurs
+- Lot H : Dialogue paiement — affiche désormais le nom du client, la description, le montant total et la date d'échéance de la facture concernée
+- Lot H : Nouveaux champs famille sur les contacts clients : prénom/nom de l'enfant, prénom/nom de l'autre parent
+- Lot H : Date du jour pré-remplie à la création d'une facture client
+- Lot H : Système de commentaires internes (`/comments`) — chaque utilisateur peut saisir des notes/remarques ; les admins voient tous les commentaires
+- Lot H : PDF facture — instructions de règlement avec IBAN, BIC et numéro de chèque ajoutées en pied de facture (numéro de facture réel inclus)
+
+### Modifié
+
+- Lot H : Édition d'une facture client bloquée si elle est à l'état `SENT` avec un montant déjà payé, ou à l'état `PAID`
+- Lot H : PDF facture — bloc Émetteur supprimé (doublon du en-tête)
+
+### Ajouté
+
 - BIZ-132 : État intermédiaire « en bordereau » (en transit) pour les chèques — un chèque intégré dans un bordereau non confirmé passe à `in_deposit=True, deposited=False` ; `deposited=True` n'est positionné qu'à la **confirmation** du bordereau (migration Alembic 0040)
 - BIZ-132 : Bouton « Tout sélectionner / Tout désélectionner » dans le dialogue de création de bordereau (chèques)
 - BIZ-132 : Colonne « Remis en banque » dans la vue Paiements — affiche trois états distincts : remis (✓), en bordereau (horloge, orange), à remettre (✗)

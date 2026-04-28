@@ -58,6 +58,10 @@ async def list_contacts(
                 Contact.nom.ilike(term),
                 Contact.prenom.ilike(term),
                 Contact.email.ilike(term),
+                Contact.child_first_name.ilike(term),
+                Contact.child_last_name.ilike(term),
+                Contact.other_parent_first_name.ilike(term),
+                Contact.other_parent_last_name.ilike(term),
             )
         )
     query = query.order_by(Contact.nom, Contact.prenom).offset(skip)

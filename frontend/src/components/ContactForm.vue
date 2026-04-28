@@ -109,6 +109,55 @@
       </div>
     </section>
 
+    <section v-if="form.type === 'client'" class="app-dialog-section">
+      <div class="app-dialog-section__header">
+        <h3 class="app-dialog-section__title">{{ t('contacts.child_parent_title') }}</h3>
+        <p class="app-dialog-section__copy">{{ t('contacts.child_parent_subtitle') }}</p>
+      </div>
+      <div class="contact-form">
+        <div class="app-form-grid">
+          <div class="app-field">
+            <label for="cf-child-first" class="app-field__label">{{ t('contacts.child_first_name') }}</label>
+            <InputText
+              id="cf-child-first"
+              v-model="form.child_first_name"
+              :placeholder="t('contacts.child_first_name')"
+              class="w-full"
+            />
+          </div>
+          <div class="app-field">
+            <label for="cf-child-last" class="app-field__label">{{ t('contacts.child_last_name') }}</label>
+            <InputText
+              id="cf-child-last"
+              v-model="form.child_last_name"
+              :placeholder="t('contacts.child_last_name')"
+              class="w-full"
+            />
+          </div>
+        </div>
+        <div class="app-form-grid">
+          <div class="app-field">
+            <label for="cf-op-first" class="app-field__label">{{ t('contacts.other_parent_first_name') }}</label>
+            <InputText
+              id="cf-op-first"
+              v-model="form.other_parent_first_name"
+              :placeholder="t('contacts.other_parent_first_name')"
+              class="w-full"
+            />
+          </div>
+          <div class="app-field">
+            <label for="cf-op-last" class="app-field__label">{{ t('contacts.other_parent_last_name') }}</label>
+            <InputText
+              id="cf-op-last"
+              v-model="form.other_parent_last_name"
+              :placeholder="t('contacts.other_parent_last_name')"
+              class="w-full"
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+
     <Message v-if="errorMessage" severity="error">{{ errorMessage }}</Message>
 
     <div class="app-form-actions">
@@ -157,6 +206,10 @@ interface FormState {
   adresse: string
   notes: string
   is_contractor: boolean
+  child_first_name: string
+  child_last_name: string
+  other_parent_first_name: string
+  other_parent_last_name: string
 }
 
 function fromContact(c: Contact | null): FormState {
@@ -169,6 +222,10 @@ function fromContact(c: Contact | null): FormState {
     adresse: c?.adresse ?? '',
     notes: c?.notes ?? '',
     is_contractor: c?.is_contractor ?? false,
+    child_first_name: c?.child_first_name ?? '',
+    child_last_name: c?.child_last_name ?? '',
+    other_parent_first_name: c?.other_parent_first_name ?? '',
+    other_parent_last_name: c?.other_parent_last_name ?? '',
   }
 }
 
@@ -204,6 +261,10 @@ async function submit(): Promise<void> {
       adresse: form.value.adresse || null,
       notes: form.value.notes || null,
       is_contractor: form.value.is_contractor,
+      child_first_name: form.value.child_first_name || null,
+      child_last_name: form.value.child_last_name || null,
+      other_parent_first_name: form.value.other_parent_first_name || null,
+      other_parent_last_name: form.value.other_parent_last_name || null,
     }
     if (props.contact) {
       await updateContactApi(props.contact.id, payload)
