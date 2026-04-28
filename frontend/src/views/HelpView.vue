@@ -142,8 +142,6 @@ onMounted(async () => {
   font-size: 0.9375rem;
   margin: 0;
 }
-</style>
-
 
 /* Basic prose styles for the rendered Markdown */
 .prose :deep(h1),
