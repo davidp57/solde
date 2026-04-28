@@ -30,6 +30,7 @@ from backend.models import (
 from backend.models import (
     accounting_rule as _rule_module,
 )
+from backend.models import app_comment as _app_comment_module
 from backend.models import (
     app_settings,
 )
@@ -69,7 +70,6 @@ from backend.models import (
 from backend.models import (
     user as _user_module,
 )
-from backend.models import app_comment as _app_comment_module
 from backend.models.user import User, UserRole
 from backend.services.auth import hash_password
 
