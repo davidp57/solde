@@ -25,7 +25,6 @@
             option-value="id"
             :placeholder="t('invoices.contact_placeholder')"
             filter
-            :filter-fields="['displayName', 'child_first_name', 'child_last_name', 'other_parent_first_name', 'other_parent_last_name']"
             class="w-full"
             required
           />
@@ -214,10 +213,18 @@ const lineTypeOptions = [
 ]
 
 const contactOptions = computed(() =>
-  props.contacts.map((contact) => ({
-    ...contact,
-    displayName: formatContactDisplayName(contact),
-  })),
+  props.contacts.map((contact) => {
+    const parentName = formatContactDisplayName(contact)
+    const childParts = [
+      contact.child_first_name,
+      contact.child_last_name,
+      contact.other_parent_first_name,
+      contact.other_parent_last_name,
+    ].filter(Boolean)
+    const displayName =
+      childParts.length > 0 ? `${parentName} (${childParts.join(' ')})` : parentName
+    return { ...contact, displayName }
+  }),
 )
 
 const defaultLineDescriptions: Record<InvoiceLineType, string> = {
