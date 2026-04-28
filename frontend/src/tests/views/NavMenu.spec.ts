@@ -135,6 +135,7 @@ describe('NavMenu', () => {
     expect(links).toContain('nav.users')
     expect(links).toContain('nav.settings')
     expect(links).toContain('nav.system')
+    expect(links).toContain('nav.comments')
   })
 
   it('shows only the home section for a readonly user', () => {
