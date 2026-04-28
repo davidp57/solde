@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-04-27 — active branch `develop` — current version: 1.0.0
+> Last updated: 2026-04-28 — active branch `develop` — current version: 1.1.0
 
 ---
 
@@ -18,9 +18,10 @@
 | **0.7** | Lots N, O, P, Q — UX, forms, quality | ✅ Completed |
 | **0.8** | Lots R, S — supervision, i18n, doc restructure | ✅ Completed |
 | **1.0** | Lots T — chatbot, email templates, credit notes — first stable release | ✅ Completed |
-| **1.1** | Lot H — multi-account bank + remaining items | ⬜ Planned |
+| **1.1** | Bank deposit workflow + 7 UX improvements | ✅ Completed |
+| **1.2** | Multi-account bank + i18n English skeleton | ⬜ Planned |
 
-Test suite: **992 backend + 131 frontend Vitest + 1 Playwright E2E — 0 failures.**
+Test suite: **999 backend + 131 frontend Vitest + 1 Playwright E2E — 0 failures.**
 
 ---
 
@@ -200,26 +201,32 @@ Full credit note support: `avoir` document type, separate `AV-YYYY-NNN` numberin
 
 ---
 
-## v1.1 — Multi-account bank ⬜
+## v1.1 — Bank deposit workflow + UX improvements ✅
 
-### Lot H — Architecture multi-compte (~45 min)
+Completed 2026-04-28.
 
-Introduire un support multi-compte explicite pour la banque afin de distinguer
-compte courant et compte épargne dans les données, imports et écrans.
+| Lot | Summary |
+| --- | --- |
+| BIZ-130 — Bank deposit confirmation | Explicit confirmation workflow for deposits; `confirmed` field; pending deposits panel in Bank view; status column |
+| BIZ-131 — Cash deposit model refactor | Cash payments marked `deposited=True` at creation; denomination-based cash deposits; entries generated at confirmation (migration 0039) |
+| BIZ-132 — Cheque in-transit state | Intermediate `in_deposit` state before confirmation; select-all button; 3-state « Remis en banque » column; fix credit BankTransaction on cash confirmation (migration 0040) |
+| Lot H-UX — 7 UX improvements | Settings read access for managers; payment dialog with invoice details; family fields on contacts (migration 0041); pre-filled invoice date; internal comments system (migrations 0042, 0043); PDF payment instructions; invoice edit lock |
 
-| ID | Titre | Est. |
-| --- | --- | --- |
-| BIZ-034 | Support multi-compte banque | ~45 min |
+---
 
-**BIZ-034**: modèle `BankAccount` (label, IBAN, type), migration, FK sur `BankTransaction`,
-filtre par compte dans `BankView`, adaptation imports OFX/CSV.
-Prérequis : décisions métier sur la granularité (2 comptes fixes ou N comptes dynamiques).
+## v1.2 — Multi-account bank & i18n ⬜
 
-### Remaining items
+### BIZ-034 — Multi-account bank support
 
-| ID | Titre | Est. |
-| --- | --- | --- |
-| CHR-078 | Squelette i18n anglais | ~5 min |
+Introduce explicit multi-account support to distinguish current account and savings in data, imports and screens.
+
+- Model `BankAccount` (label, IBAN, type), migration, FK on `BankTransaction`
+- Filter by account in `BankView`, adapt OFX/CSV imports
+- Prerequisite: business decision on granularity (2 fixed accounts vs N dynamic)
+
+### CHR-078 — English i18n skeleton
+
+Create `en.ts` with structural keys to prepare English localisation.
 
 ---
 

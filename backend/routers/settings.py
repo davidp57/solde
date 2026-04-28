@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated, NoReturn
 
 import anyio
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,6 +36,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 _AdminRequired = Annotated[User, Depends(require_role(UserRole.ADMIN))]
+_ManagerRequired = Annotated[
+    User,
+    Depends(require_role(UserRole.TRESORIER, UserRole.SECRETAIRE, UserRole.ADMIN)),
+]
 
 
 def _raise_selective_reset_error(exc: Exception) -> NoReturn:
@@ -56,9 +60,9 @@ def _raise_selective_reset_error(exc: Exception) -> NoReturn:
 @router.get("/", response_model=AppSettingsRead)
 async def get_settings(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _AdminRequired,
+    _current_user: _ManagerRequired,
 ) -> AppSettingsRead:
-    """Return current application settings (admin only)."""
+    """Return current application settings (manager or admin only)."""
     return await settings_service.get_settings(db)  # type: ignore[return-value]
 
 
@@ -75,9 +79,9 @@ async def update_settings(
 @router.get("/system-opening", response_model=TreasurySystemOpeningRead)
 async def get_system_opening(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _AdminRequired,
+    _current_user: _ManagerRequired,
 ) -> TreasurySystemOpeningRead:
-    """Return the current treasury system opening configuration (admin only)."""
+    """Return the current treasury system opening configuration (manager or admin only)."""
     return await settings_service.get_treasury_system_opening(db)
 
 
@@ -289,6 +293,7 @@ async def restore_backup(
     filename: str,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _AdminRequired,
+    background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
     """Restore a backup file and restart the application (admin only).
 
@@ -316,10 +321,13 @@ async def restore_backup(
         actor=current_user,
         detail={"filename": filename},
     )
+    # Commit the audit entry now — the engine will be disposed in the background task.
+    await db.commit()
 
     from backend.services.backup_service import restore_backup as do_restore  # noqa: PLC0415
 
-    await do_restore(
+    background_tasks.add_task(
+        do_restore,
         filename=filename,
         backup_dir=_BACKUP_DIR,
         db_path=db_path,

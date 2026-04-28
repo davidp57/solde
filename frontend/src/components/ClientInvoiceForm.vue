@@ -213,10 +213,18 @@ const lineTypeOptions = [
 ]
 
 const contactOptions = computed(() =>
-  props.contacts.map((contact) => ({
-    ...contact,
-    displayName: formatContactDisplayName(contact),
-  })),
+  props.contacts.map((contact) => {
+    const parentName = formatContactDisplayName(contact)
+    const childParts = [
+      contact.child_first_name,
+      contact.child_last_name,
+      contact.other_parent_first_name,
+      contact.other_parent_last_name,
+    ].filter(Boolean)
+    const displayName =
+      childParts.length > 0 ? `${parentName} (${childParts.join(' ')})` : parentName
+    return { ...contact, displayName }
+  }),
 )
 
 const defaultLineDescriptions: Record<InvoiceLineType, string> = {
@@ -290,7 +298,7 @@ function removeLine(idx: number) {
 
 function resetForm() {
   form.contact_id = null
-  form.date = null
+  form.date = new Date()
   form.due_date = null
   form.description = ''
   form.lines = []

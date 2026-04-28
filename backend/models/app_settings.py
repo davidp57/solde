@@ -61,3 +61,8 @@ class AppSettings(Base):
     # Email templates (null = use built-in defaults)
     email_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
     email_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
+
+    # Payment instructions on invoices
+    payment_iban: Mapped[str | None] = mapped_column(String(34), nullable=True)
+    payment_bic: Mapped[str | None] = mapped_column(String(11), nullable=True)
+    payment_check_payee: Mapped[str | None] = mapped_column(String(255), nullable=True)

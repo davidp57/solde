@@ -6,8 +6,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Table, Text, func
 from sqlalchemy import Column as SAColumn
-from sqlalchemy import Date, DateTime, ForeignKey, String, Table, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
@@ -104,6 +104,9 @@ class Deposit(Base):
     )
     bank_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    denomination_details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    confirmed_date: Mapped[_Date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )

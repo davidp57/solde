@@ -145,9 +145,13 @@ async def _create_payment(
         allow_client_virement=allow_client_virement,
     )
     payment = Payment(**payload.model_dump())
-    if deposited is not None:
+    # Cash payments are always immediately in the till — mark as deposited on creation.
+    if payload.method == PaymentMethod.ESPECES:
+        payment.deposited = True
+        payment.deposit_date = payload.date
+    elif deposited is not None:
         payment.deposited = deposited
-    if deposit_date is not None:
+    if deposit_date is not None and payment.deposit_date is None:
         payment.deposit_date = deposit_date
     db.add(payment)
     await db.flush()
@@ -195,7 +199,8 @@ async def list_payments(
     if to_date is not None:
         query = query.where(Payment.date <= to_date)
     if undeposited_only:
-        query = query.where(Payment.deposited == False)  # noqa: E712
+        # Only truly free cheques: not yet in any deposit slip, not yet confirmed
+        query = query.where(Payment.deposited == False).where(Payment.in_deposit == False)  # noqa: E712
     query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     rows = result.all()

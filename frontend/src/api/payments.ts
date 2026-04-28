@@ -16,6 +16,7 @@ export interface Payment {
   reference: string | null
   notes: string | null
   deposited: boolean
+  in_deposit: boolean
   deposit_date: string | null
   created_at: string
 }
