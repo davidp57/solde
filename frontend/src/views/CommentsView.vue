@@ -73,6 +73,7 @@
       </div>
     </div>
   </AppPage>
+  <ConfirmDialog />
 </template>
 
 <script setup lang="ts">
@@ -80,6 +81,7 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
+import ConfirmDialog from 'primevue/confirmdialog'
 import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
