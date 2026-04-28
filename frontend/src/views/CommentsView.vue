@@ -38,12 +38,35 @@
       </p>
 
       <div v-else class="comments-items">
-        <div v-for="comment in comments" :key="comment.id" class="comment-card">
-          <div class="comment-card__meta">
-            <span v-if="isAdmin" class="comment-card__author">
-              {{ t('comments.by', { user: comment.user_name }) }}
-            </span>
-            <span class="comment-card__date">{{ formatDateTime(comment.created_at) }}</span>
+        <div
+          v-for="comment in comments"
+          :key="comment.id"
+          class="comment-card"
+          :class="{ 'comment-card--resolved': comment.is_resolved }"
+        >
+          <div class="comment-card__header">
+            <div class="comment-card__meta">
+              <span v-if="isAdmin" class="comment-card__author">
+                {{ t('comments.by', { user: comment.user_name }) }}
+              </span>
+              <span class="comment-card__date">{{ formatDateTime(comment.created_at) }}</span>
+            </div>
+            <div v-if="isAdmin" class="comment-card__actions">
+              <Checkbox
+                v-model="comment.is_resolved"
+                :binary="true"
+                :title="t('comments.mark_resolved')"
+                @change="onToggleResolved(comment)"
+              />
+              <Button
+                icon="pi pi-trash"
+                severity="danger"
+                text
+                rounded
+                size="small"
+                @click="confirmDelete(comment)"
+              />
+            </div>
           </div>
           <p class="comment-card__content">{{ comment.content }}</p>
         </div>
@@ -56,15 +79,24 @@
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
 import Textarea from 'primevue/textarea'
+import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
-import { listCommentsApi, createCommentApi, type AppComment } from '@/api/app_comment'
+import {
+  listCommentsApi,
+  createCommentApi,
+  toggleResolvedApi,
+  deleteCommentApi,
+  type AppComment,
+} from '@/api/app_comment'
 import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
 const toast = useToast()
+const confirm = useConfirm()
 const auth = useAuthStore()
 
 const comments = ref<AppComment[]>([])
@@ -104,6 +136,37 @@ async function submitComment(): Promise<void> {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   } finally {
     submitting.value = false
+  }
+}
+
+async function onToggleResolved(comment: AppComment): Promise<void> {
+  try {
+    const updated = await toggleResolvedApi(comment.id, comment.is_resolved)
+    Object.assign(comment, updated)
+  } catch {
+    comment.is_resolved = !comment.is_resolved
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  }
+}
+
+function confirmDelete(comment: AppComment): void {
+  confirm.require({
+    message: t('comments.delete_confirm'),
+    header: t('common.confirm'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptProps: { severity: 'danger', label: t('common.delete') },
+    rejectProps: { severity: 'secondary', outlined: true, label: t('common.cancel') },
+    accept: () => void doDelete(comment),
+  })
+}
+
+async function doDelete(comment: AppComment): Promise<void> {
+  try {
+    await deleteCommentApi(comment.id)
+    comments.value = comments.value.filter((c) => c.id !== comment.id)
+    toast.add({ severity: 'success', summary: t('comments.deleted'), life: 3000 })
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   }
 }
 
@@ -159,13 +222,36 @@ onMounted(loadComments)
   border: 1px solid var(--p-surface-border);
   border-radius: 6px;
   padding: 12px 16px;
+  transition: opacity 0.2s;
+}
+
+.comment-card--resolved {
+  opacity: 0.55;
+}
+
+.comment-card--resolved .comment-card__content {
+  text-decoration: line-through;
+}
+
+.comment-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-2);
+  margin-bottom: var(--app-space-2);
 }
 
 .comment-card__meta {
   display: flex;
   gap: var(--app-space-4);
   align-items: center;
-  margin-bottom: var(--app-space-2);
+}
+
+.comment-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-2);
+  flex-shrink: 0;
 }
 
 .comment-card__author {
