@@ -155,8 +155,8 @@ onMounted(loadComments)
 }
 
 .comment-card {
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-surface-200);
+  background: color-mix(in srgb, var(--app-surface-bg) 88%, transparent 12%);
+  border: 1px solid var(--p-surface-border);
   border-radius: 6px;
   padding: 12px 16px;
 }
