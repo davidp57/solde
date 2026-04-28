@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.config import get_settings as get_app_config
 from backend.database import get_db
 from backend.models.user import User, UserRole
-from backend.routers.auth import require_role
+from backend.routers.auth import get_current_user, require_role
 from backend.schemas.settings import (
     AppSettingsRead,
     AppSettingsUpdate,
@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/settings", tags=["settings"])
 
 _AdminRequired = Annotated[User, Depends(require_role(UserRole.ADMIN))]
+_AnyUserRequired = Annotated[User, Depends(get_current_user)]
 
 
 def _raise_selective_reset_error(exc: Exception) -> NoReturn:
@@ -56,9 +57,9 @@ def _raise_selective_reset_error(exc: Exception) -> NoReturn:
 @router.get("/", response_model=AppSettingsRead)
 async def get_settings(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _AdminRequired,
+    _current_user: _AnyUserRequired,
 ) -> AppSettingsRead:
-    """Return current application settings (admin only)."""
+    """Return current application settings (any authenticated user)."""
     return await settings_service.get_settings(db)  # type: ignore[return-value]
 
 
@@ -75,9 +76,9 @@ async def update_settings(
 @router.get("/system-opening", response_model=TreasurySystemOpeningRead)
 async def get_system_opening(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _current_user: _AdminRequired,
+    _current_user: _AnyUserRequired,
 ) -> TreasurySystemOpeningRead:
-    """Return the current treasury system opening configuration (admin only)."""
+    """Return the current treasury system opening configuration (any authenticated user)."""
     return await settings_service.get_treasury_system_opening(db)
 
 

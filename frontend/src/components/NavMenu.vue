@@ -45,6 +45,7 @@ type MenuItem = {
 const homeItems = computed<MenuItem[]>(() => [
   { to: '/dashboard', icon: 'pi-home', label: t('nav.dashboard') },
   { to: '/aide', icon: 'pi-question-circle', label: t('nav.help') },
+  { to: '/comments', icon: 'pi-comment', label: t('nav.comments') },
 ])
 
 const managementItems = computed<MenuItem[]>(() => {

@@ -290,7 +290,7 @@ function removeLine(idx: number) {
 
 function resetForm() {
   form.contact_id = null
-  form.date = null
+  form.date = new Date()
   form.due_date = null
   form.description = ''
   form.lines = []
