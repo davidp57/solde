@@ -613,66 +613,74 @@ async def get_bank_balance(db: AsyncSession) -> Decimal:
 
 
 async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
-    """Create a deposit slip and mark its payments as deposited."""
-    # Load payments and verify they exist
-    result = await db.execute(select(Payment).where(Payment.id.in_(payload.payment_ids)))
-    payments = list(result.scalars().all())
-    if len(payments) != len(payload.payment_ids):
-        raise ValueError("one or more payment_ids not found")
+    """Create a deposit slip.
 
-    expected_method = (
-        PaymentMethod.CHEQUE if payload.type == DepositType.CHEQUES else PaymentMethod.ESPECES
-    )
-    invalid_payment = next(
-        (payment for payment in payments if payment.method != expected_method),
-        None,
-    )
-    if invalid_payment is not None:
-        raise ValueError("deposit payments must match the selected deposit type")
+    Cheques deposit: payment_ids must be provided; amounts are summed from those
+    payments, which are marked as ``in_deposit=True`` (en transit — assigned to
+    a slip but not yet confirmed at the bank).  ``deposited`` is only set to
+    ``True`` at confirmation time.  Accounting entries are generated on
+    *confirmation* (when the slip is physically taken to the bank).
 
-    total_amount = sum((payment.amount for payment in payments), Decimal("0"))
+    Especes deposit: total_amount is provided directly (the cash was already
+    counted from the till).  No payment links, no CashEntry, no accounting
+    entries at this stage — all that happens on *confirmation*.
+    """
+    if payload.type == DepositType.CHEQUES:
+        if not payload.payment_ids:
+            raise ValueError("at least one payment_id is required for a cheques deposit")
 
-    deposit = Deposit(
-        date=payload.date,
-        type=payload.type,
-        total_amount=total_amount,
-        bank_reference=payload.bank_reference,
-        notes=payload.notes,
-    )
-    db.add(deposit)
-    await db.flush()
+        result = await db.execute(select(Payment).where(Payment.id.in_(payload.payment_ids)))
+        payments = list(result.scalars().all())
+        if len(payments) != len(payload.payment_ids):
+            raise ValueError("one or more payment_ids not found")
 
-    # Create association rows
-    await db.execute(
-        insert(deposit_payments),
-        [{"deposit_id": deposit.id, "payment_id": pid} for pid in payload.payment_ids],
-    )
+        invalid_payment = next(
+            (p for p in payments if p.method != PaymentMethod.CHEQUE),
+            None,
+        )
+        if invalid_payment is not None:
+            raise ValueError("all payments in a cheques deposit must be cheque payments")
 
-    # Mark payments as deposited
-    for p in payments:
-        p.deposited = True
-        p.deposit_date = payload.date
+        total_amount = sum((p.amount for p in payments), Decimal("0"))
 
-    if payload.type == DepositType.ESPECES:
-        from backend.services.cash_service import create_cash_entry_record  # noqa: PLC0415
-
-        reference = payload.bank_reference or f"DEP-ESP-{deposit.id}"
-        await create_cash_entry_record(
-            db,
+        deposit = Deposit(
             date=payload.date,
-            amount=total_amount,
-            type=CashMovementType.OUT,
-            reference=reference,
-            description="Remise d'especes en banque",
-            source=CashEntrySource.DEPOSIT,
+            type=payload.type,
+            total_amount=total_amount,
+            bank_reference=payload.bank_reference,
+            notes=payload.notes,
+            denomination_details=None,
+        )
+        db.add(deposit)
+        await db.flush()
+
+        await db.execute(
+            insert(deposit_payments),
+            [{"deposit_id": deposit.id, "payment_id": pid} for pid in payload.payment_ids],
         )
 
-    # Auto-generate accounting entries
-    from backend.services.accounting_engine import (  # noqa: PLC0415
-        generate_entries_for_deposit,
-    )
+        # Mark cheques as "en transit" — assigned to a slip, not yet confirmed
+        for p in payments:
+            p.in_deposit = True
+            p.deposit_date = payload.date
 
-    await generate_entries_for_deposit(db, deposit)
+    else:
+        # DepositType.ESPECES
+        if payload.total_amount is None or payload.total_amount <= Decimal("0"):
+            raise ValueError("total_amount must be a positive amount for an especes deposit")
+        if payload.payment_ids:
+            raise ValueError("payment_ids must be empty for an especes deposit")
+
+        deposit = Deposit(
+            date=payload.date,
+            type=payload.type,
+            total_amount=payload.total_amount,
+            bank_reference=payload.bank_reference,
+            notes=payload.notes,
+            denomination_details=payload.denomination_details,
+        )
+        db.add(deposit)
+        await db.flush()
 
     await db.commit()
     await db.refresh(deposit)
@@ -729,6 +737,7 @@ async def list_deposits(
     *,
     from_date: date | None = None,
     to_date: date | None = None,
+    confirmed: bool | None = None,
     skip: int = 0,
     limit: int = 100,
 ) -> list[Deposit]:
@@ -737,6 +746,8 @@ async def list_deposits(
         query = query.where(Deposit.date >= from_date)
     if to_date is not None:
         query = query.where(Deposit.date <= to_date)
+    if confirmed is not None:
+        query = query.where(Deposit.confirmed == confirmed)
     query = query.order_by(Deposit.date.desc(), Deposit.id.desc()).offset(skip)
     query = query.limit(limit)
     result = await db.execute(query)
@@ -748,3 +759,80 @@ async def get_deposit_payment_ids(db: AsyncSession, deposit_id: int) -> list[int
         select(deposit_payments.c.payment_id).where(deposit_payments.c.deposit_id == deposit_id)
     )
     return [row[0] for row in result.all()]
+
+
+async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
+    """Confirm a deposit (physically taken to the bank).
+
+    At confirmation time:
+    - Mark deposit as confirmed + set confirmed_date.
+    - For especes: create CashEntry OUT (cash leaves the till for the bank).
+    - For both types: generate accounting entries (caisse/chèques → banque).
+    - For cheques: create a positive BankTransaction representing the credit.
+    """
+    deposit = await get_deposit(db, deposit_id)
+    if deposit is None:
+        raise LookupError("Deposit not found")
+    if deposit.confirmed:
+        raise ValueError("Deposit is already confirmed")
+
+    deposit.confirmed = True
+    deposit.confirmed_date = date.today()
+    await db.flush()
+
+    if deposit.type == DepositType.ESPECES:
+        from backend.services.cash_service import create_cash_entry_record  # noqa: PLC0415
+
+        reference = deposit.bank_reference or f"DEP-ESP-{deposit.id}"
+        await create_cash_entry_record(
+            db,
+            date=deposit.confirmed_date,
+            amount=deposit.total_amount,
+            type=CashMovementType.OUT,
+            reference=reference,
+            description="Remise d'espèces en banque",
+            source=CashEntrySource.DEPOSIT,
+        )
+        # Also credit the bank account so the bank balance is updated
+        await create_bank_transaction_record(
+            db,
+            date=deposit.confirmed_date,
+            amount=deposit.total_amount,
+            reference=reference,
+            description=f"Remise d'espèces (bordereau #{deposit.id})",
+            source=BankTransactionSource.SYSTEM_OPENING,
+        )
+    else:
+        # Cheques: create a bank transaction credit so the bank balance is updated
+        reference = deposit.bank_reference or f"DEP-CHQ-{deposit.id}"
+        await create_bank_transaction_record(
+            db,
+            date=deposit.confirmed_date,
+            amount=deposit.total_amount,
+            reference=reference,
+            description=f"Remise de chèques (bordereau #{deposit.id})",
+            source=BankTransactionSource.SYSTEM_OPENING,
+        )
+        # Mark linked cheque payments as fully deposited
+        result = await db.execute(
+            select(Payment)
+            .join(
+                deposit_payments,
+                Payment.id == deposit_payments.c.payment_id,
+            )
+            .where(deposit_payments.c.deposit_id == deposit.id)
+        )
+        for p in result.scalars().all():
+            p.deposited = True
+            p.in_deposit = False
+
+    # Generate accounting entries (caisse/chèques → banque)
+    from backend.services.accounting_engine import (  # noqa: PLC0415
+        generate_entries_for_deposit,
+    )
+
+    await generate_entries_for_deposit(db, deposit)
+
+    await db.commit()
+    await db.refresh(deposit)
+    return deposit

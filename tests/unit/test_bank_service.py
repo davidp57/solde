@@ -752,7 +752,9 @@ async def test_create_deposit_marks_payments_deposited(
     assert deposit.total_amount == Decimal("100.00")
 
     await db_session.refresh(p)
-    assert p.deposited is True
+    # At creation time the payment is "en transit" (in_deposit=True) but NOT yet deposited
+    assert p.in_deposit is True
+    assert p.deposited is False
     assert p.deposit_date == date(2024, 3, 1)
 
 
@@ -796,7 +798,8 @@ async def test_list_deposits(db_session: AsyncSession) -> None:
         amount=Decimal("50.00"),
         date=date(2024, 2, 2),
         method=PaymentMethod.ESPECES,
-        deposited=False,
+        deposited=True,
+        deposit_date=date(2024, 2, 2),
     )
     db_session.add(p2)
     await db_session.flush()
@@ -807,7 +810,9 @@ async def test_list_deposits(db_session: AsyncSession) -> None:
     )
     await bank_service.create_deposit(
         db_session,
-        DepositCreate(date=date(2024, 3, 2), type=DepositType.ESPECES, payment_ids=[p2.id]),
+        DepositCreate(
+            date=date(2024, 3, 2), type=DepositType.ESPECES, total_amount=Decimal("50.00")
+        ),
     )
 
     deposits = await bank_service.list_deposits(db_session)
