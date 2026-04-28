@@ -95,15 +95,22 @@ class BankTransactionClientPaymentLinks(BaseModel):
 class DepositCreate(BaseModel):
     date: _Date
     type: DepositType
-    payment_ids: list[int]
+    # For cheques deposits: list of payment IDs to include.
+    # For especes deposits: leave empty — use total_amount instead.
+    payment_ids: list[int] = []
+    # For especes deposits: explicit amount (ignored for cheques, computed from payments).
+    total_amount: _Decimal | None = None
+    # Optional JSON-encoded denomination breakdown for cash deposits.
+    # e.g. [{"value": 50, "count": 3}, {"value": 20, "count": 4}]
+    denomination_details: str | None = None
     bank_reference: str | None = None
     notes: str | None = None
 
     @field_validator("payment_ids")
     @classmethod
-    def at_least_one_payment(cls, v: list[int]) -> list[int]:
-        if not v:
-            raise ValueError("at least one payment is required")
+    def payment_ids_no_duplicates(cls, v: list[int]) -> list[int]:
+        if len(v) != len(set(v)):
+            raise ValueError("duplicate payment ids are not allowed")
         return v
 
 
@@ -114,6 +121,9 @@ class DepositRead(BaseModel):
     total_amount: _Decimal
     bank_reference: str | None
     notes: str | None
+    denomination_details: str | None
+    confirmed: bool
+    confirmed_date: _Date | None
     payment_ids: list[int] = []
 
     model_config = {"from_attributes": True}

@@ -350,7 +350,7 @@ class TestSelectiveReset:
             DepositCreate(
                 date=date(2025, 9, 25),
                 type="especes",
-                payment_ids=[derived_payment.id],
+                total_amount=Decimal("120.00"),
                 bank_reference="DEP-2025-001",
             ),
         )
@@ -380,17 +380,6 @@ class TestSelectiveReset:
                     source_id=derived_payment.id,
                 ),
                 AccountingEntry(
-                    entry_number="000103",
-                    date=deposit.date,
-                    account_number="530000",
-                    label="Remise derivee",
-                    debit=Decimal("0.00"),
-                    credit=Decimal("120.00"),
-                    fiscal_year_id=fiscal_year.id,
-                    source_type=EntrySourceType.DEPOSIT,
-                    source_id=deposit.id,
-                ),
-                AccountingEntry(
                     entry_number="000104",
                     date=unrelated_invoice.date,
                     account_number="411000",
@@ -414,9 +403,10 @@ class TestSelectiveReset:
         assert preview.root_objects["contact"] == 1
         assert preview.root_objects["invoice"] == 1
         assert preview.derived_objects["payment"] == 1
-        assert preview.delete_plan["deposit"] == 1
-        assert preview.delete_plan["cash_register"] == 2
-        assert preview.delete_plan["accounting_entry"] == 3
+        # Especes deposits are no longer linked to payments — deposit is independent
+        assert "deposit" not in preview.delete_plan or preview.delete_plan.get("deposit", 0) == 0
+        assert preview.delete_plan["cash_register"] == 1
+        assert preview.delete_plan["accounting_entry"] == 2
         assert preview.delete_plan["contact"] == 1
 
         applied = await apply_selective_reset(
@@ -426,11 +416,11 @@ class TestSelectiveReset:
 
         assert applied.delete_plan["invoice"] == 1
         assert applied.delete_plan["payment"] == 1
-        assert applied.delete_plan["deposit"] == 1
         assert applied.delete_plan["import_logs"] == 1
         assert (await db_session.get(Contact, imported_contact.id)) is None
         assert (await db_session.get(Invoice, imported_invoice.id)) is None
-        assert (await db_session.get(type(deposit), deposit.id)) is None
+        # Especes deposit is independent — should NOT be deleted by this reset
+        assert (await db_session.get(type(deposit), deposit.id)) is not None
         assert (await db_session.get(Contact, unrelated_contact.id)) is not None
         assert (await db_session.get(Invoice, unrelated_invoice.id)) is not None
         remaining_entries = (await db_session.execute(select(AccountingEntry))).scalars().all()
