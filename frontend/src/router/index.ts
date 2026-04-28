@@ -171,6 +171,12 @@ const router = createRouter({
           component: () => import('../views/HelpView.vue'),
           meta: { label: 'nav.help' },
         },
+        {
+          path: 'comments',
+          name: 'comments',
+          component: () => import('../views/CommentsView.vue'),
+          meta: { label: 'nav.comments' },
+        },
       ],
     },
     {
