@@ -59,7 +59,6 @@ describe('NavMenu', () => {
     expect(links).toEqual([
       'nav.dashboard',
       'nav.help',
-      'nav.comments',
       'nav.contacts',
       'nav.invoices_client',
       'nav.invoices_supplier',
@@ -95,7 +94,6 @@ describe('NavMenu', () => {
     expect(links).toEqual([
       'nav.dashboard',
       'nav.help',
-      'nav.comments',
       'nav.contacts',
       'nav.invoices_client',
       'nav.invoices_supplier',
@@ -160,6 +158,6 @@ describe('NavMenu', () => {
     expect(text).not.toContain('nav.section_management')
     expect(text).not.toContain('nav.section_accounting')
     expect(text).not.toContain('nav.section_administration')
-    expect(links).toEqual(['nav.dashboard', 'nav.help', 'nav.comments'])
+    expect(links).toEqual(['nav.dashboard', 'nav.help'])
   })
 })
