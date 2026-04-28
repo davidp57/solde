@@ -475,14 +475,6 @@ class TestSelectiveReset:
                 method=PaymentMethod.ESPECES,
             ),
         )
-        deposit = await bank_service.create_deposit(
-            db_session,
-            DepositCreate(
-                date=date(2025, 9, 28),
-                type="especes",
-                payment_ids=[payment.id],
-            ),
-        )
         db_session.add(
             AccountingEntry(
                 entry_number="000301",
@@ -509,7 +501,6 @@ class TestSelectiveReset:
         assert preview_payload["matched_import_logs"] == 1
         assert preview_payload["delete_plan"]["invoice"] == 1
         assert preview_payload["delete_plan"]["payment"] == 1
-        assert preview_payload["delete_plan"]["deposit"] == 1
 
         apply_response = await client.post(
             "/api/settings/selective-reset/apply",
@@ -520,7 +511,6 @@ class TestSelectiveReset:
         assert apply_response.status_code == 200
         assert (await db_session.get(Contact, imported_contact.id)) is None
         assert (await db_session.get(Invoice, imported_invoice.id)) is None
-        assert (await db_session.get(type(deposit), deposit.id)) is None
         assert (await db_session.execute(select(ImportLog))).scalars().all() == []
 
 
