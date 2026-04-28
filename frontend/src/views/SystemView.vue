@@ -390,15 +390,28 @@ async function executeRestore(): Promise<void> {
 }
 
 async function pollUntilHealthy(): Promise<void> {
-  const DELAY_MS = 2000
-  const MAX_ATTEMPTS = 30
-  for (let i = 0; i < MAX_ATTEMPTS; i++) {
-    await new Promise<void>((resolve) => setTimeout(resolve, DELAY_MS))
+  const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+  // Phase 1 — wait for the server to go down (confirms restart started).
+  // Allow up to 10 s; break as soon as a request fails.
+  for (let i = 0; i < 10; i++) {
+    await delay(1000)
+    try {
+      const res = await fetch('/api/health')
+      if (!res.ok) break
+    } catch {
+      break // connection refused → server is down
+    }
+  }
+
+  // Phase 2 — wait for the server to come back up (up to 60 s).
+  for (let i = 0; i < 30; i++) {
+    await delay(2000)
     try {
       const res = await fetch('/api/health')
       if (res.ok) return
     } catch {
-      // server not yet up — keep polling
+      // not yet up — keep polling
     }
   }
 }
