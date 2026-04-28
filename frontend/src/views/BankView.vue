@@ -79,7 +79,7 @@
               {{ t('bank.deposit_cheques_summary', { count: deposit.payment_ids.length }) }}
             </template>
             <template v-else>
-              {{ t('bank.deposit_especes_summary', { count: deposit.payment_ids.length }) }}
+              {{ formatEspecesSummary(deposit.denomination_details) }}
             </template>
           </span>
           <span class="bank-pending-deposit-row__amount app-money">
@@ -791,6 +791,20 @@ const fundsChartSeries = computed<TrendLineChartSeries[]>(() => [
 
 function formatAmount(value: string | number): string {
   return `${parseFloat(String(value)).toFixed(2)} €`
+}
+
+function formatEspecesSummary(denominationDetails: string | null): string {
+  if (!denominationDetails) return t('bank.deposit_especes_summary_no_denom')
+  try {
+    const lines: { value: number; count: number }[] = JSON.parse(denominationDetails)
+    if (!lines.length) return t('bank.deposit_especes_summary_no_denom')
+    return lines
+      .filter((l) => l.count > 0)
+      .map((l) => `${l.count}×${l.value % 1 === 0 ? l.value : l.value.toFixed(2)} €`)
+      .join(' + ')
+  } catch {
+    return t('bank.deposit_especes_summary_no_denom')
+  }
 }
 
 function formatSignedAmount(value: number): string {

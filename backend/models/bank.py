@@ -104,6 +104,7 @@ class Deposit(Base):
     )
     bank_reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    denomination_details: Mapped[str | None] = mapped_column(Text, nullable=True)
     confirmed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     confirmed_date: Mapped[_Date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

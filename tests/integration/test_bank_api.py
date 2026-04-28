@@ -462,6 +462,13 @@ async def test_create_deposit(
     assert data["confirmed"] is False
     assert data["confirmed_date"] is None
 
+    # Payment must be in_deposit=True (en transit) but NOT deposited yet
+    payment = await db_session.get(Payment, payment_id)
+    assert payment is not None
+    await db_session.refresh(payment)
+    assert payment.in_deposit is True
+    assert payment.deposited is False
+
 
 @pytest.mark.asyncio
 async def test_confirm_deposit(
@@ -491,6 +498,13 @@ async def test_confirm_deposit(
     data = confirm_response.json()
     assert data["confirmed"] is True
     assert data["confirmed_date"] is not None
+
+    # Payment must now be fully deposited and no longer in transit
+    payment = await db_session.get(Payment, payment_id)
+    assert payment is not None
+    await db_session.refresh(payment)
+    assert payment.deposited is True
+    assert payment.in_deposit is False
 
 
 @pytest.mark.asyncio
@@ -561,21 +575,73 @@ async def test_list_deposits_filter_by_confirmed(
 
 
 @pytest.mark.asyncio
-async def test_create_cash_deposit_creates_cash_out_entry(
+async def test_create_especes_deposit(
     client: AsyncClient,
     db_session: AsyncSession,
     admin_user: User,
     auth_headers: dict,
 ) -> None:
-    c = Contact(type=ContactType.CLIENT, nom="Banque Especes")
+    """Creating an especes deposit only requires total_amount (no payment_ids)."""
+    response = await client.post(
+        "/api/bank/deposits",
+        json={
+            "date": "2024-03-05",
+            "type": "especes",
+            "total_amount": "80.00",
+            "bank_reference": "ESP-001",
+        },
+        headers=auth_headers,
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["total_amount"] == "80.00"
+    assert data["payment_ids"] == []
+    assert data["confirmed"] is False
+    assert data["denomination_details"] is None
+
+
+@pytest.mark.asyncio
+async def test_create_especes_deposit_with_denominations(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    """Denomination details are stored and returned as-is."""
+    import json as json_mod
+
+    denoms = json_mod.dumps([{"value": 50, "count": 1}, {"value": 20, "count": 2}])
+    response = await client.post(
+        "/api/bank/deposits",
+        json={
+            "date": "2024-03-05",
+            "type": "especes",
+            "total_amount": "90.00",
+            "denomination_details": denoms,
+        },
+        headers=auth_headers,
+    )
+    assert response.status_code == 201
+    assert response.json()["denomination_details"] == denoms
+
+
+@pytest.mark.asyncio
+async def test_especes_payment_auto_deposited(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    """Cash payments (especes) must be deposited=True immediately on creation."""
+    c = Contact(type=ContactType.CLIENT, nom="Cash Auto")
     db_session.add(c)
     await db_session.flush()
     inv = Invoice(
-        number="F-2024-100",
+        number="F-2024-ESP-01",
         type=InvoiceType.CLIENT,
         contact_id=c.id,
         date=date(2024, 1, 15),
-        total_amount=Decimal("80.00"),
+        total_amount=Decimal("60.00"),
         paid_amount=Decimal("0"),
         status=InvoiceStatus.SENT,
     )
@@ -587,36 +653,54 @@ async def test_create_cash_deposit_creates_cash_out_entry(
         json={
             "invoice_id": inv.id,
             "contact_id": c.id,
-            "amount": "80.00",
+            "amount": "60.00",
             "date": "2024-03-01",
             "method": "especes",
         },
         headers=auth_headers,
     )
     assert payment_response.status_code == 201
-    payment_id = payment_response.json()["id"]
+    data = payment_response.json()
+    assert data["deposited"] is True
+    assert data["deposit_date"] == "2024-03-01"
 
-    response = await client.post(
+
+@pytest.mark.asyncio
+async def test_confirm_especes_deposit_creates_cash_out_entry(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    """Confirming a cash deposit creates a CashEntry OUT (caisse → banque)."""
+    create_resp = await client.post(
         "/api/bank/deposits",
-        json={
-            "date": "2024-03-05",
-            "type": "especes",
-            "payment_ids": [payment_id],
-            "bank_reference": "ESP-001",
-        },
+        json={"date": "2024-03-05", "type": "especes", "total_amount": "80.00"},
         headers=auth_headers,
     )
+    assert create_resp.status_code == 201
+    deposit_id = create_resp.json()["id"]
 
-    assert response.status_code == 201
-
-    cash_entries = list(
+    # No CashEntry yet
+    entries_before = list(
         (await db_session.execute(select(CashRegister).order_by(CashRegister.id.asc()))).scalars()
     )
-    assert len(cash_entries) == 2
-    assert cash_entries[0].type == CashMovementType.IN
-    assert cash_entries[1].type == CashMovementType.OUT
-    assert cash_entries[1].amount == Decimal("80.00")
-    assert cash_entries[1].source == CashEntrySource.DEPOSIT
+    assert all(e.source != CashEntrySource.DEPOSIT for e in entries_before)
+
+    confirm_resp = await client.post(
+        f"/api/bank/deposits/{deposit_id}/confirm",
+        headers=auth_headers,
+    )
+    assert confirm_resp.status_code == 200
+    assert confirm_resp.json()["confirmed"] is True
+
+    entries_after = list(
+        (await db_session.execute(select(CashRegister).order_by(CashRegister.id.asc()))).scalars()
+    )
+    cash_out = [e for e in entries_after if e.source == CashEntrySource.DEPOSIT]
+    assert len(cash_out) == 1
+    assert cash_out[0].type == CashMovementType.OUT
+    assert cash_out[0].amount == Decimal("80.00")
 
 
 @pytest.mark.asyncio
