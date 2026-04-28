@@ -19,6 +19,7 @@ from backend.routers import (
     accounting_account,
     accounting_entry,
     accounting_rule,
+    app_comment,
     auth,
     bank,
     cash,
@@ -287,6 +288,7 @@ def create_app() -> FastAPI:
     app.include_router(excel_import.router, prefix="/api")
     app.include_router(settings.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
+    app.include_router(app_comment.router, prefix="/api")
 
     # Serve Vue.js frontend static files (built output)
     frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"

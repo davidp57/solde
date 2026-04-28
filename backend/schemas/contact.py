@@ -22,6 +22,10 @@ class ContactWriteBase(BaseModel):
     base_hours: Decimal | None = Field(default=None, ge=0)
     hourly_rate: Decimal | None = Field(default=None, ge=0)
     is_contractor: bool = False
+    child_first_name: str | None = Field(default=None, max_length=100)
+    child_last_name: str | None = Field(default=None, max_length=100)
+    other_parent_first_name: str | None = Field(default=None, max_length=100)
+    other_parent_last_name: str | None = Field(default=None, max_length=100)
 
     @field_validator("nom")
     @classmethod
@@ -51,6 +55,10 @@ class ContactUpdate(BaseModel):
     base_hours: Decimal | None = Field(default=None, ge=0)
     hourly_rate: Decimal | None = Field(default=None, ge=0)
     is_contractor: bool | None = None
+    child_first_name: str | None = Field(default=None, max_length=100)
+    child_last_name: str | None = Field(default=None, max_length=100)
+    other_parent_first_name: str | None = Field(default=None, max_length=100)
+    other_parent_last_name: str | None = Field(default=None, max_length=100)
 
     @field_validator("nom")
     @classmethod
@@ -75,6 +83,10 @@ class ContactRead(BaseModel):
     base_hours: Decimal | None = None
     hourly_rate: Decimal | None = None
     is_contractor: bool
+    child_first_name: str | None = None
+    child_last_name: str | None = None
+    other_parent_first_name: str | None = None
+    other_parent_last_name: str | None = None
     created_at: datetime
     updated_at: datetime
     last_invoice_ref: str | None = None

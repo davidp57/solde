@@ -47,6 +47,12 @@ class Contact(Base):
     # Flag for freelance contractors (auto-entrepreneurs) — used in workforce cost view
     is_contractor: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # Child / other-parent fields (optional, only relevant for CLIENT contacts)
+    child_first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    child_last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    other_parent_first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    other_parent_last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()
     )
