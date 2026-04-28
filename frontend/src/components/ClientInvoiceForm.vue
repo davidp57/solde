@@ -25,6 +25,7 @@
             option-value="id"
             :placeholder="t('invoices.contact_placeholder')"
             filter
+            :filter-fields="['displayName', 'child_first_name', 'child_last_name', 'other_parent_first_name', 'other_parent_last_name']"
             class="w-full"
             required
           />
