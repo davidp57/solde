@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.models.bank import BankTransaction
 from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
 from backend.models.contact import Contact, ContactType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
@@ -701,6 +702,17 @@ async def test_confirm_especes_deposit_creates_cash_out_entry(
     assert len(cash_out) == 1
     assert cash_out[0].type == CashMovementType.OUT
     assert cash_out[0].amount == Decimal("80.00")
+
+    # Confirming an espèces deposit must also create a BankTransaction credit
+    bank_txs = list(
+        (
+            await db_session.execute(
+                select(BankTransaction).where(BankTransaction.amount == Decimal("80.00"))
+            )
+        ).scalars()
+    )
+    assert len(bank_txs) == 1
+    assert bank_txs[0].amount == Decimal("80.00")
 
 
 @pytest.mark.asyncio
