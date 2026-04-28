@@ -98,6 +98,7 @@ const administrationItems = computed<MenuItem[]>(() => {
     { to: '/system', icon: 'pi-server', label: t('nav.system') },
     { to: '/import/excel', icon: 'pi-file-excel', label: t('nav.import_excel') },
     { to: '/import/history', icon: 'pi-history', label: t('nav.import_history') },
+    { to: '/comments', icon: 'pi-comment', label: t('nav.comments') },
   ]
 })
 
