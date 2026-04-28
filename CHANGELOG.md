@@ -17,6 +17,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - BIZ-132 : Bouton « Tout sélectionner / Tout désélectionner » dans le dialogue de création de bordereau (chèques)
 - BIZ-132 : Colonne « Remis en banque » dans la vue Paiements — affiche trois états distincts : remis (✓), en bordereau (horloge, orange), à remettre (✗)
 
+### Corrigé
+
+- BIZ-132 : Confirmation d'un bordereau espèces — la `BankTransaction` de crédit (entrée banque) n'était pas créée ; seule la `CashEntry OUT` était générée
+
 ### Modifié
 
 - BIZ-132 : Filtre `undeposited_only` sur les paiements — exclut désormais les chèques déjà en bordereau (état « en transit »)

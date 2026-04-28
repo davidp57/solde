@@ -793,6 +793,15 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
             description="Remise d'espèces en banque",
             source=CashEntrySource.DEPOSIT,
         )
+        # Also credit the bank account so the bank balance is updated
+        await create_bank_transaction_record(
+            db,
+            date=deposit.confirmed_date,
+            amount=deposit.total_amount,
+            reference=reference,
+            description=f"Remise d'espèces (bordereau #{deposit.id})",
+            source=BankTransactionSource.SYSTEM_OPENING,
+        )
     else:
         # Cheques: create a bank transaction credit so the bank balance is updated
         reference = deposit.bank_reference or f"DEP-CHQ-{deposit.id}"
