@@ -1116,20 +1116,27 @@ function countDenomRows(count: CashCount): { label: string; qty: number; subtota
 }
 
 function openDepositFromCount(count: CashCount): void {
-  const billets = [
+  const denominations = [
     { value: 100, key: 'count_100' as const },
     { value: 50, key: 'count_50' as const },
     { value: 20, key: 'count_20' as const },
     { value: 10, key: 'count_10' as const },
     { value: 5, key: 'count_5' as const },
+    { value: 2, key: 'count_2' as const },
+    { value: 1, key: 'count_1' as const },
+    { value: 0.5, key: 'count_cents_50' as const },
+    { value: 0.2, key: 'count_cents_20' as const },
+    { value: 0.1, key: 'count_cents_10' as const },
+    { value: 0.05, key: 'count_cents_5' as const },
+    { value: 0.02, key: 'count_cents_2' as const },
+    { value: 0.01, key: 'count_cents_1' as const },
   ]
-  const lines = billets
+  const lines = denominations
     .filter(({ key }) => count[key] > 0)
     .map(({ value, key }) => ({ value, count: count[key] }))
-  const billetsTotal = lines.reduce((s, l) => s + l.value * l.count, 0)
   depositFromCountData.value = {
     date: count.date,
-    total_amount: billetsTotal,
+    total_amount: parseFloat(count.total_counted),
     denominations: lines,
   }
   depositFromCountVisible.value = true

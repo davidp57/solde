@@ -376,10 +376,10 @@ const averageAmount = computed(() =>
   filtered.value.length ? totalAmount.value / filtered.value.length : 0,
 )
 const chequesToDepositCount = computed(
-  () => payments.value.filter((p) => p.method === 'cheque' && !p.deposited && !p.in_deposit).length,
+  () => filtered.value.filter((p) => p.method === 'cheque' && !p.deposited && !p.in_deposit).length,
 )
 const chequesToDepositAmount = computed(() =>
-  payments.value
+  filtered.value
     .filter((p) => p.method === 'cheque' && !p.deposited && !p.in_deposit)
     .reduce((sum, p) => sum + parseFloat(p.amount), 0),
 )

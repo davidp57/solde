@@ -2,11 +2,18 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AppCommentCreate(BaseModel):
     content: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("content")
+    @classmethod
+    def content_not_blank_after_strip(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Content cannot be blank.")
+        return v
 
 
 class AppCommentUpdate(BaseModel):
