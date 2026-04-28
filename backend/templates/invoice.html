@@ -14,7 +14,7 @@
   .invoice-title .number { font-size: 13pt; color: #555; margin-top: 4px; }
   .invoice-title .date { font-size: 10pt; color: #777; margin-top: 2px; }
   .parties { display: flex; gap: 40px; margin-bottom: 28px; }
-  .party { flex: 1; background: #f8f9fb; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px; }
+  .party { flex: 1; background: #f8f9fb; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 16px; max-width: 300px; }
   .party h3 { font-size: 9pt; text-transform: uppercase; letter-spacing: 0.8px; color: #64748b; margin-bottom: 8px; }
   .party p { font-size: 10pt; line-height: 1.5; }
   .party .contact-name { font-weight: bold; font-size: 11pt; }
@@ -35,6 +35,10 @@
   .totals td:last-child { text-align: right; }
   .footer { margin-top: 30px; padding-top: 14px; border-top: 1px solid #e2e8f0; font-size: 9pt; color: #64748b; text-align: center; line-height: 1.6; }
   .due-date { color: #dc2626; font-weight: bold; }
+  .payment-instructions { margin: 0 0 28px 0; padding: 14px 18px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px; font-size: 10pt; }
+  .payment-instructions h3 { font-size: 9pt; text-transform: uppercase; letter-spacing: 0.8px; color: #0369a1; margin-bottom: 10px; }
+  .payment-instructions ul { margin: 8px 0 0 18px; padding: 0; }
+  .payment-instructions li { margin-bottom: 4px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -60,11 +64,6 @@
 </div>
 
 <div class="parties">
-  <div class="party">
-    <h3>Émetteur</h3>
-    <p class="contact-name">{{ settings.association_name }}</p>
-    {% if settings.association_address %}<p>{{ settings.association_address }}</p>{% endif %}
-  </div>
   <div class="party">
     <h3>Destinataire</h3>
     <p class="contact-name">{{ contact_name }}</p>
@@ -121,6 +120,15 @@
       <td>{{ "%.2f"|format(invoice.total_amount) }} €</td>
     </tr>
   </table>
+</div>
+
+<div class="payment-instructions">
+  <h3>Modalités de règlement</h3>
+  <ul>
+    <li>Par virement sur le compte <strong>FR76 1027 8050 0100 0231 3570 117</strong>, BIC : <strong>CMCIFR2A</strong> (merci de préciser la référence <strong>{{ invoice.number }}</strong>)</li>
+    <li>Par chèque à l’ordre de <strong>Les Etudes</strong></li>
+    <li>En espèces en nos locaux</li>
+  </ul>
 </div>
 
 <div class="footer">
