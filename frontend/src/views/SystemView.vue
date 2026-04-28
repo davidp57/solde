@@ -414,6 +414,7 @@ async function pollUntilHealthy(): Promise<void> {
       // not yet up — keep polling
     }
   }
+  throw new Error('Server did not come back online within the expected time.')
 }
 
 async function loadLogs(): Promise<void> {

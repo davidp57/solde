@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
@@ -105,7 +105,7 @@ const comments = ref<AppComment[]>([])
 const loading = ref(false)
 const submitting = ref(false)
 const newContent = ref('')
-const isAdmin = auth.user?.role === 'admin'
+const isAdmin = computed(() => auth.user?.role === 'admin')
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', {

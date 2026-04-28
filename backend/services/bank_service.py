@@ -641,6 +641,13 @@ async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
         if invalid_payment is not None:
             raise ValueError("all payments in a cheques deposit must be cheque payments")
 
+        already_busy = [p for p in payments if p.deposited or p.in_deposit]
+        if already_busy:
+            ids = [p.id for p in already_busy]
+            raise ValueError(
+                f"payments {ids} are already deposited or assigned to another deposit slip"
+            )
+
         total_amount = sum((p.amount for p in payments), Decimal("0"))
 
         deposit = Deposit(
@@ -794,25 +801,27 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
             source=CashEntrySource.DEPOSIT,
         )
         # Also credit the bank account so the bank balance is updated
-        await create_bank_transaction_record(
+        esp_tx = await create_bank_transaction_record(
             db,
             date=deposit.confirmed_date,
             amount=deposit.total_amount,
             reference=reference,
             description=f"Remise d'espèces (bordereau #{deposit.id})",
-            source=BankTransactionSource.SYSTEM_OPENING,
+            source=BankTransactionSource.MANUAL,
         )
+        esp_tx.detected_category = BankTransactionCategory.CASH_DEPOSIT
     else:
         # Cheques: create a bank transaction credit so the bank balance is updated
         reference = deposit.bank_reference or f"DEP-CHQ-{deposit.id}"
-        await create_bank_transaction_record(
+        chq_tx = await create_bank_transaction_record(
             db,
             date=deposit.confirmed_date,
             amount=deposit.total_amount,
             reference=reference,
             description=f"Remise de chèques (bordereau #{deposit.id})",
-            source=BankTransactionSource.SYSTEM_OPENING,
+            source=BankTransactionSource.MANUAL,
         )
+        chq_tx.detected_category = BankTransactionCategory.CHEQUE_DEPOSIT
         # Mark linked cheque payments as fully deposited
         result = await db.execute(
             select(Payment)

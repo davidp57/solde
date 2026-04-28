@@ -169,7 +169,7 @@ const router = createRouter({
           path: 'comments',
           name: 'comments',
           component: () => import('../views/CommentsView.vue'),
-          meta: { requiresAdmin: true, label: 'nav.comments' },
+          meta: { label: 'nav.comments' },
         },
         {
           path: 'aide',

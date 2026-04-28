@@ -893,6 +893,17 @@ export default {
       'Variables disponibles : {v1}, {v2}, {v3}, {v4}',
     saved: 'Paramètres enregistrés avec succès.',
     save_error: "Échec de l'enregistrement des paramètres.",
+    section_payment: 'Modalités de règlement sur facture',
+    section_payment_subtitle:
+      'Ces informations apparaissent dans le bloc « Modalités de règlement » des factures PDF.',
+    payment_iban: 'IBAN (virement)',
+    payment_iban_placeholder: 'FR76 1234 5678 9012 3456 7890 123',
+    payment_bic: 'BIC / SWIFT',
+    payment_bic_placeholder: 'CMCIFR2A',
+    payment_check_payee: 'Ordre du chèque',
+    payment_check_payee_placeholder: "Nom de l'association bénéficiaire",
+    payment_instructions_help:
+      'Laissez un champ vide pour ne pas afficher la ligne correspondante sur les factures.',
     section_chat: 'Assistant IA',
     section_chat_subtitle: 'Configurez le fournisseur et la clé API pour activer le chatbot.',
     chat_provider: 'Fournisseur',

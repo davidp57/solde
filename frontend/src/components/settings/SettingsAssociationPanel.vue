@@ -177,6 +177,42 @@
       </div>
     </AppPanel>
 
+    <AppPanel
+      :title="t('settings.section_payment')"
+      :subtitle="t('settings.section_payment_subtitle')"
+    >
+      <div class="app-form-grid">
+        <div class="app-field">
+          <label for="payment_iban" class="app-field__label">{{ t('settings.payment_iban') }}</label>
+          <InputText
+            id="payment_iban"
+            v-model="form.payment_iban"
+            :placeholder="t('settings.payment_iban_placeholder')"
+            class="w-full"
+          />
+        </div>
+        <div class="app-field">
+          <label for="payment_bic" class="app-field__label">{{ t('settings.payment_bic') }}</label>
+          <InputText
+            id="payment_bic"
+            v-model="form.payment_bic"
+            :placeholder="t('settings.payment_bic_placeholder')"
+            class="w-full"
+          />
+        </div>
+        <div class="app-field app-field--full">
+          <label for="payment_check_payee" class="app-field__label">{{ t('settings.payment_check_payee') }}</label>
+          <InputText
+            id="payment_check_payee"
+            v-model="form.payment_check_payee"
+            :placeholder="t('settings.payment_check_payee_placeholder')"
+            class="w-full"
+          />
+          <small class="app-field__hint">{{ t('settings.payment_instructions_help') }}</small>
+        </div>
+      </div>
+    </AppPanel>
+
     <div class="app-form-actions">
       <Button
         type="button"
@@ -223,6 +259,9 @@ interface AssociationForm {
   default_price_cours: number | null
   default_price_adhesion: number | null
   default_price_autres: number | null
+  payment_iban: string
+  payment_bic: string
+  payment_check_payee: string
 }
 
 const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long' })
@@ -243,6 +282,9 @@ const defaultForm = (): AssociationForm => ({
   default_price_cours: null,
   default_price_adhesion: null,
   default_price_autres: null,
+  payment_iban: '',
+  payment_bic: '',
+  payment_check_payee: '',
 })
 
 const form = ref<AssociationForm>(defaultForm())
@@ -265,6 +307,9 @@ async function load(): Promise<void> {
       default_price_cours: data.default_price_cours,
       default_price_adhesion: data.default_price_adhesion,
       default_price_autres: data.default_price_autres,
+      payment_iban: data.payment_iban ?? '',
+      payment_bic: data.payment_bic ?? '',
+      payment_check_payee: data.payment_check_payee ?? '',
     }
   } catch {
     errorMessage.value = t('common.error.unknown')
@@ -288,6 +333,9 @@ async function save(): Promise<void> {
       default_price_cours: form.value.default_price_cours,
       default_price_adhesion: form.value.default_price_adhesion,
       default_price_autres: form.value.default_price_autres,
+      payment_iban: form.value.payment_iban || null,
+      payment_bic: form.value.payment_bic || null,
+      payment_check_payee: form.value.payment_check_payee || null,
     })
     successMessage.value = t('settings.saved')
   } catch {

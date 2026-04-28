@@ -125,8 +125,8 @@
 <div class="payment-instructions">
   <h3>Modalités de règlement</h3>
   <ul>
-    <li>Par virement sur le compte <strong>FR76 1027 8050 0100 0231 3570 117</strong>, BIC : <strong>CMCIFR2A</strong> (merci de préciser la référence <strong>{{ invoice.number }}</strong>)</li>
-    <li>Par chèque à l’ordre de <strong>Les Etudes</strong></li>
+    {% if settings.payment_iban %}<li>Par virement sur le compte <strong>{{ settings.payment_iban }}</strong>{% if settings.payment_bic %}, BIC : <strong>{{ settings.payment_bic }}</strong>{% endif %} (merci de préciser la référence <strong>{{ invoice.number }}</strong>)</li>{% endif %}
+    {% if settings.payment_check_payee %}<li>Par chèque à l'ordre de <strong>{{ settings.payment_check_payee }}</strong></li>{% endif %}
     <li>En espèces en nos locaux</li>
   </ul>
 </div>
