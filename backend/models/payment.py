@@ -37,6 +37,7 @@ class Payment(Base):
     reference: Mapped[str | None] = mapped_column(String(100), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     deposited: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    in_deposit: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     deposit_date: Mapped[_Date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now()

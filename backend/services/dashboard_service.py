@@ -72,12 +72,13 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
     overdue_count: int = overdue_row[0] or 0
     overdue_total: Decimal = overdue_row[1] or Decimal("0")
 
-    # --- Undeposited payments (client chèques/espèces not yet deposited) ---
+    # --- Undeposited payments (client chèques/espèces not yet deposited or in transit) ---
     undeposited_result = await db.execute(
         select(func.count(Payment.id))
         .join(Invoice, Payment.invoice_id == Invoice.id)
         .where(
             Payment.deposited == False,  # noqa: E712
+            Payment.in_deposit == False,  # noqa: E712
             Payment.method.in_([PaymentMethod.CHEQUE, PaymentMethod.ESPECES]),
             Invoice.type == InvoiceType.CLIENT,
         )
