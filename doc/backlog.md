@@ -9,7 +9,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Lots actifs
 
-### Lot H — Architecture multi-compte (~45 min) — v0.9
+### Lot H — Architecture multi-compte (~45 min) — v1.2
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -20,8 +20,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | ID | Titre | Prio | Est. | Créé | Terminé |
 | --- | --- | --- | --- | --- | --- |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | — |
-| BIZ-128 | Modèles d'e-mail configurables dans les paramètres | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
-| BIZ-129 | Notes de crédit (avoirs) | P2 | ~3 h | 2026-04-27 | — |
 
 ---
 
@@ -156,7 +154,8 @@ Permettre l'émission d'un avoir (note de crédit) pour annuler partiellement ou
 | O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-26 |
 | P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-26 |
 | S | Documentation & i18n | v0.8 | TEC-106, CHR-021, CHR-020, CHR-079 | 2026-04-27 |
-| T | Chatbot IA + refactor Paramètres | v0.8 | BIZ-125, BIZ-126 | 2026-04-27 |
+| T | Chatbot IA + refactor Paramètres | v1.0 | BIZ-125, BIZ-126 | 2026-04-27 |
+| H-UX | Améliorations UX (lot H) | v1.1 | settings gestionnaires, dialogue paiement, champs famille contacts, date facture, commentaires, PDF règlement, verrou édition | 2026-04-28 |
 
 <details>
 <summary>Lot S — Documentation & i18n (2026-04-27)</summary>
@@ -179,7 +178,7 @@ Restructuration complète du répertoire `doc/` : nouvelles arborescences `doc/a
 
 </details>
 
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**, **BIZ-111**, **BIZ-127**, **BIZ-128**.
+Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**, **BIZ-111**, **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
 
 <details>
@@ -228,6 +227,42 @@ Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – 
 
 - **Terminé** : 2026-04-27
 - **Livré** : `SettingsAssociationSmtpPanel.vue` (413 lignes) scindé en `SettingsAssociationPanel.vue` (infos association + facturation) et `SettingsSmtpPanel.vue` (SMTP) ; chaque panneau sauvegarde indépendamment. Réalisé sur la même branche que BIZ-125.
+
+</details>
+
+<details>
+<summary>BIZ-127 — Dialogue confirmation avant envoi e-mail facture (2026-05-02)</summary>
+
+### BIZ-127 — Dialogue de confirmation avant envoi e-mail facture
+
+- **Terminé** : 2026-05-02
+- **Livré** : dialog de confirmation avec destinataire (lecture seule), sujet et corps éditables + aperçu PDF ; endpoint `GET /api/invoices/{id}/email-preview` ; `POST /api/invoices/{id}/send-email` accepte payload `{subject, body}` édité par l'utilisateur ; helpers `compose_subject()`/`compose_body()` extraits, `send_invoice_email` accepte `override_subject`/`override_body` ; audit log inclut le sujet ; 8 nouveaux tests unitaires.
+
+</details>
+
+<details>
+<summary>BIZ-128 — Modèles d'e-mail configurables (2026-05-02)</summary>
+
+### BIZ-128 — Modèles d'e-mail configurables dans les paramètres
+
+- **Terminé** : 2026-05-02
+- **Livré** : colonnes `email_subject_template` et `email_body_template` sur `app_settings` (migration 0037) ; section dédiée dans les paramètres SMTP ; variables `{invoice_number}`, `{description}`, `{association_name}`, `{invoice_ref}` ; `_SafeFormatMap` pour variables inconnues ; 7 nouveaux tests unitaires.
+
+</details>
+
+<details>
+<summary>BIZ-130 — Confirmation de dépôt bancaire + métriques espèces/chèques (2026-05-02)</summary>
+
+### BIZ-130 — Confirmation de dépôt bancaire + métriques espèces/chèques
+
+- **Terminé** : 2026-05-02
+- **Livré** :
+  - Migration Alembic 0038 — colonnes `confirmed` (Boolean, default false) et `confirmed_date` (Date nullable) sur la table `deposits`
+  - `bank_service.confirm_deposit()` — marque un dépôt comme confirmé (date = aujourd'hui) ; `list_deposits` accepte filtre `confirmed`
+  - Endpoint `POST /api/bank/deposits/{id}/confirm` (write access) + audit log `bank.deposit.confirm`
+  - Vue Banque : panneau « Dépôts en attente de confirmation » (visible si ≥ 1 dépôt non confirmé) — résumé nb chèques / nb encaissements + montant + bouton confirmer ; colonne « Statut » dans le tableau des dépôts avec filtre
+  - Vue Paiements : deux métriques séparées « Chèques à remettre » et « Espèces à déposer » remplacent le compteur unique « Non remis »
+  - 4 nouveaux tests d'intégration (`test_confirm_deposit`, déjà confirmé → 422, non trouvé → 404, filtre confirmed)
 
 </details>
 

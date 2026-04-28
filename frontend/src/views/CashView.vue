@@ -350,6 +350,27 @@
                   <InputText v-model="filterModel.value" :placeholder="t('cash.count_notes')" />
                 </template>
               </Column>
+              <Column :header="t('common.actions')" class="cash-journal__actions">
+                <template #body="{ data }">
+                  <div class="app-inline-actions">
+                    <Button
+                      icon="pi pi-eye"
+                      size="small"
+                      severity="secondary"
+                      text
+                      @click="selectedCount = data; countDetailDialogVisible = true"
+                    />
+                    <Button
+                      icon="pi pi-inbox"
+                      size="small"
+                      severity="secondary"
+                      text
+                      :label="t('cash.count_create_deposit')"
+                      @click="openDepositFromCount(data)"
+                    />
+                  </div>
+                </template>
+              </Column>
               <template #empty>
                 <div class="app-empty-state">{{ t('cash.counts_empty') }}</div>
               </template>
@@ -358,6 +379,61 @@
         </TabPanels>
       </Tabs>
     </AppPanel>
+
+    <!-- Count detail dialog -->
+    <Dialog
+      v-model:visible="countDetailDialogVisible"
+      :header="t('cash.count_details')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <div v-if="selectedCount" class="app-dialog-form cash-detail">
+        <div class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.count_date') }}</span>
+          <span>{{ formatDisplayDate(selectedCount.date) }}</span>
+        </div>
+        <div class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.count_total') }}</span>
+          <span class="app-money">{{ formatAmount(selectedCount.total_counted) }}</span>
+        </div>
+        <div class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.count_expected') }}</span>
+          <span class="app-money">{{ formatAmount(selectedCount.balance_expected) }}</span>
+        </div>
+        <div class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.count_diff') }}</span>
+          <span
+            class="app-money"
+            :class="parseFloat(selectedCount.difference) < 0 ? 'cash-negative' : parseFloat(selectedCount.difference) > 0 ? 'cash-warn' : 'cash-positive'"
+          >{{ formatAmount(selectedCount.difference) }}</span>
+        </div>
+        <div v-if="selectedCount.notes" class="cash-detail__row">
+          <span class="cash-detail__label">{{ t('cash.count_notes') }}</span>
+          <span>{{ selectedCount.notes }}</span>
+        </div>
+        <div class="cash-count-denom">
+          <p class="cash-count-denom__title">{{ t('cash.denominations') }}</p>
+          <table class="cash-count-denom__table">
+            <thead>
+              <tr>
+                <th>{{ t('cash.denom_unit') }}</th>
+                <th>{{ t('cash.denom_qty') }}</th>
+                <th>{{ t('cash.denom_subtotal') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="row in countDenomRows(selectedCount)" :key="row.label">
+                <tr v-if="row.qty > 0">
+                  <td>{{ row.label }}</td>
+                  <td>{{ row.qty }}</td>
+                  <td class="app-money">{{ formatAmount(row.subtotal) }}</td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Dialog>
 
     <Dialog
       v-model:visible="detailDialogVisible"
@@ -522,6 +598,12 @@
       </form>
     </Dialog>
     <ConfirmDialog />
+    <BankNewDepositDialog
+      v-model:visible="depositFromCountVisible"
+      :payments="[]"
+      :prefill-from-count="depositFromCountData"
+      @saved="loadAll"
+    />
   </AppPage>
 </template>
 
@@ -557,6 +639,7 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
+import BankNewDepositDialog from '../components/bank/BankNewDepositDialog.vue'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import {
   addCashCount,
@@ -575,6 +658,7 @@ import {
   updateCashEntry,
 } from '@/api/cash'
 import { formatDisplayDate } from '@/utils/format'
+import { type CashCountPrefill } from '@/api/bank'
 import {
   dateRangeFilter,
   inFilter,
@@ -600,6 +684,10 @@ const activeTab = ref('journal')
 const entryDialogVisible = ref(false)
 const countDialogVisible = ref(false)
 const detailDialogVisible = ref(false)
+const depositFromCountVisible = ref(false)
+const depositFromCountData = ref<CashCountPrefill | null>(null)
+const countDetailDialogVisible = ref(false)
+const selectedCount = ref<CashCount | null>(null)
 const saving = ref(false)
 const editingEntry = ref<CashEntry | null>(null)
 const selectedEntry = ref<CashEntry | null>(null)
@@ -1009,6 +1097,51 @@ async function submitCount() {
   }
 }
 
+function countDenomRows(count: CashCount): { label: string; qty: number; subtotal: number }[] {
+  return [
+    { label: '100 €', qty: count.count_100, subtotal: count.count_100 * 100 },
+    { label: '50 €', qty: count.count_50, subtotal: count.count_50 * 50 },
+    { label: '20 €', qty: count.count_20, subtotal: count.count_20 * 20 },
+    { label: '10 €', qty: count.count_10, subtotal: count.count_10 * 10 },
+    { label: '5 €', qty: count.count_5, subtotal: count.count_5 * 5 },
+    { label: '2 €', qty: count.count_2, subtotal: count.count_2 * 2 },
+    { label: '1 €', qty: count.count_1, subtotal: count.count_1 * 1 },
+    { label: '0,50 €', qty: count.count_cents_50, subtotal: count.count_cents_50 * 0.5 },
+    { label: '0,20 €', qty: count.count_cents_20, subtotal: count.count_cents_20 * 0.2 },
+    { label: '0,10 €', qty: count.count_cents_10, subtotal: count.count_cents_10 * 0.1 },
+    { label: '0,05 €', qty: count.count_cents_5, subtotal: count.count_cents_5 * 0.05 },
+    { label: '0,02 €', qty: count.count_cents_2, subtotal: count.count_cents_2 * 0.02 },
+    { label: '0,01 €', qty: count.count_cents_1, subtotal: count.count_cents_1 * 0.01 },
+  ]
+}
+
+function openDepositFromCount(count: CashCount): void {
+  const denominations = [
+    { value: 100, key: 'count_100' as const },
+    { value: 50, key: 'count_50' as const },
+    { value: 20, key: 'count_20' as const },
+    { value: 10, key: 'count_10' as const },
+    { value: 5, key: 'count_5' as const },
+    { value: 2, key: 'count_2' as const },
+    { value: 1, key: 'count_1' as const },
+    { value: 0.5, key: 'count_cents_50' as const },
+    { value: 0.2, key: 'count_cents_20' as const },
+    { value: 0.1, key: 'count_cents_10' as const },
+    { value: 0.05, key: 'count_cents_5' as const },
+    { value: 0.02, key: 'count_cents_2' as const },
+    { value: 0.01, key: 'count_cents_1' as const },
+  ]
+  const lines = denominations
+    .filter(({ key }) => count[key] > 0)
+    .map(({ value, key }) => ({ value, count: count[key] }))
+  depositFromCountData.value = {
+    date: count.date,
+    total_amount: parseFloat(count.total_counted),
+    denominations: lines,
+  }
+  depositFromCountVisible.value = true
+}
+
 watch(
   () => fiscalYearStore.selectedFiscalYearId,
   (newId, oldId) => {
@@ -1063,6 +1196,38 @@ onMounted(async () => {
 
 .cash-detail__label {
   font-weight: 700;
+}
+
+.cash-count-denom {
+  margin-top: var(--app-space-4);
+}
+
+.cash-count-denom__title {
+  font-weight: 700;
+  margin-bottom: var(--app-space-2);
+}
+
+.cash-count-denom__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.cash-count-denom__table th,
+.cash-count-denom__table td {
+  padding: var(--app-space-1) var(--app-space-2);
+  border-bottom: 1px solid var(--p-surface-200);
+  text-align: left;
+}
+
+.cash-count-denom__table th {
+  font-weight: 600;
+  color: var(--p-text-muted-color);
+}
+
+.cash-count-denom__table td:last-child,
+.cash-count-denom__table th:last-child {
+  text-align: right;
 }
 
 .cash-denominations-grid {

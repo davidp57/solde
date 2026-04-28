@@ -49,6 +49,11 @@ class AppSettingsRead(BaseModel):
     email_subject_template: str | None
     email_body_template: str | None
 
+    # Payment instructions on invoices
+    payment_iban: str | None
+    payment_bic: str | None
+    payment_check_payee: str | None
+
     @model_validator(mode="before")
     @classmethod
     def inject_chat_enabled(cls, data: Any) -> Any:
@@ -101,6 +106,11 @@ class AppSettingsUpdate(BaseModel):
     # Email templates (null = use built-in defaults; empty string clears the template)
     email_subject_template: str | None = None
     email_body_template: str | None = None
+
+    # Payment instructions on invoices
+    payment_iban: str | None = None
+    payment_bic: str | None = None
+    payment_check_payee: str | None = None
 
     @field_validator("fiscal_year_start_month")
     @classmethod

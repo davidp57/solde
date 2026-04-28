@@ -276,6 +276,7 @@
                 @click="openPaymentDialog(data)"
               />
               <Button
+                v-if="isInvoiceEditable(data)"
                 icon="pi pi-pencil"
                 size="small"
                 severity="secondary"
@@ -543,7 +544,12 @@
       <form class="app-dialog-form" @submit.prevent="submitPayment">
         <section v-if="paymentInvoice" class="app-dialog-intro">
           <p class="app-dialog-intro__eyebrow">{{ paymentInvoice.number }}</p>
-          <p class="app-dialog-intro__text">{{ t('invoices.client.payment_intro') }}</p>
+          <p class="app-dialog-intro__text">
+            {{ contactName(paymentInvoice.contact_id) }}<template v-if="paymentInvoice.description"> — {{ paymentInvoice.description }}</template>
+          </p>
+          <p class="app-dialog-intro__text">
+            {{ t('invoices.total') }} : <strong>{{ paymentInvoice.total_amount }} €</strong><template v-if="paymentInvoice.due_date"> &nbsp;·&nbsp; {{ t('invoices.due_date') }} : {{ formatDisplayDate(paymentInvoice.due_date) }}</template>
+          </p>
         </section>
         <section class="app-dialog-section">
           <div class="history-dialog__summary">
@@ -850,6 +856,12 @@ function contactName(id: number): string {
   const c = contacts.value.find((c) => c.id === id)
   if (!c) return String(id)
   return formatContactDisplayName(c)
+}
+
+function isInvoiceEditable(invoice: Invoice): boolean {
+  if (invoice.status === 'draft') return true
+  if (invoice.status === 'sent' && parseFloat(invoice.paid_amount) === 0) return true
+  return false
 }
 
 function statusSeverity(s: InvoiceStatus): string {

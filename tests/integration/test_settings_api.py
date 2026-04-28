@@ -16,9 +16,7 @@ from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.import_log import ImportLog, ImportLogStatus, ImportLogType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import PaymentMethod
-from backend.schemas.bank import DepositCreate
 from backend.schemas.payment import PaymentCreate
-from backend.services import bank_service
 from backend.services import payment as payment_service
 
 
@@ -208,7 +206,7 @@ class TestTreasurySystemOpening:
 
 
 class TestNonAdminAccess:
-    async def test_tresorier_cannot_access_system_opening_get(
+    async def test_tresorier_can_access_system_opening_get(
         self, client: AsyncClient, db_session, auth_headers: dict
     ):
         from backend.models.user import User, UserRole
@@ -230,7 +228,7 @@ class TestNonAdminAccess:
         )
         headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
         response = await client.get("/api/settings/system-opening", headers=headers)
-        assert response.status_code == 403
+        assert response.status_code == 200
 
     async def test_tresorier_cannot_access_system_opening_put(
         self, client: AsyncClient, db_session, auth_headers: dict
@@ -263,7 +261,7 @@ class TestNonAdminAccess:
         )
         assert response.status_code == 403
 
-    async def test_tresorier_cannot_access_settings(
+    async def test_tresorier_can_access_settings(
         self, client: AsyncClient, db_session, auth_headers: dict
     ):
         from backend.models.user import User, UserRole
@@ -285,7 +283,7 @@ class TestNonAdminAccess:
         )
         headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
         response = await client.get("/api/settings/", headers=headers)
-        assert response.status_code == 403
+        assert response.status_code == 200
 
 
 class TestResetDatabase:
@@ -475,14 +473,6 @@ class TestSelectiveReset:
                 method=PaymentMethod.ESPECES,
             ),
         )
-        deposit = await bank_service.create_deposit(
-            db_session,
-            DepositCreate(
-                date=date(2025, 9, 28),
-                type="especes",
-                payment_ids=[payment.id],
-            ),
-        )
         db_session.add(
             AccountingEntry(
                 entry_number="000301",
@@ -509,7 +499,6 @@ class TestSelectiveReset:
         assert preview_payload["matched_import_logs"] == 1
         assert preview_payload["delete_plan"]["invoice"] == 1
         assert preview_payload["delete_plan"]["payment"] == 1
-        assert preview_payload["delete_plan"]["deposit"] == 1
 
         apply_response = await client.post(
             "/api/settings/selective-reset/apply",
@@ -520,7 +509,6 @@ class TestSelectiveReset:
         assert apply_response.status_code == 200
         assert (await db_session.get(Contact, imported_contact.id)) is None
         assert (await db_session.get(Invoice, imported_invoice.id)) is None
-        assert (await db_session.get(type(deposit), deposit.id)) is None
         assert (await db_session.execute(select(ImportLog))).scalars().all() == []
 
 

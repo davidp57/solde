@@ -69,13 +69,29 @@ export interface Deposit {
   total_amount: string
   bank_reference: string | null
   notes: string | null
+  denomination_details: string | null
+  confirmed: boolean
+  confirmed_date: string | null
   payment_ids: number[]
+}
+
+export interface DenominationLine {
+  value: number
+  count: number
+}
+
+export interface CashCountPrefill {
+  date: string
+  total_amount: number
+  denominations: DenominationLine[]
 }
 
 export interface DepositCreate {
   date: string
   type: DepositType
-  payment_ids: number[]
+  payment_ids?: number[]
+  total_amount?: string | null
+  denomination_details?: string | null
   bank_reference?: string | null
   notes?: string | null
 }
@@ -240,10 +256,16 @@ export async function linkSupplierPaymentToTransaction(
 export async function listDeposits(params?: {
   from_date?: string
   to_date?: string
+  confirmed?: boolean
   skip?: number
   limit?: number
 }): Promise<Deposit[]> {
   const response = await apiClient.get<Deposit[]>('/api/bank/deposits', { params })
+  return response.data
+}
+
+export async function confirmDeposit(id: number): Promise<Deposit> {
+  const response = await apiClient.post<Deposit>(`/api/bank/deposits/${id}/confirm`)
   return response.data
 }
 
