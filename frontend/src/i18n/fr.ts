@@ -1895,6 +1895,7 @@ export default {
   comments: {
     title: 'Notes & remarques',
     subtitle: 'Laissez un message ou une remarque visible par les administrateurs.',
+    leave_comment: 'Laisser un commentaire',
     new: 'Nouvelle note',
     placeholder: 'Votre remarque, question ou observation…',
     submit: 'Envoyer',
