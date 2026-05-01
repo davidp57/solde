@@ -19,7 +19,11 @@ _Decimal = Decimal
 
 class BankTransactionSource(StrEnum):
     MANUAL = "manual"
-    IMPORT = "import"
+    IMPORT = "import"  # legacy — kept for backward compat with existing rows
+    IMPORT_EXCEL = "import_excel"
+    IMPORT_CSV = "import_csv"
+    IMPORT_OFX = "import_ofx"
+    IMPORT_QIF = "import_qif"
     SYSTEM_OPENING = "system_opening"
 
 
@@ -76,7 +80,7 @@ class BankTransaction(Base):
     reconciled: Mapped[bool] = mapped_column(nullable=False, default=False)
     reconciled_with: Mapped[str | None] = mapped_column(String(100), nullable=True)
     source: Mapped[BankTransactionSource] = mapped_column(
-        String(10), nullable=False, default=BankTransactionSource.MANUAL
+        String(20), nullable=False, default=BankTransactionSource.MANUAL
     )
     detected_category: Mapped[BankTransactionCategory] = mapped_column(
         String(30), nullable=False, default=BankTransactionCategory.UNCATEGORIZED, index=True
