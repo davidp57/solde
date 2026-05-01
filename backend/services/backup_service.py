@@ -2,7 +2,6 @@
 
 import os
 import re
-import shutil
 import signal
 import sqlite3
 from datetime import UTC, datetime
@@ -102,9 +101,15 @@ async def restore_backup(
 
 
 def _do_restore(backup_file: Path, db_path: Path) -> None:
-    """Copy backup over live DB and remove WAL/SHM files (synchronous)."""
-    wal = Path(f"{db_path}-wal")
-    shm = Path(f"{db_path}-shm")
-    for side_file in (wal, shm):
-        side_file.unlink(missing_ok=True)
-    shutil.copyfile(str(backup_file), str(db_path))
+    """Restore a backup into the live DB using SQLite's own backup API.
+
+    Using sqlite3.backup() (rather than shutil.copyfile + manual WAL deletion)
+    avoids WinError 32 file-locking issues: SQLite manages the WAL internally.
+    """
+    src_conn = sqlite3.connect(str(backup_file))
+    dst_conn = sqlite3.connect(str(db_path))
+    try:
+        src_conn.backup(dst_conn)
+    finally:
+        src_conn.close()
+        dst_conn.close()
