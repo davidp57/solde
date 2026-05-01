@@ -934,8 +934,12 @@ function canLinkExistingSupplierPayment(tx: BankTransaction): boolean {
 async function reconcile(tx: BankTransaction): Promise<void> {
   try {
     await updateTransaction(tx.id, { reconciled: true })
-    const original = transactions.value.find((t) => t.id === tx.id)
-    if (original) original.reconciled = true
+    if (unreconciledOnly.value) {
+      transactions.value = transactions.value.filter((t) => t.id !== tx.id)
+    } else {
+      const original = transactions.value.find((t) => t.id === tx.id)
+      if (original) original.reconciled = true
+    }
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   }
