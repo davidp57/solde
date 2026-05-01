@@ -72,8 +72,13 @@ async def create_salary(db: AsyncSession, payload: SalaryCreate) -> Salary:
 
     await generate_entries_for_salary(db, salary)
     await db.commit()
-    await db.refresh(salary)
-    return salary
+    # Reload with employee relationship — db.refresh() only reloads columns, leaving
+    # the relationship expired; accessing it in _to_read() would trigger a sync lazy-load
+    # which raises MissingGreenlet on AsyncSession.
+    result = await db.execute(
+        select(Salary).options(selectinload(Salary.employee)).where(Salary.id == salary.id)
+    )
+    return result.scalar_one()
 
 
 async def update_salary(db: AsyncSession, salary: Salary, payload: SalaryUpdate) -> Salary:
@@ -81,8 +86,11 @@ async def update_salary(db: AsyncSession, salary: Salary, payload: SalaryUpdate)
         if value is not None:
             setattr(salary, field, value)
     await db.commit()
-    await db.refresh(salary)
-    return salary
+    # Same as create_salary: reload with selectinload to avoid expired relationship access.
+    result = await db.execute(
+        select(Salary).options(selectinload(Salary.employee)).where(Salary.id == salary.id)
+    )
+    return result.scalar_one()
 
 
 async def delete_salary(db: AsyncSession, salary: Salary) -> None:
