@@ -1292,6 +1292,9 @@ export default {
     filter_month: 'Filtrer par mois (AAAA-MM)',
     filter_month_from: 'Mois de début',
     filter_month_to: 'Mois de fin',
+    validation_employee_required: 'Veuillez sélectionner un employé.',
+    validation_month_required: 'Veuillez renseigner le mois (ex : 2025-01).',
+    load_employees_error: 'Impossible de charger la liste des employés.',
   },
   dashboard: {
     title: 'Tableau de bord',
