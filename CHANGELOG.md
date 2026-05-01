@@ -9,13 +9,28 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
-## [1.1.1] — 2026-05-01
+## [Non publié]
+
+### Ajouté
+
+- Lot I-BNK (BIZ-133) : Édition de la catégorie détectée d'une entrée bancaire — clic sur l'icône crayon dans la colonne Catégorie pour choisir une nouvelle valeur ; mise à jour via `PUT /api/bank/transactions/{id}` (nouveau champ `detected_category` dans `BankTransactionUpdate`)
+- Lot I-BNK (BIZ-135) : Boutons « Tout rapprocher » et « Rapprocher avant… » dans la barre d'outils du relevé — le premier rapproche toutes les opérations chargées en un clic, le second ouvre un sélecteur de date pour un rapprochement en masse ; nouvel endpoint `POST /api/bank/transactions/reconcile-bulk`
+
+### Modifié
+
+- Lot I-BNK (BIZ-134) : Colonne « Rapp. » dans le relevé bancaire — remplace l'icône opaque par un tag « Rapproché » (vert) ou un bouton « Rapprocher » (outline) cliquable directement dans la cellule, plus lisible et plus accessible
+- Import bancaire : colonne SRC du relevé distingue désormais la source précise (`Import Excel`, `Import CSV`, `Import OFX`, `Import QIF`) au lieu d'un générique `Import`
+- Relevé bancaire : la colonne « Référence » affiche désormais la référence comptable (`reconciled_with`, ex. numéro de facture) au lieu de l'identifiant technique FITID
 
 ### Corrigé
 
 - Salaires : erreur `MissingGreenlet` (SQLAlchemy async) à la création et modification d'une fiche de paie — accès lazy à `salary.employee` remplacé par des requêtes async explicites (`selectinload` / query directe)
 - Salaires : le bouton « Enregistrer » restait silencieux lorsque l'employé ou le mois n'était pas renseigné — un toast d'avertissement est désormais affiché
 - Salaires : échec du chargement de la liste des employés passé silencieusement — une erreur toast est maintenant affichée si `GET /api/contacts/?type=employe` échoue
+- Import bancaire OFX : les fichiers contenant plusieurs comptes (balise `<STMTTRNRS>` multiple) déclenchent désormais une erreur explicite au lieu d'importer les opérations de tous les comptes en vrac
+- Import bancaire : les doublons sont détectés et ignorés à l'import — une transaction dont la référence (FITID OFX) est déjà présente en base est silencieusement ignorée ; le résultat indique le nombre d'opérations créées et le nombre ignorées
+- Import bancaire (endpoint manuel `POST /api/bank/transactions`) : renvoie 409 si une transaction avec la même référence existe déjà
+- Relevé bancaire : rapprocher une transaction en mode « non rapprochées seulement » la retire désormais immédiatement de la liste
 
 ---
 

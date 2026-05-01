@@ -697,7 +697,7 @@ export default {
     tx_date: 'Date',
     tx_amount: 'Montant',
     tx_description: 'Libellé',
-    tx_reference: 'Référence',
+    tx_reference: 'Réf. comptable',
     tx_balance: 'Solde après',
     tx_balance_short: 'Solde',
     tx_category: 'Catégorie détectée',
@@ -780,6 +780,10 @@ export default {
     sources: {
       manual: 'Manuel',
       import: 'Import',
+      import_excel: 'Import Excel',
+      import_csv: 'Import CSV',
+      import_ofx: 'Import OFX',
+      import_qif: 'Import QIF',
       system_opening: 'Ouverture du système',
     },
     deposit_types: {
@@ -806,6 +810,7 @@ export default {
     import_no_file: 'Aucun fichier sélectionné',
     import_file_required: 'Sélectionnez un fichier de relevé avant l’import.',
     import_success: '{n} opération(s) importée(s).',
+    import_success_with_skipped: '{n} opération(s) importée(s), {s} ignorée(s) (déjà présente(s)).',
     metrics: {
       current_balance_caption: 'Toutes périodes confondues',
       visible_scope_caption: 'Périmètre affiché',
@@ -814,6 +819,16 @@ export default {
       pending_payments: '{count} paiement(s) en attente',
       deposit_payment_count: '{count} paiement(s)',
     },
+    tx_reconciled_yes: 'Rapproché',
+    tx_reconciled_no: 'Rapprocher',
+    edit_category_label: 'Modifier la catégorie',
+    category_updated: 'Catégorie mise à jour.',
+    reconcile_all_visible: 'Tout rapprocher',
+    reconcile_before_date: 'Rapprocher avant…',
+    reconcile_before_label: 'Rapprocher toutes les opérations avant le :',
+    reconcile_before_count: '{count} opération(s) à rapprocher',
+    reconcile_before_confirm: 'Confirmer le rapprochement',
+    reconcile_all_success: '{count} opération(s) rapprochée(s).',
   },
   settings: {
     title: 'Paramètres',
@@ -1807,9 +1822,7 @@ export default {
     restore_step1_msg:
       'Toutes les données actuelles seront remplacées par la sauvegarde sélectionnée. ' +
       "L'application redémarrera immédiatement. Cette opération est irréversible.",
-    restore_type_confirm: 'Tapez RESTAURER pour confirmer',
-    restore_confirm_word: 'RESTAURER',
-    restore_confirm_btn: 'Confirmer',
+    restore_confirm_btn: 'Continuer →',
     restore_step2_title: 'Confirmer la restauration',
     restore_step2_msg: 'Vous êtes sur le point de restaurer la sauvegarde suivante :',
     restore_proceed_btn: 'Restaurer maintenant',

@@ -235,7 +235,16 @@ async def recompute_bank_balances(db: AsyncSession) -> bool:
     return changed
 
 
-async def add_transaction(db: AsyncSession, payload: BankTransactionCreate) -> BankTransaction:
+async def add_transaction(
+    db: AsyncSession, payload: BankTransactionCreate
+) -> BankTransaction | None:
+    """Insert a transaction. Returns None (skipped) if the reference already exists."""
+    if payload.reference:
+        existing = await db.execute(
+            select(BankTransaction).where(BankTransaction.reference == payload.reference)
+        )
+        if existing.scalar_one_or_none() is not None:
+            return None
     tx = await create_bank_transaction_record(
         db,
         date=payload.date,
@@ -407,6 +416,25 @@ async def update_transaction(
     await db.commit()
     await db.refresh(tx)
     return tx
+
+
+async def reconcile_transactions_bulk(
+    db: AsyncSession,
+    *,
+    ids: list[int],
+) -> int:
+    """Mark a batch of transactions as reconciled. Returns the count of updated rows."""
+    from sqlalchemy import update as sa_update
+    from sqlalchemy.engine import CursorResult
+
+    result: CursorResult[tuple[()]] = await db.execute(  # type: ignore[assignment]
+        sa_update(BankTransaction)
+        .where(BankTransaction.id.in_(ids))
+        .where(BankTransaction.reconciled.is_(False))
+        .values(reconciled=True)
+    )
+    await db.commit()
+    return int(result.rowcount)
 
 
 async def create_client_payment_from_transaction(

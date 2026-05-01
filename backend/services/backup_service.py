@@ -2,8 +2,6 @@
 
 import os
 import re
-import shutil
-import signal
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
@@ -85,8 +83,12 @@ async def restore_backup(
     Sequence:
     1. Dispose the SQLAlchemy engine (closes all pooled connections).
     2. Copy the backup file over the live database (in a worker thread).
-    3. Delete WAL and SHM side-files to avoid inconsistency.
-    4. Send SIGTERM to self to trigger a clean restart.
+    3. Call os._exit(0) to terminate the process immediately.
+
+    os._exit(0) is used instead of SIGTERM because on Windows TerminateProcess
+    is asynchronous and SIGTERM from a thread is unreliable.  Exit code 0
+    signals a clean exit: uvicorn --reload's reloader and Docker both restart
+    the process when exit code is 0.
     """
     from backend.database import _engine  # noqa: PLC0415
 
@@ -98,13 +100,20 @@ async def restore_backup(
 
     await anyio.to_thread.run_sync(lambda: _do_restore(backup_file, db))
 
-    os.kill(os.getpid(), signal.SIGTERM)
+    # Terminate immediately; no Python cleanup needed — the DB has been replaced.
+    os._exit(0)
 
 
 def _do_restore(backup_file: Path, db_path: Path) -> None:
-    """Copy backup over live DB and remove WAL/SHM files (synchronous)."""
-    wal = Path(f"{db_path}-wal")
-    shm = Path(f"{db_path}-shm")
-    for side_file in (wal, shm):
-        side_file.unlink(missing_ok=True)
-    shutil.copyfile(str(backup_file), str(db_path))
+    """Restore a backup into the live DB using SQLite's own backup API.
+
+    Using sqlite3.backup() (rather than shutil.copyfile + manual WAL deletion)
+    avoids WinError 32 file-locking issues: SQLite manages the WAL internally.
+    """
+    src_conn = sqlite3.connect(str(backup_file))
+    dst_conn = sqlite3.connect(str(db_path))
+    try:
+        src_conn.backup(dst_conn)
+    finally:
+        src_conn.close()
+        dst_conn.close()
