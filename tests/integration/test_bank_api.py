@@ -1166,3 +1166,79 @@ async def test_link_existing_supplier_payment_to_bank_transaction(
     await db_session.refresh(payment)
     assert payment.deposited is True
     assert payment.deposit_date == date(2024, 3, 15)
+
+
+@pytest.mark.asyncio
+async def test_update_transaction_detected_category(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    create_resp = await client.post(
+        "/api/bank/transactions",
+        json={"date": "2024-04-01", "amount": "75.00", "description": "VIR DIVERS"},
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    tx_id = create_resp.json()["id"]
+
+    update_resp = await client.put(
+        f"/api/bank/transactions/{tx_id}",
+        json={"detected_category": "customer_payment"},
+        headers=auth_headers,
+    )
+    assert update_resp.status_code == 200
+    assert update_resp.json()["detected_category"] == "customer_payment"
+
+
+@pytest.mark.asyncio
+async def test_reconcile_transactions_bulk(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    ids = []
+    for i, amount in enumerate(["100.00", "200.00", "300.00"], start=1):
+        resp = await client.post(
+            "/api/bank/transactions",
+            json={"date": f"2024-05-{i:02d}", "amount": amount, "description": f"TX {i}"},
+            headers=auth_headers,
+        )
+        assert resp.status_code == 201
+        ids.append(resp.json()["id"])
+
+    bulk_resp = await client.post(
+        "/api/bank/transactions/reconcile-bulk",
+        json={"ids": ids},
+        headers=auth_headers,
+    )
+    assert bulk_resp.status_code == 200
+    assert bulk_resp.json() == 3
+
+
+@pytest.mark.asyncio
+async def test_reconcile_transactions_bulk_skips_already_reconciled(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    resp1 = await client.post(
+        "/api/bank/transactions",
+        json={"date": "2024-06-01", "amount": "50.00"},
+        headers=auth_headers,
+    )
+    tx1_id = resp1.json()["id"]
+    await client.put(
+        f"/api/bank/transactions/{tx1_id}",
+        json={"reconciled": True},
+        headers=auth_headers,
+    )
+
+    resp2 = await client.post(
+        "/api/bank/transactions",
+        json={"date": "2024-06-02", "amount": "75.00"},
+        headers=auth_headers,
+    )
+    tx2_id = resp2.json()["id"]
+
+    bulk_resp = await client.post(
+        "/api/bank/transactions/reconcile-bulk",
+        json={"ids": [tx1_id, tx2_id]},
+        headers=auth_headers,
+    )
+    assert bulk_resp.status_code == 200
+    assert bulk_resp.json() == 1

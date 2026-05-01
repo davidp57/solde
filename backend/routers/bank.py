@@ -14,6 +14,7 @@ from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.bank import (
     BankBalanceRead,
+    BankReconcileBulkRequest,
     BankTransactionClientPaymentCreate,
     BankTransactionClientPaymentLink,
     BankTransactionClientPaymentLinks,
@@ -162,6 +163,24 @@ async def update_transaction(
         target_type="bank_transaction",
     )
     return await _serialize_transaction(db, updated)
+
+
+@router.post("/transactions/reconcile-bulk", response_model=int)
+async def reconcile_transactions_bulk(
+    payload: BankReconcileBulkRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> int:
+    """Mark a batch of transactions as reconciled in a single request."""
+    count = await bank_service.reconcile_transactions_bulk(db, ids=payload.ids)
+    await record_audit(
+        db,
+        action=AuditAction.BANK_TRANSACTION_BULK_RECONCILED,
+        actor=current_user,
+        target_type="bank_transaction",
+        detail={"count": count},
+    )
+    return count
 
 
 @router.post(

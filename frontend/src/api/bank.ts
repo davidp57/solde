@@ -60,6 +60,7 @@ export interface BankTransactionUpdate {
   reconciled_with?: string | null
   reference?: string | null
   description?: string | null
+  detected_category?: BankTransactionCategory
 }
 
 export interface Deposit {
@@ -137,6 +138,11 @@ export async function updateTransaction(
   payload: BankTransactionUpdate,
 ): Promise<BankTransaction> {
   const response = await apiClient.put<BankTransaction>(`/api/bank/transactions/${id}`, payload)
+  return response.data
+}
+
+export async function reconcileTransactionsBulk(ids: number[]): Promise<number> {
+  const response = await apiClient.post<number>('/api/bank/transactions/reconcile-bulk', { ids })
   return response.data
 }
 
