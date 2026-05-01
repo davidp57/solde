@@ -49,6 +49,7 @@ class AuditAction(StrEnum):
     # Bank
     BANK_TRANSACTION_CREATED = "bank.transaction.create"
     BANK_TRANSACTION_UPDATED = "bank.transaction.update"
+    BANK_TRANSACTION_BULK_RECONCILED = "bank.transaction.bulk_reconcile"
     BANK_PAYMENT_CREATED = "bank.reconcile.payment"
     BANK_IMPORTED = "bank.import"
     BANK_DEPOSIT_CREATED = "bank.deposit.create"

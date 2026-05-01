@@ -9,6 +9,14 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Lots actifs
 
+### Lot I-BNK — UX Banque (~90 min) — v1.2
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| BIZ-133 | Édition catégorie des entrées bancaires | P2 | ~30 min | 2026-05-01 | 2026-05-01 | 2026-05-01 |
+| BIZ-134 | Bouton Rapproché : UX plus claire | P2 | ~20 min | 2026-05-01 | 2026-05-01 | 2026-05-01 |
+| BIZ-135 | Rapprocher tout / rapprocher avant date | P2 | ~40 min | 2026-05-01 | 2026-05-01 | 2026-05-01 |
+
 ### Lot H — Architecture multi-compte (~45 min) — v1.2
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |

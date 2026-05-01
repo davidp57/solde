@@ -409,6 +409,25 @@ async def update_transaction(
     return tx
 
 
+async def reconcile_transactions_bulk(
+    db: AsyncSession,
+    *,
+    ids: list[int],
+) -> int:
+    """Mark a batch of transactions as reconciled. Returns the count of updated rows."""
+    from sqlalchemy import update as sa_update
+    from sqlalchemy.engine import CursorResult
+
+    result: CursorResult[tuple[()]] = await db.execute(  # type: ignore[assignment]
+        sa_update(BankTransaction)
+        .where(BankTransaction.id.in_(ids))
+        .where(BankTransaction.reconciled.is_(False))
+        .values(reconciled=True)
+    )
+    await db.commit()
+    return int(result.rowcount)
+
+
 async def create_client_payment_from_transaction(
     db: AsyncSession,
     *,
