@@ -36,6 +36,11 @@ class BankTransactionRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class BankImportResult(BaseModel):
+    created: list[BankTransactionRead]
+    skipped: int
+
+
 class BankTransactionUpdate(BaseModel):
     reconciled: bool | None = None
     reconciled_with: str | None = None
