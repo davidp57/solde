@@ -9,6 +9,16 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
+## [1.1.1] — 2026-05-01
+
+### Corrigé
+
+- Salaires : erreur `MissingGreenlet` (SQLAlchemy async) à la création et modification d'une fiche de paie — accès lazy à `salary.employee` remplacé par des requêtes async explicites (`selectinload` / query directe)
+- Salaires : le bouton « Enregistrer » restait silencieux lorsque l'employé ou le mois n'était pas renseigné — un toast d'avertissement est désormais affiché
+- Salaires : échec du chargement de la liste des employés passé silencieusement — une erreur toast est maintenant affichée si `GET /api/contacts/?type=employe` échoue
+
+---
+
 ## [1.1.0] — 2026-04-28
 
 ### Ajouté
