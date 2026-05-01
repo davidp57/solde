@@ -1817,9 +1817,7 @@ export default {
     restore_step1_msg:
       'Toutes les données actuelles seront remplacées par la sauvegarde sélectionnée. ' +
       "L'application redémarrera immédiatement. Cette opération est irréversible.",
-    restore_type_confirm: 'Tapez RESTAURER pour confirmer',
-    restore_confirm_word: 'RESTAURER',
-    restore_confirm_btn: 'Confirmer',
+    restore_confirm_btn: 'Continuer →',
     restore_step2_title: 'Confirmer la restauration',
     restore_step2_msg: 'Vous êtes sur le point de restaurer la sauvegarde suivante :',
     restore_proceed_btn: 'Restaurer maintenant',
