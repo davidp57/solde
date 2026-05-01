@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models.bank import BankTransaction
+from backend.models.bank import BankTransaction, BankTransactionSource
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.bank import (
@@ -422,7 +422,7 @@ async def import_csv(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
-    result = await _import_rows(rows, db)
+    result = await _import_rows(rows, db, source=BankTransactionSource.IMPORT_CSV)
     await record_audit(
         db,
         action=AuditAction.BANK_IMPORTED,
@@ -436,6 +436,8 @@ async def import_csv(
 async def _import_rows(
     rows: list[dict[str, object]],
     db: AsyncSession,
+    *,
+    source: BankTransactionSource = BankTransactionSource.IMPORT,
 ) -> BankImportResult:
     """Persist parsed rows, skipping duplicates by reference. Returns created + skipped count."""
     created: list[BankTransactionRead] = []
@@ -447,7 +449,7 @@ async def _import_rows(
             balance_after=cast(Decimal, row["balance_after"]),
             description=str(row.get("description", "")),
             reference=cast(str | None, row.get("reference")),
-            source="import",
+            source=source,
         )
         tx = await bank_service.add_transaction(db, tx_payload)
         if tx is None:
@@ -482,7 +484,7 @@ async def import_ofx(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
-    result = await _import_rows(rows, db)
+    result = await _import_rows(rows, db, source=BankTransactionSource.IMPORT_OFX)
     await record_audit(
         db,
         action=AuditAction.BANK_IMPORTED,
@@ -510,7 +512,7 @@ async def import_qif(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
-    result = await _import_rows(rows, db)
+    result = await _import_rows(rows, db, source=BankTransactionSource.IMPORT_QIF)
     await record_audit(
         db,
         action=AuditAction.BANK_IMPORTED,
