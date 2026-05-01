@@ -1,7 +1,14 @@
 import apiClient from './client'
 
 export type DepositType = 'cheques' | 'especes'
-export type BankTransactionSource = 'manual' | 'import' | 'system_opening'
+export type BankTransactionSource =
+  | 'manual'
+  | 'import'
+  | 'import_excel'
+  | 'import_csv'
+  | 'import_ofx'
+  | 'import_qif'
+  | 'system_opening'
 export type BankTransactionCategory =
   | 'uncategorized'
   | 'customer_payment'

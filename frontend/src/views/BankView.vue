@@ -163,7 +163,7 @@
                 'date',
                 'amount',
                 'description',
-                'reference',
+                'reconciled_with',
                 'balance_after',
                 'reconciled_label',
                 'detected_category_label',
@@ -221,7 +221,7 @@
                 </template>
               </Column>
               <Column
-                field="reference"
+                field="reconciled_with"
                 :header="t('bank.tx_reference')"
                 class="bank-table__reference"
                 sortable
@@ -727,6 +727,10 @@ const existingSupplierPaymentTransaction = ref<BankTransaction | null>(null)
 const sourceOptions = [
   { label: t('bank.sources.manual'), value: 'manual' },
   { label: t('bank.sources.import'), value: 'import' },
+  { label: t('bank.sources.import_excel'), value: 'import_excel' },
+  { label: t('bank.sources.import_csv'), value: 'import_csv' },
+  { label: t('bank.sources.import_ofx'), value: 'import_ofx' },
+  { label: t('bank.sources.import_qif'), value: 'import_qif' },
   { label: t('bank.sources.system_opening'), value: 'system_opening' },
 ]
 
@@ -787,7 +791,7 @@ const {
   date: dateRangeFilter(),
   amount_value: numericRangeFilter(),
   description: textFilter(),
-  reference: textFilter(),
+  reconciled_with: textFilter(),
   balance_after_value: numericRangeFilter(),
   reconciled: inFilter(),
   detected_category: inFilter(),
@@ -961,7 +965,7 @@ function openReconcileBeforePopover(event: Event): void {
 }
 
 const unreconciledVisibleCount = computed(
-  () => displayedTransactions.value.filter((tx) => !tx.reconciled).length,
+  () => transactions.value.filter((tx) => !tx.reconciled).length,
 )
 
 const reconcileBeforeCount = computed(() => {
@@ -971,7 +975,7 @@ const reconcileBeforeCount = computed(() => {
 })
 
 async function reconcileAllVisible(): Promise<void> {
-  const ids = displayedTransactions.value.filter((tx) => !tx.reconciled).map((tx) => tx.id)
+  const ids = transactions.value.filter((tx) => !tx.reconciled).map((tx) => tx.id)
   if (ids.length === 0) return
   reconcilingAll.value = true
   try {
