@@ -146,22 +146,27 @@ export async function reconcileTransactionsBulk(ids: number[]): Promise<number> 
   return response.data
 }
 
-export async function importCsv(content: string): Promise<BankTransaction[]> {
-  const response = await apiClient.post<BankTransaction[]>('/api/bank/transactions/import-csv', {
+export interface BankImportResult {
+  created: BankTransaction[]
+  skipped: number
+}
+
+export async function importCsv(content: string): Promise<BankImportResult> {
+  const response = await apiClient.post<BankImportResult>('/api/bank/transactions/import-csv', {
     content,
   })
   return response.data
 }
 
-export async function importOfx(content: string): Promise<BankTransaction[]> {
-  const response = await apiClient.post<BankTransaction[]>('/api/bank/transactions/import-ofx', {
+export async function importOfx(content: string): Promise<BankImportResult> {
+  const response = await apiClient.post<BankImportResult>('/api/bank/transactions/import-ofx', {
     content,
   })
   return response.data
 }
 
-export async function importQif(content: string): Promise<BankTransaction[]> {
-  const response = await apiClient.post<BankTransaction[]>('/api/bank/transactions/import-qif', {
+export async function importQif(content: string): Promise<BankImportResult> {
+  const response = await apiClient.post<BankImportResult>('/api/bank/transactions/import-qif', {
     content,
   })
   return response.data
@@ -170,7 +175,7 @@ export async function importQif(content: string): Promise<BankTransaction[]> {
 export async function importBankStatement(
   format: BankImportFormat,
   content: string,
-): Promise<BankTransaction[]> {
+): Promise<BankImportResult> {
   if (format === 'ofx') {
     return importOfx(content)
   }

@@ -235,7 +235,16 @@ async def recompute_bank_balances(db: AsyncSession) -> bool:
     return changed
 
 
-async def add_transaction(db: AsyncSession, payload: BankTransactionCreate) -> BankTransaction:
+async def add_transaction(
+    db: AsyncSession, payload: BankTransactionCreate
+) -> BankTransaction | None:
+    """Insert a transaction. Returns None (skipped) if the reference already exists."""
+    if payload.reference:
+        existing = await db.execute(
+            select(BankTransaction).where(BankTransaction.reference == payload.reference)
+        )
+        if existing.scalar_one_or_none() is not None:
+            return None
     tx = await create_bank_transaction_record(
         db,
         date=payload.date,

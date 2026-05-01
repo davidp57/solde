@@ -9,6 +9,16 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
+## [Non publié]
+
+### Corrigé
+
+- Import bancaire OFX : les fichiers contenant plusieurs comptes (balise `<STMTTRNRS>` multiple) déclenchent désormais une erreur explicite au lieu d'importer les opérations de tous les comptes en vrac
+- Import bancaire : les doublons sont détectés et ignorés à l'import — une transaction dont la référence (FITID OFX) est déjà présente en base est silencieusement ignorée ; le résultat indique le nombre d'opérations créées et le nombre ignorées
+- Import bancaire (endpoint manuel `POST /api/bank/transactions`) : renvoie 409 si une transaction avec la même référence existe déjà
+
+---
+
 ## [1.1.1] — 2026-05-01
 
 ### Ajouté
