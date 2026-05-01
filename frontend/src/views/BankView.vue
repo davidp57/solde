@@ -968,9 +968,13 @@ const unreconciledVisibleCount = computed(
   () => transactions.value.filter((tx) => !tx.reconciled).length,
 )
 
+function toLocalDateString(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 const reconcileBeforeCount = computed(() => {
   if (!reconcileBeforeDate.value) return 0
-  const cutoff = reconcileBeforeDate.value.toISOString().split('T')[0]
+  const cutoff = toLocalDateString(reconcileBeforeDate.value)
   return transactions.value.filter((tx) => !tx.reconciled && tx.date <= cutoff).length
 })
 
@@ -995,7 +999,7 @@ async function reconcileAllVisible(): Promise<void> {
 
 async function reconcileBeforeDateConfirm(): Promise<void> {
   if (!reconcileBeforeDate.value) return
-  const cutoff = reconcileBeforeDate.value.toISOString().split('T')[0]
+  const cutoff = toLocalDateString(reconcileBeforeDate.value)
   const ids = transactions.value
     .filter((tx) => !tx.reconciled && tx.date <= cutoff)
     .map((tx) => tx.id)
