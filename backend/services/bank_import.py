@@ -156,14 +156,30 @@ def parse_ofx(content: str) -> list[dict[str, object]]:
 
     Returns a list of dicts with keys:
         date, amount, balance_after, description, reference
+    Raises BankImportError if the file contains multiple bank accounts.
     """
+    # Split on STMTTRNRS boundaries to detect multi-account files
+    stmtrs_segments = re.split(r"</?STMTTRNRS>", content, flags=re.IGNORECASE)
+    stmtrs_segments = [s for s in stmtrs_segments if re.search(r"<STMTTRN", s, re.IGNORECASE)]
+    if len(stmtrs_segments) > 1:
+        acct_ids: list[str] = []
+        for seg in stmtrs_segments:
+            m = re.search(r"<ACCTID>\s*([^\n<]+)", seg, re.IGNORECASE)
+            acct_ids.append(m.group(1).strip() if m else "?")
+        raise BankImportError(
+            f"Le fichier OFX contient {len(stmtrs_segments)} comptes "
+            f"({', '.join(acct_ids)}). "
+            "Exportez chaque compte séparément et importez-les l'un après l'autre."
+        )
+    parse_content = stmtrs_segments[0] if stmtrs_segments else content
+
     rows: list[dict[str, object]] = []
 
     # Extract STMTTRN blocks (works for both SGML and XML OFX)
-    blocks = re.findall(r"<STMTTRN>(.*?)</STMTTRN>", content, re.DOTALL | re.IGNORECASE)
+    blocks = re.findall(r"<STMTTRN>(.*?)</STMTTRN>", parse_content, re.DOTALL | re.IGNORECASE)
     if not blocks:
         # SGML OFX without closing tags: split on <STMTTRN>
-        raw_blocks = re.split(r"<STMTTRN>", content, flags=re.IGNORECASE)[1:]
+        raw_blocks = re.split(r"<STMTTRN>", parse_content, flags=re.IGNORECASE)[1:]
         # Each block ends at <BANKTRANLIST end> or next <STMTTRN> or </BANKTRANLIST>
         blocks = [re.split(r"</BANKTRANLIST>|<STMTTRN>", b, maxsplit=1)[0] for b in raw_blocks]
 

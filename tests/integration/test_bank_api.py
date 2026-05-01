@@ -749,11 +749,12 @@ async def test_import_csv(client: AsyncClient, admin_user: User, auth_headers: d
     )
     assert response.status_code == 201
     data = response.json()
-    assert len(data) == 2
-    assert data[0]["amount"] == "150.00"
-    assert data[0]["detected_category"] == "customer_payment"
-    assert data[1]["amount"] == "-45.50"
-    assert data[1]["detected_category"] == "sepa_debit"
+    assert data["skipped"] == 0
+    assert len(data["created"]) == 2
+    assert data["created"][0]["amount"] == "150.00"
+    assert data["created"][0]["detected_category"] == "customer_payment"
+    assert data["created"][1]["amount"] == "-45.50"
+    assert data["created"][1]["detected_category"] == "sepa_debit"
 
 
 @pytest.mark.asyncio

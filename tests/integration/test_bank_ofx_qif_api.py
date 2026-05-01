@@ -41,10 +41,11 @@ async def test_import_ofx_success(client: AsyncClient, auth_headers: dict) -> No
     )
     assert response.status_code == 201
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["amount"] == "-100.00"
-    assert data[0]["description"] == "TEST OFX"
-    assert data[0]["detected_category"] == "other_debit"
+    assert data["skipped"] == 0
+    assert len(data["created"]) == 1
+    assert data["created"][0]["amount"] == "-100.00"
+    assert data["created"][0]["description"] == "TEST OFX"
+    assert data["created"][0]["detected_category"] == "other_debit"
 
 
 @pytest.mark.asyncio
@@ -66,10 +67,11 @@ async def test_import_qif_success(client: AsyncClient, auth_headers: dict) -> No
     )
     assert response.status_code == 201
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["amount"] == "-100.00"
-    assert data[0]["description"] == "TEST QIF"
-    assert data[0]["detected_category"] == "other_debit"
+    assert data["skipped"] == 0
+    assert len(data["created"]) == 1
+    assert data["created"][0]["amount"] == "-100.00"
+    assert data["created"][0]["description"] == "TEST QIF"
+    assert data["created"][0]["detected_category"] == "other_debit"
 
 
 @pytest.mark.asyncio

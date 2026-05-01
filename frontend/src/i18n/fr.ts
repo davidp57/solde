@@ -806,6 +806,7 @@ export default {
     import_no_file: 'Aucun fichier sélectionné',
     import_file_required: 'Sélectionnez un fichier de relevé avant l’import.',
     import_success: '{n} opération(s) importée(s).',
+    import_success_with_skipped: '{n} opération(s) importée(s), {s} ignorée(s) (déjà présente(s)).',
     metrics: {
       current_balance_caption: 'Toutes périodes confondues',
       visible_scope_caption: 'Périmètre affiché',
