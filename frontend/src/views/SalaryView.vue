@@ -925,7 +925,7 @@ async function loadEmployees() {
       base_hours: c.base_hours ?? null,
     }))
   } catch {
-    /* ignore */
+    toast.add({ severity: 'error', summary: t('salary.load_employees_error'), life: 4000 })
   }
 }
 
@@ -983,7 +983,14 @@ function openEditDialog(salary: SalaryRead) {
 }
 
 async function save() {
-  if (!form.value.employee_id || !form.value.month) return
+  if (!form.value.employee_id) {
+    toast.add({ severity: 'warn', summary: t('salary.validation_employee_required'), life: 3000 })
+    return
+  }
+  if (!form.value.month) {
+    toast.add({ severity: 'warn', summary: t('salary.validation_month_required'), life: 3000 })
+    return
+  }
   saving.value = true
   try {
     const payload = {
