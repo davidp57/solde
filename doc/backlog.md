@@ -9,16 +9,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Lots actifs
 
-### Lot I-BNK — UX Banque (~90 min) — v1.2
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| BIZ-133 | Édition catégorie des entrées bancaires | P2 | ~30 min | 2026-05-01 | 2026-05-01 | 2026-05-01 |
-| BIZ-134 | Bouton Rapproché : UX plus claire | P2 | ~20 min | 2026-05-01 | 2026-05-01 | 2026-05-01 |
-| BIZ-135 | Rapprocher tout / rapprocher avant date | P2 | ~40 min | 2026-05-01 | 2026-05-01 | 2026-05-01 |
-| BIZ-136 | Détection fichier OFX multi-comptes | P1 | ~20 min | 2026-05-01 | 2026-05-01 | 2026-05-01 |
-| BIZ-137 | Dédoublonnage import bancaire par référence | P1 | ~40 min | 2026-05-01 | 2026-05-01 | 2026-05-01 |
-
 ### Lot H — Architecture multi-compte (~45 min) — v1.2
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -166,6 +156,7 @@ Permettre l'émission d'un avoir (note de crédit) pour annuler partiellement ou
 | S | Documentation & i18n | v0.8 | TEC-106, CHR-021, CHR-020, CHR-079 | 2026-04-27 |
 | T | Chatbot IA + refactor Paramètres | v1.0 | BIZ-125, BIZ-126 | 2026-04-27 |
 | H-UX | Améliorations UX (lot H) | v1.1 | settings gestionnaires, dialogue paiement, champs famille contacts, date facture, commentaires, PDF règlement, verrou édition | 2026-04-28 |
+| I-BNK | UX Banque | v1.2 | BIZ-133, BIZ-134, BIZ-135, BIZ-136, BIZ-137 | 2026-05-01 |
 
 <details>
 <summary>Lot S — Documentation & i18n (2026-04-27)</summary>
