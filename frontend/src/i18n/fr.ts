@@ -697,7 +697,7 @@ export default {
     tx_date: 'Date',
     tx_amount: 'Montant',
     tx_description: 'Libellé',
-    tx_reference: 'Référence',
+    tx_reference: 'Réf. comptable',
     tx_balance: 'Solde après',
     tx_balance_short: 'Solde',
     tx_category: 'Catégorie détectée',
@@ -780,6 +780,10 @@ export default {
     sources: {
       manual: 'Manuel',
       import: 'Import',
+      import_excel: 'Import Excel',
+      import_csv: 'Import CSV',
+      import_ofx: 'Import OFX',
+      import_qif: 'Import QIF',
       system_opening: 'Ouverture du système',
     },
     deposit_types: {
