@@ -480,9 +480,7 @@ async def generate_entries_for_salary(
     fiscal_year_id = await find_fiscal_year_id_for_date(db, entry_date)
 
     # Explicit query — lazy-load is forbidden with AsyncSession (MissingGreenlet).
-    employee_result = await db.execute(
-        select(Contact).where(Contact.id == salary.employee_id)
-    )
+    employee_result = await db.execute(select(Contact).where(Contact.id == salary.employee_id))
     employee = employee_result.scalar_one_or_none()
     employee_name = ""
     if employee:
