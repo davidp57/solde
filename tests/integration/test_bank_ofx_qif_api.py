@@ -144,9 +144,7 @@ async def test_import_ofx_multi_account_returns_422(
 
 
 @pytest.mark.asyncio
-async def test_import_ofx_dedup_skips_existing(
-    client: AsyncClient, auth_headers: dict
-) -> None:
+async def test_import_ofx_dedup_skips_existing(client: AsyncClient, auth_headers: dict) -> None:
     """Importing the same OFX file twice must skip already-present transactions."""
     # First import — all rows created
     r1 = await client.post(
