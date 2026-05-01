@@ -11,6 +11,15 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [1.1.1] — 2026-05-01
 
+### Ajouté
+
+- Lot I-BNK (BIZ-133) : Édition de la catégorie détectée d'une entrée bancaire — clic sur l'icône crayon dans la colonne Catégorie pour choisir une nouvelle valeur ; mise à jour via `PUT /api/bank/transactions/{id}` (nouveau champ `detected_category` dans `BankTransactionUpdate`)
+- Lot I-BNK (BIZ-135) : Boutons « Tout rapprocher » et « Rapprocher avant… » dans la barre d'outils du relevé — le premier rapproche toutes les opérations visibles (après filtres) en un clic, le second ouvre un sélecteur de date pour un rapprochement en masse ; nouvel endpoint `POST /api/bank/transactions/reconcile-bulk`
+
+### Modifié
+
+- Lot I-BNK (BIZ-134) : Colonne « Rapp. » dans le relevé bancaire — remplace l'icône opaque par un tag « Rapproché » (vert) ou un bouton « Rapprocher » (outline) cliquable directement dans la cellule, plus lisible et plus accessible
+
 ### Corrigé
 
 - Salaires : erreur `MissingGreenlet` (SQLAlchemy async) à la création et modification d'une fiche de paie — accès lazy à `salary.employee` remplacé par des requêtes async explicites (`selectinload` / query directe)

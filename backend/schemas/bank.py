@@ -41,6 +41,20 @@ class BankTransactionUpdate(BaseModel):
     reconciled_with: str | None = None
     reference: str | None = None
     description: str | None = None
+    detected_category: BankTransactionCategory | None = None
+
+
+class BankReconcileBulkRequest(BaseModel):
+    ids: list[int]
+
+    @field_validator("ids")
+    @classmethod
+    def ids_not_empty(cls, v: list[int]) -> list[int]:
+        if not v:
+            raise ValueError("ids must not be empty")
+        if len(v) != len(set(v)):
+            raise ValueError("duplicate ids are not allowed")
+        return v
 
 
 class BankTransactionClientPaymentCreate(BaseModel):
