@@ -166,7 +166,7 @@ _MAX_BACKUPS = 5
 
 # Regex to validate backup filenames and prevent path traversal.
 # Matches: solde_backup_YYYYMMDD_HHMMSS[_label].db  (label is alphanumeric + _-)
-_SAFE_BACKUP_RE = re.compile(r"^solde_backup_\d{8}_\d{6}[a-zA-Z0-9_-]*\.db$")
+_SAFE_BACKUP_RE = re.compile(r"^solde_backup_(?:\d{8}_\d{6}|\d{14})[a-zA-Z0-9_-]*\.db$")
 
 
 def _get_db_path() -> str:

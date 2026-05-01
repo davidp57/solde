@@ -2754,7 +2754,7 @@ async def _execute_bank_row_import(db: AsyncSession, operation: ImportOperation)
         amount=row.amount,
         reference=row.reference,
         description=row.description,
-        source=BankTransactionSource.IMPORT,
+        source=BankTransactionSource.IMPORT_EXCEL,
     )
     await db.flush()
 

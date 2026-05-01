@@ -9,11 +9,13 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models.bank import BankTransaction
+from backend.models.bank import BankTransaction, BankTransactionSource
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.bank import (
     BankBalanceRead,
+    BankImportResult,
+    BankReconcileBulkRequest,
     BankTransactionClientPaymentCreate,
     BankTransactionClientPaymentLink,
     BankTransactionClientPaymentLinks,
@@ -132,6 +134,11 @@ async def add_transaction(
     current_user: _WriteAccess,
 ) -> BankTransactionRead:
     tx = await bank_service.add_transaction(db, payload)
+    if tx is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Une transaction avec cette référence existe déjà.",
+        )
     await record_audit(
         db,
         action=AuditAction.BANK_TRANSACTION_CREATED,
@@ -162,6 +169,24 @@ async def update_transaction(
         target_type="bank_transaction",
     )
     return await _serialize_transaction(db, updated)
+
+
+@router.post("/transactions/reconcile-bulk", response_model=int)
+async def reconcile_transactions_bulk(
+    payload: BankReconcileBulkRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> int:
+    """Mark a batch of transactions as reconciled in a single request."""
+    count = await bank_service.reconcile_transactions_bulk(db, ids=payload.ids)
+    await record_audit(
+        db,
+        action=AuditAction.BANK_TRANSACTION_BULK_RECONCILED,
+        actor=current_user,
+        target_type="bank_transaction",
+        detail={"count": count},
+    )
+    return count
 
 
 @router.post(
@@ -381,14 +406,14 @@ class CsvImportRequest(BaseModel):
 
 @router.post(
     "/transactions/import-csv",
-    response_model=list[BankTransactionRead],
+    response_model=BankImportResult,
     status_code=status.HTTP_201_CREATED,
 )
 async def import_csv(
     payload: CsvImportRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _WriteAccess,
-) -> list[BankTransactionRead]:
+) -> BankImportResult:
     """Import transactions from a Crédit Mutuel CSV export."""
     try:
         rows = parse_credit_mutuel_csv(payload.content)
@@ -397,34 +422,26 @@ async def import_csv(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
 
-    created: list[BankTransactionRead] = []
-    for row in rows:
-        tx_payload = BankTransactionCreate(
-            date=cast(date, row["date"]),
-            amount=cast(Decimal, row["amount"]),
-            balance_after=cast(Decimal, row["balance_after"]),
-            description=str(row.get("description", "")),
-            reference=cast(str | None, row.get("reference")),
-            source="import",
-        )
-        tx = await bank_service.add_transaction(db, tx_payload)
-        created.append(await _serialize_transaction(db, tx))
+    result = await _import_rows(rows, db, source=BankTransactionSource.IMPORT_CSV)
     await record_audit(
         db,
         action=AuditAction.BANK_IMPORTED,
         actor=current_user,
         target_type="bank_import",
-        detail={"format": "csv", "count": len(created)},
+        detail={"format": "csv", "count": len(result.created), "skipped": result.skipped},
     )
-    return created
+    return result
 
 
 async def _import_rows(
     rows: list[dict[str, object]],
     db: AsyncSession,
-) -> list[BankTransactionRead]:
-    """Persist parsed bank transaction rows and return the created records."""
+    *,
+    source: BankTransactionSource = BankTransactionSource.IMPORT,
+) -> BankImportResult:
+    """Persist parsed rows, skipping duplicates by reference. Returns created + skipped count."""
     created: list[BankTransactionRead] = []
+    skipped = 0
     for row in rows:
         tx_payload = BankTransactionCreate(
             date=cast(date, row["date"]),
@@ -432,11 +449,14 @@ async def _import_rows(
             balance_after=cast(Decimal, row["balance_after"]),
             description=str(row.get("description", "")),
             reference=cast(str | None, row.get("reference")),
-            source="import",
+            source=source,
         )
         tx = await bank_service.add_transaction(db, tx_payload)
-        created.append(await _serialize_transaction(db, tx))
-    return created
+        if tx is None:
+            skipped += 1
+        else:
+            created.append(await _serialize_transaction(db, tx))
+    return BankImportResult(created=created, skipped=skipped)
 
 
 class OFXImportRequest(BaseModel):
@@ -449,14 +469,14 @@ class QIFImportRequest(BaseModel):
 
 @router.post(
     "/transactions/import-ofx",
-    response_model=list[BankTransactionRead],
+    response_model=BankImportResult,
     status_code=status.HTTP_201_CREATED,
 )
 async def import_ofx(
     payload: OFXImportRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _WriteAccess,
-) -> list[BankTransactionRead]:
+) -> BankImportResult:
     """Import transactions from an OFX/QFX bank statement export."""
     try:
         rows = parse_ofx(payload.content)
@@ -464,27 +484,27 @@ async def import_ofx(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
-    created = await _import_rows(rows, db)
+    result = await _import_rows(rows, db, source=BankTransactionSource.IMPORT_OFX)
     await record_audit(
         db,
         action=AuditAction.BANK_IMPORTED,
         actor=current_user,
         target_type="bank_import",
-        detail={"format": "ofx", "count": len(created)},
+        detail={"format": "ofx", "count": len(result.created), "skipped": result.skipped},
     )
-    return created
+    return result
 
 
 @router.post(
     "/transactions/import-qif",
-    response_model=list[BankTransactionRead],
+    response_model=BankImportResult,
     status_code=status.HTTP_201_CREATED,
 )
 async def import_qif(
     payload: QIFImportRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _WriteAccess,
-) -> list[BankTransactionRead]:
+) -> BankImportResult:
     """Import transactions from a QIF bank statement export."""
     try:
         rows = parse_qif(payload.content)
@@ -492,15 +512,15 @@ async def import_qif(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
-    created = await _import_rows(rows, db)
+    result = await _import_rows(rows, db, source=BankTransactionSource.IMPORT_QIF)
     await record_audit(
         db,
         action=AuditAction.BANK_IMPORTED,
         actor=current_user,
         target_type="bank_import",
-        detail={"format": "qif", "count": len(created)},
+        detail={"format": "qif", "count": len(result.created), "skipped": result.skipped},
     )
-    return created
+    return result
 
 
 # ---------------------------------------------------------------------------

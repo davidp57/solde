@@ -132,6 +132,22 @@
                 :off-label="t('bank.tx_reconciled')"
                 @change="loadTransactions"
               />
+              <Button
+                :label="t('bank.reconcile_all_visible')"
+                icon="pi pi-check-square"
+                severity="secondary"
+                size="small"
+                :loading="reconcilingAll"
+                :disabled="unreconciledVisibleCount === 0"
+                @click="reconcileAllVisible"
+              />
+              <Button
+                :label="t('bank.reconcile_before_date')"
+                icon="pi pi-calendar-minus"
+                severity="secondary"
+                size="small"
+                @click="openReconcileBeforePopover"
+              />
             </div>
             <DataTable
               v-model:filters="transactionTableFilters"
@@ -147,7 +163,7 @@
                 'date',
                 'amount',
                 'description',
-                'reference',
+                'reconciled_with',
                 'balance_after',
                 'reconciled_label',
                 'detected_category_label',
@@ -205,7 +221,7 @@
                 </template>
               </Column>
               <Column
-                field="reference"
+                field="reconciled_with"
                 :header="t('bank.tx_reference')"
                 class="bank-table__reference"
                 sortable
@@ -241,12 +257,21 @@
                 :show-add-button="false"
               >
                 <template #body="{ data }">
-                  <i
-                    :class="
-                      data.reconciled
-                        ? 'pi pi-check-circle text-green-500'
-                        : 'pi pi-circle text-surface-400'
-                    "
+                  <Tag
+                    v-if="data.reconciled"
+                    :value="t('bank.tx_reconciled_yes')"
+                    severity="success"
+                    class="bank-reconciled-tag"
+                  />
+                  <Button
+                    v-else
+                    :label="t('bank.tx_reconciled_no')"
+                    icon="pi pi-check"
+                    size="small"
+                    severity="secondary"
+                    outlined
+                    class="bank-reconcile-btn"
+                    @click="reconcile(data)"
                   />
                 </template>
                 <template #filter="{ filterModel, filterCallback }">
@@ -272,10 +297,21 @@
                 :show-add-button="false"
               >
                 <template #body="{ data }">
-                  <Tag
-                    class="bank-detected-category-tag"
-                    :value="t(`bank.categories.${data.detected_category}`)"
-                  />
+                  <div class="bank-category-cell">
+                    <Tag
+                      class="bank-detected-category-tag"
+                      :value="t(`bank.categories.${data.detected_category}`)"
+                    />
+                    <Button
+                      icon="pi pi-pencil"
+                      size="small"
+                      text
+                      severity="secondary"
+                      class="bank-category-edit-btn"
+                      :title="t('bank.edit_category_label')"
+                      @click="openCategoryEdit($event, data)"
+                    />
+                  </div>
                 </template>
                 <template #filter="{ filterModel, filterCallback }">
                   <AppFilterMultiSelect
@@ -355,15 +391,6 @@
                     text
                     :title="t('bank.create_client_payment')"
                     @click="openClientPaymentDialog(data)"
-                  />
-                  <Button
-                    v-if="!data.reconciled"
-                    icon="pi pi-check"
-                    size="small"
-                    severity="success"
-                    text
-                    :title="t('bank.reconcile')"
-                    @click="reconcile(data)"
                   />
                 </template>
               </Column>
@@ -553,6 +580,47 @@
       :payments="undepositedPayments"
       @saved="loadAll"
     />
+
+    <!-- Category edit popover -->
+    <Popover ref="categoryEditPopover">
+      <div class="bank-category-popover">
+        <p class="bank-category-popover__label">{{ t('bank.edit_category_label') }}</p>
+        <Select
+          v-model="categoryEditValue"
+          :options="categoryOptions"
+          option-label="label"
+          option-value="value"
+          size="small"
+          style="min-width: 14rem"
+        />
+        <Button
+          :label="t('common.save')"
+          size="small"
+          class="bank-category-popover__save"
+          @click="saveCategoryEdit"
+        />
+      </div>
+    </Popover>
+
+    <!-- Reconcile-before-date popover -->
+    <Popover ref="reconcileBeforePopover">
+      <div class="bank-reconcile-before-popover">
+        <p class="bank-reconcile-before-popover__label">{{ t('bank.reconcile_before_label') }}</p>
+        <AppDatePicker v-model="reconcileBeforeDate" show-clear />
+        <p v-if="reconcileBeforeDate" class="bank-reconcile-before-popover__count">
+          {{ t('bank.reconcile_before_count', { count: reconcileBeforeCount }) }}
+        </p>
+        <Button
+          :label="t('bank.reconcile_before_confirm')"
+          size="small"
+          severity="success"
+          :loading="reconcilingBefore"
+          :disabled="!reconcileBeforeDate || reconcileBeforeCount === 0"
+          class="bank-reconcile-before-popover__btn"
+          @click="reconcileBeforeDateConfirm"
+        />
+      </div>
+    </Popover>
   </AppPage>
 </template>
 
@@ -561,6 +629,8 @@ import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import InputText from 'primevue/inputtext'
+import Popover from 'primevue/popover'
+import Select from 'primevue/select'
 import Tab from 'primevue/tab'
 import TabList from 'primevue/tablist'
 import TabPanel from 'primevue/tabpanel'
@@ -571,6 +641,7 @@ import ToggleButton from 'primevue/togglebutton'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import TrendLineChart, { type TrendLineChartSeries } from '../components/charts/TrendLineChart.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
@@ -592,8 +663,10 @@ import {
   listDeposits,
   listTransactions,
   updateTransaction,
+  reconcileTransactionsBulk,
   confirmDeposit as confirmDepositApi,
   type BankTransaction,
+  type BankTransactionCategory,
   type Deposit,
   type FundsChartRow as BankFundsChartRow,
 } from '@/api/bank'
@@ -625,6 +698,17 @@ const confirmingDepositId = ref<number | null>(null)
 const activeTab = ref('transactions')
 const unreconciledOnly = ref(false)
 
+// Bulk reconcile state
+const reconcilingAll = ref(false)
+const reconcilingBefore = ref(false)
+const reconcileBeforeDate = ref<Date | null>(null)
+
+// Category edit state
+const categoryEditPopover = ref<InstanceType<typeof Popover> | null>(null)
+const reconcileBeforePopover = ref<InstanceType<typeof Popover> | null>(null)
+const categoryEditTx = ref<BankTransaction | null>(null)
+const categoryEditValue = ref<BankTransactionCategory>('uncategorized')
+
 // Dialog visibility
 const txDialogVisible = ref(false)
 const importDialogVisible = ref(false)
@@ -643,6 +727,10 @@ const existingSupplierPaymentTransaction = ref<BankTransaction | null>(null)
 const sourceOptions = [
   { label: t('bank.sources.manual'), value: 'manual' },
   { label: t('bank.sources.import'), value: 'import' },
+  { label: t('bank.sources.import_excel'), value: 'import_excel' },
+  { label: t('bank.sources.import_csv'), value: 'import_csv' },
+  { label: t('bank.sources.import_ofx'), value: 'import_ofx' },
+  { label: t('bank.sources.import_qif'), value: 'import_qif' },
   { label: t('bank.sources.system_opening'), value: 'system_opening' },
 ]
 
@@ -703,7 +791,7 @@ const {
   date: dateRangeFilter(),
   amount_value: numericRangeFilter(),
   description: textFilter(),
-  reference: textFilter(),
+  reconciled_with: textFilter(),
   balance_after_value: numericRangeFilter(),
   reconciled: inFilter(),
   detected_category: inFilter(),
@@ -844,8 +932,101 @@ function canLinkExistingSupplierPayment(tx: BankTransaction): boolean {
 }
 
 async function reconcile(tx: BankTransaction): Promise<void> {
-  await updateTransaction(tx.id, { reconciled: true })
-  await loadTransactions()
+  try {
+    await updateTransaction(tx.id, { reconciled: true })
+    if (unreconciledOnly.value) {
+      transactions.value = transactions.value.filter((t) => t.id !== tx.id)
+    } else {
+      const original = transactions.value.find((t) => t.id === tx.id)
+      if (original) original.reconciled = true
+    }
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  }
+}
+
+function openCategoryEdit(event: Event, tx: BankTransaction): void {
+  categoryEditTx.value = tx
+  categoryEditValue.value = tx.detected_category
+  categoryEditPopover.value?.show(event)
+}
+
+async function saveCategoryEdit(): Promise<void> {
+  if (!categoryEditTx.value) return
+  try {
+    await updateTransaction(categoryEditTx.value.id, { detected_category: categoryEditValue.value })
+    const original = transactions.value.find((t) => t.id === categoryEditTx.value!.id)
+    if (original) original.detected_category = categoryEditValue.value
+    categoryEditPopover.value?.hide()
+    toast.add({ severity: 'success', summary: t('bank.category_updated'), life: 2000 })
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  }
+}
+
+function openReconcileBeforePopover(event: Event): void {
+  reconcileBeforePopover.value?.show(event)
+}
+
+const unreconciledVisibleCount = computed(
+  () => transactions.value.filter((tx) => !tx.reconciled).length,
+)
+
+function toLocalDateString(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const reconcileBeforeCount = computed(() => {
+  if (!reconcileBeforeDate.value) return 0
+  const cutoff = toLocalDateString(reconcileBeforeDate.value)
+  return transactions.value.filter((tx) => !tx.reconciled && tx.date <= cutoff).length
+})
+
+async function reconcileAllVisible(): Promise<void> {
+  const ids = transactions.value.filter((tx) => !tx.reconciled).map((tx) => tx.id)
+  if (ids.length === 0) return
+  reconcilingAll.value = true
+  try {
+    const count = await reconcileTransactionsBulk(ids)
+    toast.add({
+      severity: 'success',
+      summary: t('bank.reconcile_all_success', { count }),
+      life: 3000,
+    })
+    await loadTransactions()
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } finally {
+    reconcilingAll.value = false
+  }
+}
+
+async function reconcileBeforeDateConfirm(): Promise<void> {
+  if (!reconcileBeforeDate.value) return
+  const cutoff = toLocalDateString(reconcileBeforeDate.value)
+  const ids = transactions.value
+    .filter((tx) => !tx.reconciled && tx.date <= cutoff)
+    .map((tx) => tx.id)
+  if (ids.length === 0) {
+    reconcileBeforePopover.value?.hide()
+    return
+  }
+  reconcilingBefore.value = true
+  try {
+    const count = await reconcileTransactionsBulk(ids)
+    toast.add({
+      severity: 'success',
+      summary: t('bank.reconcile_all_success', { count }),
+      life: 3000,
+    })
+    reconcileBeforePopover.value?.hide()
+    reconcileBeforeDate.value = null
+    await loadTransactions()
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } finally {
+    reconcilingBefore.value = false
+  }
 }
 
 function openClientPaymentDialog(tx: BankTransaction): void {
@@ -963,10 +1144,6 @@ onMounted(async () => {
   color: var(--p-text-muted-color);
 }
 
-.bank-panel-toolbar {
-  margin-bottom: var(--app-space-4);
-}
-
 :deep(.bank-table__description) {
   min-width: 20rem;
 }
@@ -984,11 +1161,11 @@ onMounted(async () => {
 }
 
 :deep(.bank-table__reconciled) {
-  width: 5.5rem;
+  width: 8rem;
 }
 
 :deep(.bank-table__category) {
-  width: 7.5rem;
+  width: 10rem;
 }
 
 :deep(.bank-table__source) {
@@ -1019,6 +1196,80 @@ onMounted(async () => {
 
 .bank-negative {
   color: var(--p-red-500);
+}
+
+.bank-panel-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+  margin-bottom: var(--app-space-4);
+}
+
+.bank-category-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-1);
+}
+
+:deep(.bank-category-edit-btn) {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+:deep(.bank-reconcile-btn) {
+  white-space: nowrap;
+  font-size: 0.78rem;
+  padding-block: 0.2rem;
+}
+
+:deep(.bank-reconciled-tag) {
+  font-size: 0.78rem;
+}
+
+.bank-category-popover {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-2);
+}
+
+.bank-category-popover__label {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--p-text-muted-color);
+}
+
+.bank-category-popover__save {
+  align-self: flex-end;
+}
+
+.bank-reconcile-before-popover {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding: var(--app-space-2);
+  min-width: 18rem;
+}
+
+.bank-reconcile-before-popover__label {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--p-text-muted-color);
+}
+
+.bank-reconcile-before-popover__count {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--p-text-color);
+}
+
+.bank-reconcile-before-popover__btn {
+  align-self: flex-end;
 }
 
 :deep(.p-tabpanels) {
