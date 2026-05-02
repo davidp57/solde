@@ -11,6 +11,14 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+
+- **BIZ-155** — Paiement fournisseur en espèces : crée désormais automatiquement une sortie caisse (`CashMovementType.OUT`) au lieu de ne rien faire.
+
+### Ajouté
+
+- **BIZ-156** — Factures fournisseur : bouton « Enregistrer un règlement » dans la liste et dans le dialog de prévisualisation (espèces et chèque).
+
 ---
 
 ## [1.2.1] — 2026-05-02
