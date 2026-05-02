@@ -216,7 +216,8 @@ async def _enrich_journal_entries(
     gestion_source_ids = {
         entry.source_id
         for entry in entries
-        if entry.source_type == EntrySourceType.GESTION and entry.source_id is not None
+        if entry.source_type in (EntrySourceType.GESTION, EntrySourceType.BANK_TRANSACTION)
+        and entry.source_id is not None
     }
 
     if invoice_source_ids:
@@ -300,10 +301,10 @@ async def _enrich_journal_entries(
             payment = payments_by_id.get(entry.source_id)
             if payment is not None:
                 invoice = invoices_by_id.get(payment.invoice_id)
-                source_reference = (
-                    payment.reference
-                    or (invoice.reference if invoice is not None else None)
-                    or (invoice.number if invoice is not None else None)
+                # Do not use payment.reference: it may contain a raw OFX FITID
+                # stored by earlier bank reconciliation flows.
+                source_reference = (invoice.reference if invoice is not None else None) or (
+                    invoice.number if invoice is not None else None
                 )
                 source_contact_name = _contact_display_name(
                     contacts_by_id.get(
@@ -333,10 +334,19 @@ async def _enrich_journal_entries(
                 source_invoice_id = invoice.id
                 source_invoice_type = _enum_value(invoice.type)
                 source_invoice_number = invoice.number
-        elif entry.source_type == EntrySourceType.GESTION and entry.source_id is not None:
+        elif (
+            entry.source_type
+            in (
+                EntrySourceType.GESTION,
+                EntrySourceType.BANK_TRANSACTION,
+            )
+            and entry.source_id is not None
+        ):
             bank_transaction = bank_transactions_by_id.get(entry.source_id)
             if bank_transaction is not None:
-                source_reference = bank_transaction.reference or bank_transaction.description
+                # Never fall back to bank_transaction.reference: it stores the raw OFX
+                # FITID (an opaque technical identifier) which must not be shown in the UI.
+                source_reference = bank_transaction.description or None
 
         counterpart_entry = counterpart_by_id.get(entry.id)
         journal_entries.append(

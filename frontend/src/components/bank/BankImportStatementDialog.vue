@@ -99,14 +99,18 @@ async function submit(): Promise<void> {
   }
   saving.value = true
   try {
-    const imported = await importBankStatement(detectFormat(fileName.value), fileContent.value)
+    const result = await importBankStatement(detectFormat(fileName.value), fileContent.value)
     emit('update:visible', false)
     fileName.value = ''
     fileContent.value = ''
+    const summary =
+      result.skipped > 0
+        ? t('bank.import_success_with_skipped', { n: result.created.length, s: result.skipped })
+        : t('bank.import_success', { n: result.created.length })
     toast.add({
       severity: 'success',
-      summary: t('bank.import_success', { n: imported.length }),
-      life: 3000,
+      summary,
+      life: 4000,
     })
     emit('saved')
   } catch {

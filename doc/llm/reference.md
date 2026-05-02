@@ -80,13 +80,15 @@ The dashboard shows:
 
 ## Contacts
 
-**What a contact is:** a person or organisation linked to invoices, payments, and cash movements. A contact can be a client, a supplier, or both.
+**What a contact is:** a person or organisation linked to invoices, payments, and cash movements. A contact can be a client, a supplier, both, or an employee.
 
-**Creating a contact:** click "Nouveau contact". Only the name is required. Email is optional but needed to send invoices by email.
+**Creating a contact:** click “Nouveau contact”. Only the name is required. Email is optional but required to send invoices by email. Up to 2 additional email addresses can be added in the “Adresses e-mail supplémentaires” section, each with a free-form label (e.g. “Comptabilité”, “Direction”).
 
-**Editing a contact:** click the contact in the list, modify, save.
+**Editing a contact:** click the contact in the list, modify, save. Additional email addresses can be added, edited, or removed in the same form.
 
-**Contact history:** the "Historique" tab on a contact's record shows all their invoices and payments.
+**Blocking a client (client indésirable):** available for contacts of type “Client” or “Les deux” only. Activate the “Client indésirable” toggle and save. A red badge “Indésirable” appears in the contact list. Creating an invoice for a blocked contact is prevented — the Valider button is disabled in the form and the wizard stops at the contact selection step with an error. To unblock: deactivate the same toggle and save.
+
+**Contact history:** the “Historique” tab on a contact’s record shows all their invoices and payments. Clicking an invoice opens an inline preview with previous/next navigation.
 
 **Why can't I delete a contact?** Contacts that have invoices or payments linked to them cannot be deleted. Deactivate them instead.
 
@@ -95,6 +97,14 @@ The dashboard shows:
 ---
 
 ## Client invoices
+
+### Typical workflow
+
+1. Create the invoice (quick wizard from the dashboard, or full form from the Factures menu).
+2. Validate to assign a permanent number.
+3. Send by email to the client.
+4. When payment arrives, record a payment and link it to the invoice — the status updates automatically.
+5. If payment is by cheque or cash, create a bank deposit (remise en banque) to trace it.
 
 ### Statuses
 
@@ -107,10 +117,20 @@ The dashboard shows:
 | En retard | Past due date, not paid |
 | Irrécouvrable | Written off as a bad debt |
 
-### Creating an invoice
+### Quick invoice wizard
+
+The wizard creates and validates a client invoice in 3 steps, accessible from the dashboard or the "+ Facture rapide" button:
+
+1. **Step 1 — Contact**: select the client. If the contact is marked as "Indésirable" (blocked), creation is blocked at this step.
+2. **Step 2 — Lines**: add invoice lines (type, description, quantity, unit price). Prices are pre-filled from settings.
+3. **Step 3 — Confirmation**: the invoice is created and validated. The confirmation shows the invoice number and client name. Buttons available: "Envoyer par e-mail" (opens the email dialog without closing the wizard), "Nouvelle facture" (restart wizard), "Voir la facture" (open full record).
+
+The wizard always creates invoices in "Validée" status — there is no draft step.
+
+### Creating an invoice (full form)
 
 1. Click "Nouvelle facture" (from Factures menu or dashboard quick card).
-2. Select the contact (required).
+2. Select the contact (required). If the contact is blocked, the Valider button is disabled.
 3. Set the date. The due date is filled automatically based on the default delay configured in settings.
 4. Add invoice lines: choose the type (cours / adhésion / autre), enter a description, quantity, and unit price. Prices are pre-filled from defaults configured in settings.
 5. Save as draft (Enregistrer) or finalise (Valider).
@@ -128,9 +148,14 @@ Only **draft invoices with no payments** can be deleted.
 
 ### Sending an invoice by email
 
-Open the invoice → click "Envoyer par e-mail". The recipient is pre-filled from the contact's email. A PDF is attached automatically.
+Open the invoice → click "Envoyer par e-mail" (or use the button in the wizard confirmation screen).
 
-**Why can't I send?** Either the contact has no email address, or the SMTP is not configured (ask an admin).
+- If the contact has **one email address**: the recipient field is read-only and pre-filled.
+- If the contact has **multiple email addresses**: checkboxes appear, all pre-ticked. The user can untick addresses to exclude them. Sending is blocked if no recipient is selected.
+
+A PDF preview is shown on the right side of the dialog. The PDF is attached automatically to the email. A successful send is recorded in the invoice history.
+
+**Why can't I send?** Either the contact has no email address at all, or the SMTP server is not configured (ask an admin).
 
 ### Downloading the PDF
 
@@ -149,6 +174,13 @@ The format is configured by an admin (e.g. `2026-001`, `F-2026-001`). The sequen
 ---
 
 ## Payments
+
+### Typical workflow
+
+1. Receive the payment (bank transfer, cheque, cash).
+2. Click “Nouveau paiement”, enter the amount, date, and reference.
+3. Link the payment to the relevant invoice(s) in the “Factures liées” section — the invoice status updates automatically.
+4. If payment is by cheque or cash, associate it with a bank deposit (remise en banque).
 
 ### Recording a payment
 
@@ -188,25 +220,51 @@ The cash register tracks physical cash movements.
 
 ## Bank (Banque)
 
+### Typical workflow for a monthly bank statement
+
+1. Export the OFX file from your bank.
+2. Import it into Solde (Banque → Importer).
+3. Check and correct the automatically detected **categories** on each transaction (pencil icon in the Category column).
+4. Reconcile transactions with recorded payments or bank deposits — individually or in bulk.
+5. Verify the balance matches the paper statement.
+
 ### Importing bank transactions
 
-Import an OFX file exported from your bank: click "Importer", select the file, confirm. Exact duplicates are skipped automatically.
+Import an OFX file exported from your bank: click “Importer”, select the file, confirm. Exact duplicates are skipped automatically. Files with multiple bank accounts are rejected — ask the administrator.
+
+### Correcting a transaction category
+
+Click the pencil icon in the Categorie column to change the detected category. The category determines which accounting entries are generated during reconciliation.
 
 ### Reconciliation
 
-Match bank transactions to recorded payments. Go to the "Rapprochement" tab, tick matched pairs, confirm.
+Reconciliation links a bank transaction to a payment or deposit recorded in Solde, and generates the corresponding accounting entries.
+
+- **One at a time**: click the “Rapprocher” button on the transaction row, select the matching payment or deposit, confirm.
+- **Bulk — all**: click “Tout rapprocher” in the toolbar to reconcile all loaded transactions at once.
+- **Bulk — up to a date**: click “Rapprocher avant…”, pick a cutoff date, confirm.
+
+Reconciled transactions show a green “Rapproché” badge and disappear when filtering on “Non rapprochées”.
 
 ---
 
 ## Salaries (Salaires)
 
+### Typical workflow
+
+1. Retrieve salary slips for the month from the CEA platform (or equivalent).
+2. For each employee, create a salary slip under Salaires → Fiches de salaire → Nouvelle fiche.
+3. Verify the read-only **Net calculé** field matches the net amount on the bulletin. Any discrepancy indicates a data entry error.
+4. Save — accounting entries are generated automatically.
+5. Check the monthly summary (“Récapitulatif mensuel”) to verify totals (gross, net, contributions, total cost).
+
 ### Employees
 
-Manage employees under Salaires → Employés. Create an employee with name, optional contract details, and optional hourly/monthly rate.
+Manage employees under Salaires → Employés. Create an employee with name, optional contract details, and optional hourly/monthly rate. Employees cannot be deleted if they have salary slips; deactivate them instead.
 
 ### Salary slips
 
-Create a salary slip under Salaires → Fiches de salaire. Select the employee, the period (month/year), enter gross salary, employer contributions, employee contributions, net pay. Validating a salary slip generates accounting entries automatically.
+Create a salary slip under Salaires → Fiches de salaire. Select the employee, the period (month/year), enter gross salary, employer contributions, employee contributions (and withholding tax), net pay. For CDD employees, entering hours automatically computes the gross (hours × hourly rate). The “Copier la fiche précédente” button pre-fills contributions from the previous month to save time. Validating a salary slip generates accounting entries automatically.
 
 ---
 
@@ -329,13 +387,19 @@ The administrator or a developer can open a GitHub issue with details of the pro
 A: Your role is Gestionnaire (secretaire). Only Comptable (tresorier) and Admin roles can access accounting.
 
 **Q: I can't send an invoice by email.**
-A: Either the contact has no email address, or the SMTP server is not configured. Ask your administrator.
+A: Either the contact has no email address (not even an additional one), or the SMTP server is not configured. Ask your administrator.
+
+**Q: I can send the invoice but I don't see the expected recipient.**
+A: Only email addresses linked to the contact (main address or additional addresses added in the contact form) can be selected as recipients. Add the address to the contact first.
 
 **Q: The invoice number was skipped — there's a gap in the sequence.**
 A: A number is reserved when an invoice is validated. If a validated invoice was deleted after being tested, the number is consumed. This is normal.
 
 **Q: I recorded a payment but the invoice still shows as unpaid.**
 A: The payment must be linked to the invoice. Edit the payment and verify the invoice is selected in the related invoices list.
+
+**Q: I can't create an invoice for a client.**
+A: The contact may be marked as "Client indésirable" (blocked). A red "Indésirable" badge appears in the contact list. An admin or manager can remove the block by editing the contact and deactivating the toggle.
 
 **Q: I can't delete a contact.**
 A: The contact has invoices or payments linked to them. Deactivate the contact instead of deleting.
@@ -344,13 +408,19 @@ A: The contact has invoices or payments linked to them. Deactivate the contact i
 A: The invoice has already been validated. Validated invoices cannot have their lines changed. Only the due date and notes can be modified.
 
 **Q: The session expired.**
-A: Sessions last 24 hours. Log in again. If this happens frequently on a long work session, it is expected behaviour.
+A: Sessions last 30 days. Log in again. If this happens frequently, it is expected behaviour after the refresh token expires.
 
 **Q: I forgot my password.**
 A: Contact your administrator — they can reset your password from the user management screen.
 
 **Q: How do I change the invoice numbering format?**
 A: Only an administrator can change the invoice number template in Paramètres → Association.
+
+**Q: Bank import gives an error about multiple accounts.**
+A: The OFX file contains more than one bank account. Export a single-account OFX file from your bank, or contact your administrator.
+
+**Q: Reconciliation generated wrong accounting entries.**
+A: Check the category assigned to the transaction (pencil icon in the Category column). The category determines which accounting rule is applied. Correct the category and re-reconcile.
 
 **Q: Can I undo a fiscal year closing?**
 A: No. Closing a fiscal year is irreversible. Make sure all entries are final before closing.

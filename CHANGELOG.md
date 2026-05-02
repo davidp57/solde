@@ -9,13 +9,57 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
-## [1.1.1] — 2026-05-01
+## [Non publié]
+
+---
+
+## [1.2.1] — 2026-05-02
 
 ### Corrigé
 
+- Docker : le fuseau horaire du conteneur est maintenant `Europe/Paris` (ajout de `TZ: "Europe/Paris"` dans `docker-compose.yml`) — les horodatages des logs Docker correspondent désormais à l'heure locale (TEC-152)
+- Logs système : les runs pytest locaux ne polluent plus le fichier `data/logs/solde.log` (partagé par le conteneur via volume) — le handler de fichier est désactivé automatiquement lorsque l'application est importée sous pytest ; les logs SQLAlchemy sont reclassés `INFO → DEBUG` pour ne pas polluer la vue par défaut (TEC-153)
+- Backup : le fichier de destination (0 octet) est désormais supprimé en cas d'échec de `sqlite3.backup()` ; le chemin absolu de la base source est utilisé pour éviter toute ambiguïté de répertoire courant dans le thread worker (TEC-154)
+- Aperçu PDF dans le dialogue d'envoi de facture : remplacement de `<embed>` par `<object type="application/pdf">` pour corriger l'affichage sur Chrome et Firefox (TEC-146)
+
+### Ajouté
+
+- Wizard facture rapide — Lot J (BIZ-144) : l'étape de confirmation affiche le nom du contact pour lequel la facture a été créée (format `{Prénom} NOM`)
+- Wizard facture rapide — Lot J (BIZ-145) : bouton « Envoyer par e-mail » dans la confirmation du wizard ; le wizard reste ouvert, le dialogue d'envoi s'ouvre par-dessus ; un badge « E-mail envoyé » s'affiche une fois l'envoi effectué
+- Contacts — Lot J (BIZ-151) : marquage « Client indésirable » (`blocked`) — champ ToggleSwitch dans la fiche contact (types client/les_deux uniquement) ; badge rouge « Indésirable » dans la liste des contacts ; blocage strict de la création de facture côté backend (HTTP 422) et frontend (message d'erreur + bouton désactivé)
+- Contacts — Lot J (BIZ-147) : gestion de plusieurs adresses e-mail par contact — jusqu'à 2 adresses supplémentaires (libellé libre), en plus de l'adresse principale ; section dédiée dans le formulaire contact ; table `contact_emails` (migration 0047)
+- Envoi de factures par e-mail (BIZ-147) : le dialogue d'envoi liste tous les destinataires disponibles du contact ; un seul destinataire → champ en lecture seule ; plusieurs destinataires → cases à cocher (toutes pré-cochées) ; envoi bloqué si aucun destinataire sélectionné
+
+- Rapprochement bancaire (BIZ-141) : les boutons « Rapprocher » (par ligne), « Tout rapprocher » et « Rapprocher avant… » génèrent désormais des écritures comptables automatiques selon la catégorie de la transaction — `BANK_FEE` → règle `Frais bancaires`, `SOCIAL_CHARGE` → `BANK_SOCIAL_CHARGES`, `GRANT` → `SUBSIDY_RECEIVED`, `INTERNAL_TRANSFER` → transfert épargne/courant ; source `bank_transaction` traçable dans le journal
+
+- Factures fournisseur (BIZ-139) : dialogue de prévisualisation accessible depuis l'icône œil dans la liste — affiche les infos clés (contact, dates, référence, montants, statut), l'historique des paiements et un aperçu intégré de la pièce jointe (PDF via `<embed>`, image via `<img>`) avec boutons télécharger et remplacer ; navigation ‹ précédent / suivant › dans la liste filtrée courante ; nouvel endpoint `GET /api/invoices/{id}/file`
+- Historique contact : la prévisualisation d'une facture (fournisseur ou client) s'affiche désormais en vue inline dans le même panneau (sans Dialog imbriqué) avec bouton « Retour à la liste » et navigation ‹ précédent / suivant › dans les factures du contact
+- `scripts/attach_supplier_invoices.py` : script one-shot pour rattacher en masse les fichiers PDF/image existants (`data/factures_fournisseur/`) aux factures fournisseur de la base
+- Lot I-BNK (BIZ-133) : Édition de la catégorie détectée d'une entrée bancaire — clic sur l'icône crayon dans la colonne Catégorie pour choisir une nouvelle valeur ; mise à jour via `PUT /api/bank/transactions/{id}` (nouveau champ `detected_category` dans `BankTransactionUpdate`)
+- Lot I-BNK (BIZ-135) : Boutons « Tout rapprocher » et « Rapprocher avant… » dans la barre d'outils du relevé — le premier rapproche toutes les opérations chargées en un clic, le second ouvre un sélecteur de date pour un rapprochement en masse ; nouvel endpoint `POST /api/bank/transactions/reconcile-bulk`
+
+### Modifié
+
+- Lot I-BNK (BIZ-134) : Colonne « Rapp. » dans le relevé bancaire — remplace l'icône opaque par un tag « Rapproché » (vert) ou un bouton « Rapprocher » (outline) cliquable directement dans la cellule, plus lisible et plus accessible
+- Import bancaire : colonne SRC du relevé distingue désormais la source précise (`Import Excel`, `Import CSV`, `Import OFX`, `Import QIF`) au lieu d'un générique `Import`
+- Relevé bancaire : la colonne « Référence » affiche désormais la référence comptable (`reconciled_with`, ex. numéro de facture) au lieu de l'identifiant technique FITID
+
+### Corrigé
+
+- Référence OFX (FITID) : `BankTransaction.reference` stocke un identifiant technique opaque (ex. `LL3BFSHCLF`) qui ne doit jamais être affiché — suppression du fallback `description || reference` dans les 4 dialogues de rapprochement bancaire et dans le service du journal comptable ; règle mémorisée dans les instructions copilot
+- Référence OFX (FITID, suite) : `bank_service.py` stockait le FITID dans `Payment.reference` lors de la création d'un paiement par rapprochement — corrigé : `Payment.reference` reçoit désormais `tx.description` (libellé bancaire lisible) ; le journal comptable ignore `payment.reference` et affiche directement `invoice.reference` ou `invoice.number` ; 6 paiements existants en base (ids 523–528) corrigés
+- Données : script `scripts/fix_bank_deposits_14apr2026.py` — deux dépôts bancaires du 14/04/2026 (remise chèques 530 € et versement espèces 800 €) importés via OFX mais jamais encodés en bordereaux ont été régularisés : écritures comptables générées (`DEPOSIT_CHEQUES` / `DEPOSIT_ESPECES`), 6 paiements chèque marqués déposés, sortie caisse 800 € créée, TX rapprochées
+- Sauvegardes : la limite du libellé de sauvegarde est portée de 50 à 100 caractères ; le message de validation Pydantic est désormais affiché tel quel dans l'UI au lieu du générique « Erreur lors de la création de la sauvegarde » ; `maxlength="100"` ajouté sur le champ texte
+- Factures fournisseur (BIZ-139) : les factures fournisseur créées manuellement démarraient en statut `Brouillon` au lieu de `Reçue`, les rendant invisibles dans le dialogue de rapprochement bancaire — corrigé : le statut initial est désormais `sent` pour toute facture de type fournisseur
+- Données : 11 factures fournisseur (FF-2024123113.28.00 à FF-2026040717.56.01) étaient rattachées au mauvais contact (Théo DAUPHY) — réassignées à Lexio SAS via `scripts/fix_reassign_lexio_invoices.py`
+- Salaires (BIZ-138) : les écritures comptables générées à la création d'une fiche de paie étaient datées au 1er jour du mois au lieu du dernier (ex. `2026-04-01` au lieu de `2026-04-30`) — corrigé via `calendar.monthrange`
 - Salaires : erreur `MissingGreenlet` (SQLAlchemy async) à la création et modification d'une fiche de paie — accès lazy à `salary.employee` remplacé par des requêtes async explicites (`selectinload` / query directe)
 - Salaires : le bouton « Enregistrer » restait silencieux lorsque l'employé ou le mois n'était pas renseigné — un toast d'avertissement est désormais affiché
 - Salaires : échec du chargement de la liste des employés passé silencieusement — une erreur toast est maintenant affichée si `GET /api/contacts/?type=employe` échoue
+- Import bancaire OFX : les fichiers contenant plusieurs comptes (balise `<STMTTRNRS>` multiple) déclenchent désormais une erreur explicite au lieu d'importer les opérations de tous les comptes en vrac
+- Import bancaire : les doublons sont détectés et ignorés à l'import — une transaction dont la référence (FITID OFX) est déjà présente en base est silencieusement ignorée ; le résultat indique le nombre d'opérations créées et le nombre ignorées
+- Import bancaire (endpoint manuel `POST /api/bank/transactions`) : renvoie 409 si une transaction avec la même référence existe déjà
+- Relevé bancaire : rapprocher une transaction en mode « non rapprochées seulement » la retire désormais immédiatement de la liste
 
 ---
 

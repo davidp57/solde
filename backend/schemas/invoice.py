@@ -140,7 +140,7 @@ class InvoiceRead(InvoiceBase):
 class InvoiceEmailPreview(BaseModel):
     """Email preview returned by GET /{invoice_id}/email-preview."""
 
-    recipient: str
+    recipients: list[str]
     subject: str
     body: str
 
@@ -150,3 +150,4 @@ class InvoiceEmailSendRequest(BaseModel):
 
     subject: str
     body: str
+    recipients: list[str]

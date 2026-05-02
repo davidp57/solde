@@ -2,8 +2,6 @@
 
 import os
 import re
-import shutil
-import signal
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,14 +10,14 @@ import anyio
 
 
 def _slugify_label(label: str) -> str:
-    """Convert a label to a safe filename slug (max 50 chars)."""
+    """Convert a label to a safe filename slug (max 100 chars)."""
     # Keep only allowed chars
     slug = re.sub(r"[^a-zA-Z0-9 _-]", "", label).strip()
     # Collapse spaces to underscores
     slug = re.sub(r"\s+", "_", slug)
     # Collapse consecutive separators
     slug = re.sub(r"[_-]{2,}", "_", slug)
-    return slug[:50]
+    return slug[:100]
 
 
 async def create_backup(
@@ -56,11 +54,23 @@ async def create_backup(
 
 
 def _do_backup(db_path: str, dest_file: Path) -> None:
-    """Perform the actual sqlite3.backup() (synchronous, called from a thread)."""
-    src_conn = sqlite3.connect(db_path)
+    """Perform the actual sqlite3.backup() (synchronous, called from a thread).
+
+    Uses the absolute resolved path for the source database to avoid any
+    working-directory ambiguity when called from a worker thread.
+    On failure the (possibly empty) destination file is removed so no
+    zero-byte artefacts are left behind.
+    """
+    abs_src = str(Path(db_path).resolve())
+    src_conn = sqlite3.connect(abs_src)
     dst_conn = sqlite3.connect(str(dest_file))
     try:
         src_conn.backup(dst_conn)
+    except Exception:
+        dst_conn.close()
+        src_conn.close()
+        dest_file.unlink(missing_ok=True)
+        raise
     finally:
         dst_conn.close()
         src_conn.close()
@@ -85,8 +95,12 @@ async def restore_backup(
     Sequence:
     1. Dispose the SQLAlchemy engine (closes all pooled connections).
     2. Copy the backup file over the live database (in a worker thread).
-    3. Delete WAL and SHM side-files to avoid inconsistency.
-    4. Send SIGTERM to self to trigger a clean restart.
+    3. Call os._exit(0) to terminate the process immediately.
+
+    os._exit(0) is used instead of SIGTERM because on Windows TerminateProcess
+    is asynchronous and SIGTERM from a thread is unreliable.  Exit code 0
+    signals a clean exit: uvicorn --reload's reloader and Docker both restart
+    the process when exit code is 0.
     """
     from backend.database import _engine  # noqa: PLC0415
 
@@ -98,13 +112,20 @@ async def restore_backup(
 
     await anyio.to_thread.run_sync(lambda: _do_restore(backup_file, db))
 
-    os.kill(os.getpid(), signal.SIGTERM)
+    # Terminate immediately; no Python cleanup needed — the DB has been replaced.
+    os._exit(0)
 
 
 def _do_restore(backup_file: Path, db_path: Path) -> None:
-    """Copy backup over live DB and remove WAL/SHM files (synchronous)."""
-    wal = Path(f"{db_path}-wal")
-    shm = Path(f"{db_path}-shm")
-    for side_file in (wal, shm):
-        side_file.unlink(missing_ok=True)
-    shutil.copyfile(str(backup_file), str(db_path))
+    """Restore a backup into the live DB using SQLite's own backup API.
+
+    Using sqlite3.backup() (rather than shutil.copyfile + manual WAL deletion)
+    avoids WinError 32 file-locking issues: SQLite manages the WAL internally.
+    """
+    src_conn = sqlite3.connect(str(backup_file))
+    dst_conn = sqlite3.connect(str(db_path))
+    try:
+        src_conn.backup(dst_conn)
+    finally:
+        src_conn.close()
+        dst_conn.close()

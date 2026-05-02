@@ -225,8 +225,8 @@ class BackupCreate(BaseModel):
         if v is None:
             return v
         v = v.strip()
-        if len(v) > 50:
-            raise ValueError("Label must be at most 50 characters")
+        if len(v) > 100:
+            raise ValueError("Label must be at most 100 characters")
         return v or None
 
 

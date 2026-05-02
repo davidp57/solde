@@ -1,7 +1,14 @@
 import apiClient from './client'
 
 export type DepositType = 'cheques' | 'especes'
-export type BankTransactionSource = 'manual' | 'import' | 'system_opening'
+export type BankTransactionSource =
+  | 'manual'
+  | 'import'
+  | 'import_excel'
+  | 'import_csv'
+  | 'import_ofx'
+  | 'import_qif'
+  | 'system_opening'
 export type BankTransactionCategory =
   | 'uncategorized'
   | 'customer_payment'
@@ -60,6 +67,7 @@ export interface BankTransactionUpdate {
   reconciled_with?: string | null
   reference?: string | null
   description?: string | null
+  detected_category?: BankTransactionCategory
 }
 
 export interface Deposit {
@@ -140,22 +148,32 @@ export async function updateTransaction(
   return response.data
 }
 
-export async function importCsv(content: string): Promise<BankTransaction[]> {
-  const response = await apiClient.post<BankTransaction[]>('/api/bank/transactions/import-csv', {
+export async function reconcileTransactionsBulk(ids: number[]): Promise<number> {
+  const response = await apiClient.post<number>('/api/bank/transactions/reconcile-bulk', { ids })
+  return response.data
+}
+
+export interface BankImportResult {
+  created: BankTransaction[]
+  skipped: number
+}
+
+export async function importCsv(content: string): Promise<BankImportResult> {
+  const response = await apiClient.post<BankImportResult>('/api/bank/transactions/import-csv', {
     content,
   })
   return response.data
 }
 
-export async function importOfx(content: string): Promise<BankTransaction[]> {
-  const response = await apiClient.post<BankTransaction[]>('/api/bank/transactions/import-ofx', {
+export async function importOfx(content: string): Promise<BankImportResult> {
+  const response = await apiClient.post<BankImportResult>('/api/bank/transactions/import-ofx', {
     content,
   })
   return response.data
 }
 
-export async function importQif(content: string): Promise<BankTransaction[]> {
-  const response = await apiClient.post<BankTransaction[]>('/api/bank/transactions/import-qif', {
+export async function importQif(content: string): Promise<BankImportResult> {
+  const response = await apiClient.post<BankImportResult>('/api/bank/transactions/import-qif', {
     content,
   })
   return response.data
@@ -164,7 +182,7 @@ export async function importQif(content: string): Promise<BankTransaction[]> {
 export async function importBankStatement(
   format: BankImportFormat,
   content: string,
-): Promise<BankTransaction[]> {
+): Promise<BankImportResult> {
   if (format === 'ofx') {
     return importOfx(content)
   }

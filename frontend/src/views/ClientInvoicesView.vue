@@ -413,9 +413,10 @@
       v-model:visible="historyVisible"
       :header="historyInvoice ? t('invoices.history_title', { number: historyInvoice.number }) : ''"
       modal
-      class="app-dialog app-dialog--medium"
+      class="app-dialog app-dialog--xlarge"
+      @hide="onHistoryHide"
     >
-      <div v-if="historyInvoice" class="history-dialog">
+      <div v-if="historyInvoice" class="history-dialog history-dialog--with-preview">
         <section class="app-dialog-intro history-dialog__intro">
           <div>
             <p class="app-dialog-intro__eyebrow">{{ t('invoices.history') }}</p>
@@ -429,109 +430,134 @@
             @click="openPaymentDialog(historyInvoice)"
           />
         </section>
-        <div class="history-dialog__summary">
-          <div class="history-dialog__metric">
-            <div class="history-dialog__label">{{ t('invoices.total') }}</div>
-            <div class="history-dialog__value">
-              {{ formatAmount(historyInvoice.total_amount) }} €
-            </div>
-          </div>
-          <div class="history-dialog__metric">
-            <div class="history-dialog__label">{{ t('invoices.paid') }}</div>
-            <div class="history-dialog__value history-dialog__value--success">
-              {{ formatAmount(historyInvoice.paid_amount) }} €
-            </div>
-          </div>
-          <div class="history-dialog__metric">
-            <div class="history-dialog__label">{{ t('invoices.remaining') }}</div>
-            <div
-              class="history-dialog__value"
-              :class="
-                remaining > 0 ? 'history-dialog__value--warn' : 'history-dialog__value--success'
-              "
-            >
-              {{ remaining.toFixed(2) }} €
-            </div>
-          </div>
-        </div>
 
-        <AppTableSkeleton v-if="historyLoading" :rows="5" :cols="3" />
-        <div v-else-if="historyPayments.length === 0" class="app-empty-state">
-          {{ t('invoices.no_payments') }}
-        </div>
-        <DataTable
-          v-else
-          v-model:filters="historyTableFilters"
-          :value="historyPaymentRows"
-          class="app-data-table"
-          filter-display="menu"
-          paginator
-          :rows="20"
-          :rows-per-page-options="[20, 50, 100, 500]"
-          size="small"
-          :global-filter-fields="['date', 'amount_value', 'method', 'cheque_number']"
-          removable-sort
-        >
-          <Column
-            field="date"
-            :header="t('payments.date')"
-            sortable
-            :show-filter-match-modes="false"
-            :show-add-button="false"
-          >
-            <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
-            <template #filter="{ filterModel }">
-              <AppDateRangeFilter v-model="filterModel.value" />
-            </template>
-          </Column>
-          <Column
-            field="amount_value"
-            :header="t('payments.amount')"
-            class="app-money"
-            sortable
-            data-type="numeric"
-            :show-filter-match-modes="false"
-            :show-add-button="false"
-          >
-            <template #body="{ data }">{{ parseFloat(data.amount).toFixed(2) }} €</template>
-            <template #filter="{ filterModel }">
-              <AppNumberRangeFilter v-model="filterModel.value" />
-            </template>
-          </Column>
-          <Column
-            field="method_label"
-            :header="t('payments.method')"
-            filter-field="method"
-            sortable
-            :show-filter-match-modes="false"
-            :show-add-button="false"
-          >
-            <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
-            <template #filter="{ filterModel, filterCallback }">
-              <AppFilterMultiSelect
-                v-model="filterModel.value"
-                :options="paymentMethodOptions"
-                option-label="label"
-                option-value="value"
-                :placeholder="t('common.all')"
-                display="chip"
-                show-clear
-                :filter-callback="filterCallback"
+        <div class="history-dialog__body">
+          <div class="history-dialog__payments">
+            <div class="history-dialog__summary">
+              <div class="history-dialog__metric">
+                <div class="history-dialog__label">{{ t('invoices.total') }}</div>
+                <div class="history-dialog__value">
+                  {{ formatAmount(historyInvoice.total_amount) }} €
+                </div>
+              </div>
+              <div class="history-dialog__metric">
+                <div class="history-dialog__label">{{ t('invoices.paid') }}</div>
+                <div class="history-dialog__value history-dialog__value--success">
+                  {{ formatAmount(historyInvoice.paid_amount) }} €
+                </div>
+              </div>
+              <div class="history-dialog__metric">
+                <div class="history-dialog__label">{{ t('invoices.remaining') }}</div>
+                <div
+                  class="history-dialog__value"
+                  :class="
+                    remaining > 0 ? 'history-dialog__value--warn' : 'history-dialog__value--success'
+                  "
+                >
+                  {{ remaining.toFixed(2) }} €
+                </div>
+              </div>
+            </div>
+
+            <AppTableSkeleton v-if="historyLoading" :rows="5" :cols="3" />
+            <div v-else-if="historyPayments.length === 0" class="app-empty-state">
+              {{ t('invoices.no_payments') }}
+            </div>
+            <DataTable
+              v-else
+              v-model:filters="historyTableFilters"
+              :value="historyPaymentRows"
+              class="app-data-table"
+              filter-display="menu"
+              paginator
+              :rows="20"
+              :rows-per-page-options="[20, 50, 100, 500]"
+              size="small"
+              :global-filter-fields="['date', 'amount_value', 'method', 'cheque_number']"
+              removable-sort
+            >
+              <Column
+                field="date"
+                :header="t('payments.date')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+                <template #filter="{ filterModel }">
+                  <AppDateRangeFilter v-model="filterModel.value" />
+                </template>
+              </Column>
+              <Column
+                field="amount_value"
+                :header="t('payments.amount')"
+                class="app-money"
+                sortable
+                data-type="numeric"
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">{{ parseFloat(data.amount).toFixed(2) }} €</template>
+                <template #filter="{ filterModel }">
+                  <AppNumberRangeFilter v-model="filterModel.value" />
+                </template>
+              </Column>
+              <Column
+                field="method_label"
+                :header="t('payments.method')"
+                filter-field="method"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
+                <template #filter="{ filterModel, filterCallback }">
+                  <AppFilterMultiSelect
+                    v-model="filterModel.value"
+                    :options="paymentMethodOptions"
+                    option-label="label"
+                    option-value="value"
+                    :placeholder="t('common.all')"
+                    display="chip"
+                    show-clear
+                    :filter-callback="filterCallback"
+                  />
+                </template>
+              </Column>
+              <Column
+                field="cheque_number"
+                :header="t('payments.cheque_number')"
+                sortable
+                :show-filter-match-modes="false"
+                :show-add-button="false"
+              >
+                <template #filter="{ filterModel }">
+                  <InputText v-model="filterModel.value" :placeholder="t('payments.cheque_number')" />
+                </template>
+              </Column>
+            </DataTable>
+          </div><!-- end history-dialog__payments -->
+
+          <!-- PDF preview -->
+          <div class="history-dialog__preview">
+            <h3 class="app-dialog-section__title">{{ t('invoices.email_preview') }}</h3>
+            <div v-if="historyPdfLoading" class="history-dialog__preview-loading">
+              <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
+            </div>
+            <div v-else-if="historyPdfBlobUrl" class="history-dialog__preview-frame">
+              <embed
+                :src="historyPdfBlobUrl"
+                type="application/pdf"
+                class="history-dialog__preview-embed"
               />
-            </template>
-          </Column>
-          <Column
-            field="cheque_number"
-            :header="t('payments.cheque_number')"
-            sortable
-            :show-filter-match-modes="false"
-            :show-add-button="false"
-          >
-            <template #filter="{ filterModel }">
-              <InputText v-model="filterModel.value" :placeholder="t('payments.cheque_number')" />
-            </template>
-          </Column>
-        </DataTable>
+            </div>
+            <div v-else class="history-dialog__preview-empty">
+              <i class="pi pi-file-pdf" />
+              <span>{{ t('invoices.email_preview_unavailable') }}</span>
+            </div>
+          </div><!-- end history-dialog__preview -->
+        </div><!-- end history-dialog__body -->
+
       </div>
     </Dialog>
 
@@ -716,6 +742,8 @@ const historyVisible = ref(false)
 const historyInvoice = ref<Invoice | null>(null)
 const historyLoading = ref(false)
 const historyPayments = ref<Payment[]>([])
+const historyPdfBlobUrl = ref<string | null>(null)
+const historyPdfLoading = ref(false)
 const paymentDialogVisible = ref(false)
 const paymentInvoice = ref<Invoice | null>(null)
 const paymentSaving = ref(false)
@@ -1033,7 +1061,22 @@ async function duplicate(invoice: Invoice) {
 async function openHistory(invoice: Invoice) {
   historyInvoice.value = invoice
   historyVisible.value = true
-  await loadHistoryPayments(invoice.id)
+  historyPdfBlobUrl.value = null
+  historyPdfLoading.value = true
+  await Promise.all([
+    loadHistoryPayments(invoice.id),
+    downloadInvoicePdfApi(invoice.id)
+      .then((blob) => { historyPdfBlobUrl.value = URL.createObjectURL(blob) })
+      .catch(() => {})
+      .finally(() => { historyPdfLoading.value = false }),
+  ])
+}
+
+function onHistoryHide() {
+  if (historyPdfBlobUrl.value) {
+    URL.revokeObjectURL(historyPdfBlobUrl.value)
+    historyPdfBlobUrl.value = null
+  }
 }
 
 async function loadHistoryPayments(invoiceId: number) {
@@ -1204,6 +1247,63 @@ onMounted(async () => {
   gap: var(--app-space-4);
 }
 
+.history-dialog--with-preview .history-dialog__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 480px;
+  gap: var(--app-space-5);
+  align-items: start;
+}
+
+.history-dialog__payments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.history-dialog__preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  position: sticky;
+  top: 0;
+}
+
+.history-dialog__preview-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  color: var(--p-text-muted-color);
+}
+
+.history-dialog__preview-frame {
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-surface-radius-sm);
+  overflow: hidden;
+}
+
+.history-dialog__preview-embed {
+  width: 100%;
+  height: 520px;
+  border: none;
+  display: block;
+}
+
+.history-dialog__preview-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--app-space-3);
+  height: 200px;
+  color: var(--p-text-muted-color);
+  font-size: 0.9rem;
+}
+
+.history-dialog__preview-empty .pi {
+  font-size: 2.5rem;
+}
+
 .history-dialog__intro {
   display: flex;
   align-items: center;
@@ -1245,6 +1345,12 @@ onMounted(async () => {
 
 .history-dialog__value--warn {
   color: var(--p-orange-500);
+}
+
+@media (max-width: 1050px) {
+  .history-dialog--with-preview .history-dialog__body {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 767px) {

@@ -178,6 +178,7 @@ Migration naming convention: `NNNN_short_description.py` where `NNNN` is a zero-
 | Entity | Table | Description |
 |---|---|---|
 | `Contact` | `contacts` | Client, supplier, or employee |
+| `ContactEmail` | `contact_emails` | Additional email addresses for a contact (up to 2) |
 | `Invoice` | `invoices` | Client or supplier invoice |
 | `Payment` | `payments` | Payment linked to an invoice |
 | `BankTransaction` | `bank_transactions` | Bank statement line |
