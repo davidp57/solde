@@ -688,6 +688,51 @@ class TestGenerateEntriesForSalary:
             for entry in entries
         )
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("month", "expected_date"),
+        [
+            ("2024-01", date(2024, 1, 31)),  # January — 31 days
+            ("2024-02", date(2024, 2, 29)),  # February 2024 — leap year
+            ("2025-02", date(2025, 2, 28)),  # February 2025 — non-leap year
+            ("2024-04", date(2024, 4, 30)),  # April — 30 days
+        ],
+    )
+    async def test_salary_entry_date_is_last_day_of_month(
+        self,
+        db_session: AsyncSession,
+        month: str,
+        expected_date: date,
+    ) -> None:
+        """Accounting entries must be dated on the last day of the salary month."""
+        employee = await _make_employee(db_session)
+        salary = Salary(
+            employee_id=employee.id,
+            month=month,
+            hours=Decimal("35.00"),
+            gross=Decimal("1000.00"),
+            employee_charges=Decimal("0.00"),
+            employer_charges=Decimal("0.00"),
+            tax=Decimal("0.00"),
+            net_pay=Decimal("1000.00"),
+        )
+        db_session.add(salary)
+        await db_session.commit()
+        await db_session.refresh(salary)
+
+        await _create_fiscal_year(
+            db_session,
+            name=month[:4],
+            start=date(int(month[:4]), 1, 1),
+            end=date(int(month[:4]), 12, 31),
+        )
+        await _seed_one_rule(db_session, TriggerType.SALARY_GROSS, "641000", "421000")
+        await _seed_one_rule(db_session, TriggerType.SALARY_PAYMENT, "421000", "512100")
+
+        entries = await generate_entries_for_salary(db_session, salary)
+
+        assert all(entry.date == expected_date for entry in entries)
+
 
 # ---------------------------------------------------------------------------
 # seed_default_rules

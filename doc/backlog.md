@@ -19,11 +19,21 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Terminé |
 | --- | --- | --- | --- | --- | --- |
+| BIZ-138 | Écritures salaires : date au dernier jour du mois | P1 | ~15 min | 2026-05-02 | 2026-05-02 |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | — |
 
 ---
 
 ## Détails
+
+### BIZ-138 — Écritures salaires : date au dernier jour du mois
+
+- **Terminé** : 2026-05-02
+- Les écritures comptables générées par `generate_entries_for_salary()` étaient datées au 1er jour
+  du mois de paie au lieu du dernier jour (ex. `2026-04-01` pour avril au lieu de `2026-04-30`).
+- **Correction** : `accounting_engine.py` — `calendar.monthrange` pour calculer le dernier jour.
+- **Données existantes** : restaurer le backup DB d'avant la saisie des salaires et ressaisir ;
+  alternative SQL : `UPDATE accounting_entries SET date = DATE(date, 'start of month', '+1 month', '-1 day') WHERE source_type = 'salary' AND strftime('%d', date) = '01'`.
 
 ### BIZ-125 — Chatbot IA + page Aide
 
