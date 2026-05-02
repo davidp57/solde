@@ -13,6 +13,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Factures fournisseur (BIZ-139) : dialogue de prévisualisation accessible depuis l'icône œil dans la liste — affiche les infos clés (contact, dates, référence, montants, statut), l'historique des paiements et un aperçu intégré de la pièce jointe (PDF via `<embed>`, image via `<img>`) avec boutons télécharger et remplacer ; navigation ‹ précédent / suivant › dans la liste filtrée courante ; nouvel endpoint `GET /api/invoices/{id}/file`
+- Historique contact : la prévisualisation d'une facture (fournisseur ou client) s'affiche désormais en vue inline dans le même panneau (sans Dialog imbriqué) avec bouton « Retour à la liste » et navigation ‹ précédent / suivant › dans les factures du contact
+- `scripts/attach_supplier_invoices.py` : script one-shot pour rattacher en masse les fichiers PDF/image existants (`data/factures_fournisseur/`) aux factures fournisseur de la base
 - Lot I-BNK (BIZ-133) : Édition de la catégorie détectée d'une entrée bancaire — clic sur l'icône crayon dans la colonne Catégorie pour choisir une nouvelle valeur ; mise à jour via `PUT /api/bank/transactions/{id}` (nouveau champ `detected_category` dans `BankTransactionUpdate`)
 - Lot I-BNK (BIZ-135) : Boutons « Tout rapprocher » et « Rapprocher avant… » dans la barre d'outils du relevé — le premier rapproche toutes les opérations chargées en un clic, le second ouvre un sélecteur de date pour un rapprochement en masse ; nouvel endpoint `POST /api/bank/transactions/reconcile-bulk`
 
@@ -24,6 +27,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Factures fournisseur (BIZ-139) : les factures fournisseur créées manuellement démarraient en statut `Brouillon` au lieu de `Reçue`, les rendant invisibles dans le dialogue de rapprochement bancaire — corrigé : le statut initial est désormais `sent` pour toute facture de type fournisseur
 - Salaires (BIZ-138) : les écritures comptables générées à la création d'une fiche de paie étaient datées au 1er jour du mois au lieu du dernier (ex. `2026-04-01` au lieu de `2026-04-30`) — corrigé via `calendar.monthrange`
 - Salaires : erreur `MissingGreenlet` (SQLAlchemy async) à la création et modification d'une fiche de paie — accès lazy à `salary.employee` remplacé par des requêtes async explicites (`selectinload` / query directe)
 - Salaires : le bouton « Enregistrer » restait silencieux lorsque l'employé ou le mois n'était pas renseigné — un toast d'avertissement est désormais affiché
