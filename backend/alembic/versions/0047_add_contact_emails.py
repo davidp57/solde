@@ -18,19 +18,22 @@ depends_on: Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "contact_emails",
-        sa.Column("id", sa.Integer(), primary_key=True, index=True),
+        sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column(
             "contact_id",
             sa.Integer(),
             sa.ForeignKey("contacts.id", ondelete="CASCADE"),
             nullable=False,
-            index=True,
         ),
         sa.Column("email", sa.String(255), nullable=False),
         sa.Column("label", sa.String(50), nullable=True),
         sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
     )
+    op.create_index("ix_contact_emails_id", "contact_emails", ["id"], unique=False)
+    op.create_index("ix_contact_emails_contact_id", "contact_emails", ["contact_id"], unique=False)
 
 
 def downgrade() -> None:
+    op.drop_index("ix_contact_emails_contact_id", table_name="contact_emails")
+    op.drop_index("ix_contact_emails_id", table_name="contact_emails")
     op.drop_table("contact_emails")

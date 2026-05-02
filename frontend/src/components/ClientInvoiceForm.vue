@@ -396,8 +396,8 @@ async function submit() {
       lines: form.lines.map((l) => ({
         description: l.description,
         line_type: l.line_type,
-        quantity: String(l.quantity),
-        unit_price: String(l.unit_price),
+        quantity: String(l.quantity || 0),
+        unit_price: String(l.unit_price || 0),
       })),
     }
     let savedInvoice: Invoice
