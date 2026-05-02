@@ -11,6 +11,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+---
+
+## [1.3.1] — 2026-05-02
+
 ### Sécurité
 
 - **TEC-133** — Access token stocké uniquement en mémoire Pinia (suppression de `localStorage`) ; au rechargement, la session est restaurée silencieusement via `POST /api/auth/refresh` (cookie HttpOnly) — atténuation XSS
