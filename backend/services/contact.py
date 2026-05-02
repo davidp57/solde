@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.contact import Contact, ContactType
+from backend.models.contact_email import ContactEmail
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.invoice import Invoice, InvoiceStatus
 from backend.models.payment import Payment
@@ -25,8 +26,20 @@ from backend.schemas.contact import (
 
 
 async def create_contact(db: AsyncSession, payload: ContactCreate) -> Contact:
-    contact = Contact(**payload.model_dump())
+    data = payload.model_dump(exclude={"emails"})
+    contact = Contact(**data)
     db.add(contact)
+    await db.flush()
+    if payload.emails:
+        for idx, email_item in enumerate(payload.emails):
+            db.add(
+                ContactEmail(
+                    contact_id=contact.id,
+                    email=email_item.email,
+                    label=email_item.label,
+                    sort_order=idx,
+                )
+            )
     await db.commit()
     await db.refresh(contact)
     return contact
@@ -125,8 +138,22 @@ async def list_contacts_enriched(
 
 
 async def update_contact(db: AsyncSession, contact: Contact, payload: ContactUpdate) -> Contact:
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    emails_payload = payload.emails  # None = don't touch; [] = remove all; [x...] = replace
+    for field, value in payload.model_dump(exclude_unset=True, exclude={"emails"}).items():
         setattr(contact, field, value)
+    if emails_payload is not None:
+        from sqlalchemy import delete
+
+        await db.execute(delete(ContactEmail).where(ContactEmail.contact_id == contact.id))
+        for idx, email_item in enumerate(emails_payload):
+            db.add(
+                ContactEmail(
+                    contact_id=contact.id,
+                    email=email_item.email,
+                    label=email_item.label,
+                    sort_order=idx,
+                )
+            )
     await db.commit()
     await db.refresh(contact)
     return contact

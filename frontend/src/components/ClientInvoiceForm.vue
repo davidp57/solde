@@ -80,20 +80,22 @@
           v-model="line.description"
           :placeholder="t('invoices.line_description')"
           class="invoice-form__description"
+          @blur="capitalizeFirstLetter(line)"
         />
-        <InputNumber
-          v-model="line.quantity"
+        <input
+          v-model.number="line.quantity"
+          type="number"
+          step="0.001"
+          min="0"
           :placeholder="t('invoices.line_qty')"
-          :min="0"
-          :max-fraction-digits="3"
-          class="invoice-form__quantity"
+          class="p-inputtext invoice-form__quantity"
         />
-        <InputNumber
-          v-model="line.unit_price"
+        <input
+          v-model.number="line.unit_price"
+          type="number"
+          step="0.01"
           :placeholder="t('invoices.line_price')"
-          :max-fraction-digits="2"
-          class="invoice-form__price"
-          suffix=" €"
+          class="p-inputtext invoice-form__price"
         />
         <span class="invoice-form__total"> {{ lineAmount(line) }} € </span>
         <Button
@@ -109,6 +111,9 @@
       <div class="invoice-form__grand-total">{{ t('invoices.total') }}: {{ computedTotal }} €</div>
       <p v-if="hasNegativeTotal" class="invoice-form__error">
         {{ t('invoices.client.negative_total_error') }}
+      </p>
+      <p v-if="selectedContactBlocked" class="invoice-form__error">
+        {{ t('contacts.blocked_invoice_error') }}
       </p>
     </section>
 
@@ -128,7 +133,6 @@
 <script setup lang="ts">
 import Button from 'primevue/button'
 import AppDatePicker from './ui/AppDatePicker.vue'
-import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import { useToast } from 'primevue/usetoast'
@@ -245,6 +249,12 @@ const hasNegativeTotal = computed(
   () => form.lines.reduce((sum, l) => sum + (l.quantity || 0) * (l.unit_price || 0), 0) < 0,
 )
 
+const selectedContactBlocked = computed(() => {
+  if (!form.contact_id) return false
+  const contact = props.contacts.find((c) => c.id === form.contact_id)
+  return contact?.blocked ?? false
+})
+
 const saveDisabled = computed(
   () =>
     saving.value ||
@@ -252,6 +262,7 @@ const saveDisabled = computed(
     !form.date ||
     form.lines.length === 0 ||
     hasNegativeTotal.value ||
+    selectedContactBlocked.value ||
     form.lines.some((line) => !line.description.trim() || !line.line_type),
 )
 
@@ -279,6 +290,12 @@ function onLineTypeChange(line: LineForm) {
     if (defaultPrice !== null && defaultPrice !== undefined) {
       line.unit_price = defaultPrice
     }
+  }
+}
+
+function capitalizeFirstLetter(line: LineForm) {
+  if (line.description.length > 0) {
+    line.description = line.description.charAt(0).toLocaleUpperCase('fr-FR') + line.description.slice(1)
   }
 }
 

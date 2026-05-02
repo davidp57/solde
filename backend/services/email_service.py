@@ -90,7 +90,7 @@ def send_invoice_email(
     smtp_password: str,
     smtp_from_email: str,
     smtp_use_tls: bool,
-    recipient_email: str,
+    recipient_email: str | list[str],
     invoice_number: str,
     association_name: str,
     pdf_bytes: bytes,
@@ -110,8 +110,9 @@ def send_invoice_email(
     body = override_body or compose_body(invoice_number, description, association_name)
 
     msg = MIMEMultipart()
+    recipients_list = recipient_email if isinstance(recipient_email, list) else [recipient_email]
     msg["From"] = smtp_from_email
-    msg["To"] = recipient_email
+    msg["To"] = ", ".join(recipients_list)
     msg["Subject"] = subject
     if bcc:
         msg["Bcc"] = bcc

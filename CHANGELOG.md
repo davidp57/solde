@@ -13,6 +13,12 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Wizard facture rapide — Lot J (BIZ-144) : l'étape de confirmation affiche le nom du contact pour lequel la facture a été créée (format `{Prénom} NOM`)
+- Wizard facture rapide — Lot J (BIZ-145) : bouton « Envoyer par e-mail » dans la confirmation du wizard ; le wizard reste ouvert, le dialogue d'envoi s'ouvre par-dessus ; un badge « E-mail envoyé » s'affiche une fois l'envoi effectué
+- Contacts — Lot J (BIZ-151) : marquage « Client indésirable » (`blocked`) — champ ToggleSwitch dans la fiche contact (types client/les_deux uniquement) ; badge rouge « Indésirable » dans la liste des contacts ; blocage strict de la création de facture côté backend (HTTP 422) et frontend (message d'erreur + bouton désactivé)
+- Contacts — Lot J (BIZ-147) : gestion de plusieurs adresses e-mail par contact — jusqu'à 2 adresses supplémentaires (libellé libre), en plus de l'adresse principale ; section dédiée dans le formulaire contact ; table `contact_emails` (migration 0047)
+- Envoi de factures par e-mail (BIZ-147) : le dialogue d'envoi liste tous les destinataires disponibles du contact ; un seul destinataire → champ en lecture seule ; plusieurs destinataires → cases à cocher (toutes pré-cochées) ; envoi bloqué si aucun destinataire sélectionné
+
 - Rapprochement bancaire (BIZ-141) : les boutons « Rapprocher » (par ligne), « Tout rapprocher » et « Rapprocher avant… » génèrent désormais des écritures comptables automatiques selon la catégorie de la transaction — `BANK_FEE` → règle `Frais bancaires`, `SOCIAL_CHARGE` → `BANK_SOCIAL_CHARGES`, `GRANT` → `SUBSIDY_RECEIVED`, `INTERNAL_TRANSFER` → transfert épargne/courant ; source `bank_transaction` traçable dans le journal
 
 - Factures fournisseur (BIZ-139) : dialogue de prévisualisation accessible depuis l'icône œil dans la liste — affiche les infos clés (contact, dates, référence, montants, statut), l'historique des paiements et un aperçu intégré de la pièce jointe (PDF via `<embed>`, image via `<img>`) avec boutons télécharger et remplacer ; navigation ‹ précédent / suivant › dans la liste filtrée courante ; nouvel endpoint `GET /api/invoices/{id}/file`
