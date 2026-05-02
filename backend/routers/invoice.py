@@ -144,7 +144,7 @@ async def get_invoice(
     invoice_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
-) -> Invoice | None:
+) -> Invoice:
     """Get a single invoice by ID."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
@@ -547,7 +547,10 @@ async def download_invoice_file(
     if Path(stored).is_absolute():
         file_path = Path(stored)
     else:
-        file_path = Path("data/uploads/invoices").resolve() / stored
+        base = Path("data/uploads/invoices").resolve()
+        file_path = (base / stored).resolve()
+        if not file_path.is_relative_to(base):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file path")
     if not file_path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk")
     suffix = file_path.suffix.lower()

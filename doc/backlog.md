@@ -18,7 +18,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
 | BIZ-034 | Support multi-compte banque | P3 | ~45 min | 2026-04-21 | | |
 
-### Lot CR — Correctifs revue de code v1.1.0 (~7 h) — v1.4
+### Lot CR — Correctifs revue de code v1.1.0 (~7 h) — v1.3.1
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
