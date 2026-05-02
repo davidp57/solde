@@ -249,24 +249,23 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
             hours=payload.hours,
         )
         db.add(invoice)
-        await db.flush()  # get invoice.id before adding lines
-
-        for ln in payload.lines:
-            line = InvoiceLine(
-                invoice_id=invoice.id,
-                description=ln.description,
-                line_type=(
-                    _resolve_client_line_type(ln.description, ln.line_type, resolved_label)
-                    if payload.type == InvoiceType.CLIENT
-                    else None
-                ),
-                quantity=ln.quantity,
-                unit_price=ln.unit_price,
-                amount=_compute_line_amount(ln.quantity, ln.unit_price),
-            )
-            db.add(line)
 
         try:
+            await db.flush()  # get invoice.id before adding lines
+            for ln in payload.lines:
+                line = InvoiceLine(
+                    invoice_id=invoice.id,
+                    description=ln.description,
+                    line_type=(
+                        _resolve_client_line_type(ln.description, ln.line_type, resolved_label)
+                        if payload.type == InvoiceType.CLIENT
+                        else None
+                    ),
+                    quantity=ln.quantity,
+                    unit_price=ln.unit_price,
+                    amount=_compute_line_amount(ln.quantity, ln.unit_price),
+                )
+                db.add(line)
             await db.commit()
         except IntegrityError:
             await db.rollback()
@@ -275,7 +274,9 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
             continue
 
         await db.refresh(invoice)
-        return await get_invoice(db, invoice.id)  # type: ignore[return-value]
+        refreshed = await get_invoice(db, invoice.id)
+        assert refreshed is not None, f"Invoice {invoice.id} missing after commit"
+        return refreshed
 
     raise RuntimeError("Unreachable")
 
