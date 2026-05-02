@@ -340,7 +340,7 @@ async def _enrich_journal_entries(
         ) and entry.source_id is not None:
             bank_transaction = bank_transactions_by_id.get(entry.source_id)
             if bank_transaction is not None:
-                source_reference = bank_transaction.reference or bank_transaction.description
+                source_reference = bank_transaction.description or bank_transaction.reference
 
         counterpart_entry = counterpart_by_id.get(entry.id)
         journal_entries.append(
