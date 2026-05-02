@@ -15,6 +15,21 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-034 | Support multi-compte banque | P3 | ~45 min | 2026-04-21 | | |
 
+### Lot CR — Correctifs revue de code v1.1.0 (~7 h) — v1.2
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-133 | Access token en localStorage (vulnérabilité XSS) | P1 | ~2 h | 2026-05-02 | | |
+| TEC-134 | Atomicité brisée entre modification et audit log | P1 | ~30 min | 2026-05-02 | | |
+| TEC-135 | Race condition sur la numérotation des factures | P1 | ~1 h | 2026-05-02 | | |
+| TEC-136 | Chemins absolus de fichiers stockés en base | P2 | ~45 min | 2026-05-02 | | |
+| TEC-137 | Double décodage JWT sur chaque requête API | P2 | ~30 min | 2026-05-02 | | |
+| TEC-138 | Rate limiter : croissance mémoire non bornée | P2 | ~45 min | 2026-05-02 | | |
+| TEC-139 | Tokens OpenAI non comptabilisés en streaming | P2 | ~30 min | 2026-05-02 | | |
+| TEC-140 | Endpoint audit log sans pagination ni filtrage | P2 | ~1 h | 2026-05-02 | | |
+| TEC-141 | Rôles utilisateur hardcodés côté frontend | P3 | ~30 min | 2026-05-02 | | |
+| TEC-155 | Suppressions `# type: ignore` systématiques dans les routeurs | P3 | ~1 h | 2026-05-02 | | |
+
 ## Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Terminé |
@@ -50,6 +65,56 @@ Décisions métier nécessaires avant implémentation.
 ### CHR-078 — Squelette i18n anglais
 
 Créer `en.ts` avec les clés structurelles pour préparer la localisation anglaise.
+
+### TEC-133 — Access token en localStorage (vulnérabilité XSS)
+
+- `frontend/src/stores/auth.ts` : l'access token est persisté dans `localStorage` — accessible par tout script JS. Une XSS permet de le voler et d'usurper la session.
+- Fix : stocker l'access token **uniquement en mémoire** (`ref` Pinia, non persisté). Au rechargement, déclencher `POST /api/auth/refresh` silencieusement (cookie HttpOnly envoyé automatiquement). Supprimer `initFromStorage()` et toute persistance localStorage côté auth.
+
+### TEC-134 — Atomicité brisée entre modification et audit log
+
+- `backend/routers/auth.py` (l. 437–447) : `await db.commit()` est appelé **avant** `record_audit()`. Si la session échoue à commiter l'audit, la donnée est modifiée mais la trace est perdue.
+- Fix : appeler `record_audit()` **avant** `await db.commit()` — un seul commit suffit.
+
+### TEC-135 — Race condition sur la numérotation des factures
+
+- `backend/services/invoice.py` : SELECT du dernier numéro + calcul du suivant sans verrou. Deux requêtes simultanées peuvent générer le même numéro → `IntegrityError` non gérée → HTTP 500.
+- Fix : encapsuler dans `BEGIN IMMEDIATE` (SQLite) ou ajouter un retry loop sur `IntegrityError`.
+
+### TEC-136 — Chemins absolus de fichiers stockés en base
+
+- `backend/routers/invoice.py` l. 606 : `Path("data/uploads/invoices").resolve()` génère un chemin absolu (`/app/data/...`) stocké dans `Invoice.file_path` / `Invoice.pdf_path` — invalide si le container est recréé ou les données migrées.
+- Fix : stocker des chemins relatifs à une racine configurable ; résoudre le chemin absolu à la lecture via un helper centralisé.
+
+### TEC-137 — Double décodage JWT sur chaque requête API
+
+- `backend/main.py` : `MustChangePasswordMiddleware` décode le JWT, puis `get_current_user` le décode à nouveau dans le même cycle de vie de la requête.
+- Fix : stocker le payload décodé dans `request.state` depuis le middleware et le relire dans `get_current_user`.
+
+### TEC-138 — Rate limiter : croissance mémoire non bornée
+
+- `backend/services/rate_limiter.py` : les IPs qui tentent une ou deux fois puis disparaissent restent indéfiniment dans `_attempts`. Lors d'un scan de masse, mémoire non bornée.
+- Fix : purge périodique des clés entièrement expirées (toutes N requêtes ou via `asyncio.create_task`), ou LRU cache borné.
+
+### TEC-139 — Tokens OpenAI non comptabilisés en streaming
+
+- `backend/services/chat_service.py` : le path OpenAI retourne `yield delta.content, None` — `prompt_tokens` / `completion_tokens` toujours `None` dans `chat_log` (le path Gemini les remonte correctement).
+- Fix : passer `stream_options={"include_usage": True}` dans `client.chat.completions.create()` et extraire `chunk.usage` sur le dernier événement.
+
+### TEC-140 — Endpoint audit log sans pagination ni filtrage
+
+- `backend/routers/settings.py` : `GET /api/settings/audit-logs` retourne jusqu'à 1 000 entrées sans filtre ni pagination — réponse volumineuse à mesure que les logs s'accumulent.
+- Fix : ajouter `skip`, `limit`, `action`, `actor_id`, `from_date`, `to_date` ; valeur par défaut `limit=100`. Mettre à jour la vue Paramètres côté frontend.
+
+### TEC-141 — Rôles utilisateur hardcodés côté frontend
+
+- `frontend/src/stores/auth.ts` : chaînes `'admin'`, `'tresorier'`, `'secretaire'` répétées en dur — faute de frappe silencieuse non détectée à la compilation.
+- Fix : `export const USER_ROLES = { ADMIN: 'admin', TRESORIER: 'tresorier', SECRETAIRE: 'secretaire', READONLY: 'readonly' } as const` dans un fichier partagé, utilisé partout.
+
+### TEC-155 — Suppressions `# type: ignore` systématiques dans les routeurs
+
+- `backend/routers/invoice.py` (13 occurrences), `contact.py`, `payment.py`, etc. : `return invoice # type: ignore[return-value]` masquent un désalignement entre modèles SQLAlchemy et schémas Pydantic.
+- Fix : vérifier que les schémas Pydantic ont `model_config = ConfigDict(from_attributes=True)` et annoter correctement les retours de fonctions service pour que mypy les accepte sans suppression.
 
 ### BIZ-129 — Notes de crédit (avoirs)
 
