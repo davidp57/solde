@@ -457,7 +457,7 @@ async def test_delete_payment_reverts_invoice(db_session: AsyncSession) -> None:
 @pytest.mark.asyncio
 async def test_create_supplier_cash_payment_creates_cash_out(db_session: AsyncSession) -> None:
     """Supplier cash payment creates a CashMovementType.OUT entry automatically."""
-    contact = Contact(type=ContactType.CLIENT, nom="Fournisseur", prenom="Test")
+    contact = Contact(type=ContactType.FOURNISSEUR, nom="Fournisseur", prenom="Test")
     db_session.add(contact)
     await db_session.flush()
 
@@ -497,7 +497,7 @@ async def test_create_supplier_cash_payment_creates_cash_out(db_session: AsyncSe
 @pytest.mark.asyncio
 async def test_create_supplier_cheque_payment_no_cash_entry(db_session: AsyncSession) -> None:
     """Supplier cheque payment must not create any cash entry."""
-    contact = Contact(type=ContactType.CLIENT, nom="Fournisseur", prenom="Test")
+    contact = Contact(type=ContactType.FOURNISSEUR, nom="Fournisseur", prenom="Test")
     db_session.add(contact)
     await db_session.flush()
 

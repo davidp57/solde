@@ -833,9 +833,9 @@ async function submitPayment() {
       amount: amount.toFixed(2),
       date: isoDate,
       method: paymentForm.value.method,
-      cheque_number: paymentForm.value.method === 'cheque' ? paymentForm.value.cheque_number : null,
-      reference: paymentForm.value.reference || null,
-      notes: paymentForm.value.notes || null,
+      cheque_number: paymentForm.value.method === 'cheque' ? (paymentForm.value.cheque_number.trim() || null) : null,
+      reference: paymentForm.value.reference.trim() || null,
+      notes: paymentForm.value.notes.trim() || null,
     })
     toast.add({ severity: 'success', summary: t('payments.created'), life: 3000 })
     paymentDialogVisible.value = false
