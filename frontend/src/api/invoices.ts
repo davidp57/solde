@@ -172,3 +172,8 @@ export async function uploadInvoiceFileApi(id: number, file: File): Promise<Invo
   })
   return response.data
 }
+
+export async function downloadInvoiceFileApi(id: number): Promise<Blob> {
+  const response = await apiClient.get(`/api/invoices/${id}/file`, { responseType: 'blob' })
+  return response.data
+}

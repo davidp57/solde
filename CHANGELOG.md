@@ -13,6 +13,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Factures fournisseur (BIZ-139) : dialogue de prévisualisation accessible depuis l'icône œil dans la liste — affiche les infos clés (contact, dates, référence, montants, statut), l'historique des paiements et un aperçu intégré de la pièce jointe (PDF via iframe, image via balise img) avec boutons télécharger et remplacer ; nouvel endpoint `GET /api/invoices/{id}/file`
 - Lot I-BNK (BIZ-133) : Édition de la catégorie détectée d'une entrée bancaire — clic sur l'icône crayon dans la colonne Catégorie pour choisir une nouvelle valeur ; mise à jour via `PUT /api/bank/transactions/{id}` (nouveau champ `detected_category` dans `BankTransactionUpdate`)
 - Lot I-BNK (BIZ-135) : Boutons « Tout rapprocher » et « Rapprocher avant… » dans la barre d'outils du relevé — le premier rapproche toutes les opérations chargées en un clic, le second ouvre un sélecteur de date pour un rapprochement en masse ; nouvel endpoint `POST /api/bank/transactions/reconcile-bulk`
 
