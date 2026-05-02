@@ -19,6 +19,8 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Terminé |
 | --- | --- | --- | --- | --- | --- |
+| TEC-143 | Références OFX (FITID) : ne jamais afficher dans l'UI | P2 | ~15 min | 2026-05-02 | 2026-05-02 |
+| TEC-142 | Script one-shot : dépôts bancaires 14/04/2026 non encodés | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
 | BIZ-141 | Rapprochement bancaire : génération d'écritures comptables | P2 | ~45 min | 2026-05-02 | 2026-05-02 |
 | BIZ-140 | Sauvegardes : limite libellé 50→100 + erreurs UI | P2 | ~15 min | 2026-05-02 | 2026-05-02 |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | — |
@@ -26,6 +28,25 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 ---
 
 ## Détails
+
+### TEC-143 — Références OFX (FITID) : ne jamais afficher dans l'UI
+
+- **Terminé** : 2026-05-02
+- `BankTransaction.reference` stocke le FITID OFX brut (ex. `LL3BFSHCLF`), un identifiant technique sans signification métier. Il ne doit jamais être affiché à l'utilisateur.
+- **Corrections** :
+  - `backend/services/accounting_entry_service.py` : `source_reference` pour les TX bancaires utilise uniquement `description`, plus de fallback sur `reference`
+  - `frontend/src/components/bank/BankClientPaymentDialog.vue`, `BankLinkClientPaymentDialog.vue`, `BankSupplierPaymentDialog.vue`, `BankLinkSupplierPaymentDialog.vue` : suppression du `|| transaction.reference` dans le résumé de TX
+- **Règle mémorisée** dans les instructions copilot repo.
+
+### TEC-142 — Script one-shot : dépôts bancaires 14/04/2026 non encodés
+
+- **Terminé** : 2026-05-02
+- Deux transactions bancaires importées via OFX (`REM CHQ +530€` et `VRST +800€` du 14/04/2026) correspondaient à des dépôts de fonds effectués hors application (encodés initialement dans Excel). Aucun bordereau n'avait été créé dans Solde : pas d'écritures comptables, pas de sortie caisse, chèques non marqués déposés.
+- **Script** : `scripts/fix_bank_deposits_14apr2026.py` (dry-run par défaut, `--commit` pour appliquer)
+  - Génère les écritures `DEPOSIT_CHEQUES` (512100 D / 511200 C, 530€) et `DEPOSIT_ESPECES` (512100 D / 531000 C, 800€)
+  - Marque les 6 paiements chèque non déposés comme `deposited = True`
+  - Crée la sortie caisse OUT 800€ (source `deposit`, référence `VRST REF05001A05`)
+  - Rapproche les deux TX bancaires
 
 ### BIZ-141 — Rapprochement bancaire : génération d'écritures comptables
 
