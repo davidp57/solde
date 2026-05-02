@@ -36,6 +36,24 @@ class InvoiceUpdateError(Exception):
     """Raised when an invoice cannot be edited in its current business state."""
 
 
+# Initial status per invoice type.
+# Using an explicit mapping so any new InvoiceType is caught at creation time.
+_INITIAL_STATUS: dict[InvoiceType, InvoiceStatus] = {
+    InvoiceType.CLIENT: InvoiceStatus.DRAFT,
+    # Supplier invoices are *received*, not created from scratch — they are
+    # immediately valid and must appear in bank reconciliation.
+    InvoiceType.FOURNISSEUR: InvoiceStatus.SENT,
+}
+
+
+def _initial_status(invoice_type: InvoiceType) -> InvoiceStatus:
+    """Return the initial status for a newly created invoice of the given type."""
+    status = _INITIAL_STATUS.get(invoice_type)
+    if status is None:
+        raise ValueError(f"No initial status defined for invoice type {invoice_type!r}")
+    return status
+
+
 # Valid transitions: from → set of allowed target statuses
 _VALID_TRANSITIONS: dict[InvoiceStatus, set[InvoiceStatus]] = {
     InvoiceStatus.DRAFT: {
@@ -208,11 +226,7 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
             payload.type,
             len(payload.lines),
         ),
-        # Supplier invoices are received (not created from scratch), so they
-        # start as "sent" (= received/validated) rather than "draft".
-        status=(
-            InvoiceStatus.SENT if payload.type == InvoiceType.FOURNISSEUR else InvoiceStatus.DRAFT
-        ),
+        status=_initial_status(payload.type),
         hours=payload.hours,
     )
     db.add(invoice)
