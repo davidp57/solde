@@ -17,8 +17,27 @@
       <!-- Form column -->
       <div class="invoice-email-dialog__form">
         <div class="app-field">
-          <label class="app-field__label">{{ t('invoices.email_to') }}</label>
-          <InputText :value="recipient" disabled class="w-full" />
+          <label class="app-field__label">{{ t('invoices.email_recipients') }}</label>
+          <!-- Single recipient: read-only field -->
+          <InputText v-if="recipients.length <= 1" :value="recipients[0] ?? ''" disabled class="w-full" />
+          <!-- Multiple recipients: checkboxes -->
+          <div v-else class="invoice-email-dialog__recipients">
+            <div
+              v-for="addr in recipients"
+              :key="addr"
+              class="invoice-email-dialog__recipient-row"
+            >
+              <Checkbox
+                v-model="selectedRecipients"
+                :input-id="`recipient-${addr}`"
+                :value="addr"
+              />
+              <label :for="`recipient-${addr}`">{{ addr }}</label>
+            </div>
+            <small v-if="selectedRecipients.length === 0" class="p-error">
+              {{ t('invoices.email_select_recipients') }}
+            </small>
+          </div>
         </div>
         <div class="app-field">
           <label for="email-subject" class="app-field__label">{{ t('invoices.email_subject') }}</label>
@@ -46,11 +65,11 @@
       <div class="invoice-email-dialog__preview">
         <p class="invoice-email-dialog__preview-label">{{ t('invoices.email_preview') }}</p>
         <Skeleton v-if="pdfLoading" class="invoice-email-dialog__embed" border-radius="4px" />
-        <embed
+        <iframe
           v-else-if="pdfBlobUrl"
           :src="pdfBlobUrl"
-          type="application/pdf"
           class="invoice-email-dialog__embed"
+          title="Aperçu de la facture"
         />
         <div v-else class="invoice-email-dialog__preview-empty">
           <i class="pi pi-file-pdf" />
@@ -71,7 +90,7 @@
         :label="t('invoices.email_send')"
         icon="pi pi-send"
         :loading="sending"
-        :disabled="loading || !subject.trim() || !body.trim()"
+        :disabled="loading || !subject.trim() || !body.trim() || selectedRecipients.length === 0"
         @click="send"
       />
     </template>
@@ -83,6 +102,7 @@ import { ref, watch } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
+import Checkbox from 'primevue/checkbox'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Skeleton from 'primevue/skeleton'
@@ -104,7 +124,8 @@ const loading = ref(false)
 const pdfLoading = ref(false)
 const sending = ref(false)
 
-const recipient = ref('')
+const recipients = ref<string[]>([])
+const selectedRecipients = ref<string[]>([])
 const subject = ref('')
 const body = ref('')
 const pdfBlobUrl = ref<string | null>(null)
@@ -120,14 +141,16 @@ watch(
     loading.value = true
     subject.value = ''
     body.value = ''
-    recipient.value = ''
+    recipients.value = []
+    selectedRecipients.value = []
     revokePdfUrl()
 
     try {
       const preview = await getInvoiceEmailPreviewApi(id)
       subject.value = preview.subject
       body.value = preview.body
-      recipient.value = preview.recipient
+      recipients.value = preview.recipients
+      selectedRecipients.value = [...preview.recipients]
     } catch {
       toast.add({ severity: 'error', summary: t('common.error.title'), life: 4000 })
       visible.value = false
@@ -158,7 +181,11 @@ async function send(): Promise<void> {
   if (props.invoiceId === null) return
   sending.value = true
   try {
-    await sendInvoiceEmailApi(props.invoiceId, { subject: subject.value, body: body.value })
+    await sendInvoiceEmailApi(props.invoiceId, {
+      subject: subject.value,
+      body: body.value,
+      recipients: selectedRecipients.value,
+    })
     toast.add({ severity: 'success', summary: t('invoices.email_sent'), life: 3000 })
     visible.value = false
     emit('sent')
@@ -204,6 +231,18 @@ function onHide(): void {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.invoice-email-dialog__recipients {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.invoice-email-dialog__recipient-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .invoice-email-dialog__preview {

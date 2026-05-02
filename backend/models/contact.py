@@ -5,9 +5,10 @@ from decimal import Decimal
 from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database import Base
+from backend.models.contact_email import ContactEmail
 from backend.models.types import DecimalType
 
 _Decimal = Decimal
@@ -47,6 +48,9 @@ class Contact(Base):
     # Flag for freelance contractors (auto-entrepreneurs) — used in workforce cost view
     is_contractor: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # Flag for blocked/undesirable clients — invoice creation is blocked when True
+    blocked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     # Child / other-parent fields (optional, only relevant for CLIENT contacts)
     child_first_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
     child_last_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -58,4 +62,12 @@ class Contact(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    # Additional email addresses (max 2 recommended, up to 3 total with email field)
+    emails: Mapped[list[ContactEmail]] = relationship(
+        "ContactEmail",
+        cascade="all, delete-orphan",
+        order_by="ContactEmail.sort_order",
+        lazy="selectin",
     )
