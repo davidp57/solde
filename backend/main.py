@@ -2,6 +2,7 @@
 
 import logging
 import logging.config
+import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -83,7 +84,13 @@ class UnhandledExceptionMiddleware:
 # ---------------------------------------------------------------------------
 
 LOG_DIR = Path("data/logs")
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+# Do not write to the log file when running under pytest to avoid polluting
+# the production log file (shared via volume mount with the Docker container).
+_TESTING = "pytest" in sys.modules
+
+if not _TESTING:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Paths exempt from the must-change-password gate
 _PASSWORD_GATE_EXEMPT = frozenset(
@@ -141,34 +148,40 @@ logging.config.dictConfig(
                 "formatter": "default",
                 "level": "INFO",
             },
-            "file": {
-                "class": "logging.handlers.RotatingFileHandler",
-                "filename": str(LOG_DIR / "solde.log"),
-                "maxBytes": 5 * 1024 * 1024,  # 5 MB
-                "backupCount": 3,
-                "encoding": "utf-8",
-                "formatter": "default",
-                "level": "DEBUG",
-            },
+            **(
+                {}
+                if _TESTING
+                else {
+                    "file": {
+                        "class": "logging.handlers.RotatingFileHandler",
+                        "filename": str(LOG_DIR / "solde.log"),
+                        "maxBytes": 5 * 1024 * 1024,  # 5 MB
+                        "backupCount": 3,
+                        "encoding": "utf-8",
+                        "formatter": "default",
+                        "level": "DEBUG",
+                    },
+                }
+            ),
         },
         "loggers": {
             "backend": {
-                "handlers": ["console", "file"],
+                "handlers": ["console"] if _TESTING else ["console", "file"],
                 "level": "DEBUG",
                 "propagate": False,
             },
             "sqlalchemy.engine": {
-                "handlers": ["file"],
-                "level": "INFO" if get_settings().debug else "WARNING",
+                "handlers": [] if _TESTING else ["file"],
+                "level": "DEBUG",
                 "propagate": False,
             },
             "uvicorn.access": {
-                "handlers": ["console", "file"],
+                "handlers": ["console"] if _TESTING else ["console", "file"],
                 "level": "INFO",
                 "propagate": False,
             },
             "uvicorn.error": {
-                "handlers": ["console", "file"],
+                "handlers": ["console"] if _TESTING else ["console", "file"],
                 "level": "INFO",
                 "propagate": False,
             },
@@ -179,6 +192,21 @@ logging.config.dictConfig(
         },
     }
 )
+
+# SQLAlchemy emits SQL statements at INFO level internally; downgrade them to
+# DEBUG so they only appear under the DEBUG filter in the system logs UI.
+if not _TESTING:
+
+    class _DowngradeToDebugFilter(logging.Filter):
+        """Rewrite INFO records to DEBUG (used for noisy SQLAlchemy SQL output)."""
+
+        def filter(self, record: logging.LogRecord) -> bool:
+            if record.levelno == logging.INFO:
+                record.levelno = logging.DEBUG
+                record.levelname = "DEBUG"
+            return True
+
+    logging.getLogger("sqlalchemy.engine.Engine").addFilter(_DowngradeToDebugFilter())
 
 
 @asynccontextmanager

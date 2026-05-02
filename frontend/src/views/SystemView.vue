@@ -37,6 +37,7 @@
             v-model="backupLabel"
             :placeholder="t('system.backup_label_placeholder')"
             class="backup-label-input"
+            :maxlength="100"
           />
           <Button
             :label="t('system.backup_download')"
@@ -94,13 +95,6 @@
           {{ t('system.restore_step1_msg') }}
         </Message>
         <p class="restore-filename">{{ restoreTarget?.filename }}</p>
-        <label class="restore-confirm-label">{{ t('system.restore_type_confirm') }}</label>
-        <InputText
-          v-model="restoreConfirmInput"
-          :placeholder="t('system.restore_confirm_word')"
-          class="restore-confirm-input"
-          autocomplete="off"
-        />
       </div>
       <template #footer>
         <Button
@@ -112,7 +106,6 @@
         <Button
           :label="t('system.restore_confirm_btn')"
           severity="danger"
-          :disabled="restoreConfirmInput !== t('system.restore_confirm_word')"
           @click="onRestoreStep1Confirm"
         />
       </template>
@@ -283,7 +276,6 @@ const backupLabel = ref('')
 const restoreTarget = ref<BackupFile | null>(null)
 const restoreStep1Visible = ref(false)
 const restoreStep2Visible = ref(false)
-const restoreConfirmInput = ref('')
 const restoring = ref(false)
 const restoreError = ref('')
 const logs = ref<LogEntry[]>([])
@@ -355,8 +347,16 @@ async function downloadBackup(): Promise<void> {
     backupLabel.value = ''
     // Refresh backup list
     backupFiles.value = await listBackupsApi()
-  } catch {
-    backupError.value = t('system.backup_error')
+  } catch (err: unknown) {
+    // Extract the first Pydantic validation message if available, otherwise generic
+    const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+    if (Array.isArray(detail) && detail.length > 0 && detail[0]?.msg) {
+      backupError.value = String(detail[0].msg).replace(/^Value error, /, '')
+    } else if (typeof detail === 'string') {
+      backupError.value = detail
+    } else {
+      backupError.value = t('system.backup_error')
+    }
   } finally {
     backing.value = false
   }
@@ -364,7 +364,6 @@ async function downloadBackup(): Promise<void> {
 
 function openRestoreDialog(file: BackupFile): void {
   restoreTarget.value = file
-  restoreConfirmInput.value = ''
   restoreError.value = ''
   restoreStep1Visible.value = true
 }

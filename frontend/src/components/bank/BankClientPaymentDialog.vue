@@ -17,7 +17,7 @@
             t('bank.create_client_payment_tx_summary', {
               date: formatDisplayDate(transaction.date),
               amount: formatAmount(transaction.amount),
-              description: transaction.description || transaction.reference || '-',
+              description: transaction.description || '-',
             })
           }}
         </p>

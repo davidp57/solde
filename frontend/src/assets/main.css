@@ -442,6 +442,10 @@ html.dark-mode .app-chip {
   width: min(calc(100vw - 2rem), 920px);
 }
 
+.app-dialog--xlarge {
+  width: min(calc(100vw - 2rem), 1100px);
+}
+
 .app-dialog .p-dialog-header {
   padding-bottom: var(--app-space-3);
 }

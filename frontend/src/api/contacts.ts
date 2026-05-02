@@ -1,6 +1,20 @@
 import apiClient from './client'
 import type { ContactType } from './types'
 
+export interface ContactEmail {
+  id: number
+  contact_id: number
+  email: string
+  label: string | null
+  sort_order: number
+}
+
+export interface ContactEmailCreate {
+  email: string
+  label?: string | null
+  sort_order?: number
+}
+
 export interface Contact {
   id: number
   type: ContactType
@@ -11,6 +25,7 @@ export interface Contact {
   adresse: string | null
   notes: string | null
   is_active: boolean
+  blocked: boolean
   contract_type: 'cdi' | 'cdd' | null
   base_gross: number | null
   base_hours: number | null
@@ -24,6 +39,7 @@ export interface Contact {
   updated_at: string
   last_invoice_ref: string | null
   last_invoice_date: string | null
+  emails: ContactEmail[]
 }
 
 export interface ContactCreate {
@@ -34,6 +50,7 @@ export interface ContactCreate {
   telephone?: string | null
   adresse?: string | null
   notes?: string | null
+  blocked?: boolean
   contract_type?: 'cdi' | 'cdd' | null
   base_gross?: number | null
   base_hours?: number | null
@@ -43,6 +60,7 @@ export interface ContactCreate {
   child_last_name?: string | null
   other_parent_first_name?: string | null
   other_parent_last_name?: string | null
+  emails?: ContactEmailCreate[]
 }
 
 export interface ContactUpdate {
@@ -54,6 +72,7 @@ export interface ContactUpdate {
   adresse?: string | null
   notes?: string | null
   is_active?: boolean
+  blocked?: boolean
   contract_type?: 'cdi' | 'cdd' | null
   base_gross?: number | null
   base_hours?: number | null
@@ -63,6 +82,7 @@ export interface ContactUpdate {
   child_last_name?: string | null
   other_parent_first_name?: string | null
   other_parent_last_name?: string | null
+  emails?: ContactEmailCreate[]
 }
 
 export interface ContactFilters {

@@ -235,7 +235,16 @@ async def recompute_bank_balances(db: AsyncSession) -> bool:
     return changed
 
 
-async def add_transaction(db: AsyncSession, payload: BankTransactionCreate) -> BankTransaction:
+async def add_transaction(
+    db: AsyncSession, payload: BankTransactionCreate
+) -> BankTransaction | None:
+    """Insert a transaction. Returns None (skipped) if the reference already exists."""
+    if payload.reference:
+        existing = await db.execute(
+            select(BankTransaction).where(BankTransaction.reference == payload.reference)
+        )
+        if existing.scalar_one_or_none() is not None:
+            return None
     tx = await create_bank_transaction_record(
         db,
         date=payload.date,
@@ -409,6 +418,32 @@ async def update_transaction(
     return tx
 
 
+async def reconcile_transactions_bulk(
+    db: AsyncSession,
+    *,
+    ids: list[int],
+) -> int:
+    """Mark a batch of transactions as reconciled and generate accounting entries.
+
+    Returns the count of updated rows.
+    """
+    from backend.services import accounting_engine  # noqa: PLC0415
+
+    result = await db.execute(
+        select(BankTransaction)
+        .where(BankTransaction.id.in_(ids))
+        .where(BankTransaction.reconciled.is_(False))
+    )
+    txs = result.scalars().all()
+
+    for tx in txs:
+        tx.reconciled = True
+        await accounting_engine.generate_entries_for_bank_transaction(db, tx)
+
+    await db.commit()
+    return len(txs)
+
+
 async def create_client_payment_from_transaction(
     db: AsyncSession,
     *,
@@ -427,7 +462,7 @@ async def create_client_payment_from_transaction(
         invoice_id=invoice_id,
         amount=tx.amount,
         payment_date=tx.date,
-        reference=tx.reference,
+        reference=tx.description or None,
         notes=tx.description or None,
     )
 
@@ -466,7 +501,7 @@ async def create_client_payments_from_transaction(
             invoice_id=allocation.invoice_id,
             amount=allocation.amount,
             payment_date=tx.date,
-            reference=tx.reference,
+            reference=tx.description or None,
             notes=tx.description or None,
             commit=False,
         )
@@ -497,7 +532,7 @@ async def create_supplier_payment_from_transaction(
         invoice_id=invoice_id,
         amount=abs(tx.amount),
         payment_date=tx.date,
-        reference=tx.reference,
+        reference=tx.description or None,
         notes=tx.description or None,
     )
 

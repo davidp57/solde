@@ -33,7 +33,12 @@ from backend.schemas.invoice import (
 from backend.services import invoice as invoice_service
 from backend.services import settings as settings_service
 from backend.services.audit_service import AuditAction, record_audit
-from backend.services.invoice import InvoiceDeleteError, InvoiceStatusError, InvoiceUpdateError
+from backend.services.invoice import (
+    BlockedContactError,
+    InvoiceDeleteError,
+    InvoiceStatusError,
+    InvoiceUpdateError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +117,13 @@ async def create_invoice(
     current_user: _WriteAccess,
 ) -> InvoiceRead:
     """Create a new invoice."""
-    invoice = await invoice_service.create_invoice(db, payload)
+    try:
+        invoice = await invoice_service.create_invoice(db, payload)
+    except BlockedContactError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Ce contact est marqué comme indésirable : la création de facture est bloquée.",
+        ) from exc
     await record_audit(
         db,
         action=AuditAction.INVOICE_CREATED,
@@ -371,14 +382,27 @@ async def get_invoice_email_preview(
 
     result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
     contact = result.scalar_one_or_none()
-    if contact is None or not contact.email:
+    if contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Contact not found",
+        )
+
+    recipients: list[str] = []
+    if contact.email:
+        recipients.append(contact.email)
+    for ce in contact.emails:
+        if ce.email and ce.email not in recipients:
+            recipients.append(ce.email)
+
+    if not recipients:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Contact has no email address",
         )
 
     return InvoiceEmailPreview(
-        recipient=contact.email,
+        recipients=recipients,
         subject=email_service.compose_subject(
             invoice.number,
             invoice.description,
@@ -430,15 +454,34 @@ async def send_invoice_email(
         )
 
     from sqlalchemy import select  # noqa: PLC0415
+    from sqlalchemy.orm import selectinload  # noqa: PLC0415
 
     from backend.models.contact import Contact  # noqa: PLC0415
 
-    result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
+    result = await db.execute(
+        select(Contact)
+        .where(Contact.id == invoice.contact_id)
+        .options(selectinload(Contact.emails))
+    )
     contact = result.scalar_one_or_none()
-    if contact is None or not contact.email:
+    if contact is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Contact has no email address",
+            detail="Contact not found",
+        )
+    if not payload.recipients:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="No recipients specified",
+        )
+
+    # Security: only allow addresses that belong to this contact.
+    allowed_recipients = {addr for addr in [contact.email] if addr}
+    allowed_recipients.update(ce.email for ce in contact.emails)
+    if invalid := [r for r in payload.recipients if r not in allowed_recipients]:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Recipient(s) not allowed for this contact: {', '.join(invalid)}",
         )
 
     contact_name = contact.nom
@@ -458,7 +501,7 @@ async def send_invoice_email(
             smtp_from_email=app_settings.smtp_from_email,  # type: ignore[arg-type]
             smtp_use_tls=app_settings.smtp_use_tls,
             bcc=app_settings.smtp_bcc,
-            recipient_email=contact.email,
+            recipient_email=payload.recipients,
             invoice_number=invoice.number,
             association_name=app_settings.association_name,
             pdf_bytes=pdf_bytes,
@@ -484,6 +527,37 @@ async def send_invoice_email(
         target_id=invoice_id,
         target_type="invoice",
         detail={"number": invoice.number, "recipient": contact.email, "subject": payload.subject},
+    )
+
+
+@router.get("/{invoice_id}/file")
+async def download_invoice_file(
+    invoice_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _ReadAccess,
+) -> FileResponse:
+    """Return the uploaded file attachment for a supplier invoice."""
+    invoice = await invoice_service.get_invoice(db, invoice_id)
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    if not invoice.file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No file attached")
+    file_path = Path(invoice.file_path)
+    if not file_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk")
+    suffix = file_path.suffix.lower()
+    media_type_map = {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }
+    media_type = media_type_map.get(suffix, "application/octet-stream")
+    return FileResponse(
+        path=str(file_path),
+        media_type=media_type,
+        filename=f"facture_{invoice.number}{suffix}",
     )
 
 

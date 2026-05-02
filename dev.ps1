@@ -224,13 +224,41 @@ Write-Host "  API docs → http://localhost:8000/docs" -ForegroundColor Cyan
 Write-Host ""
 
 # ── Boucle d'affichage ─────────────────────────────────────────────────────────
+# Le backend peut se terminer volontairement (ex: restauration de backup) et doit
+# être redémarré automatiquement. On limite à $maxBackendRestarts redémarrages
+# consécutifs pour éviter de masquer une vraie erreur de démarrage.
+$backendRestartCount = 0
+$maxBackendRestarts = 3
+
 try {
     while ($true) {
         Write-NewLogLines -LogState $backendLog
         Write-NewLogLines -LogState $frontendLog
 
         if ($backendProcess.HasExited) {
-            throw "Le backend s'est arrêté de manière inattendue."
+            if ($backendRestartCount -ge $maxBackendRestarts) {
+                throw "Le backend s'est arrêté de manière inattendue ($maxBackendRestarts redémarrages tentés)."
+            }
+            $backendRestartCount++
+            Write-Host "" 
+            Write-Host "  Backend arrêté — redémarrage ($backendRestartCount/$maxBackendRestarts)..." -ForegroundColor Yellow
+            Start-Sleep -Milliseconds 800
+            $backendLog.LineCount = 0
+            $backendProcess = Start-LoggedProcess -WorkingDirectory $root -CommandText $backendCommand -LogPath $backendLogPath
+            # Attente que le backend soit de nouveau prêt
+            for ($attempt = 0; $attempt -lt 80; $attempt++) {
+                Write-NewLogLines -LogState $backendLog
+                if ($backendProcess.HasExited) { break }
+                try {
+                    $r = Invoke-WebRequest -Uri "http://127.0.0.1:8000/api/health" -UseBasicParsing -TimeoutSec 1
+                    if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) {
+                        $backendRestartCount = 0
+                        Write-Host "  Backend redémarré avec succès." -ForegroundColor Cyan
+                        break
+                    }
+                } catch { }
+                Start-Sleep -Milliseconds 250
+            }
         }
         if ($frontendProcess.HasExited) {
             throw "Le frontend s'est arrêté de manière inattendue."
