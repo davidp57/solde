@@ -462,7 +462,7 @@ async def create_client_payment_from_transaction(
         invoice_id=invoice_id,
         amount=tx.amount,
         payment_date=tx.date,
-        reference=tx.reference,
+        reference=tx.description or None,
         notes=tx.description or None,
     )
 
@@ -501,7 +501,7 @@ async def create_client_payments_from_transaction(
             invoice_id=allocation.invoice_id,
             amount=allocation.amount,
             payment_date=tx.date,
-            reference=tx.reference,
+            reference=tx.description or None,
             notes=tx.description or None,
             commit=False,
         )
@@ -532,7 +532,7 @@ async def create_supplier_payment_from_transaction(
         invoice_id=invoice_id,
         amount=abs(tx.amount),
         payment_date=tx.date,
-        reference=tx.reference,
+        reference=tx.description or None,
         notes=tx.description or None,
     )
 
