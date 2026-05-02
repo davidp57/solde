@@ -689,7 +689,7 @@ async def generate_entries_for_bank_transaction(
     if not isinstance(tx, BankTransaction):
         return []
 
-    category: str = str(tx.detected_category)
+    category: BankTransactionCategory = tx.detected_category
     amount = abs(tx.amount)
 
     if category == BankTransactionCategory.INTERNAL_TRANSFER:
