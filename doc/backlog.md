@@ -15,6 +15,8 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-149 | Auto-capitalisation des intitulés facture | P2 | ~15 min | 2026-05-02 | | |
 | BIZ-150 | Heures décimales : accepter « . » et « , » | P2 | ~15 min | 2026-05-02 | | |
+| BIZ-157 | Pagination des tables : 50 items par défaut | P3 | ~5 min | 2026-05-02 | | |
+| BIZ-158 | Limite API 1000 items + warning si atteinte | P2 | ~30 min | 2026-05-02 | | |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
 | BIZ-034 | Support multi-compte banque | P3 | ~45 min | 2026-04-21 | | |
 
@@ -51,6 +53,18 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 - Le champ heures dans les lignes facture n'accepte qu'un seul séparateur décimal.
 - Normaliser à la saisie : remplacer automatiquement la virgule par un point (ou l'inverse) pour que les deux soient acceptés.
+
+### BIZ-157 — Pagination des tables : 50 items par défaut
+
+- Toutes les DataTables de l'UI affichent actuellement 20 lignes par page.
+- Passer `:rows="50"` dans tous les composants Vue concernés pour réduire le nombre de pages à parcourir.
+
+### BIZ-158 — Limite API 1000 items + warning si atteinte
+
+- Les endpoints métier (factures, paiements, contacts, transactions bancaires, salaires) ont une limite de 100 items — insuffisante (ex. 114 factures client en 2024), ce qui tronque silencieusement les résultats et rend les filtres client-side incorrects.
+- **Backend** : passer `default=1000, le=1000` sur les routeurs concernés (`invoice.py`, `payment.py`, `contact.py`, `bank.py` transactions + dépôts, `salary.py`).
+- **Frontend** : après chaque chargement de liste, détecter si `items.length === limit` (= limite potentiellement atteinte) et afficher un `Message` PrimeVue bien visible (severity `warn`) expliquant que le volume de données dépasse la limite d'affichage et que les filtres peuvent être incomplets.
+- Routeurs déjà à 5000 (`accounting_entry.py`, `cash.py`) : ne pas toucher.
 
 ### BIZ-034 — Support multi-compte banque
 
