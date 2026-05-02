@@ -261,16 +261,39 @@
       @show="focusFormInput"
       :header="editingInvoice ? `${t('invoices.edit')} — ${editingInvoice.number}` : t('invoices.new')"
       modal
-      class="app-dialog app-dialog--medium"
+      :class="['app-dialog', editingInvoice?.file_path ? 'app-dialog--large' : 'app-dialog--medium']"
     >
-      <div ref="formWrapperEl">
-        <SupplierInvoiceForm
-          ref="supplierFormRef"
-          :invoice="editingInvoice"
-          :contacts="contacts"
-          @saved="onSaved"
-          @cancel="onCloseDialog(false)"
-        />
+      <div ref="formWrapperEl" :class="editingInvoice?.file_path ? 'supplier-edit-dialog__layout' : ''">
+        <div>
+          <SupplierInvoiceForm
+            ref="supplierFormRef"
+            :invoice="editingInvoice"
+            :contacts="contacts"
+            @saved="onSaved"
+            @cancel="onCloseDialog(false)"
+          />
+        </div>
+        <div v-if="editingInvoice?.file_path" class="supplier-edit-dialog__preview">
+          <h3 class="app-dialog-section__title">{{ t('invoices.file') }}</h3>
+          <div v-if="editFileLoading" class="supplier-preview-dialog__file-loading">
+            <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
+          </div>
+          <div v-else-if="editFileBlobUrl" class="supplier-preview-dialog__file-frame">
+            <embed
+              v-if="editFileIsPdf"
+              :src="editFileBlobUrl"
+              type="application/pdf"
+              class="supplier-preview-dialog__embed"
+            />
+            <img
+              v-else
+              :src="editFileBlobUrl"
+              class="supplier-preview-dialog__img"
+              :alt="t('invoices.supplier.preview_file')"
+            />
+          </div>
+          <div v-else class="app-empty-state">{{ t('common.error.unknown') }}</div>
+        </div>
       </div>
     </Dialog>
 
@@ -420,11 +443,11 @@
               <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
             </div>
             <div v-else-if="previewBlobUrl" class="supplier-preview-dialog__file-frame">
-              <iframe
+              <embed
                 v-if="previewIsPdf"
                 :src="previewBlobUrl"
-                class="supplier-preview-dialog__iframe"
-                :title="t('invoices.supplier.preview_file')"
+                type="application/pdf"
+                class="supplier-preview-dialog__embed"
               />
               <img
                 v-else
@@ -526,6 +549,17 @@ const uploadTargetId = ref<number | null>(null)
 const selectedFile = ref<File | null>(null)
 const uploading = ref(false)
 const statusFilter = ref<InvoiceStatus | null>(null)
+
+const editFileBlobUrl = ref<string | null>(null)
+const editFileIsPdf = ref(false)
+const editFileLoading = ref(false)
+
+watch(dialogVisible, (val) => {
+  if (!val && editFileBlobUrl.value) {
+    URL.revokeObjectURL(editFileBlobUrl.value)
+    editFileBlobUrl.value = null
+  }
+})
 
 // Preview dialog
 const previewVisible = ref(false)
@@ -673,7 +707,18 @@ function openCreateDialog() {
 
 function openEditDialog(invoice: Invoice) {
   editingInvoice.value = invoice
+  editFileBlobUrl.value = null
+  editFileLoading.value = !!invoice.file_path
   dialogVisible.value = true
+  if (invoice.file_path) {
+    downloadInvoiceFileApi(invoice.id)
+      .then((blob) => {
+        editFileIsPdf.value = blob.type === 'application/pdf'
+        editFileBlobUrl.value = URL.createObjectURL(blob)
+      })
+      .catch(() => {})
+      .finally(() => { editFileLoading.value = false })
+  }
 }
 
 function onSaved() {
@@ -833,6 +878,26 @@ onMounted(async () => {
   min-width: 12rem;
 }
 
+.supplier-edit-dialog__layout {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: var(--app-space-5);
+  align-items: start;
+}
+
+.supplier-edit-dialog__preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+  padding-top: var(--app-space-1);
+}
+
+@media (max-width: 900px) {
+  .supplier-edit-dialog__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 .upload-dialog {
   display: flex;
   flex-direction: column;
@@ -878,7 +943,7 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.supplier-preview-dialog__iframe {
+.supplier-preview-dialog__embed {
   width: 100%;
   height: 520px;
   border: none;
