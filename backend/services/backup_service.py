@@ -54,11 +54,23 @@ async def create_backup(
 
 
 def _do_backup(db_path: str, dest_file: Path) -> None:
-    """Perform the actual sqlite3.backup() (synchronous, called from a thread)."""
-    src_conn = sqlite3.connect(db_path)
+    """Perform the actual sqlite3.backup() (synchronous, called from a thread).
+
+    Uses the absolute resolved path for the source database to avoid any
+    working-directory ambiguity when called from a worker thread.
+    On failure the (possibly empty) destination file is removed so no
+    zero-byte artefacts are left behind.
+    """
+    abs_src = str(Path(db_path).resolve())
+    src_conn = sqlite3.connect(abs_src)
     dst_conn = sqlite3.connect(str(dest_file))
     try:
         src_conn.backup(dst_conn)
+    except Exception:
+        dst_conn.close()
+        src_conn.close()
+        dest_file.unlink(missing_ok=True)
+        raise
     finally:
         dst_conn.close()
         src_conn.close()

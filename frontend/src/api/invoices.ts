@@ -137,7 +137,7 @@ export async function downloadInvoicePdfApi(id: number): Promise<Blob> {
 }
 
 export interface InvoiceEmailPreview {
-  recipient: string
+  recipients: string[]
   subject: string
   body: string
 }
@@ -149,7 +149,7 @@ export async function getInvoiceEmailPreviewApi(id: number): Promise<InvoiceEmai
 
 export async function sendInvoiceEmailApi(
   id: number,
-  payload: { subject: string; body: string },
+  payload: { subject: string; body: string; recipients: string[] },
 ): Promise<void> {
   await apiClient.post(`/api/invoices/${id}/send-email`, payload)
 }

@@ -15,10 +15,26 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-034 | Support multi-compte banque | P3 | ~45 min | 2026-04-21 | | |
 
+### Lot J — Wizard factures & Contacts (~4h) — v1.2 ✅
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| BIZ-144 | Nom client dans la confirmation wizard | P2 | ~10 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| BIZ-145 | Bouton envoi mail depuis le wizard | P2 | ~30 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| BIZ-147 | Plusieurs emails par contact (labels, max 3) | P1 | ~75 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| BIZ-151 | Marquage « mauvais client » (badge + blocage) | P2 | ~60 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+
 ## Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Terminé |
 | --- | --- | --- | --- | --- | --- |
+| TEC-152 | Bug prod : fuseau horaire Docker (UTC vs Europe/Paris) | P1 | ~5 min | 2026-05-02 | 2026-05-02 |
+| TEC-153 | Bug prod : logs pollués par pytest (fichier partagé via volume) | P1 | ~15 min | 2026-05-02 | 2026-05-02 |
+| TEC-154 | Bug prod : backup SQLite WAL échoue + fichier 0-octet | P1 | ~20 min | 2026-05-02 | 2026-05-02 |
+| TEC-146 | Bug : aperçu PDF Chrome (download au lieu de preview) | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
+| BIZ-148 | Recalcul immédiat dans les lignes facture | P2 | ~20 min | 2026-05-02 | — |
+| BIZ-149 | Auto-capitalisation des intitulés facture | P2 | ~15 min | 2026-05-02 | — |
+| BIZ-150 | Heures décimales : accepter « . » et « , » | P2 | ~15 min | 2026-05-02 | — |
 | TEC-143 | Références OFX (FITID) : ne jamais afficher dans l'UI | P2 | ~15 min | 2026-05-02 | 2026-05-02 |
 | TEC-142 | Script one-shot : dépôts bancaires 14/04/2026 non encodés | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
 | BIZ-141 | Rapprochement bancaire : génération d'écritures comptables | P2 | ~45 min | 2026-05-02 | 2026-05-02 |
@@ -29,7 +45,73 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Détails
 
-### TEC-143 — Références OFX (FITID) : ne jamais afficher dans l'UI
+### TEC-152 — Bug prod : fuseau horaire Docker (UTC vs Europe/Paris)
+
+- **Terminé** : 2026-05-02
+- Le conteneur Docker n'avait pas de variable `TZ` → tous les timestamps des logs étaient en UTC (2h de décalage en heure française).
+- **Correction** : `docker-compose.yml` — ajout de `TZ: "Europe/Paris"` dans `environment:`.
+
+### TEC-153 — Bug prod : logs pollués par pytest
+
+- **Terminé** : 2026-05-02
+- Les runs pytest locaux importent `backend.main` qui configurait un `RotatingFileHandler` sur `data/logs/solde.log` — le même fichier partagé par le conteneur via le volume `./data:/app/data`. Les sorties SQLAlchemy des tests (DROP TABLE, etc.) polluaient les logs de production visibles dans l'UI système.
+- **Correction** : `backend/main.py` — détection de `"pytest" in sys.modules` à l'import ; si vrai, le handler fichier n'est pas créé. Le filtre de reclassement `INFO → DEBUG` des logs SQLAlchemy n'est également appliqué qu'hors pytest.
+
+### TEC-154 — Bug prod : backup SQLite WAL échoue + fichier 0-octet
+
+- **Terminé** : 2026-05-02
+- `sqlite3.OperationalError: unable to open database file` dans `_do_backup` à l'appel `src_conn.backup(dst_conn)`. Un fichier destination 0 octet était laissé sur disque après l'erreur.
+- **Cause** : chemin relatif `"data/solde.db"` transmis à `sqlite3.connect()` depuis un thread worker dont le `cwd` pouvait différer du répertoire de travail de l'application.
+- **Correction** : `backend/services/backup_service.py` — utilisation de `Path(db_path).resolve()` pour le chemin absolu de la source ; ajout d'un bloc `except` pour supprimer `dest_file` (via `unlink(missing_ok=True)`) avant de relancer l'exception.
+- Le fichier 0-octet `solde_backup_20260502_131711_*.db` a été supprimé manuellement du conteneur.
+
+### BIZ-144 — Nom client dans la confirmation wizard
+
+- Après la création d'une facture client dans le wizard, la confirmation affiche actuellement le numéro de facture mais pas le nom du client.
+- Afficher le nom du contact (client) dans le message de confirmation.
+
+### BIZ-145 — Bouton envoi mail depuis le wizard
+
+- Après création d'une facture, ajouter un bouton « Envoyer par e-mail » directement dans l'écran de confirmation du wizard.
+- Ouvre le preview mail (dialog existant) sans fermer le wizard. Après envoi, retour au wizard (qui reste ouvert en arrière-plan).
+- Pas de fermeture automatique du wizard à l'ouverture du preview.
+
+### TEC-146 — Bug : aperçu PDF Chrome (download au lieu de preview)
+
+- **Terminé** : 2026-05-02
+- Sur Chrome, l'aperçu PDF de la facture client dans le wizard affichait un écran blanc au lieu d'un rendu inline.
+- **Correction** : `InvoiceEmailDialog.vue` — remplacement de `<embed>` par `<iframe>` pour l'aperçu PDF ; compatibilité Chrome rétablie.
+
+### BIZ-147 — Plusieurs emails par contact (labels, max 3)
+
+- Un contact ne peut actuellement avoir qu'un seul email (`Contact.email`).
+- Ajouter jusqu'à 3 emails avec label libre (ex. « Email principal », « Email comptabilité »).
+- Lors de l'envoi d'une facture par mail, proposer le choix de l'adresse (ou des adresses) à utiliser ; toutes cochées par défaut.
+- Nécessite : migration Alembic, nouveau modèle `ContactEmail`, endpoints CRUD, mise à jour du formulaire contact et du dialog d'envoi.
+
+### BIZ-148 — Recalcul immédiat dans les lignes facture
+
+- Lors de la saisie des lignes de facture (quantité, prix unitaire, heures), le total n'est recalculé qu'à la sortie du champ.
+- Recalculer en temps réel pendant la frappe (événement `input`), pas seulement au `blur`.
+
+### BIZ-149 — Auto-capitalisation des intitulés facture
+
+- Les intitulés de lignes facture sont parfois saisis en minuscules. La mise en majuscule de la première lettre doit être automatique.
+- Appliquer lors de la saisie (première lettre de chaque valeur) ou à la sortie du champ (`blur`), pas uniquement à la génération du PDF.
+
+### BIZ-150 — Heures décimales : accepter « . » et « , »
+
+- Le champ heures dans les lignes facture n'accepte qu'un seul séparateur décimal.
+- Normaliser à la saisie : remplacer automatiquement la virgule par un point (ou l'inverse) pour que les deux soient acceptés.
+
+### BIZ-151 — Marquage « mauvais client » (badge + blocage)
+
+- Possibilité de marquer un contact client comme « indésirable » (ex. impayés répétés, litige).
+- **Badge** : icône visible dans la liste des contacts et dans les formulaires de recherche de contact.
+- **Blocage** : à la création d'une facture, si le contact est marqué indésirable, afficher une alerte bloquante (impossible de continuer sans lever le marquage).
+- Champ `blocked: bool` sur `Contact` + migration Alembic.
+
+ — Références OFX (FITID) : ne jamais afficher dans l'UI
 
 - **Terminé** : 2026-05-02
 - `BankTransaction.reference` stocke le FITID OFX brut (ex. `LL3BFSHCLF`), un identifiant technique sans signification métier. Il ne doit jamais être affiché à l'utilisateur ni stocké dans des champs métier.
@@ -219,6 +301,7 @@ Permettre l'émission d'un avoir (note de crédit) pour annuler partiellement ou
 | T | Chatbot IA + refactor Paramètres | v1.0 | BIZ-125, BIZ-126 | 2026-04-27 |
 | H-UX | Améliorations UX (lot H) | v1.1 | settings gestionnaires, dialogue paiement, champs famille contacts, date facture, commentaires, PDF règlement, verrou édition | 2026-04-28 |
 | I-BNK | UX Banque | v1.2 | BIZ-133, BIZ-134, BIZ-135, BIZ-136, BIZ-137 | 2026-05-01 |
+| J | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 |
 
 <details>
 <summary>Lot S — Documentation & i18n (2026-04-27)</summary>
