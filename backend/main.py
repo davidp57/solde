@@ -206,7 +206,7 @@ if not _TESTING:
                 record.levelname = "DEBUG"
             return True
 
-    logging.getLogger("sqlalchemy.engine").addFilter(_DowngradeToDebugFilter())
+    logging.getLogger("sqlalchemy.engine.Engine").addFilter(_DowngradeToDebugFilter())
 
 
 @asynccontextmanager
