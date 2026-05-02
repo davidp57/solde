@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import delete, extract, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -196,7 +197,11 @@ async def peek_next_client_number(db: AsyncSession) -> str:
 
 
 async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
-    """Create an invoice with auto-generated number and computed total."""
+    """Create an invoice with auto-generated number and computed total.
+
+    Retries up to 3 times on IntegrityError to handle the rare race condition
+    where two concurrent requests generate the same invoice number.
+    """
     # Check that the contact is not blocked (client invoices only)
     if payload.type == InvoiceType.CLIENT:
         from backend.models.contact import Contact  # noqa: PLC0415
@@ -206,63 +211,74 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
         if contact is not None and contact.blocked:
             raise BlockedContactError(payload.contact_id)
 
-    year = payload.date.year
-    number = await _next_number(db, payload.type, year)
-    resolved_due_date = apply_default_due_date(
-        payload.date,
-        payload.due_date,
-        await settings_service.get_default_invoice_due_days(db),
-    )
-
-    # Compute total
-    if payload.lines:
-        total = _compute_total(payload.lines)
-    elif payload.total_amount is not None:
-        total = payload.total_amount
-    else:
-        total = Decimal("0")
-
-    resolved_label = _resolve_invoice_label(payload.type, payload.label, payload.lines)
-
-    invoice = Invoice(
-        number=number,
-        type=payload.type,
-        contact_id=payload.contact_id,
-        date=payload.date,
-        due_date=resolved_due_date,
-        label=resolved_label,
-        description=payload.description,
-        reference=payload.reference,
-        total_amount=total,
-        paid_amount=Decimal("0"),
-        has_explicit_breakdown=_has_user_entered_breakdown(
-            payload.type,
-            len(payload.lines),
-        ),
-        status=_initial_status(payload.type),
-        hours=payload.hours,
-    )
-    db.add(invoice)
-    await db.flush()  # get invoice.id before adding lines
-
-    for ln in payload.lines:
-        line = InvoiceLine(
-            invoice_id=invoice.id,
-            description=ln.description,
-            line_type=(
-                _resolve_client_line_type(ln.description, ln.line_type, resolved_label)
-                if payload.type == InvoiceType.CLIENT
-                else None
-            ),
-            quantity=ln.quantity,
-            unit_price=ln.unit_price,
-            amount=_compute_line_amount(ln.quantity, ln.unit_price),
+    for _attempt in range(3):
+        year = payload.date.year
+        number = await _next_number(db, payload.type, year)
+        resolved_due_date = apply_default_due_date(
+            payload.date,
+            payload.due_date,
+            await settings_service.get_default_invoice_due_days(db),
         )
-        db.add(line)
 
-    await db.commit()
-    await db.refresh(invoice)
-    return await get_invoice(db, invoice.id)  # type: ignore[return-value]
+        # Compute total
+        if payload.lines:
+            total = _compute_total(payload.lines)
+        elif payload.total_amount is not None:
+            total = payload.total_amount
+        else:
+            total = Decimal("0")
+
+        resolved_label = _resolve_invoice_label(payload.type, payload.label, payload.lines)
+
+        invoice = Invoice(
+            number=number,
+            type=payload.type,
+            contact_id=payload.contact_id,
+            date=payload.date,
+            due_date=resolved_due_date,
+            label=resolved_label,
+            description=payload.description,
+            reference=payload.reference,
+            total_amount=total,
+            paid_amount=Decimal("0"),
+            has_explicit_breakdown=_has_user_entered_breakdown(
+                payload.type,
+                len(payload.lines),
+            ),
+            status=_initial_status(payload.type),
+            hours=payload.hours,
+        )
+        db.add(invoice)
+
+        try:
+            await db.flush()  # get invoice.id before adding lines
+            for ln in payload.lines:
+                line = InvoiceLine(
+                    invoice_id=invoice.id,
+                    description=ln.description,
+                    line_type=(
+                        _resolve_client_line_type(ln.description, ln.line_type, resolved_label)
+                        if payload.type == InvoiceType.CLIENT
+                        else None
+                    ),
+                    quantity=ln.quantity,
+                    unit_price=ln.unit_price,
+                    amount=_compute_line_amount(ln.quantity, ln.unit_price),
+                )
+                db.add(line)
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            if _attempt == 2:
+                raise
+            continue
+
+        await db.refresh(invoice)
+        refreshed = await get_invoice(db, invoice.id)
+        assert refreshed is not None, f"Invoice {invoice.id} missing after commit"
+        return refreshed
+
+    raise RuntimeError("Unreachable")
 
 
 async def get_invoice(db: AsyncSession, invoice_id: int) -> Invoice | None:

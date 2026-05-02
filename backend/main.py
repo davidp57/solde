@@ -121,6 +121,9 @@ class MustChangePasswordMiddleware(BaseHTTPMiddleware):
                 from backend.services.auth import decode_access_token
 
                 payload = decode_access_token(token)
+                if payload is not None:
+                    # Cache the decoded payload so get_current_user can reuse it
+                    request.state.jwt_payload = payload
                 if payload and payload.get("mcp") is True:
                     return JSONResponse(
                         status_code=403,

@@ -64,6 +64,7 @@ def _clear_refresh_cookie(response: Response) -> None:
 
 
 async def get_current_user(
+    request: Request,
     token: Annotated[str, Depends(_oauth2_scheme)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> User:
@@ -73,7 +74,10 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    payload = decode_access_token(token)
+    # Reuse payload already decoded by MustChangePasswordMiddleware when available
+    payload: dict[str, Any] | None = getattr(request.state, "jwt_payload", None)
+    if payload is None:
+        payload = decode_access_token(token)
     if payload is None:
         raise credentials_exception
     username: str | None = payload.get("sub")
@@ -435,8 +439,6 @@ async def update_user(
             user.email = normalized_email
 
     changes = body.model_dump(exclude_unset=True)
-    await db.commit()
-    await db.refresh(user)
     await record_audit(
         db,
         action=AuditAction.USER_UPDATED,
@@ -445,6 +447,8 @@ async def update_user(
         target_type="user",
         detail={"target_username": user.username, "changes": changes},
     )
+    await db.commit()
+    await db.refresh(user)
     return user
 
 

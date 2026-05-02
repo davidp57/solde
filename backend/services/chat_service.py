@@ -98,7 +98,8 @@ async def stream_chat(
                     completion_tokens = usage.get("completion_tokens")
         elif provider == "openai":
             async for chunk, usage in _stream_openai(api_key, model_name, system_prompt, messages):
-                yield _sse({"text": chunk})
+                if chunk:
+                    yield _sse({"text": chunk})
                 if usage:
                     prompt_tokens = usage.get("prompt_tokens")
                     completion_tokens = usage.get("completion_tokens")
@@ -205,8 +206,18 @@ async def _stream_openai(
         model=model_name,
         messages=openai_messages,
         stream=True,
+        stream_options={"include_usage": True},
     )
     async for event in stream:
+        # The last chunk from OpenAI with include_usage carries usage but no choices
+        if hasattr(event, "usage") and event.usage is not None:
+            usage_data = {
+                "prompt_tokens": event.usage.prompt_tokens,
+                "completion_tokens": event.usage.completion_tokens,
+                "total_tokens": event.usage.total_tokens,
+            }
+            yield "", usage_data
+            continue
         delta = event.choices[0].delta if event.choices else None
         if delta and delta.content:
             yield delta.content, None

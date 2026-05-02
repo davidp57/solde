@@ -8,6 +8,9 @@ import time
 from collections import defaultdict
 from threading import Lock
 
+# Purge stale keys every N record_attempt calls to prevent unbounded dict growth
+_PURGE_INTERVAL = 100
+
 
 class RateLimiter:
     """Simple in-memory sliding-window rate limiter.
@@ -22,6 +25,7 @@ class RateLimiter:
         self.window_seconds = window_seconds
         self._attempts: dict[str, list[float]] = defaultdict(list)
         self._lock = Lock()
+        self._calls_since_purge = 0
 
     def is_rate_limited(self, key: str) -> bool:
         """Return True if the key has exceeded the rate limit."""
@@ -39,11 +43,22 @@ class RateLimiter:
         now = time.monotonic()
         with self._lock:
             self._attempts[key].append(now)
+            self._calls_since_purge += 1
+            if self._calls_since_purge >= _PURGE_INTERVAL:
+                self._purge_stale(now)
+                self._calls_since_purge = 0
 
     def reset(self, key: str) -> None:
         """Clear attempts for the given key (e.g. after successful login)."""
         with self._lock:
             self._attempts.pop(key, None)
+
+    def _purge_stale(self, now: float) -> None:
+        """Remove keys whose entire attempt list has expired. Must be called under lock."""
+        cutoff = now - self.window_seconds
+        stale = [k for k, v in self._attempts.items() if all(t <= cutoff for t in v)]
+        for k in stale:
+            del self._attempts[k]
 
 
 # Singleton: 5 failed attempts per IP within 5 minutes
