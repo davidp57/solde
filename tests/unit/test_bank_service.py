@@ -204,7 +204,7 @@ async def test_create_client_payment_from_transaction(db_session: AsyncSession) 
     payment = await db_session.get(Payment, updated_tx.payment_id)
     assert payment is not None
     assert payment.method == PaymentMethod.VIREMENT
-    assert payment.reference == "BANK-REF-001"
+    assert payment.reference == "VIR DURAND"
     assert payment.deposited is True
     assert payment.deposit_date == date(2024, 3, 10)
 

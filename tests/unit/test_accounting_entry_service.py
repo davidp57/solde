@@ -318,7 +318,7 @@ class TestGetJournal:
 
         journal_entries = await get_journal(db_session)
 
-        assert journal_entries[0].source_reference == "VIR-001"
+        assert journal_entries[0].source_reference == "FAC-001"
         assert journal_entries[0].source_contact_name == "Bernard"
         assert journal_entries[0].source_invoice_id == invoice.id
 
