@@ -37,6 +37,7 @@
             v-model="backupLabel"
             :placeholder="t('system.backup_label_placeholder')"
             class="backup-label-input"
+            :maxlength="100"
           />
           <Button
             :label="t('system.backup_download')"
@@ -346,8 +347,16 @@ async function downloadBackup(): Promise<void> {
     backupLabel.value = ''
     // Refresh backup list
     backupFiles.value = await listBackupsApi()
-  } catch {
-    backupError.value = t('system.backup_error')
+  } catch (err: unknown) {
+    // Extract the first Pydantic validation message if available, otherwise generic
+    const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+    if (Array.isArray(detail) && detail.length > 0 && detail[0]?.msg) {
+      backupError.value = String(detail[0].msg).replace(/^Value error, /, '')
+    } else if (typeof detail === 'string') {
+      backupError.value = detail
+    } else {
+      backupError.value = t('system.backup_error')
+    }
   } finally {
     backing.value = false
   }
