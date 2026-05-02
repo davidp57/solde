@@ -1080,6 +1080,7 @@ export default {
         cash: 'Caisse',
         cloture: 'Clôture',
         write_off: 'Irrécouvrable',
+        bank_transaction: 'Rapprochement bancaire',
       },
     },
     balance: {
