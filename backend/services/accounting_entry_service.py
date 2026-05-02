@@ -334,10 +334,14 @@ async def _enrich_journal_entries(
                 source_invoice_id = invoice.id
                 source_invoice_type = _enum_value(invoice.type)
                 source_invoice_number = invoice.number
-        elif entry.source_type in (
-            EntrySourceType.GESTION,
-            EntrySourceType.BANK_TRANSACTION,
-        ) and entry.source_id is not None:
+        elif (
+            entry.source_type
+            in (
+                EntrySourceType.GESTION,
+                EntrySourceType.BANK_TRANSACTION,
+            )
+            and entry.source_id is not None
+        ):
             bank_transaction = bank_transactions_by_id.get(entry.source_id)
             if bank_transaction is not None:
                 source_reference = bank_transaction.description or bank_transaction.reference
