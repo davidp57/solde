@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-05-02 — active branch `develop` — current version: 1.2.1
+> Last updated: 2026-05-02 — active branch `develop` — current version: 1.3.0
 
 ---
 
@@ -20,7 +20,8 @@
 | **1.0** | Lots T — chatbot, email templates, credit notes — first stable release | ✅ Completed |
 | **1.1** | Bank deposit workflow + 7 UX improvements | ✅ Completed |
 | **1.2** | Bank reconciliation accounting entries, lot I-BNK, lot J (wizard + contacts) | ✅ Completed |
-| **1.3** | Multi-account bank + i18n English skeleton | ⬜ Planned |
+| **1.3** | Supplier invoice preview, cash count UX, dashboard deposits, multi-email contacts, blocked client, supplier cash payments | ✅ Released 2026-05-02 |
+| **1.4** | Multi-account bank + i18n English skeleton | ⬜ Planned |
 
 Test suite: **1011 backend + 131 frontend Vitest — 0 failures.**
 
