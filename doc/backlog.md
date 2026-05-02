@@ -34,6 +34,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | TEC-146 | Bug : aperçu PDF Chrome (download au lieu de preview) | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
 | BIZ-148 | Recalcul immédiat dans les lignes facture | P2 | ~20 min | 2026-05-02 | — |
 | BIZ-149 | Auto-capitalisation des intitulés facture | P2 | ~15 min | 2026-05-02 | — |
+| BIZ-155 | Paiement fournisseur espèces : sortie caisse automatique | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
 | BIZ-150 | Heures décimales : accepter « . » et « , » | P2 | ~15 min | 2026-05-02 | — |
 | TEC-143 | Références OFX (FITID) : ne jamais afficher dans l'UI | P2 | ~15 min | 2026-05-02 | 2026-05-02 |
 | TEC-142 | Script one-shot : dépôts bancaires 14/04/2026 non encodés | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
@@ -88,6 +89,14 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 - Ajouter jusqu'à 3 emails avec label libre (ex. « Email principal », « Email comptabilité »).
 - Lors de l'envoi d'une facture par mail, proposer le choix de l'adresse (ou des adresses) à utiliser ; toutes cochées par défaut.
 - Nécessite : migration Alembic, nouveau modèle `ContactEmail`, endpoints CRUD, mise à jour du formulaire contact et du dialog d'envoi.
+
+### BIZ-155 — Paiement fournisseur espèces : sortie caisse automatique
+
+- Lors de l'enregistrement d'un paiement en espèces lié à une facture **fournisseur**, aucun mouvement de caisse n'est créé automatiquement.
+- Côté client (recette), la sortie caisse est générée automatiquement par `_create_treasury_entries_for_payment` dans `backend/services/payment.py`. Pour les fournisseurs, la fonction retourne sans rien faire (`invoice.type != CLIENT`).
+- **Comportement attendu** : un paiement fournisseur en espèces doit créer automatiquement une **sortie caisse** (montant négatif, `CashMovementType.OUT`) avec la même date, le même contact et la référence à la facture.
+- **Périmètre** : `backend/services/payment.py` (`_create_treasury_entries_for_payment`) + tests.
+- **Impact UX** : évite la double saisie manuelle (créer le paiement puis créer la sortie caisse séparément).
 
 ### BIZ-148 — Recalcul immédiat dans les lignes facture
 
