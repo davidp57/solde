@@ -190,16 +190,15 @@ async def test_update_cash_entry_recomputes_running_balances(db_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_create_cash_count_total(db_session: AsyncSession) -> None:
-    """Cash count total is computed from denomination counts."""
+    """Cash count total is computed from bill counts + pieces_total."""
     payload = CashCountCreate(
         date=date(2024, 3, 1),
         count_100=1,  # 100.00
         count_20=2,  # 40.00
-        count_2=3,  # 6.00
-        count_cents_50=4,  # 2.00
+        pieces_total=Decimal("8.00"),  # replaces count_2=3 (6.00) + count_cents_50=4 (2.00)
     )
     count = await cash_service.create_cash_count(db_session, payload)
-    # 100 + 40 + 6 + 2 = 148.00
+    # 100 + 40 + 8 = 148.00
     assert count.total_counted == Decimal("148.00")
 
 

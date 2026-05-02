@@ -647,6 +647,7 @@ export default {
     count_expected: 'Solde attendu',
     count_diff: 'Écart',
     count_notes: 'Observations',
+    count_pieces_total: 'Pièces (ferraille)',
     count_create_deposit: 'Bordereau de dépôt',
     count_details: 'Détail du comptage',
     denom_unit: 'Coupure',
