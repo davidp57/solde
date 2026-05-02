@@ -371,14 +371,27 @@ async def get_invoice_email_preview(
 
     result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
     contact = result.scalar_one_or_none()
-    if contact is None or not contact.email:
+    if contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Contact not found",
+        )
+
+    recipients: list[str] = []
+    if contact.email:
+        recipients.append(contact.email)
+    for ce in contact.emails:
+        if ce.email and ce.email not in recipients:
+            recipients.append(ce.email)
+
+    if not recipients:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Contact has no email address",
         )
 
     return InvoiceEmailPreview(
-        recipient=contact.email,
+        recipients=recipients,
         subject=email_service.compose_subject(
             invoice.number,
             invoice.description,
@@ -435,10 +448,15 @@ async def send_invoice_email(
 
     result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
     contact = result.scalar_one_or_none()
-    if contact is None or not contact.email:
+    if contact is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Contact has no email address",
+            detail="Contact not found",
+        )
+    if not payload.recipients:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="No recipients specified",
         )
 
     contact_name = contact.nom
@@ -458,7 +476,7 @@ async def send_invoice_email(
             smtp_from_email=app_settings.smtp_from_email,  # type: ignore[arg-type]
             smtp_use_tls=app_settings.smtp_use_tls,
             bcc=app_settings.smtp_bcc,
-            recipient_email=contact.email,
+            recipient_email=payload.recipients,
             invoice_number=invoice.number,
             association_name=app_settings.association_name,
             pdf_bytes=pdf_bytes,

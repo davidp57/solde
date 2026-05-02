@@ -31,7 +31,24 @@
         </div>
         <p class="qiw-result__title">{{ t('dashboard.invoice_wizard.success_title') }}</p>
         <p class="qiw-result__msg">{{ t('dashboard.invoice_wizard.success_msg', { number: savedInvoiceNumber }) }}</p>
+        <p v-if="savedContactName" class="qiw-result__contact">
+          {{ t('dashboard.invoice_wizard.success_contact', { contact: savedContactName }) }}
+        </p>
+        <Tag
+          v-if="emailSent"
+          :value="t('dashboard.invoice_wizard.email_sent_badge')"
+          severity="success"
+          icon="pi pi-send"
+          class="qiw-result__email-badge"
+        />
         <div class="qiw-result__actions">
+          <Button
+            :label="t('dashboard.invoice_wizard.send_email')"
+            icon="pi pi-envelope"
+            severity="secondary"
+            outlined
+            @click="openEmailDialog"
+          />
           <Button
             :label="t('dashboard.invoice_wizard.create_another')"
             severity="secondary"
@@ -43,16 +60,25 @@
       </div>
     </template>
   </Dialog>
+
+  <InvoiceEmailDialog
+    :invoice-id="emailInvoiceId"
+    @sent="onEmailSent"
+    @close="emailInvoiceId = null"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
+import Tag from 'primevue/tag'
 import ClientInvoiceForm from './ClientInvoiceForm.vue'
+import InvoiceEmailDialog from './InvoiceEmailDialog.vue'
 import { listContactsApi, type Contact } from '../api/contacts'
 import type { Invoice } from '../api/invoices'
+import { formatContactDisplayName } from '../utils/contact'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (e: 'update:visible', v: boolean): void }>()
@@ -65,6 +91,10 @@ const loadingContacts = ref(false)
 const contacts = ref<Contact[]>([])
 const formKey = ref(0)
 const savedInvoiceNumber = ref<string | null>(null)
+const savedInvoiceId = ref<number | null>(null)
+const savedContactName = ref<string | null>(null)
+const emailInvoiceId = ref<number | null>(null)
+const emailSent = ref(false)
 
 // ── data loading ───────────────────────────────────────────────────────────
 async function loadContacts() {
@@ -95,7 +125,24 @@ watch(
 // ── actions ────────────────────────────────────────────────────────────────
 function onSaved(invoice: Invoice) {
   savedInvoiceNumber.value = invoice.number
+  savedInvoiceId.value = invoice.id
+  const contact = contacts.value.find((c) => c.id === invoice.contact_id)
+  savedContactName.value = contact ? formatContactDisplayName(contact) : null
+  emailSent.value = false
   step.value = 2
+}
+
+function openEmailDialog() {
+  // Reset to null first so the watch in InvoiceEmailDialog fires on re-open
+  emailInvoiceId.value = null
+  void nextTick(() => {
+    emailInvoiceId.value = savedInvoiceId.value
+  })
+}
+
+function onEmailSent() {
+  emailSent.value = true
+  emailInvoiceId.value = null
 }
 
 function restart() {
@@ -145,6 +192,16 @@ function onClose(val: boolean) {
 .qiw-result__msg {
   margin: 0;
   color: var(--p-text-muted-color);
+}
+
+.qiw-result__contact {
+  margin: 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.9rem;
+}
+
+.qiw-result__email-badge {
+  margin-top: var(--app-space-1);
 }
 
 .qiw-result__actions {
