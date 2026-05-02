@@ -237,6 +237,16 @@
                 @click="openUploadDialog(data)"
               />
               <Button
+                v-if="canRecordPayment(data)"
+                icon="pi pi-wallet"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.record_payment')"
+                :aria-label="t('invoices.record_payment')"
+                @click="openPaymentDialog(data)"
+              />
+              <Button
                 v-if="data.status === 'draft'"
                 icon="pi pi-trash"
                 size="small"
@@ -403,6 +413,13 @@
               :label="t('invoices.upload_file')"
               @click="openUploadFromPreview"
             />
+            <Button
+              v-if="canRecordPayment(previewInvoice)"
+              icon="pi pi-wallet"
+              size="small"
+              :label="t('invoices.record_payment')"
+              @click="openPaymentDialog(previewInvoice!)"
+            />
           </div>
         </section>
 
@@ -486,6 +503,83 @@
       </div>
     </Dialog>
 
+    <!-- Payment dialog -->
+    <Dialog
+      v-model:visible="paymentDialogVisible"
+      :header="paymentInvoice ? t('invoices.record_payment') : ''"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <form class="app-dialog-form" @submit.prevent="submitPayment">
+        <section v-if="paymentInvoice" class="app-dialog-intro">
+          <p class="app-dialog-intro__eyebrow">{{ paymentInvoice.number }}</p>
+          <p class="app-dialog-intro__text">
+            {{ contactName(paymentInvoice.contact_id) }}
+          </p>
+          <p class="app-dialog-intro__text">
+            {{ t('invoices.total') }} : <strong>{{ paymentInvoice.total_amount }} €</strong>
+          </p>
+        </section>
+        <section class="app-dialog-section">
+          <div class="history-dialog__summary">
+            <div class="history-dialog__metric">
+              <div class="history-dialog__label">{{ t('invoices.remaining') }}</div>
+              <div class="history-dialog__value history-dialog__value--warn">
+                {{ paymentRemaining.toFixed(2) }} €
+              </div>
+            </div>
+          </div>
+          <div class="app-form-grid">
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.date') }}</label>
+              <AppDatePicker v-model="paymentForm.date" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.amount') }}</label>
+              <InputNumber
+                v-model="paymentForm.amount"
+                mode="decimal"
+                :min="0.01"
+                :min-fraction-digits="2"
+                :max-fraction-digits="2"
+              />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.method') }}</label>
+              <Select
+                v-model="paymentForm.method"
+                :options="paymentMethodOptions"
+                option-label="label"
+                option-value="value"
+              />
+            </div>
+            <div v-if="paymentForm.method === 'cheque'" class="app-field">
+              <label class="app-field__label">{{ t('payments.cheque_number') }}</label>
+              <InputText v-model="paymentForm.cheque_number" />
+            </div>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('payments.reference') }}</label>
+              <InputText v-model="paymentForm.reference" />
+            </div>
+            <div class="app-field app-field--span-2">
+              <label class="app-field__label">{{ t('payments.notes') }}</label>
+              <Textarea v-model="paymentForm.notes" rows="3" />
+            </div>
+          </div>
+        </section>
+        <div class="app-form-actions">
+          <Button
+            :label="t('common.cancel')"
+            severity="secondary"
+            text
+            type="button"
+            @click="paymentDialogVisible = false"
+          />
+          <Button type="submit" :label="t('common.save')" :loading="paymentSaving" />
+        </div>
+      </form>
+    </Dialog>
+
     <ConfirmDialog />
   </AppPage>
 </template>
@@ -497,9 +591,11 @@ import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import FileUpload from 'primevue/fileupload'
+import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
+import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, nextTick, ref, watch } from 'vue'
@@ -515,6 +611,7 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 
+import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
@@ -524,7 +621,7 @@ import {
   type Invoice,
   type InvoiceStatus,
 } from '../api/invoices'
-import { listPayments, type Payment } from '../api/payments'
+import { createPayment, listPayments, type Payment } from '../api/payments'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
 import {
   dateRangeFilter,
@@ -666,6 +763,96 @@ const fileFilterOptions = [
   { label: t('common.yes'), value: true },
   { label: t('common.no'), value: false },
 ]
+
+const paymentMethodOptions = [
+  { label: t('payments.methods.especes'), value: 'especes' },
+  { label: t('payments.methods.cheque'), value: 'cheque' },
+]
+
+// Payment dialog state
+const paymentDialogVisible = ref(false)
+const paymentInvoice = ref<Invoice | null>(null)
+const paymentSaving = ref(false)
+const paymentForm = ref({
+  date: new Date() as Date,
+  amount: 0,
+  method: 'cheque' as 'especes' | 'cheque',
+  cheque_number: '',
+  reference: '',
+  notes: '',
+})
+
+const paymentRemaining = computed(() => {
+  if (!paymentInvoice.value) return 0
+  return parseFloat(paymentInvoice.value.total_amount) - parseFloat(paymentInvoice.value.paid_amount)
+})
+
+function canRecordPayment(invoice: Invoice | null): boolean {
+  if (!invoice) return false
+  const remaining = parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount)
+  return invoice.status !== 'draft' && remaining > 0
+}
+
+function openPaymentDialog(invoice: Invoice) {
+  paymentInvoice.value = invoice
+  paymentForm.value = {
+    date: new Date(),
+    amount: parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount),
+    method: 'cheque',
+    cheque_number: '',
+    reference: '',
+    notes: '',
+  }
+  paymentDialogVisible.value = true
+}
+
+async function submitPayment() {
+  if (!paymentInvoice.value) return
+
+  const amount = Number(paymentForm.value.amount)
+  if (!(amount > 0)) {
+    toast.add({ severity: 'warn', summary: t('payments.errors.amount_positive'), life: 3500 })
+    return
+  }
+  if (amount - paymentRemaining.value > 0.001) {
+    toast.add({ severity: 'warn', summary: t('payments.errors.amount_exceeds_remaining'), life: 3500 })
+    return
+  }
+  if (paymentForm.value.method === 'cheque' && paymentForm.value.cheque_number.trim().length === 0) {
+    toast.add({ severity: 'warn', summary: t('payments.errors.cheque_number_required'), life: 3500 })
+    return
+  }
+
+  paymentSaving.value = true
+  try {
+    const dateVal = paymentForm.value.date
+    const isoDate = typeof dateVal === 'string' ? dateVal : dateVal.toISOString().slice(0, 10)
+    await createPayment({
+      invoice_id: paymentInvoice.value.id,
+      contact_id: paymentInvoice.value.contact_id,
+      amount: amount.toFixed(2),
+      date: isoDate,
+      method: paymentForm.value.method,
+      cheque_number: paymentForm.value.method === 'cheque' ? paymentForm.value.cheque_number : null,
+      reference: paymentForm.value.reference || null,
+      notes: paymentForm.value.notes || null,
+    })
+    toast.add({ severity: 'success', summary: t('payments.created'), life: 3000 })
+    paymentDialogVisible.value = false
+    await loadInvoices()
+    // Refresh preview payments if preview is open for the same invoice
+    if (previewInvoice.value?.id === paymentInvoice.value.id) {
+      previewPayments.value = await listPayments({ invoice_id: paymentInvoice.value.id })
+      // Re-fetch invoice to update paid_amount / status
+      const updated = invoices.value.find((inv) => inv.id === paymentInvoice.value!.id)
+      if (updated) previewInvoice.value = updated
+    }
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } finally {
+    paymentSaving.value = false
+  }
+}
 
 function formatAmount(val: string | number) {
   return parseFloat(String(val)).toFixed(2)
