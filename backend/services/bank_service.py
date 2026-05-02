@@ -423,18 +423,25 @@ async def reconcile_transactions_bulk(
     *,
     ids: list[int],
 ) -> int:
-    """Mark a batch of transactions as reconciled. Returns the count of updated rows."""
-    from sqlalchemy import update as sa_update
-    from sqlalchemy.engine import CursorResult
+    """Mark a batch of transactions as reconciled and generate accounting entries.
 
-    result: CursorResult[tuple[()]] = await db.execute(  # type: ignore[assignment]
-        sa_update(BankTransaction)
+    Returns the count of updated rows.
+    """
+    from backend.services import accounting_engine  # noqa: PLC0415
+
+    result = await db.execute(
+        select(BankTransaction)
         .where(BankTransaction.id.in_(ids))
         .where(BankTransaction.reconciled.is_(False))
-        .values(reconciled=True)
     )
+    txs = result.scalars().all()
+
+    for tx in txs:
+        tx.reconciled = True
+        await accounting_engine.generate_entries_for_bank_transaction(db, tx)
+
     await db.commit()
-    return int(result.rowcount)
+    return len(txs)
 
 
 async def create_client_payment_from_transaction(

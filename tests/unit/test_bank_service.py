@@ -6,10 +6,22 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.bank import BankTransactionSource, DepositType, bank_transaction_payments
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.models.accounting_rule import (
+    AccountingRule,
+    AccountingRuleEntry,
+    EntrySide,
+    TriggerType,
+)
+from backend.models.bank import (
+    BankTransactionCategory,
+    BankTransactionSource,
+    DepositType,
+    bank_transaction_payments,
+)
 from backend.models.contact import Contact, ContactType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
@@ -853,3 +865,143 @@ async def test_list_deposits_filter_by_date_range(db_session: AsyncSession) -> N
     )
 
     assert [deposit.id for deposit in deposits] == [kept.id]
+
+
+# ---------------------------------------------------------------------------
+# reconcile_transactions_bulk — accounting entries
+# ---------------------------------------------------------------------------
+
+
+async def _seed_bank_fee_rule(db: AsyncSession) -> AccountingRule:
+    """Insert a minimal BANK_FEES rule (627100 D / 512100 C)."""
+    rule = AccountingRule(
+        name="Frais bancaires",
+        trigger_type=TriggerType.BANK_FEES,
+        is_active=True,
+        priority=10,
+    )
+    db.add(rule)
+    await db.flush()
+    db.add(
+        AccountingRuleEntry(
+            rule_id=rule.id,
+            account_number="627100",
+            side=EntrySide.DEBIT,
+            description_template="{{label}}",
+        )
+    )
+    db.add(
+        AccountingRuleEntry(
+            rule_id=rule.id,
+            account_number="512100",
+            side=EntrySide.CREDIT,
+            description_template="{{label}}",
+        )
+    )
+    await db.commit()
+    await db.refresh(rule)
+    return rule
+
+
+@pytest.mark.asyncio
+async def test_reconcile_bulk_generates_accounting_entries_for_bank_fee(
+    db_session: AsyncSession,
+) -> None:
+    """A BANK_FEE transaction reconciled via bulk should produce accounting entries."""
+    await _seed_bank_fee_rule(db_session)
+
+    tx = await bank_service.add_transaction(
+        db_session,
+        BankTransactionCreate(
+            date=date(2024, 4, 10),
+            amount=Decimal("-5.25"),
+            description="FACT SGT26050010004897 DONT TVA",
+            reference="SGT-REF-001",
+            source=BankTransactionSource.IMPORT_OFX,
+        ),
+    )
+    # Force the category (normally set at import time)
+    tx.detected_category = BankTransactionCategory.BANK_FEE
+    await db_session.commit()
+
+    count = await bank_service.reconcile_transactions_bulk(db_session, ids=[tx.id])
+
+    assert count == 1
+    await db_session.refresh(tx)
+    assert tx.reconciled is True
+
+    entries_result = await db_session.execute(
+        select(AccountingEntry).where(
+            AccountingEntry.source_type == EntrySourceType.BANK_TRANSACTION,
+            AccountingEntry.source_id == tx.id,
+        )
+    )
+    entries = entries_result.scalars().all()
+    assert len(entries) == 2  # one debit + one credit
+
+    debit = next(e for e in entries if e.debit > 0)
+    credit = next(e for e in entries if e.credit > 0)
+    assert debit.debit == Decimal("5.25")
+    assert credit.credit == Decimal("5.25")
+    assert debit.account_number == "627100"
+    assert credit.account_number == "512100"
+
+
+@pytest.mark.asyncio
+async def test_reconcile_bulk_no_entries_for_uncategorized(
+    db_session: AsyncSession,
+) -> None:
+    """An UNCATEGORIZED transaction reconciled via bulk should not produce entries."""
+    await _seed_bank_fee_rule(db_session)
+
+    tx = await bank_service.add_transaction(
+        db_session,
+        BankTransactionCreate(
+            date=date(2024, 4, 15),
+            amount=Decimal("-20.00"),
+            description="VIREMENT DIVERS",
+        ),
+    )
+    # detected_category defaults to UNCATEGORIZED
+
+    count = await bank_service.reconcile_transactions_bulk(db_session, ids=[tx.id])
+
+    assert count == 1
+    entries_result = await db_session.execute(
+        select(AccountingEntry).where(
+            AccountingEntry.source_type == EntrySourceType.BANK_TRANSACTION,
+            AccountingEntry.source_id == tx.id,
+        )
+    )
+    assert entries_result.scalars().all() == []
+
+
+@pytest.mark.asyncio
+async def test_reconcile_bulk_skips_already_reconciled(
+    db_session: AsyncSession,
+) -> None:
+    """Already-reconciled transactions are not double-processed."""
+    await _seed_bank_fee_rule(db_session)
+
+    tx = await bank_service.add_transaction(
+        db_session,
+        BankTransactionCreate(
+            date=date(2024, 4, 20),
+            amount=Decimal("-3.00"),
+            description="FRAIS",
+        ),
+    )
+    tx.reconciled = True
+    tx.detected_category = BankTransactionCategory.BANK_FEE
+    await db_session.commit()
+
+    count = await bank_service.reconcile_transactions_bulk(db_session, ids=[tx.id])
+
+    assert count == 0
+    entries_result = await db_session.execute(
+        select(AccountingEntry).where(
+            AccountingEntry.source_type == EntrySourceType.BANK_TRANSACTION,
+            AccountingEntry.source_id == tx.id,
+        )
+    )
+    assert entries_result.scalars().all() == []
