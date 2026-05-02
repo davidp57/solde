@@ -115,40 +115,88 @@ Un onglet rapide permet aussi de basculer entre **Tous**, **Clients** et **Fourn
 ### Créer un contact
 
 1. Cliquer sur **Nouveau contact**.
-2. Renseigner le **nom** (obligatoire), le prénom (optionnel) et l'e-mail (optionnel).
+2. Renseigner le **nom** (obligatoire), le prénom (optionnel) et l'e-mail principal (optionnel).
 3. Optionnel : renseigner l'adresse, le téléphone, les notes.
-4. Cliquer sur **Enregistrer**.
+4. Optionnel : dans la section **Adresses e-mail supplémentaires**, ajouter jusqu'à 2 adresses additionnelles avec un libellé libre (ex. : « Comptabilité », « Direction »). Ces adresses apparaîtront comme destinataires lors de l'envoi de factures.
+5. Cliquer sur **Enregistrer**.
+
+> L'e-mail (principal ou supplémentaire) est nécessaire pour pouvoir envoyer des factures par e-mail à ce contact.
 
 ### Modifier un contact
 
 1. Cliquer sur le contact dans la liste.
 2. Modifier les champs souhaités.
+3. Pour ajouter, modifier ou supprimer des adresses e-mail supplémentaires, utiliser la section **Adresses e-mail supplémentaires**.
+4. Cliquer sur **Enregistrer**.
+
+### Marquer un client comme indésirable
+
+Cette fonctionnalité s'applique aux contacts de type **Client** ou **Les deux**. Elle permet de bloquer la création de nouvelles factures pour un client en litige ou en défaut de paiement.
+
+1. Ouvrir la fiche du contact.
+2. Activer le toggle **Client indésirable**.
 3. Cliquer sur **Enregistrer**.
+
+Un badge rouge **Indésirable** s'affiche alors dans la liste des contacts. Toute tentative de créer une facture pour ce contact sera bloquée avec un message d'erreur explicite.
+
+Pour lever le blocage : désactiver le toggle et enregistrer.
 
 ### Historique d'un contact
 
-Sur la fiche contact, l'onglet **Historique** affiche toutes les factures et paiements liés à ce contact.
+Sur la fiche contact, l'onglet **Historique** affiche toutes les factures et paiements liés à ce contact. Cliquer sur une facture pour l'ouvrir en prévisualisation inline, avec navigation ‹ précédent / suivant ›.
 
 ---
 
 ## 4. Factures clients
+
+### Workflow type : émettre et encaisser une facture
+
+Voici le cycle complet d'une facture client, de la création au paiement :
+
+1. **Créer** la facture (formulaire complet ou wizard rapide — voir ci-dessous).
+2. **Valider** pour lui attribuer un numéro définitif.
+3. **Envoyer par e-mail** au client (bouton dans la fiche ou directement depuis le wizard).
+4. Quand le règlement arrive, **enregistrer un paiement** et le lier à la facture — le statut passe automatiquement à *Payée* ou *Partiellement payée*.
+5. Si la facture est réglée par chèque ou espèces, **créer une remise en banque** pour tracer le dépôt.
+
+---
 
 ### Consulter la liste des factures
 
 **Factures** → liste filtrée par exercice. Colonnes : numéro, contact, date, montant, montant payé, statut.
 
 Statuts possibles :
-- **Brouillon** : facture non validée.
-- **Validée** : facture envoyée ou confirmée, en attente de paiement.
-- **Payée** : entièrement réglée.
-- **Partiellement payée** : un ou plusieurs paiements reçus, solde restant.
-- **En retard** : échéance dépassée, non réglée.
-- **Irrécouvrable** : passée en perte.
 
-### Créer une facture
+| Statut | Signification |
+|---|---|
+| **Brouillon** | Facture en cours de saisie, non validée. Modifiable librement. |
+| **Validée** | Facture finalisée, numéro attribué. En attente de paiement. |
+| **Payée** | Entièrement réglée. |
+| **Partiellement payée** | Un ou plusieurs paiements reçus, solde restant dû. |
+| **En retard** | Échéance dépassée, non réglée. |
+| **Irrécouvrable** | Passée en perte (créance douteuse). |
+
+---
+
+### Créer une facture rapidement (wizard)
+
+Le wizard permet de créer et valider une facture client en quelques clics depuis le **tableau de bord** ou le bouton **+ Facture rapide** :
+
+1. **Étape 1 — Contact** : sélectionner le client. Si le contact est marqué *Indésirable*, la création est bloquée à cette étape.
+2. **Étape 2 — Lignes** : ajouter les lignes de facturation (type, description, quantité, prix). Les prix sont pré-remplis depuis les paramètres.
+3. **Étape 3 — Confirmation** : la facture est créée et validée automatiquement. L'écran affiche le numéro et le nom du client.
+   - Bouton **Envoyer par e-mail** : ouvre le dialogue d'envoi sans fermer le wizard.
+   - Bouton **Nouvelle facture** : recommence le wizard pour un autre client.
+   - Bouton **Voir la facture** : ouvre la fiche complète.
+
+> Le wizard crée la facture directement en statut *Validée* — il n'y a pas d'étape brouillon.
+
+---
+
+### Créer une facture (formulaire complet)
 
 1. Cliquer sur **Nouvelle facture**.
-2. Sélectionner le **contact** (obligatoire).
+2. Sélectionner le **contact** (obligatoire). Si le contact est *Indésirable*, le bouton **Valider** est désactivé.
 3. Renseigner la **date** (obligatoire).
 4. La **date d'échéance** est calculée automatiquement d'après le délai par défaut configuré. Elle peut être modifiée manuellement.
 5. Ajouter des **lignes de facturation** :
@@ -158,7 +206,7 @@ Statuts possibles :
 6. Optionnel : ajouter un commentaire interne.
 7. Cliquer sur **Enregistrer** pour sauvegarder en brouillon, ou **Valider** pour finaliser la facture.
 
-> La numérotation est attribuée automatiquement à la validation.
+> La numérotation est attribuée automatiquement à la validation. Elle ne peut pas être modifiée manuellement.
 
 ### Modifier une facture
 
@@ -172,15 +220,19 @@ Seules les factures en **brouillon** sans paiement associé peuvent être suppri
 
 ### Envoyer une facture par e-mail
 
-1. Ouvrir la fiche facture.
+1. Ouvrir la fiche facture (ou cliquer sur **Envoyer par e-mail** depuis la confirmation du wizard).
 2. Cliquer sur **Envoyer par e-mail**.
-3. Vérifier l'adresse du destinataire (pré-remplie depuis le contact).
+3. **Destinataires** :
+   - Si le contact n'a qu'une adresse e-mail → le champ est en lecture seule, pré-rempli.
+   - Si le contact a plusieurs adresses → des cases à cocher apparaissent, toutes pré-cochées. Décocher les destinataires à exclure. L'envoi est bloqué si aucune case n'est cochée.
 4. Optionnel : modifier l'objet et le corps du message.
-5. Cliquer sur **Envoyer**.
+5. Un aperçu PDF de la facture est affiché à droite.
+6. Cliquer sur **Envoyer**.
 
 Le PDF est joint automatiquement. Un envoi réussi est tracé dans l'historique de la facture.
 
 > Pour que l'envoi fonctionne, le SMTP doit être configuré dans les paramètres (rôle administrateur).
+> Un contact sans aucune adresse e-mail ne peut pas recevoir de facture par e-mail.
 
 ### Télécharger le PDF
 
@@ -202,6 +254,12 @@ Le format de numérotation est configurable par l'administrateur (ex. `2026-001`
 
 ## 5. Paiements
 
+### Workflow type : enregistrer un règlement client
+
+1. Recevoir le règlement (virement, chèque, espèces).
+2. Créer le paiement (**Nouveau paiement**) et le lier à la ou les factures concernées → le statut des factures se met à jour automatiquement.
+3. Si le règlement est en **chèque ou espèces** : associer le paiement à une remise en banque (voir section Banque).
+
 ### Consulter les paiements
 
 **Paiements** → liste des paiements reçus, filtrés par exercice.
@@ -211,11 +269,15 @@ Le format de numérotation est configurable par l'administrateur (ex. `2026-001`
 1. Cliquer sur **Nouveau paiement**.
 2. Sélectionner le **contact** (optionnel si la facture est connue).
 3. Saisir le **montant** et la **date**.
-4. Optionnel : lier le paiement à une ou plusieurs factures existantes.
+4. Optionnel : lier le paiement à une ou plusieurs factures existantes (section **Factures liées**). Si non lié, la facture reste au statut *Validée*.
 5. Saisir la référence (numéro de virement, de chèque, etc.).
 6. Cliquer sur **Enregistrer**.
 
-Si le paiement est lié à une facture, le statut de la facture est mis à jour automatiquement.
+> **Astuce** : si une facture reste affichée comme impayée après l'enregistrement d'un paiement, vérifier que la facture est bien sélectionnée dans la section **Factures liées** du paiement.
+
+### Supprimer un paiement
+
+Un paiement peut être supprimé tant qu'il n'est pas associé à une remise en banque validée. La suppression met à jour le statut des factures liées.
 
 ### Remises en banque
 
@@ -271,32 +333,66 @@ Un mouvement de caisse peut être supprimé s'il n'est associé à aucune écrit
 
 ## 8. Banque
 
+### Workflow type : traiter un relevé bancaire mensuel
+
+1. **Importer** le fichier OFX exporté depuis votre banque.
+2. **Vérifier les catégories** détectées automatiquement sur chaque transaction ; les corriger si besoin (icône crayon dans la colonne Catégorie).
+3. **Rapprocher** chaque transaction avec le paiement ou la remise en banque correspondant — soit ligne par ligne, soit en masse.
+4. Vérifier que le **solde** affiché dans Solde correspond au relevé papier.
+
+---
+
 ### Consulter les transactions
 
-**Banque** → liste des transactions du compte bancaire.
+**Banque** → liste des transactions du compte bancaire. Filtrables par période, statut (rapprochées / non rapprochées), catégorie.
 
-### Importer des transactions
+La colonne **Référence** affiche la référence comptable (numéro de facture ou de remise) quand la transaction est rapprochée.
 
-Les transactions bancaires peuvent être importées depuis un fichier OFX exporté depuis votre banque :
+### Importer des transactions (OFX)
 
 1. Cliquer sur **Importer**.
-2. Sélectionner le fichier OFX.
-3. Vérifier la prévisualisation.
-4. Confirmer l'import.
+2. Sélectionner le fichier OFX exporté depuis votre banque.
+3. Confirmer l'import.
 
-Les doublons exacts sont automatiquement ignorés.
+Les transactions déjà présentes (même référence bancaire) sont automatiquement ignorées — aucun doublon n'est créé.
+
+> Seuls les fichiers OFX contenant **un seul compte** sont acceptés. Si votre fichier contient plusieurs comptes, contactez votre administrateur.
+
+### Corriger la catégorie d'une transaction
+
+Solde détecte automatiquement la catégorie de chaque transaction (frais bancaires, cotisation sociale, subvention, virement interne…). Pour corriger :
+
+1. Cliquer sur l'icône **crayon** dans la colonne Catégorie de la transaction.
+2. Sélectionner la catégorie correcte dans la liste déroulante.
+3. Enregistrer.
+
+La catégorie détermine les écritures comptables générées lors du rapprochement.
 
 ### Rapprochement bancaire
 
-Le rapprochement permet de vérifier que les transactions bancaires correspondent aux paiements enregistrés dans Solde.
+Le rapprochement lie une transaction bancaire à un paiement ou une remise enregistrés dans Solde, et génère les écritures comptables correspondantes.
 
-1. Aller dans l'onglet **Rapprochement**.
-2. Cocher les transactions rapprochées avec les paiements correspondants.
-3. Confirmer le rapprochement.
+#### Rapprocher une transaction individuellement
+
+1. Repérer la transaction dans la liste (filtrer sur « Non rapprochées » pour aller vite).
+2. Cliquer sur le bouton **Rapprocher** dans la colonne Rapp.
+3. Sélectionner le paiement ou la remise correspondant.
+4. Confirmer.
+
+La transaction passe en statut **Rapproché** (tag vert) et disparaît du filtre « Non rapprochées ».
+
+#### Rapprocher en masse
+
+Deux boutons de rapprochement en masse sont disponibles dans la barre d'outils :
+
+- **Tout rapprocher** : rapproche automatiquement toutes les transactions chargées dans la liste selon les règles configurées.
+- **Rapprocher avant…** : ouvre un sélecteur de date ; toutes les transactions antérieures à cette date sont rapprochées en masse.
+
+> Le rapprochement en masse n'écrase pas les transactions déjà rapprochées.
 
 ### Remises en banque
 
-Une remise en banque regroupe plusieurs paiements remis ensemble à la banque (chèques, virements groupés).
+Une remise en banque regroupe plusieurs paiements remis ensemble à la banque (lot de chèques, virements groupés).
 
 1. Aller dans **Banque → Remises en banque**.
 2. Cliquer sur **Nouvelle remise**.
@@ -307,6 +403,16 @@ Une remise en banque regroupe plusieurs paiements remis ensemble à la banque (c
 ---
 
 ## 9. Salaires et employés
+
+### Workflow type : saisir les salaires du mois
+
+1. Récupérer les bulletins de salaire du mois depuis la plateforme CEA (ou équivalent).
+2. Pour chaque intervenant, **créer une fiche de salaire** (**Salaires → Fiches de salaire → Nouvelle fiche**).
+3. Vérifier le **Net calculé** affiché en lecture seule — il doit correspondre au net figurant sur le bulletin. Tout écart signale une erreur de saisie.
+4. Enregistrer — les écritures comptables sont générées automatiquement.
+5. Consulter le **Récapitulatif mensuel** pour vérifier les totaux du mois (brut, net, cotisations, coût total).
+
+---
 
 ### Gérer les employés
 
