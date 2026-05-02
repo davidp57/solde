@@ -344,7 +344,9 @@ async def _enrich_journal_entries(
         ):
             bank_transaction = bank_transactions_by_id.get(entry.source_id)
             if bank_transaction is not None:
-                source_reference = bank_transaction.description or bank_transaction.reference
+                # Never fall back to bank_transaction.reference: it stores the raw OFX
+                # FITID (an opaque technical identifier) which must not be shown in the UI.
+                source_reference = bank_transaction.description or None
 
         counterpart_entry = counterpart_by_id.get(entry.id)
         journal_entries.append(
