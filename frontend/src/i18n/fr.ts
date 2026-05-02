@@ -213,6 +213,8 @@ export default {
     filter_placeholder: 'Rechercher…',
     refresh: 'Actualiser',
     reset_filters: 'Réinitialiser les filtres',
+    previous: 'Précédent',
+    next: 'Suivant',
     active: 'Actif',
     inactive: 'Inactif',
     list: {
@@ -459,6 +461,10 @@ export default {
         'Conservez ici les informations utiles pour le contrôle et le rapprochement.',
       upload_intro:
         'Associez un justificatif pour retrouver rapidement la pièce depuis le portefeuille fournisseur.',
+      preview_title: 'Facture {number}',
+      preview_file: 'Prévisualiser la pièce jointe',
+      download_file: 'Télécharger',
+      no_attachment: 'Aucune pièce jointe.',
     },
     new: 'Nouvelle facture',
     edit: 'Modifier la facture',
@@ -1750,6 +1756,7 @@ export default {
     view_payment: 'Voir le paiement',
     invoice_detail_title: 'Facture {number}',
     payment_detail_title: 'Détail du paiement',
+    back_to_list: 'Retour à la liste',
   },
   bilan: {
     title: 'Bilan simplifié',
