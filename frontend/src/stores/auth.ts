@@ -2,8 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { loginApi, refreshApi, logoutApi, getMeApi } from '../api/auth'
 import type { UserRead } from '../api/types'
+import { USER_ROLES } from '../constants/roles'
 
-const ACCESS_TOKEN_KEY = 'access_token'
 const DEV_AUTO_LOGIN_SUPPRESSED_KEY = 'dev_auto_login_suppressed'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -14,31 +14,30 @@ export const useAuthStore = defineStore('auth', () => {
   const devAutoLoginAttempted = ref(false)
 
   const isAuthenticated = computed(() => accessToken.value !== null)
-  const isAdmin = computed(() => user.value?.role === 'admin')
-  const isGestionnaire = computed(() => user.value?.role === 'secretaire')
+  const isAdmin = computed(() => user.value?.role === USER_ROLES.ADMIN)
+  const isGestionnaire = computed(() => user.value?.role === USER_ROLES.SECRETAIRE)
   const isTresorier = computed(
-    () => user.value?.role === 'admin' || user.value?.role === 'tresorier',
+    () => user.value?.role === USER_ROLES.ADMIN || user.value?.role === USER_ROLES.TRESORIER,
   )
   const canAccessManagement = computed(
     () =>
-      user.value?.role === 'secretaire' ||
-      user.value?.role === 'tresorier' ||
-      user.value?.role === 'admin',
+      user.value?.role === USER_ROLES.SECRETAIRE ||
+      user.value?.role === USER_ROLES.TRESORIER ||
+      user.value?.role === USER_ROLES.ADMIN,
   )
   const canAccessAccounting = computed(
-    () => user.value?.role === 'tresorier' || user.value?.role === 'admin',
+    () => user.value?.role === USER_ROLES.TRESORIER || user.value?.role === USER_ROLES.ADMIN,
   )
-  const canManageApplication = computed(() => user.value?.role === 'admin')
+  const canManageApplication = computed(() => user.value?.role === USER_ROLES.ADMIN)
   const mustChangePassword = computed(() => user.value?.must_change_password === true)
 
   function saveAccessToken(access: string): void {
+    // Token stored in memory only — never in localStorage (XSS mitigation)
     accessToken.value = access
-    localStorage.setItem(ACCESS_TOKEN_KEY, access)
   }
 
   function clearTokens(): void {
     accessToken.value = null
-    localStorage.removeItem(ACCESS_TOKEN_KEY)
   }
 
   function canUseDevAutoLogin(): boolean {
@@ -54,9 +53,15 @@ export const useAuthStore = defineStore('auth', () => {
     sessionStorage.removeItem(DEV_AUTO_LOGIN_SUPPRESSED_KEY)
   }
 
-  function initFromStorage(): void {
-    const access = localStorage.getItem(ACCESS_TOKEN_KEY)
-    if (access) accessToken.value = access
+  /** Attempt to restore session from the HttpOnly refresh cookie (replaces initFromStorage). */
+  async function initFromRefreshCookie(): Promise<void> {
+    try {
+      const tokens = await refreshApi()
+      accessToken.value = tokens.access_token
+      user.value = await getMeApi(tokens.access_token)
+    } catch {
+      // No valid session — user must log in explicitly
+    }
   }
 
   async function login(username: string, password: string): Promise<void> {
@@ -146,7 +151,7 @@ export const useAuthStore = defineStore('auth', () => {
     canAccessAccounting,
     canManageApplication,
     mustChangePassword,
-    initFromStorage,
+    initFromRefreshCookie,
     login,
     logout,
     maybeAutoLoginForDev,
