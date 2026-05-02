@@ -193,6 +193,21 @@ logging.config.dictConfig(
     }
 )
 
+# SQLAlchemy emits SQL statements at INFO level internally; downgrade them to
+# DEBUG so they only appear under the DEBUG filter in the system logs UI.
+if not _TESTING:
+
+    class _DowngradeToDebugFilter(logging.Filter):
+        """Rewrite INFO records to DEBUG (used for noisy SQLAlchemy SQL output)."""
+
+        def filter(self, record: logging.LogRecord) -> bool:
+            if record.levelno == logging.INFO:
+                record.levelno = logging.DEBUG
+                record.levelname = "DEBUG"
+            return True
+
+    logging.getLogger("sqlalchemy.engine").addFilter(_DowngradeToDebugFilter())
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
