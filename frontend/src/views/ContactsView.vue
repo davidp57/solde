@@ -98,6 +98,15 @@
           :show-filter-match-modes="false"
           :show-add-button="false"
         >
+          <template #body="{ data }">
+            <span>{{ data.nom }}</span>
+            <Tag
+              v-if="data.blocked"
+              :value="t('contacts.blocked_badge')"
+              severity="danger"
+              class="contacts-table__blocked-badge"
+            />
+          </template>
           <template #filter="{ filterModel }">
             <InputText v-model="filterModel.value" :placeholder="t('contacts.nom')" />
           </template>
@@ -661,6 +670,12 @@ onMounted(loadContacts)
 <style scoped>
 .contacts-table__actions {
   width: 8rem;
+}
+
+.contacts-table__blocked-badge {
+  margin-left: 0.4rem;
+  font-size: 0.7rem;
+  vertical-align: middle;
 }
 
 .contacts-tabs {

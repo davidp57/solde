@@ -9,6 +9,22 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from backend.models.contact import ContactType, ContractType
 
 
+class ContactEmailCreate(BaseModel):
+    email: EmailStr
+    label: str | None = Field(default=None, max_length=50)
+    sort_order: int = 0
+
+
+class ContactEmailRead(BaseModel):
+    id: int
+    contact_id: int
+    email: str
+    label: str | None = None
+    sort_order: int
+
+    model_config = {"from_attributes": True}
+
+
 class ContactWriteBase(BaseModel):
     type: ContactType
     nom: str = Field(max_length=100)
@@ -17,6 +33,7 @@ class ContactWriteBase(BaseModel):
     telephone: str | None = Field(default=None, max_length=30)
     adresse: str | None = Field(default=None, max_length=500)
     notes: str | None = Field(default=None, max_length=2000)
+    blocked: bool = False
     contract_type: ContractType | None = None
     base_gross: Decimal | None = Field(default=None, ge=0)
     base_hours: Decimal | None = Field(default=None, ge=0)
@@ -26,6 +43,7 @@ class ContactWriteBase(BaseModel):
     child_last_name: str | None = Field(default=None, max_length=100)
     other_parent_first_name: str | None = Field(default=None, max_length=100)
     other_parent_last_name: str | None = Field(default=None, max_length=100)
+    emails: list[ContactEmailCreate] | None = None
 
     @field_validator("nom")
     @classmethod
@@ -50,6 +68,7 @@ class ContactUpdate(BaseModel):
     adresse: str | None = Field(default=None, max_length=500)
     notes: str | None = Field(default=None, max_length=2000)
     is_active: bool | None = None
+    blocked: bool | None = None
     contract_type: ContractType | None = None
     base_gross: Decimal | None = Field(default=None, ge=0)
     base_hours: Decimal | None = Field(default=None, ge=0)
@@ -59,6 +78,7 @@ class ContactUpdate(BaseModel):
     child_last_name: str | None = Field(default=None, max_length=100)
     other_parent_first_name: str | None = Field(default=None, max_length=100)
     other_parent_last_name: str | None = Field(default=None, max_length=100)
+    emails: list[ContactEmailCreate] | None = None
 
     @field_validator("nom")
     @classmethod
@@ -78,6 +98,7 @@ class ContactRead(BaseModel):
     adresse: str | None = None
     notes: str | None = None
     is_active: bool
+    blocked: bool
     contract_type: ContractType | None = None
     base_gross: Decimal | None = None
     base_hours: Decimal | None = None
@@ -91,6 +112,7 @@ class ContactRead(BaseModel):
     updated_at: datetime
     last_invoice_ref: str | None = None
     last_invoice_date: date_value | None = None
+    emails: list[ContactEmailRead] = []
 
     model_config = {"from_attributes": True}
 
