@@ -10,14 +10,14 @@ import anyio
 
 
 def _slugify_label(label: str) -> str:
-    """Convert a label to a safe filename slug (max 50 chars)."""
+    """Convert a label to a safe filename slug (max 80 chars)."""
     # Keep only allowed chars
     slug = re.sub(r"[^a-zA-Z0-9 _-]", "", label).strip()
     # Collapse spaces to underscores
     slug = re.sub(r"\s+", "_", slug)
     # Collapse consecutive separators
     slug = re.sub(r"[_-]{2,}", "_", slug)
-    return slug[:50]
+    return slug[:80]
 
 
 async def create_backup(
