@@ -19,8 +19,6 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Terminé |
 | --- | --- | --- | --- | --- | --- |
-| BIZ-138 | Écritures salaires : date au dernier jour du mois | P1 | ~15 min | 2026-05-02 | 2026-05-02 |
-| BIZ-139 | Factures fournisseur créées en statut « Reçue » au lieu de Brouillon | P1 | ~20 min | 2026-05-02 | 2026-05-02 |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | — |
 
 ---
@@ -197,7 +195,7 @@ Restructuration complète du répertoire `doc/` : nouvelles arborescences `doc/a
 
 </details>
 
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**, **BIZ-111**, **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**.
+Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**, **BIZ-111**, **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**, **BIZ-138**, **BIZ-139**.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
 
 <details>
