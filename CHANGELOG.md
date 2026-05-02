@@ -13,6 +13,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Ajouté
 
+- Rapprochement bancaire (BIZ-141) : le bouton « Rapprocher » et « Tout rapprocher » génèrent désormais des écritures comptables automatiques selon la catégorie de la transaction — `BANK_FEE` → règle `Frais bancaires`, `SOCIAL_CHARGE` → `BANK_SOCIAL_CHARGES`, `GRANT` → `SUBSIDY_RECEIVED`, `INTERNAL_TRANSFER` → transfert épargne/courant ; source `bank_transaction` traçable dans le journal
+
 - Factures fournisseur (BIZ-139) : dialogue de prévisualisation accessible depuis l'icône œil dans la liste — affiche les infos clés (contact, dates, référence, montants, statut), l'historique des paiements et un aperçu intégré de la pièce jointe (PDF via `<embed>`, image via `<img>`) avec boutons télécharger et remplacer ; navigation ‹ précédent / suivant › dans la liste filtrée courante ; nouvel endpoint `GET /api/invoices/{id}/file`
 - Historique contact : la prévisualisation d'une facture (fournisseur ou client) s'affiche désormais en vue inline dans le même panneau (sans Dialog imbriqué) avec bouton « Retour à la liste » et navigation ‹ précédent / suivant › dans les factures du contact
 - `scripts/attach_supplier_invoices.py` : script one-shot pour rattacher en masse les fichiers PDF/image existants (`data/factures_fournisseur/`) aux factures fournisseur de la base

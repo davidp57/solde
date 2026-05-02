@@ -19,12 +19,26 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 | ID | Titre | Prio | Est. | Créé | Terminé |
 | --- | --- | --- | --- | --- | --- |
+| BIZ-141 | Rapprochement bancaire : génération d'écritures comptables | P2 | ~45 min | 2026-05-02 | 2026-05-02 |
 | BIZ-140 | Sauvegardes : limite libellé 50→100 + erreurs UI | P2 | ~15 min | 2026-05-02 | 2026-05-02 |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | — |
 
 ---
 
 ## Détails
+
+### BIZ-141 — Rapprochement bancaire : génération d'écritures comptables
+
+- **Terminé** : 2026-05-02
+- Lors du rapprochement d'une transaction bancaire via « Rapprocher » / « Tout rapprocher », aucune écriture comptable n'était générée, même quand une règle `BANK_FEES` (ou autre) existait.
+- **Cause** : `reconcile_transactions_bulk` faisait uniquement un `UPDATE reconciled = True` sans déclencher le moteur comptable.
+- **Correction** :
+  - `backend/models/accounting_entry.py` : ajout de `BANK_TRANSACTION` dans `EntrySourceType`
+  - `backend/services/accounting_engine.py` : nouvelle fonction `generate_entries_for_bank_transaction()` + mapping `_BANK_CATEGORY_TRIGGER` (couvre `bank_fee`, `social_charge`, `grant`, `internal_transfer`)
+  - `backend/services/bank_service.py` : `reconcile_transactions_bulk` charge désormais les transactions et appelle `generate_entries_for_bank_transaction()` pour chacune
+- **Catégories couvertes** : `BANK_FEE` → `BANK_FEES`, `SOCIAL_CHARGE` → `BANK_SOCIAL_CHARGES`, `GRANT` → `SUBSIDY_RECEIVED`, `INTERNAL_TRANSFER` → `BANK_INTERNAL_TRANSFER_FROM/TO_SAVINGS`
+- **Non couvert intentionnellement** : `CUSTOMER_PAYMENT`, `SUPPLIER_PAYMENT`, `SALARY`, `CHEQUE_DEPOSIT`, `CASH_DEPOSIT` — ces catégories passent par leurs propres services qui génèrent déjà les écritures.
+- **Tests** : 3 nouveaux tests dans `tests/unit/test_bank_service.py`
 
 ### BIZ-140 — Sauvegardes : limite libellé 50→100 + erreurs UI
 
