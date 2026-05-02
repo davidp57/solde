@@ -920,6 +920,7 @@ async def test_reconcile_bulk_generates_accounting_entries_for_bank_fee(
             source=BankTransactionSource.IMPORT_OFX,
         ),
     )
+    assert tx is not None
     # Force the category (normally set at import time)
     tx.detected_category = BankTransactionCategory.BANK_FEE
     await db_session.commit()

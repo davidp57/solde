@@ -758,6 +758,9 @@ function openUploadDialog(invoice: Invoice) {
 async function openPreviewDialog(invoice: Invoice) {
   previewIndex.value = displayedInvoices.value.findIndex((r) => r.id === invoice.id)
   previewInvoice.value = invoice
+  if (previewBlobUrl.value) {
+    URL.revokeObjectURL(previewBlobUrl.value)
+  }
   previewBlobUrl.value = null
   previewPayments.value = []
   previewVisible.value = true

@@ -122,7 +122,7 @@ async def create_invoice(
     except BlockedContactError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Contact is blocked: invoice creation is not allowed",
+            detail="Ce contact est marqué comme indésirable : la création de facture est bloquée.",
         ) from exc
     await record_audit(
         db,
