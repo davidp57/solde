@@ -13,6 +13,7 @@ services:
       - .env
     environment:
       DATABASE_URL: "sqlite+aiosqlite:///data/solde.db"
+      TZ: "Europe/Paris"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
       interval: 30s

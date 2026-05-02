@@ -106,6 +106,60 @@
           <ToggleSwitch v-model="form.is_contractor" />
           <small class="app-dialog-note">{{ t('employees.is_contractor_help') }}</small>
         </div>
+
+        <div v-if="form.type === 'client' || form.type === 'les_deux'" class="app-field">
+          <label class="app-field__label">{{ t('contacts.blocked') }}</label>
+          <ToggleSwitch v-model="form.blocked" />
+          <small class="app-dialog-note">{{ t('contacts.blocked_toggle_help') }}</small>
+        </div>
+      </div>
+    </section>
+
+    <!-- Additional email addresses (BIZ-147) -->
+    <section class="app-dialog-section">
+      <div class="app-dialog-section__header">
+        <h3 class="app-dialog-section__title">{{ t('contacts.emails_section_title') }}</h3>
+        <p class="app-dialog-section__copy">{{ t('contacts.emails_section_subtitle') }}</p>
+      </div>
+      <div class="contact-form">
+        <div v-for="(emailEntry, idx) in emailsForm" :key="idx" class="contact-form__email-row">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('contacts.email_label') }}</label>
+            <InputText
+              v-model="emailEntry.label"
+              :placeholder="t('contacts.email_label_placeholder')"
+              class="w-full"
+            />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('contacts.email_address') }}</label>
+            <InputText
+              v-model="emailEntry.email"
+              type="email"
+              :placeholder="t('contacts.email_address')"
+              class="w-full"
+            />
+          </div>
+          <Button
+            icon="pi pi-trash"
+            severity="danger"
+            text
+            size="small"
+            type="button"
+            class="contact-form__email-remove"
+            @click="emailsForm.splice(idx, 1)"
+          />
+        </div>
+        <Button
+          v-if="emailsForm.length < 2"
+          :label="t('contacts.add_email')"
+          icon="pi pi-plus"
+          severity="secondary"
+          outlined
+          size="small"
+          type="button"
+          @click="emailsForm.push({ email: '', label: '' })"
+        />
       </div>
     </section>
 
@@ -206,6 +260,7 @@ interface FormState {
   adresse: string
   notes: string
   is_contractor: boolean
+  blocked: boolean
   child_first_name: string
   child_last_name: string
   other_parent_first_name: string
@@ -222,6 +277,7 @@ function fromContact(c: Contact | null): FormState {
     adresse: c?.adresse ?? '',
     notes: c?.notes ?? '',
     is_contractor: c?.is_contractor ?? false,
+    blocked: c?.blocked ?? false,
     child_first_name: c?.child_first_name ?? '',
     child_last_name: c?.child_last_name ?? '',
     other_parent_first_name: c?.other_parent_first_name ?? '',
@@ -230,6 +286,9 @@ function fromContact(c: Contact | null): FormState {
 }
 
 const form = ref<FormState>(fromContact(props.contact))
+const emailsForm = ref<{ email: string; label: string }[]>(
+  props.contact?.emails?.map((e) => ({ email: e.email, label: e.label ?? '' })) ?? [],
+)
 const saving = ref(false)
 const errorMessage = ref('')
 const fieldErrors = ref<Record<string, string>>({})
@@ -241,6 +300,7 @@ watch(
   () => props.contact,
   (c) => {
     form.value = fromContact(c)
+    emailsForm.value = c?.emails?.map((e) => ({ email: e.email, label: e.label ?? '' })) ?? []
     errorMessage.value = ''
     fieldErrors.value = {}
     initialSnapshot.value = JSON.stringify(fromContact(c))
@@ -261,10 +321,14 @@ async function submit(): Promise<void> {
       adresse: form.value.adresse || null,
       notes: form.value.notes || null,
       is_contractor: form.value.is_contractor,
+      blocked: form.value.blocked,
       child_first_name: form.value.child_first_name || null,
       child_last_name: form.value.child_last_name || null,
       other_parent_first_name: form.value.other_parent_first_name || null,
       other_parent_last_name: form.value.other_parent_last_name || null,
+      emails: emailsForm.value
+        .filter((e) => e.email.trim())
+        .map((e, idx) => ({ email: e.email.trim(), label: e.label.trim() || null, sort_order: idx })),
     }
     if (props.contact) {
       await updateContactApi(props.contact.id, payload)
@@ -302,5 +366,16 @@ defineExpose({ submit, isDirty })
   display: flex;
   flex-direction: column;
   gap: var(--app-space-5);
+}
+
+.contact-form__email-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.contact-form__email-remove {
+  margin-bottom: 0.1rem;
 }
 </style>

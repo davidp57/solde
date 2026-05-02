@@ -11,7 +11,18 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+
+- Docker : le fuseau horaire du conteneur est maintenant `Europe/Paris` (ajout de `TZ: "Europe/Paris"` dans `docker-compose.yml`) — les horodatages des logs Docker correspondent désormais à l'heure locale (TEC-152)
+- Logs système : les runs pytest locaux ne polluent plus le fichier `data/logs/solde.log` (partagé par le conteneur via volume) — le handler de fichier est désactivé automatiquement lorsque l'application est importée sous pytest ; les logs SQLAlchemy sont reclassés `INFO → DEBUG` pour ne pas polluer la vue par défaut (TEC-153)
+- Backup : le fichier de destination (0 octet) est désormais supprimé en cas d'échec de `sqlite3.backup()` ; le chemin absolu de la base source est utilisé pour éviter toute ambiguïté de répertoire courant dans le thread worker (TEC-154)- Aperçu PDF dans le dialogue d'envoi de facture : remplacement de `<embed>` par `<iframe>` pour corriger l'affichage sur Chrome (TEC-146)
 ### Ajouté
+
+- Wizard facture rapide — Lot J (BIZ-144) : l'étape de confirmation affiche le nom du contact pour lequel la facture a été créée (format `{Prénom} NOM`)
+- Wizard facture rapide — Lot J (BIZ-145) : bouton « Envoyer par e-mail » dans la confirmation du wizard ; le wizard reste ouvert, le dialogue d'envoi s'ouvre par-dessus ; un badge « E-mail envoyé » s'affiche une fois l'envoi effectué
+- Contacts — Lot J (BIZ-151) : marquage « Client indésirable » (`blocked`) — champ ToggleSwitch dans la fiche contact (types client/les_deux uniquement) ; badge rouge « Indésirable » dans la liste des contacts ; blocage strict de la création de facture côté backend (HTTP 422) et frontend (message d'erreur + bouton désactivé)
+- Contacts — Lot J (BIZ-147) : gestion de plusieurs adresses e-mail par contact — jusqu'à 2 adresses supplémentaires (libellé libre), en plus de l'adresse principale ; section dédiée dans le formulaire contact ; table `contact_emails` (migration 0047)
+- Envoi de factures par e-mail (BIZ-147) : le dialogue d'envoi liste tous les destinataires disponibles du contact ; un seul destinataire → champ en lecture seule ; plusieurs destinataires → cases à cocher (toutes pré-cochées) ; envoi bloqué si aucun destinataire sélectionné
 
 - Rapprochement bancaire (BIZ-141) : les boutons « Rapprocher » (par ligne), « Tout rapprocher » et « Rapprocher avant… » génèrent désormais des écritures comptables automatiques selon la catégorie de la transaction — `BANK_FEE` → règle `Frais bancaires`, `SOCIAL_CHARGE` → `BANK_SOCIAL_CHARGES`, `GRANT` → `SUBSIDY_RECEIVED`, `INTERNAL_TRANSFER` → transfert épargne/courant ; source `bank_transaction` traçable dans le journal
 

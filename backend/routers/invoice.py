@@ -33,7 +33,12 @@ from backend.schemas.invoice import (
 from backend.services import invoice as invoice_service
 from backend.services import settings as settings_service
 from backend.services.audit_service import AuditAction, record_audit
-from backend.services.invoice import InvoiceDeleteError, InvoiceStatusError, InvoiceUpdateError
+from backend.services.invoice import (
+    BlockedContactError,
+    InvoiceDeleteError,
+    InvoiceStatusError,
+    InvoiceUpdateError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +117,13 @@ async def create_invoice(
     current_user: _WriteAccess,
 ) -> InvoiceRead:
     """Create a new invoice."""
-    invoice = await invoice_service.create_invoice(db, payload)
+    try:
+        invoice = await invoice_service.create_invoice(db, payload)
+    except BlockedContactError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Contact is blocked: invoice creation is not allowed",
+        ) from exc
     await record_audit(
         db,
         action=AuditAction.INVOICE_CREATED,
@@ -371,14 +382,27 @@ async def get_invoice_email_preview(
 
     result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
     contact = result.scalar_one_or_none()
-    if contact is None or not contact.email:
+    if contact is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Contact not found",
+        )
+
+    recipients: list[str] = []
+    if contact.email:
+        recipients.append(contact.email)
+    for ce in contact.emails:
+        if ce.email and ce.email not in recipients:
+            recipients.append(ce.email)
+
+    if not recipients:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Contact has no email address",
         )
 
     return InvoiceEmailPreview(
-        recipient=contact.email,
+        recipients=recipients,
         subject=email_service.compose_subject(
             invoice.number,
             invoice.description,
@@ -430,15 +454,34 @@ async def send_invoice_email(
         )
 
     from sqlalchemy import select  # noqa: PLC0415
+    from sqlalchemy.orm import selectinload  # noqa: PLC0415
 
     from backend.models.contact import Contact  # noqa: PLC0415
 
-    result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
+    result = await db.execute(
+        select(Contact)
+        .where(Contact.id == invoice.contact_id)
+        .options(selectinload(Contact.emails))
+    )
     contact = result.scalar_one_or_none()
-    if contact is None or not contact.email:
+    if contact is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Contact has no email address",
+            detail="Contact not found",
+        )
+    if not payload.recipients:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="No recipients specified",
+        )
+
+    # Security: only allow addresses that belong to this contact.
+    allowed_recipients = {addr for addr in [contact.email] if addr}
+    allowed_recipients.update(ce.email for ce in contact.emails)
+    if invalid := [r for r in payload.recipients if r not in allowed_recipients]:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Recipient(s) not allowed for this contact: {', '.join(invalid)}",
         )
 
     contact_name = contact.nom
@@ -458,7 +501,7 @@ async def send_invoice_email(
             smtp_from_email=app_settings.smtp_from_email,  # type: ignore[arg-type]
             smtp_use_tls=app_settings.smtp_use_tls,
             bcc=app_settings.smtp_bcc,
-            recipient_email=contact.email,
+            recipient_email=payload.recipients,
             invoice_number=invoice.number,
             association_name=app_settings.association_name,
             pdf_bytes=pdf_bytes,

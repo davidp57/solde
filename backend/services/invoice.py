@@ -36,6 +36,10 @@ class InvoiceUpdateError(Exception):
     """Raised when an invoice cannot be edited in its current business state."""
 
 
+class BlockedContactError(Exception):
+    """Raised when trying to create an invoice for a blocked contact."""
+
+
 # Initial status per invoice type.
 # Using an explicit mapping so any new InvoiceType is caught at creation time.
 _INITIAL_STATUS: dict[InvoiceType, InvoiceStatus] = {
@@ -193,6 +197,15 @@ async def peek_next_client_number(db: AsyncSession) -> str:
 
 async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
     """Create an invoice with auto-generated number and computed total."""
+    # Check that the contact is not blocked (client invoices only)
+    if payload.type == InvoiceType.CLIENT:
+        from backend.models.contact import Contact  # noqa: PLC0415
+
+        result = await db.execute(select(Contact).where(Contact.id == payload.contact_id))
+        contact = result.scalar_one_or_none()
+        if contact is not None and contact.blocked:
+            raise BlockedContactError(payload.contact_id)
+
     year = payload.date.year
     number = await _next_number(db, payload.type, year)
     resolved_due_date = apply_default_due_date(
