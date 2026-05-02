@@ -459,6 +459,10 @@ export default {
         'Conservez ici les informations utiles pour le contrôle et le rapprochement.',
       upload_intro:
         'Associez un justificatif pour retrouver rapidement la pièce depuis le portefeuille fournisseur.',
+      preview_title: 'Facture {number}',
+      preview_file: 'Prévisualiser la pièce jointe',
+      download_file: 'Télécharger',
+      no_attachment: 'Aucune pièce jointe.',
     },
     new: 'Nouvelle facture',
     edit: 'Modifier la facture',

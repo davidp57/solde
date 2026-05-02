@@ -487,6 +487,37 @@ async def send_invoice_email(
     )
 
 
+@router.get("/{invoice_id}/file")
+async def download_invoice_file(
+    invoice_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _ReadAccess,
+) -> FileResponse:
+    """Return the uploaded file attachment for a supplier invoice."""
+    invoice = await invoice_service.get_invoice(db, invoice_id)
+    if invoice is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    if not invoice.file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No file attached")
+    file_path = Path(invoice.file_path)
+    if not file_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk")
+    suffix = file_path.suffix.lower()
+    media_type_map = {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }
+    media_type = media_type_map.get(suffix, "application/octet-stream")
+    return FileResponse(
+        path=str(file_path),
+        media_type=media_type,
+        filename=f"facture_{invoice.number}{suffix}",
+    )
+
+
 @router.post("/{invoice_id}/file", response_model=InvoiceRead)
 async def upload_invoice_file(
     invoice_id: int,

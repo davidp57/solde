@@ -218,6 +218,16 @@
                 @click="openEditDialog(data)"
               />
               <Button
+                v-if="data.file_path"
+                icon="pi pi-eye"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.supplier.preview_file')"
+                :aria-label="t('invoices.supplier.preview_file')"
+                @click="openPreviewDialog(data)"
+              />
+              <Button
                 icon="pi pi-upload"
                 size="small"
                 severity="secondary"
@@ -302,6 +312,136 @@
       </div>
     </Dialog>
 
+    <!-- Preview dialog -->
+    <Dialog
+      v-model:visible="previewVisible"
+      :header="previewInvoice ? t('invoices.supplier.preview_title', { number: previewInvoice.number }) : ''"
+      modal
+      class="app-dialog app-dialog--large"
+      @hide="onPreviewHide"
+    >
+      <div v-if="previewInvoice" class="supplier-preview-dialog">
+
+        <!-- Header info + actions -->
+        <section class="app-dialog-intro history-dialog__intro">
+          <div>
+            <p class="app-dialog-intro__eyebrow">{{ contactName(previewInvoice.contact_id) }}</p>
+            <p class="app-dialog-intro__text">
+              {{ t('invoices.date') }} : {{ formatDisplayDate(previewInvoice.date) }}
+              <template v-if="previewInvoice.due_date">
+                &nbsp;·&nbsp; {{ t('invoices.due_date') }} : {{ formatDisplayDate(previewInvoice.due_date) }}
+              </template>
+              <template v-if="previewInvoice.reference">
+                &nbsp;·&nbsp; {{ t('invoices.reference') }} : {{ previewInvoice.reference }}
+              </template>
+            </p>
+          </div>
+          <div class="app-inline-actions">
+            <Tag
+              :value="t(`invoices.statuses.${previewInvoice.status}`)"
+              :severity="statusSeverity(previewInvoice.status)"
+            />
+            <Button
+              icon="pi pi-download"
+              size="small"
+              severity="secondary"
+              outlined
+              :label="t('invoices.supplier.download_file')"
+              :loading="previewDownloading"
+              :disabled="!previewInvoice.file_path"
+              @click="downloadFile(previewInvoice)"
+            />
+            <Button
+              icon="pi pi-upload"
+              size="small"
+              severity="secondary"
+              outlined
+              :label="t('invoices.upload_file')"
+              @click="openUploadFromPreview"
+            />
+          </div>
+        </section>
+
+        <!-- Amounts summary -->
+        <div class="history-dialog__summary">
+          <div class="history-dialog__metric">
+            <div class="history-dialog__label">{{ t('invoices.total') }}</div>
+            <div class="history-dialog__value">{{ formatAmount(previewInvoice.total_amount) }} €</div>
+          </div>
+          <div class="history-dialog__metric">
+            <div class="history-dialog__label">{{ t('invoices.paid') }}</div>
+            <div class="history-dialog__value history-dialog__value--success">{{ formatAmount(previewInvoice.paid_amount) }} €</div>
+          </div>
+          <div class="history-dialog__metric">
+            <div class="history-dialog__label">{{ t('invoices.remaining') }}</div>
+            <div
+              class="history-dialog__value"
+              :class="previewRemaining > 0 ? 'history-dialog__value--warn' : 'history-dialog__value--success'"
+            >{{ previewRemaining.toFixed(2) }} €</div>
+          </div>
+        </div>
+
+        <!-- Two-column layout: payments + file preview -->
+        <div class="supplier-preview-dialog__body">
+
+          <!-- Payments -->
+          <div class="supplier-preview-dialog__payments">
+            <h3 class="app-dialog-section__title">{{ t('invoices.history') }}</h3>
+            <AppTableSkeleton v-if="previewPaymentsLoading" :rows="3" :cols="3" />
+            <div v-else-if="previewPayments.length === 0" class="app-empty-state">
+              {{ t('invoices.no_payments') }}
+            </div>
+            <DataTable
+              v-else
+              :value="previewPayments"
+              class="app-data-table"
+              size="small"
+              :rows="10"
+            >
+              <Column field="date" :header="t('payments.date')" sortable>
+                <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+              </Column>
+              <Column field="amount" :header="t('payments.amount')" class="app-money" sortable>
+                <template #body="{ data }">{{ parseFloat(data.amount).toFixed(2) }} €</template>
+              </Column>
+              <Column field="method" :header="t('payments.method')" sortable>
+                <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
+              </Column>
+            </DataTable>
+          </div>
+
+          <!-- File preview -->
+          <div class="supplier-preview-dialog__file">
+            <h3 class="app-dialog-section__title">{{ t('invoices.file') }}</h3>
+            <div v-if="!previewInvoice.file_path" class="app-empty-state">
+              {{ t('invoices.supplier.no_attachment') }}
+            </div>
+            <div v-else-if="previewFileLoading" class="supplier-preview-dialog__file-loading">
+              <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
+            </div>
+            <div v-else-if="previewBlobUrl" class="supplier-preview-dialog__file-frame">
+              <iframe
+                v-if="previewIsPdf"
+                :src="previewBlobUrl"
+                class="supplier-preview-dialog__iframe"
+                :title="t('invoices.supplier.preview_file')"
+              />
+              <img
+                v-else
+                :src="previewBlobUrl"
+                class="supplier-preview-dialog__img"
+                :alt="t('invoices.supplier.preview_file')"
+              />
+            </div>
+            <div v-else class="app-empty-state">
+              {{ t('common.error.unknown') }}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </Dialog>
+
     <ConfirmDialog />
   </AppPage>
 </template>
@@ -329,15 +469,18 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
+import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 
 import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
+  downloadInvoiceFileApi,
   listInvoicesApi,
   uploadInvoiceFileApi,
   type Invoice,
   type InvoiceStatus,
 } from '../api/invoices'
+import { listPayments, type Payment } from '../api/payments'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
 import {
   dateRangeFilter,
@@ -383,6 +526,21 @@ const uploadTargetId = ref<number | null>(null)
 const selectedFile = ref<File | null>(null)
 const uploading = ref(false)
 const statusFilter = ref<InvoiceStatus | null>(null)
+
+// Preview dialog
+const previewVisible = ref(false)
+const previewInvoice = ref<Invoice | null>(null)
+const previewPayments = ref<Payment[]>([])
+const previewPaymentsLoading = ref(false)
+const previewFileLoading = ref(false)
+const previewDownloading = ref(false)
+const previewBlobUrl = ref<string | null>(null)
+const previewIsPdf = ref(false)
+
+const previewRemaining = computed(() => {
+  if (!previewInvoice.value) return 0
+  return parseFloat(previewInvoice.value.total_amount) - parseFloat(previewInvoice.value.paid_amount)
+})
 
 const invoiceRows = computed(() =>
   invoices.value.map((invoice) => ({
@@ -529,6 +687,71 @@ function openUploadDialog(invoice: Invoice) {
   uploadDialogVisible.value = true
 }
 
+async function openPreviewDialog(invoice: Invoice) {
+  previewInvoice.value = invoice
+  previewBlobUrl.value = null
+  previewPayments.value = []
+  previewVisible.value = true
+
+  // Load payments and file in parallel
+  previewPaymentsLoading.value = true
+  previewFileLoading.value = !!invoice.file_path
+
+  const tasks: Promise<void>[] = [
+    listPayments({ invoice_id: invoice.id })
+      .then((p) => { previewPayments.value = p })
+      .catch(() => {})
+      .finally(() => { previewPaymentsLoading.value = false }),
+  ]
+
+  if (invoice.file_path) {
+    tasks.push(
+      downloadInvoiceFileApi(invoice.id)
+        .then((blob) => {
+          previewIsPdf.value = blob.type === 'application/pdf'
+          previewBlobUrl.value = URL.createObjectURL(blob)
+        })
+        .catch(() => {})
+        .finally(() => { previewFileLoading.value = false }),
+    )
+  }
+
+  await Promise.all(tasks)
+}
+
+function onPreviewHide() {
+  if (previewBlobUrl.value) {
+    URL.revokeObjectURL(previewBlobUrl.value)
+    previewBlobUrl.value = null
+  }
+  previewInvoice.value = null
+}
+
+async function downloadFile(invoice: Invoice) {
+  previewDownloading.value = true
+  try {
+    const blob = await downloadInvoiceFileApi(invoice.id)
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    const ext = invoice.file_path?.split('.').pop() ?? 'pdf'
+    a.download = `facture-${invoice.number}.${ext}`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } finally {
+    previewDownloading.value = false
+  }
+}
+
+function openUploadFromPreview() {
+  if (!previewInvoice.value) return
+  const inv = previewInvoice.value
+  previewVisible.value = false
+  nextTick(() => openUploadDialog(inv))
+}
+
 function onFileSelect(event: { files: File[] }) {
   selectedFile.value = event.files[0] ?? null
 }
@@ -594,25 +817,132 @@ onMounted(async () => {
 
 <style scoped>
 .supplier-invoices-table__actions {
-  width: 11.5rem;
-  min-width: 11.5rem;
+  width: 13rem;
+  min-width: 13rem;
 }
 
 :deep(.supplier-invoices-table .supplier-invoices-table__actions) {
   white-space: nowrap;
-  width: 11.5rem;
-  min-width: 11.5rem;
+  width: 13rem;
+  min-width: 13rem;
 }
 
 :deep(.supplier-invoices-table .app-inline-actions) {
   flex-wrap: nowrap;
   justify-content: flex-end;
-  min-width: 10rem;
+  min-width: 12rem;
 }
 
 .upload-dialog {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
+}
+
+.supplier-preview-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.supplier-preview-dialog__body {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: var(--app-space-5);
+  align-items: start;
+}
+
+.supplier-preview-dialog__payments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.supplier-preview-dialog__file {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.supplier-preview-dialog__file-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  color: var(--p-text-muted-color);
+}
+
+.supplier-preview-dialog__file-frame {
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-surface-radius-sm);
+  overflow: hidden;
+}
+
+.supplier-preview-dialog__iframe {
+  width: 100%;
+  height: 520px;
+  border: none;
+  display: block;
+}
+
+.supplier-preview-dialog__img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.history-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.history-dialog__intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+}
+
+.history-dialog__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--app-space-3);
+  padding-bottom: var(--app-space-4);
+  border-bottom: 1px solid var(--app-surface-border);
+}
+
+.history-dialog__metric {
+  padding: var(--app-space-3);
+  border-radius: var(--app-surface-radius-sm);
+  background: color-mix(in srgb, var(--app-surface-bg) 85%, transparent 15%);
+}
+
+.history-dialog__label {
+  color: var(--p-text-muted-color);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.history-dialog__value {
+  margin-top: var(--app-space-2);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.history-dialog__value--success {
+  color: var(--p-green-600);
+}
+
+.history-dialog__value--warn {
+  color: var(--p-orange-500);
+}
+
+@media (max-width: 900px) {
+  .supplier-preview-dialog__body {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
