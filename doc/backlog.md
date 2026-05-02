@@ -15,6 +15,19 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-034 | Support multi-compte banque | P3 | ~45 min | 2026-04-21 | | |
 
+### Lot J — Wizard factures & Contacts (~4h) — v1.3
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| BIZ-144 | Nom client dans la confirmation wizard | P2 | ~10 min | 2026-05-02 | 2026-05-02 | |
+| BIZ-145 | Bouton envoi mail depuis le wizard | P2 | ~30 min | 2026-05-02 | 2026-05-02 | |
+| TEC-146 | Bug : aperçu PDF Chrome (download au lieu de preview) | P2 | ~30 min | 2026-05-02 | 2026-05-02 | |
+| BIZ-147 | Plusieurs emails par contact (labels, max 3) | P1 | ~75 min | 2026-05-02 | 2026-05-02 | |
+| BIZ-148 | Recalcul immédiat dans les lignes facture | P2 | ~20 min | 2026-05-02 | 2026-05-02 | |
+| BIZ-149 | Auto-capitalisation des intitulés facture | P2 | ~15 min | 2026-05-02 | 2026-05-02 | |
+| BIZ-150 | Heures décimales : accepter « . » et « , » | P2 | ~15 min | 2026-05-02 | 2026-05-02 | |
+| BIZ-151 | Marquage « mauvais client » (badge + blocage) | P2 | ~60 min | 2026-05-02 | 2026-05-02 | |
+
 ## Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Terminé |
@@ -29,7 +42,53 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Détails
 
-### TEC-143 — Références OFX (FITID) : ne jamais afficher dans l'UI
+### BIZ-144 — Nom client dans la confirmation wizard
+
+- Après la création d'une facture client dans le wizard, la confirmation affiche actuellement le numéro de facture mais pas le nom du client.
+- Afficher le nom du contact (client) dans le message de confirmation.
+
+### BIZ-145 — Bouton envoi mail depuis le wizard
+
+- Après création d'une facture, ajouter un bouton « Envoyer par e-mail » directement dans l'écran de confirmation du wizard.
+- Ouvre le preview mail (dialog existant) sans fermer le wizard. Après envoi, retour au wizard (qui reste ouvert en arrière-plan).
+- Pas de fermeture automatique du wizard à l'ouverture du preview.
+
+### TEC-146 — Bug : aperçu PDF Chrome (download au lieu de preview)
+
+- Sur Chrome, l'aperçu PDF de la facture client dans le wizard affiche un écran blanc avec un lien de téléchargement au lieu d'un rendu inline.
+- Firefox fonctionne correctement. Cause probable : header `Content-Disposition` ou type MIME, ou politique de sécurité Chrome pour les PDF inline.
+- À analyser : réponse du endpoint `/api/invoices/{id}/preview`, headers HTTP, et comportement du composant Vue d'aperçu.
+
+### BIZ-147 — Plusieurs emails par contact (labels, max 3)
+
+- Un contact ne peut actuellement avoir qu'un seul email (`Contact.email`).
+- Ajouter jusqu'à 3 emails avec label libre (ex. « Email principal », « Email comptabilité »).
+- Lors de l'envoi d'une facture par mail, proposer le choix de l'adresse (ou des adresses) à utiliser ; toutes cochées par défaut.
+- Nécessite : migration Alembic, nouveau modèle `ContactEmail`, endpoints CRUD, mise à jour du formulaire contact et du dialog d'envoi.
+
+### BIZ-148 — Recalcul immédiat dans les lignes facture
+
+- Lors de la saisie des lignes de facture (quantité, prix unitaire, heures), le total n'est recalculé qu'à la sortie du champ.
+- Recalculer en temps réel pendant la frappe (événement `input`), pas seulement au `blur`.
+
+### BIZ-149 — Auto-capitalisation des intitulés facture
+
+- Les intitulés de lignes facture sont parfois saisis en minuscules. La mise en majuscule de la première lettre doit être automatique.
+- Appliquer lors de la saisie (première lettre de chaque valeur) ou à la sortie du champ (`blur`), pas uniquement à la génération du PDF.
+
+### BIZ-150 — Heures décimales : accepter « . » et « , »
+
+- Le champ heures dans les lignes facture n'accepte qu'un seul séparateur décimal.
+- Normaliser à la saisie : remplacer automatiquement la virgule par un point (ou l'inverse) pour que les deux soient acceptés.
+
+### BIZ-151 — Marquage « mauvais client » (badge + blocage)
+
+- Possibilité de marquer un contact client comme « indésirable » (ex. impayés répétés, litige).
+- **Badge** : icône visible dans la liste des contacts et dans les formulaires de recherche de contact.
+- **Blocage** : à la création d'une facture, si le contact est marqué indésirable, afficher une alerte bloquante (impossible de continuer sans lever le marquage).
+- Champ `blocked: bool` sur `Contact` + migration Alembic.
+
+ — Références OFX (FITID) : ne jamais afficher dans l'UI
 
 - **Terminé** : 2026-05-02
 - `BankTransaction.reference` stocke le FITID OFX brut (ex. `LL3BFSHCLF`), un identifiant technique sans signification métier. Il ne doit jamais être affiché à l'utilisateur ni stocké dans des champs métier.
