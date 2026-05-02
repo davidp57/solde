@@ -255,7 +255,7 @@ async def test_create_cash_count(client: AsyncClient, admin_user: User, auth_hea
             "date": "2024-03-01",
             "count_100": 1,
             "count_20": 2,
-            "count_2": 5,
+            "pieces_total": 10.0,
         },
         headers=auth_headers,
     )

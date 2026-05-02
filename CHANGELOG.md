@@ -11,17 +11,25 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+---
+
+## [1.2.3] — 2026-05-13
+
 ### Corrigé
 
-- **BIZ-155** — Paiement fournisseur en espèces : crée désormais automatiquement une sortie caisse (`CashMovementType.OUT`) au lieu de ne rien faire.
+- **BIZ-157** — Comptage de caisse : les pièces sont maintenant saisies via un unique champ « Pièces (ferraille) » (montant total) plutôt que case par case ; migration `0048` pour ajouter `pieces_total` dans `cash_counts`.
+- **BIZ-158** — Bordereau de dépôt depuis un comptage : le total affiché ne comprend plus les pièces (non déposables) — seuls les billets sont inclus dans le bordereau.
+- **BIZ-159** — Dialog bordereau de dépôt : le préremplissage depuis un comptage fonctionnait de manière aléatoire selon l'ordre de déclenchement des watchers Vue ; corrigé avec un flag `_isPrefilling`.
+- **BIZ-160** — Bordereaux en attente visibles depuis le tableau de bord en plus de la vue Banque.
 
 ### Ajouté
 
+- **BIZ-155** — Paiement fournisseur en espèces : crée désormais automatiquement une sortie caisse (`CashMovementType.OUT`) au lieu de ne rien faire.
 - **BIZ-156** — Factures fournisseur : bouton « Enregistrer un règlement » dans la liste et dans le dialog de prévisualisation (espèces et chèque).
 
 ---
 
-## [1.2.1] — 2026-05-02
+## [1.2.2] — 2026-05-08
 
 ### Corrigé
 

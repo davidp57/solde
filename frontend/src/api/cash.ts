@@ -59,14 +59,7 @@ export interface CashCount {
   count_20: number
   count_10: number
   count_5: number
-  count_2: number
-  count_1: number
-  count_cents_50: number
-  count_cents_20: number
-  count_cents_10: number
-  count_cents_5: number
-  count_cents_2: number
-  count_cents_1: number
+  pieces_total: string
   total_counted: string
   balance_expected: string
   difference: string
@@ -80,14 +73,7 @@ export interface CashCountCreate {
   count_20?: number
   count_10?: number
   count_5?: number
-  count_2?: number
-  count_1?: number
-  count_cents_50?: number
-  count_cents_20?: number
-  count_cents_10?: number
-  count_cents_5?: number
-  count_cents_2?: number
-  count_cents_1?: number
+  pieces_total?: number
   notes?: string | null
 }
 

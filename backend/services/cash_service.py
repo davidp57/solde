@@ -13,21 +13,13 @@ from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.cash import CashCount, CashEntrySource, CashMovementType, CashRegister
 from backend.schemas.cash import CashCountCreate, CashEntryCreate, CashEntryUpdate
 
-# Denomination values in euros
-_DENOMINATIONS: dict[str, Decimal] = {
+# Bill denomination values in euros (coins are now stored as pieces_total)
+_BILL_DENOMINATIONS: dict[str, Decimal] = {
     "count_100": Decimal("100"),
     "count_50": Decimal("50"),
     "count_20": Decimal("20"),
     "count_10": Decimal("10"),
     "count_5": Decimal("5"),
-    "count_2": Decimal("2"),
-    "count_1": Decimal("1"),
-    "count_cents_50": Decimal("0.50"),
-    "count_cents_20": Decimal("0.20"),
-    "count_cents_10": Decimal("0.10"),
-    "count_cents_5": Decimal("0.05"),
-    "count_cents_2": Decimal("0.02"),
-    "count_cents_1": Decimal("0.01"),
 }
 
 
@@ -245,13 +237,17 @@ async def get_monthly_funds_series(
 
 async def create_cash_count(db: AsyncSession, payload: CashCountCreate) -> CashCount:
     """Record a physical cash count and compute the difference vs expected balance."""
-    total_counted = sum(getattr(payload, field) * value for field, value in _DENOMINATIONS.items())
+    bill_total = sum(
+        getattr(payload, field) * value for field, value in _BILL_DENOMINATIONS.items()
+    )
+    total_counted = bill_total + payload.pieces_total
     balance_expected = await _current_balance(db)
     difference = total_counted - balance_expected
 
     count = CashCount(
         date=payload.date,
-        **{field: getattr(payload, field) for field in _DENOMINATIONS},
+        **{field: getattr(payload, field) for field in _BILL_DENOMINATIONS},
+        pieces_total=payload.pieces_total,
         total_counted=total_counted,
         balance_expected=balance_expected,
         difference=difference,
