@@ -413,7 +413,7 @@
       v-model:visible="historyVisible"
       :header="historyInvoice ? t('invoices.history_title', { number: historyInvoice.number }) : ''"
       modal
-      class="app-dialog app-dialog--large"
+      class="app-dialog app-dialog--xlarge"
       @hide="onHistoryHide"
     >
       <div v-if="historyInvoice" class="history-dialog history-dialog--with-preview">
@@ -1249,7 +1249,7 @@ onMounted(async () => {
 
 .history-dialog--with-preview .history-dialog__body {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) 480px;
   gap: var(--app-space-5);
   align-items: start;
 }
@@ -1347,7 +1347,7 @@ onMounted(async () => {
   color: var(--p-orange-500);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1050px) {
   .history-dialog--with-preview .history-dialog__body {
     grid-template-columns: 1fr;
   }
