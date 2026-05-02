@@ -472,11 +472,13 @@ async def generate_entries_for_salary(
     Returns all generated entries (empty if no rules seeded).
     """
 
-    # Derive a display date from the month (last day of month heuristic: use day 1 for simplicity)
+    # Entry date = last day of the salary month (e.g. 2026-04-30 for April 2026).
+    import calendar as _calendar  # noqa: PLC0415
     from datetime import date as _date  # noqa: PLC0415
 
     year_str, month_str = salary.month.split("-")
-    entry_date = _date(int(year_str), int(month_str), 1)
+    last_day = _calendar.monthrange(int(year_str), int(month_str))[1]
+    entry_date = _date(int(year_str), int(month_str), last_day)
     fiscal_year_id = await find_fiscal_year_id_for_date(db, entry_date)
 
     # Explicit query — lazy-load is forbidden with AsyncSession (MissingGreenlet).
