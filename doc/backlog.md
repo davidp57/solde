@@ -80,7 +80,7 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 - **Terminé** : 2026-05-02
 - Sur Chrome, l'aperçu PDF de la facture client dans le wizard affichait un écran blanc au lieu d'un rendu inline.
-- **Correction** : `InvoiceEmailDialog.vue` — remplacement de `<embed>` par `<iframe>` pour l'aperçu PDF ; compatibilité Chrome rétablie.
+- **Correction** : `InvoiceEmailDialog.vue` — remplacement de `<embed>` par `<object type="application/pdf">` pour l'aperçu PDF ; compatibilité Chrome et Firefox rétablie.
 
 ### BIZ-147 — Plusieurs emails par contact (labels, max 3)
 

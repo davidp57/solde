@@ -704,12 +704,11 @@ async def generate_entries_for_bank_transaction(
             return []
         trigger = resolved
 
-    description = tx.description or (tx.reference or "")
+    description = tx.description or ""
     context: dict[str, object] = {
         "label": description,
         "amount": str(amount),
         "date": str(tx.date),
-        "reference": tx.reference or "",
     }
 
     return await generate_entries_for_trigger(
