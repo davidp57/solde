@@ -1819,7 +1819,7 @@ export default {
     backup_empty: 'Aucune sauvegarde existante.',
     backup_list_title: 'Sauvegardes existantes',
     backup_label_placeholder: 'Libellé (optionnel)',
-    backup_label_hint: 'Lettres, chiffres, tirets et espaces — 50 caractères max.',
+    backup_label_hint: 'Lettres, chiffres, tirets et espaces — 100 caractères max.',
     col_filename: 'Fichier',
     col_size: 'Taille',
     col_date: 'Date',
