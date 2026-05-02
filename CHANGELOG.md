@@ -24,6 +24,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Factures fournisseur (BIZ-139) : les factures fournisseur créées manuellement démarraient en statut `Brouillon` au lieu de `Reçue`, les rendant invisibles dans le dialogue de rapprochement bancaire — corrigé : le statut initial est désormais `sent` pour toute facture de type fournisseur
 - Salaires (BIZ-138) : les écritures comptables générées à la création d'une fiche de paie étaient datées au 1er jour du mois au lieu du dernier (ex. `2026-04-01` au lieu de `2026-04-30`) — corrigé via `calendar.monthrange`
 - Salaires : erreur `MissingGreenlet` (SQLAlchemy async) à la création et modification d'une fiche de paie — accès lazy à `salary.employee` remplacé par des requêtes async explicites (`selectinload` / query directe)
 - Salaires : le bouton « Enregistrer » restait silencieux lorsque l'employé ou le mois n'était pas renseigné — un toast d'avertissement est désormais affiché

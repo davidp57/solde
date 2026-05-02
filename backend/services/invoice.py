@@ -208,7 +208,11 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
             payload.type,
             len(payload.lines),
         ),
-        status=InvoiceStatus.DRAFT,
+        # Supplier invoices are received (not created from scratch), so they
+        # start as "sent" (= received/validated) rather than "draft".
+        status=(
+            InvoiceStatus.SENT if payload.type == InvoiceType.FOURNISSEUR else InvoiceStatus.DRAFT
+        ),
         hours=payload.hours,
     )
     db.add(invoice)
