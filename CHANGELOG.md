@@ -11,12 +11,17 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+---
+
+## [1.2.1] — 2026-05-02
+
 ### Corrigé
 
 - Docker : le fuseau horaire du conteneur est maintenant `Europe/Paris` (ajout de `TZ: "Europe/Paris"` dans `docker-compose.yml`) — les horodatages des logs Docker correspondent désormais à l'heure locale (TEC-152)
 - Logs système : les runs pytest locaux ne polluent plus le fichier `data/logs/solde.log` (partagé par le conteneur via volume) — le handler de fichier est désactivé automatiquement lorsque l'application est importée sous pytest ; les logs SQLAlchemy sont reclassés `INFO → DEBUG` pour ne pas polluer la vue par défaut (TEC-153)
 - Backup : le fichier de destination (0 octet) est désormais supprimé en cas d'échec de `sqlite3.backup()` ; le chemin absolu de la base source est utilisé pour éviter toute ambiguïté de répertoire courant dans le thread worker (TEC-154)
 - Aperçu PDF dans le dialogue d'envoi de facture : remplacement de `<embed>` par `<object type="application/pdf">` pour corriger l'affichage sur Chrome et Firefox (TEC-146)
+
 ### Ajouté
 
 - Wizard facture rapide — Lot J (BIZ-144) : l'étape de confirmation affiche le nom du contact pour lequel la facture a été créée (format `{Prénom} NOM`)
