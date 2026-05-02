@@ -264,7 +264,7 @@
       :class="['app-dialog', editingInvoice?.file_path ? 'app-dialog--large' : 'app-dialog--medium']"
     >
       <div ref="formWrapperEl" :class="editingInvoice?.file_path ? 'supplier-edit-dialog__layout' : ''">
-        <div>
+        <div class="supplier-edit-dialog__form-col">
           <SupplierInvoiceForm
             ref="supplierFormRef"
             :invoice="editingInvoice"
@@ -878,21 +878,44 @@ onMounted(async () => {
   min-width: 12rem;
 }
 
+.supplier-edit-dialog__form-col {
+  min-width: 0;
+  overflow: hidden;
+}
+
+:deep(.supplier-edit-dialog__form-col .app-dialog-section),
+:deep(.supplier-edit-dialog__form-col .app-dialog-form) {
+  min-width: 0;
+}
+
+:deep(.supplier-edit-dialog__form-col .p-inputtext),
+:deep(.supplier-edit-dialog__form-col .p-select),
+:deep(.supplier-edit-dialog__form-col .p-inputnumber),
+:deep(.supplier-edit-dialog__form-col .p-inputnumber-input) {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .supplier-edit-dialog__layout {
   display: grid;
-  grid-template-columns: 1fr 1.2fr;
+  grid-template-columns: minmax(0, 1fr) 420px;
   gap: var(--app-space-5);
   align-items: start;
+  min-width: 0;
 }
 
 .supplier-edit-dialog__preview {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
-  padding-top: var(--app-space-1);
+  min-width: 0;
+  overflow: hidden;
+  position: sticky;
+  top: 0;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
   .supplier-edit-dialog__layout {
     grid-template-columns: 1fr;
   }
