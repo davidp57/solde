@@ -29,6 +29,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 
+- Référence OFX (FITID) : `BankTransaction.reference` stocke un identifiant technique opaque (ex. `LL3BFSHCLF`) qui ne doit jamais être affiché — suppression du fallback `description || reference` dans les 4 dialogues de rapprochement bancaire et dans le service du journal comptable ; règle mémorisée dans les instructions copilot
+- Données : script `scripts/fix_bank_deposits_14apr2026.py` — deux dépôts bancaires du 14/04/2026 (remise chèques 530 € et versement espèces 800 €) importés via OFX mais jamais encodés en bordereaux ont été régularisés : écritures comptables générées (`DEPOSIT_CHEQUES` / `DEPOSIT_ESPECES`), 6 paiements chèque marqués déposés, sortie caisse 800 € créée, TX rapprochées
 - Sauvegardes : la limite du libellé de sauvegarde est portée de 50 à 100 caractères ; le message de validation Pydantic est désormais affiché tel quel dans l'UI au lieu du générique « Erreur lors de la création de la sauvegarde » ; `maxlength="100"` ajouté sur le champ texte
 - Factures fournisseur (BIZ-139) : les factures fournisseur créées manuellement démarraient en statut `Brouillon` au lieu de `Reçue`, les rendant invisibles dans le dialogue de rapprochement bancaire — corrigé : le statut initial est désormais `sent` pour toute facture de type fournisseur
 - Données : 11 factures fournisseur (FF-2024123113.28.00 à FF-2026040717.56.01) étaient rattachées au mauvais contact (Théo DAUPHY) — réassignées à Lexio SAS via `scripts/fix_reassign_lexio_invoices.py`
