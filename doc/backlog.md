@@ -32,10 +32,14 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 ### TEC-143 — Références OFX (FITID) : ne jamais afficher dans l'UI
 
 - **Terminé** : 2026-05-02
-- `BankTransaction.reference` stocke le FITID OFX brut (ex. `LL3BFSHCLF`), un identifiant technique sans signification métier. Il ne doit jamais être affiché à l'utilisateur.
-- **Corrections** :
+- `BankTransaction.reference` stocke le FITID OFX brut (ex. `LL3BFSHCLF`), un identifiant technique sans signification métier. Il ne doit jamais être affiché à l'utilisateur ni stocké dans des champs métier.
+- **Corrections (commit f316548)** :
   - `backend/services/accounting_entry_service.py` : `source_reference` pour les TX bancaires utilise uniquement `description`, plus de fallback sur `reference`
   - `frontend/src/components/bank/BankClientPaymentDialog.vue`, `BankLinkClientPaymentDialog.vue`, `BankSupplierPaymentDialog.vue`, `BankLinkSupplierPaymentDialog.vue` : suppression du `|| transaction.reference` dans le résumé de TX
+- **Corrections (commit afe29ef)** :
+  - `backend/services/bank_service.py` : les 3 fonctions `create_*_payment_from_transaction` stockent désormais `tx.description` (libellé lisible) dans `Payment.reference` au lieu de `tx.reference` (FITID)
+  - `backend/services/accounting_entry_service.py` : `source_reference` des entrées de type `PAYMENT` ignore `payment.reference` et utilise directement `invoice.reference || invoice.number`
+  - 6 paiements existants en base (ids 523–528) corrigés : FITID remplacé par la description bancaire
 - **Règle mémorisée** dans les instructions copilot repo.
 
 ### TEC-142 — Script one-shot : dépôts bancaires 14/04/2026 non encodés
