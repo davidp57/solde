@@ -2,8 +2,8 @@
 
 Adds a ``pieces_total`` column (Decimal) to ``cash_counts`` and migrates
 existing records by summing all the individual coin count fields.
-The old coin columns are kept as legacy (nullable after migration) so that
-any direct DB read of historical records remains coherent.
+The old coin columns are kept as legacy (values preserved, columns not dropped)
+so that any direct DB read of historical records remains coherent.
 """
 
 from collections.abc import Sequence
@@ -32,15 +32,18 @@ def upgrade() -> None:
     op.execute(
         """
         UPDATE cash_counts
-        SET pieces_total =
-            count_2 * 2.0
-            + count_1 * 1.0
-            + count_cents_50 * 0.5
-            + count_cents_20 * 0.2
-            + count_cents_10 * 0.1
-            + count_cents_5  * 0.05
-            + count_cents_2  * 0.02
-            + count_cents_1  * 0.01
+        SET pieces_total = ROUND(
+            (   count_2       * 200
+              + count_1       * 100
+              + count_cents_50 * 50
+              + count_cents_20 * 20
+              + count_cents_10 * 10
+              + count_cents_5  *  5
+              + count_cents_2  *  2
+              + count_cents_1  *  1
+            ) / 100.0,
+            2
+        )
         """
     )
 

@@ -34,7 +34,8 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | TEC-146 | Bug : aperçu PDF Chrome (download au lieu de preview) | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
 | BIZ-148 | Recalcul immédiat dans les lignes facture | P2 | ~20 min | 2026-05-02 | — |
 | BIZ-149 | Auto-capitalisation des intitulés facture | P2 | ~15 min | 2026-05-02 | — |
-| BIZ-155 | Paiement fournisseur espèces : sortie caisse automatique | P2 | ~30 min | 2026-05-02 | 2026-05-02 || BIZ-156 | Factures fournisseur : bouton « Enregistrer un règlement » | P2 | ~45 min | 2026-05-02 | 2026-05-02 |
+| BIZ-155 | Paiement fournisseur espèces : sortie caisse automatique | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
+| BIZ-156 | Factures fournisseur : bouton « Enregistrer un règlement » | P2 | ~45 min | 2026-05-02 | 2026-05-02 |
 | BIZ-150 | Heures décimales : accepter « . » et « , » | P2 | ~15 min | 2026-05-02 | — |
 | TEC-143 | Références OFX (FITID) : ne jamais afficher dans l'UI | P2 | ~15 min | 2026-05-02 | 2026-05-02 |
 | TEC-142 | Script one-shot : dépôts bancaires 14/04/2026 non encodés | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
