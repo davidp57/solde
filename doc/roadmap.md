@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-04-28 — active branch `develop` — current version: 1.1.0
+> Last updated: 2026-05-02 — active branch `develop` — current version: 1.2.1
 
 ---
 
@@ -19,9 +19,10 @@
 | **0.8** | Lots R, S — supervision, i18n, doc restructure | ✅ Completed |
 | **1.0** | Lots T — chatbot, email templates, credit notes — first stable release | ✅ Completed |
 | **1.1** | Bank deposit workflow + 7 UX improvements | ✅ Completed |
-| **1.2** | Multi-account bank + i18n English skeleton | ⬜ Planned |
+| **1.2** | Bank reconciliation accounting entries, lot I-BNK, lot J (wizard + contacts) | ✅ Completed |
+| **1.3** | Multi-account bank + i18n English skeleton | ⬜ Planned |
 
-Test suite: **999 backend + 131 frontend Vitest + 1 Playwright E2E — 0 failures.**
+Test suite: **1011 backend + 131 frontend Vitest — 0 failures.**
 
 ---
 
@@ -214,7 +215,46 @@ Completed 2026-04-28.
 
 ---
 
-## v1.2 — Multi-account bank & i18n ⬜
+## v1.2 — Bank reconciliation accounting, lot I-BNK & lot J ✅
+
+Released: 2026-05-02
+
+### BIZ-141 — Accounting entries on bank reconciliation
+
+Automatic double-entry generation when reconciling a bank transaction:
+
+- Categories `BANK_FEE`, `SOCIAL_CHARGE`, `GRANT`, `INTERNAL_TRANSFER` trigger predefined accounting rules
+- Individual reconcile button, "Reconcile all" and "Reconcile before…" all trigger accounting entries
+- Source `bank_transaction` traceable in the general journal
+
+### Lot I-BNK — Bank UX improvements
+
+- **BIZ-133** — Category edit: click the pencil icon in the Category column to change a detected category
+- **BIZ-134** — Reconcile column: replaced opaque icon with "Rapproché" tag (green) or inline "Rapprocher" button
+- **BIZ-135** — Bulk reconciliation: "Tout rapprocher" and "Rapprocher avant…" buttons in the bank toolbar
+
+### Lot J — Quick invoice wizard & contacts
+
+- **BIZ-144** — Quick invoice wizard: confirmation step shows the contact name (`{Prénom} NOM`)
+- **BIZ-145** — Email button in wizard confirmation: stays open, email dialog overlays, "E-mail envoyé" badge after send
+- **BIZ-147** — Multi-email contacts: up to 2 extra email addresses per contact; email dialog handles multiple recipients with checkboxes; table `contact_emails` (migration 0047)
+- **BIZ-151** — Blocked client: `blocked` toggle on client/mixed contacts; red badge in contact list; strict creation block (HTTP 422 + frontend guard)
+
+### Technical — Supplier invoice preview (BIZ-139)
+
+Preview dialog accessible from the eye icon in the supplier invoice list — key info, payment history, embedded PDF/image attachment; prev/next navigation in the current filtered list.
+
+### Technical — Various fixes
+
+- Docker timezone `Europe/Paris` (TEC-152)
+- pytest log isolation + SQLAlchemy log downgrade (TEC-153)
+- Backup robustness: cleanup on failure, absolute path (TEC-154)
+- Cross-browser PDF preview: `<object type="application/pdf">` (TEC-146)
+- OFX FITID never stored in `Payment.reference` or displayed in UI
+
+---
+
+## v1.3 — Multi-account bank & i18n ⬜
 
 ### BIZ-034 — Multi-account bank support
 
