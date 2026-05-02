@@ -161,6 +161,7 @@
           @click="emailsForm.push({ email: '', label: '' })"
         />
       </div>
+    </section>
 
     <section v-if="form.type === 'client'" class="app-dialog-section">
       <div class="app-dialog-section__header">
