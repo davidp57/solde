@@ -29,9 +29,9 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | ID | Titre | Prio | Est. | Créé | Terminé |
 | --- | --- | --- | --- | --- | --- |
 | TEC-152 | Bug prod : fuseau horaire Docker (UTC vs Europe/Paris) | P1 | ~5 min | 2026-05-02 | 2026-05-02 |
-| TEC-153 | Bug prod : logs polués par pytest (fichier partagé via volume) | P1 | ~15 min | 2026-05-02 | 2026-05-02 |
+| TEC-153 | Bug prod : logs pollués par pytest (fichier partagé via volume) | P1 | ~15 min | 2026-05-02 | 2026-05-02 |
 | TEC-154 | Bug prod : backup SQLite WAL échoue + fichier 0-octet | P1 | ~20 min | 2026-05-02 | 2026-05-02 |
-| TEC-146 | Bug : aperçu PDF Chrome (download au lieu de preview) | P2 | ~30 min | 2026-05-02 | — |
+| TEC-146 | Bug : aperçu PDF Chrome (download au lieu de preview) | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
 | BIZ-148 | Recalcul immédiat dans les lignes facture | P2 | ~20 min | 2026-05-02 | — |
 | BIZ-149 | Auto-capitalisation des intitulés facture | P2 | ~15 min | 2026-05-02 | — |
 | BIZ-150 | Heures décimales : accepter « . » et « , » | P2 | ~15 min | 2026-05-02 | — |
@@ -78,9 +78,9 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ### TEC-146 — Bug : aperçu PDF Chrome (download au lieu de preview)
 
-- Sur Chrome, l'aperçu PDF de la facture client dans le wizard affiche un écran blanc avec un lien de téléchargement au lieu d'un rendu inline.
-- Firefox fonctionne correctement. Cause probable : header `Content-Disposition` ou type MIME, ou politique de sécurité Chrome pour les PDF inline.
-- À analyser : réponse du endpoint `/api/invoices/{id}/preview`, headers HTTP, et comportement du composant Vue d'aperçu.
+- **Terminé** : 2026-05-02
+- Sur Chrome, l'aperçu PDF de la facture client dans le wizard affichait un écran blanc au lieu d'un rendu inline.
+- **Correction** : `InvoiceEmailDialog.vue` — remplacement de `<embed>` par `<iframe>` pour l'aperçu PDF ; compatibilité Chrome rétablie.
 
 ### BIZ-147 — Plusieurs emails par contact (labels, max 3)
 

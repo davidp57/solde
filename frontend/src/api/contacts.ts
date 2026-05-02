@@ -12,6 +12,7 @@ export interface ContactEmail {
 export interface ContactEmailCreate {
   email: string
   label?: string | null
+  sort_order?: number
 }
 
 export interface Contact {

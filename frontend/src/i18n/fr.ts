@@ -510,6 +510,7 @@ export default {
     email_body: 'Corps du message',
     email_preview: 'Aperçu de la facture',
     email_preview_unavailable: 'Aperçu non disponible',
+    email_preview_title: 'Aperçu de la facture',
     email_send: 'Envoyer',
     duplicate: 'Dupliquer',
     duplicated: 'Facture dupliquée.',

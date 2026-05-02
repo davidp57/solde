@@ -69,7 +69,7 @@
           v-else-if="pdfBlobUrl"
           :src="pdfBlobUrl"
           class="invoice-email-dialog__embed"
-          title="Aperçu de la facture"
+          :title="t('invoices.email_preview_title')"
         />
         <div v-else class="invoice-email-dialog__preview-empty">
           <i class="pi pi-file-pdf" />
