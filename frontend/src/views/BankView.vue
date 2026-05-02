@@ -933,7 +933,7 @@ function canLinkExistingSupplierPayment(tx: BankTransaction): boolean {
 
 async function reconcile(tx: BankTransaction): Promise<void> {
   try {
-    await updateTransaction(tx.id, { reconciled: true })
+    await reconcileTransactionsBulk([tx.id])
     if (unreconciledOnly.value) {
       transactions.value = transactions.value.filter((t) => t.id !== tx.id)
     } else {

@@ -26,6 +26,7 @@ class EntrySourceType(StrEnum):
     CASH = "cash"
     CLOTURE = "cloture"
     WRITE_OFF = "write_off"
+    BANK_TRANSACTION = "bank_transaction"
 
 
 def build_entry_group_key(
