@@ -172,7 +172,7 @@ logging.config.dictConfig(
             },
             "sqlalchemy.engine": {
                 "handlers": [] if _TESTING else ["file"],
-                "level": "INFO" if get_settings().debug else "WARNING",
+                "level": "DEBUG",
                 "propagate": False,
             },
             "uvicorn.access": {
