@@ -33,7 +33,12 @@ from backend.schemas.invoice import (
 from backend.services import invoice as invoice_service
 from backend.services import settings as settings_service
 from backend.services.audit_service import AuditAction, record_audit
-from backend.services.invoice import InvoiceDeleteError, InvoiceStatusError, InvoiceUpdateError
+from backend.services.invoice import (
+    BlockedContactError,
+    InvoiceDeleteError,
+    InvoiceStatusError,
+    InvoiceUpdateError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +117,13 @@ async def create_invoice(
     current_user: _WriteAccess,
 ) -> InvoiceRead:
     """Create a new invoice."""
-    invoice = await invoice_service.create_invoice(db, payload)
+    try:
+        invoice = await invoice_service.create_invoice(db, payload)
+    except BlockedContactError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Contact is blocked: invoice creation is not allowed",
+        ) from exc
     await record_audit(
         db,
         action=AuditAction.INVOICE_CREATED,
@@ -443,10 +454,15 @@ async def send_invoice_email(
         )
 
     from sqlalchemy import select  # noqa: PLC0415
+    from sqlalchemy.orm import selectinload  # noqa: PLC0415
 
     from backend.models.contact import Contact  # noqa: PLC0415
 
-    result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
+    result = await db.execute(
+        select(Contact)
+        .where(Contact.id == invoice.contact_id)
+        .options(selectinload(Contact.emails))
+    )
     contact = result.scalar_one_or_none()
     if contact is None:
         raise HTTPException(
@@ -457,6 +473,15 @@ async def send_invoice_email(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="No recipients specified",
+        )
+
+    # Security: only allow addresses that belong to this contact.
+    allowed_recipients = {addr for addr in [contact.email] if addr}
+    allowed_recipients.update(ce.email for ce in contact.emails)
+    if invalid := [r for r in payload.recipients if r not in allowed_recipients]:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=f"Recipient(s) not allowed for this contact: {', '.join(invalid)}",
         )
 
     contact_name = contact.nom

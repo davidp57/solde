@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.contact import Contact, ContactType
@@ -41,8 +42,10 @@ async def create_contact(db: AsyncSession, payload: ContactCreate) -> Contact:
                 )
             )
     await db.commit()
-    await db.refresh(contact)
-    return contact
+    result = await db.execute(
+        select(Contact).where(Contact.id == contact.id).options(selectinload(Contact.emails))
+    )
+    return result.scalar_one()
 
 
 async def get_contact(db: AsyncSession, contact_id: int) -> Contact | None:
@@ -155,8 +158,10 @@ async def update_contact(db: AsyncSession, contact: Contact, payload: ContactUpd
                 )
             )
     await db.commit()
-    await db.refresh(contact)
-    return contact
+    result = await db.execute(
+        select(Contact).where(Contact.id == contact.id).options(selectinload(Contact.emails))
+    )
+    return result.scalar_one()
 
 
 async def delete_contact(db: AsyncSession, contact: Contact) -> None:
