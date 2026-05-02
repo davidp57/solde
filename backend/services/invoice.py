@@ -36,6 +36,10 @@ class InvoiceUpdateError(Exception):
     """Raised when an invoice cannot be edited in its current business state."""
 
 
+class BlockedContactError(Exception):
+    """Raised when trying to create an invoice for a blocked contact."""
+
+
 # Initial status per invoice type.
 # Using an explicit mapping so any new InvoiceType is caught at creation time.
 _INITIAL_STATUS: dict[InvoiceType, InvoiceStatus] = {
@@ -200,12 +204,7 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
         result = await db.execute(select(Contact).where(Contact.id == payload.contact_id))
         contact = result.scalar_one_or_none()
         if contact is not None and contact.blocked:
-            from fastapi import HTTPException, status  # noqa: PLC0415
-
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Contact is blocked: invoice creation is not allowed",
-            )
+            raise BlockedContactError(payload.contact_id)
 
     year = payload.date.year
     number = await _next_number(db, payload.type, year)
