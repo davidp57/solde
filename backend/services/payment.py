@@ -308,20 +308,32 @@ async def _create_treasury_entries_for_payment(
     payment: Payment,
     invoice: Invoice,
 ) -> None:
-    """Mirror client payment receipts into the operational treasury journals."""
-    if invoice.type != InvoiceType.CLIENT:
+    """Mirror payment receipts/outlays into the operational treasury journals."""
+    if payment.method != PaymentMethod.ESPECES:
         return
 
-    description = f"Reglement facture {invoice.number}"
+    from backend.services.cash_service import create_cash_entry_record  # noqa: PLC0415
 
-    if payment.method == PaymentMethod.ESPECES:
-        from backend.services.cash_service import create_cash_entry_record  # noqa: PLC0415
+    description = f"Règlement facture {invoice.number}"
 
+    if invoice.type == InvoiceType.CLIENT:
         await create_cash_entry_record(
             db,
             date=payment.date,
             amount=payment.amount,
             type=CashMovementType.IN,
+            contact_id=payment.contact_id,
+            payment_id=payment.id,
+            reference=payment.reference,
+            description=description,
+            source=CashEntrySource.PAYMENT,
+        )
+    elif invoice.type == InvoiceType.FOURNISSEUR:
+        await create_cash_entry_record(
+            db,
+            date=payment.date,
+            amount=payment.amount,
+            type=CashMovementType.OUT,
             contact_id=payment.contact_id,
             payment_id=payment.id,
             reference=payment.reference,

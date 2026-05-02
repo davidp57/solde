@@ -423,9 +423,9 @@
             </thead>
             <tbody>
               <template v-for="row in countDenomRows(selectedCount)" :key="row.label">
-                <tr v-if="row.qty > 0">
+                <tr v-if="row.subtotal > 0">
                   <td>{{ row.label }}</td>
-                  <td>{{ row.qty }}</td>
+                  <td>{{ row.qty !== null ? row.qty : '—' }}</td>
                   <td class="app-money">{{ formatAmount(row.subtotal) }}</td>
                 </tr>
               </template>
@@ -577,6 +577,16 @@
                 />
               </div>
             </template>
+            <div class="app-field">
+              <label class="app-field__label">{{ t('cash.count_pieces_total') }}</label>
+              <InputNumber
+                v-model="countForm.pieces_total"
+                mode="decimal"
+                :min="0"
+                :min-fraction-digits="2"
+                :max-fraction-digits="2"
+              />
+            </div>
           </div>
         </section>
         <section class="app-dialog-section">
@@ -841,14 +851,6 @@ type CashDenomField =
   | 'count_20'
   | 'count_10'
   | 'count_5'
-  | 'count_2'
-  | 'count_1'
-  | 'count_cents_50'
-  | 'count_cents_20'
-  | 'count_cents_10'
-  | 'count_cents_5'
-  | 'count_cents_2'
-  | 'count_cents_1'
 
 const denominations: Array<{ field: CashDenomField; label: string }> = [
   { field: 'count_100', label: '100 €' },
@@ -856,14 +858,6 @@ const denominations: Array<{ field: CashDenomField; label: string }> = [
   { field: 'count_20', label: '20 €' },
   { field: 'count_10', label: '10 €' },
   { field: 'count_5', label: '5 €' },
-  { field: 'count_2', label: '2 €' },
-  { field: 'count_1', label: '1 €' },
-  { field: 'count_cents_50', label: '0,50 €' },
-  { field: 'count_cents_20', label: '0,20 €' },
-  { field: 'count_cents_10', label: '0,10 €' },
-  { field: 'count_cents_5', label: '0,05 €' },
-  { field: 'count_cents_2', label: '0,02 €' },
-  { field: 'count_cents_1', label: '0,01 €' },
 ]
 
 interface CashEntryFormState {
@@ -889,14 +883,7 @@ interface CashCountFormState extends Omit<CashCountCreate, 'date'> {
   count_20: number
   count_10: number
   count_5: number
-  count_2: number
-  count_1: number
-  count_cents_50: number
-  count_cents_20: number
-  count_cents_10: number
-  count_cents_5: number
-  count_cents_2: number
-  count_cents_1: number
+  pieces_total: number
   notes: string
 }
 
@@ -907,14 +894,7 @@ const countForm = ref<CashCountFormState>({
   count_20: 0,
   count_10: 0,
   count_5: 0,
-  count_2: 0,
-  count_1: 0,
-  count_cents_50: 0,
-  count_cents_20: 0,
-  count_cents_10: 0,
-  count_cents_5: 0,
-  count_cents_2: 0,
-  count_cents_1: 0,
+  pieces_total: 0,
   notes: '',
 })
 
@@ -1097,46 +1077,34 @@ async function submitCount() {
   }
 }
 
-function countDenomRows(count: CashCount): { label: string; qty: number; subtotal: number }[] {
+function countDenomRows(
+  count: CashCount,
+): { label: string; qty: number | null; subtotal: number }[] {
   return [
     { label: '100 €', qty: count.count_100, subtotal: count.count_100 * 100 },
     { label: '50 €', qty: count.count_50, subtotal: count.count_50 * 50 },
     { label: '20 €', qty: count.count_20, subtotal: count.count_20 * 20 },
     { label: '10 €', qty: count.count_10, subtotal: count.count_10 * 10 },
     { label: '5 €', qty: count.count_5, subtotal: count.count_5 * 5 },
-    { label: '2 €', qty: count.count_2, subtotal: count.count_2 * 2 },
-    { label: '1 €', qty: count.count_1, subtotal: count.count_1 * 1 },
-    { label: '0,50 €', qty: count.count_cents_50, subtotal: count.count_cents_50 * 0.5 },
-    { label: '0,20 €', qty: count.count_cents_20, subtotal: count.count_cents_20 * 0.2 },
-    { label: '0,10 €', qty: count.count_cents_10, subtotal: count.count_cents_10 * 0.1 },
-    { label: '0,05 €', qty: count.count_cents_5, subtotal: count.count_cents_5 * 0.05 },
-    { label: '0,02 €', qty: count.count_cents_2, subtotal: count.count_cents_2 * 0.02 },
-    { label: '0,01 €', qty: count.count_cents_1, subtotal: count.count_cents_1 * 0.01 },
+    { label: t('cash.count_pieces_total'), qty: null, subtotal: parseFloat(count.pieces_total) },
   ]
 }
 
 function openDepositFromCount(count: CashCount): void {
-  const denominations = [
-    { value: 100, key: 'count_100' as const },
-    { value: 50, key: 'count_50' as const },
-    { value: 20, key: 'count_20' as const },
-    { value: 10, key: 'count_10' as const },
-    { value: 5, key: 'count_5' as const },
-    { value: 2, key: 'count_2' as const },
-    { value: 1, key: 'count_1' as const },
-    { value: 0.5, key: 'count_cents_50' as const },
-    { value: 0.2, key: 'count_cents_20' as const },
-    { value: 0.1, key: 'count_cents_10' as const },
-    { value: 0.05, key: 'count_cents_5' as const },
-    { value: 0.02, key: 'count_cents_2' as const },
-    { value: 0.01, key: 'count_cents_1' as const },
+  const billDenominations: Array<{ value: number; key: keyof CashCount }> = [
+    { value: 100, key: 'count_100' },
+    { value: 50, key: 'count_50' },
+    { value: 20, key: 'count_20' },
+    { value: 10, key: 'count_10' },
+    { value: 5, key: 'count_5' },
   ]
-  const lines = denominations
-    .filter(({ key }) => count[key] > 0)
-    .map(({ value, key }) => ({ value, count: count[key] }))
+  const lines = billDenominations
+    .filter(({ key }) => (count[key] as number) > 0)
+    .map(({ value, key }) => ({ value, count: count[key] as number }))
+  const billTotal = lines.reduce((sum, l) => sum + l.value * l.count, 0)
   depositFromCountData.value = {
     date: count.date,
-    total_amount: parseFloat(count.total_counted),
+    total_amount: billTotal,
     denominations: lines,
   }
   depositFromCountVisible.value = true

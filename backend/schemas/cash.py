@@ -87,36 +87,21 @@ class CashCountCreate(BaseModel):
     count_20: int = 0
     count_10: int = 0
     count_5: int = 0
-    count_2: int = 0
-    count_1: int = 0
-    count_cents_50: int = 0
-    count_cents_20: int = 0
-    count_cents_10: int = 0
-    count_cents_5: int = 0
-    count_cents_2: int = 0
-    count_cents_1: int = 0
+    pieces_total: _Decimal = _Decimal("0")
     notes: str | None = None
 
-    @field_validator(
-        "count_100",
-        "count_50",
-        "count_20",
-        "count_10",
-        "count_5",
-        "count_2",
-        "count_1",
-        "count_cents_50",
-        "count_cents_20",
-        "count_cents_10",
-        "count_cents_5",
-        "count_cents_2",
-        "count_cents_1",
-        mode="before",
-    )
+    @field_validator("count_100", "count_50", "count_20", "count_10", "count_5", mode="before")
     @classmethod
     def counts_non_negative(cls, v: int) -> int:
         if v < 0:
             raise ValueError("count must be non-negative")
+        return v
+
+    @field_validator("pieces_total", mode="before")
+    @classmethod
+    def pieces_total_non_negative(cls, v: _Decimal) -> _Decimal:
+        if _Decimal(str(v)) < 0:
+            raise ValueError("pieces_total must be non-negative")
         return v
 
 
@@ -128,14 +113,7 @@ class CashCountRead(BaseModel):
     count_20: int
     count_10: int
     count_5: int
-    count_2: int
-    count_1: int
-    count_cents_50: int
-    count_cents_20: int
-    count_cents_10: int
-    count_cents_5: int
-    count_cents_2: int
-    count_cents_1: int
+    pieces_total: _Decimal
     total_counted: _Decimal
     balance_expected: _Decimal
     difference: _Decimal
