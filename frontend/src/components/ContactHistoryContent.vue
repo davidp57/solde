@@ -303,9 +303,100 @@
         : ''
     "
     modal
-    class="app-dialog app-dialog--large"
+    class="app-dialog app-dialog--xlarge"
+    @hide="onInvoiceDetailHide"
   >
     <Skeleton v-if="invoiceDetailLoading" height="220px" border-radius="8px" />
+
+    <!-- Supplier invoice: 2-column layout with file preview -->
+    <div v-else-if="invoiceDetail && invoiceDetail.type === 'fournisseur'" class="chd-supplier">
+      <div class="chd-supplier__meta">
+        <Tag
+          :value="t(`invoices.statuses.${invoiceDetail.status}`)"
+          :severity="statusSeverity(invoiceDetail.status)"
+        />
+        <span>{{ formatDisplayDate(invoiceDetail.date) }}</span>
+        <span v-if="invoiceDetail.due_date"
+          >{{ t('invoices.due_date') }} : {{ formatDisplayDate(invoiceDetail.due_date) }}</span
+        >
+        <span v-if="invoiceDetail.reference"
+          >{{ t('invoices.reference') }} : {{ invoiceDetail.reference }}</span
+        >
+      </div>
+
+      <div class="chd-supplier__summary">
+        <div class="history-dialog__metric">
+          <div class="history-dialog__label">{{ t('invoices.total') }}</div>
+          <div class="history-dialog__value">{{ fmt(invoiceDetail.total_amount) }} €</div>
+        </div>
+        <div class="history-dialog__metric">
+          <div class="history-dialog__label">{{ t('invoices.paid') }}</div>
+          <div class="history-dialog__value history-dialog__value--success">{{ fmt(invoiceDetail.paid_amount) }} €</div>
+        </div>
+        <div class="history-dialog__metric">
+          <div class="history-dialog__label">{{ t('invoices.remaining') }}</div>
+          <div
+            class="history-dialog__value"
+            :class="invoiceRemaining > 0 ? 'history-dialog__value--warn' : 'history-dialog__value--success'"
+          >{{ invoiceRemaining.toFixed(2) }} €</div>
+        </div>
+      </div>
+
+      <div class="chd-supplier__body">
+        <!-- Payments -->
+        <div class="chd-supplier__payments">
+          <h3 class="app-dialog-section__title">{{ t('invoices.history') }}</h3>
+          <AppTableSkeleton v-if="invoiceDetailPaymentsLoading" :rows="3" :cols="3" />
+          <div v-else-if="invoiceDetailPayments.length === 0" class="app-empty-state">
+            {{ t('invoices.no_payments') }}
+          </div>
+          <DataTable
+            v-else
+            :value="invoiceDetailPayments"
+            class="app-data-table"
+            size="small"
+          >
+            <Column field="date" :header="t('payments.date')" sortable>
+              <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+            </Column>
+            <Column field="amount" :header="t('payments.amount')" class="app-money" sortable>
+              <template #body="{ data }">{{ fmt(data.amount) }} €</template>
+            </Column>
+            <Column field="method" :header="t('payments.method')" sortable>
+              <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
+            </Column>
+          </DataTable>
+        </div>
+
+        <!-- File preview -->
+        <div class="chd-supplier__file">
+          <h3 class="app-dialog-section__title">{{ t('invoices.file') }}</h3>
+          <div v-if="!invoiceDetail.file_path" class="app-empty-state">
+            {{ t('invoices.supplier.no_attachment') }}
+          </div>
+          <div v-else-if="invoiceFileLoading" class="chd-supplier__file-loading">
+            <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
+          </div>
+          <div v-else-if="invoiceFileBlobUrl" class="chd-supplier__file-frame">
+            <embed
+              v-if="invoiceFileBlobIsPdf"
+              :src="invoiceFileBlobUrl"
+              type="application/pdf"
+              class="chd-supplier__embed"
+            />
+            <img
+              v-else
+              :src="invoiceFileBlobUrl"
+              class="chd-supplier__img"
+              :alt="t('invoices.supplier.preview_file')"
+            />
+          </div>
+          <div v-else class="app-empty-state">{{ t('common.error.unknown') }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Client invoice: existing layout -->
     <div v-else-if="invoiceDetail" class="contact-history-dialog">
       <div class="contact-history-dialog__meta">
         <Tag
@@ -464,9 +555,9 @@ import AppStatCard from './ui/AppStatCard.vue'
 import AppTableSkeleton from './ui/AppTableSkeleton.vue'
 import { getContactHistoryApi, markCreanceDouteuse } from '../api/accounting'
 import type { ContactHistory, ContactInvoiceSummary, ContactPaymentSummary } from '../api/accounting'
-import { downloadInvoicePdfApi, getInvoiceApi } from '../api/invoices'
+import { downloadInvoicePdfApi, downloadInvoiceFileApi, getInvoiceApi } from '../api/invoices'
 import type { Invoice } from '../api/invoices'
-import { getPayment } from '../api/payments'
+import { getPayment, listPayments } from '../api/payments'
 import type { Payment } from '../api/payments'
 import {
   dateRangeFilter,
@@ -495,6 +586,11 @@ const paymentDetail = ref<Payment | null>(null)
 const paymentDetailLoading = ref(false)
 const downloadingPdf = ref(false)
 const emailDialogInvoiceId = ref<number | null>(null)
+const invoiceFileBlobUrl = ref<string | null>(null)
+const invoiceFileBlobIsPdf = ref(false)
+const invoiceFileLoading = ref(false)
+const invoiceDetailPayments = ref<Payment[]>([])
+const invoiceDetailPaymentsLoading = ref(false)
 
 const contactEmail = computed((): string | null => {
   const email = history.value?.contact.email
@@ -591,13 +687,46 @@ async function openInvoiceDetail(data: ContactInvoiceSummary): Promise<void> {
   invoiceDetailVisible.value = true
   invoiceDetailLoading.value = true
   invoiceDetail.value = null
+  invoiceFileBlobUrl.value = null
+  invoiceDetailPayments.value = []
   try {
-    invoiceDetail.value = await getInvoiceApi(data.id)
+    const inv = await getInvoiceApi(data.id)
+    invoiceDetail.value = inv
+    // For supplier invoices: load payments + file in parallel
+    if (inv.type === 'fournisseur') {
+      invoiceDetailPaymentsLoading.value = true
+      if (inv.file_path) invoiceFileLoading.value = true
+      const tasks: Promise<void>[] = [
+        listPayments({ invoice_id: inv.id })
+          .then((p) => { invoiceDetailPayments.value = p })
+          .catch(() => {})
+          .finally(() => { invoiceDetailPaymentsLoading.value = false }),
+      ]
+      if (inv.file_path) {
+        tasks.push(
+          downloadInvoiceFileApi(inv.id)
+            .then((blob) => {
+              invoiceFileBlobIsPdf.value = blob.type === 'application/pdf'
+              invoiceFileBlobUrl.value = URL.createObjectURL(blob)
+            })
+            .catch(() => {})
+            .finally(() => { invoiceFileLoading.value = false }),
+        )
+      }
+      await Promise.all(tasks)
+    }
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
     invoiceDetailVisible.value = false
   } finally {
     invoiceDetailLoading.value = false
+  }
+}
+
+function onInvoiceDetailHide(): void {
+  if (invoiceFileBlobUrl.value) {
+    URL.revokeObjectURL(invoiceFileBlobUrl.value)
+    invoiceFileBlobUrl.value = null
   }
 }
 
@@ -729,6 +858,100 @@ onMounted(loadHistory)
   gap: 0.75rem;
   flex-wrap: wrap;
   padding-top: 0.5rem;
+}
+
+/* Supplier invoice preview layout */
+.chd-supplier {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.chd-supplier__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
+  color: var(--p-text-muted-color);
+}
+
+.chd-supplier__summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--app-space-3);
+  padding-bottom: var(--app-space-4);
+  border-bottom: 1px solid var(--app-surface-border);
+}
+
+.history-dialog__metric {
+  padding: var(--app-space-3);
+  border-radius: var(--app-surface-radius-sm);
+  background: color-mix(in srgb, var(--app-surface-bg) 85%, transparent 15%);
+}
+
+.history-dialog__label {
+  color: var(--p-text-muted-color);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.history-dialog__value {
+  margin-top: var(--app-space-2);
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.history-dialog__value--success { color: var(--p-green-600); }
+.history-dialog__value--warn { color: var(--p-orange-500); }
+
+.chd-supplier__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 460px;
+  gap: var(--app-space-5);
+  align-items: start;
+}
+
+.chd-supplier__payments,
+.chd-supplier__file {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.chd-supplier__file-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  color: var(--p-text-muted-color);
+}
+
+.chd-supplier__file-frame {
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-surface-radius-sm);
+  overflow: hidden;
+}
+
+.chd-supplier__embed {
+  width: 100%;
+  height: 520px;
+  border: none;
+  display: block;
+}
+
+.chd-supplier__img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+@media (max-width: 1000px) {
+  .chd-supplier__body {
+    grid-template-columns: 1fr;
+  }
 }
 
 .contact-history-dialog__fields {
