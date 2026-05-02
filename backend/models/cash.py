@@ -76,7 +76,7 @@ class CashCount(Base):
     count_20: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     count_10: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     count_5: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    # Pièces
+    # Pièces (individuelles — legacy, ne plus utiliser pour de nouveaux enregistrements)
     count_2: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     count_1: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     count_cents_50: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -85,6 +85,10 @@ class CashCount(Base):
     count_cents_5: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     count_cents_2: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     count_cents_1: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # Pièces (total ferraille — champ actif)
+    pieces_total: Mapped[_Decimal] = mapped_column(
+        DecimalType(10, 2), nullable=False, default=Decimal("0")
+    )
     # Résultats
     total_counted: Mapped[_Decimal] = mapped_column(
         DecimalType(10, 2), nullable=False, default=Decimal("0")

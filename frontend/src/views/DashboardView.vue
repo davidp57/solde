@@ -160,6 +160,46 @@
       </div>
     </template>
 
+    <AppPanel
+      v-if="pendingDeposits.length > 0"
+      :title="t('bank.pending_deposits_title')"
+      :subtitle="t('bank.pending_deposits_subtitle')"
+    >
+      <div class="bank-pending-deposits">
+        <div
+          v-for="deposit in pendingDeposits"
+          :key="deposit.id"
+          class="bank-pending-deposit-row"
+        >
+          <Tag
+            :value="t(`bank.deposit_types.${deposit.type}`)"
+            :severity="deposit.type === 'cheques' ? 'info' : 'warn'"
+            class="bank-pending-deposit-row__tag"
+          />
+          <span class="bank-pending-deposit-row__date">{{ formatDisplayDate(deposit.date) }}</span>
+          <span class="bank-pending-deposit-row__summary">
+            <template v-if="deposit.type === 'cheques'">
+              {{ t('bank.deposit_cheques_summary', { count: deposit.payment_ids.length }) }}
+            </template>
+            <template v-else>
+              {{ formatEspecesSummary(deposit.denomination_details) }}
+            </template>
+          </span>
+          <span class="bank-pending-deposit-row__amount app-money">
+            {{ formatAmount(parseFloat(deposit.total_amount)) }}
+          </span>
+          <Button
+            :label="t('bank.deposit_confirm')"
+            icon="pi pi-check"
+            severity="success"
+            size="small"
+            :loading="confirmingDepositId === deposit.id"
+            @click="doConfirmDeposit(deposit)"
+          />
+        </div>
+      </div>
+    </AppPanel>
+
     <QuickPaymentWizard v-model:visible="paymentWizardVisible" />
     <QuickInvoiceWizard v-model:visible="invoiceWizardVisible" />
   </AppPage>
@@ -169,9 +209,12 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
 import Message from 'primevue/message'
 import Skeleton from 'primevue/skeleton'
 import Select from 'primevue/select'
+import Button from 'primevue/button'
+import Tag from 'primevue/tag'
 import TrendLineChart, {
   type TrendLineChartSeries,
 } from '../components/charts/TrendLineChart.vue'
@@ -187,11 +230,15 @@ import type {
   DashboardResourcesChartRow,
   MonthlyChartRow,
 } from '../api/accounting'
+import { listDeposits, confirmDeposit as confirmDepositApi } from '../api/bank'
+import type { Deposit } from '../api/bank'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatDisplayDate } from '../utils/format'
 
 const { t } = useI18n()
 const router = useRouter()
 const fiscalYearStore = useFiscalYearStore()
+const toast = useToast()
 
 const invoiceWizardVisible = ref(false)
 const paymentWizardVisible = ref(false)
@@ -200,6 +247,8 @@ const loading = ref(true)
 const kpis = ref<DashboardKPIs | null>(null)
 const chartData = ref<MonthlyChartRow[]>([])
 const resourcesChartData = ref<DashboardResourcesChartRow[]>([])
+const pendingDeposits = ref<Deposit[]>([])
+const confirmingDepositId = ref<number | null>(null)
 const fiscalYears = computed(() => fiscalYearStore.fiscalYears)
 const chartFiscalYearId = computed({
   get: () => fiscalYearStore.selectedFiscalYearId,
@@ -254,6 +303,33 @@ function formatAmount(v: number | null | undefined): string {
     return '—'
   }
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v)
+}
+
+function formatEspecesSummary(denominationDetails: string | null): string {
+  if (!denominationDetails) return t('bank.deposit_especes_summary_no_denom')
+  try {
+    const lines: { value: number; count: number }[] = JSON.parse(denominationDetails)
+    if (!lines.length) return t('bank.deposit_especes_summary_no_denom')
+    return lines
+      .filter((l) => l.count > 0)
+      .map((l) => `${l.count}×${l.value % 1 === 0 ? l.value : l.value.toFixed(2)} €`)
+      .join(' + ')
+  } catch {
+    return t('bank.deposit_especes_summary_no_denom')
+  }
+}
+
+async function doConfirmDeposit(deposit: Deposit): Promise<void> {
+  confirmingDepositId.value = deposit.id
+  try {
+    await confirmDepositApi(deposit.id)
+    toast.add({ severity: 'success', summary: t('bank.deposit_confirmed_success'), life: 3000 })
+    pendingDeposits.value = await listDeposits({ confirmed: false })
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } finally {
+    confirmingDepositId.value = null
+  }
 }
 
 function formatCompactAmount(v: number): string {
@@ -312,7 +388,11 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-  await Promise.all([loadChart(), loadResourcesChart()])
+  await Promise.all([
+    loadChart(),
+    loadResourcesChart(),
+    listDeposits({ confirmed: false }).then((d) => (pendingDeposits.value = d)).catch(() => {}),
+  ])
 })
 </script>
 
@@ -533,5 +613,42 @@ html.dark-mode .dashboard-action-card__icon {
   .dashboard-chart {
     grid-template-columns: repeat(auto-fit, minmax(4rem, 1fr));
   }
+}
+
+.bank-pending-deposits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-3);
+}
+
+.bank-pending-deposit-row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  padding: var(--app-space-3) var(--app-space-4);
+  background: var(--app-surface-muted);
+  border: 1px solid var(--app-surface-border);
+  border-radius: var(--app-radius);
+}
+
+.bank-pending-deposit-row__tag {
+  flex-shrink: 0;
+}
+
+.bank-pending-deposit-row__date {
+  font-variant-numeric: tabular-nums;
+  min-width: 6rem;
+}
+
+.bank-pending-deposit-row__summary {
+  flex: 1;
+  color: var(--p-text-muted-color);
+  font-size: 0.9rem;
+}
+
+.bank-pending-deposit-row__amount {
+  font-weight: 600;
+  min-width: 7rem;
+  text-align: right;
 }
 </style>

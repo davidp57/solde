@@ -167,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
@@ -257,9 +257,12 @@ function removeDenomination(idx: number): void {
   form.value.denominations.splice(idx, 1)
 }
 
+let _isPrefilling = false
+
 watch(
   () => form.value.type,
   () => {
+    if (_isPrefilling) return
     form.value.payment_ids = []
     form.value.total_amount = null
     form.value.denominations = []
@@ -268,8 +271,9 @@ watch(
 
 watch(
   () => props.visible,
-  (vis) => {
+  async (vis) => {
     if (!vis || !props.prefillFromCount) return
+    _isPrefilling = true
     const p = props.prefillFromCount
     form.value = {
       date: new Date(p.date + 'T00:00:00'),
@@ -279,6 +283,8 @@ watch(
       total_amount: p.total_amount,
       denominations: [...p.denominations],
     }
+    await nextTick()
+    _isPrefilling = false
   },
 )
 
