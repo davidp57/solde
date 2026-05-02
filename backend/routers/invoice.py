@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models.invoice import InvoiceStatus, InvoiceType
+from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.invoice import (
@@ -95,7 +95,7 @@ async def list_invoices(
     year: int | None = Query(default=None, ge=2000, le=2100),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=1000),
-) -> list[InvoiceRead]:
+) -> list[Invoice]:
     """List invoices with optional filters."""
     return await invoice_service.list_invoices(
         db,
@@ -107,7 +107,7 @@ async def list_invoices(
         year=year,
         skip=skip,
         limit=limit,
-    )  # type: ignore[return-value]
+    )
 
 
 @router.post("/", response_model=InvoiceRead, status_code=status.HTTP_201_CREATED)
@@ -115,7 +115,7 @@ async def create_invoice(
     payload: InvoiceCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _WriteAccess,
-) -> InvoiceRead:
+) -> Invoice:
     """Create a new invoice."""
     try:
         invoice = await invoice_service.create_invoice(db, payload)
@@ -136,7 +136,7 @@ async def create_invoice(
             "total_amount": str(invoice.total_amount),
         },
     )
-    return invoice  # type: ignore[return-value]
+    return invoice
 
 
 @router.get("/{invoice_id}", response_model=InvoiceRead)
@@ -144,12 +144,12 @@ async def get_invoice(
     invoice_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
-) -> InvoiceRead:
+) -> Invoice | None:
     """Get a single invoice by ID."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
-    return invoice  # type: ignore[return-value]
+    return invoice
 
 
 @router.put("/{invoice_id}", response_model=InvoiceRead)
@@ -158,7 +158,7 @@ async def update_invoice(
     payload: InvoiceUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _WriteAccess,
-) -> InvoiceRead:
+) -> Invoice:
     """Partially update an invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
@@ -175,7 +175,7 @@ async def update_invoice(
         target_type="invoice",
         detail={"number": invoice.number},
     )
-    return updated  # type: ignore[return-value]
+    return updated
 
 
 @router.patch("/{invoice_id}/status", response_model=InvoiceRead)
@@ -184,7 +184,7 @@ async def update_status(
     payload: InvoiceStatusUpdate,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _WriteAccess,
-) -> InvoiceRead:
+) -> Invoice:
     """Change the status of an invoice (enforces valid transitions)."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
@@ -202,7 +202,7 @@ async def update_status(
         target_type="invoice",
         detail={"number": invoice.number, "from": old_status, "to": payload.status},
     )
-    return updated  # type: ignore[return-value]
+    return updated
 
 
 @router.post("/{invoice_id}/write-off", response_model=InvoiceRead)
@@ -210,7 +210,7 @@ async def write_off_invoice(
     invoice_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _WriteAccess,
-) -> InvoiceRead:
+) -> Invoice:
     """Mark a client invoice as irrecoverable and generate write-off accounting entries."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
@@ -227,7 +227,7 @@ async def write_off_invoice(
         target_type="invoice",
         detail={"number": invoice.number},
     )
-    return updated  # type: ignore[return-value]
+    return updated
 
 
 @router.post("/{invoice_id}/restore-from-writeoff", response_model=InvoiceRead)
@@ -235,7 +235,7 @@ async def restore_from_writeoff(
     invoice_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _WriteAccess,
-) -> InvoiceRead:
+) -> Invoice:
     """Restore an irrecoverable invoice: generate reversal entries and recompute status."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
@@ -252,7 +252,7 @@ async def restore_from_writeoff(
         target_type="invoice",
         detail={"number": invoice.number},
     )
-    return updated  # type: ignore[return-value]
+    return updated
 
 
 @router.post(
@@ -264,7 +264,7 @@ async def duplicate_invoice(
     invoice_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _WriteAccess,
-) -> InvoiceRead:
+) -> Invoice:
     """Create a draft copy of an existing invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
@@ -278,7 +278,7 @@ async def duplicate_invoice(
         target_type="invoice",
         detail={"source_id": invoice_id, "source_number": invoice.number},
     )
-    return duplicate  # type: ignore[return-value]
+    return duplicate
 
 
 @router.delete("/{invoice_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -494,11 +494,11 @@ async def send_invoice_email(
 
     try:
         email_service.send_invoice_email(
-            smtp_host=app_settings.smtp_host,  # type: ignore[arg-type]
+            smtp_host=app_settings.smtp_host or "",
             smtp_port=app_settings.smtp_port,
-            smtp_user=app_settings.smtp_user,  # type: ignore[arg-type]
-            smtp_password=app_settings.smtp_password,  # type: ignore[arg-type]
-            smtp_from_email=app_settings.smtp_from_email,  # type: ignore[arg-type]
+            smtp_user=app_settings.smtp_user or "",
+            smtp_password=app_settings.smtp_password or "",
+            smtp_from_email=app_settings.smtp_from_email or "",
             smtp_use_tls=app_settings.smtp_use_tls,
             bcc=app_settings.smtp_bcc,
             recipient_email=payload.recipients,
@@ -542,7 +542,12 @@ async def download_invoice_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
     if not invoice.file_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No file attached")
-    file_path = Path(invoice.file_path)
+    # Resolve absolute path from stored relative filename
+    stored = invoice.file_path
+    if Path(stored).is_absolute():
+        file_path = Path(stored)
+    else:
+        file_path = Path("data/uploads/invoices").resolve() / stored
     if not file_path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk")
     suffix = file_path.suffix.lower()
@@ -567,7 +572,7 @@ async def upload_invoice_file(
     file: UploadFile,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _WriteAccess,
-) -> InvoiceRead:
+) -> Invoice:
     """Upload a file attachment for a supplier invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
@@ -608,6 +613,5 @@ async def upload_invoice_file(
     file_path = upload_dir / safe_name
     file_path.write_bytes(content)
 
-    return await invoice_service.set_file_path(  # type: ignore[return-value]
-        db, invoice, str(file_path)
-    )
+    # Store only the relative filename to keep the path portable
+    return await invoice_service.set_file_path(db, invoice, safe_name)

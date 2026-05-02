@@ -18,20 +18,20 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | | |
 | BIZ-034 | Support multi-compte banque | P3 | ~45 min | 2026-04-21 | | |
 
-### Lot CR — Correctifs revue de code v1.1.0 (~7 h) — v1.2
+### Lot CR — Correctifs revue de code v1.1.0 (~7 h) — v1.4
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-133 | Access token en localStorage (vulnérabilité XSS) | P1 | ~2 h | 2026-05-02 | | |
-| TEC-134 | Atomicité brisée entre modification et audit log | P1 | ~30 min | 2026-05-02 | | |
-| TEC-135 | Race condition sur la numérotation des factures | P1 | ~1 h | 2026-05-02 | | |
-| TEC-136 | Chemins absolus de fichiers stockés en base | P2 | ~45 min | 2026-05-02 | | |
-| TEC-137 | Double décodage JWT sur chaque requête API | P2 | ~30 min | 2026-05-02 | | |
-| TEC-138 | Rate limiter : croissance mémoire non bornée | P2 | ~45 min | 2026-05-02 | | |
-| TEC-139 | Tokens OpenAI non comptabilisés en streaming | P2 | ~30 min | 2026-05-02 | | |
-| TEC-140 | Endpoint audit log sans pagination ni filtrage | P2 | ~1 h | 2026-05-02 | | |
-| TEC-141 | Rôles utilisateur hardcodés côté frontend | P3 | ~30 min | 2026-05-02 | | |
-| TEC-155 | Suppressions `# type: ignore` systématiques dans les routeurs | P3 | ~1 h | 2026-05-02 | | |
+| TEC-133 | Access token en localStorage (vulnérabilité XSS) | P1 | ~2 h | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| TEC-134 | Atomicité brisée entre modification et audit log | P1 | ~30 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| TEC-135 | Race condition sur la numérotation des factures | P1 | ~1 h | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| TEC-136 | Chemins absolus de fichiers stockés en base | P2 | ~45 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| TEC-137 | Double décodage JWT sur chaque requête API | P2 | ~30 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| TEC-138 | Rate limiter : croissance mémoire non bornée | P2 | ~45 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| TEC-139 | Tokens OpenAI non comptabilisés en streaming | P2 | ~30 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| TEC-140 | Endpoint audit log sans pagination ni filtrage | P2 | ~1 h | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| TEC-141 | Rôles utilisateur hardcodés côté frontend | P3 | ~30 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
+| TEC-155 | Suppressions `# type: ignore` systématiques dans les routeurs | P3 | ~1 h | 2026-05-02 | 2026-05-02 | 2026-05-02 |
 
 ---
 
