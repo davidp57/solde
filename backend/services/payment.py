@@ -314,7 +314,7 @@ async def _create_treasury_entries_for_payment(
 
     from backend.services.cash_service import create_cash_entry_record  # noqa: PLC0415
 
-    description = f"Reglement facture {invoice.number}"
+    description = f"Règlement facture {invoice.number}"
 
     if invoice.type == InvoiceType.CLIENT:
         await create_cash_entry_record(
