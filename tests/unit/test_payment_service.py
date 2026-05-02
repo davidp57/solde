@@ -455,6 +455,80 @@ async def test_delete_payment_reverts_invoice(db_session: AsyncSession) -> None:
 
 
 @pytest.mark.asyncio
+async def test_create_supplier_cash_payment_creates_cash_out(db_session: AsyncSession) -> None:
+    """Supplier cash payment creates a CashMovementType.OUT entry automatically."""
+    contact = Contact(type=ContactType.FOURNISSEUR, nom="Fournisseur", prenom="Test")
+    db_session.add(contact)
+    await db_session.flush()
+
+    inv = Invoice(
+        number="FF-2024-001",
+        type=InvoiceType.FOURNISSEUR,
+        contact_id=contact.id,
+        date=date(2024, 3, 1),
+        total_amount=Decimal("75.00"),
+        paid_amount=Decimal("0"),
+        status=InvoiceStatus.SENT,
+    )
+    db_session.add(inv)
+    await db_session.flush()
+
+    await payment_service.create_payment(
+        db_session,
+        PaymentCreate(
+            invoice_id=inv.id,
+            contact_id=contact.id,
+            amount=Decimal("75.00"),
+            date=date(2024, 3, 15),
+            method=PaymentMethod.ESPECES,
+        ),
+    )
+
+    cash_entries = list(
+        (await db_session.execute(select(CashRegister).order_by(CashRegister.id.asc()))).scalars()
+    )
+    assert len(cash_entries) == 1
+    assert cash_entries[0].amount == Decimal("75.00")
+    assert cash_entries[0].type == CashMovementType.OUT
+    assert cash_entries[0].source == CashEntrySource.PAYMENT
+    assert cash_entries[0].contact_id == contact.id
+
+
+@pytest.mark.asyncio
+async def test_create_supplier_cheque_payment_no_cash_entry(db_session: AsyncSession) -> None:
+    """Supplier cheque payment must not create any cash entry."""
+    contact = Contact(type=ContactType.FOURNISSEUR, nom="Fournisseur", prenom="Test")
+    db_session.add(contact)
+    await db_session.flush()
+
+    inv = Invoice(
+        number="FF-2024-002",
+        type=InvoiceType.FOURNISSEUR,
+        contact_id=contact.id,
+        date=date(2024, 3, 1),
+        total_amount=Decimal("50.00"),
+        paid_amount=Decimal("0"),
+        status=InvoiceStatus.SENT,
+    )
+    db_session.add(inv)
+    await db_session.flush()
+
+    await payment_service.create_payment(
+        db_session,
+        PaymentCreate(
+            invoice_id=inv.id,
+            contact_id=contact.id,
+            amount=Decimal("50.00"),
+            date=date(2024, 3, 15),
+            method=PaymentMethod.CHEQUE,
+        ),
+    )
+
+    cash_entries = list((await db_session.execute(select(CashRegister))).scalars())
+    assert cash_entries == []
+
+
+@pytest.mark.asyncio
 async def test_disputed_invoice_not_updated(db_session: AsyncSession) -> None:
     """DISPUTED invoice status is not overwritten by a payment."""
     contact = await _make_contact(db_session)
