@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-05-02 — active branch `develop` — current version: 1.3.0
+> Last updated: 2026-05-02 — active branch `develop` — current version: 1.3.1
 
 ---
 
@@ -21,7 +21,8 @@
 | **1.1** | Bank deposit workflow + 7 UX improvements | ✅ Completed |
 | **1.2** | Bank reconciliation accounting entries, lot I-BNK, lot J (wizard + contacts) | ✅ Completed |
 | **1.3** | Supplier invoice preview, cash count UX, dashboard deposits, multi-email contacts, blocked client, supplier cash payments | ✅ Released 2026-05-02 |
-| **1.4** | Multi-account bank + i18n English skeleton | ⬜ Planned |
+| **1.3.1** | Lot CR — security & code quality fixes | ✅ Released 2026-05-02 |
+| **1.4** | Lot UI — UX & API improvements | ⬜ Planned |
 
 Test suite: **1011 backend + 131 frontend Vitest — 0 failures.**
 
@@ -255,7 +256,42 @@ Preview dialog accessible from the eye icon in the supplier invoice list — key
 
 ---
 
-## v1.3 — Multi-account bank & i18n ⬜
+## v1.3.1 — Lot CR — security & code quality fixes ✅
+
+Released 2026-05-02.
+
+| ID | Fix |
+| --- | --- |
+| TEC-133 | Access token stored in memory only (XSS mitigation; `localStorage` removed) |
+| TEC-134 | Audit atomicity: `record_audit()` called before `db.commit()` |
+| TEC-135 | Invoice numbering race condition: retry loop on `IntegrityError` (3 attempts) |
+| TEC-136 | File paths stored as relative in DB; resolved to absolute at read time |
+| TEC-137 | JWT payload decoded once per request (cached in `request.state`) |
+| TEC-138 | Rate limiter: bounded memory via periodic cleanup every 100 attempts |
+| TEC-139 | OpenAI streaming tokens counted (`stream_options={"include_usage": True}`) |
+| TEC-140 | Audit log endpoint: server-side pagination + filters (action, actor, dates) |
+| TEC-141 | `USER_ROLES` constant — single source of truth for role strings |
+| TEC-155 | Removed 13 `# type: ignore[return-value]` in invoice router |
+
+---
+
+## v1.4 — Lot UI — UX & API improvements ⬜
+
+### BIZ-149 — Auto-capitalisation des intitulés facture
+
+First letter of invoice line descriptions auto-capitalised on input.
+
+### BIZ-150 — Heures décimales : accepter « . » et « , »
+
+Both `.` and `,` accepted as decimal separator for the hours field; normalised to `.` before save.
+
+### BIZ-157 — Pagination 50 items par défaut
+
+All DataTables default from 20 to 50 rows per page.
+
+### BIZ-158 — Limite API 1000 items + warning si atteinte
+
+Business endpoints (invoices, payments, contacts, bank transactions & deposits, salary) raised from `limit=100` to `limit=1000`. A visible `Message` warning is displayed in the UI when the returned row count equals the limit, explaining that filters may be incomplete.
 
 ### BIZ-034 — Multi-account bank support
 
