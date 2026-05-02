@@ -6,7 +6,7 @@
     <AppTableSkeleton :rows="10" :cols="4" style="margin-top: 1.5rem" />
   </div>
 
-  <template v-else-if="history">
+  <template v-else-if="history && !invoiceDetailVisible">
     <AppPanel
       :title="contactFullName(history.contact)"
       :subtitle="contactSubtitle(history.contact)"
@@ -291,21 +291,37 @@
     </AppPanel>
   </template>
 
-  <div v-else class="app-empty-state">
-    {{ t('common.error.notFound') }}
-  </div>
-
-  <Dialog
-    v-model:visible="invoiceDetailVisible"
-    :header="
-      invoiceDetail
-        ? t('contact_history.invoice_detail_title', { number: invoiceDetail.number })
-        : ''
-    "
-    modal
-    class="app-dialog app-dialog--xlarge"
-    @hide="onInvoiceDetailHide"
-  >
+  <template v-else-if="history && invoiceDetailVisible">
+    <div class="chd-back-bar">
+      <Button
+        icon="pi pi-arrow-left"
+        text
+        :label="t('contact_history.back_to_list')"
+        @click="closeInvoiceDetail"
+      />
+      <span class="chd-back-bar__title">{{ invoiceDetail?.number ?? '' }}</span>
+      <div class="chd-back-bar__nav">
+        <Button
+          icon="pi pi-chevron-left"
+          text
+          rounded
+          size="small"
+          :disabled="invoiceDetailIndex <= 0"
+          :title="t('common.previous')"
+          @click="goToPrevInvoice"
+        />
+        <span class="chd-back-bar__counter">{{ invoiceDetailIndex + 1 }} / {{ invoiceRows.length }}</span>
+        <Button
+          icon="pi pi-chevron-right"
+          text
+          rounded
+          size="small"
+          :disabled="invoiceDetailIndex >= invoiceRows.length - 1"
+          :title="t('common.next')"
+          @click="goToNextInvoice"
+        />
+      </div>
+    </div>
     <Skeleton v-if="invoiceDetailLoading" height="220px" border-radius="8px" />
 
     <!-- Supplier invoice: 2-column layout with file preview -->
@@ -472,7 +488,11 @@
         />
       </div>
     </div>
-  </Dialog>
+  </template>
+
+  <div v-else class="app-empty-state">
+    {{ t('common.error.notFound') }}
+  </div>
 
   <Dialog
     v-model:visible="paymentDetailVisible"
@@ -579,6 +599,7 @@ const toast = useToast()
 const history = ref<ContactHistory | null>(null)
 const loading = ref(false)
 const invoiceDetailVisible = ref(false)
+const invoiceDetailIndex = ref(-1)
 const invoiceDetail = ref<Invoice | null>(null)
 const invoiceDetailLoading = ref(false)
 const paymentDetailVisible = ref(false)
@@ -684,13 +705,21 @@ function contactSubtitle(contact: ContactHistory['contact']): string {
 }
 
 async function openInvoiceDetail(data: ContactInvoiceSummary): Promise<void> {
+  invoiceDetailIndex.value = invoiceRows.value.findIndex((r) => r.id === data.id)
   invoiceDetailVisible.value = true
+  await loadInvoiceDetailData(data.id)
+}
+
+async function loadInvoiceDetailData(id: number): Promise<void> {
   invoiceDetailLoading.value = true
   invoiceDetail.value = null
-  invoiceFileBlobUrl.value = null
+  if (invoiceFileBlobUrl.value) {
+    URL.revokeObjectURL(invoiceFileBlobUrl.value)
+    invoiceFileBlobUrl.value = null
+  }
   invoiceDetailPayments.value = []
   try {
-    const inv = await getInvoiceApi(data.id)
+    const inv = await getInvoiceApi(id)
     invoiceDetail.value = inv
     // For supplier invoices: load payments + file in parallel
     if (inv.type === 'fournisseur') {
@@ -717,17 +746,33 @@ async function openInvoiceDetail(data: ContactInvoiceSummary): Promise<void> {
     }
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
-    invoiceDetailVisible.value = false
+    closeInvoiceDetail()
   } finally {
     invoiceDetailLoading.value = false
   }
 }
 
-function onInvoiceDetailHide(): void {
+function closeInvoiceDetail(): void {
   if (invoiceFileBlobUrl.value) {
     URL.revokeObjectURL(invoiceFileBlobUrl.value)
     invoiceFileBlobUrl.value = null
   }
+  invoiceDetailVisible.value = false
+  invoiceDetail.value = null
+}
+
+async function goToPrevInvoice(): Promise<void> {
+  const idx = invoiceDetailIndex.value - 1
+  if (idx < 0) return
+  invoiceDetailIndex.value = idx
+  await loadInvoiceDetailData(invoiceRows.value[idx].id)
+}
+
+async function goToNextInvoice(): Promise<void> {
+  const idx = invoiceDetailIndex.value + 1
+  if (idx >= invoiceRows.value.length) return
+  invoiceDetailIndex.value = idx
+  await loadInvoiceDetailData(invoiceRows.value[idx].id)
 }
 
 async function openPaymentDetail(data: ContactPaymentSummary): Promise<void> {
@@ -858,6 +903,37 @@ onMounted(loadHistory)
   gap: 0.75rem;
   flex-wrap: wrap;
   padding-top: 0.5rem;
+}
+
+/* Inline detail navigation bar */
+.chd-back-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  padding-bottom: var(--app-space-4);
+  border-bottom: 1px solid var(--app-surface-border);
+  margin-bottom: var(--app-space-4);
+}
+
+.chd-back-bar__title {
+  flex: 1;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--p-text-color);
+}
+
+.chd-back-bar__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-1);
+  margin-left: auto;
+}
+
+.chd-back-bar__counter {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+  min-width: 3.5rem;
+  text-align: center;
 }
 
 /* Supplier invoice preview layout */

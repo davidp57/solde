@@ -343,6 +343,27 @@
       class="app-dialog app-dialog--large"
       @hide="onPreviewHide"
     >
+      <div class="preview-nav-bar">
+        <Button
+          icon="pi pi-chevron-left"
+          text
+          rounded
+          size="small"
+          :disabled="previewIndex <= 0"
+          :title="t('common.previous')"
+          @click="goToPrevPreview"
+        />
+        <span class="preview-nav-bar__counter">{{ previewIndex + 1 }} / {{ displayedInvoices.length }}</span>
+        <Button
+          icon="pi pi-chevron-right"
+          text
+          rounded
+          size="small"
+          :disabled="previewIndex >= displayedInvoices.length - 1"
+          :title="t('common.next')"
+          @click="goToNextPreview"
+        />
+      </div>
       <div v-if="previewInvoice" class="supplier-preview-dialog">
 
         <!-- Header info + actions -->
@@ -576,6 +597,8 @@ const previewRemaining = computed(() => {
   return parseFloat(previewInvoice.value.total_amount) - parseFloat(previewInvoice.value.paid_amount)
 })
 
+const previewIndex = ref(-1)
+
 const invoiceRows = computed(() =>
   invoices.value.map((invoice) => ({
     ...invoice,
@@ -733,6 +756,7 @@ function openUploadDialog(invoice: Invoice) {
 }
 
 async function openPreviewDialog(invoice: Invoice) {
+  previewIndex.value = displayedInvoices.value.findIndex((r) => r.id === invoice.id)
   previewInvoice.value = invoice
   previewBlobUrl.value = null
   previewPayments.value = []
@@ -795,6 +819,20 @@ function openUploadFromPreview() {
   const inv = previewInvoice.value
   previewVisible.value = false
   nextTick(() => openUploadDialog(inv))
+}
+
+async function goToPrevPreview(): Promise<void> {
+  const idx = previewIndex.value - 1
+  if (idx < 0) return
+  previewIndex.value = idx
+  await openPreviewDialog(displayedInvoices.value[idx] as Invoice)
+}
+
+async function goToNextPreview(): Promise<void> {
+  const idx = previewIndex.value + 1
+  if (idx >= displayedInvoices.value.length) return
+  previewIndex.value = idx
+  await openPreviewDialog(displayedInvoices.value[idx] as Invoice)
 }
 
 function onFileSelect(event: { files: File[] }) {
@@ -925,6 +963,23 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
+}
+
+.preview-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--app-space-1);
+  padding-bottom: var(--app-space-3);
+  border-bottom: 1px solid var(--app-surface-border);
+  margin-bottom: var(--app-space-4);
+}
+
+.preview-nav-bar__counter {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+  min-width: 3.5rem;
+  text-align: center;
 }
 
 .supplier-preview-dialog {

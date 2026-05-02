@@ -213,6 +213,8 @@ export default {
     filter_placeholder: 'Rechercher…',
     refresh: 'Actualiser',
     reset_filters: 'Réinitialiser les filtres',
+    previous: 'Précédent',
+    next: 'Suivant',
     active: 'Actif',
     inactive: 'Inactif',
     list: {
@@ -1754,6 +1756,7 @@ export default {
     view_payment: 'Voir le paiement',
     invoice_detail_title: 'Facture {number}',
     payment_detail_title: 'Détail du paiement',
+    back_to_list: 'Retour à la liste',
   },
   bilan: {
     title: 'Bilan simplifié',
