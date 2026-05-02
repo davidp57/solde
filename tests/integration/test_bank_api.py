@@ -799,7 +799,7 @@ async def test_create_client_payment_from_bank_transaction(
     assert payment.amount == Decimal("150.00")
     assert payment.date == date(2024, 3, 15)
     assert payment.method == PaymentMethod.VIREMENT
-    assert payment.reference == "VIR-2024-001"
+    assert payment.reference == "VIR DUPONT"
 
 
 @pytest.mark.asyncio
@@ -1125,7 +1125,7 @@ async def test_create_supplier_payment_from_bank_transaction(
     assert payment.amount == Decimal("200.00")
     assert payment.date == date(2024, 3, 15)
     assert payment.method == PaymentMethod.VIREMENT
-    assert payment.reference == "FOURN-2024-001"
+    assert payment.reference == "VIR FOURNISSEUR TEST"
     assert payment.deposited is True
     assert payment.deposit_date == date(2024, 3, 15)
 

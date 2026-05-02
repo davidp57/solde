@@ -301,10 +301,10 @@ async def _enrich_journal_entries(
             payment = payments_by_id.get(entry.source_id)
             if payment is not None:
                 invoice = invoices_by_id.get(payment.invoice_id)
-                source_reference = (
-                    payment.reference
-                    or (invoice.reference if invoice is not None else None)
-                    or (invoice.number if invoice is not None else None)
+                # Do not use payment.reference: it may contain a raw OFX FITID
+                # stored by earlier bank reconciliation flows.
+                source_reference = (invoice.reference if invoice is not None else None) or (
+                    invoice.number if invoice is not None else None
                 )
                 source_contact_name = _contact_display_name(
                     contacts_by_id.get(
