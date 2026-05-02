@@ -20,11 +20,19 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 | ID | Titre | Prio | Est. | Créé | Terminé |
 | --- | --- | --- | --- | --- | --- |
 | BIZ-138 | Écritures salaires : date au dernier jour du mois | P1 | ~15 min | 2026-05-02 | 2026-05-02 |
+| BIZ-139 | Factures fournisseur créées en statut « Reçue » au lieu de Brouillon | P1 | ~20 min | 2026-05-02 | 2026-05-02 |
 | CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | — |
 
 ---
 
 ## Détails
+
+### BIZ-139 — Factures fournisseur créées en statut « Reçue » au lieu de Brouillon
+
+- **Terminé** : 2026-05-02
+- À la création manuelle d'une facture fournisseur, le service assignait le statut `draft` (calqué sur le workflow client). Or une facture fournisseur est *reçue* : elle doit être immédiatement disponible pour le rapprochement bancaire.
+- **Correction** : `backend/services/invoice.py` — `create_invoice` assigne `InvoiceStatus.SENT` pour les factures `FOURNISSEUR` au lieu de `DRAFT`.
+- **Migration** : les 2 factures fournisseur déjà encodées manuellement en `draft` ont été passées en `sent` directement en base.
 
 ### BIZ-138 — Écritures salaires : date au dernier jour du mois
 
