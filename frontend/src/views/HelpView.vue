@@ -227,19 +227,43 @@ onMounted(async () => {
 }
 
 /* Basic prose styles for the rendered Markdown */
+/* Heading hierarchy: distinct sizes and colors per level */
 .prose :deep(h1),
 .prose :deep(h2),
 .prose :deep(h3),
 .prose :deep(h4) {
   font-weight: 600;
-  margin-top: 1.5em;
+  line-height: 1.3;
   margin-bottom: 0.5em;
-  color: var(--app-text-primary);
 }
 
-.prose :deep(h1) { font-size: 1.5rem; }
-.prose :deep(h2) { font-size: 1.25rem; border-bottom: 1px solid var(--p-surface-200); padding-bottom: 0.25em; }
-.prose :deep(h3) { font-size: 1.1rem; }
+.prose :deep(h1) {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--app-text-primary);
+  margin-top: 2em;
+}
+
+.prose :deep(h2) {
+  font-size: 1.45rem;
+  color: var(--p-primary-color);
+  border-bottom: 2px solid color-mix(in srgb, var(--p-primary-color) 25%, transparent);
+  padding-bottom: 0.3em;
+  margin-top: 2em;
+}
+
+.prose :deep(h3) {
+  font-size: 1.15rem;
+  color: color-mix(in srgb, var(--p-primary-color) 75%, var(--app-text-primary));
+  margin-top: 1.4em;
+}
+
+.prose :deep(h4) {
+  font-size: 1rem;
+  color: var(--app-text-muted);
+  font-style: italic;
+  margin-top: 1em;
+}
 
 .prose :deep(p) {
   margin-bottom: 0.75em;

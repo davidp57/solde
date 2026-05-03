@@ -19,7 +19,7 @@ Il est destiné aux utilisateurs disposant d'un rôle **Gestionnaire**, **Compta
 10. [Comptabilité](#10-comptabilité)
 11. [Exercices comptables](#11-exercices-comptables)
 12. [Mon profil](#12-mon-profil)
-13. [Guide par rôle — « Je veux… »](#guide-par-rôle--je-veux-)
+13. [Guide par rôle — « Je veux… »](#guide-par-rôle-je-veux)
 
 ---
 
