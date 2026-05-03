@@ -1,28 +1,28 @@
-﻿# Revue de code — Solde v1.1.0
+# Code Review — Solde v1.1.0
 
-**Date** : 2026-04-29  
-**Périmètre** : backend Python (FastAPI/SQLAlchemy), frontend TypeScript (Vue 3), infrastructure  
-**Suite de tests** : 999/999 ✅
+**Date**: 2026-04-29  
+**Scope**: Python backend (FastAPI/SQLAlchemy), TypeScript frontend (Vue 3), infrastructure  
+**Test suite**: 999/999 ✅
 
 ---
 
-## Résumé exécutif
+## Executive summary
 
-L'architecture générale est solide : séparation claire routeurs → services → modèles, migrations Alembic, audit log complet, tests d'intégration couvrant les parcours critiques. Les problèmes identifiés se concentrent sur trois catégories : sécurité de l'authentification, atomicité des transactions, et dette technique mineure.
+The overall architecture is solid: clear router → service → model separation, Alembic migrations, comprehensive audit log, and integration tests covering critical user flows. Issues concentrate in three categories: authentication security, transaction atomicity, and minor technical debt.
 
-| Sévérité | Nb | Tickets |
+| Severity | Count | Tickets |
 |---|---|---|
-| 🔴 Critique | 3 | TEC-133, TEC-134, TEC-135 |
-| 🟠 Modéré | 5 | TEC-136, TEC-137, TEC-138, TEC-139, TEC-140 |
-| 🟡 Mineur | 2 | TEC-141, TEC-142 |
+| 🔴 Critical | 3 | TEC-133, TEC-134, TEC-135 |
+| 🟠 Moderate | 5 | TEC-136, TEC-137, TEC-138, TEC-139, TEC-140 |
+| 🟡 Minor | 2 | TEC-141, TEC-142 |
 
 ---
 
-## 🔴 Problèmes critiques
+## 🔴 Critical issues
 
-### TEC-133 — Access token stocké en `localStorage` (vulnérabilité XSS)
+### TEC-133 — Access token stored in `localStorage` (XSS vulnerability)
 
-**Fichier :** `frontend/src/stores/auth.ts` (lignes 34–36, 58–59)
+**File:** `frontend/src/stores/auth.ts` (lines 34–36, 58–59)
 
 ```ts
 function saveAccessToken(access: string): void {
@@ -31,32 +31,32 @@ function saveAccessToken(access: string): void {
 }
 ```
 
-Le refresh token est correctement protégé (cookie `HttpOnly`), mais l'access token persisté dans `localStorage` est accessible à tout script JS de la page. Une XSS (via une dépendance compromise, un template mal échappé, etc.) permet de voler ce token et d'usurper la session.
+The refresh token is correctly protected (HttpOnly cookie), but the access token persisted in `localStorage` is accessible to any JavaScript running on the page. An XSS attack (via a compromised dependency, a mis-escaped template, etc.) allows stealing this token and impersonating the session.
 
-**Pattern recommandé :** stocker l'access token **uniquement en mémoire** (`ref` Pinia, non persisté). Au rechargement de page, déclencher un appel silencieux à `POST /api/auth/refresh` (le cookie HttpOnly est envoyé automatiquement) pour obtenir un nouveau token. Le `initFromStorage()` actuel et le `localStorage` côté auth deviennent inutiles.
+**Recommended pattern:** store the access token **in memory only** (Pinia `ref`, not persisted). On page reload, silently call `POST /api/auth/refresh` (the HttpOnly cookie is sent automatically) to obtain a new token. The existing `initFromStorage()` and `localStorage` auth logic become unnecessary.
 
-**Impact :** compromission de session sans interaction utilisateur si XSS exploitée.
+**Impact:** session takeover without user interaction if XSS is exploited.
 
 ---
 
-### TEC-134 — Atomicité brisée entre modification et audit log
+### TEC-134 — Broken atomicity between data change and audit log
 
-**Fichiers :** `backend/routers/auth.py` (lignes 437–447), `backend/routers/invoice.py` (lignes 159–166)
+**Files:** `backend/routers/auth.py` (lines 437–447), `backend/routers/invoice.py` (lines 159–166)
 
-Exemple dans `update_user` :
+Example in `update_user`:
 
 ```python
 changes = body.model_dump(exclude_unset=True)
-await db.commit()       # ← transaction 1 : modification utilisateur commitée
+await db.commit()       # ← transaction 1: user change committed
 await db.refresh(user)
-await record_audit(...)  # ← ajouté à la session APRÈS le commit
+await record_audit(...)  # ← added to session AFTER commit
 return user
-# La session se ferme : get_session() commite l'audit dans transaction 2
+# Session closes: get_session() commits audit in transaction 2
 ```
 
-La modification de données et l'entrée d'audit vivent dans **deux transactions séparées**. Si la deuxième transaction échoue (panne réseau, redémarrage), la donnée est modifiée mais l'audit est perdu. Toute investigation de sécurité post-incident sera incomplète.
+The data change and the audit entry live in **two separate transactions**. If the second transaction fails (network hiccup, restart), the data is modified but the audit is lost. Any post-incident security investigation will be incomplete.
 
-**Fix :** appeler `record_audit()` **avant** `await db.commit()`. Un seul commit suffit ; `get_session()` commite automatiquement à la sortie du contexte.
+**Fix:** call `record_audit()` **before** `await db.commit()`. A single commit suffices; `get_session()` commits automatically at context exit.
 
 ```python
 # Correct
@@ -66,9 +66,9 @@ await db.commit()
 
 ---
 
-### TEC-135 — Race condition sur la numérotation des factures
+### TEC-135 — Race condition on invoice numbering
 
-**Fichier :** `backend/services/invoice.py` (lignes 154–168)
+**File:** `backend/services/invoice.py` (lines 154–168)
 
 ```python
 result = await db.execute(
@@ -76,97 +76,97 @@ result = await db.execute(
 )
 last = result.scalar_one_or_none()
 seq = int(m.group(1)) + 1 if m else 1
-# ← pas de verrou entre SELECT et INSERT
+# ← no lock between SELECT and INSERT
 ```
 
-Deux requêtes simultanées de création de facture obtiennent le même `last`, calculent le même `seq` et tentent d'insérer le même numéro. La contrainte `UNIQUE` sur `Invoice.number` lève alors une `IntegrityError` non gérée → réponse 500 pour l'utilisateur.
+Two concurrent create-invoice requests compute the same `last`, derive the same `seq`, and attempt to insert the same number. The `UNIQUE` constraint on `Invoice.number` then raises an unhandled `IntegrityError` → HTTP 500 for the user.
 
-Pour le déploiement single-worker (NAS Synology), le risque est faible mais réel (onglets multiples, appels API parallèles depuis le frontend). Options :
-1. Encapsuler la numérotation dans un `SELECT ... FOR UPDATE` / `BEGIN IMMEDIATE` sur SQLite.
-2. Ajouter un retry loop avec catch `IntegrityError` (plus simple, moins élégant).
-3. Déléguer à une séquence de base de données (SQLite ne supporte pas nativement).
+For the single-worker deployment (Synology NAS), the risk is low but real (multiple tabs, parallel API calls from the frontend). Options:
+1. Wrap the numbering in a `SELECT ... FOR UPDATE` / `BEGIN IMMEDIATE` on SQLite.
+2. Add a retry loop catching `IntegrityError` (simpler, less elegant).
+3. Delegate to a database sequence (SQLite does not support this natively).
 
 ---
 
-## 🟠 Problèmes modérés
+## 🟠 Moderate issues
 
-### TEC-136 — Chemins absolus de fichiers stockés en base de données
+### TEC-136 — Absolute file paths stored in the database
 
-**Fichier :** `backend/routers/invoice.py` (lignes 532–536)
+**File:** `backend/routers/invoice.py` (lines 532–536)
 
 ```python
-upload_dir = Path("data/uploads/invoices").resolve()  # → chemin absolu /app/data/...
+upload_dir = Path("data/uploads/invoices").resolve()  # → absolute /app/data/...
 file_path = upload_dir / safe_name
-# Stocké dans Invoice.file_path / Invoice.pdf_path
+# Stored in Invoice.file_path / Invoice.pdf_path
 ```
 
-Les chemins absolus (ex. `/app/data/uploads/invoices/abc123.pdf`) deviennent obsolètes si le container est recréé dans un répertoire différent, si l'app est déplacée, ou si les données sont migrées. Tous les fichiers liés aux factures existantes seraient inaccessibles.
+Absolute paths (e.g. `/app/data/uploads/invoices/abc123.pdf`) become stale if the container is recreated in a different directory, the app is moved, or the data is migrated. All files attached to existing invoices would become inaccessible.
 
-**Fix :** stocker des chemins relatifs à une racine configurable (ex. `uploads/invoices/abc123.pdf`), et résoudre le chemin complet à la lecture via un helper centralisé.
-
----
-
-### TEC-137 — Double décodage JWT sur chaque requête API
-
-**Fichiers :** `backend/main.py` (ligne 116), `backend/routers/auth.py` (ligne 76)
-
-`MustChangePasswordMiddleware.dispatch()` décode le JWT sur **chaque** requête API non-exemptée, puis `get_current_user` le décode à nouveau dans le même cycle de vie de la requête. C'est un overhead inutile (bcrypt-like pour HS256 = négligeable, mais principe).
-
-**Options :**
-- Stocker le payload décodé dans `request.state` depuis le middleware et le lire dans `get_current_user`.
-- Supprimer la logique de décodage dans le middleware et la déléguer uniquement à `get_current_user` (le guard `mcp` peut être vérifié après la validation du token).
+**Fix:** store paths relative to a configurable root (e.g. `uploads/invoices/abc123.pdf`), and resolve to the full path at read time via a centralised helper.
 
 ---
 
-### TEC-138 — Croissance illimitée du dictionnaire du rate limiter
+### TEC-137 — Double JWT decoding on every API request
 
-**Fichier :** `backend/services/rate_limiter.py`
+**Files:** `backend/main.py` (line 116), `backend/routers/auth.py` (line 76)
+
+`MustChangePasswordMiddleware.dispatch()` decodes the JWT on **every** non-exempt API request, then `get_current_user` decodes it again within the same request lifecycle. Unnecessary overhead.
+
+**Options:**
+- Store the decoded payload in `request.state` from the middleware and read it in `get_current_user`.
+- Remove the decode logic from the middleware and delegate it entirely to `get_current_user` (the `mcp` guard can be checked after token validation).
+
+---
+
+### TEC-138 — Unbounded growth of the rate limiter dictionary
+
+**File:** `backend/services/rate_limiter.py`
 
 ```python
 self._attempts: dict[str, list[float]] = defaultdict(list)
 ```
 
-Le nettoyage des tentatives expirées (`_attempts[key] = [t for t in ...]`) n'est déclenché que lorsque la **même clé** (IP) repasse dans `is_rate_limited()`. Les IPs qui tentent une ou deux fois puis disparaissent restent indéfiniment dans le dictionnaire. Lors d'un scan de masse (milliers d'IPs sources), cela peut consommer de la mémoire de façon non bornée.
+Cleanup of expired attempts (`_attempts[key] = [t for t in ...]`) is only triggered when the **same key** (IP) passes through `is_rate_limited()` again. IPs that attempt once or twice and then disappear remain in the dictionary indefinitely. During a mass scan (thousands of source IPs), memory usage is unbounded.
 
-**Fix :** ajouter une purge périodique (ex. toutes les 1000 appels ou via `asyncio.create_task` toutes les N minutes) qui supprime les clés dont toutes les tentatives sont expirées. Alternative : utiliser un LRU cache borné.
+**Fix:** add a periodic purge (e.g. every 1000 calls or via `asyncio.create_task` every N minutes) that removes keys whose entire attempt list has expired. Alternative: use a bounded LRU cache.
 
 ---
 
-### TEC-139 — Tokens de consommation OpenAI non comptabilisés en streaming
+### TEC-139 — OpenAI token usage not tracked in streaming mode
 
-**Fichier :** `backend/services/chat_service.py` (ligne 211)
+**File:** `backend/services/chat_service.py` (line 211)
 
 ```python
-# Gemini → comptabilise prompt_tokens + completion_tokens ✅
-# OpenAI → retourne toujours None ❌
+# Gemini → correctly tracks prompt_tokens + completion_tokens ✅
+# OpenAI → always returns None ❌
 yield delta.content, None
 ```
 
-Le path Gemini remonte correctement les compteurs de tokens via `usage_metadata`. Le path OpenAI retourne systématiquement `None`, rendant les colonnes `prompt_tokens` / `completion_tokens` de `chat_log` inutilisables pour monitorer la consommation API OpenAI.
+The Gemini path correctly surfaces token counters via `usage_metadata`. The OpenAI path always returns `None`, making the `prompt_tokens` / `completion_tokens` columns in `chat_log` useless for monitoring OpenAI API consumption.
 
-**Fix :** passer `stream_options={"include_usage": True}` dans `client.chat.completions.create()` et extraire `chunk.usage` sur le dernier événement.
+**Fix:** pass `stream_options={"include_usage": True}` in `client.chat.completions.create()` and extract `chunk.usage` from the last event.
 
 ---
 
-### TEC-140 — Endpoint audit log sans pagination ni filtrage
+### TEC-140 — Audit log endpoint without pagination or filtering
 
-**Fichier :** `backend/routers/settings.py` (ligne 410)
+**File:** `backend/routers/settings.py` (line 410)
 
 ```python
 result = await db.execute(select(AuditLog).order_by(...).limit(1000))
 ```
 
-1 000 entrées retournées sans aucun filtre (par date, acteur, action) ni pagination. À mesure que les logs s'accumulent (login quotidiens, modifications, envois d'emails), cette réponse JSON devient volumineuse et le chargement de l'écran Administration ralentit.
+1,000 entries returned with no filters (by date, actor, action) and no pagination. As logs accumulate (daily logins, changes, email sends), the JSON response grows large and the Administration screen slows down.
 
-**Fix :** ajouter paramètres `skip`, `limit`, `action`, `actor_id`, `from_date`, `to_date` sur `GET /api/settings/audit-logs`, avec une valeur par défaut raisonnable (`limit=100`).
+**Fix:** add `skip`, `limit`, `action`, `actor_id`, `from_date`, `to_date` parameters to `GET /api/settings/audit-logs`, with a sensible default (`limit=100`).
 
 ---
 
-## 🟡 Améliorations mineures
+## 🟡 Minor improvements
 
-### TEC-141 — Rôles utilisateur hardcodés comme chaînes littérales dans le frontend
+### TEC-141 — User roles hardcoded as string literals in the frontend
 
-**Fichier :** `frontend/src/stores/auth.ts` (lignes 17–29) et composants
+**File:** `frontend/src/stores/auth.ts` (lines 17–29) and components
 
 ```ts
 user.value?.role === 'admin'
@@ -174,36 +174,36 @@ user.value?.role === 'tresorier'
 user.value?.role === 'secretaire'
 ```
 
-Les valeurs de rôles sont répétées en dur dans le store, et probablement dans les composants (`v-if="isAdmin"`, etc.). Une faute de frappe silencieuse (ex. `'Admin'` au lieu de `'admin'`) passerait inaperçue à la compilation.
+Role values are repeated verbatim in the store and likely in components (`v-if="isAdmin"`, etc.). A silent typo (e.g. `'Admin'` instead of `'admin'`) would go unnoticed at compile time.
 
-**Fix :** déclarer un objet de constantes ou un enum TypeScript partagé :
+**Fix:** declare a shared constants object or TypeScript enum:
 ```ts
 export const USER_ROLES = { ADMIN: 'admin', TRESORIER: 'tresorier', SECRETAIRE: 'secretaire', READONLY: 'readonly' } as const
 ```
-Utiliser `USER_ROLES.ADMIN` partout plutôt que la chaîne littérale.
+Use `USER_ROLES.ADMIN` everywhere instead of string literals.
 
 ---
 
-### TEC-142 — Suppressions `# type: ignore[return-value]` systématiques dans les routeurs
+### TEC-142 — Systematic `# type: ignore[return-value]` suppressions in routers
 
-**Fichiers :** `backend/routers/invoice.py`, `contact.py`, `payment.py`, etc.
+**Files:** `backend/routers/invoice.py`, `contact.py`, `payment.py`, etc.
 
 ```python
 return invoice  # type: ignore[return-value]
 return updated  # type: ignore[return-value]
 ```
 
-Ces suppressions indiquent un désalignement de types entre les modèles SQLAlchemy (`Invoice`) et les schémas Pydantic `response_model`. Elles masquent des erreurs mypy potentiellement légitimes.
+These suppressions indicate a type mismatch between SQLAlchemy models (`Invoice`) and the Pydantic `response_model` schemas. They mask potentially legitimate mypy errors.
 
-**Fix :** s'assurer que les schémas Pydantic sont configurés avec `model_config = ConfigDict(from_attributes=True)` et utiliser `InvoiceRead.model_validate(invoice)` explicitement, ou annoter correctement les types de retour des fonctions service pour que mypy les accepte sans suppression.
+**Fix:** ensure Pydantic schemas are configured with `model_config = ConfigDict(from_attributes=True)` and use `InvoiceRead.model_validate(invoice)` explicitly, or annotate service function return types correctly so mypy accepts them without suppression.
 
 ---
 
-## Points forts notables
+## Notable strengths
 
-- **Sécurité globalement solide** : headers HTTP défensifs (CSP, HSTS, X-Frame-Options), refresh token en cookie HttpOnly, validation par magic bytes des uploads, regex anti-path-traversal sur les backups.
-- **Gestion du cycle de vie des mots de passe** : `must_change_password`, `password_changed_at` (invalidation des tokens antérieurs), complexité imposée.
-- **Architecture de tests exemplaire** : 36 fichiers unitaires + 30 d'intégration, fixtures propres (truncation par test, bcrypt accéléré), 999 tests en 81 secondes.
-- **Moteur comptable robuste** : machine d'état sur les statuts de facture, transitions validées, écritures comptables générées par règles configurables.
-- **Pipeline d'import Excel** : correctement découpé en 16 sous-modules après le refactoring TEC-050, avec politique de coexistence explicite.
-- **Service de backup** : `sqlite3.backup()` en thread worker, rotation FIFO, protection path-traversal, restart propre via SIGTERM.
+- **Solid overall security**: defensive HTTP headers (CSP, HSTS, X-Frame-Options), refresh token in HttpOnly cookie, magic-byte validation on uploads, anti-path-traversal regex on backups.
+- **Password lifecycle management**: `must_change_password`, `password_changed_at` (invalidates prior tokens), enforced complexity policy.
+- **Exemplary test architecture**: 36 unit files + 30 integration files, clean fixtures (per-test truncation, accelerated bcrypt), 999 tests in 81 seconds.
+- **Robust accounting engine**: state machine on invoice statuses, validated transitions, accounting entries generated by configurable rules.
+- **Excel import pipeline**: correctly split into 16 sub-modules after TEC-050 refactoring, with an explicit coexistence policy.
+- **Backup service**: `sqlite3.backup()` on a thread worker, FIFO rotation, path-traversal protection, clean restart via SIGTERM.

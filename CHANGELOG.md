@@ -9,6 +9,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
+## [Non publié]
+
+---
+
 ## [1.4.0] — 2026-05-03
 
 ### Ajouté

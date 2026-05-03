@@ -269,6 +269,7 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
             await db.commit()
         except IntegrityError:
             await db.rollback()
+            db.expunge_all()  # remove stale pending objects before next attempt
             if _attempt == 2:
                 raise
             continue
