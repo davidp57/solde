@@ -613,6 +613,62 @@ async def get_supplier_invoice_number_template(db: AsyncSession) -> str:
     return value or "FF-%Y%m%d%H.%M.%S"
 
 
+async def get_cheque_number_template(db: AsyncSession) -> str:
+    """Return the cheque number template. Default: '{date}.{seq}'."""
+    result = await db.execute(
+        select(AppSettings.cheque_number_template).where(AppSettings.id == _SETTINGS_ID)
+    )
+    value = result.scalar_one_or_none()
+    return value or "{date}.{seq}"
+
+
+async def suggest_cheque_number(db: AsyncSession, payment_date: date) -> str:
+    """Return the next suggested cheque number for *payment_date*.
+
+    Template placeholders:
+      {date} — payment date formatted as YYYYMMDD
+      {seq}  — two-digit counter of cheques already recorded that day + 1
+    """
+    from sqlalchemy import func  # noqa: PLC0415
+
+    from backend.models.payment import Payment, PaymentMethod  # noqa: PLC0415
+
+    template = await get_cheque_number_template(db)
+    date_str = payment_date.strftime("%Y%m%d")
+    filled = template.replace("{date}", date_str)
+    like_pattern = filled.replace("{seq}", "%")
+    seq_regex = re.escape(filled).replace(r"\{seq\}", r"(\d+)")
+
+    result = await db.execute(
+        select(func.count())
+        .select_from(Payment)
+        .where(Payment.method == PaymentMethod.CHEQUE)
+        .where(Payment.date == payment_date)
+    )
+    count: int = result.scalar_one()
+    next_seq = count + 1
+
+    # If there are existing cheques today, find the highest seq already used
+    # to avoid collisions in case of deletions / gaps.
+    if count > 0:
+        rows = await db.execute(
+            select(Payment.cheque_number)
+            .where(Payment.method == PaymentMethod.CHEQUE)
+            .where(Payment.date == payment_date)
+            .where(Payment.cheque_number.like(like_pattern))
+        )
+        max_seq = 0
+        for (cn,) in rows:
+            if cn:
+                m = re.match(f"{seq_regex}$", cn)
+                if m:
+                    max_seq = max(max_seq, int(m.group(1)))
+        if max_seq >= next_seq:
+            next_seq = max_seq + 1
+
+    return filled.replace("{seq}", f"{next_seq:02d}")
+
+
 async def update_settings(db: AsyncSession, payload: AppSettingsUpdate) -> AppSettings:
     """Partially update settings with provided fields."""
     settings = await get_settings(db)

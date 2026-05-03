@@ -945,6 +945,10 @@ export default {
     payment_check_payee_placeholder: "Nom de l'association bénéficiaire",
     payment_instructions_help:
       'Laissez un champ vide pour ne pas afficher la ligne correspondante sur les factures.',
+    cheque_number_template: 'Modèle de numérotation — chèque',
+    cheque_number_template_placeholder: '{date}.{seq}',
+    cheque_number_template_help:
+      'Variables disponibles : {date} (date AAAAMMJJ), {seq} (séquence à 2 chiffres). {seq} est obligatoire.',
     section_chat: 'Assistant IA',
     section_chat_subtitle: 'Configurez le fournisseur et la clé API pour activer le chatbot.',
     chat_provider: 'Fournisseur',

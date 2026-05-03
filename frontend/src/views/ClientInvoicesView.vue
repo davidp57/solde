@@ -133,6 +133,75 @@
         {{ t('common.api_limit_warning') }}
       </Message>
       <AppTableSkeleton v-if="loading && !invoices.length" :rows="8" :cols="5" />
+      <template v-else-if="isMobile">
+        <AppMobileCardList :items="invoiceRows" :empty-message="t('invoices.client.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight: 700">{{ data.number }}</span>
+              <Tag
+                :value="t(`invoices.statuses.${data.status}`)"
+                :severity="statusSeverity(data.status)"
+              />
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('invoices.contact') }} :</span>
+              <span class="app-mobile-card-value">{{ contactName(data.contact_id) }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+              <span class="app-mobile-card-value" style="font-weight: 600">{{ formatAmount(data.total_amount) }} €</span>
+            </div>
+            <div v-if="data.label" class="app-mobile-card-row">
+              <Tag :value="t(`invoices.labels.${data.label}`)" severity="info" size="small" />
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                icon="pi pi-eye"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.history')"
+                @click="openHistory(data)"
+              />
+              <Button
+                v-if="canRecordPayment(data)"
+                icon="pi pi-wallet"
+                size="small"
+                severity="success"
+                text
+                :title="t('invoices.record_payment')"
+                @click="openPaymentDialog(data)"
+              />
+              <Button
+                v-if="isInvoiceEditable(data)"
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.edit')"
+                @click="openEditDialog(data)"
+              />
+              <Button
+                icon="pi pi-file-pdf"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.generate_pdf')"
+                @click="openPdf(data)"
+              />
+              <Button
+                v-if="data.status === 'draft'"
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                text
+                :title="t('common.delete')"
+                @click="confirmDelete(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
         v-else
         v-model:filters="tableFilters"
@@ -387,7 +456,7 @@
       v-model:visible="writeOffDialogVisible"
       :header="t('invoices.write_off_confirm_title')"
       modal
-      :style="{ width: '30rem' }"
+      :style="{ width: 'min(30rem, 100vw)' }"
     >
       <div class="write-off-dialog-body">
         <p>{{ t('invoices.write_off_confirm_msg') }}</p>
@@ -671,9 +740,11 @@ import {
   type Invoice,
   type InvoiceStatus,
 } from '../api/invoices'
-import { createPayment, listPayments, type Payment } from '../api/payments'
+import { createPayment, listPayments, suggestChequeNumber, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
 import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
@@ -707,6 +778,7 @@ import { formatDisplayDate } from '@/utils/format'
 import { getErrorDetail } from '@/utils/errorUtils'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const route = useRoute()
 const router = useRouter()
@@ -759,6 +831,19 @@ const paymentForm = ref({
   reference: '',
   notes: '',
 })
+
+watch(
+  () => paymentForm.value.method,
+  (method) => {
+    if (method === 'cheque' && !paymentForm.value.cheque_number) {
+      void suggestChequeNumber().then((n) => {
+        if (paymentForm.value.method === 'cheque' && !paymentForm.value.cheque_number) {
+          paymentForm.value.cheque_number = n
+        }
+      })
+    }
+  },
+)
 const historyPaymentRows = computed(() =>
   historyPayments.value.map((payment) => ({
     ...payment,
@@ -1108,6 +1193,11 @@ function openPaymentDialog(invoice: Invoice) {
     notes: '',
   }
   paymentDialogVisible.value = true
+  void suggestChequeNumber().then((n) => {
+    if (paymentForm.value.method === 'cheque' && !paymentForm.value.cheque_number) {
+      paymentForm.value.cheque_number = n
+    }
+  })
 }
 
 async function submitPayment() {
