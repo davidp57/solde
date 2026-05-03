@@ -253,6 +253,10 @@ export default {
     subtitle: "Manuel utilisateur complet de l'application Solde.",
     loading: 'Chargement du manuel…',
     error: 'Impossible de charger le manuel utilisateur.',
+    tab_manual: 'Manuel',
+    tab_changelog: 'Nouveautés',
+    changelog_loading: 'Chargement des nouveautés…',
+    changelog_error: 'Impossible de charger les nouveautés.',
   },
   contacts: {
     title: 'Contacts',

@@ -21,14 +21,6 @@ Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dess
 
 ## Lots actifs
 
-### Lot DOC — Documentation utilisateur · v1.5 · ~115 min Copilot + 15 min gestion
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| BIZ-161 | Changelog utilisateur dans la page Aide | P2 | ~35 min | 2026-05-03 | | |
-| BIZ-162 | Liens fonctionnels dans le manuel en ligne | P2 | ~25 min | 2026-05-03 | | |
-| BIZ-163 | Index des activités dans le manuel (« en tant que… ») | P2 | ~55 min | 2026-05-03 | | |
-
 ### Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -49,30 +41,13 @@ Décisions métier nécessaires avant implémentation.
 
 Créer `en.ts` avec les clés structurelles pour préparer la localisation anglaise.
 
-### BIZ-161 — Changelog utilisateur dans la page Aide
-
-Rendre `doc/user/changelog-user.md` accessible depuis la page `/aide` : onglet « Nouveautés »
-ou section dédiée. Servir le fichier via un endpoint backend (ex. `GET /api/help/changelog`)
-et afficher le rendu HTML côté Vue, à l'image du manuel.
-
-### BIZ-162 — Liens fonctionnels dans le manuel en ligne
-
-Les liens internes (ancres `#section`) et les liens vers d'autres pages du manuel ne fonctionnent
-pas dans la vue rendue sur `/aide`. Corriger la résolution des ancres et des liens relatifs dans
-`HelpView.vue` (ou le composant de rendu Markdown).
-
-### BIZ-163 — Index des activités dans le manuel (« en tant que… »)
-
-Ajouter une section ou une page d'index dans le manuel utilisateur qui liste les cas d'usage
-par rôle, sous la forme « En tant que secrétaire, je veux… » avec des liens pointant vers
-les sections correspondantes du manuel. Inclure : secrétaire, trésorier, administrateur.
-
 ---
 
 ## Lots terminés
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
+| DOC | Documentation utilisateur | v1.5 | BIZ-161, BIZ-162, BIZ-163 | 2026-05-03 | ~115 min | ~45 min |
 | 1 | Quick wins P3 | v0.2 | CHR-064, CHR-062, TEC-066, TEC-063 | 2026-04-22 | — | — |
 | 2 | Tests au vert | v0.2 | TEC-048 | 2026-04-22 | — | — |
 | 3 | Sécurité sans impact structurel | v0.2 | TEC-047, TEC-052, TEC-055, TEC-060, TEC-051 | 2026-04-22 | — | — |

@@ -6,3 +6,10 @@ export async function getManual(): Promise<string> {
   })
   return response.data
 }
+
+export async function getChangelogUser(): Promise<string> {
+  const response = await apiClient.get<string>('/api/help/changelog', {
+    responseType: 'text',
+  })
+  return response.data
+}

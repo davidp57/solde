@@ -11,17 +11,50 @@
       </template>
     </AppPageHeader>
 
-    <div v-if="loading" class="help-loading">
-      <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem" />
-      <span>{{ t('help.loading') }}</span>
-    </div>
+    <Tabs v-model:value="activeTab">
+      <TabList>
+        <Tab value="manual">{{ t('help.tab_manual') }}</Tab>
+        <Tab value="changelog">{{ t('help.tab_changelog') }}</Tab>
+      </TabList>
 
-    <Message v-else-if="error" severity="error" :closable="false">
-      {{ t('help.error') }}
-    </Message>
+      <TabPanels>
+        <!-- Manual tab -->
+        <TabPanel value="manual">
+          <div v-if="loadingManual" class="help-loading">
+            <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem" />
+            <span>{{ t('help.loading') }}</span>
+          </div>
+          <Message v-else-if="errorManual" severity="error" :closable="false">
+            {{ t('help.error') }}
+          </Message>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div
+            v-else
+            class="help-content prose"
+            v-html="renderedManual"
+            @click="handleContentClick"
+          />
+        </TabPanel>
 
-    <!-- eslint-disable-next-line vue/no-v-html -->
-    <div v-else class="help-content prose" v-html="renderedManual" />
+        <!-- What's new tab -->
+        <TabPanel value="changelog">
+          <div v-if="loadingChangelog" class="help-loading">
+            <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem" />
+            <span>{{ t('help.changelog_loading') }}</span>
+          </div>
+          <Message v-else-if="errorChangelog" severity="error" :closable="false">
+            {{ t('help.changelog_error') }}
+          </Message>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div
+            v-else
+            class="help-content prose"
+            v-html="renderedChangelog"
+            @click="handleContentClick"
+          />
+        </TabPanel>
+      </TabPanels>
+    </Tabs>
 
     <Dialog
       v-model:visible="commentDialogVisible"
@@ -63,25 +96,36 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Message from 'primevue/message'
+import Tab from 'primevue/tab'
+import TabList from 'primevue/tablist'
+import TabPanel from 'primevue/tabpanel'
+import TabPanels from 'primevue/tabpanels'
+import Tabs from 'primevue/tabs'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
 import { renderMarkdown } from '@/utils/renderMarkdown'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
-import { getManual } from '@/api/help'
+import { getManual, getChangelogUser } from '@/api/help'
 import { createCommentApi } from '@/api/app_comment'
 
 const { t } = useI18n()
 const toast = useToast()
 
+const activeTab = ref<string>('manual')
+
 const manualText = ref('')
-const loading = ref(true)
-const error = ref(false)
+const loadingManual = ref(true)
+const errorManual = ref(false)
+
+const changelogText = ref('')
+const loadingChangelog = ref(true)
+const errorChangelog = ref(false)
 
 const commentDialogVisible = ref(false)
 const newContent = ref('')
@@ -91,6 +135,34 @@ const renderedManual = computed(() => {
   if (!manualText.value) return ''
   return renderMarkdown(manualText.value)
 })
+
+const renderedChangelog = computed(() => {
+  if (!changelogText.value) return ''
+  return renderMarkdown(changelogText.value)
+})
+
+/**
+ * Intercept clicks on rendered Markdown content.
+ * - Anchor links (#section) → smooth-scroll within the page.
+ * - External or router links → let the browser handle them normally.
+ */
+function handleContentClick(event: MouseEvent): void {
+  const target = event.target as HTMLElement
+  const anchor = target.closest('a') as HTMLAnchorElement | null
+  if (!anchor) return
+
+  const href = anchor.getAttribute('href')
+  if (!href) return
+
+  if (href.startsWith('#')) {
+    event.preventDefault()
+    const id = decodeURIComponent(href.slice(1))
+    const el = document.getElementById(id)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+}
 
 async function submitComment(): Promise<void> {
   if (!newContent.value.trim()) return
@@ -108,13 +180,24 @@ async function submitComment(): Promise<void> {
 }
 
 onMounted(async () => {
-  try {
-    manualText.value = await getManual()
-  } catch {
-    error.value = true
-  } finally {
-    loading.value = false
+  const [manualResult, changelogResult] = await Promise.allSettled([
+    getManual(),
+    getChangelogUser(),
+  ])
+
+  if (manualResult.status === 'fulfilled') {
+    manualText.value = manualResult.value
+  } else {
+    errorManual.value = true
   }
+  loadingManual.value = false
+
+  if (changelogResult.status === 'fulfilled') {
+    changelogText.value = changelogResult.value
+  } else {
+    errorChangelog.value = true
+  }
+  loadingChangelog.value = false
 })
 </script>
 
@@ -144,19 +227,44 @@ onMounted(async () => {
 }
 
 /* Basic prose styles for the rendered Markdown */
+/* Heading hierarchy: distinct sizes and colors per level */
 .prose :deep(h1),
 .prose :deep(h2),
 .prose :deep(h3),
 .prose :deep(h4) {
   font-weight: 600;
-  margin-top: 1.5em;
+  line-height: 1.3;
   margin-bottom: 0.5em;
-  color: var(--app-text-primary);
+  scroll-margin-top: 80px;
 }
 
-.prose :deep(h1) { font-size: 1.5rem; }
-.prose :deep(h2) { font-size: 1.25rem; border-bottom: 1px solid var(--p-surface-200); padding-bottom: 0.25em; }
-.prose :deep(h3) { font-size: 1.1rem; }
+.prose :deep(h1) {
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: var(--app-text-primary);
+  margin-top: 2em;
+}
+
+.prose :deep(h2) {
+  font-size: 1.45rem;
+  color: var(--p-primary-color);
+  border-bottom: 2px solid color-mix(in srgb, var(--p-primary-color) 25%, transparent);
+  padding-bottom: 0.3em;
+  margin-top: 2em;
+}
+
+.prose :deep(h3) {
+  font-size: 1.15rem;
+  color: color-mix(in srgb, var(--p-primary-color) 75%, var(--app-text-primary));
+  margin-top: 1.4em;
+}
+
+.prose :deep(h4) {
+  font-size: 1rem;
+  color: var(--app-text-muted);
+  font-style: italic;
+  margin-top: 1em;
+}
 
 .prose :deep(p) {
   margin-bottom: 0.75em;
