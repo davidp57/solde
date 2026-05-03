@@ -11,6 +11,16 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+
+- **BIZ-158** — Limite API relevée à 1 000 éléments par défaut sur `invoice`, `payment`, `contact`, `bank transactions`, `bank deposits`, `salary` (anciennement 100) ; bandeau d'avertissement PrimeVue `warn` affiché dans chaque vue liste quand le résultat atteint 1 000 items
+
+### Amélioré
+
+- **BIZ-149** — Auto-capitalisation de la première lettre des intitulés de lignes facture client au `blur` (déjà implémentée — ticket fermé)
+- **BIZ-150** — Champs quantité et prix unitaire dans `ClientInvoiceForm` acceptent désormais la virgule comme séparateur décimal (normalisée en point à la saisie)
+- **BIZ-157** — Pagination des DataTables : 50 lignes affichées par défaut (anciennement 20) dans toutes les vues de liste
+
 ---
 
 ## [1.3.1] — 2026-05-02
