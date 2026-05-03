@@ -11,8 +11,23 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **BIZ-164** — Mode téléphone : vue carte mobile sur toutes les listes de l'application (Factures client/fournisseur, Contacts, Banque, Règlements, Caisse, Salaires, Employés, Comptabilité, Exercices, Règles comptables, Journal, Balance, Bilan, Résultat, Utilisateurs) — les DataTables laissent place à des cartes empilées sous 767 px
+- **BIZ-164** — Composable `useBreakpoints` (breakpoint 767 px via `window.matchMedia`, avec listener réactif)
+- **BIZ-164** — Composant générique `AppMobileCardList` avec slot `#card="{ item }"` et typage générique `T` pour inférence TypeScript correcte dans les slots
+- **BIZ-164** — Suggestion automatique du numéro de chèque (`AAAAMMJJ.NN`) à l'ouverture du formulaire de paiement chèque (factures client et fournisseur, assistant saisie rapide) ; modèle de numérotation configurable dans les paramètres
+- **BIZ-164** — Endpoint `GET /api/payments/suggest_cheque_number` (sans effet de bord) et service `suggest_cheque_number` côté backend
+- **BIZ-164** — Paramètre `cheque_number_template` dans les réglages (champ `{date}.{seq}` par défaut, validé côté backend)
+- **BIZ-164** — Migration Alembic `0049` : colonne `cheque_number_template` dans `app_settings`
+
 ### Amélioré
-- **CHR** — Docker : séparation des dépendances Python (`docker-requirements.txt`) et des métadonnées de version (`pyproject.toml`) en deux couches distinctes — évite la réinstallation complète de toutes les dépendances à chaque bump de version
+- **BIZ-164** — Dialogs pleine largeur sur mobile (`app-dialog`, `app-dialog--medium`, `app-dialog--large`, `app-dialog--xlarge`) : 100 vw et hauteur max 95 dvh en dessous de 767 px
+- **BIZ-164** — Styles utilitaires mobiles ajoutés dans `main.css` : `app-mobile-card-row`, `app-mobile-card-label`, `app-mobile-card-value`, `app-mobile-card-actions`
+- **BIZ-164** — Tuile dépôt en attente : liste de coupures espèces ou comptage chèques en colonne de droite alignée ; layout desktop (1 ligne, coupures à droite alignées, bouton en bout de ligne) et layout mobile (empilé) séparés
+- **BIZ-164** — Grille de stat cards : 2 colonnes sur mobile
+
+### Corrigé
+- **BIZ-164** — Mock `window.matchMedia` ajouté dans le setup de tests Vitest pour éviter des erreurs jsdom dans les composants utilisant `useBreakpoints`
 
 ---
 

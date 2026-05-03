@@ -41,7 +41,47 @@
         </div>
       </div>
 
+      <template v-if="isMobile">
+        <AppMobileCardList :items="fiscalYearRows" :empty-message="t('accounting.fiscalYear.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight:700">{{ data.name }}</span>
+              <Tag
+                :value="t(`accounting.fiscalYear.statuses.${data.status}`)"
+                :severity="statusSeverity(data.status)"
+              />
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('accounting.fiscalYear.start_date') }}</span>
+              <span class="app-mobile-card-value">{{ formatDisplayDate(data.start_date) }}</span>
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('accounting.fiscalYear.end_date') }}</span>
+              <span class="app-mobile-card-value">{{ formatDisplayDate(data.end_date) }}</span>
+            </div>
+            <div v-if="data.status === 'open'" class="app-mobile-card-actions">
+              <Button
+                :label="t('accounting.fiscalYear.close_administrative')"
+                icon="pi pi-box"
+                severity="warn"
+                text
+                size="small"
+                @click="confirmAdministrativeClose(data)"
+              />
+              <Button
+                :label="t('accounting.fiscalYear.close')"
+                icon="pi pi-lock"
+                severity="danger"
+                text
+                size="small"
+                @click="confirmClose(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
+        v-else
         v-model:filters="tableFilters"
         :value="fiscalYearRows"
         :loading="loading"
@@ -210,6 +250,7 @@ import { useToast } from 'primevue/usetoast'
 import AppListState from '../components/ui/AppListState.vue'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
@@ -227,9 +268,11 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const toast = useToast()
 const confirm = useConfirm()
 

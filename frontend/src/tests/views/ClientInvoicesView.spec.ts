@@ -60,6 +60,7 @@ vi.mock('../../api/invoices', () => ({
 vi.mock('../../api/payments', () => ({
   listPayments: vi.fn(),
   createPayment: vi.fn(),
+  suggestChequeNumber: vi.fn().mockResolvedValue('20250101.01'),
 }))
 
 import ClientInvoicesView from '../../views/ClientInvoicesView.vue'

@@ -71,7 +71,48 @@
       <Message v-if="salaries.length >= 1000" severity="warn" :closable="false" class="mb-2">
         {{ t('common.api_limit_warning') }}
       </Message>
+      <template v-if="isMobile">
+        <AppMobileCardList :items="salaryRows" :empty-message="t('salary.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight:700">{{ data.employee_name }}</span>
+              <span class="app-mobile-card-label">{{ formatDisplayMonth(data.month) }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('salary.gross') }} :</span>
+              <span class="app-mobile-card-value">{{ formatAmount(data.gross) }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('salary.net_pay') }} :</span>
+              <span class="app-mobile-card-value" style="font-weight:600">{{ formatAmount(data.net_pay) }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('salary.hours') }} :</span>
+              <span class="app-mobile-card-value">{{ data.hours }}</span>
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('salary.edit')"
+                @click="openEditDialog(data)"
+              />
+              <Button
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                text
+                :title="t('common.delete')"
+                @click="confirmDelete(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
+        v-else
         v-model:filters="salaryTableFilters"
         :value="salaryRows"
         :loading="loading"
@@ -218,7 +259,30 @@
     </AppPanel>
 
     <AppPanel :title="t('salary.summary_title')" dense>
+      <template v-if="isMobile">
+        <AppMobileCardList :items="summaryRows" :empty-message="t('salary.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight:700">{{ formatDisplayMonth(data.month) }}</span>
+              <span class="app-mobile-card-label"># {{ data.count }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('salary.gross') }} :</span>
+              <span class="app-mobile-card-value">{{ formatAmount(data.total_gross) }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('salary.net_pay') }} :</span>
+              <span class="app-mobile-card-value" style="font-weight:600">{{ formatAmount(data.total_net_pay) }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('salary.total_cost') }} :</span>
+              <span class="app-mobile-card-value">{{ formatAmount(data.total_cost) }}</span>
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
+        v-else
         v-model:filters="summaryTableFilters"
         :value="summaryRows"
         :loading="summaryLoading"
@@ -367,7 +431,30 @@
           </div>
         </div>
       </div>
+      <template v-if="isMobile">
+        <AppMobileCardList :items="workforceSummaryByMonth" :empty-message="t('salary.workforce_empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight:700">{{ formatDisplayMonth(data.month) }}</span>
+              <span class="app-mobile-card-value">{{ formatAmount(data.total) }}</span>
+            </div>
+            <div v-if="data.cdi > 0" class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('salary.workforce_type_cdi') }} :</span>
+              <span class="app-mobile-card-value">{{ formatAmount(data.cdi) }}</span>
+            </div>
+            <div v-if="data.cdd > 0" class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('salary.workforce_type_cdd') }} :</span>
+              <span class="app-mobile-card-value">{{ formatAmount(data.cdd) }}</span>
+            </div>
+            <div v-if="data.ae > 0" class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('salary.workforce_type_ae') }} :</span>
+              <span class="app-mobile-card-value">{{ formatAmount(data.ae) }}</span>
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
+        v-if="!isMobile"
         :value="workforceSummaryByMonth"
         :loading="workforceLoading"
         class="app-data-table"
@@ -617,6 +704,7 @@ import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import {
   listSalariesApi,
@@ -638,10 +726,12 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatDisplayMonth } from '../utils/format'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()

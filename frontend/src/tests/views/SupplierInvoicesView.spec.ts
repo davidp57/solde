@@ -59,17 +59,19 @@ vi.mock('../../api/invoices', () => ({
 vi.mock('../../api/payments', () => ({
   listPayments: vi.fn(),
   createPayment: vi.fn(),
+  suggestChequeNumber: vi.fn().mockResolvedValue('20250101.01'),
 }))
 
 import SupplierInvoicesView from '../../views/SupplierInvoicesView.vue'
 import { listContactsApi } from '../../api/contacts'
 import { listInvoicesApi } from '../../api/invoices'
-import { createPayment, listPayments } from '../../api/payments'
+import { createPayment, listPayments, suggestChequeNumber } from '../../api/payments'
 
 const mockListContactsApi = vi.mocked(listContactsApi)
 const mockListInvoicesApi = vi.mocked(listInvoicesApi)
 const mockListPayments = vi.mocked(listPayments)
 const mockCreatePayment = vi.mocked(createPayment)
+const mockSuggestChequeNumber = vi.mocked(suggestChequeNumber)
 
 const invoiceFixture = {
   id: 1,
@@ -410,6 +412,9 @@ describe('SupplierInvoicesView — payment dialog', () => {
   })
 
   it('requires a cheque number when method is cheque', async () => {
+    // override: suggestion returns empty so the field stays empty
+    mockSuggestChequeNumber.mockResolvedValueOnce('')
+
     const wrapper = mountView()
     await flushView()
 
@@ -419,7 +424,7 @@ describe('SupplierInvoicesView — payment dialog', () => {
     await paymentButton!.trigger('click')
     await flushView()
 
-    // method is 'cheque' by default, cheque_number is empty — submit should be blocked
+    // method is 'cheque', cheque_number is empty — submit should be blocked
     const paymentForm = wrapper.findAll('form').at(-1)!
     await paymentForm.trigger('submit')
     await flushView()

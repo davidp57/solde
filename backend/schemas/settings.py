@@ -54,6 +54,9 @@ class AppSettingsRead(BaseModel):
     payment_bic: str | None
     payment_check_payee: str | None
 
+    # Cheque numbering
+    cheque_number_template: str
+
     @model_validator(mode="before")
     @classmethod
     def inject_chat_enabled(cls, data: Any) -> Any:
@@ -112,6 +115,9 @@ class AppSettingsUpdate(BaseModel):
     payment_bic: str | None = None
     payment_check_payee: str | None = None
 
+    # Cheque numbering
+    cheque_number_template: str | None = None
+
     @field_validator("fiscal_year_start_month")
     @classmethod
     def validate_month(cls, v: int | None) -> int | None:
@@ -148,6 +154,16 @@ class AppSettingsUpdate(BaseModel):
                 raise ValueError("client_invoice_number_template must contain {year} and {seq}")
             if _re.search(r"\{(?!year\}|seq\})[^}]*\}", v):
                 raise ValueError("client_invoice_number_template only supports {year} and {seq}")
+        return v
+
+    @field_validator("cheque_number_template")
+    @classmethod
+    def validate_cheque_number_template(cls, v: str | None) -> str | None:
+        if v is not None:
+            if "{seq}" not in v:
+                raise ValueError("cheque_number_template must contain {seq}")
+            if _re.search(r"\{(?!date\}|seq\})[^}]*\}", v):
+                raise ValueError("cheque_number_template only supports {date} and {seq}")
         return v
 
 

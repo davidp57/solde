@@ -66,3 +66,8 @@ class AppSettings(Base):
     payment_iban: Mapped[str | None] = mapped_column(String(34), nullable=True)
     payment_bic: Mapped[str | None] = mapped_column(String(11), nullable=True)
     payment_check_payee: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Cheque numbering
+    cheque_number_template: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="{date}.{seq}"
+    )

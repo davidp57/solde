@@ -7,6 +7,54 @@
     </section>
 
     <template v-else>
+      <AppPanel
+        v-if="pendingDeposits.length > 0"
+        :title="t('bank.pending_deposits_title')"
+        :subtitle="t('bank.pending_deposits_subtitle')"
+      >
+        <div class="bank-pending-deposits">
+          <div
+            v-for="deposit in pendingDeposits"
+            :key="deposit.id"
+            class="bank-pending-deposit-row"
+          >
+            <div class="bank-pending-deposit-row__left">
+              <div class="bank-pending-deposit-row__top">
+                <Tag
+                  :value="t(`bank.deposit_types.${deposit.type}`)"
+                  :severity="deposit.type === 'cheques' ? 'info' : 'warn'"
+                />
+                <span class="bank-pending-deposit-row__date">{{ formatDisplayDate(deposit.date) }}</span>
+              </div>
+              <Button
+                :label="t('bank.deposit_confirm')"
+                icon="pi pi-check"
+                severity="success"
+                size="small"
+                class="bank-pending-deposit-row__btn"
+                :loading="confirmingDepositId === deposit.id"
+                @click="doConfirmDeposit(deposit)"
+              />
+            </div>
+            <div v-if="deposit.type !== 'cheques' && formatEspecesList(deposit.denomination_details).length" class="bank-pending-deposit-row__denom">
+              <span
+                v-for="line in formatEspecesList(deposit.denomination_details)"
+                :key="line"
+                class="bank-pending-deposit-row__denom-line"
+              >{{ line }}</span>
+              <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(parseFloat(deposit.total_amount)) }}</span>
+            </div>
+            <div v-else-if="deposit.type !== 'cheques'" class="bank-pending-deposit-row__denom">
+              <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(parseFloat(deposit.total_amount)) }}</span>
+            </div>
+            <div v-else-if="deposit.type === 'cheques'" class="bank-pending-deposit-row__denom">
+              <span class="bank-pending-deposit-row__denom-line">{{ t('bank.deposit_cheques_summary', { count: deposit.payment_ids.length }) }}</span>
+              <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(parseFloat(deposit.total_amount)) }}</span>
+            </div>
+          </div>
+        </div>
+      </AppPanel>
+
       <section class="dashboard-quick-actions" :aria-label="t('dashboard.quick_actions_title')">
         <button class="dashboard-action-card" @click="invoiceWizardVisible = true">
           <span class="dashboard-action-card__icon">
@@ -42,6 +90,13 @@
 
       <section class="app-stat-grid">
         <AppStatCard
+          v-if="(kpis?.undeposited_count ?? 0) > 0"
+          :label="t('dashboard.undeposited')"
+          :value="kpis ? kpis.undeposited_count : '—'"
+          tone="warn"
+          :to="{ name: 'payments', query: { undeposited: '1' } }"
+        />
+        <AppStatCard
           :label="t('dashboard.bank_balance')"
           :value="kpis ? formatAmount(kpis.bank_balance) : '—'"
           :to="{ name: 'bank' }"
@@ -65,6 +120,7 @@
           :to="{ name: 'invoices-client', query: { status: 'overdue' } }"
         />
         <AppStatCard
+          v-if="(kpis?.undeposited_count ?? 0) === 0"
           :label="t('dashboard.undeposited')"
           :value="kpis ? kpis.undeposited_count : '—'"
           :to="{ name: 'payments', query: { undeposited: '1' } }"
@@ -159,46 +215,6 @@
         </AppPanel>
       </div>
     </template>
-
-    <AppPanel
-      v-if="pendingDeposits.length > 0"
-      :title="t('bank.pending_deposits_title')"
-      :subtitle="t('bank.pending_deposits_subtitle')"
-    >
-      <div class="bank-pending-deposits">
-        <div
-          v-for="deposit in pendingDeposits"
-          :key="deposit.id"
-          class="bank-pending-deposit-row"
-        >
-          <Tag
-            :value="t(`bank.deposit_types.${deposit.type}`)"
-            :severity="deposit.type === 'cheques' ? 'info' : 'warn'"
-            class="bank-pending-deposit-row__tag"
-          />
-          <span class="bank-pending-deposit-row__date">{{ formatDisplayDate(deposit.date) }}</span>
-          <span class="bank-pending-deposit-row__summary">
-            <template v-if="deposit.type === 'cheques'">
-              {{ t('bank.deposit_cheques_summary', { count: deposit.payment_ids.length }) }}
-            </template>
-            <template v-else>
-              {{ formatEspecesSummary(deposit.denomination_details) }}
-            </template>
-          </span>
-          <span class="bank-pending-deposit-row__amount app-money">
-            {{ formatAmount(parseFloat(deposit.total_amount)) }}
-          </span>
-          <Button
-            :label="t('bank.deposit_confirm')"
-            icon="pi pi-check"
-            severity="success"
-            size="small"
-            :loading="confirmingDepositId === deposit.id"
-            @click="doConfirmDeposit(deposit)"
-          />
-        </div>
-      </div>
-    </AppPanel>
 
     <QuickPaymentWizard v-model:visible="paymentWizardVisible" />
     <QuickInvoiceWizard v-model:visible="invoiceWizardVisible" />
@@ -305,17 +321,15 @@ function formatAmount(v: number | null | undefined): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v)
 }
 
-function formatEspecesSummary(denominationDetails: string | null): string {
-  if (!denominationDetails) return t('bank.deposit_especes_summary_no_denom')
+function formatEspecesList(denominationDetails: string | null): string[] {
+  if (!denominationDetails) return []
   try {
     const lines: { value: number; count: number }[] = JSON.parse(denominationDetails)
-    if (!lines.length) return t('bank.deposit_especes_summary_no_denom')
     return lines
       .filter((l) => l.count > 0)
-      .map((l) => `${l.count}×${l.value % 1 === 0 ? l.value : l.value.toFixed(2)} €`)
-      .join(' + ')
+      .map((l) => `${l.count}\u00d7${l.value % 1 === 0 ? l.value : l.value.toFixed(2)}\u00a0\u20ac`)
   } catch {
-    return t('bank.deposit_especes_summary_no_denom')
+    return []
   }
 }
 
@@ -623,32 +637,100 @@ html.dark-mode .dashboard-action-card__icon {
 
 .bank-pending-deposit-row {
   display: flex;
-  align-items: center;
-  gap: var(--app-space-3);
+  align-items: stretch;
+  gap: var(--app-space-4);
   padding: var(--app-space-3) var(--app-space-4);
   background: var(--app-surface-muted);
   border: 1px solid var(--app-surface-border);
   border-radius: var(--app-radius);
 }
 
-.bank-pending-deposit-row__tag {
+.bank-pending-deposit-row__left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--app-space-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.bank-pending-deposit-row__top {
+  display: contents;
+}
+
+.bank-pending-deposit-row__btn {
+  margin-left: auto;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .bank-pending-deposit-row__date {
   font-variant-numeric: tabular-nums;
-  min-width: 6rem;
-}
-
-.bank-pending-deposit-row__summary {
-  flex: 1;
+  font-size: 0.85rem;
   color: var(--p-text-muted-color);
-  font-size: 0.9rem;
 }
 
 .bank-pending-deposit-row__amount {
-  font-weight: 600;
-  min-width: 7rem;
-  text-align: right;
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-align: left;
+  color: var(--p-green-500);
+  white-space: nowrap;
+}
+
+.bank-pending-deposit-row__denom {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  border-left: 2px solid var(--app-surface-border);
+  padding-left: var(--app-space-3);
+  flex: 0 0 22rem;
+}
+
+.bank-pending-deposit-row__denom-line {
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--p-text-muted-color);
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .bank-pending-deposit-row__left {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--app-space-2);
+  }
+
+  .bank-pending-deposit-row__top {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-2);
+    flex-wrap: wrap;
+  }
+
+  .bank-pending-deposit-row__btn {
+    margin-left: 0;
+  }
+
+  .bank-pending-deposit-row__btn :deep(.p-button) {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .bank-pending-deposit-row__denom {
+    flex-direction: column;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+    flex: 0 0 auto;
+    min-width: 6.5rem;
+  }
+
+  .bank-pending-deposit-row__amount {
+    padding-top: 0.25rem;
+  }
 }
 </style>
