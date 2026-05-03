@@ -119,12 +119,29 @@ Keep the following documents up to date with every significant change:
 | Documentation développeur | **EN** | `doc/dev/` | Architecture ou API modifiée |
 | Documentation technique historique | **Migration vers EN** | `doc/` | À traduire progressivement jusqu'à alignement complet |
 | `CHANGELOG.md` | **FR** | root | Chaque PR mergée vers `develop` |
+| `doc/user/changelog-user.md` | **FR** | `doc/user/` | Chaque fonctionnalité ou correctif visible par l'utilisateur |
 | Notes de release | **FR** | `doc/releases/` | Chaque release |
 | `doc/backlog.md` | **FR** | `doc/` | Ticket créé, avancé ou complété |
 | `doc/roadmap.md` | **EN à terme** | `doc/` | Lot complété, planifié ou repriorisé |
 | `doc/plan.md` | **EN à terme** | `doc/` | Décisions d'architecture mises à jour |
 
 `CHANGELOG.md` suit le format **Keep a Changelog** (sections Unreleased → version).
+
+### Règles de rédaction de `doc/user/changelog-user.md`
+
+`doc/user/changelog-user.md` est le changelog destiné aux **utilisateurs finaux**. Il doit être maintenu en parallèle de `CHANGELOG.md` à chaque version (déployée ou non).
+
+**Structure** :
+- Un **chapitre par version** (titre `## Version X.Y.Z — date` ou `## Version X.Y *(à venir)*`).
+- Dans chaque version, un **chapitre par rôle** dans l'ordre : Tous les utilisateurs / Secrétaire / Trésorier / Administrateur. N'inclure un rôle que s'il y a des changements qui le concernent.
+- Dans chaque rôle, un **sous-chapitre par domaine fonctionnel**.
+- Une **liste à puces** par sous-chapitre.
+
+**Contenu** :
+- Uniquement les changements **visibles par l'utilisateur** (rien de technique, rien d'interne).
+- Langue et termes **compréhensibles par tout le monde** — pas de jargon technique (pas de « blur », « endpoint », « FITID », « migration », « async », etc.).
+- Sources : CHANGELOG.md, notes de release, **et** log git + lecture du code si nécessaire pour s'assurer de l'exhaustivité.
+- Les vrais rôles de l'application sont : `readonly` (lecture seule), `secretaire`, `tresorier`, `admin`. Utiliser leurs noms courants en français dans le document (Secrétaire, Trésorier, Administrateur).
 
 ---
 
@@ -191,8 +208,9 @@ After every change (feature, fix, refactor):
 2. Run the full quality gate (see **Quality control** section above) — all green
 3. Verify zero errors in VS Code
 4. Update `CHANGELOG.md` (`[Non publié]` section)
-5. Update `doc/backlog.md` if the change closes or advances a ticket
-6. **Increment the patch version** in `pyproject.toml` and `frontend/package.json` (e.g. `0.7.12` → `0.7.13`)
+5. If the change is visible to end users, add or update the corresponding entry in `doc/user/changelog-user.md` (under the current version's chapter, grouped by role then domain)
+6. Update `doc/backlog.md` if the change closes or advances a ticket
+7. **Increment the patch version** in `pyproject.toml` and `frontend/package.json` (e.g. `0.7.12` → `0.7.13`)
 
 ---
 
@@ -211,6 +229,7 @@ When asked to create a release, follow these steps **in order**:
    - Update `pyproject.toml` (backend version)
    - Update `package.json` (frontend version)
    - Move CHANGELOG `Unreleased` section to the new version with today's date
+   - Stamp the version and date on the corresponding chapter in `doc/user/changelog-user.md` (replace `*(à venir)*` with the release date)
    - Create French release notes in `doc/releases/vX.Y.Z.md`
    - Commit: `chore(release): bump version to X.Y.Z`
 6. **Determine the PR target**:
