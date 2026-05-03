@@ -68,6 +68,9 @@
         </div>
       </div>
 
+      <Message v-if="salaries.length >= 1000" severity="warn" :closable="false" class="mb-2">
+        {{ t('common.api_limit_warning') }}
+      </Message>
       <DataTable
         v-model:filters="salaryTableFilters"
         :value="salaryRows"
@@ -76,7 +79,7 @@
         filter-display="menu"
         striped-rows
         paginator
-        :rows="20"
+        :rows="50"
         :rows-per-page-options="[20, 50, 100, 500]"
         data-key="id"
         size="small"
@@ -223,7 +226,7 @@
         filter-display="menu"
         striped-rows
         paginator
-        :rows="20"
+        :rows="50"
         :rows-per-page-options="[20, 50, 100, 500]"
         data-key="month"
         size="small"
@@ -603,6 +606,7 @@ import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
+import Message from 'primevue/message'
 import Textarea from 'primevue/textarea'
 import Toast from 'primevue/toast'
 import { useConfirm } from 'primevue/useconfirm'

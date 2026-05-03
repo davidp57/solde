@@ -149,6 +149,9 @@
                 @click="openReconcileBeforePopover"
               />
             </div>
+            <Message v-if="transactions.length >= 1000" severity="warn" :closable="false" class="mb-2">
+              {{ t('common.api_limit_warning') }}
+            </Message>
             <DataTable
               v-model:filters="transactionTableFilters"
               :value="transactionRows"
@@ -157,7 +160,7 @@
               filter-display="menu"
               striped-rows
               paginator
-              :rows="20"
+              :rows="50"
               :rows-per-page-options="[20, 50, 100, 500]"
               :global-filter-fields="[
                 'date',
@@ -401,6 +404,9 @@
           </TabPanel>
 
           <TabPanel value="deposits">
+            <Message v-if="deposits.length >= 1000" severity="warn" :closable="false" class="mb-2">
+              {{ t('common.api_limit_warning') }}
+            </Message>
             <DataTable
               v-model:filters="depositTableFilters"
               :value="depositRows"
@@ -409,7 +415,7 @@
               filter-display="menu"
               striped-rows
               paginator
-              :rows="20"
+              :rows="50"
               :rows-per-page-options="[20, 50, 100, 500]"
               :global-filter-fields="[
                 'date',
@@ -636,6 +642,7 @@ import TabList from 'primevue/tablist'
 import TabPanel from 'primevue/tabpanel'
 import TabPanels from 'primevue/tabpanels'
 import Tabs from 'primevue/tabs'
+import Message from 'primevue/message'
 import Tag from 'primevue/tag'
 import ToggleButton from 'primevue/togglebutton'
 import { useToast } from 'primevue/usetoast'

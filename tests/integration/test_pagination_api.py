@@ -11,8 +11,8 @@ from backend.models.contact import Contact, ContactType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 
 
-class TestDefaultLimitIs100:
-    """Verify that list endpoints return at most 100 items when limit is omitted."""
+class TestDefaultLimitIs1000:
+    """Verify that list endpoints return up to 1000 items when limit is omitted."""
 
     @pytest.mark.asyncio
     async def test_bank_transactions_default_limit(
@@ -38,7 +38,7 @@ class TestDefaultLimitIs100:
         response = await client.get("/api/bank/transactions", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.json()) == 100
+        assert len(response.json()) == 101
 
     @pytest.mark.asyncio
     async def test_invoices_default_limit(
@@ -71,7 +71,7 @@ class TestDefaultLimitIs100:
         response = await client.get("/api/invoices/", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.json()) == 100
+        assert len(response.json()) == 101
 
 
 class TestLimitParamValidation:

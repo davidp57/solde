@@ -94,7 +94,7 @@ async def list_invoices(
     to_date: date | None = Query(default=None),
     year: int | None = Query(default=None, ge=2000, le=2100),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=100, ge=1, le=1000),
+    limit: int = Query(default=1000, ge=1, le=1000),
 ) -> list[Invoice]:
     """List invoices with optional filters."""
     return await invoice_service.list_invoices(
