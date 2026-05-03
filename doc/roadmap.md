@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-05-02 — active branch `develop` — current version: 1.3.1
+> Last updated: 2026-05-03 — active branch `develop` — current version: 1.4.0
 
 ---
 
@@ -21,11 +21,9 @@
 | **1.1** | Bank deposit workflow + 7 UX improvements | ✅ Completed |
 | **1.2** | Bank reconciliation accounting entries, lot I-BNK, lot J (wizard + contacts) | ✅ Completed |
 | **1.3** | Supplier invoice preview, cash count UX, dashboard deposits, multi-email contacts, blocked client, supplier cash payments | ✅ Released 2026-05-02 |
-| **1.3.1** | Lot CR — security & code quality fixes | ✅ Released 2026-05-02 |
-| **1.4** | Lot UI — UX & API improvements | ⬜ Planned |
-| **1.5** | Lot DOC — User documentation improvements | ⬜ Planned |
+| **1.4** | Lot CR (security), Lot UI (UX & API), Lot DOC (help page), TEC-156 (chat auth fix) | ✅ Released 2026-05-03 |
 
-Test suite: **1011 backend + 131 frontend Vitest — 0 failures.**
+Test suite: **1021 backend + 144 frontend Vitest — 0 failures.**
 
 ---
 
