@@ -19,42 +19,16 @@ Facteur de marge actuel : **1,15** (15%).
 
 ## Lots actifs
 
-### Lot UI — Améliorations UI & saisie (~2h20 Copilot + 15 min gestion) — v1.4
+### Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BIZ-149 | Auto-capitalisation des intitulés facture | P2 | ~15 min | 2026-05-02 | | |
-| BIZ-150 | Heures décimales : accepter « . » et « , » | P2 | ~10 min | 2026-05-02 | | |
-| BIZ-157 | Pagination des tables : 50 items par défaut | P3 | ~10 min | 2026-05-02 | | |
-| BIZ-158 | Limite API 1000 items + warning si atteinte | P2 | ~30 min | 2026-05-02 | | |
 | CHR-078 | Squelette i18n anglais | P3 | ~15 min | 2026-04-23 | | |
 | BIZ-034 | Support multi-compte banque | P3 | ~60 min | 2026-04-21 | | |
 
 ---
 
 ## Détails
-
-### BIZ-149 — Auto-capitalisation des intitulés facture
-
-- Les intitulés de lignes facture sont parfois saisis en minuscules. La mise en majuscule de la première lettre doit être automatique.
-- Appliquer lors de la saisie (première lettre de chaque valeur) ou à la sortie du champ (`blur`), pas uniquement à la génération du PDF.
-
-### BIZ-150 — Heures décimales : accepter « . » et « , »
-
-- Le champ heures dans les lignes facture n'accepte qu'un seul séparateur décimal.
-- Normaliser à la saisie : remplacer automatiquement la virgule par un point (ou l'inverse) pour que les deux soient acceptés.
-
-### BIZ-157 — Pagination des tables : 50 items par défaut
-
-- Toutes les DataTables de l'UI affichent actuellement 20 lignes par page.
-- Passer `:rows="50"` dans tous les composants Vue concernés pour réduire le nombre de pages à parcourir.
-
-### BIZ-158 — Limite API 1000 items + warning si atteinte
-
-- Les endpoints métier (factures, paiements, contacts, transactions bancaires, salaires) ont une limite de 100 items — insuffisante (ex. 114 factures client en 2024), ce qui tronque silencieusement les résultats et rend les filtres client-side incorrects.
-- **Backend** : passer `default=1000, le=1000` sur les routeurs concernés (`invoice.py`, `payment.py`, `contact.py`, `bank.py` transactions + dépôts, `salary.py`).
-- **Frontend** : après chaque chargement de liste, détecter si `items.length === limit` (= limite potentiellement atteinte) et afficher un `Message` PrimeVue bien visible (severity `warn`) expliquant que le volume de données dépasse la limite d'affichage et que les filtres peuvent être incomplets.
-- Routeurs déjà à 5000 (`accounting_entry.py`, `cash.py`) : ne pas toucher.
 
 ### BIZ-034 — Support multi-compte banque
 
@@ -101,6 +75,24 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 | I-BNK | UX Banque | v1.2 | BIZ-133, BIZ-134, BIZ-135, BIZ-136, BIZ-137 | 2026-05-01 |
 | Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 |
 | CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 |
+| UI | Améliorations UI & saisie | v1.4 | BIZ-149, BIZ-150, BIZ-157, BIZ-158 | 2026-05-03 |
+
+<details>
+<summary>Lot UI — Améliorations UI & saisie (2026-05-03)</summary>
+
+### BIZ-158 — Limite API 1000 items + warning si atteinte
+`default=1000, le=1000` sur 6 routeurs (`invoice.py`, `payment.py`, `contact.py`, `bank.py` transactions + dépôts, `salary.py`). Bandeau `Message` PrimeVue severity `warn` dans chaque vue liste quand le résultat atteint 1 000 items.
+
+### BIZ-149 — Auto-capitalisation des intitulés facture
+Déjà implémenté (`@blur="capitalizeFirstLetter(line)"` dans `ClientInvoiceForm.vue`) — ticket fermé.
+
+### BIZ-150 — Accepter la virgule comme séparateur décimal
+Champs `quantity` et `unit_price` dans `ClientInvoiceForm.vue` : `type="text" inputmode="decimal"` + fonction `normalizeDecimalInput()` (remplace `,` par `.` à la saisie, met à jour le modèle via `parseFloat`).
+
+### BIZ-157 — Pagination 50 items par défaut
+`:rows="50"` dans tous les composants Vue (anciennement 20). Remplacement global dans `frontend/src/`.
+
+</details>
 
 <details>
 <summary>Lot CR — Correctifs revue de code (2026-05-02)</summary>
