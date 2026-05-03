@@ -104,7 +104,7 @@ Suite à la revue Copilot de la PR #76 : `cheque_number_template` dans `AppSetti
 | Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 | — | — |
 | CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 | — | — |
 | UI | Améliorations UI & saisie | v1.4 | BIZ-149, BIZ-150, BIZ-157, BIZ-158 | 2026-05-03 | ~65 min | ~30 min |
-| MOB | Mode téléphone | v1.5 | BIZ-164 | 2026-05-03 | ~90 min | 2026-05-03 |
+| MOB | Mode téléphone | v1.5 | BIZ-164 | 2026-05-03 | ~90 min | — |
 
 <details>
 <summary>Lot MOB — Mode téléphone (2026-05-03)</summary>
