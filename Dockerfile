@@ -32,10 +32,17 @@ RUN addgroup --system solde && adduser --system --ingroup solde solde
 
 WORKDIR /app
 
-# Install Python dependencies
-COPY pyproject.toml ./
+# Step 1: install dependencies (cached layer — only invalidated when deps change,
+# NOT on version bumps in pyproject.toml)
+COPY docker-requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir .
+    && pip install --no-cache-dir -r docker-requirements.txt
+
+# Step 2: register package metadata with correct version (fast — no-deps)
+COPY pyproject.toml ./
+RUN mkdir -p backend && touch backend/__init__.py \
+    && pip install --no-cache-dir --no-deps . \
+    && rm -rf backend
 
 # Copy backend source
 COPY backend/ ./backend/
