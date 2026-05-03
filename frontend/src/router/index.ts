@@ -191,12 +191,9 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // Restore tokens from localStorage on first navigation
+  // Restore session from HttpOnly refresh cookie on first navigation
   if (auth.accessToken === null) {
-    auth.initFromStorage()
-    if (auth.accessToken && !auth.user) {
-      await auth.fetchMe()
-    }
+    await auth.initFromRefreshCookie()
     if (!auth.accessToken) {
       await auth.maybeAutoLoginForDev()
     }

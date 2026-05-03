@@ -401,11 +401,29 @@ async def get_logs(
 async def get_audit_logs(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _AdminRequired,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=500)] = 50,
+    action: Annotated[str | None, Query()] = None,
+    actor_id: Annotated[int | None, Query()] = None,
+    from_date: Annotated[datetime | None, Query()] = None,
+    to_date: Annotated[datetime | None, Query()] = None,
 ) -> list[AuditLogRead]:
-    """Return all audit log entries, most recent first (admin only)."""
+    """Return audit log entries with optional filters and pagination (admin only)."""
     from sqlalchemy import select
 
     from backend.models.audit_log import AuditLog
 
-    result = await db.execute(select(AuditLog).order_by(AuditLog.created_at.desc()).limit(1000))
+    stmt = select(AuditLog)
+    if action is not None:
+        stmt = stmt.where(AuditLog.action == action)
+    if actor_id is not None:
+        stmt = stmt.where(AuditLog.actor_id == actor_id)
+    if from_date is not None:
+        from_dt = from_date if from_date.tzinfo is not None else from_date.replace(tzinfo=UTC)
+        stmt = stmt.where(AuditLog.created_at >= from_dt)
+    if to_date is not None:
+        to_dt = to_date if to_date.tzinfo is not None else to_date.replace(tzinfo=UTC)
+        stmt = stmt.where(AuditLog.created_at <= to_dt)
+    stmt = stmt.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
+    result = await db.execute(stmt)
     return result.scalars().all()  # type: ignore[return-value]

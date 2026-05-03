@@ -75,6 +75,9 @@
         </div>
       </div>
 
+      <Message v-if="invoices.length >= 1000" severity="warn" :closable="false" class="mb-2">
+        {{ t('common.api_limit_warning') }}
+      </Message>
       <DataTable
         v-model:filters="tableFilters"
         :value="invoiceRows"
@@ -83,7 +86,7 @@
         filter-display="menu"
         striped-rows
         paginator
-        :rows="20"
+        :rows="50"
         :rows-per-page-options="[20, 50, 100, 500]"
         :global-filter-fields="[
           'number',
@@ -593,6 +596,7 @@ import Dialog from 'primevue/dialog'
 import FileUpload from 'primevue/fileupload'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
+import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'

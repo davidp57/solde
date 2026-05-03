@@ -83,19 +83,20 @@
           @blur="capitalizeFirstLetter(line)"
         />
         <input
-          v-model.number="line.quantity"
-          type="number"
-          step="0.001"
-          min="0"
+          :value="line.quantity ?? ''"
+          type="text"
+          inputmode="decimal"
           :placeholder="t('invoices.line_qty')"
           class="p-inputtext invoice-form__quantity"
+          @input="normalizeDecimalInput($event, line, 'quantity')"
         />
         <input
-          v-model.number="line.unit_price"
-          type="number"
-          step="0.01"
+          :value="line.unit_price ?? ''"
+          type="text"
+          inputmode="decimal"
           :placeholder="t('invoices.line_price')"
           class="p-inputtext invoice-form__price"
+          @input="normalizeDecimalInput($event, line, 'unit_price')"
         />
         <span class="invoice-form__total"> {{ lineAmount(line) }} € </span>
         <Button
@@ -297,6 +298,22 @@ function capitalizeFirstLetter(line: LineForm) {
   if (line.description.length > 0) {
     line.description = line.description.charAt(0).toLocaleUpperCase('fr-FR') + line.description.slice(1)
   }
+}
+
+function normalizeDecimalInput(
+  e: Event,
+  line: LineForm,
+  field: 'quantity' | 'unit_price',
+) {
+  const input = e.target as HTMLInputElement
+  const normalized = input.value.replace(/,/g, '.')
+  if (normalized !== input.value) {
+    const sel = input.selectionStart
+    input.value = normalized
+    if (sel !== null) input.setSelectionRange(sel, sel)
+  }
+  const parsed = parseFloat(normalized)
+  line[field] = isNaN(parsed) ? 0 : Math.max(0, parsed)
 }
 
 function addLine() {

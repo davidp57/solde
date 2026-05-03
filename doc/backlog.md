@@ -7,247 +7,45 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ---
 
+## Calibration estimations
+
+Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dessous).
+
+| Lot | Estimé Copilot | Réel Copilot | Ratio | Estimé gestion | Réel gestion | Ajustement |
+| --- | --- | --- | --- | --- | --- | --- |
+| UI | ~65 min | ~30 min | **0,46** | 15 min | ? | ↓ facteur → 1,00 |
+
+> Lot UI : estimations 2x trop élevées. Les tickets UI/bulk-replace et les vérifications de tickets "déjà fait" ont été surestimés. Pour les prochains lots, utiliser les réels de ce lot comme calibration : bulk-replace ~3 min, ajout d’une fonction simple ~7 min, mise à jour de N routeurs/vues ~18 min.
+
+---
+
 ## Lots actifs
 
-### Lot H — Architecture multi-compte (~45 min) — v1.2
+### Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BIZ-034 | Support multi-compte banque | P3 | ~45 min | 2026-04-21 | | |
-
-### Lot J — Wizard factures & Contacts (~4h) — v1.2 ✅
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| BIZ-144 | Nom client dans la confirmation wizard | P2 | ~10 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
-| BIZ-145 | Bouton envoi mail depuis le wizard | P2 | ~30 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
-| BIZ-147 | Plusieurs emails par contact (labels, max 3) | P1 | ~75 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
-| BIZ-151 | Marquage « mauvais client » (badge + blocage) | P2 | ~60 min | 2026-05-02 | 2026-05-02 | 2026-05-02 |
-
-## Hors lots
-
-| ID | Titre | Prio | Est. | Créé | Terminé |
-| --- | --- | --- | --- | --- | --- |
-| TEC-152 | Bug prod : fuseau horaire Docker (UTC vs Europe/Paris) | P1 | ~5 min | 2026-05-02 | 2026-05-02 |
-| TEC-153 | Bug prod : logs pollués par pytest (fichier partagé via volume) | P1 | ~15 min | 2026-05-02 | 2026-05-02 |
-| TEC-154 | Bug prod : backup SQLite WAL échoue + fichier 0-octet | P1 | ~20 min | 2026-05-02 | 2026-05-02 |
-| TEC-146 | Bug : aperçu PDF Chrome (download au lieu de preview) | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
-| BIZ-148 | Recalcul immédiat dans les lignes facture | P2 | ~20 min | 2026-05-02 | — |
-| BIZ-149 | Auto-capitalisation des intitulés facture | P2 | ~15 min | 2026-05-02 | — |
-| BIZ-155 | Paiement fournisseur espèces : sortie caisse automatique | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
-| BIZ-156 | Factures fournisseur : bouton « Enregistrer un règlement » | P2 | ~45 min | 2026-05-02 | 2026-05-02 |
-| BIZ-150 | Heures décimales : accepter « . » et « , » | P2 | ~15 min | 2026-05-02 | — |
-| TEC-143 | Références OFX (FITID) : ne jamais afficher dans l'UI | P2 | ~15 min | 2026-05-02 | 2026-05-02 |
-| TEC-142 | Script one-shot : dépôts bancaires 14/04/2026 non encodés | P2 | ~30 min | 2026-05-02 | 2026-05-02 |
-| BIZ-141 | Rapprochement bancaire : génération d'écritures comptables | P2 | ~45 min | 2026-05-02 | 2026-05-02 |
-| BIZ-140 | Sauvegardes : limite libellé 50→100 + erreurs UI | P2 | ~15 min | 2026-05-02 | 2026-05-02 |
-| CHR-078 | Squelette i18n anglais | P3 | ~5 min | 2026-04-23 | — |
+| TEC-156 | Fix token auth chat (localStorage → Pinia) | P1 | — | 2026-05-03 | 2026-05-03 | 2026-05-03 |
+| BIZ-164 | Amélioration UI mode téléphone | P2 | ? | 2026-05-03 | | |
+| CHR-078 | Squelette i18n anglais | P3 | ~15 min | 2026-04-23 | | |
+| BIZ-034 | Support multi-compte banque | P3 | ~60 min | 2026-04-21 | | |
 
 ---
 
 ## Détails
 
-### TEC-152 — Bug prod : fuseau horaire Docker (UTC vs Europe/Paris)
-
-- **Terminé** : 2026-05-02
-- Le conteneur Docker n'avait pas de variable `TZ` → tous les timestamps des logs étaient en UTC (2h de décalage en heure française).
-- **Correction** : `docker-compose.yml` — ajout de `TZ: "Europe/Paris"` dans `environment:`.
-
-### TEC-153 — Bug prod : logs pollués par pytest
-
-- **Terminé** : 2026-05-02
-- Les runs pytest locaux importent `backend.main` qui configurait un `RotatingFileHandler` sur `data/logs/solde.log` — le même fichier partagé par le conteneur via le volume `./data:/app/data`. Les sorties SQLAlchemy des tests (DROP TABLE, etc.) polluaient les logs de production visibles dans l'UI système.
-- **Correction** : `backend/main.py` — détection de `"pytest" in sys.modules` à l'import ; si vrai, le handler fichier n'est pas créé. Le filtre de reclassement `INFO → DEBUG` des logs SQLAlchemy n'est également appliqué qu'hors pytest.
-
-### TEC-154 — Bug prod : backup SQLite WAL échoue + fichier 0-octet
-
-- **Terminé** : 2026-05-02
-- `sqlite3.OperationalError: unable to open database file` dans `_do_backup` à l'appel `src_conn.backup(dst_conn)`. Un fichier destination 0 octet était laissé sur disque après l'erreur.
-- **Cause** : chemin relatif `"data/solde.db"` transmis à `sqlite3.connect()` depuis un thread worker dont le `cwd` pouvait différer du répertoire de travail de l'application.
-- **Correction** : `backend/services/backup_service.py` — utilisation de `Path(db_path).resolve()` pour le chemin absolu de la source ; ajout d'un bloc `except` pour supprimer `dest_file` (via `unlink(missing_ok=True)`) avant de relancer l'exception.
-- Le fichier 0-octet `solde_backup_20260502_131711_*.db` a été supprimé manuellement du conteneur.
-
-### BIZ-144 — Nom client dans la confirmation wizard
-
-- Après la création d'une facture client dans le wizard, la confirmation affiche actuellement le numéro de facture mais pas le nom du client.
-- Afficher le nom du contact (client) dans le message de confirmation.
-
-### BIZ-145 — Bouton envoi mail depuis le wizard
-
-- Après création d'une facture, ajouter un bouton « Envoyer par e-mail » directement dans l'écran de confirmation du wizard.
-- Ouvre le preview mail (dialog existant) sans fermer le wizard. Après envoi, retour au wizard (qui reste ouvert en arrière-plan).
-- Pas de fermeture automatique du wizard à l'ouverture du preview.
-
-### TEC-146 — Bug : aperçu PDF Chrome (download au lieu de preview)
-
-- **Terminé** : 2026-05-02
-- Sur Chrome, l'aperçu PDF de la facture client dans le wizard affichait un écran blanc au lieu d'un rendu inline.
-- **Correction** : `InvoiceEmailDialog.vue` — remplacement de `<embed>` par `<object type="application/pdf">` pour l'aperçu PDF ; compatibilité Chrome et Firefox rétablie.
-
-### BIZ-147 — Plusieurs emails par contact (labels, max 3)
-
-- Un contact ne peut actuellement avoir qu'un seul email (`Contact.email`).
-- Ajouter jusqu'à 3 emails avec label libre (ex. « Email principal », « Email comptabilité »).
-- Lors de l'envoi d'une facture par mail, proposer le choix de l'adresse (ou des adresses) à utiliser ; toutes cochées par défaut.
-- Nécessite : migration Alembic, nouveau modèle `ContactEmail`, endpoints CRUD, mise à jour du formulaire contact et du dialog d'envoi.
-
-### BIZ-155 — Paiement fournisseur en espèces : sortie caisse automatique
-
-- Lors de l'enregistrement d'un paiement en espèces lié à une facture **fournisseur**, aucun mouvement de caisse n'est créé automatiquement.
-- Côté client (recette), l'entrée caisse est générée automatiquement par `_create_treasury_entries_for_payment` dans `backend/services/payment.py`. Pour les fournisseurs, la fonction retournait sans rien faire (`invoice.type != CLIENT`).
-- **Comportement attendu** : un paiement fournisseur en espèces doit créer automatiquement une **sortie caisse** (`CashMovementType.OUT`, montant positif — la direction est portée par le type) avec la même date, le même contact et la référence à la facture.
-- **Périmètre** : `backend/services/payment.py` (`_create_treasury_entries_for_payment`) + tests.
-- **Impact UX** : évite la double saisie manuelle (créer le paiement puis créer la sortie caisse séparément).
-
-### BIZ-148 — Recalcul immédiat dans les lignes facture
-
-- Lors de la saisie des lignes de facture (quantité, prix unitaire, heures), le total n'est recalculé qu'à la sortie du champ.
-- Recalculer en temps réel pendant la frappe (événement `input`), pas seulement au `blur`.
-
-### BIZ-149 — Auto-capitalisation des intitulés facture
-
-- Les intitulés de lignes facture sont parfois saisis en minuscules. La mise en majuscule de la première lettre doit être automatique.
-- Appliquer lors de la saisie (première lettre de chaque valeur) ou à la sortie du champ (`blur`), pas uniquement à la génération du PDF.
-
-### BIZ-150 — Heures décimales : accepter « . » et « , »
-
-- Le champ heures dans les lignes facture n'accepte qu'un seul séparateur décimal.
-- Normaliser à la saisie : remplacer automatiquement la virgule par un point (ou l'inverse) pour que les deux soient acceptés.
-
-### BIZ-151 — Marquage « mauvais client » (badge + blocage)
-
-- Possibilité de marquer un contact client comme « indésirable » (ex. impayés répétés, litige).
-- **Badge** : icône visible dans la liste des contacts et dans les formulaires de recherche de contact.
-- **Blocage** : à la création d'une facture, si le contact est marqué indésirable, afficher une alerte bloquante (impossible de continuer sans lever le marquage).
-- Champ `blocked: bool` sur `Contact` + migration Alembic.
-
- — Références OFX (FITID) : ne jamais afficher dans l'UI
-
-- **Terminé** : 2026-05-02
-- `BankTransaction.reference` stocke le FITID OFX brut (ex. `LL3BFSHCLF`), un identifiant technique sans signification métier. Il ne doit jamais être affiché à l'utilisateur ni stocké dans des champs métier.
-- **Corrections (commit f316548)** :
-  - `backend/services/accounting_entry_service.py` : `source_reference` pour les TX bancaires utilise uniquement `description`, plus de fallback sur `reference`
-  - `frontend/src/components/bank/BankClientPaymentDialog.vue`, `BankLinkClientPaymentDialog.vue`, `BankSupplierPaymentDialog.vue`, `BankLinkSupplierPaymentDialog.vue` : suppression du `|| transaction.reference` dans le résumé de TX
-- **Corrections (commit afe29ef)** :
-  - `backend/services/bank_service.py` : les 3 fonctions `create_*_payment_from_transaction` stockent désormais `tx.description` (libellé lisible) dans `Payment.reference` au lieu de `tx.reference` (FITID)
-  - `backend/services/accounting_entry_service.py` : `source_reference` des entrées de type `PAYMENT` ignore `payment.reference` et utilise directement `invoice.reference || invoice.number`
-  - 6 paiements existants en base (ids 523–528) corrigés : FITID remplacé par la description bancaire
-- **Règle mémorisée** dans les instructions copilot repo.
-
-### TEC-142 — Script one-shot : dépôts bancaires 14/04/2026 non encodés
-
-- **Terminé** : 2026-05-02
-- Deux transactions bancaires importées via OFX (`REM CHQ +530€` et `VRST +800€` du 14/04/2026) correspondaient à des dépôts de fonds effectués hors application (encodés initialement dans Excel). Aucun bordereau n'avait été créé dans Solde : pas d'écritures comptables, pas de sortie caisse, chèques non marqués déposés.
-- **Script** : `scripts/fix_bank_deposits_14apr2026.py` (dry-run par défaut, `--commit` pour appliquer)
-  - Génère les écritures `DEPOSIT_CHEQUES` (512100 D / 511200 C, 530€) et `DEPOSIT_ESPECES` (512100 D / 531000 C, 800€)
-  - Marque les 6 paiements chèque non déposés comme `deposited = True`
-  - Crée la sortie caisse OUT 800€ (source `deposit`, référence `VRST REF05001A05`)
-  - Rapproche les deux TX bancaires
-
-### BIZ-141 — Rapprochement bancaire : génération d'écritures comptables
-
-- **Terminé** : 2026-05-02
-- Lors du rapprochement d'une transaction bancaire via « Rapprocher » / « Tout rapprocher », aucune écriture comptable n'était générée, même quand une règle `BANK_FEES` (ou autre) existait.
-- **Cause** : `reconcile_transactions_bulk` faisait uniquement un `UPDATE reconciled = True` sans déclencher le moteur comptable.
-- **Correction** :
-  - `backend/models/accounting_entry.py` : ajout de `BANK_TRANSACTION` dans `EntrySourceType`
-  - `backend/services/accounting_engine.py` : nouvelle fonction `generate_entries_for_bank_transaction()` + mapping `_BANK_CATEGORY_TRIGGER` (couvre `bank_fee`, `social_charge`, `grant`, `internal_transfer`)
-  - `backend/services/bank_service.py` : `reconcile_transactions_bulk` charge désormais les transactions et appelle `generate_entries_for_bank_transaction()` pour chacune
-- **Catégories couvertes** : `BANK_FEE` → `BANK_FEES`, `SOCIAL_CHARGE` → `BANK_SOCIAL_CHARGES`, `GRANT` → `SUBSIDY_RECEIVED`, `INTERNAL_TRANSFER` → `BANK_INTERNAL_TRANSFER_FROM/TO_SAVINGS`
-- **Non couvertes intentionnellement** : `CUSTOMER_PAYMENT`, `SUPPLIER_PAYMENT`, `SALARY`, `CHEQUE_DEPOSIT`, `CASH_DEPOSIT` — ces catégories passent par leurs propres services qui génèrent déjà les écritures.
-- **Tests** : 3 nouveaux tests dans `tests/unit/test_bank_service.py`
-
-### BIZ-140 — Sauvegardes : limite libellé 50→100 + erreurs UI
-
-- **Terminé** : 2026-05-02
-- La limite de 50 caractères sur le libellé de sauvegarde était trop restrictive pour des libellés descriptifs (ex. `2026.05.02-rapprochement en cours-après correction factures fournisseur`).
-- **Correction** : `backend/schemas/settings.py` — limite portée à 100 ; `frontend/src/views/SystemView.vue` — `maxlength="100"` sur l'input + extraction du message Pydantic dans le `catch` pour afficher l'erreur précise au lieu du générique.
-
-### BIZ-139 — Factures fournisseur créées en statut « Reçue » au lieu de Brouillon
-
-- **Terminé** : 2026-05-02
-- À la création manuelle d'une facture fournisseur, le service assignait le statut `draft` (calqué sur le workflow client). Or une facture fournisseur est *reçue* : elle doit être immédiatement disponible pour le rapprochement bancaire.
-- **Correction** : `backend/services/invoice.py` — `create_invoice` assigne `InvoiceStatus.SENT` pour les factures `FOURNISSEUR` au lieu de `DRAFT`.
-- **Migration** : les 2 factures fournisseur déjà encodées manuellement en `draft` ont été passées en `sent` directement en base.
-
-### BIZ-138 — Écritures salaires : date au dernier jour du mois
-
-- **Terminé** : 2026-05-02
-- Les écritures comptables générées par `generate_entries_for_salary()` étaient datées au 1er jour
-  du mois de paie au lieu du dernier jour (ex. `2026-04-01` pour avril au lieu de `2026-04-30`).
-- **Correction** : `accounting_engine.py` — `calendar.monthrange` pour calculer le dernier jour.
-- **Données existantes** : restaurer le backup DB d'avant la saisie des salaires et ressaisir ;
-  alternative SQL : `UPDATE accounting_entries SET date = DATE(date, 'start of month', '+1 month', '-1 day') WHERE source_type = 'salary' AND strftime('%d', date) = '01'`.
-
-### BIZ-125 — Chatbot IA + page Aide
-
-Deux fonctionnalités complémentaires autour de la documentation embarquée :
-
-**1. Page Aide (`/aide`)**
-- Route dédiée accessible depuis la navigation (tous rôles)
-- Affiche `doc/user/manuel.md` rendu en HTML via `marked` côté frontend
-- Servi par le backend : `GET /api/help/manual` (lecture du fichier Markdown)
-- Table des matières auto-générée depuis les titres
-
-**2. Sidebar chatbot Gemini**
-- Panneau latéral ouvrable/fermable depuis un bouton persistant dans la nav
-- Provider : Google Gemini Flash (tier gratuit — 15 req/min, 1 M tokens/jour) ; OpenAI en alternative
-- System prompt = `doc/llm/reference.md` + `doc/user/manuel.md` injectés au début de chaque session — aucune donnée comptable transmise
-- Clé API stockée dans `AppSettings` (colonnes `chat_provider`, `chat_api_key`, `chat_model`) — éditable par l’admin dans les paramètres, jamais renvoyée dans les réponses API (comme `smtp_password`)
-- `POST /api/chat` : reçoit `{messages}`, ajoute le system prompt, proxifie vers le LLM, renvoie en streaming SSE
-- Historique en mémoire session (non persisté) ; réinitialisé à la fermeture
-- Si `CHAT_API_KEY` absent : bouton masqué
-
-**Périmètre backend :**
-- `backend/services/chat_service.py` : injection system prompt, appel LLM, streaming
-- `backend/routers/chat.py` : `POST /api/chat` (auth requise), `GET /api/help/manual`
-- Colonnes `AppSettings` : `chat_provider` (`gemini` | `openai`, défaut `gemini`), `chat_api_key` (nullable), `chat_model` (nullable)
-- Migration Alembic 0035 dédiée
-- `chat_api_key` exclue du schéma `AppSettingsRead` (même pattern que `smtp_password`)
-
-**Périmètre frontend :**
-- `HelpView.vue` + route `/aide`
-- `SettingsChatPanel.vue` (nouvelle section dans les paramètres admin)
-- `ChatSidebar.vue` (panneau latéral, ouvrable/fermable)
-- Store Pinia léger (état ouvert/fermé + historique)
-- Dépendance : `marked` (rendu Markdown)
-- Clés i18n pour les libellés
-
-**Audit des questions :**
-- Chaque question utilisateur est enregistrée dans une table `chat_log` (migration Alembic dédiée)
-- Colonnes : `id`, `user_id` (FK → User), `asked_at`, `question` (texte brut), `prompt_tokens`, `completion_tokens`
-- Endpoint `GET /api/chat/logs` réservé aux admins (pagination, filtre par utilisateur / période)
-- Aucune réponse du LLM ni donnée métier n’est stockée dans le log
-
-**Hors périmètre :** persistance de l’historique complet, multi-utilisateurs, fine-tuning, TTS/STT.
-
-### BIZ-126 — Refactor UX écran Paramètres
-
-L’écran Paramètres contient 4 panels dont deux devenus trop longs (413 et 322 lignes) et
-mélangeant des responsabilités distinctes. L’ajout du panel Chatbot (BIZ-125) est le bon
-moment pour réorganiser.
-
-**Découpage cible :**
-| Composant | Contenu actuel | Action |
-|---|---|---|
-| `SettingsAssociationSmtpPanel` | Infos assoc. + SMTP + Logo | Scinder en 2 |
-| `SettingsAssociationPanel` (nouveau) | Nom, adresse, SIRET, logo | Créer |
-| `SettingsSmtpPanel` (nouveau) | SMTP (hôte, port, user, mdp, TLS, BCC) | Extraire |
-| `SettingsSystemOpeningPanel` | Banque + Caisse + Année fiscale + Numérotation + Prix | Réorganiser |
-| `SettingsChatPanel` (nouveau) | Provider, clé API, modèle (admin only) | Créer (BIZ-125) |
-| `SettingsBackupPanel` | Sauvegarde | Inchangé |
-| `SettingsDangerZonePanel` | Zone danger | Inchangé |
-
-**Ordre final des panels dans `SettingsView.vue` :**
-1. Association — 2. SMTP — 3. Ouverture système — 4. IA / Chatbot — 5. Sauvegarde — 6. Zone danger
-
-**Périmètre :** refactoring pur (pas de changement fonctionnel) + clés i18n à conserver.
-Fait sur la même branche que BIZ-125 (`feature/biz-125-chatbot-aide`).
-
 ### BIZ-034 — Support multi-compte banque
 
 Distinguer compte courant et compte épargne dans les données, imports et écrans.
 Décisions métier nécessaires avant implémentation.
+
+### BIZ-164 — Amélioration UI mode téléphone
+
+À analyser avant implémentation. L'application est principalement utilisée sur desktop, mais une utilisation occasionnelle sur smartphone est envisageable (consultation, saisie rapide). Périmètre à définir : quelles vues doivent être utilisables sur mobile ? Responsive breakpoints, menus, tableaux, formulaires. Évaluer l'impact sur PrimeVue et les DataTables.
+
+### TEC-156 — Fix token auth chat (localStorage → Pinia)
+
+`streamChat` dans `api/chat.ts` lisait `localStorage.getItem('access_token')` — toujours `null` car le token est stocké uniquement en mémoire Pinia (mitigation XSS). Chaque `POST /api/chat` retournait 401. Corrigé en lisant `useAuthStore().accessToken`. Découvert lors du test du Lot DOC (2026-05-03). ✅ Fait
 
 ### CHR-078 — Squelette i18n anglais
 
@@ -255,63 +53,102 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 
 ---
 
-### BIZ-129 — Notes de crédit (avoirs)
-
-Permettre l'émission d'un avoir (note de crédit) pour annuler partiellement ou totalement une facture client.
-
-**Contexte :** un avoir est comptablement un document à total négatif. La contrainte actuelle `total ≥ 0` est correcte pour une facture ordinaire mais invalide pour un avoir. Il faut distinguer les deux types.
-
-**Périmètre backend :**
-- Ajouter `invoice_type: Mapped[str]` sur le modèle `Invoice` — valeurs `facture` (défaut) | `avoir`
-- Migration Alembic dédiée (`0038_add_invoice_type`)
-- Lever la contrainte de total négatif uniquement pour les avoirs (validation dans le service)
-- Numérotation séparée : séquence `AV-YYYY-NNN` (nouvelle colonne ou préfixe dans le service de numérotation)
-- Nouveau endpoint `POST /api/invoices/{id}/credit-note` : crée un avoir pré-rempli avec les lignes inversées et un lien `credit_note_for_id` vers la facture d'origine (nullable, optionnel dans un premier temps)
-- Schémas : exposer `invoice_type` dans `InvoiceRead` / `InvoiceCreate` / `InvoiceUpdate`
-
-**Périmètre frontend :**
-- Bouton « Créer un avoir » sur les factures envoyées/payées (pas sur les brouillons)
-- Badge / libellé « Avoir » dans les listes et en-tête du formulaire d'édition
-- Template PDF avoir : en-tête « NOTE DE CRÉDIT » / « AVOIR » à la place de « FACTURE »
-- Validation côté UI : bloquer le total ≥ 0 seulement pour `invoice_type === 'facture'`
-
-**Hors périmètre (V1) :** lien de réconciliation automatique avoir ↔ facture, lettrage comptable, workflow de validation spécifique.
-
-
-
 ## Lots terminés
 
-| Lot | Nom | Version | Tickets | Terminé |
+| Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
+| --- | --- | --- | --- | --- | --- | --- |
+| DOC | Documentation utilisateur | v1.5 | BIZ-161, BIZ-162, BIZ-163 | 2026-05-03 | ~115 min | ~45 min |
+| 1 | Quick wins P3 | v0.2 | CHR-064, CHR-062, TEC-066, TEC-063 | 2026-04-22 | — | — |
+| 2 | Tests au vert | v0.2 | TEC-048 | 2026-04-22 | — | — |
+| 3 | Sécurité sans impact structurel | v0.2 | TEC-047, TEC-052, TEC-055, TEC-060, TEC-051 | 2026-04-22 | — | — |
+| 4 | Qualité backend sans impact API | v0.2 | TEC-065, TEC-057, TEC-059 | 2026-04-22 | — | — |
+| 5 | Sécurité auth (full-stack) | v0.2 | TEC-045, BIZ-053, TEC-046 | 2026-04-22 | — | — |
+| 6 | DevOps Docker | v0.2 | CHR-054, CHR-061 | 2026-04-22 | — | — |
+| 7 | Refactoring structurel | v0.2 | TEC-050, TEC-058 | 2026-04-22 | — | — |
+| 8 | Chantiers longs | v0.2 | BIZ-056, TEC-049 | 2026-04-22 | — | — |
+| A | Backend rapide | v0.3 | TEC-085 | 2026-04-23 | — | — |
+| B | UX quick wins | v0.3 | BIZ-070, BIZ-072, BIZ-074, BIZ-084, BIZ-042 | 2026-04-23 | — | — |
+| C | Dashboard interactif | v0.3 | BIZ-075, BIZ-073 | 2026-04-23 | — | — |
+| D | Polish UI | v0.3 | BIZ-071, BIZ-043 | 2026-04-23 | — | — |
+| F | Tests | v0.4 | TEC-079, TEC-080, TEC-081 | 2026-04-24 | — | — |
+| G | Refactoring frontend | v0.5 | TEC-077 | 2026-04-24 | — | — |
+| I | Polish UI & contacts | v0.5 | BIZ-035, BIZ-037, CHR-038, BIZ-040 | 2026-04-24 | — | — |
+| J | CI GitHub Actions | v0.5 | CHR-086, CHR-087 | 2026-04-24 | — | — |
+| K | Documentation & Swagger | v0.5 | CHR-019, CHR-082 | 2026-04-24 | — | — |
+| L | Gestion employés | v0.6 | BIZ-088 | 2026-04-25 | — | — |
+| M | Sécurité applicative | v0.6 | TEC-091, TEC-092, TEC-093 | 2026-04-25 | — | — |
+| N | UX & formulaires | v0.7 | BIZ-094, BIZ-095, BIZ-096, BIZ-097 | 2026-04-25 | — | — |
+| Q | Recette post-merge N | v0.7 | voir doc/recette.md (REC-001..REC-015) | 2026-04-26 | — | — |
+| R | Supervision système & audit | v0.8 | BIZ-108, BIZ-109 | 2026-04-26 | — | — |
+| O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-26 | — | — |
+| P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-26 | — | — |
+| S | Documentation & i18n | v0.8 | TEC-106, CHR-021, CHR-020, CHR-079 | 2026-04-27 | — | — |
+| T | Chatbot IA + refactor Paramètres | v1.0 | BIZ-125, BIZ-126 | 2026-04-27 | — | — |
+| H-UX | Améliorations UX (lot H) | v1.1 | settings gestionnaires, dialogue paiement, champs famille contacts, date facture, commentaires, PDF règlement, verrou édition | 2026-04-28 | — | — |
+| I-BNK | UX Banque | v1.2 | BIZ-133, BIZ-134, BIZ-135, BIZ-136, BIZ-137 | 2026-05-01 | — | — |
+| Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 | — | — |
+| CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 | — | — |
+| UI | Améliorations UI & saisie | v1.4 | BIZ-149, BIZ-150, BIZ-157, BIZ-158 | 2026-05-03 | ~65 min | ~30 min |
+
+<details>
+<summary>Lot UI — Améliorations UI & saisie (2026-05-03)</summary>
+
+| Ticket | Titre | Est. | Réel | Écart |
 | --- | --- | --- | --- | --- |
-| 1 | Quick wins P3 | v0.2 | CHR-064, CHR-062, TEC-066, TEC-063 | 2026-04-22 |
-| 2 | Tests au vert | v0.2 | TEC-048 | 2026-04-22 |
-| 3 | Sécurité sans impact structurel | v0.2 | TEC-047, TEC-052, TEC-055, TEC-060, TEC-051 | 2026-04-22 |
-| 4 | Qualité backend sans impact API | v0.2 | TEC-065, TEC-057, TEC-059 | 2026-04-22 |
-| 5 | Sécurité auth (full-stack) | v0.2 | TEC-045, BIZ-053, TEC-046 | 2026-04-22 |
-| 6 | DevOps Docker | v0.2 | CHR-054, CHR-061 | 2026-04-22 |
-| 7 | Refactoring structurel | v0.2 | TEC-050, TEC-058 | 2026-04-22 |
-| 8 | Chantiers longs | v0.2 | BIZ-056, TEC-049 | 2026-04-22 |
-| A | Backend rapide | v0.3 | TEC-085 | 2026-04-23 |
-| B | UX quick wins | v0.3 | BIZ-070, BIZ-072, BIZ-074, BIZ-084, BIZ-042 | 2026-04-23 |
-| C | Dashboard interactif | v0.3 | BIZ-075, BIZ-073 | 2026-04-23 |
-| D | Polish UI | v0.3 | BIZ-071, BIZ-043 | 2026-04-23 |
-| F | Tests | v0.4 | TEC-079, TEC-080, TEC-081 | 2026-04-24 |
-| G | Refactoring frontend | v0.5 | TEC-077 | 2026-04-24 |
-| I | Polish UI & contacts | v0.5 | BIZ-035, BIZ-037, CHR-038, BIZ-040 | 2026-04-24 |
-| J | CI GitHub Actions | v0.5 | CHR-086, CHR-087 | 2026-04-24 |
-| K | Documentation & Swagger | v0.5 | CHR-019, CHR-082 | 2026-04-24 |
-| L | Gestion employés | v0.6 | BIZ-088 | 2026-04-25 |
-| M | Sécurité applicative | v0.6 | TEC-091, TEC-092, TEC-093 | 2026-04-25 |
-| N | UX & formulaires | v0.7 | BIZ-094, BIZ-095, BIZ-096, BIZ-097 | 2026-04-25 |
-| Q | Recette post-merge N | v0.7 | voir doc/recette.md (REC-001..REC-015) | 2026-04-26 |
-| R | Supervision système & audit | v0.8 | BIZ-108, BIZ-109 | 2026-04-26 |
-| O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-26 |
-| P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-26 |
-| S | Documentation & i18n | v0.8 | TEC-106, CHR-021, CHR-020, CHR-079 | 2026-04-27 |
-| T | Chatbot IA + refactor Paramètres | v1.0 | BIZ-125, BIZ-126 | 2026-04-27 |
-| H-UX | Améliorations UX (lot H) | v1.1 | settings gestionnaires, dialogue paiement, champs famille contacts, date facture, commentaires, PDF règlement, verrou édition | 2026-04-28 |
-| I-BNK | UX Banque | v1.2 | BIZ-133, BIZ-134, BIZ-135, BIZ-136, BIZ-137 | 2026-05-01 |
-| J | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 |
+| BIZ-158 | Limite API 1000 items + warning | ~30 min | ~18 min | −12 min |
+| BIZ-149 | Auto-capitalisation intitulés facture | ~15 min | ~2 min | −13 min |
+| BIZ-150 | Accepter la virgule comme séparateur décimal | ~10 min | ~7 min | −3 min |
+| BIZ-157 | Pagination 50 items par défaut | ~10 min | ~3 min | −7 min |
+| **Total** | | **~65 min** | **~30 min** | **−35 min** |
+
+### BIZ-158 — Limite API 1000 items + warning si atteinte
+`default=1000, le=1000` sur 6 routeurs (`invoice.py`, `payment.py`, `contact.py`, `bank.py` transactions + dépôts, `salary.py`). Bandeau `Message` PrimeVue severity `warn` dans chaque vue liste quand le résultat atteint 1 000 items. 4 tests mis à jour (renommage + assertions). Correction d'un bug de docstring introduit en cours de session.
+
+### BIZ-149 — Auto-capitalisation des intitulés facture
+Déjà implémenté (`@blur="capitalizeFirstLetter(line)"` dans `ClientInvoiceForm.vue`) — vérification rapide, ticket fermé.
+
+### BIZ-150 — Accepter la virgule comme séparateur décimal
+Champs `quantity` et `unit_price` dans `ClientInvoiceForm.vue` : `type="text" inputmode="decimal"` + fonction `normalizeDecimalInput()` (remplace `,` par `.` à la saisie, met à jour le modèle via `parseFloat`).
+
+### BIZ-157 — Pagination 50 items par défaut
+`:rows="50"` dans tous les composants Vue (anciennement 20). Remplacement global dans `frontend/src/`.
+
+</details>
+
+<details>
+<summary>Lot CR — Correctifs revue de code (2026-05-02)</summary>
+
+### TEC-133 — Access token en mémoire uniquement (XSS)
+Token stocké dans un `ref` Pinia non persisté ; rechargement via `POST /api/auth/refresh` (cookie HttpOnly) ; `initFromStorage()` supprimé.
+
+### TEC-134 — Atomicité audit log
+`record_audit()` appelé avant `await db.commit()` dans `update_user`.
+
+### TEC-135 — Race condition numérotation factures
+Retry loop sur `IntegrityError` (3 tentatives) dans `invoice_service._next_number()`.
+
+### TEC-136 — Chemins relatifs en base
+`Invoice.file_path` / `Invoice.pdf_path` stockés en relatif ; résolution absolue uniquement à la lecture via `resolve_file_path()`.
+
+### TEC-137 — Décodage JWT unique
+Payload JWT mis en cache dans `request.state.jwt_payload` par le middleware ; `get_current_user` le réutilise.
+
+### TEC-138 — Rate limiter : mémoire bornée
+Purge des clés expirées toutes les 100 tentatives dans `rate_limiter.py`.
+
+### TEC-139 — Tokens OpenAI en streaming
+`stream_options={"include_usage": True}` + extraction de `chunk.usage` sur le dernier événement SSE.
+
+### TEC-140 — Pagination audit log
+`GET /api/settings/audit-logs` : `skip`, `limit`, `action`, `actor_id`, `from_date`, `to_date` ; vue Paramètres mise à jour.
+
+### TEC-141 — Constante `USER_ROLES`
+`frontend/src/constants/roles.ts` : source unique pour les chaînes de rôles.
+
+### TEC-155 — Suppression `# type: ignore`
+13 suppressions dans `backend/routers/invoice.py` éliminées ; annotations corrigées.
+
+</details>
 
 <details>
 <summary>Lot S — Documentation & i18n (2026-04-27)</summary>
@@ -334,7 +171,7 @@ Restructuration complète du répertoire `doc/` : nouvelles arborescences `doc/a
 
 </details>
 
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**, **BIZ-111**, **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**, **BIZ-138**, **BIZ-139**, **BIZ-140**.
+Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**, **BIZ-111**, **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**, **BIZ-138**, **BIZ-139**, **BIZ-140**, **BIZ-141**, **TEC-142**, **TEC-143**, **TEC-146**, **TEC-152**, **TEC-153**, **TEC-154**, **BIZ-155**, **BIZ-156**, **BIZ-148**.
 Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
 
 <details>

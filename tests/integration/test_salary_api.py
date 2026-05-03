@@ -43,7 +43,7 @@ async def test_readonly_cannot_list_salaries(
 
 
 @pytest.mark.asyncio
-async def test_list_salaries_default_limit_is_100(
+async def test_list_salaries_default_limit_is_1000(
     client: AsyncClient,
     auth_headers: dict,
     db_session: AsyncSession,
@@ -69,7 +69,7 @@ async def test_list_salaries_default_limit_is_100(
     response = await client.get("/api/salaries/", headers=auth_headers)
 
     assert response.status_code == 200
-    assert len(response.json()) == 100
+    assert len(response.json()) == 101
 
 
 @pytest.mark.asyncio
