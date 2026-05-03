@@ -658,6 +658,7 @@ html.dark-mode .dashboard-action-card__icon {
 .bank-pending-deposit-row__btn {
   margin-left: auto;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .bank-pending-deposit-row__date {
@@ -682,7 +683,7 @@ html.dark-mode .dashboard-action-card__icon {
   gap: 0.15rem;
   border-left: 2px solid var(--app-surface-border);
   padding-left: var(--app-space-3);
-  min-width: 8rem;
+  min-width: 6.5rem;
   flex-shrink: 0;
 }
 
