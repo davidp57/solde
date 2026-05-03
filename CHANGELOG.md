@@ -17,7 +17,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Amélioré
 
-- **BIZ-149** — Auto-capitalisation de la première lettre des intitulés de lignes facture client au `blur` (déjà implémentée — ticket fermé)
+- **BIZ-149** — Auto-capitalisation de la première lettre des intitulés de lignes de facture client au `blur` (déjà implémentée — ticket fermé)
 - **BIZ-150** — Champs quantité et prix unitaire dans `ClientInvoiceForm` acceptent désormais la virgule comme séparateur décimal (normalisée en point à la saisie)
 - **BIZ-157** — Pagination des DataTables : 50 lignes affichées par défaut (anciennement 20) dans toutes les vues de liste
 
