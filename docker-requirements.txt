@@ -1,0 +1,20 @@
+# Runtime dependencies for Docker layer caching.
+# Must mirror [project.dependencies] in pyproject.toml.
+# This file is intentionally separate so that version bumps in pyproject.toml
+# do NOT invalidate the Docker pip install layer (only actual dep changes do).
+fastapi>=0.115
+uvicorn[standard]>=0.30
+sqlalchemy[asyncio]>=2.0
+aiosqlite>=0.20
+alembic>=1.13
+pydantic[email]>=2.0
+pydantic-settings>=2.0
+python-jose[cryptography]>=3.3
+bcrypt>=4.0
+python-multipart>=0.0.9
+jinja2>=3.1
+aiofiles>=23.0
+weasyprint>=62.0
+openpyxl>=3.1
+google-genai>=0.8
+openai>=1.0
