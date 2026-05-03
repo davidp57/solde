@@ -529,6 +529,18 @@
             <div v-else-if="previewPayments.length === 0" class="app-empty-state">
               {{ t('invoices.no_payments') }}
             </div>
+            <AppMobileCardList v-else-if="isMobile" :items="previewPayments" :empty-message="t('invoices.no_payments')">
+              <template #card="{ item: data }">
+                <div class="app-mobile-card-row app-mobile-card-row--between">
+                  <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+                  <span class="app-mobile-card-value" style="font-weight:700">{{ parseFloat(data.amount).toFixed(2) }} €</span>
+                </div>
+                <div class="app-mobile-card-row">
+                  <span class="app-mobile-card-label">{{ t('payments.method') }} :</span>
+                  <span class="app-mobile-card-value">{{ t(`payments.methods.${data.method}`) }}</span>
+                </div>
+              </template>
+            </AppMobileCardList>
             <DataTable
               v-else
               :value="previewPayments"

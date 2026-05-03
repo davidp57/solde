@@ -15,16 +15,20 @@
   </div>
 </template>
 
-<script setup lang="ts">
+<script setup lang="ts" generic="T = unknown">
 withDefaults(
   defineProps<{
-    items: unknown[]
+    items: T[]
     emptyMessage?: string
   }>(),
   {
     emptyMessage: 'Aucune donnée',
   },
 )
+defineSlots<{
+  card(props: { item: T; index: number }): unknown
+  empty(): unknown
+}>()
 </script>
 
 <style scoped>
