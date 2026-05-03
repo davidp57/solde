@@ -28,6 +28,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 - **BIZ-164** — Mock `window.matchMedia` ajouté dans le setup de tests Vitest pour éviter des erreurs jsdom dans les composants utilisant `useBreakpoints`
+- **BIZ-164** — Clé stable dans `AppMobileCardList` : prop `itemKey` optionnelle pour éviter les réutilisations erronées de nœuds DOM lors d'un tri/filtrage
+- **BIZ-164** — Tuile dépôt espèces : `total_amount` affiché même si `denomination_details` est vide ou invalide (fallback `v-else-if`)
+- **BIZ-164** — Suppression du double appel API de suggestion de numéro de chèque à l'ouverture du dialog (guard `paymentDialogVisible` dans le `watch`)
+- **BIZ-164** — Annotation de type `payment_date: date | None` dans `GET /api/payments/suggest_cheque_number` (était `date` alors que le paramètre est optionnel)
 
 ---
 
