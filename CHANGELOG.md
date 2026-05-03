@@ -16,6 +16,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-163** — Guide par rôle « Je veux… » ajouté en fin de `doc/user/manuel.md` (index des activités par rôle avec liens vers les sections)
 - **BIZ-158** — Limite API relevée à 1 000 éléments par défaut sur `invoice`, `payment`, `contact`, `bank transactions`, `bank deposits`, `salary` (anciennement 100) ; bandeau d'avertissement PrimeVue `warn` affiché dans chaque vue liste quand le résultat atteint 1 000 items
 
+### Corrigé
+- **TEC-156** — Assistant IA : token d'authentification lu depuis le store Pinia (mémoire) au lieu de `localStorage` — corrige le 401 systématique sur `POST /api/chat`
+
 ### Amélioré
 - **BIZ-162** — Liens d'ancre dans le manuel en ligne : intercepteur de clics dans `HelpView.vue` pour défilement fluide vers les sections cibles
 - **BIZ-149** — Auto-capitalisation de la première lettre des intitulés de lignes de facture client au `blur` (déjà implémentée — ticket fermé)

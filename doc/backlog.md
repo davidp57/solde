@@ -25,6 +25,8 @@ Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dess
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
+| TEC-156 | Fix token auth chat (localStorage → Pinia) | P1 | — | 2026-05-03 | 2026-05-03 | 2026-05-03 |
+| BIZ-164 | Amélioration UI mode téléphone | P2 | ? | 2026-05-03 | | |
 | CHR-078 | Squelette i18n anglais | P3 | ~15 min | 2026-04-23 | | |
 | BIZ-034 | Support multi-compte banque | P3 | ~60 min | 2026-04-21 | | |
 
@@ -36,6 +38,14 @@ Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dess
 
 Distinguer compte courant et compte épargne dans les données, imports et écrans.
 Décisions métier nécessaires avant implémentation.
+
+### BIZ-164 — Amélioration UI mode téléphone
+
+À analyser avant implémentation. L'application est principalement utilisée sur desktop, mais une utilisation occasionnelle sur smartphone est envisageable (consultation, saisie rapide). Périmètre à définir : quelles vues doivent être utilisables sur mobile ? Responsive breakpoints, menus, tableaux, formulaires. Évaluer l'impact sur PrimeVue et les DataTables.
+
+### TEC-156 — Fix token auth chat (localStorage → Pinia)
+
+`streamChat` dans `api/chat.ts` lisait `localStorage.getItem('access_token')` — toujours `null` car le token est stocké uniquement en mémoire Pinia (mitigation XSS). Chaque `POST /api/chat` retournait 401. Corrigé en lisant `useAuthStore().accessToken`. Découvert lors du test du Lot DOC (2026-05-03). ✅ Fait
 
 ### CHR-078 — Squelette i18n anglais
 
