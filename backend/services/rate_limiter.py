@@ -34,8 +34,13 @@ class RateLimiter:
 
         with self._lock:
             attempts = self._attempts[key]
-            # Prune expired entries
+            # Prune expired entries for this key
             self._attempts[key] = [t for t in attempts if t > cutoff]
+            # Trigger global purge periodically so stale keys from quiet periods are cleaned up
+            self._calls_since_purge += 1
+            if self._calls_since_purge >= _PURGE_INTERVAL:
+                self._purge_stale(now)
+                self._calls_since_purge = 0
             return len(self._attempts[key]) >= self.max_attempts
 
     def record_attempt(self, key: str) -> None:

@@ -12,13 +12,14 @@ import DOMPurify from 'dompurify'
  * single hyphen. Duplicate headings get a -1, -2 … suffix (GitHub style).
  */
 function headingSlug(raw: string): string {
-  return raw
+  const slug = raw
     .replace(/^#{1,6}\s+/, '') // strip leading # markers
     .replace(/\s+$/, '')       // trim trailing whitespace / newline
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s-]/gu, '') // keep Unicode letters, digits, spaces, hyphens
     .trim()
     .replace(/\s+/g, '-')      // collapse whitespace runs to a single hyphen
+  return slug || 'section'   // fallback for punctuation-only headings
 }
 
 /**
