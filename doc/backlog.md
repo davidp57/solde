@@ -26,6 +26,9 @@ Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dess
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | TEC-156 | Fix token auth chat (localStorage → Pinia) | P1 | — | 2026-05-03 | 2026-05-03 | 2026-05-03 |
+| TEC-157 | i18n : supprimer chaînes en dur dans AppMobileCardList + CashView | P3 | ~10 min | 2026-05-03 | | |
+| TEC-158 | Tests intégration suggest_cheque_number (statut, date, incrément, accès) | P2 | ~20 min | 2026-05-03 | | |
+| TEC-159 | Tests validation cheque_number_template dans settings API | P2 | ~15 min | 2026-05-03 | | |
 | BIZ-165 | Navigation précédent/suivant sur preview factures client | P2 | ~10 min | 2026-05-03 | | |
 | CHR-078 | Squelette i18n anglais | P3 | ~15 min | 2026-04-23 | | |
 | BIZ-034 | Support multi-compte banque | P3 | ~60 min | 2026-04-21 | | |
@@ -50,6 +53,18 @@ Décisions métier nécessaires avant implémentation.
 ### CHR-078 — Squelette i18n anglais
 
 Créer `en.ts` avec les clés structurelles pour préparer la localisation anglaise.
+
+### TEC-157 — i18n : supprimer chaînes en dur dans AppMobileCardList + CashView
+
+Suite à la revue Copilot de la PR #76 : `emptyMessage: 'Aucune donnée'` dans `AppMobileCardList.vue` et `"Écart :"` dans `CashView.vue` sont des chaînes UI codées en dur. Les remplacer par des clés i18n (ou exposer via slot `#empty`), cohérent avec le reste de l'app.
+
+### TEC-158 — Tests intégration suggest_cheque_number
+
+Suite à la revue Copilot de la PR #76 : l'endpoint `GET /api/payments/suggest_cheque_number` n'a pas de tests dans `tests/integration/test_payments_api.py`. Couvrir : statut 200 + format de retour, `payment_date` explicite vs défaut, incrément quand des paiements chèque existent, contrôle d'accès.
+
+### TEC-159 — Tests validation cheque_number_template dans settings API
+
+Suite à la revue Copilot de la PR #76 : `cheque_number_template` dans `AppSettingsUpdate` n'est pas testé dans `tests/integration/test_settings_api.py`. Couvrir : valeur par défaut renvoyée par `GET /api/settings/`, cas invalides (sans `{seq}`, placeholders non supportés).
 
 ---
 
