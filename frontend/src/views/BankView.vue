@@ -1483,7 +1483,7 @@ onMounted(async () => {
   gap: var(--app-space-2);
   border-left: 2px solid var(--app-surface-border);
   padding-left: var(--app-space-3);
-  flex: 0 0 16rem;
+  flex: 0 0 22rem;
 }
 
 .bank-pending-deposit-row__denom-line {
