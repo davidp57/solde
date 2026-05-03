@@ -19,6 +19,7 @@ Il est destiné aux utilisateurs disposant d'un rôle **Gestionnaire**, **Compta
 10. [Comptabilité](#10-comptabilité)
 11. [Exercices comptables](#11-exercices-comptables)
 12. [Mon profil](#12-mon-profil)
+13. [Guide par rôle — « Je veux… »](#guide-par-rôle--je-veux-)
 
 ---
 
@@ -575,3 +576,52 @@ Après clôture, l'exercice passe à l'état **Clôturé** et les écritures ne 
 4. Cliquer sur **Enregistrer**.
 
 Le nouveau mot de passe doit respecter la politique : minimum 8 caractères, au moins une majuscule et un chiffre.
+
+---
+
+## Guide par rôle — « Je veux… »
+
+Ce guide recense les actions courantes par rôle et renvoie vers la section correspondante du manuel.
+
+### Secrétaire
+
+| Je veux… | Section |
+|---|---|
+| Me connecter ou changer mon mot de passe | [1. Connexion et mot de passe](#1-connexion-et-mot-de-passe) |
+| Créer ou modifier un contact | [3. Contacts — Créer un contact](#créer-un-contact) |
+| Voir l'historique d'un contact | [3. Contacts — Historique d'un contact](#historique-dun-contact) |
+| Marquer un client comme indésirable | [3. Contacts — Marquer un client comme indésirable](#marquer-un-client-comme-indésirable) |
+| Créer une facture client rapidement | [4. Factures clients — Créer une facture rapidement (wizard)](#créer-une-facture-rapidement-wizard) |
+| Créer une facture client (formulaire complet) | [4. Factures clients — Créer une facture (formulaire complet)](#créer-une-facture-formulaire-complet) |
+| Envoyer une facture par e-mail | [4. Factures clients — Envoyer une facture par e-mail](#envoyer-une-facture-par-e-mail) |
+| Télécharger le PDF d'une facture | [4. Factures clients — Télécharger le PDF](#télécharger-le-pdf) |
+| Modifier ou supprimer une facture | [4. Factures clients — Modifier une facture](#modifier-une-facture) |
+| Créer un avoir (note de crédit) | [4. Factures clients](#4-factures-clients) |
+| Modifier mon profil ou mon mot de passe | [12. Mon profil](#12-mon-profil) |
+
+### Trésorier
+
+| Je veux… | Section |
+|---|---|
+| Enregistrer un paiement client | [5. Paiements — Encoder un paiement](#encoder-un-paiement) |
+| Préparer et confirmer une remise en banque (chèques ou espèces) | [5. Paiements — Remises en banque](#remises-en-banque) |
+| Créer ou payer une facture fournisseur | [6. Factures fournisseurs](#6-factures-fournisseurs) |
+| Enregistrer une entrée ou sortie de caisse | [7. Caisse — Enregistrer un mouvement](#enregistrer-un-mouvement) |
+| Faire un comptage de caisse | [7. Caisse — Comptage de caisse](#comptage-de-caisse) |
+| Importer un relevé bancaire (OFX) | [8. Banque — Importer des transactions (OFX)](#importer-des-transactions-ofx) |
+| Corriger la catégorie d'une transaction | [8. Banque — Corriger la catégorie d'une transaction](#corriger-la-catégorie-dune-transaction) |
+| Rapprocher des transactions bancaires | [8. Banque — Rapprochement bancaire](#rapprochement-bancaire) |
+| Confirmer une remise en banque | [8. Banque — Remises en banque](#remises-en-banque-1) |
+| Saisir une fiche de salaire | [9. Salaires et employés — Fiches de salaire](#fiches-de-salaire) |
+| Consulter le journal comptable | [10. Comptabilité — Journal comptable](#journal-comptable) |
+| Consulter le grand livre, le bilan ou le compte de résultat | [10. Comptabilité](#10-comptabilité) |
+| Clôturer un exercice comptable | [11. Exercices comptables — Clôturer un exercice](#clôturer-un-exercice) |
+
+### Administrateur
+
+| Je veux… | Section |
+|---|---|
+| Gérer les employés | [9. Salaires et employés — Gérer les employés](#gérer-les-employés) |
+| Configurer les règles comptables | [10. Comptabilité — Règles comptables](#règles-comptables) |
+| Créer un exercice comptable | [11. Exercices comptables — Créer un exercice](#créer-un-exercice) |
+| Toutes les actions Secrétaire et Trésorier | Voir les sections ci-dessus |
