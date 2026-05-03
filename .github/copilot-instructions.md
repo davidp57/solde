@@ -174,6 +174,7 @@ Keep the following documents up to date with every significant change:
 - `doc/backlog.md` and `doc/roadmap.md` must be **kept up to date at all times**: coherent content, correct dates, accurate statuses and priorities, proper lot grouping, zero markdown formatting errors.
 - `CHANGELOG.md` reflects **shipped work**; `doc/backlog.md` reflects **planned and in-progress work** — no item should live in both as active.
 - `doc/roadmap.md` contains **every versioned lot** from the backlog. Functional lots are detailed (one subsection per feature); technical lots are kept to a one-line summary.
+- `doc/user/changelog-user.md` must stay in sync with `CHANGELOG.md` for every version: every user-visible change in `CHANGELOG.md` must have a corresponding entry in `changelog-user.md`, written in plain French for non-technical users.
 
 ### Backlog management
 
