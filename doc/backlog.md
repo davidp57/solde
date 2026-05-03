@@ -7,6 +7,16 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ---
 
+## Calibration estimations
+
+Facteur de marge actuel : **1,15** (15%).
+
+| Lot | Estimé Copilot | Réel Copilot | Ratio | Estimé gestion | Réel gestion | Ajustement |
+| --- | --- | --- | --- | --- | --- | --- |
+| *(à remplir après chaque lot terminé)* | | | | | | |
+
+---
+
 ## Lots actifs
 
 ### Lot UI — Améliorations UI & saisie (~2h20 Copilot + 15 min gestion) — v1.4
