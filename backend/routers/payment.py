@@ -58,7 +58,9 @@ async def list_payments(
 async def suggest_cheque_number(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
-    payment_date: date = Query(default=None, description="Date du paiement (défaut: aujourd'hui)"),
+    payment_date: date | None = Query(
+        default=None, description="Date du paiement (défaut: aujourd'hui)"
+    ),
 ) -> str:
     """Return the next suggested cheque number for a given date."""
     effective_date = payment_date if payment_date is not None else date.today()

@@ -2,7 +2,7 @@
   <div class="app-mobile-card-list">
     <div
       v-for="(item, index) in items"
-      :key="index"
+      :key="itemKey ? itemKey(item, index) : index"
       class="app-mobile-card"
     >
       <slot name="card" :item="item" :index="index" />
@@ -20,9 +20,11 @@ withDefaults(
   defineProps<{
     items: T[]
     emptyMessage?: string
+    itemKey?: (item: T, index: number) => string | number
   }>(),
   {
     emptyMessage: 'Aucune donnée',
+    itemKey: undefined,
   },
 )
 defineSlots<{

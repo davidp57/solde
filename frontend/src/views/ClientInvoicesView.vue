@@ -851,7 +851,10 @@ const paymentForm = ref({
 watch(
   () => paymentForm.value.method,
   (method) => {
-    if (method === 'cheque' && !paymentForm.value.cheque_number) {
+    // Guard: only fire when dialog is already open (i.e. user toggled method inside the dialog).
+    // When openPaymentDialog resets the form, the dialog is not yet visible so this watch is skipped;
+    // the direct suggestChequeNumber() call in openPaymentDialog handles the initial suggestion.
+    if (paymentDialogVisible.value && method === 'cheque' && !paymentForm.value.cheque_number) {
       void suggestChequeNumber().then((n) => {
         if (paymentForm.value.method === 'cheque' && !paymentForm.value.cheque_number) {
           paymentForm.value.cheque_number = n

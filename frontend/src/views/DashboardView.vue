@@ -44,6 +44,9 @@
               >{{ line }}</span>
               <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(parseFloat(deposit.total_amount)) }}</span>
             </div>
+            <div v-else-if="deposit.type !== 'cheques'" class="bank-pending-deposit-row__denom">
+              <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(parseFloat(deposit.total_amount)) }}</span>
+            </div>
             <div v-else-if="deposit.type === 'cheques'" class="bank-pending-deposit-row__denom">
               <span class="bank-pending-deposit-row__denom-line">{{ t('bank.deposit_cheques_summary', { count: deposit.payment_ids.length }) }}</span>
               <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(parseFloat(deposit.total_amount)) }}</span>
