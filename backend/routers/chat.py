@@ -37,6 +37,7 @@ _AdminRequired = Annotated[User, Depends(require_role(UserRole.ADMIN))]
 
 _SETTINGS_ID = 1
 _MANUEL_PATH = Path(__file__).resolve().parents[2] / "doc" / "user" / "manuel.md"
+_CHANGELOG_USER_PATH = Path(__file__).resolve().parents[2] / "doc" / "user" / "changelog-user.md"
 
 
 @router.get("/chat/config", response_model=ChatConfig)
@@ -105,3 +106,16 @@ async def get_manual(
             detail="Manuel utilisateur introuvable.",
         )
     return _MANUEL_PATH.read_text(encoding="utf-8")
+
+
+@router.get("/help/changelog", response_class=PlainTextResponse)
+async def get_changelog(
+    _current_user: _AnyUserRequired,
+) -> str:
+    """Return the user-facing changelog as raw Markdown (authenticated users only)."""
+    if not _CHANGELOG_USER_PATH.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Changelog utilisateur introuvable.",
+        )
+    return _CHANGELOG_USER_PATH.read_text(encoding="utf-8")

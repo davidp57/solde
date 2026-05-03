@@ -111,37 +111,37 @@ This avoids non-fast-forward push rejections. If a push is rejected, always use 
 
 Keep the following documents up to date with every significant change:
 
-| Document | Langue | Emplacement | Déclencheur |
+| Document | Language | Location | Trigger |
 |---|---|---|---|
-| `README.md` | **FR + EN** | root | Chaque release |
-| Documentation utilisateur | **FR + EN** | `doc/user/` | Fonctionnalité ajoutée ou modifiée |
-| Documentation d'installation / how-to | **FR + EN** | `doc/user/` ou root | Installation, exploitation ou premiers pas modifiés |
-| Documentation développeur | **EN** | `doc/dev/` | Architecture ou API modifiée |
-| Documentation technique historique | **Migration vers EN** | `doc/` | À traduire progressivement jusqu'à alignement complet |
-| `CHANGELOG.md` | **FR** | root | Chaque PR mergée vers `develop` |
-| `doc/user/changelog-user.md` | **FR** | `doc/user/` | Chaque fonctionnalité ou correctif visible par l'utilisateur |
-| Notes de release | **FR** | `doc/releases/` | Chaque release |
-| `doc/backlog.md` | **FR** | `doc/` | Ticket créé, avancé ou complété |
-| `doc/roadmap.md` | **EN à terme** | `doc/` | Lot complété, planifié ou repriorisé |
-| `doc/plan.md` | **EN à terme** | `doc/` | Décisions d'architecture mises à jour |
+| `README.md` | **FR + EN** | root | Every release |
+| User documentation | **FR + EN** | `doc/user/` | Feature added or modified |
+| Installation / how-to guides | **FR + EN** | `doc/user/` or root | Installation, deployment, or getting-started steps changed |
+| Developer documentation | **EN** | `doc/dev/` | Architecture or API changed |
+| Legacy technical documentation | **Migrating to EN** | `doc/` | Translate progressively until fully aligned |
+| `CHANGELOG.md` | **FR** | root | Every PR merged into `develop` |
+| `doc/user/changelog-user.md` | **FR** | `doc/user/` | Every user-visible feature or fix |
+| Release notes | **FR** | `doc/releases/` | Every release |
+| `doc/backlog.md` | **FR** | `doc/` | Ticket created, progressed, or completed |
+| `doc/roadmap.md` | **EN (in progress)** | `doc/` | Lot completed, planned, or reprioritised |
+| `doc/plan.md` | **EN (in progress)** | `doc/` | Architecture decisions updated |
 
-`CHANGELOG.md` suit le format **Keep a Changelog** (sections Unreleased → version).
+`CHANGELOG.md` follows the **Keep a Changelog** format (sections Unreleased → version).
 
-### Règles de rédaction de `doc/user/changelog-user.md`
+### Writing rules for `doc/user/changelog-user.md`
 
-`doc/user/changelog-user.md` est le changelog destiné aux **utilisateurs finaux**. Il doit être maintenu en parallèle de `CHANGELOG.md` à chaque version (déployée ou non).
+`doc/user/changelog-user.md` is the **end-user changelog** (written in French). It must be kept in sync with `CHANGELOG.md` for every version, whether deployed or not.
 
-**Structure** :
-- Un **chapitre par version** (titre `## Version X.Y.Z — date` ou `## Version X.Y *(à venir)*`).
-- Dans chaque version, un **chapitre par rôle** dans l'ordre : Tous les utilisateurs / Secrétaire / Trésorier / Administrateur. N'inclure un rôle que s'il y a des changements qui le concernent.
-- Dans chaque rôle, un **sous-chapitre par domaine fonctionnel**.
-- Une **liste à puces** par sous-chapitre.
+**Structure:**
+- One **chapter per version** (heading `## Version X.Y.Z — date` or `## Version X.Y *(à venir)*`).
+- Within each version, one **chapter per role** in this order: Tous les utilisateurs / Secrétaire / Trésorier / Administrateur. Only include a role if there are changes that affect it.
+- Within each role, one **sub-chapter per functional domain**.
+- A **bullet list** per sub-chapter.
 
-**Contenu** :
-- Uniquement les changements **visibles par l'utilisateur** (rien de technique, rien d'interne).
-- Langue et termes **compréhensibles par tout le monde** — pas de jargon technique (pas de « blur », « endpoint », « FITID », « migration », « async », etc.).
-- Sources : CHANGELOG.md, notes de release, **et** log git + lecture du code si nécessaire pour s'assurer de l'exhaustivité.
-- Les vrais rôles de l'application sont : `readonly` (lecture seule), `secretaire`, `tresorier`, `admin`. Utiliser leurs noms courants en français dans le document (Secrétaire, Trésorier, Administrateur).
+**Content:**
+- Only **user-visible** changes — no technical or internal details.
+- Language and wording must be **understandable by non-technical users** — no jargon (no "blur", "endpoint", "FITID", "migration", "async", etc.).
+- Sources: CHANGELOG.md, release notes, **and** git log + code review when needed to ensure completeness.
+- The actual application roles are: `readonly`, `secretaire`, `tresorier`, `admin`. Use their common French display names in the document (Secrétaire, Trésorier, Administrateur).
 
 ---
 
@@ -156,9 +156,11 @@ Keep the following documents up to date with every significant change:
    - Per lot header: sum of all ticket estimates (Copilot time) **+ 15 min user project management** (reviewing, approving, merging). Display as e.g. `~2h20 Copilot + 15 min gestion`.
 
    **Tracking actuals and calibrating estimates:**
-   - After completing each ticket, note the actual Copilot time spent (visible from session context or elapsed conversation time). Record it in the backlog ticket row or detail section as `Réel: ~X min`.
-   - After each PR is merged, note the actual user time spent on review + merge. Record it as a comment on the lot row: `PR réelle: ~X min`.
-   - After each completed lot, compare estimated vs actual totals. If the ratio differs from 1.15 by more than 20%, adjust the margin factor for future estimates and **explicitly inform the user** with a short message: e.g. "Note : le Lot CR a pris X min Copilot pour Y min estimés (ratio Z). J'ajuste le facteur de marge à 1.XX pour les prochains lots."
+   - **At the start of each ticket**: record the start time (`HH:MM`) in `/memories/session/timing.md`. Record the end time when the ticket is done. This start/end log is the source of truth for actual Copilot time per ticket.
+   - After completing each ticket, record the actual time in the backlog ticket row or detail section as `Réel: ~X min`.
+   - After each PR is merged, note the actual user time spent on review + merge. Record it on the lot row: `PR réelle: ~X min`.
+   - At the end of a lot, report actuals ticket by ticket in `doc/backlog.md` (in the `<details>` table) and in the Calibration table.
+   - After each completed lot, compare estimated vs actual totals. If the ratio differs from 1.15 by more than 20%, adjust the margin factor for future estimates and **explicitly inform the user** with a short message (in French, as per the language rules): e.g. "Note : le Lot CR a pris X min Copilot pour Y min estimés (ratio Z). J'ajuste le facteur de marge à 1.XX pour les prochains lots."
    - Keep a running calibration note in `doc/backlog.md` under a `## Calibration estimations` section (create it if absent), updated after every completed lot.
 2. **Feed the roadmap when relevant** — if a ticket represents a new feature, major initiative, innovative idea, or strategic shift, also add it to `doc/roadmap.md` under "Not yet planned".
 3. **Group tickets into lots** — related backlog items are bundled into named lots (e.g. *Lot A — Import Excel*, *Lot F — Tests*). Each lot is identified in the backlog.
@@ -172,6 +174,7 @@ Keep the following documents up to date with every significant change:
 - `doc/backlog.md` and `doc/roadmap.md` must be **kept up to date at all times**: coherent content, correct dates, accurate statuses and priorities, proper lot grouping, zero markdown formatting errors.
 - `CHANGELOG.md` reflects **shipped work**; `doc/backlog.md` reflects **planned and in-progress work** — no item should live in both as active.
 - `doc/roadmap.md` contains **every versioned lot** from the backlog. Functional lots are detailed (one subsection per feature); technical lots are kept to a one-line summary.
+- `doc/user/changelog-user.md` must stay in sync with `CHANGELOG.md` for every version: every user-visible change in `CHANGELOG.md` must have a corresponding entry in `changelog-user.md`, written in plain French for non-technical users.
 
 ### Backlog management
 
