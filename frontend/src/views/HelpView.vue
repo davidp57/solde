@@ -156,7 +156,7 @@ function handleContentClick(event: MouseEvent): void {
 
   if (href.startsWith('#')) {
     event.preventDefault()
-    const id = href.slice(1)
+    const id = decodeURIComponent(href.slice(1))
     const el = document.getElementById(id)
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -235,6 +235,7 @@ onMounted(async () => {
   font-weight: 600;
   line-height: 1.3;
   margin-bottom: 0.5em;
+  scroll-margin-top: 80px;
 }
 
 .prose :deep(h1) {

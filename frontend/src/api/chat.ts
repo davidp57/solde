@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/auth'
 import apiClient from './client'
 
 export interface ChatMessage {
@@ -41,7 +42,7 @@ export async function* streamChat(
   messages: ChatMessage[],
   signal?: AbortSignal,
 ): AsyncGenerator<string> {
-  const token = localStorage.getItem('access_token')
+  const token = useAuthStore().accessToken
   const response = await fetch('/api/chat', {
     method: 'POST',
     headers: {
