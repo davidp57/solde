@@ -1469,7 +1469,7 @@ onMounted(async () => {
 .bank-pending-deposit-row__amount {
   font-weight: 700;
   font-size: 0.82rem;
-  margin-top: 0.4rem;
+  padding-top: 0.25rem;
   text-align: left;
   color: var(--p-green-500);
   white-space: nowrap;
@@ -1478,6 +1478,7 @@ onMounted(async () => {
 .bank-pending-deposit-row__denom {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 0.15rem;
   border-left: 2px solid var(--app-surface-border);
   padding-left: var(--app-space-3);
