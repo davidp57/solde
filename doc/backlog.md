@@ -89,10 +89,10 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 | Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 | — | — |
 | CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 | — | — |
 | UI | Améliorations UI & saisie | v1.4 | BIZ-149, BIZ-150, BIZ-157, BIZ-158 | 2026-05-03 | ~65 min | ~30 min |
-| MOB | Mode téléphone | v1.5 | BIZ-164 | 2026-05-03 | ~90 min | — |
+| MOB | Mode téléphone | v1.5 | BIZ-164 | 2026-05-03 | ~90 min | 2026-05-03 |
 
 <details>
-<summary>Lot MOB — Mode téléphone (en cours)</summary>
+<summary>Lot MOB — Mode téléphone (2026-05-03)</summary>
 
 | Ticket | Titre | Est. | Réel | Écart |
 | --- | --- | --- | --- | --- |
@@ -103,7 +103,7 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 | **Total** | | **~90 min** | **—** | **—** |
 
 ### BIZ-164 — Mode téléphone & UX mobile
-Migration Alembic `0049` : `cheque_number_template` dans `app_settings`. Endpoint `GET /api/payments/suggest_cheque_number`. Service `suggest_cheque_number` dans `settings.py`. Auto-suggestion dans `ClientInvoicesView`, `SupplierInvoicesView`, `QuickPaymentWizard`. Champ configurable dans `SettingsAssociationPanel`. Vues cartes mobile sur les 5 listes principales via `AppMobileCardList` + `useBreakpoints`. Dialogs full-width mobile. Stat grid 2 colonnes mobile.
+Migration Alembic `0049` : `cheque_number_template` dans `app_settings`. Endpoint `GET /api/payments/suggest_cheque_number`. Service `suggest_cheque_number` dans `settings.py`. Auto-suggestion dans `ClientInvoicesView`, `SupplierInvoicesView`, `QuickPaymentWizard`. Champ configurable dans `SettingsAssociationPanel`. Vues cartes mobile sur **toutes les listes** via `AppMobileCardList` (générique `T`) + `useBreakpoints` : Factures client/fournisseur (historiques), Contacts, Banque (transactions + dépôts), Règlements, Caisse, Salaires (3 tables), Employés, Comptabilité (Comptes, Balance, Bilan, Résultat, Règles, Journal, Grand-livre), Exercices, Utilisateurs. Dialogs full-width mobile. Stat grid 2 colonnes mobile.
 
 </details>
 
