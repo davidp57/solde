@@ -683,7 +683,7 @@ html.dark-mode .dashboard-action-card__icon {
   gap: var(--app-space-2);
   border-left: 2px solid var(--app-surface-border);
   padding-left: var(--app-space-3);
-  flex-shrink: 0;
+  flex: 0 0 16rem;
 }
 
 .bank-pending-deposit-row__denom-line {
@@ -721,6 +721,7 @@ html.dark-mode .dashboard-action-card__icon {
     align-items: flex-start;
     flex-wrap: nowrap;
     gap: 0.15rem;
+    flex: 0 0 auto;
     min-width: 6.5rem;
   }
 
