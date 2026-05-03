@@ -30,7 +30,7 @@ class TestDefaultLimitIs1000:
                     amount=Decimal("10.00"),
                     balance_after=Decimal("10.00"),
                 )
-                for _ in range(101)
+                for _ in range(1001)
             ]
         )
         await db_session.commit()
@@ -38,7 +38,7 @@ class TestDefaultLimitIs1000:
         response = await client.get("/api/bank/transactions", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.json()) == 101
+        assert len(response.json()) == 1000
 
     @pytest.mark.asyncio
     async def test_invoices_default_limit(
@@ -63,7 +63,7 @@ class TestDefaultLimitIs1000:
                     paid_amount=Decimal("0.00"),
                     status=InvoiceStatus.SENT,
                 )
-                for i in range(1, 102)
+                for i in range(1, 1002)
             ]
         )
         await db_session.commit()
@@ -71,7 +71,7 @@ class TestDefaultLimitIs1000:
         response = await client.get("/api/invoices/", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.json()) == 101
+        assert len(response.json()) == 1000
 
 
 class TestLimitParamValidation:

@@ -83,7 +83,7 @@
           @blur="capitalizeFirstLetter(line)"
         />
         <input
-          :value="line.quantity || ''"
+          :value="line.quantity ?? ''"
           type="text"
           inputmode="decimal"
           :placeholder="t('invoices.line_qty')"
@@ -91,7 +91,7 @@
           @input="normalizeDecimalInput($event, line, 'quantity')"
         />
         <input
-          :value="line.unit_price || ''"
+          :value="line.unit_price ?? ''"
           type="text"
           inputmode="decimal"
           :placeholder="t('invoices.line_price')"
@@ -306,7 +306,7 @@ function normalizeDecimalInput(
   field: 'quantity' | 'unit_price',
 ) {
   const input = e.target as HTMLInputElement
-  const normalized = input.value.replace(',', '.')
+  const normalized = input.value.replace(/,/g, '.')
   if (normalized !== input.value) {
     const sel = input.selectionStart
     input.value = normalized
