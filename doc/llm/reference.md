@@ -62,6 +62,7 @@ Main sections:
 - **Comptabilité** — Journal, chart of accounts, accounting rules, ledger, balance sheet *(Comptable/Admin only)*
 - **Paramètres** — Application settings, users, fiscal years *(Admin only)*
 - **Administration** — System supervision, Excel import *(Admin only)*
+- **Aide** — User manual and release notes (all authenticated users)
 
 ---
 
@@ -70,11 +71,14 @@ Main sections:
 The dashboard shows:
 - Key financial indicators for the current fiscal year (income, expenses, balance)
 - A list of overdue or nearly-due client invoices
+- **Pending bank deposits** (bordereaux en attente) — a summary of deposits prepared but not yet confirmed is visible directly on the dashboard.
 - **Quick-action cards** (three tiles in the dashboard body):
   - **Nouvelle facture client** — opens the invoice creation dialog
   - **Nouveau paiement** — opens the payment recording dialog
   - **Nouvelle entrée de caisse** — opens the cash entry dialog
   Each card opens the corresponding inline creation dialog without leaving the dashboard.
+
+**List size:** all list screens default to showing 50 rows. A warning banner appears when a list exceeds 1 000 results, indicating that filters should be used to narrow down the data.
 
 ---
 
@@ -82,9 +86,11 @@ The dashboard shows:
 
 **What a contact is:** a person or organisation linked to invoices, payments, and cash movements. A contact can be a client, a supplier, both, or an employee.
 
-**Creating a contact:** click “Nouveau contact”. Only the name is required. Email is optional but required to send invoices by email. Up to 2 additional email addresses can be added in the “Adresses e-mail supplémentaires” section, each with a free-form label (e.g. “Comptabilité”, “Direction”).
+**Creating a contact:** click "Nouveau contact". Only the name is required. Email is optional but required to send invoices by email. Up to 2 additional email addresses can be added in the "Adresses e-mail supplémentaires" section, each with a free-form label (e.g. "autre parent", "comptabilité"). The contact form also has fields for the **child's first and last name** and the **other parent's first and last name** — used when the client is a family.
 
-**Editing a contact:** click the contact in the list, modify, save. Additional email addresses can be added, edited, or removed in the same form.
+**Editing a contact:** click the contact in the list, modify, save. Additional email addresses and child/parent fields can be added, edited, or removed in the same form.
+
+**Searching contacts:** the search bar filters by contact name, child name, and other parent name.
 
 **Blocking a client (client indésirable):** available for contacts of type “Client” or “Les deux” only. Activate the “Client indésirable” toggle and save. A red badge “Indésirable” appears in the contact list. Creating an invoice for a blocked contact is prevented — the Valider button is disabled in the form and the wizard stops at the contact selection step with an error. To unblock: deactivate the same toggle and save.
 
@@ -92,7 +98,7 @@ The dashboard shows:
 
 **Why can't I delete a contact?** Contacts that have invoices or payments linked to them cannot be deleted. Deactivate them instead.
 
-**Searching contacts:** use the search bar at the top of the contact list to filter by name or email.
+
 
 ---
 
@@ -122,8 +128,8 @@ The dashboard shows:
 The wizard creates and validates a client invoice in 3 steps, accessible from the dashboard or the "+ Facture rapide" button:
 
 1. **Step 1 — Contact**: select the client. If the contact is marked as "Indésirable" (blocked), creation is blocked at this step.
-2. **Step 2 — Lines**: add invoice lines (type, description, quantity, unit price). Prices are pre-filled from settings.
-3. **Step 3 — Confirmation**: the invoice is created and validated. The confirmation shows the invoice number and client name. Buttons available: "Envoyer par e-mail" (opens the email dialog without closing the wizard), "Nouvelle facture" (restart wizard), "Voir la facture" (open full record).
+2. **Step 2 — Lines**: add invoice lines (type, description, quantity, unit price). Prices are pre-filled from settings. The comma (`,`) is accepted as a decimal separator and is converted to a dot automatically. Service descriptions are auto-capitalised when moving to the next field.
+3. **Step 3 — Confirmation**: the invoice is created and validated. The confirmation shows the full contact name and the invoice number. Buttons available: "Envoyer par e-mail" (opens the email dialog without closing the wizard, showing an "E-mail envoyé" badge after sending), "Nouvelle facture" (restart wizard), "Voir la facture" (open full record).
 
 The wizard always creates invoices in "Validée" status — there is no draft step.
 
@@ -131,8 +137,8 @@ The wizard always creates invoices in "Validée" status — there is no draft st
 
 1. Click "Nouvelle facture" (from Factures menu or dashboard quick card).
 2. Select the contact (required). If the contact is blocked, the Valider button is disabled.
-3. Set the date. The due date is filled automatically based on the default delay configured in settings.
-4. Add invoice lines: choose the type (cours / adhésion / autre), enter a description, quantity, and unit price. Prices are pre-filled from defaults configured in settings.
+3. Set the date (pre-filled with today's date). The due date is filled automatically based on the default delay configured in settings.
+4. Add invoice lines: choose the type (cours / adhésion / autre), enter a description, quantity, and unit price. Prices are pre-filled from defaults. The comma (`,`) is accepted as a decimal separator.
 5. Save as draft (Enregistrer) or finalise (Valider).
 
 The invoice number is assigned automatically when the invoice is validated. It cannot be changed manually.
@@ -141,6 +147,7 @@ The invoice number is assigned automatically when the invoice is validated. It c
 
 - **Draft invoices** can be fully edited.
 - **Validated invoices**: the due date and notes can be modified, but the lines cannot.
+- **Editing is blocked** if the invoice has already been fully paid, or if it has been sent and a partial payment has been recorded.
 
 ### Deleting an invoice
 
@@ -187,7 +194,7 @@ The format is configured by an admin (e.g. `2026-001`, `F-2026-001`). The sequen
 1. Click "Nouveau paiement".
 2. Select the contact (optional if the invoice is known).
 3. Enter the amount, date, and reference (cheque number, transfer reference, etc.).
-4. Optionally link the payment to one or more invoices.
+4. Optionally link the payment to one or more invoices. The payment dialog shows the client name, description, total amount, and due date of each linkable invoice.
 5. Save.
 
 When a payment is linked to an invoice, the invoice status updates automatically.
@@ -204,7 +211,13 @@ A bank deposit groups several payments remitted to the bank at the same time (e.
 
 ## Supplier invoices
 
-Record invoices received from suppliers under Factures → Fournisseurs. The workflow is similar to client invoices. You can attach the supplier's PDF file.
+Record invoices received from suppliers under Factures → Fournisseurs.
+
+- New manually-created supplier invoices start in **"Envoyée"** status (not draft).
+- You can **attach the supplier's PDF or image** file to the record.
+- Clicking a supplier invoice opens a **preview dialog** showing: the payment history, a preview of the attached PDF or image, and previous/next navigation between invoices. The same preview is accessible from a contact's history tab.
+- A **"Enregistrer un règlement"** button is available directly in the invoice list and in the preview dialog.
+- Paying a supplier invoice **in cash** automatically generates a corresponding cash outflow in the Caisse module.
 
 ---
 
@@ -213,7 +226,8 @@ Record invoices received from suppliers under Factures → Fournisseurs. The wor
 The cash register tracks physical cash movements.
 
 - **Creating a movement:** click "Nouveau mouvement". Amount: positive = cash in, negative = cash out.
-- **Counting (comptage):** enter the physical amount counted. The app computes and displays the discrepancy.
+- **Counting (comptage):** enter the physical amount counted. Coins are entered as a single "Pièces (ferraille)" total field; the app computes and displays the discrepancy.
+- **Cash payments received from clients** (by cash) are entered into the cash register immediately when the payment is recorded. The corresponding cash outflow to the bank is only generated when the bank deposit is confirmed.
 - **Deleting a movement:** only possible if no validated accounting entry is linked to it.
 
 ---
@@ -230,7 +244,7 @@ The cash register tracks physical cash movements.
 
 ### Importing bank transactions
 
-Import an OFX file exported from your bank: click “Importer”, select the file, confirm. Exact duplicates are skipped automatically. Files with multiple bank accounts are rejected — ask the administrator.
+Import an OFX file exported from your bank: click "Importer", select the file, confirm. Exact duplicates are skipped automatically (no error, no duplicate entries). Files with multiple bank accounts are rejected with an explicit error message — ask the administrator to export a single-account file. The import source (OFX, Excel, CSV, QIF) is shown on each transaction row.
 
 ### Correcting a transaction category
 
@@ -264,7 +278,7 @@ Manage employees under Salaires → Employés. Create an employee with name, opt
 
 ### Salary slips
 
-Create a salary slip under Salaires → Fiches de salaire. Select the employee, the period (month/year), enter gross salary, employer contributions, employee contributions (and withholding tax), net pay. For CDD employees, entering hours automatically computes the gross (hours × hourly rate). The “Copier la fiche précédente” button pre-fills contributions from the previous month to save time. Validating a salary slip generates accounting entries automatically.
+Create a salary slip under Salaires → Fiches de salaire. Select the employee, the period (month/year), enter gross salary, employer contributions, employee contributions (and withholding tax), net pay. For CDD employees, entering hours automatically computes the gross (hours × hourly rate). The "Copier la fiche précédente" button pre-fills contributions from the previous month to save time. Validating a salary slip generates accounting entries automatically; those entries are **dated to the last day of the month** of the pay period.
 
 ---
 
@@ -309,15 +323,42 @@ Accessible by clicking the username in the top-right corner → Mon profil.
 
 ---
 
-## Settings (Paramètres) — Admin only
+## Help page (Aide)
 
+Accessible from the left sidebar → Aide. Available to all authenticated users.
+
+### Manual tab (Manuel)
+
+Displays the full user manual as formatted text. Section links in the table of contents scroll the page smoothly to the target section.
+
+### Release notes tab (Nouveautés)
+
+Displays the user-facing changelog: all user-visible changes grouped by version, then by role and functional domain. Users can check what changed in the latest version and in past versions.
+
+### Activity index by role (Guide par rôle)
+
+The end of the manual contains a **"Guide par rôle — Je veux…"** section: three tables (Secrétaire, Trésorier, Administrateur) listing common tasks with direct links to the corresponding manual section.
+
+### Internal notes (Ajouter une note)
+
+A **"Ajouter une note"** button on the Help page lets any authenticated user submit an internal note or remark to the administrators. Administrators can view all notes, mark them as resolved, or delete them from the Administration section.
+
+---
+
+## Settings (Paramètres)
+
+The settings page is accessible to all authenticated users:
+- **Gestionnaire (secrétaire) and Comptable (trésorier)**: read-only access — they can view the association information, invoice numbering, default prices, and SMTP status.
+- **Admin**: full read-write access to all settings.
+
+Available settings:
 - **Association information**: name, address, SIRET, logo — shown on invoices.
 - **Invoice numbering templates**: format of invoice numbers.
 - **Default due date**: days added to invoice date to auto-compute the due date.
 - **Default prices**: pre-filled unit prices by invoice line type.
 - **SMTP**: email sending configuration.
-- **Users**: create, edit, deactivate accounts; reset passwords.
-- **Fiscal years**: create and manage accounting periods.
+- **Users**: create, edit, deactivate accounts; reset passwords. *(Admin only)*
+- **Fiscal years**: create and manage accounting periods. *(Admin only)*
 
 ---
 
@@ -326,6 +367,10 @@ Accessible by clicking the username in the top-right corner → Mon profil.
 ### System supervision
 
 Located at Administration → Supervision système. Shows application version, database size, uptime, log viewer, and audit log.
+
+### Internal notes
+
+Administrators can view all internal notes submitted by users (via the Help page), mark them as resolved, or delete them.
 
 ### Excel import
 
@@ -385,6 +430,18 @@ The administrator or a developer can open a GitHub issue with details of the pro
 
 **Q: I can't see the Comptabilité menu.**
 A: Your role is Gestionnaire (secretaire). Only Comptable (tresorier) and Admin roles can access accounting.
+
+**Q: I can't see the Paramètres menu.**
+A: All authenticated users can access the Settings page in read-only mode. If a user cannot see it at all, it may be a navigation issue — ask them to look for "Paramètres" in the left sidebar. Only Admins can modify settings.
+
+**Q: Where can I see what's new in the application?**
+A: Open the Aide page from the sidebar, then click the "Nouveautés" tab. It lists all user-visible changes grouped by version.
+
+**Q: The table of contents links in the manual don't work.**
+A: The links should scroll the page smoothly to the relevant section. If they don't, try refreshing the page.
+
+**Q: I want to leave a note or remark for the admin.**
+A: Use the "Ajouter une note" button on the Aide page. The admin will see it in the Administration section.
 
 **Q: I can't send an invoice by email.**
 A: Either the contact has no email address (not even an additional one), or the SMTP server is not configured. Ask your administrator.
