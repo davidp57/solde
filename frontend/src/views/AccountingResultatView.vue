@@ -34,7 +34,7 @@
             :loading="loading"
             class="app-data-table"
             paginator
-            :rows="20"
+            :rows="50"
             :rows-per-page-options="[20, 50, 100, 500]"
             size="small"
           >
@@ -66,7 +66,7 @@
             :loading="loading"
             class="app-data-table"
             paginator
-            :rows="20"
+            :rows="50"
             :rows-per-page-options="[20, 50, 100, 500]"
             size="small"
           >

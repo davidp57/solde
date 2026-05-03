@@ -55,7 +55,7 @@ class TestListContacts:
         response = await client.get("/api/contacts/?search=dup", headers=auth_headers)
         assert len(response.json()) == 1
 
-    async def test_default_limit_is_100(
+    async def test_default_limit_is_1000(
         self,
         client: AsyncClient,
         auth_headers: dict,
@@ -69,7 +69,7 @@ class TestListContacts:
         response = await client.get("/api/contacts/", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.json()) == 100
+        assert len(response.json()) == 101
 
     async def test_limit_param_is_capped_at_1000(
         self,

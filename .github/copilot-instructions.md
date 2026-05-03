@@ -111,20 +111,37 @@ This avoids non-fast-forward push rejections. If a push is rejected, always use 
 
 Keep the following documents up to date with every significant change:
 
-| Document | Langue | Emplacement | Déclencheur |
+| Document | Language | Location | Trigger |
 |---|---|---|---|
-| `README.md` | **FR + EN** | root | Chaque release |
-| Documentation utilisateur | **FR + EN** | `doc/user/` | Fonctionnalité ajoutée ou modifiée |
-| Documentation d'installation / how-to | **FR + EN** | `doc/user/` ou root | Installation, exploitation ou premiers pas modifiés |
-| Documentation développeur | **EN** | `doc/dev/` | Architecture ou API modifiée |
-| Documentation technique historique | **Migration vers EN** | `doc/` | À traduire progressivement jusqu'à alignement complet |
-| `CHANGELOG.md` | **FR** | root | Chaque PR mergée vers `develop` |
-| Notes de release | **FR** | `doc/releases/` | Chaque release |
-| `doc/backlog.md` | **FR** | `doc/` | Ticket créé, avancé ou complété |
-| `doc/roadmap.md` | **EN à terme** | `doc/` | Lot complété, planifié ou repriorisé |
-| `doc/plan.md` | **EN à terme** | `doc/` | Décisions d'architecture mises à jour |
+| `README.md` | **FR + EN** | root | Every release |
+| User documentation | **FR + EN** | `doc/user/` | Feature added or modified |
+| Installation / how-to guides | **FR + EN** | `doc/user/` or root | Installation, deployment, or getting-started steps changed |
+| Developer documentation | **EN** | `doc/dev/` | Architecture or API changed |
+| Legacy technical documentation | **Migrating to EN** | `doc/` | Translate progressively until fully aligned |
+| `CHANGELOG.md` | **FR** | root | Every PR merged into `develop` |
+| `doc/user/changelog-user.md` | **FR** | `doc/user/` | Every user-visible feature or fix |
+| Release notes | **FR** | `doc/releases/` | Every release |
+| `doc/backlog.md` | **FR** | `doc/` | Ticket created, progressed, or completed |
+| `doc/roadmap.md` | **EN (in progress)** | `doc/` | Lot completed, planned, or reprioritised |
+| `doc/plan.md` | **EN (in progress)** | `doc/` | Architecture decisions updated |
 
-`CHANGELOG.md` suit le format **Keep a Changelog** (sections Unreleased → version).
+`CHANGELOG.md` follows the **Keep a Changelog** format (sections Unreleased → version).
+
+### Writing rules for `doc/user/changelog-user.md`
+
+`doc/user/changelog-user.md` is the **end-user changelog** (written in French). It must be kept in sync with `CHANGELOG.md` for every version, whether deployed or not.
+
+**Structure:**
+- One **chapter per version** (heading `## Version X.Y.Z — date` or `## Version X.Y *(à venir)*`).
+- Within each version, one **chapter per role** in this order: Tous les utilisateurs / Secrétaire / Trésorier / Administrateur. Only include a role if there are changes that affect it.
+- Within each role, one **sub-chapter per functional domain**.
+- A **bullet list** per sub-chapter.
+
+**Content:**
+- Only **user-visible** changes — no technical or internal details.
+- Language and wording must be **understandable by non-technical users** — no jargon (no "blur", "endpoint", "FITID", "migration", "async", etc.).
+- Sources: CHANGELOG.md, release notes, **and** git log + code review when needed to ensure completeness.
+- The actual application roles are: `readonly`, `secretaire`, `tresorier`, `admin`. Use their common French display names in the document (Secrétaire, Trésorier, Administrateur).
 
 ---
 
@@ -133,6 +150,18 @@ Keep the following documents up to date with every significant change:
 ### Development cycle
 
 1. **Analyse and create tickets** — add work items to `doc/backlog.md` (format: `BIZ-NNN` / `TEC-NNN` / `CHR-NNN` depending on category — see backlog legend, priorities P1–P3, dates, estimates, explicit status). Estimates represent **Copilot's own implementation time** (how long the AI agent takes to complete the work), not the user's time.
+
+   **Estimation formula:**
+   - Per ticket: estimate the raw implementation time, then **multiply by 1.15** (15% margin) and round to the nearest 5 minutes.
+   - Per lot header: sum of all ticket estimates (Copilot time) **+ 15 min user project management** (reviewing, approving, merging). Display as e.g. `~2h20 Copilot + 15 min gestion`.
+
+   **Tracking actuals and calibrating estimates:**
+   - **At the start of each ticket**: record the start time (`HH:MM`) in `/memories/session/timing.md`. Record the end time when the ticket is done. This start/end log is the source of truth for actual Copilot time per ticket.
+   - After completing each ticket, record the actual time in the backlog ticket row or detail section as `Réel: ~X min`.
+   - After each PR is merged, note the actual user time spent on review + merge. Record it on the lot row: `PR réelle: ~X min`.
+   - At the end of a lot, report actuals ticket by ticket in `doc/backlog.md` (in the `<details>` table) and in the Calibration table.
+   - After each completed lot, compare estimated vs actual totals. If the ratio differs from 1.15 by more than 20%, adjust the margin factor for future estimates and **explicitly inform the user** with a short message (in French, as per the language rules): e.g. "Note : le Lot CR a pris X min Copilot pour Y min estimés (ratio Z). J'ajuste le facteur de marge à 1.XX pour les prochains lots."
+   - Keep a running calibration note in `doc/backlog.md` under a `## Calibration estimations` section (create it if absent), updated after every completed lot.
 2. **Feed the roadmap when relevant** — if a ticket represents a new feature, major initiative, innovative idea, or strategic shift, also add it to `doc/roadmap.md` under "Not yet planned".
 3. **Group tickets into lots** — related backlog items are bundled into named lots (e.g. *Lot A — Import Excel*, *Lot F — Tests*). Each lot is identified in the backlog.
 4. **Assign a target version** — agree on a version (`MAJOR.MINOR`, no patch level) per lot. **Every versioned lot must appear in the roadmap**: functional lots get a subsection with detail, technical lots get a one-line summary.
@@ -145,6 +174,7 @@ Keep the following documents up to date with every significant change:
 - `doc/backlog.md` and `doc/roadmap.md` must be **kept up to date at all times**: coherent content, correct dates, accurate statuses and priorities, proper lot grouping, zero markdown formatting errors.
 - `CHANGELOG.md` reflects **shipped work**; `doc/backlog.md` reflects **planned and in-progress work** — no item should live in both as active.
 - `doc/roadmap.md` contains **every versioned lot** from the backlog. Functional lots are detailed (one subsection per feature); technical lots are kept to a one-line summary.
+- `doc/user/changelog-user.md` must stay in sync with `CHANGELOG.md` for every version: every user-visible change in `CHANGELOG.md` must have a corresponding entry in `changelog-user.md`, written in plain French for non-technical users.
 
 ### Backlog management
 
@@ -181,8 +211,9 @@ After every change (feature, fix, refactor):
 2. Run the full quality gate (see **Quality control** section above) — all green
 3. Verify zero errors in VS Code
 4. Update `CHANGELOG.md` (`[Non publié]` section)
-5. Update `doc/backlog.md` if the change closes or advances a ticket
-6. **Increment the patch version** in `pyproject.toml` and `frontend/package.json` (e.g. `0.7.12` → `0.7.13`)
+5. If the change is visible to end users, add or update the corresponding entry in `doc/user/changelog-user.md` (under the current version's chapter, grouped by role then domain)
+6. Update `doc/backlog.md` if the change closes or advances a ticket
+7. **Increment the patch version** in `pyproject.toml` and `frontend/package.json` (e.g. `0.7.12` → `0.7.13`)
 
 ---
 
@@ -201,6 +232,7 @@ When asked to create a release, follow these steps **in order**:
    - Update `pyproject.toml` (backend version)
    - Update `package.json` (frontend version)
    - Move CHANGELOG `Unreleased` section to the new version with today's date
+   - Stamp the version and date on the corresponding chapter in `doc/user/changelog-user.md` (replace `*(à venir)*` with the release date)
    - Create French release notes in `doc/releases/vX.Y.Z.md`
    - Commit: `chore(release): bump version to X.Y.Z`
 6. **Determine the PR target**:

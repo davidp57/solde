@@ -13,6 +13,47 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
+## [1.4.0] — 2026-05-03
+
+### Ajouté
+- **BIZ-161** — Onglet « Nouveautés » dans la page Aide : endpoint `GET /api/help/changelog`, affichage du changelog utilisateur rendu en Markdown
+- **BIZ-163** — Guide par rôle « Je veux… » ajouté en fin de `doc/user/manuel.md` (index des activités par rôle avec liens vers les sections)
+- **BIZ-158** — Limite API relevée à 1 000 éléments par défaut sur `invoice`, `payment`, `contact`, `bank transactions`, `bank deposits`, `salary` (anciennement 100) ; bandeau d'avertissement PrimeVue `warn` affiché dans chaque vue liste quand le résultat atteint 1 000 items
+
+### Corrigé
+- **TEC-156** — Assistant IA : token d'authentification lu depuis le store Pinia (mémoire) au lieu de `localStorage` — corrige le 401 systématique sur `POST /api/chat`
+
+### Amélioré
+- **BIZ-162** — Liens d'ancre dans le manuel en ligne : intercepteur de clics dans `HelpView.vue` pour défilement fluide vers les sections cibles
+- **BIZ-149** — Auto-capitalisation de la première lettre des intitulés de lignes de facture client au `blur` (déjà implémentée — ticket fermé)
+- **BIZ-150** — Champs quantité et prix unitaire dans `ClientInvoiceForm` acceptent désormais la virgule comme séparateur décimal (normalisée en point à la saisie)
+- **BIZ-157** — Pagination des DataTables : 50 lignes affichées par défaut (anciennement 20) dans toutes les vues de liste
+
+---
+
+## [1.3.1] — 2026-05-02
+
+### Sécurité
+
+- **TEC-133** — Access token stocké uniquement en mémoire Pinia (suppression de `localStorage`) ; au rechargement, la session est restaurée silencieusement via `POST /api/auth/refresh` (cookie HttpOnly) — atténuation XSS
+- **TEC-135** — Race condition sur la numérotation des factures : retry loop sur `IntegrityError` (jusqu'à 3 tentatives) pour garantir l'unicité sans verrou explicite
+
+### Corrigé
+
+- **TEC-134** — `record_audit()` appelé avant `await db.commit()` dans `update_user` — atomicité audit/modification restaurée
+- **TEC-136** — Chemins de fichiers factures stockés en relatif en base ; résolution absolue uniquement à la lecture
+- **TEC-137** — Payload JWT décodé une seule fois dans le middleware et mis en cache dans `request.state.jwt_payload` ; `get_current_user` le réutilise sans second décodage
+- **TEC-138** — Rate limiter : purge périodique des clés expirées toutes les 100 tentatives pour borner l'empreinte mémoire
+- **TEC-139** — Tokens OpenAI correctement comptabilisés en mode streaming (`stream_options={"include_usage": True}`)
+- **TEC-140** — `GET /api/settings/audit-logs` : pagination (`skip`/`limit`) et filtres (`action`, `actor_id`, `from_date`, `to_date`)
+- **TEC-155** — Suppression des 13 `# type: ignore[return-value]` dans `backend/routers/invoice.py` (annotations corrigées)
+
+### Technique
+
+- **TEC-141** — Constante `USER_ROLES` (`frontend/src/constants/roles.ts`) : source unique pour les chaînes de rôles côté frontend
+
+---
+
 ## [1.3.0] — 2026-05-02
 
 ### Ajouté

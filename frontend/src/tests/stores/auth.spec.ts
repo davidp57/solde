@@ -28,7 +28,6 @@ const mockTokens = {
 describe('useAuthStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    localStorage.removeItem('access_token')
     sessionStorage.removeItem('dev_auto_login_suppressed')
     mockLoginApi.mockReset()
     mockRefreshApi.mockReset()
@@ -40,7 +39,7 @@ describe('useAuthStore', () => {
     vi.unstubAllEnvs()
   })
 
-  it('has correct initial state when localStorage is empty', () => {
+  it('has correct initial state', () => {
     const store = useAuthStore()
     expect(store.accessToken).toBeNull()
     expect(store.user).toBeNull()
@@ -104,14 +103,14 @@ describe('useAuthStore', () => {
     expect(store.loading).toBe(false)
   })
 
-  it('login success persists tokens to localStorage', async () => {
+  it('login success does NOT persist token to localStorage (XSS mitigation)', async () => {
     mockLoginApi.mockResolvedValueOnce(mockTokens)
     mockGetMeApi.mockResolvedValueOnce(mockUser)
 
     const store = useAuthStore()
     await store.login('admin', 'password')
 
-    expect(localStorage.getItem('access_token')).toBe(mockTokens.access_token)
+    expect(localStorage.getItem('access_token')).toBeNull()
   })
 
   it('login failure sets error and clears tokens', async () => {
@@ -126,18 +125,16 @@ describe('useAuthStore', () => {
     expect(store.loading).toBe(false)
   })
 
-  it('logout clears state and localStorage', () => {
+  it('logout clears auth state', () => {
     mockLogoutApi.mockResolvedValueOnce(undefined)
     const store = useAuthStore()
     store.accessToken = mockTokens.access_token
     store.user = mockUser
-    localStorage.setItem('access_token', mockTokens.access_token)
 
     store.logout()
 
     expect(store.accessToken).toBeNull()
     expect(store.user).toBeNull()
-    expect(localStorage.getItem('access_token')).toBeNull()
   })
 
   it('manual logout suppresses dev auto login for the current session', async () => {
@@ -155,13 +152,25 @@ describe('useAuthStore', () => {
     expect(mockLoginApi).not.toHaveBeenCalled()
   })
 
-  it('initFromStorage restores access token from localStorage', () => {
-    localStorage.setItem('access_token', mockTokens.access_token)
+  it('initFromRefreshCookie restores session from cookie', async () => {
+    mockRefreshApi.mockResolvedValueOnce(mockTokens)
+    mockGetMeApi.mockResolvedValueOnce(mockUser)
 
     const store = useAuthStore()
-    store.initFromStorage()
+    await store.initFromRefreshCookie()
 
     expect(store.accessToken).toBe(mockTokens.access_token)
+    expect(store.user).toEqual(mockUser)
+  })
+
+  it('initFromRefreshCookie does nothing when cookie is absent', async () => {
+    mockRefreshApi.mockRejectedValueOnce(new Error('no cookie'))
+
+    const store = useAuthStore()
+    await store.initFromRefreshCookie()
+
+    expect(store.accessToken).toBeNull()
+    expect(store.user).toBeNull()
   })
 
   it('refreshAccessToken updates accessToken on success', async () => {
@@ -176,7 +185,6 @@ describe('useAuthStore', () => {
 
     expect(result).toBe(true)
     expect(store.accessToken).toBe(newAccess)
-    expect(localStorage.getItem('access_token')).toBe(newAccess)
   })
 
   it('refreshAccessToken calls logout on failure', async () => {
