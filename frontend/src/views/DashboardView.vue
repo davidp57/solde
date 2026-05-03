@@ -670,7 +670,6 @@ html.dark-mode .dashboard-action-card__icon {
 .bank-pending-deposit-row__amount {
   font-weight: 700;
   font-size: 0.82rem;
-  padding-top: 0.25rem;
   text-align: left;
   color: var(--p-green-500);
   white-space: nowrap;
@@ -678,12 +677,12 @@ html.dark-mode .dashboard-action-card__icon {
 
 .bank-pending-deposit-row__denom {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.15rem;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
   border-left: 2px solid var(--app-surface-border);
   padding-left: var(--app-space-3);
-  min-width: 6.5rem;
   flex-shrink: 0;
 }
 
@@ -715,6 +714,18 @@ html.dark-mode .dashboard-action-card__icon {
   .bank-pending-deposit-row__btn :deep(.p-button) {
     width: 100%;
     justify-content: center;
+  }
+
+  .bank-pending-deposit-row__denom {
+    flex-direction: column;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+    min-width: 6.5rem;
+  }
+
+  .bank-pending-deposit-row__amount {
+    padding-top: 0.25rem;
   }
 }
 </style>
