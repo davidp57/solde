@@ -76,6 +76,57 @@
         {{ t('common.api_limit_warning') }}
       </Message>
       <AppTableSkeleton v-if="loading && !contacts.length" :rows="8" :cols="5" />
+      <template v-else-if="isMobile">
+        <AppMobileCardList :items="contactRows" :empty-message="t('contacts.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <div style="display:flex;align-items:center;gap:0.4rem">
+                <span class="app-mobile-card-value" style="font-weight:700">{{ data.nom }} {{ data.prenom }}</span>
+                <Tag v-if="data.blocked" :value="t('contacts.blocked_badge')" severity="danger" />
+              </div>
+              <Tag :value="t(`contacts.types.${data.type}`)" :severity="typeSeverity(data.type)" />
+            </div>
+            <div v-if="data.email" class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('contacts.email') }} :</span>
+              <span class="app-mobile-card-value">{{ data.email }}</span>
+            </div>
+            <div v-if="data.telephone" class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('contacts.telephone') }} :</span>
+              <span class="app-mobile-card-value">{{ data.telephone }}</span>
+            </div>
+            <div v-if="data.last_invoice_ref" class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('contacts.last_invoice') }} :</span>
+              <span class="app-mobile-card-value">{{ data.last_invoice_ref }} &mdash; {{ formatDisplayDate(data.last_invoice_date) }}</span>
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                icon="pi pi-history"
+                size="small"
+                severity="info"
+                text
+                :title="t('contact_history.title')"
+                @click="openHistoryDialog(data.id)"
+              />
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('contacts.edit')"
+                @click="openEditDialog(data)"
+              />
+              <Button
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                text
+                :title="t('common.delete')"
+                @click="confirmDelete(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
         v-else
         v-model:filters="tableFilters"
@@ -366,6 +417,7 @@ import { computed, onMounted, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
+import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
@@ -378,6 +430,7 @@ import ContactForm from '@/components/ContactForm.vue'
 import ContactHistoryDialog from '@/components/ContactHistoryDialog.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 import {
   collectActiveFilterLabels,
 } from '../composables/activeFilterLabels'
@@ -385,6 +438,7 @@ import { inFilter, textFilter, useDataTableFilters } from '../composables/useDat
 import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const toast = useToast()
 

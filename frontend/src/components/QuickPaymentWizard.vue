@@ -167,7 +167,7 @@ import Textarea from 'primevue/textarea'
 import AppDatePicker from './ui/AppDatePicker.vue'
 import { listInvoicesApi, type Invoice } from '../api/invoices'
 import { listContactsApi, type Contact } from '../api/contacts'
-import { createPayment } from '../api/payments'
+import { createPayment, suggestChequeNumber } from '../api/payments'
 import { remainingForInvoice, isOverdueInvoice } from '../composables/useInvoiceMetrics'
 import { formatContactDisplayName } from '../utils/contact'
 
@@ -273,6 +273,11 @@ function selectInvoice(invoice: Invoice) {
     reference: '',
     notes: '',
   }
+  void suggestChequeNumber().then((n) => {
+    if (form.value.method === 'cheque' && !form.value.cheque_number) {
+      form.value.cheque_number = n
+    }
+  })
   step.value = 2
 }
 

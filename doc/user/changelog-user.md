@@ -4,6 +4,34 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.4.3 *(à venir)*
+
+### Tous les utilisateurs
+
+#### Saisie des règlements
+- Lorsque le mode de paiement **chèque** est sélectionné, le numéro de chèque est **suggéré automatiquement** au format `AAAAMMJJ.NN` (exemple : `20260504.01`). Le numéro reste modifiable avant validation.
+
+### Administrateur
+
+#### Paramètres
+- Le **modèle de numérotation des chèques** est configurable dans les réglages (section Règlements). Par défaut : `{date}.{seq}` — les variables `{date}` et `{seq}` sont décrites dans l'aide en ligne.
+
+---
+
+## Version 1.4.2 *(à venir)*
+
+### Tous les utilisateurs
+
+#### Mode téléphone
+- Les principales listes (factures client et fournisseur, contacts, transactions bancaires, dépôts, règlements, caisse) s'affichent en **vue cartes** sur les petits écrans, plus lisibles que les tableaux.
+- Les fenêtres de dialogue s'adaptent automatiquement à la largeur de l'écran sur mobile.
+- Les **cartes de synthèse** (indicateurs chiffrés) s'affichent sur **2 colonnes** sur mobile.
+
+#### Tableau de bord — Dépôts en attente
+- Les détails du contenu d'un dépôt espèces (détail des coupures) sont affichés directement sur chaque dépôt en attente.
+
+---
+
 ## Version 1.4.0 — 3 mai 2026
 
 ### Tous les utilisateurs
