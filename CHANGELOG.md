@@ -9,7 +9,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
-## [Non publié]
+## [1.4.0] — 2026-05-03
 
 ### Ajouté
 - **BIZ-161** — Onglet « Nouveautés » dans la page Aide : endpoint `GET /api/help/changelog`, affichage du changelog utilisateur rendu en Markdown
