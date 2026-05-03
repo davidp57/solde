@@ -137,6 +137,12 @@ Keep the following documents up to date with every significant change:
    **Estimation formula:**
    - Per ticket: estimate the raw implementation time, then **multiply by 1.15** (15% margin) and round to the nearest 5 minutes.
    - Per lot header: sum of all ticket estimates (Copilot time) **+ 15 min user project management** (reviewing, approving, merging). Display as e.g. `~2h20 Copilot + 15 min gestion`.
+
+   **Tracking actuals and calibrating estimates:**
+   - After completing each ticket, note the actual Copilot time spent (visible from session context or elapsed conversation time). Record it in the backlog ticket row or detail section as `Réel: ~X min`.
+   - After each PR is merged, note the actual user time spent on review + merge. Record it as a comment on the lot row: `PR réelle: ~X min`.
+   - After each completed lot, compare estimated vs actual totals. If the ratio differs from 1.15 by more than 20%, adjust the margin factor for future estimates and **explicitly inform the user** with a short message: e.g. "Note : le Lot CR a pris X min Copilot pour Y min estimés (ratio Z). J'ajuste le facteur de marge à 1.XX pour les prochains lots."
+   - Keep a running calibration note in `doc/backlog.md` under a `## Calibration estimations` section (create it if absent), updated after every completed lot.
 2. **Feed the roadmap when relevant** — if a ticket represents a new feature, major initiative, innovative idea, or strategic shift, also add it to `doc/roadmap.md` under "Not yet planned".
 3. **Group tickets into lots** — related backlog items are bundled into named lots (e.g. *Lot A — Import Excel*, *Lot F — Tests*). Each lot is identified in the backlog.
 4. **Assign a target version** — agree on a version (`MAJOR.MINOR`, no patch level) per lot. **Every versioned lot must appear in the roadmap**: functional lots get a subsection with detail, technical lots get a one-line summary.
