@@ -78,7 +78,30 @@
           <AppStatCard :label="t('accounting.journal.title')" :value="ledger.entries.length" />
         </section>
 
+        <template v-if="isMobile">
+          <AppMobileCardList :items="ledgerRows" :empty-message="t('accounting.ledger.empty')">
+            <template #card="{ item: data }">
+              <div class="app-mobile-card-row app-mobile-card-row--between">
+                <span class="app-mobile-card-value">{{ formatDisplayDate(data.date) }}</span>
+                <span class="app-mobile-card-value">
+                  <span v-if="data.debit !== '0.00'">{{ data.debit }} D</span>
+                  <span v-else-if="data.credit !== '0.00'">{{ data.credit }} C</span>
+                </span>
+              </div>
+              <div class="app-mobile-card-row">
+                <span class="app-mobile-card-label">{{ data.entry_number }}</span>
+                <span class="app-mobile-card-value">{{ data.label }}</span>
+              </div>
+              <div class="app-mobile-card-row app-mobile-card-row--between">
+                <span class="app-mobile-card-label">{{ t('accounting.balance.solde') }}</span>
+                <span class="app-mobile-card-value" style="font-weight:600">{{ formatAccountingAmount(data.running_balance_value) }}</span>
+              </div>
+            </template>
+          </AppMobileCardList>
+        </template>
+
         <DataTable
+          v-else
           v-model:filters="tableFilters"
           :value="ledgerRows"
           :loading="loading"
@@ -208,6 +231,7 @@ import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import { getLedgerApi, listAccountsApi, type AccountingAccount, type LedgerRead } from '../api/accounting'
 import {
@@ -216,10 +240,12 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatAccountingAmount, formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const fiscalYearStore = useFiscalYearStore()
 
 const ledger = ref<LedgerRead | null>(null)

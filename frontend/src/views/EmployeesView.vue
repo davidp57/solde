@@ -51,6 +51,55 @@
       </div>
 
       <AppTableSkeleton v-if="loading && !employees.length" :rows="6" :cols="4" />
+      <template v-else-if="isMobile">
+        <AppMobileCardList :items="employeeRows" :empty-message="t('employees.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight:700">{{ data.nom }}<template v-if="data.prenom"> {{ data.prenom }}</template></span>
+              <Tag
+                :value="data.is_active ? t('common.active') : t('common.inactive')"
+                :severity="data.is_active ? 'success' : 'secondary'"
+              />
+            </div>
+            <div v-if="data.email" class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('employees.email') }} :</span>
+              <span class="app-mobile-card-value">{{ data.email }}</span>
+            </div>
+            <div v-if="data.telephone" class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('employees.telephone') }} :</span>
+              <span class="app-mobile-card-value">{{ data.telephone }}</span>
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('employees.edit')"
+                @click="openEditDialog(data)"
+              />
+              <Button
+                v-if="data.is_active"
+                icon="pi pi-ban"
+                size="small"
+                severity="warn"
+                text
+                :title="t('employees.confirm_deactivate', { nom: data.nom })"
+                @click="confirmToggleActive(data)"
+              />
+              <Button
+                v-else
+                icon="pi pi-check-circle"
+                size="small"
+                severity="success"
+                text
+                :title="t('employees.confirm_reactivate', { nom: data.nom })"
+                @click="confirmToggleActive(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
         v-else
         v-model:filters="tableFilters"
@@ -354,10 +403,13 @@ import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
+import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
 import { textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
+import { useBreakpoints } from '../composables/useBreakpoints'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const toast = useToast()
 

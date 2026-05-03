@@ -28,7 +28,21 @@
     <div v-else-if="bilan" class="bilan-grid">
       <!-- Actif -->
       <AppPanel :title="t('bilan.actif')" dense>
+        <template v-if="isMobile">
+          <AppMobileCardList :items="bilan.actif" :empty-message="t('bilan.empty')">
+            <template #card="{ item: data }">
+              <div class="app-mobile-card-row app-mobile-card-row--between">
+                <span class="app-mobile-card-value" style="font-weight:700">{{ data.account_number }}</span>
+                <span class="app-mobile-card-value" style="font-weight:600">{{ formatAccountingAmount(data.solde) }} €</span>
+              </div>
+              <div class="app-mobile-card-row">
+                <span class="app-mobile-card-value">{{ data.account_label }}</span>
+              </div>
+            </template>
+          </AppMobileCardList>
+        </template>
         <DataTable
+          v-else
           :value="bilan.actif"
           class="app-data-table"
           striped-rows
@@ -60,7 +74,21 @@
 
       <!-- Passif -->
       <AppPanel :title="t('bilan.passif')" dense>
+        <template v-if="isMobile">
+          <AppMobileCardList :items="bilan.passif" :empty-message="t('bilan.empty')">
+            <template #card="{ item: data }">
+              <div class="app-mobile-card-row app-mobile-card-row--between">
+                <span class="app-mobile-card-value" style="font-weight:700">{{ data.account_number }}</span>
+                <span class="app-mobile-card-value" style="font-weight:600">{{ formatAccountingAmount(data.solde) }} €</span>
+              </div>
+              <div class="app-mobile-card-row">
+                <span class="app-mobile-card-value">{{ data.account_label }}</span>
+              </div>
+            </template>
+          </AppMobileCardList>
+        </template>
         <DataTable
+          v-else
           :value="bilan.passif"
           class="app-data-table"
           striped-rows
@@ -110,15 +138,18 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import Select from 'primevue/select'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import { getBilanApi, getExportCsvUrl } from '../api/accounting'
 import type { BilanRead } from '../api/accounting'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { formatAccountingAmount } from '../utils/format'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const fiscalYearStore = useFiscalYearStore()
 
 const bilan = ref<BilanRead | null>(null)

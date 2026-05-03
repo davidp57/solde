@@ -20,6 +20,35 @@
         {{ t('dashboard.payment_wizard.invoice_empty') }}
       </div>
 
+      <template v-else-if="isMobile">
+        <AppMobileCardList :items="invoiceRows" :empty-message="t('dashboard.payment_wizard.invoice_empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight:700">{{ data.number }}</span>
+              <span
+                class="app-mobile-card-value"
+                :class="data.overdue ? 'qpw-overdue' : ''"
+                style="font-weight:600"
+              >{{ data.remaining.toFixed(2) }} €</span>
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-value">{{ data.contact_name }}</span>
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('dashboard.payment_wizard.col_date') }} :</span>
+              <span class="app-mobile-card-value">{{ formatDate(data.date) }}</span>
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                :label="t('dashboard.payment_wizard.choose')"
+                size="small"
+                @click="selectInvoice(data.raw)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
+
       <DataTable
         v-else
         :value="invoiceRows"
@@ -165,16 +194,19 @@ import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import AppDatePicker from './ui/AppDatePicker.vue'
+import AppMobileCardList from './ui/AppMobileCardList.vue'
 import { listInvoicesApi, type Invoice } from '../api/invoices'
 import { listContactsApi, type Contact } from '../api/contacts'
 import { createPayment, suggestChequeNumber } from '../api/payments'
 import { remainingForInvoice, isOverdueInvoice } from '../composables/useInvoiceMetrics'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { formatContactDisplayName } from '../utils/contact'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (e: 'update:visible', v: boolean): void }>()
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 
 // ── state ──────────────────────────────────────────────────────────────────
 const step = ref<1 | 2 | 3>(1)

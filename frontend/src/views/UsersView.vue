@@ -70,7 +70,44 @@
         </div>
       </div>
 
+      <template v-if="isMobile">
+        <AppMobileCardList :items="userRows" :empty-message="t('users.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight:700">{{ data.username }}</span>
+              <Tag :value="roleLabel(data.role)" :severity="roleSeverity(data.role)" />
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-value">{{ data.email }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <Tag
+                :value="data.is_active ? t('users.status_values.active') : t('users.status_values.inactive')"
+                :severity="data.is_active ? 'success' : 'contrast'"
+              />
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                @click="openEditDialog(data)"
+              />
+              <Button
+                icon="pi pi-key"
+                size="small"
+                severity="secondary"
+                text
+                :disabled="data.id === auth.user?.id"
+                @click="openResetDialog(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
+        v-else
         v-model:filters="tableFilters"
         :value="userRows"
         :loading="loading"
@@ -384,6 +421,7 @@ import { useToast } from 'primevue/usetoast'
 import AppDateRangeFilter from '@/components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
+import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
@@ -398,6 +436,7 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
+import { useBreakpoints } from '../composables/useBreakpoints'
 
 interface CreateUserForm {
   username: string
@@ -427,6 +466,7 @@ interface ApiErrorDetail {
 }
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const toast = useToast()
 const auth = useAuthStore()
 
