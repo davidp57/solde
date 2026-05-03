@@ -23,6 +23,7 @@
 | **1.3** | Supplier invoice preview, cash count UX, dashboard deposits, multi-email contacts, blocked client, supplier cash payments | ✅ Released 2026-05-02 |
 | **1.3.1** | Lot CR — security & code quality fixes | ✅ Released 2026-05-02 |
 | **1.4** | Lot UI — UX & API improvements | ⬜ Planned |
+| **1.5** | Lot DOC — User documentation improvements | ⬜ Planned |
 
 Test suite: **1011 backend + 131 frontend Vitest — 0 failures.**
 
@@ -304,6 +305,19 @@ Introduce explicit multi-account support to distinguish current account and savi
 ### CHR-078 — English i18n skeleton
 
 Create `en.ts` with structural keys to prepare English localisation.
+
+---
+
+## v1.5 — Lot DOC — User documentation improvements
+
+### BIZ-161 — Changelog utilisateur dans la page Aide
+Rendre `doc/user/changelog-user.md` accessible depuis la page `/aide` via un onglet « Nouveautés » ou une section dédiée. Endpoint backend `GET /api/help/changelog`, rendu HTML côté Vue.
+
+### BIZ-162 — Liens fonctionnels dans le manuel en ligne
+Corriger la résolution des ancres et liens relatifs dans le rendu Markdown du manuel sur `/aide`, de façon que les liens internes (`#section`) et les liens entre pages du manuel fonctionnent.
+
+### BIZ-163 — Index des activités dans le manuel (« en tant que… »)
+Ajouter une section d'index dans le manuel utilisateur listant les cas d'usage par rôle (secrétaire, trésorier, administrateur) sous la forme « En tant que X, je veux… » avec des liens vers les sections correspondantes.
 
 ---
 

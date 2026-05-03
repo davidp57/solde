@@ -9,15 +9,25 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Calibration estimations
 
-Facteur de marge actuel : **1,15** (15%).
+Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dessous).
 
 | Lot | Estimé Copilot | Réel Copilot | Ratio | Estimé gestion | Réel gestion | Ajustement |
 | --- | --- | --- | --- | --- | --- | --- |
-| *(à remplir après chaque lot terminé)* | | | | | | |
+| UI | ~65 min | ~30 min | **0,46** | 15 min | ? | ↓ facteur → 1,00 |
+
+> Lot UI : estimations 2x trop élevées. Les tickets UI/bulk-replace et les vérifications de tickets "déjà fait" ont été surestimés. Pour les prochains lots, utiliser les réels de ce lot comme calibration : bulk-replace ~3 min, ajout d’une fonction simple ~7 min, mise à jour de N routeurs/vues ~18 min.
 
 ---
 
 ## Lots actifs
+
+### Lot DOC — Documentation utilisateur · v1.5 · ~115 min Copilot + 15 min gestion
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| BIZ-161 | Changelog utilisateur dans la page Aide | P2 | ~35 min | 2026-05-03 | | |
+| BIZ-162 | Liens fonctionnels dans le manuel en ligne | P2 | ~25 min | 2026-05-03 | | |
+| BIZ-163 | Index des activités dans le manuel (« en tant que… ») | P2 | ~55 min | 2026-05-03 | | |
 
 ### Hors lots
 
@@ -39,52 +49,78 @@ Décisions métier nécessaires avant implémentation.
 
 Créer `en.ts` avec les clés structurelles pour préparer la localisation anglaise.
 
+### BIZ-161 — Changelog utilisateur dans la page Aide
+
+Rendre `doc/user/changelog-user.md` accessible depuis la page `/aide` : onglet « Nouveautés »
+ou section dédiée. Servir le fichier via un endpoint backend (ex. `GET /api/help/changelog`)
+et afficher le rendu HTML côté Vue, à l'image du manuel.
+
+### BIZ-162 — Liens fonctionnels dans le manuel en ligne
+
+Les liens internes (ancres `#section`) et les liens vers d'autres pages du manuel ne fonctionnent
+pas dans la vue rendue sur `/aide`. Corriger la résolution des ancres et des liens relatifs dans
+`HelpView.vue` (ou le composant de rendu Markdown).
+
+### BIZ-163 — Index des activités dans le manuel (« en tant que… »)
+
+Ajouter une section ou une page d'index dans le manuel utilisateur qui liste les cas d'usage
+par rôle, sous la forme « En tant que secrétaire, je veux… » avec des liens pointant vers
+les sections correspondantes du manuel. Inclure : secrétaire, trésorier, administrateur.
+
 ---
 
 ## Lots terminés
 
-| Lot | Nom | Version | Tickets | Terminé |
-| --- | --- | --- | --- | --- |
-| 1 | Quick wins P3 | v0.2 | CHR-064, CHR-062, TEC-066, TEC-063 | 2026-04-22 |
-| 2 | Tests au vert | v0.2 | TEC-048 | 2026-04-22 |
-| 3 | Sécurité sans impact structurel | v0.2 | TEC-047, TEC-052, TEC-055, TEC-060, TEC-051 | 2026-04-22 |
-| 4 | Qualité backend sans impact API | v0.2 | TEC-065, TEC-057, TEC-059 | 2026-04-22 |
-| 5 | Sécurité auth (full-stack) | v0.2 | TEC-045, BIZ-053, TEC-046 | 2026-04-22 |
-| 6 | DevOps Docker | v0.2 | CHR-054, CHR-061 | 2026-04-22 |
-| 7 | Refactoring structurel | v0.2 | TEC-050, TEC-058 | 2026-04-22 |
-| 8 | Chantiers longs | v0.2 | BIZ-056, TEC-049 | 2026-04-22 |
-| A | Backend rapide | v0.3 | TEC-085 | 2026-04-23 |
-| B | UX quick wins | v0.3 | BIZ-070, BIZ-072, BIZ-074, BIZ-084, BIZ-042 | 2026-04-23 |
-| C | Dashboard interactif | v0.3 | BIZ-075, BIZ-073 | 2026-04-23 |
-| D | Polish UI | v0.3 | BIZ-071, BIZ-043 | 2026-04-23 |
-| F | Tests | v0.4 | TEC-079, TEC-080, TEC-081 | 2026-04-24 |
-| G | Refactoring frontend | v0.5 | TEC-077 | 2026-04-24 |
-| I | Polish UI & contacts | v0.5 | BIZ-035, BIZ-037, CHR-038, BIZ-040 | 2026-04-24 |
-| J | CI GitHub Actions | v0.5 | CHR-086, CHR-087 | 2026-04-24 |
-| K | Documentation & Swagger | v0.5 | CHR-019, CHR-082 | 2026-04-24 |
-| L | Gestion employés | v0.6 | BIZ-088 | 2026-04-25 |
-| M | Sécurité applicative | v0.6 | TEC-091, TEC-092, TEC-093 | 2026-04-25 |
-| N | UX & formulaires | v0.7 | BIZ-094, BIZ-095, BIZ-096, BIZ-097 | 2026-04-25 |
-| Q | Recette post-merge N | v0.7 | voir doc/recette.md (REC-001..REC-015) | 2026-04-26 |
-| R | Supervision système & audit | v0.8 | BIZ-108, BIZ-109 | 2026-04-26 |
-| O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-26 |
-| P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-26 |
-| S | Documentation & i18n | v0.8 | TEC-106, CHR-021, CHR-020, CHR-079 | 2026-04-27 |
-| T | Chatbot IA + refactor Paramètres | v1.0 | BIZ-125, BIZ-126 | 2026-04-27 |
-| H-UX | Améliorations UX (lot H) | v1.1 | settings gestionnaires, dialogue paiement, champs famille contacts, date facture, commentaires, PDF règlement, verrou édition | 2026-04-28 |
-| I-BNK | UX Banque | v1.2 | BIZ-133, BIZ-134, BIZ-135, BIZ-136, BIZ-137 | 2026-05-01 |
-| Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 |
-| CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 |
-| UI | Améliorations UI & saisie | v1.4 | BIZ-149, BIZ-150, BIZ-157, BIZ-158 | 2026-05-03 |
+| Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Quick wins P3 | v0.2 | CHR-064, CHR-062, TEC-066, TEC-063 | 2026-04-22 | — | — |
+| 2 | Tests au vert | v0.2 | TEC-048 | 2026-04-22 | — | — |
+| 3 | Sécurité sans impact structurel | v0.2 | TEC-047, TEC-052, TEC-055, TEC-060, TEC-051 | 2026-04-22 | — | — |
+| 4 | Qualité backend sans impact API | v0.2 | TEC-065, TEC-057, TEC-059 | 2026-04-22 | — | — |
+| 5 | Sécurité auth (full-stack) | v0.2 | TEC-045, BIZ-053, TEC-046 | 2026-04-22 | — | — |
+| 6 | DevOps Docker | v0.2 | CHR-054, CHR-061 | 2026-04-22 | — | — |
+| 7 | Refactoring structurel | v0.2 | TEC-050, TEC-058 | 2026-04-22 | — | — |
+| 8 | Chantiers longs | v0.2 | BIZ-056, TEC-049 | 2026-04-22 | — | — |
+| A | Backend rapide | v0.3 | TEC-085 | 2026-04-23 | — | — |
+| B | UX quick wins | v0.3 | BIZ-070, BIZ-072, BIZ-074, BIZ-084, BIZ-042 | 2026-04-23 | — | — |
+| C | Dashboard interactif | v0.3 | BIZ-075, BIZ-073 | 2026-04-23 | — | — |
+| D | Polish UI | v0.3 | BIZ-071, BIZ-043 | 2026-04-23 | — | — |
+| F | Tests | v0.4 | TEC-079, TEC-080, TEC-081 | 2026-04-24 | — | — |
+| G | Refactoring frontend | v0.5 | TEC-077 | 2026-04-24 | — | — |
+| I | Polish UI & contacts | v0.5 | BIZ-035, BIZ-037, CHR-038, BIZ-040 | 2026-04-24 | — | — |
+| J | CI GitHub Actions | v0.5 | CHR-086, CHR-087 | 2026-04-24 | — | — |
+| K | Documentation & Swagger | v0.5 | CHR-019, CHR-082 | 2026-04-24 | — | — |
+| L | Gestion employés | v0.6 | BIZ-088 | 2026-04-25 | — | — |
+| M | Sécurité applicative | v0.6 | TEC-091, TEC-092, TEC-093 | 2026-04-25 | — | — |
+| N | UX & formulaires | v0.7 | BIZ-094, BIZ-095, BIZ-096, BIZ-097 | 2026-04-25 | — | — |
+| Q | Recette post-merge N | v0.7 | voir doc/recette.md (REC-001..REC-015) | 2026-04-26 | — | — |
+| R | Supervision système & audit | v0.8 | BIZ-108, BIZ-109 | 2026-04-26 | — | — |
+| O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-26 | — | — |
+| P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-26 | — | — |
+| S | Documentation & i18n | v0.8 | TEC-106, CHR-021, CHR-020, CHR-079 | 2026-04-27 | — | — |
+| T | Chatbot IA + refactor Paramètres | v1.0 | BIZ-125, BIZ-126 | 2026-04-27 | — | — |
+| H-UX | Améliorations UX (lot H) | v1.1 | settings gestionnaires, dialogue paiement, champs famille contacts, date facture, commentaires, PDF règlement, verrou édition | 2026-04-28 | — | — |
+| I-BNK | UX Banque | v1.2 | BIZ-133, BIZ-134, BIZ-135, BIZ-136, BIZ-137 | 2026-05-01 | — | — |
+| Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 | — | — |
+| CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 | — | — |
+| UI | Améliorations UI & saisie | v1.4 | BIZ-149, BIZ-150, BIZ-157, BIZ-158 | 2026-05-03 | ~65 min | ~30 min |
 
 <details>
 <summary>Lot UI — Améliorations UI & saisie (2026-05-03)</summary>
 
+| Ticket | Titre | Est. | Réel | Écart |
+| --- | --- | --- | --- | --- |
+| BIZ-158 | Limite API 1000 items + warning | ~30 min | ~18 min | −12 min |
+| BIZ-149 | Auto-capitalisation intitulés facture | ~15 min | ~2 min | −13 min |
+| BIZ-150 | Accepter la virgule comme séparateur décimal | ~10 min | ~7 min | −3 min |
+| BIZ-157 | Pagination 50 items par défaut | ~10 min | ~3 min | −7 min |
+| **Total** | | **~65 min** | **~30 min** | **−35 min** |
+
 ### BIZ-158 — Limite API 1000 items + warning si atteinte
-`default=1000, le=1000` sur 6 routeurs (`invoice.py`, `payment.py`, `contact.py`, `bank.py` transactions + dépôts, `salary.py`). Bandeau `Message` PrimeVue severity `warn` dans chaque vue liste quand le résultat atteint 1 000 items.
+`default=1000, le=1000` sur 6 routeurs (`invoice.py`, `payment.py`, `contact.py`, `bank.py` transactions + dépôts, `salary.py`). Bandeau `Message` PrimeVue severity `warn` dans chaque vue liste quand le résultat atteint 1 000 items. 4 tests mis à jour (renommage + assertions). Correction d'un bug de docstring introduit en cours de session.
 
 ### BIZ-149 — Auto-capitalisation des intitulés facture
-Déjà implémenté (`@blur="capitalizeFirstLetter(line)"` dans `ClientInvoiceForm.vue`) — ticket fermé.
+Déjà implémenté (`@blur="capitalizeFirstLetter(line)"` dans `ClientInvoiceForm.vue`) — vérification rapide, ticket fermé.
 
 ### BIZ-150 — Accepter la virgule comme séparateur décimal
 Champs `quantity` et `unit_price` dans `ClientInvoiceForm.vue` : `type="text" inputmode="decimal"` + fonction `normalizeDecimalInput()` (remplace `,` par `.` à la saisie, met à jour le modèle via `parseFloat`).
