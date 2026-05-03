@@ -679,6 +679,7 @@ html.dark-mode .dashboard-action-card__icon {
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: var(--app-space-2);
   border-left: 2px solid var(--app-surface-border);
