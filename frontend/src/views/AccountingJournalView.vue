@@ -134,7 +134,7 @@
         class="app-data-table journal-table"
         filter-display="menu"
         paginator
-        :rows="20"
+        :rows="50"
         :rows-per-page-options="[20, 50, 100, 500]"
         striped-rows
         size="small"
@@ -496,7 +496,7 @@
             class="app-data-table journal-lines-table"
             filter-display="menu"
             paginator
-            :rows="20"
+            :rows="50"
             :rows-per-page-options="[20, 50, 100, 500]"
             size="small"
             striped-rows

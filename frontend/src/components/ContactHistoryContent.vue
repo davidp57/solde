@@ -69,7 +69,7 @@
         filter-display="menu"
         striped-rows
         paginator
-        :rows="20"
+        :rows="50"
         :rows-per-page-options="[20, 50, 100, 500]"
         size="small"
         row-hover
@@ -204,7 +204,7 @@
         filter-display="menu"
         striped-rows
         paginator
-        :rows="20"
+        :rows="50"
         :rows-per-page-options="[20, 50, 100, 500]"
         size="small"
         row-hover

@@ -129,6 +129,9 @@
         </div>
       </div>
 
+      <Message v-if="invoices.length >= 1000" severity="warn" :closable="false" class="mb-2">
+        {{ t('common.api_limit_warning') }}
+      </Message>
       <AppTableSkeleton v-if="loading && !invoices.length" :rows="8" :cols="5" />
       <DataTable
         v-else
@@ -139,7 +142,7 @@
         filter-display="menu"
         striped-rows
         paginator
-        :rows="20"
+        :rows="50"
         :rows-per-page-options="[20, 50, 100, 500]"
         :global-filter-fields="[
           'number',
@@ -470,7 +473,7 @@
               class="app-data-table"
               filter-display="menu"
               paginator
-              :rows="20"
+              :rows="50"
               :rows-per-page-options="[20, 50, 100, 500]"
               size="small"
               :global-filter-fields="['date', 'amount_value', 'method', 'cheque_number']"
@@ -647,6 +650,7 @@ import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
+import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'

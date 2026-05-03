@@ -64,6 +64,9 @@
         </div>
       </div>
 
+      <Message v-if="payments.length >= 1000" severity="warn" :closable="false" class="mb-2">
+        {{ t('common.api_limit_warning') }}
+      </Message>
       <AppTableSkeleton v-if="loading && !payments.length" :rows="8" :cols="5" />
       <DataTable
         v-else
@@ -74,7 +77,7 @@
         filter-display="menu"
         striped-rows
         paginator
-        :rows="20"
+        :rows="50"
         :rows-per-page-options="[20, 50, 100, 500]"
         data-key="id"
         size="small"
@@ -310,6 +313,7 @@ import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
+import Message from 'primevue/message'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
 import { collectActiveFilterLabels } from '../composables/activeFilterLabels'
