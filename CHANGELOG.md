@@ -11,6 +11,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Amélioré
+- **CHR** — Docker : séparation des dépendances Python (`docker-requirements.txt`) et des métadonnées de version (`pyproject.toml`) en deux couches distinctes — évite la réinstallation complète de toutes les dépendances à chaque bump de version
+
 ---
 
 ## [1.4.0] — 2026-05-03
