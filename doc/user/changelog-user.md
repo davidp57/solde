@@ -16,7 +16,7 @@ Ce document présente les changements visibles dans l'application, version par v
 
 #### Saisie des factures
 - Dans les lignes d'une facture, la **virgule est acceptée** comme séparateur décimal (elle est automatiquement convertie en point).
-- Le libellé d'une prestation est **mis en majuscule automatiquement** dès qu'on passe au champ suivant.
+- La **première lettre** d'un libellé de prestation est **mise en majuscule automatiquement** dès qu'on passe au champ suivant.
 
 ---
 
