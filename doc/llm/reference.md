@@ -225,7 +225,7 @@ Record invoices received from suppliers under Factures → Fournisseurs.
 
 The cash register tracks physical cash movements.
 
-- **Creating a movement:** click "Nouveau mouvement". Amount: positive = cash in, negative = cash out.
+- **Creating a movement:** click "Nouveau mouvement". Amount is always stored as a positive value; the type (IN or OUT) determines whether it is added to or subtracted from the balance.
 - **Counting (comptage):** enter the physical amount counted. Coins are entered as a single "Pièces (ferraille)" total field; the app computes and displays the discrepancy.
 - **Cash payments received from clients** (by cash) are entered into the cash register immediately when the payment is recorded. The corresponding cash outflow to the bank is only generated when the bank deposit is confirmed.
 - **Deleting a movement:** only possible if no validated accounting entry is linked to it.

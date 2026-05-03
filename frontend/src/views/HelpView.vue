@@ -18,7 +18,7 @@
       </TabList>
 
       <TabPanels>
-        <!-- Onglet Manuel -->
+        <!-- Manual tab -->
         <TabPanel value="manual">
           <div v-if="loadingManual" class="help-loading">
             <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem" />
@@ -36,7 +36,7 @@
           />
         </TabPanel>
 
-        <!-- Onglet Nouveautés -->
+        <!-- What's new tab -->
         <TabPanel value="changelog">
           <div v-if="loadingChangelog" class="help-loading">
             <i class="pi pi-spin pi-spinner" style="font-size: 1.5rem" />
