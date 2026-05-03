@@ -23,28 +23,54 @@
     </AppPageHeader>
 
     <section class="app-stat-grid">
-      <AppStatCard
-        :label="t('bank.current_balance')"
-        :value="displayBalanceValue"
-        :caption="currentBalanceCaption"
-      />
-      <AppStatCard
-        :label="t('bank.period_variation')"
-        :value="formatSignedAmount(displayedPeriodVariation)"
-        :caption="periodVariationCaption"
-        :tone="displayedPeriodVariationTone"
-      />
-      <AppStatCard
-        :label="t('bank.transactions_title')"
-        :value="displayedTransactions.length"
-        :caption="t('bank.metrics.transactions_total', { count: transactions.length })"
-      />
-      <AppStatCard
-        :label="t('bank.deposits_title')"
-        :value="displayedDeposits.length"
-        :caption="t('bank.metrics.pending_payments', { count: pendingDeposits.length })"
-        tone="warn"
-      />
+      <template v-if="pendingDeposits.length > 0">
+        <AppStatCard
+          :label="t('bank.deposits_title')"
+          :value="displayedDeposits.length"
+          :caption="t('bank.metrics.pending_payments', { count: pendingDeposits.length })"
+          tone="warn"
+        />
+        <AppStatCard
+          :label="t('bank.current_balance')"
+          :value="displayBalanceValue"
+          :caption="currentBalanceCaption"
+        />
+        <AppStatCard
+          :label="t('bank.period_variation')"
+          :value="formatSignedAmount(displayedPeriodVariation)"
+          :caption="periodVariationCaption"
+          :tone="displayedPeriodVariationTone"
+        />
+        <AppStatCard
+          :label="t('bank.transactions_title')"
+          :value="displayedTransactions.length"
+          :caption="t('bank.metrics.transactions_total', { count: transactions.length })"
+        />
+      </template>
+      <template v-else>
+        <AppStatCard
+          :label="t('bank.current_balance')"
+          :value="displayBalanceValue"
+          :caption="currentBalanceCaption"
+        />
+        <AppStatCard
+          :label="t('bank.period_variation')"
+          :value="formatSignedAmount(displayedPeriodVariation)"
+          :caption="periodVariationCaption"
+          :tone="displayedPeriodVariationTone"
+        />
+        <AppStatCard
+          :label="t('bank.transactions_title')"
+          :value="displayedTransactions.length"
+          :caption="t('bank.metrics.transactions_total', { count: transactions.length })"
+        />
+        <AppStatCard
+          :label="t('bank.deposits_title')"
+          :value="displayedDeposits.length"
+          :caption="t('bank.metrics.pending_payments', { count: pendingDeposits.length })"
+          tone="warn"
+        />
+      </template>
     </section>
 
     <AppPanel :title="t('bank.funds_chart_title')" dense>
@@ -68,31 +94,39 @@
           :key="deposit.id"
           class="bank-pending-deposit-row"
         >
-          <Tag
-            :value="t(`bank.deposit_types.${deposit.type}`)"
-            :severity="deposit.type === 'cheques' ? 'info' : 'warn'"
-            class="bank-pending-deposit-row__tag"
-          />
-          <span class="bank-pending-deposit-row__date">{{ formatDisplayDate(deposit.date) }}</span>
-          <span class="bank-pending-deposit-row__summary">
-            <template v-if="deposit.type === 'cheques'">
-              {{ t('bank.deposit_cheques_summary', { count: deposit.payment_ids.length }) }}
-            </template>
-            <template v-else>
-              {{ formatEspecesSummary(deposit.denomination_details) }}
-            </template>
-          </span>
-          <span class="bank-pending-deposit-row__amount app-money">
-            {{ formatAmount(deposit.total_amount) }}
-          </span>
-          <Button
-            :label="t('bank.deposit_confirm')"
-            icon="pi pi-check"
-            severity="success"
-            size="small"
-            :loading="confirmingDepositId === deposit.id"
-            @click="confirmDeposit(deposit)"
-          />
+          <div class="bank-pending-deposit-row__left">
+            <div class="bank-pending-deposit-row__top">
+              <Tag
+                :value="t(`bank.deposit_types.${deposit.type}`)"
+                :severity="deposit.type === 'cheques' ? 'info' : 'warn'"
+              />
+              <span class="bank-pending-deposit-row__date">{{ formatDisplayDate(deposit.date) }}</span>
+            </div>
+            <Button
+              :label="t('bank.deposit_confirm')"
+              icon="pi pi-check"
+              severity="success"
+              size="small"
+              class="bank-pending-deposit-row__btn"
+              :loading="confirmingDepositId === deposit.id"
+              @click="confirmDeposit(deposit)"
+            />
+          </div>
+          <div v-if="deposit.type !== 'cheques' && formatEspecesList(deposit.denomination_details).length" class="bank-pending-deposit-row__denom">
+            <span
+              v-for="line in formatEspecesList(deposit.denomination_details)"
+              :key="line"
+              class="bank-pending-deposit-row__denom-line"
+            >{{ line }}</span>
+            <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(deposit.total_amount) }}</span>
+          </div>
+          <div v-else-if="deposit.type !== 'cheques'" class="bank-pending-deposit-row__denom">
+            <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(deposit.total_amount) }}</span>
+          </div>
+          <div v-else-if="deposit.type === 'cheques'" class="bank-pending-deposit-row__denom">
+            <span class="bank-pending-deposit-row__denom-line">{{ t('bank.deposit_cheques_summary', { count: deposit.payment_ids.length }) }}</span>
+            <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(deposit.total_amount) }}</span>
+          </div>
         </div>
       </div>
     </AppPanel>
@@ -152,7 +186,91 @@
             <Message v-if="transactions.length >= 1000" severity="warn" :closable="false" class="mb-2">
               {{ t('common.api_limit_warning') }}
             </Message>
+            <template v-if="isMobile">
+              <AppMobileCardList :items="transactionRows" :empty-message="t('bank.transactions_empty')">
+                <template #card="{ item: data }">
+                  <div class="app-mobile-card-row app-mobile-card-row--between">
+                    <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+                    <span
+                      class="app-mobile-card-value"
+                      style="font-weight:700"
+                      :class="parseFloat(data.amount) >= 0 ? 'bank-positive' : 'bank-negative'"
+                    >{{ formatAmount(data.amount) }} €</span>
+                  </div>
+                  <div class="app-mobile-card-row">
+                    <span class="app-mobile-card-value">{{ data.description }}</span>
+                  </div>
+                  <div class="app-mobile-card-row app-mobile-card-row--between">
+                    <Tag
+                      :value="t(`bank.categories.${data.detected_category}`)"
+                      class="bank-detected-category-tag"
+                    />
+                    <Tag
+                      v-if="data.reconciled"
+                      :value="t('bank.tx_reconciled_yes')"
+                      severity="success"
+                    />
+                    <Button
+                      v-else
+                      :label="t('bank.tx_reconciled_no')"
+                      icon="pi pi-check"
+                      size="small"
+                      severity="secondary"
+                      outlined
+                      @click="reconcile(data)"
+                    />
+                  </div>
+                  <div class="app-mobile-card-actions">
+                    <Button
+                      v-if="canLinkExistingSupplierPayment(data)"
+                      icon="pi pi-link"
+                      size="small"
+                      severity="secondary"
+                      text
+                      :title="t('bank.link_supplier_payment')"
+                      @click="openExistingSupplierPaymentDialog(data)"
+                    />
+                    <Button
+                      v-if="canCreateSupplierPayment(data)"
+                      icon="pi pi-arrow-up-right"
+                      size="small"
+                      severity="secondary"
+                      text
+                      :title="t('bank.create_supplier_payment')"
+                      @click="openSupplierPaymentDialog(data)"
+                    />
+                    <Button
+                      v-if="canLinkExistingClientPayment(data)"
+                      icon="pi pi-link"
+                      size="small"
+                      severity="secondary"
+                      text
+                      :title="t('bank.link_client_payment')"
+                      @click="openExistingClientPaymentDialog(data)"
+                    />
+                    <Button
+                      v-if="canCreateClientPayment(data)"
+                      icon="pi pi-wallet"
+                      size="small"
+                      severity="secondary"
+                      text
+                      :title="t('bank.create_client_payment')"
+                      @click="openClientPaymentDialog(data)"
+                    />
+                    <Button
+                      icon="pi pi-pencil"
+                      size="small"
+                      text
+                      severity="secondary"
+                      :title="t('bank.edit_category_label')"
+                      @click="openCategoryEdit($event, data)"
+                    />
+                  </div>
+                </template>
+              </AppMobileCardList>
+            </template>
             <DataTable
+              v-else
               v-model:filters="transactionTableFilters"
               :value="transactionRows"
               :loading="loadingTx"
@@ -407,7 +525,33 @@
             <Message v-if="deposits.length >= 1000" severity="warn" :closable="false" class="mb-2">
               {{ t('common.api_limit_warning') }}
             </Message>
+            <template v-if="isMobile">
+              <AppMobileCardList :items="depositRows" :empty-message="t('bank.deposits_empty')">
+                <template #card="{ item: data }">
+                  <div class="app-mobile-card-row app-mobile-card-row--between">
+                    <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+                    <span class="app-mobile-card-value" style="font-weight:700">{{ formatAmount(data.total_amount) }} €</span>
+                  </div>
+                  <div class="app-mobile-card-row app-mobile-card-row--between">
+                    <Tag :value="t(`bank.deposit_types.${data.type}`)" />
+                    <Tag
+                      :value="data.confirmed ? t('bank.deposit_status.confirmed') : t('bank.deposit_status.pending')"
+                      :severity="data.confirmed ? 'success' : 'warn'"
+                    />
+                  </div>
+                  <div v-if="data.bank_reference" class="app-mobile-card-row">
+                    <span class="app-mobile-card-label">{{ t('bank.deposit_bank_ref') }} :</span>
+                    <span class="app-mobile-card-value">{{ data.bank_reference }}</span>
+                  </div>
+                  <div class="app-mobile-card-row">
+                    <span class="app-mobile-card-label">{{ t('bank.deposit_payments') }} :</span>
+                    <span class="app-mobile-card-value">{{ t('bank.metrics.deposit_payment_count', { count: data.payment_ids?.length || 0 }) }}</span>
+                  </div>
+                </template>
+              </AppMobileCardList>
+            </template>
             <DataTable
+              v-else
               v-model:filters="depositTableFilters"
               :value="depositRows"
               :loading="loadingDeposits"
@@ -664,6 +808,7 @@ import BankLinkClientPaymentDialog from '../components/bank/BankLinkClientPaymen
 import BankSupplierPaymentDialog from '../components/bank/BankSupplierPaymentDialog.vue'
 import BankLinkSupplierPaymentDialog from '../components/bank/BankLinkSupplierPaymentDialog.vue'
 import BankNewDepositDialog from '../components/bank/BankNewDepositDialog.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import {
   getBankBalance,
   getBankFundsChart,
@@ -687,8 +832,10 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
+import { useBreakpoints } from '../composables/useBreakpoints'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 
@@ -888,17 +1035,15 @@ function formatAmount(value: string | number): string {
   return `${parseFloat(String(value)).toFixed(2)} €`
 }
 
-function formatEspecesSummary(denominationDetails: string | null): string {
-  if (!denominationDetails) return t('bank.deposit_especes_summary_no_denom')
+function formatEspecesList(denominationDetails: string | null): string[] {
+  if (!denominationDetails) return []
   try {
     const lines: { value: number; count: number }[] = JSON.parse(denominationDetails)
-    if (!lines.length) return t('bank.deposit_especes_summary_no_denom')
     return lines
       .filter((l) => l.count > 0)
-      .map((l) => `${l.count}×${l.value % 1 === 0 ? l.value : l.value.toFixed(2)} €`)
-      .join(' + ')
+      .map((l) => `${l.count}\u00d7${l.value % 1 === 0 ? l.value : l.value.toFixed(2)}\u00a0\u20ac`)
   } catch {
-    return t('bank.deposit_especes_summary_no_denom')
+    return []
   }
 }
 
@@ -1292,32 +1437,100 @@ onMounted(async () => {
 
 .bank-pending-deposit-row {
   display: flex;
-  align-items: center;
-  gap: var(--app-space-3);
+  align-items: stretch;
+  gap: var(--app-space-4);
   padding: var(--app-space-3) var(--app-space-4);
   background: var(--app-surface-muted);
   border: 1px solid var(--app-surface-border);
   border-radius: var(--app-radius);
 }
 
-.bank-pending-deposit-row__tag {
+.bank-pending-deposit-row__left {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--app-space-3);
+  flex: 1;
+  min-width: 0;
+}
+
+.bank-pending-deposit-row__top {
+  display: contents;
+}
+
+.bank-pending-deposit-row__btn {
+  margin-left: auto;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .bank-pending-deposit-row__date {
   font-variant-numeric: tabular-nums;
-  min-width: 6rem;
-}
-
-.bank-pending-deposit-row__summary {
-  flex: 1;
+  font-size: 0.85rem;
   color: var(--p-text-muted-color);
-  font-size: 0.9rem;
 }
 
 .bank-pending-deposit-row__amount {
-  font-weight: 600;
-  min-width: 7rem;
-  text-align: right;
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-align: left;
+  color: var(--p-green-500);
+  white-space: nowrap;
+}
+
+.bank-pending-deposit-row__denom {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  border-left: 2px solid var(--app-surface-border);
+  padding-left: var(--app-space-3);
+  flex: 0 0 22rem;
+}
+
+.bank-pending-deposit-row__denom-line {
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--p-text-muted-color);
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .bank-pending-deposit-row__left {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--app-space-2);
+  }
+
+  .bank-pending-deposit-row__top {
+    display: flex;
+    align-items: center;
+    gap: var(--app-space-2);
+    flex-wrap: wrap;
+  }
+
+  .bank-pending-deposit-row__btn {
+    margin-left: 0;
+  }
+
+  .bank-pending-deposit-row__btn :deep(.p-button) {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .bank-pending-deposit-row__denom {
+    flex-direction: column;
+    align-items: flex-start;
+    flex-wrap: nowrap;
+    gap: 0.15rem;
+    flex: 0 0 auto;
+    min-width: 6.5rem;
+  }
+
+  .bank-pending-deposit-row__amount {
+    padding-top: 0.25rem;
+  }
 }
 </style>

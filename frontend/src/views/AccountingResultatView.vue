@@ -29,7 +29,21 @@
       <div v-if="resultat" class="resultat-grid">
         <!-- Charges -->
         <AppPanel :title="t('accounting.resultat.charges')" dense>
+          <template v-if="isMobile">
+            <AppMobileCardList :items="resultat.charges" :empty-message="t('accounting.resultat.empty_charges')">
+              <template #card="{ item: data }">
+                <div class="app-mobile-card-row app-mobile-card-row--between">
+                  <span class="app-mobile-card-value" style="font-weight:700">{{ data.account_number }}</span>
+                  <span class="app-mobile-card-value" style="font-weight:600">{{ formatAccountingAmount(data.solde) }}</span>
+                </div>
+                <div class="app-mobile-card-row">
+                  <span class="app-mobile-card-value">{{ data.account_label }}</span>
+                </div>
+              </template>
+            </AppMobileCardList>
+          </template>
           <DataTable
+            v-else
             :value="resultat.charges"
             :loading="loading"
             class="app-data-table"
@@ -61,7 +75,21 @@
 
         <!-- Produits -->
         <AppPanel :title="t('accounting.resultat.produits')" dense>
+          <template v-if="isMobile">
+            <AppMobileCardList :items="resultat.produits" :empty-message="t('accounting.resultat.empty_produits')">
+              <template #card="{ item: data }">
+                <div class="app-mobile-card-row app-mobile-card-row--between">
+                  <span class="app-mobile-card-value" style="font-weight:700">{{ data.account_number }}</span>
+                  <span class="app-mobile-card-value" style="font-weight:600">{{ formatAccountingAmount(data.solde) }}</span>
+                </div>
+                <div class="app-mobile-card-row">
+                  <span class="app-mobile-card-value">{{ data.account_label }}</span>
+                </div>
+              </template>
+            </AppMobileCardList>
+          </template>
           <DataTable
+            v-else
             :value="resultat.produits"
             :loading="loading"
             class="app-data-table"
@@ -120,13 +148,16 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import Select from 'primevue/select'
 import AppPage from '../components/ui/AppPage.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import { getResultatApi, type ResultatRead } from '../api/accounting'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { formatAccountingAmount } from '../utils/format'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const fiscalYearStore = useFiscalYearStore()
 
 const resultat = ref<ResultatRead | null>(null)

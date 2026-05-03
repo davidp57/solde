@@ -26,7 +26,10 @@ Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dess
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | TEC-156 | Fix token auth chat (localStorage → Pinia) | P1 | — | 2026-05-03 | 2026-05-03 | 2026-05-03 |
-| BIZ-164 | Amélioration UI mode téléphone | P2 | ? | 2026-05-03 | | |
+| TEC-157 | i18n : supprimer chaînes en dur dans AppMobileCardList + CashView | P3 | ~10 min | 2026-05-03 | | |
+| TEC-158 | Tests intégration suggest_cheque_number (statut, date, incrément, accès) | P2 | ~20 min | 2026-05-03 | | |
+| TEC-159 | Tests validation cheque_number_template dans settings API | P2 | ~15 min | 2026-05-03 | | |
+| BIZ-165 | Navigation précédent/suivant sur preview factures client | P2 | ~10 min | 2026-05-03 | | |
 | CHR-078 | Squelette i18n anglais | P3 | ~15 min | 2026-04-23 | | |
 | BIZ-034 | Support multi-compte banque | P3 | ~60 min | 2026-04-21 | | |
 
@@ -34,14 +37,14 @@ Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dess
 
 ## Détails
 
+### BIZ-165 — Navigation précédent/suivant sur preview factures client
+
+La preview des factures fournisseur dispose de boutons « ◀ Précédent / Suivant ▶ » permettant de naviguer dans la liste sans fermer le dialogue. Cette fonctionnalité est absente de la preview des factures client. Uniformiser les deux en ajoutant la même navigation dans `ClientInvoicesView.vue` / le composant de prévisualisation des factures client.
+
 ### BIZ-034 — Support multi-compte banque
 
 Distinguer compte courant et compte épargne dans les données, imports et écrans.
 Décisions métier nécessaires avant implémentation.
-
-### BIZ-164 — Amélioration UI mode téléphone
-
-À analyser avant implémentation. L'application est principalement utilisée sur desktop, mais une utilisation occasionnelle sur smartphone est envisageable (consultation, saisie rapide). Périmètre à définir : quelles vues doivent être utilisables sur mobile ? Responsive breakpoints, menus, tableaux, formulaires. Évaluer l'impact sur PrimeVue et les DataTables.
 
 ### TEC-156 — Fix token auth chat (localStorage → Pinia)
 
@@ -50,6 +53,18 @@ Décisions métier nécessaires avant implémentation.
 ### CHR-078 — Squelette i18n anglais
 
 Créer `en.ts` avec les clés structurelles pour préparer la localisation anglaise.
+
+### TEC-157 — i18n : supprimer chaînes en dur dans AppMobileCardList + CashView
+
+Suite à la revue Copilot de la PR #76 : `emptyMessage: 'Aucune donnée'` dans `AppMobileCardList.vue` et `"Écart :"` dans `CashView.vue` sont des chaînes UI codées en dur. Les remplacer par des clés i18n (ou exposer via slot `#empty`), cohérent avec le reste de l'app.
+
+### TEC-158 — Tests intégration suggest_cheque_number
+
+Suite à la revue Copilot de la PR #76 : l'endpoint `GET /api/payments/suggest_cheque_number` n'a pas de tests dans `tests/integration/test_payments_api.py`. Couvrir : statut 200 + format de retour, `payment_date` explicite vs défaut, incrément quand des paiements chèque existent, contrôle d'accès.
+
+### TEC-159 — Tests validation cheque_number_template dans settings API
+
+Suite à la revue Copilot de la PR #76 : `cheque_number_template` dans `AppSettingsUpdate` n'est pas testé dans `tests/integration/test_settings_api.py`. Couvrir : valeur par défaut renvoyée par `GET /api/settings/`, cas invalides (sans `{seq}`, placeholders non supportés).
 
 ---
 
@@ -89,6 +104,23 @@ Créer `en.ts` avec les clés structurelles pour préparer la localisation angla
 | Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 | — | — |
 | CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 | — | — |
 | UI | Améliorations UI & saisie | v1.4 | BIZ-149, BIZ-150, BIZ-157, BIZ-158 | 2026-05-03 | ~65 min | ~30 min |
+| MOB | Mode téléphone | v1.5 | BIZ-164 | 2026-05-03 | ~90 min | 2026-05-03 |
+
+<details>
+<summary>Lot MOB — Mode téléphone (2026-05-03)</summary>
+
+| Ticket | Titre | Est. | Réel | Écart |
+| --- | --- | --- | --- | --- |
+| BIZ-164 (mobile) | Vues cartes + composant + breakpoint | ~50 min | — | — |
+| BIZ-164 (depot) | Tuile dépôt espèces redesignée | ~15 min | — | — |
+| BIZ-164 (stat) | Stat cards 2 colonnes mobile | ~5 min | — | — |
+| BIZ-164 (cheque) | Suggestion auto n° chèque | ~20 min | — | — |
+| **Total** | | **~90 min** | **—** | **—** |
+
+### BIZ-164 — Mode téléphone & UX mobile
+Migration Alembic `0049` : `cheque_number_template` dans `app_settings`. Endpoint `GET /api/payments/suggest_cheque_number`. Service `suggest_cheque_number` dans `settings.py`. Auto-suggestion dans `ClientInvoicesView`, `SupplierInvoicesView`, `QuickPaymentWizard`. Champ configurable dans `SettingsAssociationPanel`. Vues cartes mobile sur **toutes les listes** via `AppMobileCardList` (générique `T`) + `useBreakpoints` : Factures client/fournisseur (historiques), Contacts, Banque (transactions + dépôts), Règlements, Caisse, Salaires (3 tables), Employés, Comptabilité (Comptes, Balance, Bilan, Résultat, Règles, Journal, Grand-livre), Exercices, Utilisateurs. Dialogs full-width mobile. Stat grid 2 colonnes mobile.
+
+</details>
 
 <details>
 <summary>Lot UI — Améliorations UI & saisie (2026-05-03)</summary>

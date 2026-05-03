@@ -78,7 +78,81 @@
       <Message v-if="invoices.length >= 1000" severity="warn" :closable="false" class="mb-2">
         {{ t('common.api_limit_warning') }}
       </Message>
+      <template v-if="isMobile">
+        <AppMobileCardList :items="invoiceRows" :empty-message="t('invoices.supplier.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight: 700">{{ data.number }}</span>
+              <Tag
+                :value="t(`invoices.statuses.${data.status}`)"
+                :severity="statusSeverity(data.status)"
+              />
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('invoices.contact') }} :</span>
+              <span class="app-mobile-card-value">{{ contactName(data.contact_id) }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+              <span class="app-mobile-card-value" style="font-weight: 600">{{ formatAmount(data.total_amount) }} €</span>
+            </div>
+            <div v-if="data.reference" class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('invoices.reference') }} :</span>
+              <span class="app-mobile-card-value">{{ data.reference }}</span>
+            </div>
+            <div class="app-mobile-card-row">
+              <i v-if="data.file_path" class="pi pi-paperclip" style="font-size: 0.9rem; color: var(--p-primary-color)" />
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.edit')"
+                @click="openEditDialog(data)"
+              />
+              <Button
+                v-if="data.file_path"
+                icon="pi pi-eye"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.supplier.preview_file')"
+                @click="openPreviewDialog(data)"
+              />
+              <Button
+                icon="pi pi-upload"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.upload_file')"
+                @click="openUploadDialog(data)"
+              />
+              <Button
+                v-if="canRecordPayment(data)"
+                icon="pi pi-wallet"
+                size="small"
+                severity="success"
+                text
+                :title="t('invoices.record_payment')"
+                @click="openPaymentDialog(data)"
+              />
+              <Button
+                v-if="data.status === 'draft'"
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                text
+                :title="t('common.delete')"
+                @click="confirmDelete(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
+        v-else
         v-model:filters="tableFilters"
         :value="invoiceRows"
         :loading="loading"
@@ -455,6 +529,18 @@
             <div v-else-if="previewPayments.length === 0" class="app-empty-state">
               {{ t('invoices.no_payments') }}
             </div>
+            <AppMobileCardList v-else-if="isMobile" :items="previewPayments" :empty-message="t('invoices.no_payments')">
+              <template #card="{ item: data }">
+                <div class="app-mobile-card-row app-mobile-card-row--between">
+                  <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+                  <span class="app-mobile-card-value" style="font-weight:700">{{ parseFloat(data.amount).toFixed(2) }} €</span>
+                </div>
+                <div class="app-mobile-card-row">
+                  <span class="app-mobile-card-label">{{ t('payments.method') }} :</span>
+                  <span class="app-mobile-card-value">{{ t(`payments.methods.${data.method}`) }}</span>
+                </div>
+              </template>
+            </AppMobileCardList>
             <DataTable
               v-else
               :value="previewPayments"
@@ -614,6 +700,8 @@ import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
+import { useBreakpoints } from '../composables/useBreakpoints'
 
 import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import { listContactsApi, type Contact } from '../api/contacts'
@@ -625,7 +713,7 @@ import {
   type Invoice,
   type InvoiceStatus,
 } from '../api/invoices'
-import { createPayment, listPayments, type Payment } from '../api/payments'
+import { createPayment, listPayments, suggestChequeNumber, type Payment } from '../api/payments'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
 import {
   dateRangeFilter,
@@ -650,6 +738,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
+const { isMobile } = useBreakpoints()
 
 const invoices = ref<Invoice[]>([])
 const contacts = ref<Contact[]>([])
@@ -786,6 +875,22 @@ const paymentForm = ref({
   notes: '',
 })
 
+watch(
+  () => paymentForm.value.method,
+  (method) => {
+    // Guard: only fire when dialog is already open (i.e. user toggled method inside the dialog).
+    // When openPaymentDialog resets the form, the dialog is not yet visible so this watch is skipped;
+    // the direct suggestChequeNumber() call in openPaymentDialog handles the initial suggestion.
+    if (paymentDialogVisible.value && method === 'cheque' && !paymentForm.value.cheque_number) {
+      void suggestChequeNumber().then((n) => {
+        if (paymentForm.value.method === 'cheque' && !paymentForm.value.cheque_number) {
+          paymentForm.value.cheque_number = n
+        }
+      })
+    }
+  },
+)
+
 const paymentRemaining = computed(() => {
   if (!paymentInvoice.value) return 0
   return parseFloat(paymentInvoice.value.total_amount) - parseFloat(paymentInvoice.value.paid_amount)
@@ -808,6 +913,11 @@ function openPaymentDialog(invoice: Invoice) {
     notes: '',
   }
   paymentDialogVisible.value = true
+  void suggestChequeNumber().then((n) => {
+    if (paymentForm.value.method === 'cheque' && !paymentForm.value.cheque_number) {
+      paymentForm.value.cheque_number = n
+    }
+  })
 }
 
 async function submitPayment() {

@@ -27,6 +27,7 @@ export interface AppSettings {
   payment_iban: string | null
   payment_bic: string | null
   payment_check_payee: string | null
+  cheque_number_template: string
 }
 
 export interface AppSettingsUpdate {
@@ -56,6 +57,7 @@ export interface AppSettingsUpdate {
   payment_iban?: string | null
   payment_bic?: string | null
   payment_check_payee?: string | null
+  cheque_number_template?: string | null
 }
 
 export interface SystemOpening {

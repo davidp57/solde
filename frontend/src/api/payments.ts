@@ -75,3 +75,9 @@ export async function updatePayment(id: number, payload: PaymentUpdate): Promise
 export async function deletePayment(id: number): Promise<void> {
   await apiClient.delete(`/api/payments/${id}`)
 }
+
+export async function suggestChequeNumber(paymentDate?: string): Promise<string> {
+  const params = paymentDate ? { payment_date: paymentDate } : {}
+  const response = await apiClient.get<string>('/api/payments/suggest_cheque_number', { params })
+  return response.data
+}
