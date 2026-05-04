@@ -163,6 +163,18 @@ async def update_transaction(
     tx = await bank_service.get_transaction(db, tx_id)
     if tx is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    # date/amount/bank_account can only be changed on manual transactions
+    manual_only_fields = {
+        k for k in ("date", "amount", "bank_account") if payload.model_fields_set.intersection({k})
+    }
+    if manual_only_fields and tx.source not in (
+        "manual",
+        "system_opening",
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=("date, amount and bank_account can only be updated on manual transactions"),
+        )
     updated = await bank_service.update_transaction(db, tx, payload)
     await record_audit(
         db,
@@ -172,6 +184,31 @@ async def update_transaction(
         target_type="bank_transaction",
     )
     return await _serialize_transaction(db, updated)
+
+
+@router.delete("/transactions/{tx_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_transaction(
+    tx_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> None:
+    tx = await bank_service.get_transaction(db, tx_id)
+    if tx is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    try:
+        await bank_service.delete_manual_transaction(db, tx)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_TRANSACTION_DELETED,
+        actor=current_user,
+        target_id=tx_id,
+        target_type="bank_transaction",
+    )
 
 
 @router.post("/transactions/reconcile-bulk", response_model=int)
@@ -471,6 +508,7 @@ async def _import_rows(
 
 class OFXImportRequest(BaseModel):
     content: str  # raw OFX/QFX text
+    default_bank_account: str = "courant"  # used for single-account files
 
 
 class QIFImportRequest(BaseModel):
@@ -496,6 +534,7 @@ async def import_ofx(
             payload.content,
             courant_acctid=courant_acctid,
             epargne_acctid=epargne_acctid,
+            default_bank_account=payload.default_bank_account,
         )
     except BankImportError as exc:
         raise HTTPException(

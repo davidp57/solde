@@ -1,7 +1,7 @@
 <template>
   <Dialog
     :visible="visible"
-    :header="t('bank.new_transaction')"
+    :header="editTransaction ? t('bank.edit_transaction') : t('bank.new_transaction')"
     modal
     class="app-dialog app-dialog--medium"
     @update:visible="$emit('update:visible', $event)"
@@ -47,15 +47,6 @@
               class="w-full"
             />
           </div>
-          <div class="app-field">
-            <label class="app-field__label">{{ t('bank.tx_balance') }}</label>
-            <InputNumber
-              v-model="form.balance_after"
-              mode="decimal"
-              :min-fraction-digits="2"
-              :max-fraction-digits="2"
-            />
-          </div>
         </div>
       </section>
       <div class="app-form-actions">
@@ -72,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
@@ -81,9 +72,9 @@ import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import { useToast } from 'primevue/usetoast'
 import Select from 'primevue/select'
-import { addTransaction, type BankAccountType } from '@/api/bank'
+import { addTransaction, updateTransaction, type BankAccountType, type BankTransaction } from '@/api/bank'
 
-defineProps<{ visible: boolean }>()
+const props = defineProps<{ visible: boolean; editTransaction?: BankTransaction | null }>()
 const emit = defineEmits<{
   'update:visible': [val: boolean]
   saved: []
@@ -97,9 +88,32 @@ const form = ref({
   amount: 0,
   description: '',
   reference: '',
-  balance_after: 0,
   bank_account: 'courant' as BankAccountType,
 })
+
+watch(
+  () => props.editTransaction,
+  (tx) => {
+    if (tx) {
+      form.value = {
+        date: new Date(tx.date + 'T12:00:00'),
+        amount: parseFloat(tx.amount),
+        description: tx.description,
+        reference: tx.reference ?? '',
+        bank_account: tx.bank_account,
+      }
+    } else {
+      form.value = {
+        date: new Date(),
+        amount: 0,
+        description: '',
+        reference: '',
+        bank_account: 'courant' as BankAccountType,
+      }
+    }
+  },
+  { immediate: true },
+)
 
 function toIsoDate(d: Date | string): string {
   if (typeof d === 'string') return d
@@ -109,14 +123,23 @@ function toIsoDate(d: Date | string): string {
 async function submit(): Promise<void> {
   saving.value = true
   try {
-    await addTransaction({
-      date: toIsoDate(form.value.date),
-      amount: String(form.value.amount),
-      description: form.value.description,
-      reference: form.value.reference || null,
-      balance_after: String(form.value.balance_after),
-      bank_account: form.value.bank_account,
-    })
+    if (props.editTransaction) {
+      await updateTransaction(props.editTransaction.id, {
+        date: toIsoDate(form.value.date),
+        amount: String(form.value.amount),
+        description: form.value.description,
+        reference: form.value.reference || null,
+        bank_account: form.value.bank_account,
+      })
+    } else {
+      await addTransaction({
+        date: toIsoDate(form.value.date),
+        amount: String(form.value.amount),
+        description: form.value.description,
+        reference: form.value.reference || null,
+        bank_account: form.value.bank_account,
+      })
+    }
     emit('update:visible', false)
     emit('saved')
   } catch {

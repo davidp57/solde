@@ -217,6 +217,7 @@ def parse_ofx(
     content: str,
     courant_acctid: str | None = None,
     epargne_acctid: str | None = None,
+    default_bank_account: str = "courant",
 ) -> list[dict[str, object]]:
     """Parse an OFX/QFX bank statement (SGML or XML) and return transaction dicts.
 
@@ -239,7 +240,7 @@ def parse_ofx(
         stmtrs_segments = [content]
 
     if len(stmtrs_segments) == 1:
-        rows = _parse_ofx_segment(stmtrs_segments[0], bank_account="courant")
+        rows = _parse_ofx_segment(stmtrs_segments[0], bank_account=default_bank_account)
     else:
         # Multi-account file
         if not courant_acctid and not epargne_acctid:

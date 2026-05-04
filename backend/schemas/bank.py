@@ -54,6 +54,10 @@ class BankTransactionUpdate(BaseModel):
     reference: str | None = None
     description: str | None = None
     detected_category: BankTransactionCategory | None = None
+    # Fields below are only applied when editing a manual transaction
+    date: _Date | None = None
+    amount: _Decimal | None = None
+    bank_account: BankAccountType | None = None
 
 
 class BankReconcileBulkRequest(BaseModel):
