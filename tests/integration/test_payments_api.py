@@ -495,23 +495,27 @@ async def test_suggest_cheque_number_returns_200_with_string(
         headers=auth_headers,
     )
     assert response.status_code == 200
-    # Response must be a plain string (JSON string or raw text)
     value = response.json()
     assert isinstance(value, str)
-    assert len(value) > 0
+    # Default template is "{date}.{seq}" where date=YYYYMMDD and seq=2 digits
+    assert value == "20240615.01"
 
 
 @pytest.mark.asyncio
 async def test_suggest_cheque_number_uses_today_when_no_date(
     client: AsyncClient, admin_user: User, auth_headers: dict
 ) -> None:
-    """Without payment_date the endpoint must still succeed using today's date."""
+    """Without payment_date the endpoint must use today's date in the result."""
     response = await client.get(
         "/api/payments/suggest_cheque_number",
         headers=auth_headers,
     )
     assert response.status_code == 200
-    assert isinstance(response.json(), str)
+    value = response.json()
+    assert isinstance(value, str)
+    # The returned number must embed today's date formatted as YYYYMMDD
+    today_str = date.today().strftime("%Y%m%d")
+    assert today_str in value
 
 
 @pytest.mark.asyncio

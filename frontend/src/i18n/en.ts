@@ -1,11 +1,10 @@
 /**
  * English translations skeleton for Solde ⚖️
  *
- * Status: partial — only app / auth / common are fully translated.
- * All other sections are structural stubs (keys present, values in French).
- * Missing keys fall back to French via fallbackLocale: 'fr'.
+ * Status: partial — only app / auth / common are translated.
+ * All other sections are absent; missing keys fall back to French via fallbackLocale: 'fr'.
  *
- * CHR-078 — progressively replace French values with English.
+ * CHR-078 — progressively add and translate the remaining sections.
  */
 export default {
   app: {
