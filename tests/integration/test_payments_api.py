@@ -478,3 +478,96 @@ async def test_list_payments_filter_by_invoice_type(
     assert len(data) == 1
     assert data[0]["id"] == client_payment_response.json()["id"]
     assert data[0]["invoice_type"] == "client"
+
+
+# ---------------------------------------------------------------------------
+# TEC-158 — Tests for GET /api/payments/suggest_cheque_number
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_suggest_cheque_number_returns_200_with_string(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    response = await client.get(
+        "/api/payments/suggest_cheque_number",
+        params={"payment_date": "2024-06-15"},
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    # Response must be a plain string (JSON string or raw text)
+    value = response.json()
+    assert isinstance(value, str)
+    assert len(value) > 0
+
+
+@pytest.mark.asyncio
+async def test_suggest_cheque_number_uses_today_when_no_date(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    """Without payment_date the endpoint must still succeed using today's date."""
+    response = await client.get(
+        "/api/payments/suggest_cheque_number",
+        headers=auth_headers,
+    )
+    assert response.status_code == 200
+    assert isinstance(response.json(), str)
+
+
+@pytest.mark.asyncio
+async def test_suggest_cheque_number_increments_when_cheques_exist(
+    client: AsyncClient, db_session: AsyncSession, admin_user: User, auth_headers: dict
+) -> None:
+    """Sequence counter must advance when a cheque already exists for the same date."""
+    contact_id, invoice_id = await _setup_contact_invoice(db_session)
+    target_date = "2025-03-10"
+
+    # First suggestion before any cheque
+    r1 = await client.get(
+        "/api/payments/suggest_cheque_number",
+        params={"payment_date": target_date},
+        headers=auth_headers,
+    )
+    first = r1.json()
+
+    # Record a cheque payment on that date
+    await client.post(
+        "/api/payments/",
+        json={
+            "invoice_id": invoice_id,
+            "contact_id": contact_id,
+            "amount": "120.00",
+            "date": target_date,
+            "method": "cheque",
+            "cheque_number": first,
+        },
+        headers=auth_headers,
+    )
+
+    # Second suggestion must differ (next in sequence)
+    r2 = await client.get(
+        "/api/payments/suggest_cheque_number",
+        params={"payment_date": target_date},
+        headers=auth_headers,
+    )
+    second = r2.json()
+    assert second != first
+
+
+@pytest.mark.asyncio
+async def test_suggest_cheque_number_requires_auth(client: AsyncClient) -> None:
+    response = await client.get("/api/payments/suggest_cheque_number")
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_suggest_cheque_number_forbidden_for_readonly(
+    client: AsyncClient,
+    readonly_user: User,
+    readonly_auth_headers: dict,
+) -> None:
+    response = await client.get(
+        "/api/payments/suggest_cheque_number",
+        headers=readonly_auth_headers,
+    )
+    assert response.status_code == 403
