@@ -102,6 +102,11 @@
           :to="{ name: 'bank' }"
         />
         <AppStatCard
+          :label="t('dashboard.bank_epargne_balance')"
+          :value="kpis ? formatAmount(kpis.bank_epargne_balance) : '—'"
+          :to="{ name: 'bank' }"
+        />
+        <AppStatCard
           :label="t('dashboard.cash_balance')"
           :value="kpis ? formatAmount(kpis.cash_balance) : '—'"
           :to="{ name: 'cash' }"
