@@ -39,6 +39,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **TEC-157** — `CashView` : libellé `'Écart :'` des comptages remplacé par la clé i18n `cash.count_diff`
 
 ### Corrigé
+- **BIZ-034** — Virements internes (512100 ↔ 512102) : seul le côté COURANT génère désormais des écritures comptables ; le côté EPARGNE retourne une liste vide, ce qui évitait que 512102 soit débité et crédité du même montant (solde nul) lors de chaque virement
+- **BIZ-034** — Journal filtré sur un compte : les colonnes Débit/Crédit d'une écriture groupée affichent désormais uniquement la contribution du compte filtré (et non le total équilibré de l'écriture complète) — ex. l'ouverture FY2024 affichait 61 791,51 au lieu de 52 115,89 sur 512102
+- **BIZ-034** — Saisie manuelle d'écriture : le `fiscal_year_id` est désormais automatiquement dérivé de la date saisie quand le frontend ne le fournit pas, évitant que l'écriture soit invisible lors d'un filtre par exercice
 - **BIZ-164** — Mock `window.matchMedia` ajouté dans le setup de tests Vitest pour éviter des erreurs jsdom dans les composants utilisant `useBreakpoints`
 - **BIZ-164** — Clé stable dans `AppMobileCardList` : prop `itemKey` optionnelle pour éviter les réutilisations erronées de nœuds DOM lors d'un tri/filtrage
 - **BIZ-164** — Tuile dépôt espèces : `total_amount` affiché même si `denomination_details` est vide ou invalide (fallback `v-else-if`)
@@ -50,13 +53,18 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **CR-077** — Fuite mémoire Blob URL corrigée dans `ClientInvoicesView` : l'ancienne URL est révoquée avant d'en créer une nouvelle à l'ouverture de l'historique
 - **CR-077** — Bouton « Passer en créance douteuse » désormais masqué pour les contacts de type `les_deux` (visible uniquement pour `type === 'client'`)
 - **CR-077** — Commentaire d'en-tête de `frontend/src/i18n/en.ts` corrigé : précise que les sections absentes tombent en fallback French via `fallbackLocale: 'fr'`
+- **BIZ-034** — Catégorie bancaire « Sans écriture » (`no_entry`) : une transaction avec cette catégorie ne génère aucune écriture comptable lors du rapprochement, même si des règles actives existent — il est architecturalement impossible de créer une règle pour cette catégorie
 
 ### Tests
+- **BIZ-034** — 2 nouveaux tests unitaires de régression pour le virement interne : `test_internal_transfer_courant_side_generates_entries` (côté COURANT → entrées générées) et `test_internal_transfer_epargne_side_returns_empty` (côté EPARGNE → liste vide)
+- **BIZ-034** — 2 nouveaux tests unitaires de régression pour `get_grouped_journal` : totaux filtrés par compte (`test_filter_by_account_keeps_full_group` enrichi) et simulation d'une ouverture multi-comptes (`test_filter_by_account_totals_multi_line_group`)
 - **TEC-158** — 5 nouveaux tests d'intégration pour `GET /api/payments/suggest_cheque_number` : statut 200 + format, date par défaut (aujourd'hui), incrément séquentiel, 401 sans auth, 403 pour `readonly`
 - **TEC-159** — 4 nouveaux tests d'intégration pour `cheque_number_template` dans settings API : valeur par défaut renvoyée, mise à jour valide, rejet sans `{seq}`, rejet avec placeholder non supporté
 - **CR-077** — Tests de régression renforcés sur `suggest_cheque_number` : vérification du format exact `YYYYMMDD.NN` et de la date d'aujourd'hui utilisée en fallback
 - **CR-077** — 2 nouveaux tests Vitest pour la navigation Précédent / Suivant du dialog historique (`ClientInvoicesView`)
 - **CR-077** — 2 nouveaux tests Vitest pour la navigation Précédent / Suivant du dialog preview facture fournisseur, barre du bas (`SupplierInvoicesView`)
+- **BIZ-034** — 4 nouveaux tests unitaires `TestGenerateEntriesForBankTransaction` : catégorie `no_entry` → liste vide, objet non-`BankTransaction` → liste vide, `uncategorized` → liste vide, `bank_fee` avec règle → 2 écritures équilibrées
+- **BIZ-034** — 1 nouveau test d'intégration : `POST /api/accounting/rules/` avec `trigger_type: "no_entry"` retourne 422
 
 ---
 

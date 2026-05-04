@@ -406,6 +406,46 @@ class TestGetGroupedJournal:
 
         assert len(journal_groups) == 1
         assert [line.account_number for line in journal_groups[0].lines] == ["512100", "411100"]
+        # Totals must reflect only the filtered account's contribution, not the full group.
+        assert journal_groups[0].total_debit == Decimal("55.00")
+        assert journal_groups[0].total_credit == Decimal("0.00")
+        assert journal_groups[0].line_count == 1
+
+    @pytest.mark.asyncio
+    async def test_filter_by_account_totals_multi_line_group(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Regression: journal filtered on 512102 must show only 512102's debit/credit,
+        not the grand total of the entire opening entry (which spans 13+ accounts).
+
+        See: bug where opening FY2024 showed 61791.51 instead of 52115.89 on 512102.
+        """
+        # Simulate a multi-account opening entry (3 accounts, same group)
+        for account, debit, credit in [
+            ("512100", Decimal("8155.62"), Decimal("0")),
+            ("512102", Decimal("52115.89"), Decimal("0")),
+            ("106800", Decimal("0"), Decimal("60271.51")),
+        ]:
+            await _add_entry(
+                db_session,
+                entry_number=f"RAN-{account}",
+                entry_date=date(2024, 8, 19),
+                account_number=account,
+                debit=debit,
+                credit=credit,
+                label="Ouverture exercice 2024",
+                group_key="cloture:1",
+            )
+
+        groups = await get_grouped_journal(db_session, account_number="512102")
+
+        assert len(groups) == 1
+        # All sibling lines are present for context
+        assert len(groups[0].lines) == 3
+        # But totals only count 512102's contribution
+        assert groups[0].total_debit == Decimal("52115.89")
+        assert groups[0].total_credit == Decimal("0")
+        assert groups[0].line_count == 1
 
 
 class TestUpdateManualEntry:

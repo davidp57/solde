@@ -193,6 +193,21 @@ Migration naming convention: `NNNN_short_description.py` where `NNNN` is a zero-
 | `AuditLog` | `audit_logs` | Immutable action log |
 | `ImportRun` | `import_runs` | Excel import execution record |
 
+### BankTransactionCategory — phantom category `no_entry`
+
+`BankTransactionCategory` (`backend/models/bank.py`) is the enum that classifies each bank statement line. Most categories map to a `TriggerType` in `_BANK_CATEGORY_TRIGGER` (defined in `accounting_engine.py`) and trigger accounting entry generation at reconciliation time.
+
+The `NO_ENTRY = "no_entry"` category is a **phantom category**: it is intentionally exempt from all accounting rule processing. This is enforced at two independent levels:
+
+1. **Accounting engine** (`generate_entries_for_bank_transaction`): returns an empty list immediately if `detected_category == BankTransactionCategory.NO_ENTRY`, before any rule lookup.
+2. **Architecture**: `TriggerType` (the enum governing `AccountingRule`) has no `"no_entry"` value. Pydantic therefore rejects any `POST /api/accounting/rules/` request whose `trigger_type` field contains `"no_entry"` with a `422 Unprocessable Entity`.
+
+A belt-and-suspenders guard also lives in the router: `NON_TRIGGERABLE_CATEGORIES` (a `frozenset[str]` in `backend/models/accounting_rule.py`) is checked explicitly so the protection remains visible and survives any future refactoring.
+
+**When to use `no_entry`:** assign this category to transactions that must appear on the bank statement but require no accounting counterpart — for example, interbank transfers to accounts managed outside Solde, or one-off technical balance adjustments.
+
+**Extension note:** never add `NO_ENTRY` (or any value listed in `NON_TRIGGERABLE_CATEGORIES`) to `_BANK_CATEGORY_TRIGGER`. Doing so would silently bypass the engine-level protection.
+
 ### Accounting entry group key
 
 Every `AccountingEntry` has a runtime group key used to cluster related lines in the journal view:

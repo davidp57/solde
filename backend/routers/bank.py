@@ -1,5 +1,6 @@
 """Bank API router — transactions, CSV import, deposit slips and reconciliation."""
 
+import logging
 from datetime import date
 from decimal import Decimal
 from typing import Annotated, cast
@@ -35,6 +36,8 @@ from backend.services.bank_import import (
     parse_ofx,
     parse_qif,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/bank", tags=["bank"])
 
@@ -458,6 +461,7 @@ async def import_csv(
     try:
         rows = parse_credit_mutuel_csv(payload.content)
     except BankImportError as exc:
+        logger.warning("CSV import rejected: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
@@ -482,6 +486,18 @@ async def _import_rows(
     """Persist parsed rows, skipping duplicates by reference. Returns created + skipped count."""
     created: list[BankTransactionRead] = []
     skipped = 0
+
+    # For non-Excel imports, compute a per-account cut-off date based on the latest
+    # Excel-imported transaction. Rows on or before that date are already covered.
+    excel_cutoffs: dict[BankAccountType, date] = {}
+    if source not in (BankTransactionSource.IMPORT_EXCEL, BankTransactionSource.IMPORT):
+        excel_cutoffs = await bank_service.get_excel_cutoffs(db)
+        if excel_cutoffs:
+            logger.info(
+                "Excel cut-off dates applied: %s",
+                {k: str(v) for k, v in excel_cutoffs.items()},
+            )
+
     for row in rows:
         raw_account = row.get("bank_account", "courant")
         bank_account = (
@@ -489,8 +505,13 @@ async def _import_rows(
             if raw_account in (BankAccountType.COURANT, BankAccountType.EPARGNE)
             else BankAccountType.COURANT
         )
+        tx_date = cast(date, row["date"])
+        cutoff = excel_cutoffs.get(bank_account)
+        if cutoff and tx_date <= cutoff:
+            skipped += 1
+            continue
         tx_payload = BankTransactionCreate(
-            date=cast(date, row["date"]),
+            date=tx_date,
             amount=cast(Decimal, row["amount"]),
             balance_after=cast(Decimal, row["balance_after"]),
             description=str(row.get("description", "")),
@@ -537,6 +558,7 @@ async def import_ofx(
             default_bank_account=payload.default_bank_account,
         )
     except BankImportError as exc:
+        logger.warning("OFX import rejected: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
@@ -565,6 +587,7 @@ async def import_qif(
     try:
         rows = parse_qif(payload.content)
     except BankImportError as exc:
+        logger.warning("QIF import rejected: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc

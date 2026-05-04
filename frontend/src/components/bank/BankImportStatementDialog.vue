@@ -35,7 +35,7 @@
               @change="onFileSelected"
             />
           </div>
-          <div v-if="isOfxOrQif" class="app-field app-field--span-2">
+          <div v-if="isOfxOrQif && !acctidFullyConfigured" class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('bank.import_default_account') }}</label>
             <Select
               v-model="defaultBankAccount"
@@ -70,15 +70,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Select from 'primevue/select'
 import { useToast } from 'primevue/usetoast'
 import { importBankStatement, type BankImportFormat, type BankAccountType } from '@/api/bank'
+import { getSettingsApi } from '@/api/settings'
 
-defineProps<{ visible: boolean }>()
+const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{
   'update:visible': [val: boolean]
   saved: []
@@ -91,6 +92,21 @@ const fileName = ref('')
 const fileContent = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const defaultBankAccount = ref<BankAccountType>('courant')
+const acctidFullyConfigured = ref(false)
+
+watch(
+  () => props.visible,
+  async (open) => {
+    if (!open) return
+    try {
+      const s = await getSettingsApi()
+      acctidFullyConfigured.value =
+        Boolean(s.bank_account_courant_acctid) && Boolean(s.bank_account_epargne_acctid)
+    } catch {
+      acctidFullyConfigured.value = false
+    }
+  },
+)
 
 const isOfxOrQif = computed(() => {
   if (!fileName.value) return false
@@ -135,8 +151,18 @@ async function submit(): Promise<void> {
       life: 4000,
     })
     emit('saved')
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    const detail =
+      err &&
+      typeof err === 'object' &&
+      'response' in err &&
+      (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+    toast.add({
+      severity: 'error',
+      summary: detail ? t('bank.import_error') : t('common.error.unknown'),
+      detail: detail ?? undefined,
+      life: 8000,
+    })
   } finally {
     saving.value = false
   }

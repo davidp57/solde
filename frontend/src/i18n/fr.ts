@@ -1,4 +1,4 @@
-export default {
+﻿export default {
   app: {
     name: 'Solde ⚖️',
     active_fiscal_year: 'Exercice actif',
@@ -815,6 +815,7 @@ export default {
       sepa_debit: 'Prélèvement',
       other_credit: 'Autre crédit',
       other_debit: 'Autre débit',
+      no_entry: 'Sans écriture',
     },
     sources: {
       manual: 'Manuel',
@@ -850,6 +851,7 @@ export default {
     import_file_required: 'Sélectionnez un fichier de relevé avant l’import.',
     import_success: '{n} opération(s) importée(s).',
     import_success_with_skipped: '{n} opération(s) importée(s), {s} ignorée(s) (déjà présente(s)).',
+    import_error: 'Erreur d\'import',
     metrics: {
       current_balance_caption: 'Toutes périodes confondues',
       visible_scope_caption: 'Périmètre affiché',
@@ -1138,6 +1140,7 @@ export default {
         supplier_payables: 'Fournisseurs',
         cash: 'Caisse',
         current_account: 'Compte courant',
+        savings_account: 'Livret épargne',
         cheques_to_deposit: 'Chèques à déposer',
       },
       empty: 'Aucune donnée.',
