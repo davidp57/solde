@@ -215,6 +215,7 @@ export default {
     reset_filters: 'Réinitialiser les filtres',
     previous: 'Précédent',
     next: 'Suivant',
+    empty: 'Aucune donnée.',
     active: 'Actif',
     inactive: 'Inactif',
     list: {

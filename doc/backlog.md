@@ -5,17 +5,21 @@ Backlog produit pour Solde ⚖️ — gestion comptable associative.
 Quand le travail démarre sur un sujet, créer une branche `feature/` depuis `develop`.
 Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en ✅ Fait ici.
 
+> Lots terminés depuis plus de 3 jours → [backlog-archive.md](backlog-archive.md)
+
 ---
 
 ## Calibration estimations
 
-Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dessous).
+Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 | Lot | Estimé Copilot | Réel Copilot | Ratio | Estimé gestion | Réel gestion | Ajustement |
 | --- | --- | --- | --- | --- | --- | --- |
 | UI | ~65 min | ~30 min | **0,46** | 15 min | ? | ↓ facteur → 1,00 |
+| CR2 | ~70 min | ~20 min | **0,29** | — | — | voir note |
 
-> Lot UI : estimations 2x trop élevées. Les tickets UI/bulk-replace et les vérifications de tickets "déjà fait" ont été surestimés. Pour les prochains lots, utiliser les réels de ce lot comme calibration : bulk-replace ~3 min, ajout d’une fonction simple ~7 min, mise à jour de N routeurs/vues ~18 min.
+> Lot UI : estimations 2x trop élevées. Les tickets UI/bulk-replace et les vérifications de tickets "déjà fait" ont été surestimés.
+> Lot CR2 : ratio 0,29 — très inférieur à 1,15. Cependant ces tickets étaient tous très petits (i18n, tests, nav, squelette) et le facteur 1,00 reflète déjà une marge nulle. Plutôt que d'abaisser le facteur en dessous de 1,00 (ce qui serait contre-productif), la leçon est : **pour les tickets de finition/tests simples, l'estimation de référence doit être 3–5 min, pas 10–20 min**. Facteur maintenu à 1,00 ; calibration des estimations unitaires à revoir pour ces catégories.
 
 ---
 
@@ -25,86 +29,56 @@ Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dess
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-156 | Fix token auth chat (localStorage → Pinia) | P1 | — | 2026-05-03 | 2026-05-03 | 2026-05-03 |
-| TEC-157 | i18n : supprimer chaînes en dur dans AppMobileCardList + CashView | P3 | ~10 min | 2026-05-03 | | |
-| TEC-158 | Tests intégration suggest_cheque_number (statut, date, incrément, accès) | P2 | ~20 min | 2026-05-03 | | |
-| TEC-159 | Tests validation cheque_number_template dans settings API | P2 | ~15 min | 2026-05-03 | | |
-| BIZ-165 | Navigation précédent/suivant sur preview factures client | P2 | ~10 min | 2026-05-03 | | |
-| CHR-078 | Squelette i18n anglais | P3 | ~15 min | 2026-04-23 | | |
 | BIZ-034 | Support multi-compte banque | P3 | ~60 min | 2026-04-21 | | |
 
 ---
 
 ## Détails
 
-### BIZ-165 — Navigation précédent/suivant sur preview factures client
+### BIZ-166 — Vue contacts : onglet clients par défaut + tri par récence
 
-La preview des factures fournisseur dispose de boutons « ◀ Précédent / Suivant ▶ » permettant de naviguer dans la liste sans fermer le dialogue. Cette fonctionnalité est absente de la preview des factures client. Uniformiser les deux en ajoutant la même navigation dans `ClientInvoicesView.vue` / le composant de prévisualisation des factures client.
+Onglet "Clients" activé par défaut (ordre : Clients > Fournisseurs > Tout).
+Tri synthétique : facture < 6 mois en tête, puis ordre alphabétique (nom, prénom).
 
 ### BIZ-034 — Support multi-compte banque
 
 Distinguer compte courant et compte épargne dans les données, imports et écrans.
 Décisions métier nécessaires avant implémentation.
 
-### TEC-156 — Fix token auth chat (localStorage → Pinia)
-
-`streamChat` dans `api/chat.ts` lisait `localStorage.getItem('access_token')` — toujours `null` car le token est stocké uniquement en mémoire Pinia (mitigation XSS). Chaque `POST /api/chat` retournait 401. Corrigé en lisant `useAuthStore().accessToken`. Découvert lors du test du Lot DOC (2026-05-03). ✅ Fait
-
-### CHR-078 — Squelette i18n anglais
-
-Créer `en.ts` avec les clés structurelles pour préparer la localisation anglaise.
-
-### TEC-157 — i18n : supprimer chaînes en dur dans AppMobileCardList + CashView
-
-Suite à la revue Copilot de la PR #76 : `emptyMessage: 'Aucune donnée'` dans `AppMobileCardList.vue` et `"Écart :"` dans `CashView.vue` sont des chaînes UI codées en dur. Les remplacer par des clés i18n (ou exposer via slot `#empty`), cohérent avec le reste de l'app.
-
-### TEC-158 — Tests intégration suggest_cheque_number
-
-Suite à la revue Copilot de la PR #76 : l'endpoint `GET /api/payments/suggest_cheque_number` n'a pas de tests dans `tests/integration/test_payments_api.py`. Couvrir : statut 200 + format de retour, `payment_date` explicite vs défaut, incrément quand des paiements chèque existent, contrôle d'accès.
-
-### TEC-159 — Tests validation cheque_number_template dans settings API
-
-Suite à la revue Copilot de la PR #76 : `cheque_number_template` dans `AppSettingsUpdate` n'est pas testé dans `tests/integration/test_settings_api.py`. Couvrir : valeur par défaut renvoyée par `GET /api/settings/`, cas invalides (sans `{seq}`, placeholders non supportés).
-
 ---
 
-## Lots terminés
+## Lots terminés récents (≤ 3 jours)
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
-| DOC | Documentation utilisateur | v1.5 | BIZ-161, BIZ-162, BIZ-163 | 2026-05-03 | ~115 min | ~45 min |
-| 1 | Quick wins P3 | v0.2 | CHR-064, CHR-062, TEC-066, TEC-063 | 2026-04-22 | — | — |
-| 2 | Tests au vert | v0.2 | TEC-048 | 2026-04-22 | — | — |
-| 3 | Sécurité sans impact structurel | v0.2 | TEC-047, TEC-052, TEC-055, TEC-060, TEC-051 | 2026-04-22 | — | — |
-| 4 | Qualité backend sans impact API | v0.2 | TEC-065, TEC-057, TEC-059 | 2026-04-22 | — | — |
-| 5 | Sécurité auth (full-stack) | v0.2 | TEC-045, BIZ-053, TEC-046 | 2026-04-22 | — | — |
-| 6 | DevOps Docker | v0.2 | CHR-054, CHR-061 | 2026-04-22 | — | — |
-| 7 | Refactoring structurel | v0.2 | TEC-050, TEC-058 | 2026-04-22 | — | — |
-| 8 | Chantiers longs | v0.2 | BIZ-056, TEC-049 | 2026-04-22 | — | — |
-| A | Backend rapide | v0.3 | TEC-085 | 2026-04-23 | — | — |
-| B | UX quick wins | v0.3 | BIZ-070, BIZ-072, BIZ-074, BIZ-084, BIZ-042 | 2026-04-23 | — | — |
-| C | Dashboard interactif | v0.3 | BIZ-075, BIZ-073 | 2026-04-23 | — | — |
-| D | Polish UI | v0.3 | BIZ-071, BIZ-043 | 2026-04-23 | — | — |
-| F | Tests | v0.4 | TEC-079, TEC-080, TEC-081 | 2026-04-24 | — | — |
-| G | Refactoring frontend | v0.5 | TEC-077 | 2026-04-24 | — | — |
-| I | Polish UI & contacts | v0.5 | BIZ-035, BIZ-037, CHR-038, BIZ-040 | 2026-04-24 | — | — |
-| J | CI GitHub Actions | v0.5 | CHR-086, CHR-087 | 2026-04-24 | — | — |
-| K | Documentation & Swagger | v0.5 | CHR-019, CHR-082 | 2026-04-24 | — | — |
-| L | Gestion employés | v0.6 | BIZ-088 | 2026-04-25 | — | — |
-| M | Sécurité applicative | v0.6 | TEC-091, TEC-092, TEC-093 | 2026-04-25 | — | — |
-| N | UX & formulaires | v0.7 | BIZ-094, BIZ-095, BIZ-096, BIZ-097 | 2026-04-25 | — | — |
-| Q | Recette post-merge N | v0.7 | voir doc/recette.md (REC-001..REC-015) | 2026-04-26 | — | — |
-| R | Supervision système & audit | v0.8 | BIZ-108, BIZ-109 | 2026-04-26 | — | — |
-| O | Qualité technique backend | v0.7 | TEC-098, TEC-099, TEC-100 | 2026-04-26 | — | — |
-| P | Qualité technique frontend | v0.7 | TEC-101, TEC-102, TEC-103, TEC-104 | 2026-04-26 | — | — |
-| S | Documentation & i18n | v0.8 | TEC-106, CHR-021, CHR-020, CHR-079 | 2026-04-27 | — | — |
-| T | Chatbot IA + refactor Paramètres | v1.0 | BIZ-125, BIZ-126 | 2026-04-27 | — | — |
-| H-UX | Améliorations UX (lot H) | v1.1 | settings gestionnaires, dialogue paiement, champs famille contacts, date facture, commentaires, PDF règlement, verrou édition | 2026-04-28 | — | — |
-| I-BNK | UX Banque | v1.2 | BIZ-133, BIZ-134, BIZ-135, BIZ-136, BIZ-137 | 2026-05-01 | — | — |
+| CR2 | Correctifs & finitions post-MOB | v1.5 | TEC-157, TEC-158, TEC-159, BIZ-165, BIZ-166, BIZ-167, BIZ-168, CHR-078 | 2026-05-04 | ~95 min | ~30 min |
 | Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 | — | — |
 | CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 | — | — |
+| DOC | Documentation utilisateur | v1.5 | BIZ-161, BIZ-162, BIZ-163 | 2026-05-03 | ~115 min | ~45 min |
 | UI | Améliorations UI & saisie | v1.4 | BIZ-149, BIZ-150, BIZ-157, BIZ-158 | 2026-05-03 | ~65 min | ~30 min |
 | MOB | Mode téléphone | v1.5 | BIZ-164 | 2026-05-03 | ~90 min | — |
+
+<details>
+<summary>Lot CR2 — Correctifs &amp; finitions post-MOB (2026-05-04)</summary>
+
+| Ticket | Titre | Est. | Réel |
+| --- | --- | --- | --- |
+| TEC-157 | i18n AppMobileCardList + CashView | ~10 min | ~3 min |
+| TEC-158 | Tests intégration suggest_cheque_number (5 tests) | ~20 min | ~5 min |
+| TEC-159 | Tests cheque_number_template settings API (4 tests) | ~15 min | ~4 min |
+| BIZ-165 | Navigation prev/next preview factures client | ~10 min | ~5 min |
+| CHR-078 | Squelette i18n anglais (en.ts) | ~15 min | ~3 min |
+| **Total** | | **~70 min** | **~20 min** |
+
+### Détail
+
+- **TEC-157** : `AppMobileCardList.vue` — prop `emptyMessage` default migré vers `t('common.empty')` + import `useI18n`. `CashView.vue` — `'Écart :'` remplacé par `t('cash.count_diff')`. Clé `common.empty: 'Aucune donnée.'` ajoutée dans `fr.ts`.
+- **TEC-158** : 5 tests dans `test_payments_api.py` : statut 200, string non vide, pas de date → aujourd'hui, incrément après un chèque existant, 401 sans auth, 403 readonly.
+- **TEC-159** : 4 tests dans `test_settings_api.py` (dans `TestUpdateSettings`) : valeur par défaut `{date}.{seq}`, update valide, 422 sans `{seq}`, 422 avec placeholder inconnu.
+- **BIZ-165** : `ClientInvoicesView.vue` — `historyIndex` ref, `openHistory` indexe dans `displayedInvoices`, barre nav ◀ N/total ▶ dans le dialog, `goToPrevHistory` / `goToNextHistory`, styles `.preview-nav-bar`.
+- **CHR-078** : `frontend/src/i18n/en.ts` créé — sections `app`, `auth`, `common` traduits en anglais. Enregistré dans `index.ts` (messages: `{ fr, en }`).
+
+</details>
 
 <details>
 <summary>Lot MOB — Mode téléphone (2026-05-03)</summary>
@@ -182,76 +156,16 @@ Purge des clés expirées toutes les 100 tentatives dans `rate_limiter.py`.
 
 </details>
 
-<details>
-<summary>Lot S — Documentation & i18n (2026-04-27)</summary>
+Tickets fermés hors lots récents : **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**, **TEC-156**.
 
-### TEC-106 — Audit et complétion des clés i18n manquantes
-
-Audit complet des 1 096 clés `t('...')` utilisées dans le frontend (1 358 appels bruts filtrés). Résultat : 2 clés manquantes (`common.active`, `common.inactive`) utilisées dans `EmployeesView.vue` — ajoutées dans `fr.ts`.
-
-### CHR-020 — Documentation de contribution
-
-`doc/dev/contributing.md` : setup local, `dev.ps1`, quality gate backend/frontend, conventions Git et workflow. Validé via PR #54.
-
-### CHR-021 — Manuel utilisateur illustré
-
-Manuel FR `doc/user/manuel.md` + référence LLM `doc/llm/reference.md`. Version textuelle complète, structure par rôle et parcours métier. Illustrations (captures annotées) reportées à une future itération.
-
-### CHR-079 — Restructuration et nettoyage de la documentation
-
-Restructuration complète du répertoire `doc/` : nouvelles arborescences `doc/admin/`, `doc/dev/`, `doc/user/`, `doc/llm/` ; suppression de 25 fichiers obsolètes ; README par section ; split des docs bilingues en fichiers par langue (`*.fr.md` / `*.en.md`). Corrections factuelles : `DATABASE_URL`, Vue Router 5, fixtures de test, durée de session, rôles règles comptables, version sync.
-
-</details>
-
-Tickets fermés hors lots : TEC-067, TEC-068, BIZ-069, BIZ-076, CHR-083, BIZ-036, BIZ-041, BIZ-033, BIZ-088, BIZ-089, BIZ-090, TEC-105, TEC-039, BIZ-106, BIZ-107, TEC-110, BIZ-108, BIZ-109, BIZ-112, BIZ-113, BIZ-114, BIZ-115, BIZ-116, BIZ-118, BIZ-121, BIZ-117, **BIZ-119**, **BIZ-123**, **BIZ-124**, **BIZ-122**, **BIZ-111**, **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**, **BIZ-138**, **BIZ-139**, **BIZ-140**, **BIZ-141**, **TEC-142**, **TEC-143**, **TEC-146**, **TEC-152**, **TEC-153**, **TEC-154**, **BIZ-155**, **BIZ-156**, **BIZ-148**.
-Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – BIZ-023.
+> Lots et tickets plus anciens → [backlog-archive.md](backlog-archive.md)
 
 <details>
-<summary>Tickets fermés hors lots — détails (BIZ-111, BIZ-117, BIZ-119, BIZ-123, BIZ-124)</summary>
+<summary>TEC-156 — Fix token auth chat (2026-05-03)</summary>
 
-### BIZ-111 — Import one-shot adresses postales depuis factures Word
+### TEC-156 — Fix token auth chat (localStorage → Pinia)
 
-- **Terminé** : 2026-04-26
-- **Livré** : script `scripts/import_addresses_from_docx.py` — extrait les adresses postales depuis les factures Word historiques et enrichit `Contact.adresse` (dry-run par défaut, `--commit` pour appliquer). 48 contacts mis à jour. Dépendance `python-docx` ajoutée dans `pyproject.toml`. Amélioration associée : affichage de l'adresse dans le PDF facture + suppression du SIRET en doublon dans la section Émetteur.
-
-### BIZ-117 — Assistant IA intégré
-
-**Clôturé ❌ Non réalisable** — intégration d'un LLM tiers exclue pour raisons de confidentialité des données comptables ; modèle local incompatible avec la contrainte RAM ≤ 384 MB du NAS.
-
-### BIZ-119 — Tableau de bord avec cartes d'actions rapides
-
-- **Terminé** : 2026-04-26
-- **Livré** : panneau « Actions rapides » en haut du dashboard — 3 cartes (facture client, paiement, caisse) ouvrant des wizards de saisie inline ; wizard facture client avec confirmation et bouton « Saisir une autre ».
-
-### BIZ-123 — Prix par défaut par type de ligne de facture
-
-- **Terminé** : 2026-04-26
-- **Livré** : colonnes `default_price_cours`, `default_price_adhesion`, `default_price_autres` sur `AppSettings` (migration 0034) ; section « Prix unitaires par défaut » dans les paramètres ; pré-remplissage automatique au `addLine()` et au changement de `line_type` dans `ClientInvoiceForm` ; correction race-condition (`onMounted` async avant `addLine`).
-
-### BIZ-122 — Intégrer description dans l’e-mail de facture
-
-- **Terminé** : 2026-04-26
-- **Livré** : paramètre description ajouté à mail_service.send_invoice_email ; si renseigné, l’objet du message devient Facture {numéro} — {description} ; routeur send-email passe invoice.description au service.
-
-### BIZ-124 — Templates de numérotation configurables pour les factures
-
-- **Terminé** : 2026-04-26
-- **Livré** : `client_invoice_number_template` (`{year}`, `{seq}`) + `client_invoice_seq_digits` + `supplier_invoice_number_template` (strftime) sur `AppSettings` (migrations 0032, 0033) ; service `_next_number` avec regex ; endpoint `GET /api/invoices/next_number` (aperçu sans side-effect) ; affichage du numéro prévu dans le formulaire de création et dans la confirmation du wizard.
-
-</details>
-
-<details>
-<summary>Lot T — Chatbot IA + refactor Paramètres (2026-04-28)</summary>
-
-### BIZ-125 — Chatbot IA + page Aide
-
-- **Terminé** : 2026-04-27
-- **Livré** : sidebar chatbot flottante (SSE, Gemini/OpenAI), bouton FAB dans AppLayout, annulation, rendu Markdown via `marked` ; page `/aide` affichant `doc/user/manuel.md` en HTML ; panneau admin `SettingsChatPanel` (provider, clé API, modèle) ; backend : endpoints `/api/chat`, `/api/chat/config`, `/api/chat/logs`, `/api/help/manual` ; migrations 0035 (colonnes chat dans `app_settings`) et 0036 (table `chat_log`).
-
-### BIZ-126 — Refactor UX écran Paramètres
-
-- **Terminé** : 2026-04-27
-- **Livré** : `SettingsAssociationSmtpPanel.vue` (413 lignes) scindé en `SettingsAssociationPanel.vue` (infos association + facturation) et `SettingsSmtpPanel.vue` (SMTP) ; chaque panneau sauvegarde indépendamment. Réalisé sur la même branche que BIZ-125.
+`streamChat` dans `api/chat.ts` lisait `localStorage.getItem('access_token')` — toujours `null` car le token est stocké uniquement en mémoire Pinia (mitigation XSS). Chaque `POST /api/chat` retournait 401. Corrigé en lisant `useAuthStore().accessToken`. Découvert lors du test du Lot DOC (2026-05-03).
 
 </details>
 
@@ -288,390 +202,6 @@ Tickets fermés pré-audit : CHR-001, CHR-002, BIZ-003 – BIZ-018, BIZ-022 – 
   - Vue Banque : panneau « Dépôts en attente de confirmation » (visible si ≥ 1 dépôt non confirmé) — résumé nb chèques / nb encaissements + montant + bouton confirmer ; colonne « Statut » dans le tableau des dépôts avec filtre
   - Vue Paiements : deux métriques séparées « Chèques à remettre » et « Espèces à déposer » remplacent le compteur unique « Non remis »
   - 4 nouveaux tests d'intégration (`test_confirm_deposit`, déjà confirmé → 422, non trouvé → 404, filtre confirmed)
-
-</details>
-
-<details>
-<summary>Historique des estimations — lots techniques 1-8 (2026-04-22)</summary>
-
-Total estimé initial : ~40h — total révisé : ~55h.
-Principaux postes de dérapage : quality gates (~10 min/commit), tests d'intégration, migrations Alembic, refactoring TEC-050.
-
-### Lot 1 — Quick wins P3 — ~45 min
-
-| Ticket | Estimation | Détail |
-| --- | --- | --- |
-| CHR-064 | 5 min | Supprimer un fichier + vérifier qu'il n'est pas importé |
-| CHR-062 | 5 min | Changer une string dans `package.json` |
-| TEC-066 | 20 min | Remplacer le pattern `global` par `@lru_cache`, vérifier les tests |
-| TEC-063 | 15 min | Remplacer 2 noms dans les fixtures + migration Alembic si nécessaire |
-
-### Lot 2 — Tests au vert (TEC-048) — ~2h
-
-11 échecs dans `excel_import_parsers` / `excel_import_parsing` + 1 erreur API de test. Suite déjà au vert (739/739) après corrections antérieures.
-
-### Lot 3 — Sécurité sans impact structurel — ~4h
-
-| Ticket | Est. initiale | Est. révisée | Temps réel | Détail |
-| --- | --- | --- | --- | --- |
-| TEC-047 | 30 min | 1h | ~1h15 | Middleware 5 en-têtes + test CSP PrimeVue |
-| TEC-052 | 20 min | 30 min | ~40 min | Conditionner endpoint sur `settings.debug` |
-| TEC-055 | 20 min | 30 min | ~25 min | Paramètre `cors_allowed_origins` |
-| TEC-060 | 30 min | 45 min | ~30 min | Retirer `create_all` de `init_db()` |
-| TEC-051 | 50 min | 1h15 | ~50 min | `MAX(entry_number)` + lock + migration |
-
-### Lot 4 — Qualité backend sans impact API — ~6h
-
-| Ticket | Est. initiale | Est. révisée | Temps réel | Détail |
-| --- | --- | --- | --- | --- |
-| TEC-065 | 1h | 1h30 | ~1h30 | Déplacer attributs transients vers `PaymentRead` |
-| TEC-057 | 2h | 2h30 | ~3h30 | `TypeDecorator` Decimal + 63 occurrences |
-| TEC-059 | 1h30 | 2h | ~45 min | `limit=100` / `max=1000` sur tous les endpoints |
-
-### Lot 5 — Sécurité auth (full-stack) — ~10h
-
-| Ticket | Est. initiale | Est. révisée | Temps réel | Détail |
-| --- | --- | --- | --- | --- |
-| TEC-045 | 1h | 1h30 | ~1h | `slowapi` rate limiting sur `/auth/login` |
-| BIZ-053 | 2h | 3h | ~1h30 | Migration `must_change_password` + guard |
-| TEC-046 | 4h | 5h30 | — | Cookie `HttpOnly` + intercepteur Axios + `/auth/refresh` |
-
-### Lot 6 — DevOps Docker — ~1h30
-
-| Ticket | Est. initiale | Est. révisée | Détail |
-| --- | --- | --- | --- |
-| CHR-054 | 40 min | 50 min | `entrypoint.sh` avec gestion d'erreur |
-| CHR-061 | 20 min | 20 min | `HEALTHCHECK` Docker + docker-compose |
-
-### Lot 7 — Refactoring structurel — ~12h
-
-| Ticket | Est. initiale | Est. révisée | Détail |
-| --- | --- | --- | --- |
-| TEC-050 | 6h | 9h | Éclater `excel_import.py` (5 038 L) en package |
-| TEC-058 | 2h | 1h | Typer les `except Exception` |
-
-### Lot 8 — Chantiers longs
-
-| Ticket | Est. initiale | Est. révisée | Détail |
-| --- | --- | --- | --- |
-| BIZ-056 | 3-4h | 2h | Table d'audit + middleware + 4 types d'événements |
-| TEC-049 | 10-15h | 12-20h | Palier 34 % → 60 % couverture de test |
-
-</details>
-
-<details>
-<summary>Détails des sujets fermés — cliquer pour développer</summary>
-
-### CHR-001 — Stabiliser la méthode de triage du backlog
-
-- **Dates** : `created=2026-04-12`, `completed=2026-04-12`
-- **Livré** : backlog utilisé comme support versionné avec statuts, priorités et mises à jour récurrentes.
-
-### CHR-002 — Documentation utilisateur import/reset
-
-- **Dates** : `created=2026-04-12`, `completed=2026-04-12`
-- **Livré** : documentation rédigée dans `doc/user/import-excel-et-reinitialisation.md`.
-
-### BIZ-003 — Campagne de retest métier sur imports réels
-
-- **Dates** : `created=2026-04-12`, `completed=2026-04-12`
-- **Livré** : rejeu réel confirmé sans écart bloquant, procédure ajustée pour exercices/compteurs.
-
-### BIZ-004 — Historique d'import réversible
-
-- **Dates** : `created=2026-04-12`, `started=2026-04-20`, `completed=2026-04-20`
-- **Livré** : backend `runs`, `operations`, `effects` réversibles, API cycle `prepare → execute → undo/redo`, UI prévisualisation + historique. Stabilisation rapprochement paiement/facture intra-run.
-
-### BIZ-005 — Politique de coexistence import / écritures existantes
-
-- **Dates** : `created=2026-04-12`, `started=2026-04-19`, `completed=2026-04-19`
-- **Livré** : politique explicitée dans `doc/dev/BIZ-005-politique-coexistence-imports.md`, trois diagnostics : `entry-existing`, `entry-covered-by-solde`, `entry-near-manual`.
-
-### CHR-006 — Warnings de dépréciation FastAPI
-
-- **Dates** : `created=2026-04-12`, `started=2026-04-21`, `completed=2026-04-21`
-- **Livré** : `HTTP_422_UNPROCESSABLE_ENTITY` → `HTTP_422_UNPROCESSABLE_CONTENT`, zéro warning.
-
-### CHR-007 — Source de vérité backlog vs issues GitHub
-
-- **Dates** : `created=2026-04-12`, `completed=2026-04-13`
-- **Livré** : convention actée — `doc/backlog.md` = source de vérité.
-
-### BIZ-008 — Import Excel comme validation itérative de convergence
-
-- **Dates** : `created=2026-04-12`, `started=2026-04-18`, `completed=2026-04-18`
-- **Livré** : modes `convergence globale` et `validation moteur Gestion`, preview bidirectionnelle, script `scripts/run_excel_convergence_preview.py`. Documentation dans `doc/dev/BIZ-008-recette-convergence.md`.
-- **Détail** : grille de contrôle par domaine (factures, paiements, banque, caisse, comptes pivots), politique d'écarts résiduels, périmètre asymétrique `Solde ↔ Excel` par exercice.
-
-### BIZ-009 — Enrichir le plan comptable par défaut
-
-- **Dates** : `created=2026-04-12`, `completed=2026-04-12`
-- **Livré** : seed enrichi avec comptes réels, sous-comptes historiques conservés inactifs.
-
-### BIZ-010 — Stratégie de clôture des exercices historiques
-
-- **Dates** : `created=2026-04-12`, `completed=2026-04-12`
-- **Livré** : exercices historiques ouverts pendant reprise, clôture administrative sans écritures de clôture.
-
-### BIZ-011 — Exercice courant global
-
-- **Dates** : `created=2026-04-12`, `completed=2026-04-12`
-- **Livré** : store global d'exercice + sélecteur partagé + filtrage métier par défaut.
-
-### BIZ-012 — Liste des paiements : référence et édition
-
-- **Dates** : `created=2026-04-12`, `completed=2026-04-12`
-- **Livré** : colonne Référence + bouton d'édition par ligne + dialogue `PUT /payments/{id}`.
-
-### BIZ-013 — Journal de caisse : référence, détail et édition
-
-- **Dates** : `created=2026-04-12`, `completed=2026-04-12`
-- **Livré** : référence visible, panneau de détail, édition directe, recalcul soldes après modification.
-
-### BIZ-014 — Journal comptable : lisibilité et navigation
-
-- **Dates** : `created=2026-04-12`, `completed=2026-04-12`
-- **Livré** : libellés comptes, références métier, tiers, détail, édition manuelles, navigation factures.
-
-### BIZ-015 — Reset sélectif orienté reprise d'import
-
-- **Dates** : `created=2026-04-13`, `started=2026-04-20`, `completed=2026-04-20`
-- **Livré** : reset sélectif par type d'import + exercice avec prévisualisation, UI dans Paramètres, suppression des dépendances métier dérivées.
-
-### BIZ-016 — Harmonisation i18n et microcopie UI
-
-- **Dates** : `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14`
-- **Livré** : clés i18n cohérentes sur Banque, Caisse, Salaires (compteurs, états vides, libellés).
-
-### BIZ-017 — Formats de dates et périodes en français
-
-- **Dates** : `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14`
-- **Livré** : helper partagé pour mois en français, appliqué sur Salaires et Dashboard mensuel.
-
-### BIZ-018 — Lisibilité des écrans de liste
-
-- **Dates** : `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14`
-- **Livré** : socle DataTable partagé (filtres texte/dates/intervalles/multi-sélection, compteurs, tri, saisie date FR/ISO).
-
-### BIZ-022 — Gestion des utilisateurs, rôles et sécurité
-
-- **Dates** : `created=2026-04-13`, `started=2026-04-13`, `completed=2026-04-19`
-- **Livré** : cycle de vie complet : rôles métier, administration comptes, profil, changement MDP, réinitialisation admin, invalidation jetons.
-
-### BIZ-023 — Matrice d'autorisations par rôle
-
-- **Dates** : `created=2026-04-13`, `started=2026-04-14`, `completed=2026-04-14`
-- **Livré** : séparation Gestion/Comptabilité dans la navigation, guards frontend par domaine, renommage Gestionnaire/Comptable, permissions backend alignées.
-
-### BIZ-036 — Carte « restant en retard » cliquable
-
-- **Dates** : `created=2026-04-21`, `completed=2026-04-23`
-- **Livré** : absorbé par BIZ-075 (KPI dashboard cliquables).
-
-### BIZ-041 — Carte « non remis » cliquable
-
-- **Dates** : `created=2026-04-21`, `completed=2026-04-23`
-- **Livré** : absorbé par BIZ-075 (KPI dashboard cliquables).
-
-### BIZ-042 — Bouton reset filtres tables
-
-- **Dates** : `created=2026-04-21`, `completed=2026-04-23`
-- **Livré** : bouton reset sur tous les filtres de toutes les tables.
-
-### BIZ-043 — Combos comptes comptables couleur
-
-- **Dates** : `created=2026-04-21`, `completed=2026-04-23`
-- **Livré** : combos affichant numéro, nom et couleur des comptes suivis.
-
-### TEC-045 — Rate limiting `/auth/login`
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-23`
-- **Livré** : middleware `slowapi` 5 req/min par IP, bypass configurable pour tests.
-
-### TEC-046 — Refresh token cookie HttpOnly
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : cookie `HttpOnly`/`Secure`/`SameSite=Strict`, endpoint `POST /auth/logout`, intercepteur Axios `withCredentials: true`, 6 tests dédiés.
-
-### TEC-047 — En-têtes de sécurité HTTP
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : middleware CSP, HSTS, X-Content-Type-Options, X-Frame-Options. `dark-mode-init.js` extrait pour CSP `script-src 'self'`.
-
-### TEC-048 — Corriger les tests en échec
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : suite 739/739 au vert. Test API adapté pour `@lru_cache` (TEC-066).
-
-### TEC-049 — Remonter la couverture de test
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : +44 tests (812 → 856), couverture 29% → 71%. Services critiques ≥ 90% : accounting_engine 92%, invoice 93%, payment 90%, fiscal_year ~95%, salary ~95%.
-
-### TEC-050 — Refactorer `excel_import.py` en package
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : monolith 5 567 lignes éclaté en 16 sous-modules + `__init__.py` re-export. Aucune dépendance circulaire.
-
-### TEC-051 — Numérotation des écritures thread-safe
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : `COUNT(*)` → `MAX(entry_number)` + lock, migration, tests de concurrence.
-
-### TEC-052 — Désactiver `reset-db` en production
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : endpoint conditionné à `settings.debug`.
-
-### BIZ-053 — Changement MDP obligatoire au premier login
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-23`
-- **Livré** : champ `must_change_password` (migration 0022), middleware 403, redirection frontend, 11 tests intégration + 2 tests frontend.
-
-### CHR-054 — Séparer migrations du démarrage Uvicorn
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : `entrypoint.sh` avec `set -e`, Dockerfile mis à jour avec `ENTRYPOINT`.
-
-### TEC-055 — CORS configurable pour la production
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : paramètre `cors_allowed_origins` dans les settings.
-
-### BIZ-056 — Journal d'audit structuré
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-23`
-- **Livré** : modèle `AuditLog` + service `record_audit` + migration 0023. Événements : auth (login/logout/password), admin (user CRUD, reset_db, selective_reset). 14 tests.
-
-### TEC-057 — TypeDecorator Decimal pour l'ORM
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : `DecimalType(TypeDecorator)` sur toutes les colonnes monétaires, ~63 casts `Decimal(str())` retirés.
-
-### TEC-058 — Typer les exceptions de l'import Excel
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : `ImportFileOpenError`, `ImportSheetError` dans `_exceptions.py`, mapping typé dans routeur. 10 tests ajoutés.
-
-### TEC-059 — Pagination bornée par défaut
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : `limit=100` / `max=1000` sur tous les endpoints de liste. Frontend et tests adaptés.
-
-### TEC-060 — Retirer `create_all` de `init_db()`
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : `create_all` conservé uniquement dans `conftest.py`, Alembic seul en prod.
-
-### CHR-061 — Docker HEALTHCHECK
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : `GET /api/health` (200), `HEALTHCHECK` dans Dockerfile, `healthcheck:` dans docker-compose.
-
-### CHR-062 — Synchroniser les versions frontend / backend
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : `frontend/package.json` aligné sur `0.1.0`.
-
-### TEC-063 — Retirer les noms personnels du plan comptable (RGPD)
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : noms remplacés par `Client litigieux 1/2`. Seed ne touche pas les données existantes.
-
-### CHR-064 — Supprimer `stores/counter.ts`
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : fichier supprimé, aucune référence dans le code.
-
-### TEC-065 — Éliminer `__allow_unmapped__` de Payment
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : attributs transients déplacés vers `PaymentRead` via `_to_payment_read()`.
-
-### TEC-066 — Settings singleton `@lru_cache`
-
-- **Dates** : `created=2026-04-22`, `completed=2026-04-22`
-- **Livré** : `@lru_cache(maxsize=1)` sur `get_settings()`, variable globale supprimée.
-
-### TEC-067 — Gestionnaire d'erreurs global FastAPI
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : middleware `UnhandledExceptionMiddleware` → JSON 500 `{"detail": ..., "code": "INTERNAL_SERVER_ERROR"}`, log serveur. 5 tests.
-
-### TEC-068 — Désactiver Swagger/ReDoc en production
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : `docs_url`, `redoc_url`, `openapi_url` conditionnés à `cfg.debug`.
-
-### BIZ-069 — Endpoint de sauvegarde SQLite
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : `POST /api/settings/backup` avec `sqlite3.backup()` + rotation 5 fichiers.
-
-### BIZ-070 — Page 404 dédiée
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : `NotFoundView.vue` avec icône, titre i18n, bouton retour. Catch-all router remplacé.
-
-### BIZ-071 — Skeleton loaders
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : `<Skeleton>` PrimeVue sur les écrans de liste principaux.
-
-### BIZ-072 — Fil d'Ariane (Breadcrumb)
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : composable `useBreadcrumb` + `<Breadcrumb>` PrimeVue via meta routes `label`/`breadcrumbParent`.
-
-### BIZ-073 — Raccourcis clavier
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : composable `useKeyboardShortcuts` (Ctrl+N, Ctrl+S, Escape).
-
-### BIZ-074 — Bandeau connexion perdue
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : composable `useNetworkStatus` + `AppOfflineBanner.vue` (events online/offline + intercepteur Axios).
-
-### BIZ-075 — Dashboard KPI cliquables
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : KPI cliquables vers listes filtrées. Complète BIZ-036 et BIZ-041.
-
-### BIZ-076 — Styles d'impression comptable
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : `@media print` sur journal, balance, grand livre, bilan, résultat. Sidebar/filtres/boutons masqués, en-tête imprimable.
-
-### TEC-079 — Tests composables frontend
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-24`
-- **Livré** : 15 tests Vitest — `useDarkMode` (4), `useTableFilter` (8), `activeFilterLabels` (10). Suite 126/126 au vert.
-
-### TEC-080 — Smoke test E2E Playwright
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-24`
-- **Livré** : `playwright.config.ts` (webServer auto-start, DB E2E dédiée). Smoke test : login → MDP obligatoire → dashboard → contacts → factures → paiements.
-
-### TEC-081 — Tests d'intégration API manquants
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-24`
-- **Livré** : `test_accounting_rules_api.py` (11), `test_fiscal_year_api.py` (10), `test_salary_api.py` (+7), `test_dashboard_api.py` (+1). 52 tests intégration au vert.
-
-### CHR-083 — Guide de migration Synology
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : guide FR+EN dans `doc/user/` couvrant mise à jour Docker, vérification post-migration, rollback.
-
-### BIZ-084 — Notification expiration session
-
-- **Dates** : `created=2026-04-23`, `completed=2026-05-03`
-- **Livré** : composable `useSessionExpiry` (décode expiry JWT, avertissement T−5 min) + `AppSessionWarning.vue` avec bouton « Prolonger la session ».
-
-### TEC-085 — Politique de complexité MDP
-
-- **Dates** : `created=2026-04-23`, `completed=2026-04-23`
-- **Livré** : validateur `_validate_password_complexity` (8 chars, majuscule, chiffre). 14 tests unitaires.
 
 </details>
 

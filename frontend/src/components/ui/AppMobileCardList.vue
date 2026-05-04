@@ -9,13 +9,17 @@
     </div>
     <div v-if="items.length === 0" class="app-mobile-card-list__empty">
       <slot name="empty">
-        <span>{{ emptyMessage }}</span>
+        <span>{{ emptyMessage ?? t('common.empty') }}</span>
       </slot>
     </div>
   </div>
 </template>
 
 <script setup lang="ts" generic="T = unknown">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 withDefaults(
   defineProps<{
     items: T[]
@@ -23,7 +27,7 @@ withDefaults(
     itemKey?: (item: T, index: number) => string | number
   }>(),
   {
-    emptyMessage: 'Aucune donnée',
+    emptyMessage: undefined,
     itemKey: undefined,
   },
 )
