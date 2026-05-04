@@ -29,7 +29,7 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BIZ-034 | Support multi-compte banque | P3 | ~60 min | 2026-04-21 | | |
+| BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
 
 ---
 
@@ -45,12 +45,17 @@ Tri synthétique : facture < 6 mois en tête, puis ordre alphabétique (nom, pr�
 Distinguer compte courant et compte épargne dans les données, imports et écrans.
 Décisions métier nécessaires avant implémentation.
 
+### BIZ-169 — Édition/suppression des opérations manuelles
+
+Permettre de modifier ou supprimer les opérations bancaires créées manuellement depuis BankView (opérations sans import source).
+
 ---
 
 ## Lots terminés récents (≤ 3 jours)
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
+| BIZ-034 | Support multi-compte banque + bugfixes comptables | v1.5 | BIZ-034, fix virement, fix journal filtré, fix fiscal_year_id manuel | 2026-05-04 | — | — |
 | CR2 | Correctifs & finitions post-MOB | v1.5 | TEC-157, TEC-158, TEC-159, BIZ-165, BIZ-166, BIZ-167, BIZ-168, CHR-078 | 2026-05-04 | ~95 min | ~30 min |
 | Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 | — | — |
 | CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 | — | — |
@@ -68,7 +73,8 @@ Décisions métier nécessaires avant implémentation.
 | TEC-159 | Tests cheque_number_template settings API (4 tests) | ~15 min | ~4 min |
 | BIZ-165 | Navigation prev/next preview factures client | ~10 min | ~5 min |
 | CHR-078 | Squelette i18n anglais (en.ts) | ~15 min | ~3 min |
-| **Total** | | **~70 min** | **~20 min** |
+| CR-077 | Corrections revue Copilot PR #77 (8 threads) | ~25 min | ~20 min |
+| **Total** | | **~95 min** | **~36 min** |
 
 ### Détail
 
@@ -77,6 +83,7 @@ Décisions métier nécessaires avant implémentation.
 - **TEC-159** : 4 tests dans `test_settings_api.py` (dans `TestUpdateSettings`) : valeur par défaut `{date}.{seq}`, update valide, 422 sans `{seq}`, 422 avec placeholder inconnu.
 - **BIZ-165** : `ClientInvoicesView.vue` — `historyIndex` ref, `openHistory` indexe dans `displayedInvoices`, barre nav ◀ N/total ▶ dans le dialog, `goToPrevHistory` / `goToNextHistory`, styles `.preview-nav-bar`.
 - **CHR-078** : `frontend/src/i18n/en.ts` créé — sections `app`, `auth`, `common` traduits en anglais. Enregistré dans `index.ts` (messages: `{ fr, en }`).
+- **CR-077** : Corrections des 8 threads de revue Copilot sur PR #77 — CSS dupliqué supprimé (`SupplierInvoicesView`), fuite Blob URL corrigée (`ClientInvoicesView`), bouton créance douteuse restreint à `type === 'client'` (`ContactHistoryContent`), commentaire `en.ts` corrigé, tests `suggest_cheque_number` renforcés (format exact + date today), 4 tests Vitest nav prev/next ajoutés (client + fournisseur). Version 1.4.7 → 1.4.8.
 
 </details>
 

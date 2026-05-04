@@ -149,6 +149,74 @@ def test_ofx_empty_raises() -> None:
         parse_ofx("<OFX></OFX>")
 
 
+# ---------------------------------------------------------------------------
+# OFX multi-account (BIZ-034 / TEC-161)
+# ---------------------------------------------------------------------------
+
+_OFX_MULTI = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<OFX>
+  <BANKMSGSRSV1>
+    <STMTTRNRS>
+      <STMTRS>
+        <BANKACCTFROM><ACCTID>00001</ACCTID></BANKACCTFROM>
+        <BANKTRANLIST>
+          <STMTTRN>
+            <DTPOSTED>20250401</DTPOSTED>
+            <TRNAMT>1000.00</TRNAMT>
+            <NAME>VIR COURANT</NAME>
+            <FITID>C001</FITID>
+          </STMTTRN>
+        </BANKTRANLIST>
+      </STMTRS>
+    </STMTTRNRS>
+    <STMTTRNRS>
+      <STMTRS>
+        <BANKACCTFROM><ACCTID>00002</ACCTID></BANKACCTFROM>
+        <BANKTRANLIST>
+          <STMTTRN>
+            <DTPOSTED>20250401</DTPOSTED>
+            <TRNAMT>500.00</TRNAMT>
+            <NAME>INTERETS EPARGNE</NAME>
+            <FITID>E001</FITID>
+          </STMTTRN>
+        </BANKTRANLIST>
+      </STMTRS>
+    </STMTTRNRS>
+  </BANKMSGSRSV1>
+</OFX>"""
+
+
+def test_ofx_multi_single_segment_defaults_courant() -> None:
+    """Single-segment OFX without ACCTID mapping → backward compat, all courant."""
+    rows = parse_ofx(_OFX_XML)
+    assert all(row["bank_account"] == "courant" for row in rows)
+
+
+def test_ofx_multi_two_segments_with_acctid_mapping() -> None:
+    """Two segments with ACCTID config → transactions routed to correct account."""
+    rows = parse_ofx(_OFX_MULTI, courant_acctid="00001", epargne_acctid="00002")
+    assert len(rows) == 2
+    courant = [r for r in rows if r["bank_account"] == "courant"]
+    epargne = [r for r in rows if r["bank_account"] == "epargne"]
+    assert len(courant) == 1
+    assert len(epargne) == 1
+    assert courant[0]["reference"] == "C001"
+    assert epargne[0]["reference"] == "E001"
+
+
+def test_ofx_multi_two_segments_no_acctid_raises() -> None:
+    """Two segments without ACCTID config → BankImportError with helpful message."""
+    with pytest.raises(BankImportError, match="(?i)acctid|réglages|multi"):
+        parse_ofx(_OFX_MULTI)
+
+
+def test_ofx_multi_unknown_acctid_defaults_courant() -> None:
+    """Segment with unrecognised ACCTID → falls back to courant (non-epargne)."""
+    rows = parse_ofx(_OFX_MULTI, courant_acctid="00001", epargne_acctid="XXXXX")
+    assert all(row["bank_account"] == "courant" for row in rows)
+
+
 def test_detect_customer_payment_category() -> None:
     category = detect_transaction_category(
         amount=Decimal("52.00"),

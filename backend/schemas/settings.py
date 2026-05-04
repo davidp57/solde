@@ -57,6 +57,10 @@ class AppSettingsRead(BaseModel):
     # Cheque numbering
     cheque_number_template: str
 
+    # Bank account ACCTID mapping (OFX import)
+    bank_account_courant_acctid: str | None
+    bank_account_epargne_acctid: str | None
+
     @model_validator(mode="before")
     @classmethod
     def inject_chat_enabled(cls, data: Any) -> Any:
@@ -117,6 +121,10 @@ class AppSettingsUpdate(BaseModel):
 
     # Cheque numbering
     cheque_number_template: str | None = None
+
+    # Bank account ACCTID mapping (OFX import)
+    bank_account_courant_acctid: str | None = None
+    bank_account_epargne_acctid: str | None = None
 
     @field_validator("fiscal_year_start_month")
     @classmethod
