@@ -451,7 +451,7 @@
           @click="goToNextPreview"
         />
       </div>
-      <div v-if="previewInvoice" class="supplier-preview-dialog">
+      <div v-if="previewInvoice" ref="previewDialogBodyRef" class="supplier-preview-dialog">
 
         <!-- Header info + actions -->
         <section class="app-dialog-intro history-dialog__intro">
@@ -589,10 +589,31 @@
           </div>
 
         </div>
+
+        <div class="preview-nav-bar preview-nav-bar--bottom">
+          <Button
+            icon="pi pi-chevron-left"
+            text
+            rounded
+            size="small"
+            :disabled="previewIndex <= 0"
+            :title="t('common.previous')"
+            @click="goToPrevPreviewBottom"
+          />
+          <span class="preview-nav-bar__counter">{{ previewIndex + 1 }} / {{ displayedInvoices.length }}</span>
+          <Button
+            icon="pi pi-chevron-right"
+            text
+            rounded
+            size="small"
+            :disabled="previewIndex >= displayedInvoices.length - 1"
+            :title="t('common.next')"
+            @click="goToNextPreviewBottom"
+          />
+        </div>
+
       </div>
     </Dialog>
-
-    <!-- Payment dialog -->
     <Dialog
       v-model:visible="paymentDialogVisible"
       :header="paymentInvoice ? t('invoices.record_payment') : ''"
@@ -788,6 +809,14 @@ const previewRemaining = computed(() => {
 })
 
 const previewIndex = ref(-1)
+const previewDialogBodyRef = ref<HTMLElement | null>(null)
+
+function scrollPreviewDialogToBottom(): void {
+  nextTick(() => {
+    const el = previewDialogBodyRef.value?.closest('.p-dialog-content') as HTMLElement | null
+    if (el) el.scrollTop = el.scrollHeight
+  })
+}
 
 const invoiceRows = computed(() =>
   invoices.value.map((invoice) => ({
@@ -1139,6 +1168,16 @@ async function goToNextPreview(): Promise<void> {
   await openPreviewDialog(displayedInvoices.value[idx] as Invoice)
 }
 
+async function goToPrevPreviewBottom(): Promise<void> {
+  await goToPrevPreview()
+  scrollPreviewDialogToBottom()
+}
+
+async function goToNextPreviewBottom(): Promise<void> {
+  await goToNextPreview()
+  scrollPreviewDialogToBottom()
+}
+
 function onFileSelect(event: { files: File[] }) {
   selectedFile.value = event.files[0] ?? null
 }
@@ -1277,6 +1316,24 @@ onMounted(async () => {
   padding-bottom: var(--app-space-3);
   border-bottom: 1px solid var(--app-surface-border);
   margin-bottom: var(--app-space-4);
+}
+
+.preview-nav-bar--bottom {
+  padding-bottom: 0;
+  border-bottom: none;
+  padding-top: var(--app-space-3);
+  border-top: 1px solid var(--app-surface-border);
+  margin-bottom: 0;
+  margin-top: var(--app-space-4);
+}
+
+.preview-nav-bar--bottom {
+  padding-bottom: 0;
+  border-bottom: none;
+  padding-top: var(--app-space-3);
+  border-top: 1px solid var(--app-surface-border);
+  margin-bottom: 0;
+  margin-top: var(--app-space-4);
 }
 
 .preview-nav-bar__counter {

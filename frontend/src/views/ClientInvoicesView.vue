@@ -509,7 +509,7 @@
           @click="goToNextHistory"
         />
       </div>
-      <div v-if="historyInvoice" class="history-dialog history-dialog--with-preview">
+      <div v-if="historyInvoice" ref="historyDialogBodyRef" class="history-dialog history-dialog--with-preview">
         <section class="app-dialog-intro history-dialog__intro">
           <div>
             <p class="app-dialog-intro__eyebrow">{{ t('invoices.history') }}</p>
@@ -666,6 +666,28 @@
             </div>
           </div><!-- end history-dialog__preview -->
         </div><!-- end history-dialog__body -->
+
+        <div v-if="historyIndex >= 0" class="preview-nav-bar preview-nav-bar--bottom">
+          <Button
+            icon="pi pi-chevron-left"
+            text
+            rounded
+            size="small"
+            :disabled="historyIndex <= 0"
+            :title="t('common.previous')"
+            @click="goToPrevHistoryBottom"
+          />
+          <span class="preview-nav-bar__counter">{{ historyIndex + 1 }} / {{ displayedInvoices.length }}</span>
+          <Button
+            icon="pi pi-chevron-right"
+            text
+            rounded
+            size="small"
+            :disabled="historyIndex >= displayedInvoices.length - 1"
+            :title="t('common.next')"
+            @click="goToNextHistoryBottom"
+          />
+        </div>
 
       </div>
     </Dialog>
@@ -854,6 +876,14 @@ const writeOffLoading = ref(false)
 const historyVisible = ref(false)
 const historyInvoice = ref<Invoice | null>(null)
 const historyIndex = ref(-1)
+const historyDialogBodyRef = ref<HTMLElement | null>(null)
+
+function scrollHistoryDialogToBottom(): void {
+  nextTick(() => {
+    const el = historyDialogBodyRef.value?.closest('.p-dialog-content') as HTMLElement | null
+    if (el) el.scrollTop = el.scrollHeight
+  })
+}
 const historyLoading = ref(false)
 const historyPayments = ref<Payment[]>([])
 const historyPdfBlobUrl = ref<string | null>(null)
@@ -1226,6 +1256,16 @@ async function goToNextHistory(): Promise<void> {
   if (invoice) await openHistory(invoice)
 }
 
+async function goToPrevHistoryBottom(): Promise<void> {
+  await goToPrevHistory()
+  scrollHistoryDialogToBottom()
+}
+
+async function goToNextHistoryBottom(): Promise<void> {
+  await goToNextHistory()
+  scrollHistoryDialogToBottom()
+}
+
 async function loadHistoryPayments(invoiceId: number) {
   historyLoading.value = true
   historyPayments.value = []
@@ -1524,6 +1564,15 @@ onMounted(async () => {
   padding-bottom: var(--app-space-3);
   border-bottom: 1px solid var(--app-surface-border);
   margin-bottom: var(--app-space-4);
+}
+
+.preview-nav-bar--bottom {
+  padding-bottom: 0;
+  border-bottom: none;
+  padding-top: var(--app-space-3);
+  border-top: 1px solid var(--app-surface-border);
+  margin-bottom: 0;
+  margin-top: var(--app-space-4);
 }
 
 .preview-nav-bar__counter {
