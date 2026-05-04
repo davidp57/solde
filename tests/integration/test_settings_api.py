@@ -140,6 +140,49 @@ class TestUpdateSettings:
         assert response.status_code == 200
         assert response.json()["default_invoice_due_days"] == 30
 
+    # TEC-159 — cheque_number_template validation
+    async def test_cheque_number_template_default_returned(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        response = await client.get("/api/settings/", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert "cheque_number_template" in data
+        assert data["cheque_number_template"] == "{date}.{seq}"
+
+    async def test_cheque_number_template_update_valid(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        response = await client.put(
+            "/api/settings/",
+            json={"cheque_number_template": "CHQ-{date}-{seq}"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["cheque_number_template"] == "CHQ-{date}-{seq}"
+
+    async def test_cheque_number_template_missing_seq_rejected(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """Template without {seq} must be rejected with 422."""
+        response = await client.put(
+            "/api/settings/",
+            json={"cheque_number_template": "{date}-NNN"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422
+
+    async def test_cheque_number_template_unsupported_placeholder_rejected(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """Template with an unknown placeholder must be rejected with 422."""
+        response = await client.put(
+            "/api/settings/",
+            json={"cheque_number_template": "{date}-{seq}-{user}"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422
+
 
 class TestTreasurySystemOpening:
     async def test_get_system_opening_requires_auth(self, client: AsyncClient) -> None:

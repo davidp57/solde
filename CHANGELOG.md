@@ -19,12 +19,16 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-164** — Endpoint `GET /api/payments/suggest_cheque_number` (sans effet de bord) et service `suggest_cheque_number` côté backend
 - **BIZ-164** — Paramètre `cheque_number_template` dans les réglages (champ `{date}.{seq}` par défaut, validé côté backend)
 - **BIZ-164** — Migration Alembic `0049` : colonne `cheque_number_template` dans `app_settings`
+- **BIZ-165** — Boutons de navigation Précédent / Suivant dans le dialog d'historique des factures client (parité avec la vue factures fournisseur)
+- **CHR-078** — Fichier `frontend/src/i18n/en.ts` créé : squelette de localisation anglaise avec `app`, `auth` et `common` traduits ; enregistré dans `vue-i18n` avec `fallbackLocale: 'fr'`
 
 ### Amélioré
 - **BIZ-164** — Dialogs pleine largeur sur mobile (`app-dialog`, `app-dialog--medium`, `app-dialog--large`, `app-dialog--xlarge`) : 100 vw et hauteur max 95 dvh en dessous de 767 px
 - **BIZ-164** — Styles utilitaires mobiles ajoutés dans `main.css` : `app-mobile-card-row`, `app-mobile-card-label`, `app-mobile-card-value`, `app-mobile-card-actions`
 - **BIZ-164** — Tuile dépôt en attente : liste de coupures espèces ou comptage chèques en colonne de droite alignée ; layout desktop (1 ligne, coupures à droite alignées, bouton en bout de ligne) et layout mobile (empilé) séparés
 - **BIZ-164** — Grille de stat cards : 2 colonnes sur mobile
+- **TEC-157** — `AppMobileCardList` : message vide par défaut remplacé par la clé i18n `common.empty` (suppression de la chaîne en dur `'Aucune donnée'`)
+- **TEC-157** — `CashView` : libellé `'Écart :'` des comptages remplacé par la clé i18n `cash.count_diff`
 
 ### Corrigé
 - **BIZ-164** — Mock `window.matchMedia` ajouté dans le setup de tests Vitest pour éviter des erreurs jsdom dans les composants utilisant `useBreakpoints`
@@ -32,6 +36,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-164** — Tuile dépôt espèces : `total_amount` affiché même si `denomination_details` est vide ou invalide (fallback `v-else-if`)
 - **BIZ-164** — Suppression du double appel API de suggestion de numéro de chèque à l'ouverture du dialog (guard `paymentDialogVisible` dans le `watch`)
 - **BIZ-164** — Annotation de type `payment_date: date | None` dans `GET /api/payments/suggest_cheque_number` (était `date` alors que le paramètre est optionnel)
+
+### Tests
+- **TEC-158** — 5 nouveaux tests d'intégration pour `GET /api/payments/suggest_cheque_number` : statut 200 + format, date par défaut (aujourd'hui), incrément séquentiel, 401 sans auth, 403 pour `readonly`
+- **TEC-159** — 4 nouveaux tests d'intégration pour `cheque_number_template` dans settings API : valeur par défaut renvoyée, mise à jour valide, rejet sans `{seq}`, rejet avec placeholder non supporté
 
 ---
 

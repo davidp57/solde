@@ -323,7 +323,7 @@
                             ? 'cash-warn'
                             : 'cash-positive'
                       "
-                    >Écart : {{ formatAmount(data.difference) }} €</span>
+                    >{{ t('cash.count_diff') }} : {{ formatAmount(data.difference) }} €</span>
                   </div>
                   <div v-if="data.notes" class="app-mobile-card-row">
                     <span class="app-mobile-card-label">{{ data.notes }}</span>

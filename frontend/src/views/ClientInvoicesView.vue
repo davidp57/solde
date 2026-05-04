@@ -488,6 +488,27 @@
       class="app-dialog app-dialog--xlarge"
       @hide="onHistoryHide"
     >
+      <div v-if="historyIndex >= 0" class="preview-nav-bar">
+        <Button
+          icon="pi pi-chevron-left"
+          text
+          rounded
+          size="small"
+          :disabled="historyIndex <= 0"
+          :title="t('common.previous')"
+          @click="goToPrevHistory"
+        />
+        <span class="preview-nav-bar__counter">{{ historyIndex + 1 }} / {{ displayedInvoices.length }}</span>
+        <Button
+          icon="pi pi-chevron-right"
+          text
+          rounded
+          size="small"
+          :disabled="historyIndex >= displayedInvoices.length - 1"
+          :title="t('common.next')"
+          @click="goToNextHistory"
+        />
+      </div>
       <div v-if="historyInvoice" class="history-dialog history-dialog--with-preview">
         <section class="app-dialog-intro history-dialog__intro">
           <div>
@@ -832,6 +853,7 @@ const writeOffLoading = ref(false)
 // History dialog
 const historyVisible = ref(false)
 const historyInvoice = ref<Invoice | null>(null)
+const historyIndex = ref(-1)
 const historyLoading = ref(false)
 const historyPayments = ref<Payment[]>([])
 const historyPdfBlobUrl = ref<string | null>(null)
@@ -1167,6 +1189,7 @@ async function duplicate(invoice: Invoice) {
 }
 
 async function openHistory(invoice: Invoice) {
+  historyIndex.value = displayedInvoices.value.findIndex((r) => r.id === invoice.id)
   historyInvoice.value = invoice
   historyVisible.value = true
   historyPdfBlobUrl.value = null
@@ -1185,6 +1208,22 @@ function onHistoryHide() {
     URL.revokeObjectURL(historyPdfBlobUrl.value)
     historyPdfBlobUrl.value = null
   }
+}
+
+async function goToPrevHistory(): Promise<void> {
+  const idx = historyIndex.value - 1
+  if (idx < 0) return
+  historyIndex.value = idx
+  const invoice = invoices.value.find((i) => i.id === displayedInvoices.value[idx]?.id)
+  if (invoice) await openHistory(invoice)
+}
+
+async function goToNextHistory(): Promise<void> {
+  const idx = historyIndex.value + 1
+  if (idx >= displayedInvoices.value.length) return
+  historyIndex.value = idx
+  const invoice = invoices.value.find((i) => i.id === displayedInvoices.value[idx]?.id)
+  if (invoice) await openHistory(invoice)
 }
 
 async function loadHistoryPayments(invoiceId: number) {
@@ -1475,5 +1514,22 @@ onMounted(async () => {
   .history-dialog__summary {
     grid-template-columns: 1fr;
   }
+}
+
+.preview-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--app-space-1);
+  padding-bottom: var(--app-space-3);
+  border-bottom: 1px solid var(--app-surface-border);
+  margin-bottom: var(--app-space-4);
+}
+
+.preview-nav-bar__counter {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+  min-width: 3.5rem;
+  text-align: center;
 }
 </style>
