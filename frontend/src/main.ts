@@ -49,3 +49,18 @@ document.addEventListener(
   },
   true, // capture phase — fires before PrimeVue's bubble handler
 )
+
+// Select-all on focus for InputNumber and DatePicker fields so that typing
+// immediately overwrites the existing value instead of inserting into it.
+document.addEventListener(
+  'focusin',
+  (e: FocusEvent) => {
+    if (!(e.target instanceof HTMLInputElement)) return
+    const inNumber = (e.target as HTMLInputElement).closest('[data-pc-name="inputnumber"]')
+    const inDate = (e.target as HTMLInputElement).closest('[data-pc-name="datepicker"]')
+    if (inNumber || inDate) {
+      requestAnimationFrame(() => (e.target as HTMLInputElement).select())
+    }
+  },
+  true,
+)
