@@ -15,6 +15,7 @@
       placeholder="JJ"
       :required="required"
       :disabled="disabled"
+      @focus="($event.target as HTMLInputElement).select()"
       @input="onDayInput"
       @keydown="onDayKeydown"
     />
@@ -28,6 +29,7 @@
       maxlength="2"
       placeholder="MM"
       :disabled="disabled"
+      @focus="($event.target as HTMLInputElement).select()"
       @input="onMonthInput"
       @keydown="onMonthKeydown"
     />
@@ -41,6 +43,7 @@
       maxlength="4"
       placeholder="AAAA"
       :disabled="disabled"
+      @focus="($event.target as HTMLInputElement).select()"
       @input="onYearInput"
       @keydown="onYearKeydown"
     />
