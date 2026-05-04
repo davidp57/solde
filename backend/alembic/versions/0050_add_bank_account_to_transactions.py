@@ -25,8 +25,10 @@ def upgrade() -> None:
                 server_default="courant",
             )
         )
+        batch_op.create_index("ix_bank_transactions_bank_account", ["bank_account"])
 
 
 def downgrade() -> None:
     with op.batch_alter_table("bank_transactions") as batch_op:
+        batch_op.drop_index("ix_bank_transactions_bank_account")
         batch_op.drop_column("bank_account")
