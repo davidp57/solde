@@ -59,7 +59,35 @@
           </div>
         </div>
       </div>
+      <template v-if="isMobile">
+        <AppMobileCardList :items="accountRows" :empty-message="t('accounting.balance.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight:700">
+                <span :class="{ 'account-number--focus': data.focus_key }">{{ data.number }}</span>
+              </span>
+              <Tag
+                :value="t(`accounting.account_types.${data.type}`)"
+                :severity="typeSeverity(data.type)"
+              />
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-value">{{ data.label }}</span>
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                @click="openEditDialog(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
+        v-else
         v-model:filters="tableFilters"
         :value="accountRows"
         :row-class="rowClass"
@@ -200,6 +228,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
+import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
@@ -215,9 +244,11 @@ import {
   findSelectedFilterLabel,
 } from '../composables/activeFilterLabels'
 import { inFilter, textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { getFocusAccountKey, type FocusAccountKey } from '../utils/focusAccounts'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const toast = useToast()
 
 const accounts = ref<AccountingAccount[]>([])

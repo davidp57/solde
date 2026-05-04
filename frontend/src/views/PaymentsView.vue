@@ -68,6 +68,37 @@
         {{ t('common.api_limit_warning') }}
       </Message>
       <AppTableSkeleton v-if="loading && !payments.length" :rows="8" :cols="5" />
+      <template v-else-if="isMobile">
+        <AppMobileCardList :items="paymentRows" :empty-message="t('payments.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+              <span class="app-mobile-card-value" style="font-weight:700">{{ formatAmount(data.amount) }} €</span>
+            </div>
+            <div class="app-mobile-card-row">
+              <Tag :value="t(`payments.methods.${data.method}`)" />
+              <span v-if="data.reference_value" class="app-mobile-card-value">{{ data.reference_value }}</span>
+              <span v-if="data.cheque_number" class="app-mobile-card-label">({{ data.cheque_number }})</span>
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('payments.deposited') }} :</span>
+              <i v-if="data.deposited" class="pi pi-check text-green-500" />
+              <span v-else-if="data.in_deposit" class="payments-status--transit"><i class="pi pi-clock" /> {{ t('payments.deposit_status_in_transit') }}</span>
+              <i v-else class="pi pi-times text-red-400" />
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('common.edit')"
+                @click="openEditDialog(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
         v-else
         v-model:filters="tableFilters"
@@ -313,10 +344,12 @@ import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
+import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
 import Message from 'primevue/message'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
 import { collectActiveFilterLabels } from '../composables/activeFilterLabels'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import {
   dateRangeFilter,
   inFilter,
@@ -326,6 +359,7 @@ import {
 } from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const route = useRoute()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()

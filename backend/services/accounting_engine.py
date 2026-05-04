@@ -684,7 +684,11 @@ async def generate_entries_for_bank_transaction(
     Returns an empty list if the transaction category has no associated trigger,
     or if no active rule exists for that trigger.
     """
-    from backend.models.bank import BankTransaction, BankTransactionCategory  # noqa: PLC0415
+    from backend.models.bank import (  # noqa: PLC0415
+        BankAccountType,
+        BankTransaction,
+        BankTransactionCategory,
+    )
 
     if not isinstance(tx, BankTransaction):
         return []
@@ -692,7 +696,18 @@ async def generate_entries_for_bank_transaction(
     category: BankTransactionCategory = tx.detected_category
     amount = abs(tx.amount)
 
+    # NO_ENTRY is the phantom category: it must never produce any accounting entry.
+    if category == BankTransactionCategory.NO_ENTRY:
+        return []
+
     if category == BankTransactionCategory.INTERNAL_TRANSFER:
+        # An internal transfer between COURANT and EPARGNE creates one transaction on each
+        # account. The full double-entry (512102 D / 512100 C or vice-versa) must be generated
+        # exactly once. Convention: always from the COURANT side.
+        # The EPARGNE side is marked reconciled but produces no accounting entry, otherwise
+        # the net effect on 512102 would be zero (debited and credited by the same amount).
+        if tx.bank_account != BankAccountType.COURANT:
+            return []
         trigger: TriggerType = (
             TriggerType.BANK_INTERNAL_TRANSFER_FROM_SAVINGS
             if tx.amount > 0

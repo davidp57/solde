@@ -170,6 +170,28 @@ async def test_create_rule_duplicate_trigger_type(client: AsyncClient, auth_head
 
 
 @pytest.mark.asyncio
+async def test_create_rule_rejects_no_entry_trigger(
+    client: AsyncClient, auth_headers: dict
+) -> None:
+    """POST /api/accounting/rules/ must return 422 for the no_entry phantom category.
+
+    The no_entry category must never have an accounting rule associated with it.
+    This is enforced both architecturally (no TriggerType value exists for it)
+    and explicitly in the router.
+    """
+    payload = {
+        "name": "Règle fantôme invalide",
+        "trigger_type": "no_entry",
+        "is_active": True,
+        "priority": 10,
+        "entries": [],
+    }
+    response = await client.post("/api/accounting/rules/", json=payload, headers=auth_headers)
+    # Pydantic rejects the unknown trigger_type value before our router check
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_create_rule_requires_admin(
     client: AsyncClient, tresorier_auth_headers: dict
 ) -> None:

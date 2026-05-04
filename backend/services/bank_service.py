@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_entry import AccountingEntry
 from backend.models.bank import (
+    BankAccountType,
     BankTransaction,
     BankTransactionCategory,
     BankTransactionSource,
@@ -214,25 +215,66 @@ async def _finalize_payment_links(
 
 
 async def _current_bank_balance(db: AsyncSession) -> Decimal:
-    """Return the sum of all bank transaction amounts (positive = credit)."""
-    result = await db.execute(select(func.sum(BankTransaction.amount)))
+    """Return the sum of all bank transaction amounts for the courant account."""
+    result = await db.execute(
+        select(func.sum(BankTransaction.amount)).where(
+            BankTransaction.bank_account == BankAccountType.COURANT
+        )
+    )
+    total = result.scalar_one_or_none() or Decimal("0")
+    return Decimal(str(total))
+
+
+async def _savings_bank_balance(db: AsyncSession) -> Decimal:
+    """Return the sum of all bank transaction amounts for the epargne account."""
+    result = await db.execute(
+        select(func.sum(BankTransaction.amount)).where(
+            BankTransaction.bank_account == BankAccountType.EPARGNE
+        )
+    )
     total = result.scalar_one_or_none() or Decimal("0")
     return Decimal(str(total))
 
 
 async def recompute_bank_balances(db: AsyncSession) -> bool:
-    """Recompute running bank balances and report whether persisted values changed."""
+    """Recompute running bank balances per account and report whether persisted values changed."""
+    # Process each account independently to maintain correct per-account running totals
+    running_balances: dict[BankAccountType, Decimal] = {
+        BankAccountType.COURANT: Decimal("0"),
+        BankAccountType.EPARGNE: Decimal("0"),
+    }
     result = await db.execute(
         select(BankTransaction).order_by(BankTransaction.date.asc(), BankTransaction.id.asc())
     )
-    running_balance = Decimal("0")
     changed = False
     for entry in result.scalars().all():
-        running_balance += entry.amount
-        if entry.balance_after != running_balance:
-            entry.balance_after = running_balance
+        acct = entry.bank_account
+        running_balances[acct] += entry.amount
+        if entry.balance_after != running_balances[acct]:
+            entry.balance_after = running_balances[acct]
             changed = True
     return changed
+
+
+async def get_excel_cutoffs(db: AsyncSession) -> dict[BankAccountType, date]:
+    """Return the max date of Excel-imported transactions per bank account.
+
+    Used as a cut-off when importing OFX/CSV/QIF files to avoid re-importing
+    transactions that were already captured through the Excel import.
+    """
+    result = await db.execute(
+        select(BankTransaction.bank_account, func.max(BankTransaction.date))
+        .where(
+            BankTransaction.source.in_(
+                [
+                    BankTransactionSource.IMPORT_EXCEL,
+                    BankTransactionSource.IMPORT,  # legacy: Excel imports before source enum
+                ]
+            )
+        )
+        .group_by(BankTransaction.bank_account)
+    )
+    return {row[0]: row[1] for row in result.all()}
 
 
 async def add_transaction(
@@ -252,6 +294,7 @@ async def add_transaction(
         reference=payload.reference,
         description=payload.description,
         source=payload.source,
+        bank_account=payload.bank_account,
     )
     await db.commit()
     await db.refresh(tx)
@@ -266,6 +309,7 @@ async def create_bank_transaction_record(
     reference: str | None = None,
     description: str = "",
     source: BankTransactionSource = BankTransactionSource.MANUAL,
+    bank_account: BankAccountType = BankAccountType.COURANT,
 ) -> BankTransaction:
     """Create a bank transaction without committing, then recompute balances."""
     tx = BankTransaction(
@@ -275,6 +319,7 @@ async def create_bank_transaction_record(
         description=description,
         balance_after=Decimal("0"),
         source=source,
+        bank_account=bank_account,
         detected_category=(
             BankTransactionCategory.UNCATEGORIZED
             if source == BankTransactionSource.SYSTEM_OPENING
@@ -302,6 +347,7 @@ async def list_transactions(
     from_date: date | None = None,
     to_date: date | None = None,
     unreconciled_only: bool = False,
+    bank_account: BankAccountType | None = None,
     skip: int = 0,
     limit: int = 100,
 ) -> list[BankTransaction]:
@@ -312,6 +358,8 @@ async def list_transactions(
         query = query.where(BankTransaction.date <= to_date)
     if unreconciled_only:
         query = query.where(BankTransaction.reconciled == False)  # noqa: E712
+    if bank_account is not None:
+        query = query.where(BankTransaction.bank_account == bank_account)
     query = query.order_by(BankTransaction.date.desc(), BankTransaction.id.desc())
     query = query.offset(skip)
     query = query.limit(limit)
@@ -328,9 +376,9 @@ async def get_monthly_funds_series(
         await db.commit()
 
     result = await db.execute(
-        select(BankTransaction.date, BankTransaction.balance_after).order_by(
-            BankTransaction.date.asc(), BankTransaction.id.asc()
-        )
+        select(BankTransaction.date, BankTransaction.balance_after)
+        .where(BankTransaction.bank_account == BankAccountType.COURANT)
+        .order_by(BankTransaction.date.asc(), BankTransaction.id.asc())
     )
     current_account_points = [
         (point_date, Decimal(str(balance_after))) for point_date, balance_after in result.all()
@@ -416,6 +464,24 @@ async def update_transaction(
     await db.commit()
     await db.refresh(tx)
     return tx
+
+
+async def delete_manual_transaction(db: AsyncSession, tx: BankTransaction) -> None:
+    """Delete a manual (or system_opening) transaction and recompute balances.
+
+    Raises ValueError if the transaction has a non-manual source or is reconciled.
+    """
+    if tx.source not in (
+        BankTransactionSource.MANUAL,
+        BankTransactionSource.SYSTEM_OPENING,
+    ):
+        raise ValueError("Only manual transactions can be deleted")
+    if tx.reconciled:
+        raise ValueError("Reconciled transactions cannot be deleted")
+    await db.delete(tx)
+    await db.flush()
+    await recompute_bank_balances(db)
+    await db.commit()
 
 
 async def reconcile_transactions_bulk(
@@ -638,8 +704,10 @@ async def link_supplier_payment_to_transaction(
     )
 
 
-async def get_bank_balance(db: AsyncSession) -> Decimal:
-    return await _current_bank_balance(db)
+async def get_bank_balance(db: AsyncSession) -> dict[str, Decimal]:
+    courant = await _current_bank_balance(db)
+    epargne = await _savings_bank_balance(db)
+    return {"balance": courant, "balance_courant": courant, "balance_epargne": epargne}
 
 
 # ---------------------------------------------------------------------------

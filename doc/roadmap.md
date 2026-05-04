@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-05-03 — active branch `develop` — current version: 1.4.0
+> Last updated: 2026-05-04 — active branch `develop` — current version: 1.5.1
 
 ---
 
@@ -22,8 +22,9 @@
 | **1.2** | Bank reconciliation accounting entries, lot I-BNK, lot J (wizard + contacts) | ✅ Completed |
 | **1.3** | Supplier invoice preview, cash count UX, dashboard deposits, multi-email contacts, blocked client, supplier cash payments | ✅ Released 2026-05-02 |
 | **1.4** | Lot CR (security), Lot UI (UX & API), Lot DOC (help page), TEC-156 (chat auth fix) | ✅ Released 2026-05-03 |
+| **1.5** | Lot MOB (mobile UI), Lot BIZ-034 (dual-account banking), cheque numbering, navigation UX, contacts sort | ✅ Released 2026-05-04 |
 
-Test suite: **1021 backend + 144 frontend Vitest — 0 failures.**
+Test suite: **1043 backend + 148 frontend Vitest — 0 failures.**
 
 ---
 
@@ -306,7 +307,24 @@ Create `en.ts` with structural keys to prepare English localisation.
 
 ---
 
-## v1.5 — Lot DOC — User documentation improvements
+## v1.5 — Multi-account banking, mobile UI, cheque numbering, navigation UX ✅ Released 2026-05-04
+
+### BIZ-034 — Dual-account banking (courant + épargne)
+Full support for two bank accounts (current + savings). Transactions and deposits are tagged with their account. Balance filter, savings stat card on dashboard, OFX multi-account import with ACCTID auto-resolution, Excel cut-off to avoid duplicates.
+
+### BIZ-164 — Mobile phone mode
+Card-based mobile UI for all major list views (invoices, contacts, bank, payments, cash, salaries…). Responsive dialog sizing. Stat cards in 2-column grid on mobile. Auto-suggest cheque number (`YYYYMMDD.NN`) when payment method is cheque (also configurable template in settings).
+
+### BIZ-165 — Factures client : navigation Précédent / Suivant
+Previous/Next navigation bar in the client invoice history dialog, matching the supplier invoice preview.
+
+### BIZ-166 — Contacts : onglet clients par défaut + tri récence
+Clients tab active by default in the Contacts view. Contacts sorted by recency of last invoice (< 6 months first), then alphabetical.
+
+### BIZ-167, BIZ-168 — Fixes UX navigation factures fournisseur
+Bottom navigation bar added to supplier invoice preview dialog. "Marquer créance douteuse" button hidden for supplier contacts.
+
+*Technical:* lots CR2 (TEC-157 to TEC-159), MOB (BIZ-164), CHR-078 (English i18n skeleton), Alembic migrations 0049–0051.
 
 ### BIZ-161 — Changelog utilisateur dans la page Aide
 Rendre `doc/user/changelog-user.md` accessible depuis la page `/aide` via un onglet « Nouveautés » ou une section dédiée. Endpoint backend `GET /api/help/changelog`, rendu HTML côté Vue.

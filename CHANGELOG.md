@@ -9,10 +9,62 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
-## [Non publié]
+## [1.5.1] — 2026-05-04
+
+### Ajouté
+- **BIZ-034** — Support multi-compte bancaire (compte courant + compte épargne) : chaque transaction peut désormais être associée à l'un des deux comptes
+- **BIZ-034** — Import OFX multi-comptes : un seul fichier OFX peut contenir les deux comptes, identifiés par leur ACCTID ; le compte est attribué automatiquement selon les identifiants configurés dans les réglages
+- **BIZ-034** — Réglages association : champs « Identifiant ACCTID OFX » pour le compte courant et le compte épargne
+- **BIZ-034** — Vue Banque : filtre par compte (Tous / Courant / Épargne), solde du compte épargne affiché en stat card
+- **BIZ-034** — Dashboard : stat card « Solde épargne » en complément du solde courant
+- **TEC-160** — Migration Alembic `0050` : colonne `bank_account` sur `bank_transactions` (valeur par défaut : `courant`)
+- **TEC-161** — Migration Alembic `0051` : colonnes `bank_account_courant_acctid` et `bank_account_epargne_acctid` dans `app_settings`
+- **BIZ-164** — Mode téléphone : vue carte mobile sur toutes les listes de l'application (Factures client/fournisseur, Contacts, Banque, Règlements, Caisse, Salaires, Employés, Comptabilité, Exercices, Règles comptables, Journal, Balance, Bilan, Résultat, Utilisateurs) — les DataTables laissent place à des cartes empilées sous 767 px
+- **BIZ-164** — Composable `useBreakpoints` (breakpoint 767 px via `window.matchMedia`, avec listener réactif)
+- **BIZ-164** — Composant générique `AppMobileCardList` avec slot `#card="{ item }"` et typage générique `T` pour inférence TypeScript correcte dans les slots
+- **BIZ-164** — Suggestion automatique du numéro de chèque (`AAAAMMJJ.NN`) à l'ouverture du formulaire de paiement chèque (factures client et fournisseur, assistant saisie rapide) ; modèle de numérotation configurable dans les paramètres
+- **BIZ-164** — Endpoint `GET /api/payments/suggest_cheque_number` (sans effet de bord) et service `suggest_cheque_number` côté backend
+- **BIZ-164** — Paramètre `cheque_number_template` dans les réglages (champ `{date}.{seq}` par défaut, validé côté backend)
+- **BIZ-164** — Migration Alembic `0049` : colonne `cheque_number_template` dans `app_settings`
+- **BIZ-165** — Boutons de navigation Précédent / Suivant dans le dialog d'historique des factures client (parité avec la vue factures fournisseur)
+- **BIZ-166** — Vue Contacts : onglet « Clients » actif par défaut (ordre : Clients > Fournisseurs > Tout) ; contacts triés par récence de dernière facture (< 6 mois en tête) puis ordre alphabétique
+- **CHR-078** — Fichier `frontend/src/i18n/en.ts` créé : squelette de localisation anglaise avec `app`, `auth` et `common` traduits ; enregistré dans `vue-i18n` avec `fallbackLocale: 'fr'`
 
 ### Amélioré
-- **CHR** — Docker : séparation des dépendances Python (`docker-requirements.txt`) et des métadonnées de version (`pyproject.toml`) en deux couches distinctes — évite la réinstallation complète de toutes les dépendances à chaque bump de version
+- **BIZ-164** — Dialogs pleine largeur sur mobile (`app-dialog`, `app-dialog--medium`, `app-dialog--large`, `app-dialog--xlarge`) : 100 vw et hauteur max 95 dvh en dessous de 767 px
+- **BIZ-164** — Styles utilitaires mobiles ajoutés dans `main.css` : `app-mobile-card-row`, `app-mobile-card-label`, `app-mobile-card-value`, `app-mobile-card-actions`
+- **BIZ-164** — Tuile dépôt en attente : liste de coupures espèces ou comptage chèques en colonne de droite alignée ; layout desktop (1 ligne, coupures à droite alignées, bouton en bout de ligne) et layout mobile (empilé) séparés
+- **BIZ-164** — Grille de stat cards : 2 colonnes sur mobile
+- **TEC-157** — `AppMobileCardList` : message vide par défaut remplacé par la clé i18n `common.empty` (suppression de la chaîne en dur `'Aucune donnée'`)
+- **TEC-157** — `CashView` : libellé `'Écart :'` des comptages remplacé par la clé i18n `cash.count_diff`
+
+### Corrigé
+- **BIZ-034** — Virements internes (512100 ↔ 512102) : seul le côté COURANT génère désormais des écritures comptables ; le côté EPARGNE retourne une liste vide, ce qui évitait que 512102 soit débité et crédité du même montant (solde nul) lors de chaque virement
+- **BIZ-034** — Journal filtré sur un compte : les colonnes Débit/Crédit d'une écriture groupée affichent désormais uniquement la contribution du compte filtré (et non le total équilibré de l'écriture complète) — ex. l'ouverture FY2024 affichait 61 791,51 au lieu de 52 115,89 sur 512102
+- **BIZ-034** — Saisie manuelle d'écriture : le `fiscal_year_id` est désormais automatiquement dérivé de la date saisie quand le frontend ne le fournit pas, évitant que l'écriture soit invisible lors d'un filtre par exercice
+- **BIZ-164** — Mock `window.matchMedia` ajouté dans le setup de tests Vitest pour éviter des erreurs jsdom dans les composants utilisant `useBreakpoints`
+- **BIZ-164** — Clé stable dans `AppMobileCardList` : prop `itemKey` optionnelle pour éviter les réutilisations erronées de nœuds DOM lors d'un tri/filtrage
+- **BIZ-164** — Tuile dépôt espèces : `total_amount` affiché même si `denomination_details` est vide ou invalide (fallback `v-else-if`)
+- **BIZ-164** — Suppression du double appel API de suggestion de numéro de chèque à l'ouverture du dialog (guard `paymentDialogVisible` dans le `watch`)
+- **BIZ-164** — Annotation de type `payment_date: date | None` dans `GET /api/payments/suggest_cheque_number` (était `date` alors que le paramètre est optionnel)
+- **BIZ-167** — Bouton « Passer en créance douteuse » masqué pour les contacts de type Fournisseur (n'a de sens que pour les clients)
+- **BIZ-168** — Barre de navigation Précédent / Suivant dupliquée en bas des dialogs preview factures client et fournisseur ; le défilement est conservé en bas du dialog lors de la navigation depuis la barre du bas (pour faciliter la consultation du PDF attaché)
+- **CR-077** — CSS dupliqué supprimé dans `SupplierInvoicesView` (bloc `.preview-nav-bar--bottom` en double)
+- **CR-077** — Fuite mémoire Blob URL corrigée dans `ClientInvoicesView` : l'ancienne URL est révoquée avant d'en créer une nouvelle à l'ouverture de l'historique
+- **CR-077** — Bouton « Passer en créance douteuse » désormais masqué pour les contacts de type `les_deux` (visible uniquement pour `type === 'client'`)
+- **CR-077** — Commentaire d'en-tête de `frontend/src/i18n/en.ts` corrigé : précise que les sections absentes tombent en fallback French via `fallbackLocale: 'fr'`
+- **BIZ-034** — Catégorie bancaire « Sans écriture » (`no_entry`) : une transaction avec cette catégorie ne génère aucune écriture comptable lors du rapprochement, même si des règles actives existent — il est architecturalement impossible de créer une règle pour cette catégorie
+
+### Tests
+- **BIZ-034** — 2 nouveaux tests unitaires de régression pour le virement interne : `test_internal_transfer_courant_side_generates_entries` (côté COURANT → entrées générées) et `test_internal_transfer_epargne_side_returns_empty` (côté EPARGNE → liste vide)
+- **BIZ-034** — 2 nouveaux tests unitaires de régression pour `get_grouped_journal` : totaux filtrés par compte (`test_filter_by_account_keeps_full_group` enrichi) et simulation d'une ouverture multi-comptes (`test_filter_by_account_totals_multi_line_group`)
+- **TEC-158** — 5 nouveaux tests d'intégration pour `GET /api/payments/suggest_cheque_number` : statut 200 + format, date par défaut (aujourd'hui), incrément séquentiel, 401 sans auth, 403 pour `readonly`
+- **TEC-159** — 4 nouveaux tests d'intégration pour `cheque_number_template` dans settings API : valeur par défaut renvoyée, mise à jour valide, rejet sans `{seq}`, rejet avec placeholder non supporté
+- **CR-077** — Tests de régression renforcés sur `suggest_cheque_number` : vérification du format exact `YYYYMMDD.NN` et de la date d'aujourd'hui utilisée en fallback
+- **CR-077** — 2 nouveaux tests Vitest pour la navigation Précédent / Suivant du dialog historique (`ClientInvoicesView`)
+- **CR-077** — 2 nouveaux tests Vitest pour la navigation Précédent / Suivant du dialog preview facture fournisseur, barre du bas (`SupplierInvoicesView`)
+- **BIZ-034** — 4 nouveaux tests unitaires `TestGenerateEntriesForBankTransaction` : catégorie `no_entry` → liste vide, objet non-`BankTransaction` → liste vide, `uncategorized` → liste vide, `bank_fee` avec règle → 2 écritures équilibrées
+- **BIZ-034** — 1 nouveau test d'intégration : `POST /api/accounting/rules/` avec `trigger_type: "no_entry"` retourne 422
 
 ---
 

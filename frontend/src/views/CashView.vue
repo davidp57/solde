@@ -75,7 +75,64 @@
 
         <TabPanels>
           <TabPanel value="journal">
+            <template v-if="isMobile">
+              <AppMobileCardList :items="entryRows" :empty-message="t('cash.journal_empty')">
+                <template #card="{ item: data }">
+                  <div class="app-mobile-card-row app-mobile-card-row--between">
+                    <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+                    <span
+                      class="app-mobile-card-value"
+                      style="font-weight:700"
+                      :class="data.type === 'out' ? 'cash-negative' : 'cash-positive'"
+                    >{{ data.type === 'out' ? '-' : '+' }}{{ formatAmount(data.amount) }} €</span>
+                  </div>
+                  <div class="app-mobile-card-row">
+                    <Tag
+                      :value="t(`cash.movements.${data.type}`)"
+                      :severity="data.type === 'in' ? 'success' : 'danger'"
+                    />
+                    <Tag
+                      v-if="data.origin_label"
+                      :value="data.origin_label"
+                      :severity="data.source === 'payment' ? 'success' : 'info'"
+                    />
+                  </div>
+                  <div v-if="data.description" class="app-mobile-card-row">
+                    <span class="app-mobile-card-value">{{ data.description }}</span>
+                  </div>
+                  <div class="app-mobile-card-row app-mobile-card-row--between">
+                    <span class="app-mobile-card-label">{{ t('cash.balance_after') }} :</span>
+                    <span class="app-mobile-card-value">{{ formatAmount(data.balance_after) }} €</span>
+                  </div>
+                  <div class="app-mobile-card-actions">
+                    <Button
+                      icon="pi pi-eye"
+                      size="small"
+                      severity="secondary"
+                      text
+                      @click="openDetailDialog(data)"
+                    />
+                    <Button
+                      icon="pi pi-pencil"
+                      size="small"
+                      severity="secondary"
+                      text
+                      @click="openEditDialog(data)"
+                    />
+                    <Button
+                      v-if="data.source === 'manual' && !data.payment_id"
+                      icon="pi pi-trash"
+                      size="small"
+                      severity="danger"
+                      text
+                      @click="confirmDeleteEntry(data)"
+                    />
+                  </div>
+                </template>
+              </AppMobileCardList>
+            </template>
             <DataTable
+              v-else
               v-model:filters="entryTableFilters"
               :value="entryRows"
               :loading="loadingEntries"
@@ -247,7 +304,52 @@
           </TabPanel>
 
           <TabPanel value="counts">
+            <template v-if="isMobile">
+              <AppMobileCardList :items="countRows" :empty-message="t('cash.counts_empty')">
+                <template #card="{ item: data }">
+                  <div class="app-mobile-card-row app-mobile-card-row--between">
+                    <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+                    <span class="app-mobile-card-value" style="font-weight:700">{{ formatAmount(data.total_counted) }} €</span>
+                  </div>
+                  <div class="app-mobile-card-row app-mobile-card-row--between">
+                    <span class="app-mobile-card-label">{{ t('cash.count_expected') }} : {{ formatAmount(data.balance_expected) }} €</span>
+                    <span
+                      class="app-mobile-card-value"
+                      style="font-weight:600"
+                      :class="
+                        parseFloat(data.difference) < 0
+                          ? 'cash-negative'
+                          : parseFloat(data.difference) > 0
+                            ? 'cash-warn'
+                            : 'cash-positive'
+                      "
+                    >{{ t('cash.count_diff') }} : {{ formatAmount(data.difference) }} €</span>
+                  </div>
+                  <div v-if="data.notes" class="app-mobile-card-row">
+                    <span class="app-mobile-card-label">{{ data.notes }}</span>
+                  </div>
+                  <div class="app-mobile-card-actions">
+                    <Button
+                      icon="pi pi-eye"
+                      size="small"
+                      severity="secondary"
+                      text
+                      @click="selectedCount = data; countDetailDialogVisible = true"
+                    />
+                    <Button
+                      icon="pi pi-inbox"
+                      size="small"
+                      severity="secondary"
+                      text
+                      :label="t('cash.count_create_deposit')"
+                      @click="openDepositFromCount(data)"
+                    />
+                  </div>
+                </template>
+              </AppMobileCardList>
+            </template>
             <DataTable
+              v-else
               v-model:filters="countTableFilters"
               :value="countRows"
               :loading="loadingCounts"
@@ -648,6 +750,7 @@ import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import BankNewDepositDialog from '../components/bank/BankNewDepositDialog.vue'
 import { useFiscalYearStore } from '../stores/fiscalYear'
@@ -669,6 +772,7 @@ import {
 } from '@/api/cash'
 import { formatDisplayDate } from '@/utils/format'
 import { type CashCountPrefill } from '@/api/bank'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import {
   dateRangeFilter,
   inFilter,
@@ -678,6 +782,7 @@ import {
 } from '../composables/useDataTableFilters'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()

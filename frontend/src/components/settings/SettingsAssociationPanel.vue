@@ -210,6 +210,34 @@
           />
           <small class="app-field__hint">{{ t('settings.payment_instructions_help') }}</small>
         </div>
+        <div class="app-field app-field--full">
+          <label for="cheque_number_template" class="app-field__label">{{ t('settings.cheque_number_template') }}</label>
+          <InputText
+            id="cheque_number_template"
+            v-model="form.cheque_number_template"
+            :placeholder="t('settings.cheque_number_template_placeholder')"
+            class="w-full"
+          />
+          <small class="app-field__hint">{{ t('settings.cheque_number_template_help') }}</small>
+        </div>
+        <div class="app-field app-field--full">
+          <label for="bank_account_courant_acctid" class="app-field__label">{{ t('settings.bank_account_courant_acctid') }}</label>
+          <InputText
+            id="bank_account_courant_acctid"
+            v-model="form.bank_account_courant_acctid"
+            class="w-full"
+          />
+          <small class="app-field__hint">{{ t('settings.bank_account_courant_acctid_help') }}</small>
+        </div>
+        <div class="app-field app-field--full">
+          <label for="bank_account_epargne_acctid" class="app-field__label">{{ t('settings.bank_account_epargne_acctid') }}</label>
+          <InputText
+            id="bank_account_epargne_acctid"
+            v-model="form.bank_account_epargne_acctid"
+            class="w-full"
+          />
+          <small class="app-field__hint">{{ t('settings.bank_account_epargne_acctid_help') }}</small>
+        </div>
       </div>
     </AppPanel>
 
@@ -262,6 +290,9 @@ interface AssociationForm {
   payment_iban: string
   payment_bic: string
   payment_check_payee: string
+  cheque_number_template: string
+  bank_account_courant_acctid: string
+  bank_account_epargne_acctid: string
 }
 
 const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long' })
@@ -285,6 +316,9 @@ const defaultForm = (): AssociationForm => ({
   payment_iban: '',
   payment_bic: '',
   payment_check_payee: '',
+  cheque_number_template: '{date}.{seq}',
+  bank_account_courant_acctid: '',
+  bank_account_epargne_acctid: '',
 })
 
 const form = ref<AssociationForm>(defaultForm())
@@ -310,6 +344,9 @@ async function load(): Promise<void> {
       payment_iban: data.payment_iban ?? '',
       payment_bic: data.payment_bic ?? '',
       payment_check_payee: data.payment_check_payee ?? '',
+      cheque_number_template: data.cheque_number_template ?? '{date}.{seq}',
+      bank_account_courant_acctid: data.bank_account_courant_acctid ?? '',
+      bank_account_epargne_acctid: data.bank_account_epargne_acctid ?? '',
     }
   } catch {
     errorMessage.value = t('common.error.unknown')
@@ -336,6 +373,9 @@ async function save(): Promise<void> {
       payment_iban: form.value.payment_iban || null,
       payment_bic: form.value.payment_bic || null,
       payment_check_payee: form.value.payment_check_payee || null,
+      cheque_number_template: form.value.cheque_number_template || '{date}.{seq}',
+      bank_account_courant_acctid: form.value.bank_account_courant_acctid || null,
+      bank_account_epargne_acctid: form.value.bank_account_epargne_acctid || null,
     })
     successMessage.value = t('settings.saved')
   } catch {

@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_account import AccountingAccount, AccountType
 from backend.models.accounting_entry import AccountingEntry
-from backend.models.bank import BankTransaction
+from backend.models.bank import BankAccountType, BankTransaction
 from backend.models.cash import CashRegister
 from backend.models.fiscal_year import FiscalYear
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
@@ -22,13 +22,22 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
     """Return dashboard KPIs and alerts."""
     today = date.today()
 
-    # --- Bank balance (last transaction balance_after) ---
+    # --- Bank balance (last transaction balance_after per account) ---
     bank_result = await db.execute(
         select(BankTransaction.balance_after)
+        .where(BankTransaction.bank_account == BankAccountType.COURANT)
         .order_by(BankTransaction.date.desc(), BankTransaction.id.desc())
         .limit(1)
     )
     bank_balance = bank_result.scalar_one_or_none() or Decimal("0")
+
+    bank_epargne_result = await db.execute(
+        select(BankTransaction.balance_after)
+        .where(BankTransaction.bank_account == BankAccountType.EPARGNE)
+        .order_by(BankTransaction.date.desc(), BankTransaction.id.desc())
+        .limit(1)
+    )
+    bank_epargne_balance = bank_epargne_result.scalar_one_or_none() or Decimal("0")
 
     # --- Cash balance (last cash register entry balance_after) ---
     cash_result = await db.execute(
@@ -120,6 +129,7 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
 
     return {
         "bank_balance": Decimal(str(bank_balance)),
+        "bank_epargne_balance": Decimal(str(bank_epargne_balance)),
         "cash_balance": Decimal(str(cash_balance)),
         "unpaid_count": unpaid_count,
         "unpaid_total": unpaid_total,

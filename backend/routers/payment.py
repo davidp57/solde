@@ -12,6 +12,7 @@ from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.payment import PaymentCreate, PaymentRead, PaymentUpdate
 from backend.services import payment as payment_service
+from backend.services import settings as settings_service
 from backend.services.audit_service import AuditAction, record_audit
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -51,6 +52,19 @@ async def list_payments(
         limit=limit,
     )
     return payments
+
+
+@router.get("/suggest_cheque_number", response_model=str)
+async def suggest_cheque_number(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _ReadAccess,
+    payment_date: date | None = Query(
+        default=None, description="Date du paiement (défaut: aujourd'hui)"
+    ),
+) -> str:
+    """Return the next suggested cheque number for a given date."""
+    effective_date = payment_date if payment_date is not None else date.today()
+    return await settings_service.suggest_cheque_number(db, effective_date)
 
 
 @router.post("/", response_model=PaymentRead, status_code=status.HTTP_201_CREATED)

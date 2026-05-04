@@ -35,6 +35,20 @@
               @change="onFileSelected"
             />
           </div>
+          <div v-if="isOfxOrQif && !acctidFullyConfigured" class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('bank.import_default_account') }}</label>
+            <Select
+              v-model="defaultBankAccount"
+              :options="[
+                { label: t('bank.filter_account_courant'), value: 'courant' },
+                { label: t('bank.filter_account_epargne'), value: 'epargne' },
+              ]"
+              option-label="label"
+              option-value="value"
+              class="w-full"
+            />
+            <small class="app-field__hint">{{ t('bank.import_default_account_help') }}</small>
+          </div>
         </div>
       </section>
       <div class="app-form-actions">
@@ -56,14 +70,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
+import Select from 'primevue/select'
 import { useToast } from 'primevue/usetoast'
-import { importBankStatement, type BankImportFormat } from '@/api/bank'
+import { importBankStatement, type BankImportFormat, type BankAccountType } from '@/api/bank'
+import { getSettingsApi } from '@/api/settings'
 
-defineProps<{ visible: boolean }>()
+const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{
   'update:visible': [val: boolean]
   saved: []
@@ -75,6 +91,27 @@ const saving = ref(false)
 const fileName = ref('')
 const fileContent = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
+const defaultBankAccount = ref<BankAccountType>('courant')
+const acctidFullyConfigured = ref(false)
+
+watch(
+  () => props.visible,
+  async (open) => {
+    if (!open) return
+    try {
+      const s = await getSettingsApi()
+      acctidFullyConfigured.value =
+        Boolean(s.bank_account_courant_acctid) && Boolean(s.bank_account_epargne_acctid)
+    } catch {
+      acctidFullyConfigured.value = false
+    }
+  },
+)
+
+const isOfxOrQif = computed(() => {
+  if (!fileName.value) return false
+  return detectFormat(fileName.value) !== 'csv'
+})
 
 function detectFormat(name: string): BankImportFormat {
   const lower = name.toLowerCase()
@@ -99,10 +136,11 @@ async function submit(): Promise<void> {
   }
   saving.value = true
   try {
-    const result = await importBankStatement(detectFormat(fileName.value), fileContent.value)
+    const result = await importBankStatement(detectFormat(fileName.value), fileContent.value, defaultBankAccount.value)
     emit('update:visible', false)
     fileName.value = ''
     fileContent.value = ''
+    defaultBankAccount.value = 'courant'
     const summary =
       result.skipped > 0
         ? t('bank.import_success_with_skipped', { n: result.created.length, s: result.skipped })
@@ -113,8 +151,25 @@ async function submit(): Promise<void> {
       life: 4000,
     })
     emit('saved')
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    const rawDetail =
+      err &&
+      typeof err === 'object' &&
+      'response' in err
+        ? (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+        : undefined
+    const detail =
+      typeof rawDetail === 'string'
+        ? rawDetail
+        : Array.isArray(rawDetail)
+          ? rawDetail.map((d: unknown) => (typeof d === 'object' && d && 'msg' in d ? (d as { msg: string }).msg : String(d))).join(', ')
+          : undefined
+    toast.add({
+      severity: 'error',
+      summary: detail ? t('bank.import_error') : t('common.error.unknown'),
+      detail: detail ?? undefined,
+      life: 8000,
+    })
   } finally {
     saving.value = false
   }
