@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models.bank import BankTransaction, BankTransactionSource
+from backend.models.bank import BankAccountType, BankTransaction, BankTransactionSource
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.bank import (
@@ -27,6 +27,7 @@ from backend.schemas.bank import (
     DepositRead,
 )
 from backend.services import bank_service
+from backend.services import settings as settings_service
 from backend.services.audit_service import AuditAction, record_audit
 from backend.services.bank_import import (
     BankImportError,
@@ -89,8 +90,8 @@ async def get_balance(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
 ) -> BankBalanceRead:
-    balance = await bank_service.get_bank_balance(db)
-    return BankBalanceRead(balance=balance)
+    balance_data = await bank_service.get_bank_balance(db)
+    return BankBalanceRead(**balance_data)
 
 
 @router.get("/chart/funds")
@@ -109,6 +110,7 @@ async def list_transactions(
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
     unreconciled_only: bool = Query(default=False),
+    bank_account: BankAccountType | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=1000, ge=1, le=1000),
 ) -> list[BankTransactionRead]:
@@ -117,6 +119,7 @@ async def list_transactions(
         from_date=from_date,
         to_date=to_date,
         unreconciled_only=unreconciled_only,
+        bank_account=bank_account,
         skip=skip,
         limit=limit,
     )
@@ -443,6 +446,12 @@ async def _import_rows(
     created: list[BankTransactionRead] = []
     skipped = 0
     for row in rows:
+        raw_account = row.get("bank_account", "courant")
+        bank_account = (
+            BankAccountType(str(raw_account))
+            if raw_account in (BankAccountType.COURANT, BankAccountType.EPARGNE)
+            else BankAccountType.COURANT
+        )
         tx_payload = BankTransactionCreate(
             date=cast(date, row["date"]),
             amount=cast(Decimal, row["amount"]),
@@ -450,6 +459,7 @@ async def _import_rows(
             description=str(row.get("description", "")),
             reference=cast(str | None, row.get("reference")),
             source=source,
+            bank_account=bank_account,
         )
         tx = await bank_service.add_transaction(db, tx_payload)
         if tx is None:
@@ -478,8 +488,15 @@ async def import_ofx(
     current_user: _WriteAccess,
 ) -> BankImportResult:
     """Import transactions from an OFX/QFX bank statement export."""
+    settings = await settings_service.get_settings(db)
+    courant_acctid = settings.bank_account_courant_acctid if settings else None
+    epargne_acctid = settings.bank_account_epargne_acctid if settings else None
     try:
-        rows = parse_ofx(payload.content)
+        rows = parse_ofx(
+            payload.content,
+            courant_acctid=courant_acctid,
+            epargne_acctid=epargne_acctid,
+        )
     except BankImportError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)

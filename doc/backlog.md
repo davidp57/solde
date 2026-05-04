@@ -68,7 +68,8 @@ Décisions métier nécessaires avant implémentation.
 | TEC-159 | Tests cheque_number_template settings API (4 tests) | ~15 min | ~4 min |
 | BIZ-165 | Navigation prev/next preview factures client | ~10 min | ~5 min |
 | CHR-078 | Squelette i18n anglais (en.ts) | ~15 min | ~3 min |
-| **Total** | | **~70 min** | **~20 min** |
+| CR-077 | Corrections revue Copilot PR #77 (8 threads) | ~25 min | ~20 min |
+| **Total** | | **~95 min** | **~36 min** |
 
 ### Détail
 
@@ -77,6 +78,7 @@ Décisions métier nécessaires avant implémentation.
 - **TEC-159** : 4 tests dans `test_settings_api.py` (dans `TestUpdateSettings`) : valeur par défaut `{date}.{seq}`, update valide, 422 sans `{seq}`, 422 avec placeholder inconnu.
 - **BIZ-165** : `ClientInvoicesView.vue` — `historyIndex` ref, `openHistory` indexe dans `displayedInvoices`, barre nav ◀ N/total ▶ dans le dialog, `goToPrevHistory` / `goToNextHistory`, styles `.preview-nav-bar`.
 - **CHR-078** : `frontend/src/i18n/en.ts` créé — sections `app`, `auth`, `common` traduits en anglais. Enregistré dans `index.ts` (messages: `{ fr, en }`).
+- **CR-077** : Corrections des 8 threads de revue Copilot sur PR #77 — CSS dupliqué supprimé (`SupplierInvoicesView`), fuite Blob URL corrigée (`ClientInvoicesView`), bouton créance douteuse restreint à `type === 'client'` (`ContactHistoryContent`), commentaire `en.ts` corrigé, tests `suggest_cheque_number` renforcés (format exact + date today), 4 tests Vitest nav prev/next ajoutés (client + fournisseur). Version 1.4.7 → 1.4.8.
 
 </details>
 

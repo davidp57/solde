@@ -17,6 +17,11 @@ _Date = date
 _Decimal = Decimal
 
 
+class BankAccountType(StrEnum):
+    COURANT = "courant"
+    EPARGNE = "epargne"
+
+
 class BankTransactionSource(StrEnum):
     MANUAL = "manual"
     IMPORT = "import"  # legacy — kept for backward compat with existing rows
@@ -76,6 +81,9 @@ class BankTransaction(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     balance_after: Mapped[_Decimal] = mapped_column(
         DecimalType(10, 2), nullable=False, default=Decimal("0")
+    )
+    bank_account: Mapped[BankAccountType] = mapped_column(
+        String(10), nullable=False, default=BankAccountType.COURANT, index=True
     )
     reconciled: Mapped[bool] = mapped_column(nullable=False, default=False)
     reconciled_with: Mapped[str | None] = mapped_column(String(100), nullable=True)

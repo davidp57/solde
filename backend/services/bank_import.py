@@ -151,35 +151,18 @@ def parse_credit_mutuel_csv(content: str) -> list[dict[str, object]]:
 # ---------------------------------------------------------------------------
 
 
-def parse_ofx(content: str) -> list[dict[str, object]]:
-    """Parse an OFX/QFX bank statement (SGML or XML) and return transaction dicts.
-
-    Returns a list of dicts with keys:
-        date, amount, balance_after, description, reference
-    Raises BankImportError if the file contains multiple bank accounts.
-    """
-    # Split on STMTTRNRS boundaries to detect multi-account files
-    stmtrs_segments = re.split(r"</?STMTTRNRS>", content, flags=re.IGNORECASE)
-    stmtrs_segments = [s for s in stmtrs_segments if re.search(r"<STMTTRN", s, re.IGNORECASE)]
-    if len(stmtrs_segments) > 1:
-        acct_ids: list[str] = []
-        for seg in stmtrs_segments:
-            m = re.search(r"<ACCTID>\s*([^\n<]+)", seg, re.IGNORECASE)
-            acct_ids.append(m.group(1).strip() if m else "?")
-        raise BankImportError(
-            f"Le fichier OFX contient {len(stmtrs_segments)} comptes "
-            f"({', '.join(acct_ids)}). "
-            "Exportez chaque compte séparément et importez-les l'un après l'autre."
-        )
-    parse_content = stmtrs_segments[0] if stmtrs_segments else content
-
+def _parse_ofx_segment(
+    segment: str,
+    bank_account: str = "courant",
+) -> list[dict[str, object]]:
+    """Parse a single STMTTRNRS segment and return transaction dicts."""
     rows: list[dict[str, object]] = []
 
     # Extract STMTTRN blocks (works for both SGML and XML OFX)
-    blocks = re.findall(r"<STMTTRN>(.*?)</STMTTRN>", parse_content, re.DOTALL | re.IGNORECASE)
+    blocks = re.findall(r"<STMTTRN>(.*?)</STMTTRN>", segment, re.DOTALL | re.IGNORECASE)
     if not blocks:
         # SGML OFX without closing tags: split on <STMTTRN>
-        raw_blocks = re.split(r"<STMTTRN>", parse_content, flags=re.IGNORECASE)[1:]
+        raw_blocks = re.split(r"<STMTTRN>", segment, flags=re.IGNORECASE)[1:]
         # Each block ends at <BANKTRANLIST end> or next <STMTTRN> or </BANKTRANLIST>
         blocks = [re.split(r"</BANKTRANLIST>|<STMTTRN>", b, maxsplit=1)[0] for b in raw_blocks]
 
@@ -223,8 +206,61 @@ def parse_ofx(content: str) -> list[dict[str, object]]:
                 "balance_after": Decimal("0"),
                 "description": description,
                 "reference": reference,
+                "bank_account": bank_account,
             }
         )
+
+    return rows
+
+
+def parse_ofx(
+    content: str,
+    courant_acctid: str | None = None,
+    epargne_acctid: str | None = None,
+) -> list[dict[str, object]]:
+    """Parse an OFX/QFX bank statement (SGML or XML) and return transaction dicts.
+
+    Returns a list of dicts with keys:
+        date, amount, balance_after, description, reference, bank_account
+
+    When courant_acctid / epargne_acctid are provided, multi-account files are
+    supported: each STMTTRNRS segment is matched against the configured ACCTID
+    and tagged accordingly.  Unknown ACCTID values default to 'courant'.
+
+    When no ACCTID mapping is configured and the file contains multiple accounts,
+    a BankImportError is raised asking the user to configure the mapping first.
+    """
+    # Split on STMTTRNRS boundaries
+    stmtrs_segments = re.split(r"</?STMTTRNRS>", content, flags=re.IGNORECASE)
+    stmtrs_segments = [s for s in stmtrs_segments if re.search(r"<STMTTRN", s, re.IGNORECASE)]
+
+    if not stmtrs_segments:
+        # No STMTTRNRS found — try whole file as a single segment
+        stmtrs_segments = [content]
+
+    if len(stmtrs_segments) == 1:
+        rows = _parse_ofx_segment(stmtrs_segments[0], bank_account="courant")
+    else:
+        # Multi-account file
+        if not courant_acctid and not epargne_acctid:
+            # Collect ACCTID values to show in error message
+            acct_ids: list[str] = []
+            for seg in stmtrs_segments:
+                m = re.search(r"<ACCTID>\s*([^\n<]+)", seg, re.IGNORECASE)
+                acct_ids.append(m.group(1).strip() if m else "?")
+            raise BankImportError(
+                f"Le fichier OFX contient {len(stmtrs_segments)} comptes "
+                f"({', '.join(acct_ids)}). "
+                "Configurez les identifiants de compte (ACCTID) dans les Réglages "
+                "pour permettre l'import multi-comptes."
+            )
+
+        rows = []
+        for seg in stmtrs_segments:
+            m = re.search(r"<ACCTID>\s*([^\n<]+)", seg, re.IGNORECASE)
+            acctid = m.group(1).strip() if m else ""
+            bank_account = "epargne" if epargne_acctid and acctid == epargne_acctid else "courant"
+            rows.extend(_parse_ofx_segment(seg, bank_account=bank_account))
 
     if not rows:
         raise BankImportError("no transactions found in OFX file")

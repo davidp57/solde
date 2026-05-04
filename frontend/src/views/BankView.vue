@@ -36,6 +36,10 @@
           :caption="currentBalanceCaption"
         />
         <AppStatCard
+          :label="t('bank.funds_chart_savings_account')"
+          :value="formatAmount(balanceEpargne) + ' €'"
+        />
+        <AppStatCard
           :label="t('bank.period_variation')"
           :value="formatSignedAmount(displayedPeriodVariation)"
           :caption="periodVariationCaption"
@@ -52,6 +56,10 @@
           :label="t('bank.current_balance')"
           :value="displayBalanceValue"
           :caption="currentBalanceCaption"
+        />
+        <AppStatCard
+          :label="t('bank.funds_chart_savings_account')"
+          :value="formatAmount(balanceEpargne) + ' €'"
         />
         <AppStatCard
           :label="t('bank.period_variation')"
@@ -164,6 +172,18 @@
                 v-model="unreconciledOnly"
                 :on-label="t('bank.tx_reconciled')"
                 :off-label="t('bank.tx_reconciled')"
+                @change="loadTransactions"
+              />
+              <Select
+                v-model="selectedBankAccount"
+                :options="[
+                  { label: t('bank.filter_all_accounts'), value: null },
+                  { label: t('bank.filter_account_courant'), value: 'courant' },
+                  { label: t('bank.filter_account_epargne'), value: 'epargne' },
+                ]"
+                option-label="label"
+                option-value="value"
+                size="small"
                 @change="loadTransactions"
               />
               <Button
@@ -819,6 +839,7 @@ import {
   confirmDeposit as confirmDepositApi,
   type BankTransaction,
   type BankTransactionCategory,
+  type BankAccountType,
   type Deposit,
   type FundsChartRow as BankFundsChartRow,
 } from '@/api/bank'
@@ -841,6 +862,7 @@ const fiscalYearStore = useFiscalYearStore()
 
 // Core bank data
 const balance = ref('0')
+const balanceEpargne = ref('0')
 const fundsChartData = ref<BankFundsChartRow[]>([])
 const transactions = ref<BankTransaction[]>([])
 const deposits = ref<Deposit[]>([])
@@ -851,6 +873,7 @@ const loadingDeposits = ref(false)
 const confirmingDepositId = ref<number | null>(null)
 const activeTab = ref('transactions')
 const unreconciledOnly = ref(false)
+const selectedBankAccount = ref<BankAccountType | null>(null)
 
 // Bulk reconcile state
 const reconcilingAll = ref(false)
@@ -1218,6 +1241,7 @@ async function loadTransactions(): Promise<void> {
       from_date: fiscalYearStore.selectedFiscalYear?.start_date,
       to_date: fiscalYearStore.selectedFiscalYear?.end_date,
       unreconciled_only: unreconciledOnly.value,
+      bank_account: selectedBankAccount.value ?? undefined,
     })
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
@@ -1274,6 +1298,7 @@ async function loadAll(): Promise<void> {
     loadFundsChart(),
   ])
   balance.value = b.balance
+  balanceEpargne.value = b.balance_epargne
 }
 
 watch(

@@ -24,6 +24,7 @@ export type BankTransactionCategory =
   | 'other_credit'
   | 'other_debit'
 export type BankImportFormat = 'csv' | 'ofx' | 'qif'
+export type BankAccountType = 'courant' | 'epargne'
 
 export interface BankTransaction {
   id: number
@@ -36,6 +37,7 @@ export interface BankTransaction {
   reconciled_with: string | null
   source: BankTransactionSource
   detected_category: BankTransactionCategory
+  bank_account: BankAccountType
   payment_id: number | null
   payment_ids: number[]
 }
@@ -60,6 +62,7 @@ export interface BankTransactionCreate {
   description?: string
   balance_after?: string
   source?: BankTransactionSource
+  bank_account?: BankAccountType
 }
 
 export interface BankTransactionUpdate {
@@ -112,8 +115,14 @@ export interface FundsChartRow {
   balance: number
 }
 
-export async function getBankBalance(): Promise<{ balance: string }> {
-  const response = await apiClient.get<{ balance: string }>('/api/bank/balance')
+export interface BankBalance {
+  balance: string
+  balance_courant: string
+  balance_epargne: string
+}
+
+export async function getBankBalance(): Promise<BankBalance> {
+  const response = await apiClient.get<BankBalance>('/api/bank/balance')
   return response.data
 }
 
@@ -128,6 +137,7 @@ export async function listTransactions(params?: {
   from_date?: string
   to_date?: string
   unreconciled_only?: boolean
+  bank_account?: BankAccountType
   skip?: number
   limit?: number
 }): Promise<BankTransaction[]> {
