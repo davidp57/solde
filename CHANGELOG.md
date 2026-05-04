@@ -9,7 +9,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
-## [Non publié]
+## [1.5.1] — 2026-05-04
 
 ### Ajouté
 - **BIZ-034** — Support multi-compte bancaire (compte courant + compte épargne) : chaque transaction peut désormais être associée à l'un des deux comptes

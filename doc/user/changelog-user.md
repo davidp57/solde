@@ -4,26 +4,7 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
-## Version 1.4.3 *(à venir)*
-
-### Tous les utilisateurs
-
-#### Saisie des règlements
-- Lorsque le mode de paiement **chèque** est sélectionné, le numéro de chèque est **suggéré automatiquement** au format `AAAAMMJJ.NN` (exemple : `20260504.01`). Le numéro reste modifiable avant validation.
-
-### Trésorier
-
-#### Relevé bancaire — catégories
-- Nouvelle catégorie **« Sans écriture »** : en attribuant cette catégorie à une transaction bancaire, vous indiquez explicitement qu'aucune écriture comptable ne doit être générée lors du rapprochement. Utile pour les virements vers des comptes extérieurs à Solde ou les ajustements techniques ponctuels.
-
-### Administrateur
-
-#### Paramètres
-- Le **modèle de numérotation des chèques** est configurable dans les réglages (section Règlements). Par défaut : `{date}.{seq}` — les variables `{date}` et `{seq}` sont décrites dans l'aide en ligne.
-
----
-
-## Version 1.4.2 *(à venir)*
+## Version 1.5.1 — 4 mai 2026
 
 ### Tous les utilisateurs
 
@@ -32,8 +13,41 @@ Ce document présente les changements visibles dans l'application, version par v
 - Les fenêtres de dialogue s'adaptent automatiquement à la largeur de l'écran sur mobile.
 - Les **cartes de synthèse** (indicateurs chiffrés) s'affichent sur **2 colonnes** sur mobile.
 
-#### Tableau de bord — Dépôts en attente
-- Les détails du contenu d'un dépôt espèces (détail des coupures) sont affichés directement sur chaque dépôt en attente.
+#### Saisie des règlements
+- Lorsque le mode de paiement **chèque** est sélectionné, le numéro de chèque est **suggéré automatiquement** au format `AAAAMMJJ.NN` (exemple : `20260504.01`). Le numéro reste modifiable avant validation.
+
+#### Navigation dans les dialogues
+- Les dialogues d'historique factures client et les prévisualisations de factures fournisseur disposent d'une barre **Précédent / Suivant** en haut et en bas de la fenêtre pour naviguer entre les éléments sans fermer le dialogue.
+
+### Secrétaire
+
+#### Contacts
+- L'onglet **Clients** est désormais actif par défaut dans la vue Contacts.
+- Les contacts ayant une facture récente (moins de 6 mois) apparaissent **en tête de liste**, puis par ordre alphabétique.
+
+### Trésorier
+
+#### Banque — Relevé
+- Les transactions du relevé peuvent être filtrées par compte : **Tous / Courant / Épargne**.
+- Nouvelle catégorie **« Sans écriture »** : une transaction avec cette catégorie ne génère aucune écriture comptable lors du rapprochement. Utile pour les virements extérieurs ou les ajustements techniques.
+
+#### Tableau de bord
+- Les détails du contenu d'un dépôt espèces (coupures) sont affichés directement sur chaque dépôt en attente.
+- Nouvelle carte **« Solde épargne »** affichant le solde du compte Livret A en complément du solde courant.
+
+#### Factures fournisseur
+- La barre de navigation Précédent / Suivant est également disponible **en bas** de la fenêtre de prévisualisation, pour faciliter la consultation du document joint.
+
+#### Contacts
+- Le bouton **« Passer en créance douteuse »** n'apparaît plus pour les contacts de type Fournisseur.
+
+### Administrateur
+
+#### Paramètres — Banque
+- Deux nouveaux champs : **identifiant ACCTID OFX** pour le compte courant et pour le compte épargne. Une fois renseignés, les fichiers OFX contenant les deux comptes sont automatiquement attribués au bon compte, sans sélection manuelle à l'import.
+
+#### Paramètres — Règlements
+- Le **modèle de numérotation des chèques** est configurable. Par défaut : `{date}.{seq}` — les variables `{date}` et `{seq}` sont décrites dans l'aide en ligne.
 
 ---
 
