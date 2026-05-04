@@ -873,7 +873,7 @@ const loadingDeposits = ref(false)
 const confirmingDepositId = ref<number | null>(null)
 const activeTab = ref('transactions')
 const unreconciledOnly = ref(false)
-const selectedBankAccount = ref<BankAccountType | null>(null)
+const selectedBankAccount = ref<BankAccountType | null>('courant')
 
 // Bulk reconcile state
 const reconcilingAll = ref(false)
