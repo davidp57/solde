@@ -728,6 +728,7 @@ export default {
     tx_amount: 'Montant',
     tx_description: 'Libellé',
     tx_reference: 'Réf. comptable',
+    tx_account: 'Compte',
     tx_balance: 'Solde après',
     tx_balance_short: 'Solde',
     tx_category: 'Catégorie détectée',

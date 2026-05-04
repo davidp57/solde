@@ -35,6 +35,19 @@
             <InputText v-model="form.reference" />
           </div>
           <div class="app-field">
+            <label class="app-field__label">{{ t('bank.tx_account') }}</label>
+            <Select
+              v-model="form.bank_account"
+              :options="[
+                { label: t('bank.filter_account_courant'), value: 'courant' },
+                { label: t('bank.filter_account_epargne'), value: 'epargne' },
+              ]"
+              option-label="label"
+              option-value="value"
+              class="w-full"
+            />
+          </div>
+          <div class="app-field">
             <label class="app-field__label">{{ t('bank.tx_balance') }}</label>
             <InputNumber
               v-model="form.balance_after"
@@ -67,7 +80,8 @@ import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import { useToast } from 'primevue/usetoast'
-import { addTransaction } from '@/api/bank'
+import Select from 'primevue/select'
+import { addTransaction, type BankAccountType } from '@/api/bank'
 
 defineProps<{ visible: boolean }>()
 const emit = defineEmits<{
@@ -84,6 +98,7 @@ const form = ref({
   description: '',
   reference: '',
   balance_after: 0,
+  bank_account: 'courant' as BankAccountType,
 })
 
 function toIsoDate(d: Date | string): string {
@@ -100,6 +115,7 @@ async function submit(): Promise<void> {
       description: form.value.description,
       reference: form.value.reference || null,
       balance_after: String(form.value.balance_after),
+      bank_account: form.value.bank_account,
     })
     emit('update:visible', false)
     emit('saved')
