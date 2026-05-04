@@ -34,9 +34,9 @@
     <AppPanel :title="t('contacts.workspace_title')" :subtitle="t('contacts.workspace_subtitle')">
       <Tabs v-model:value="activeTab" class="contacts-tabs">
         <TabList>
-          <Tab value="all">{{ t('contacts.tabs.all') }} ({{ contacts.length }})</Tab>
           <Tab value="client">{{ t('contacts.tabs.clients') }} ({{ clientCount + mixedCount }})</Tab>
           <Tab value="fournisseur">{{ t('contacts.tabs.suppliers') }} ({{ supplierCount + mixedCount }})</Tab>
+          <Tab value="all">{{ t('contacts.tabs.all') }} ({{ contacts.length }})</Tab>
         </TabList>
       </Tabs>
 
@@ -445,7 +445,7 @@ const toast = useToast()
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const search = ref('')
-const activeTab = ref<'all' | 'client' | 'fournisseur'>('all')
+const activeTab = ref<'all' | 'client' | 'fournisseur'>('client')
 const dialogVisible = ref(false)
 const contactFormRef = ref<InstanceType<typeof ContactForm> | null>(null)
 const editingContact = ref<Contact | null>(null)
@@ -511,8 +511,22 @@ const tabContacts = computed(() => {
   if (activeTab.value === 'fournisseur') return contacts.value.filter((c) => c.type === 'fournisseur' || c.type === 'les_deux')
   return contacts.value
 })
+
+function sortContacts(list: Contact[]): Contact[] {
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+  return [...list].sort((a, b) => {
+    const aRecent = a.last_invoice_date !== null && new Date(a.last_invoice_date) >= sixMonthsAgo
+    const bRecent = b.last_invoice_date !== null && new Date(b.last_invoice_date) >= sixMonthsAgo
+    if (aRecent !== bRecent) return aRecent ? -1 : 1
+    const nomCmp = (a.nom ?? '').localeCompare(b.nom ?? '', 'fr', { sensitivity: 'base' })
+    if (nomCmp !== 0) return nomCmp
+    return (a.prenom ?? '').localeCompare(b.prenom ?? '', 'fr', { sensitivity: 'base' })
+  })
+}
+
 const contactRows = computed(() =>
-  tabContacts.value.map((contact) => ({
+  sortContacts(tabContacts.value).map((contact) => ({
     ...contact,
     type_label: t(`contacts.types.${contact.type}`),
   })),
@@ -566,13 +580,13 @@ function debouncedLoad(): void {
 }
 
 const hasAnyFilters = computed(
-  () => hasActiveFilters.value || Boolean(search.value) || activeTab.value !== 'all',
+  () => hasActiveFilters.value || Boolean(search.value) || activeTab.value !== 'client',
 )
 
 function resetAllFilters(): void {
   resetFilters()
   search.value = ''
-  activeTab.value = 'all'
+  activeTab.value = 'client'
   void loadContacts()
 }
 

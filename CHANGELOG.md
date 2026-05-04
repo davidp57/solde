@@ -20,6 +20,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-164** — Paramètre `cheque_number_template` dans les réglages (champ `{date}.{seq}` par défaut, validé côté backend)
 - **BIZ-164** — Migration Alembic `0049` : colonne `cheque_number_template` dans `app_settings`
 - **BIZ-165** — Boutons de navigation Précédent / Suivant dans le dialog d'historique des factures client (parité avec la vue factures fournisseur)
+- **BIZ-166** — Vue Contacts : onglet « Clients » actif par défaut (ordre : Clients > Fournisseurs > Tout) ; contacts triés par récence de dernière facture (< 6 mois en tête) puis ordre alphabétique
 - **CHR-078** — Fichier `frontend/src/i18n/en.ts` créé : squelette de localisation anglaise avec `app`, `auth` et `common` traduits ; enregistré dans `vue-i18n` avec `fallbackLocale: 'fr'`
 
 ### Amélioré
