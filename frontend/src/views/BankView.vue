@@ -796,8 +796,6 @@
     <Popover ref="categoryEditPopover">
       <div class="bank-category-popover">
         <p class="bank-category-popover__label">{{ t('bank.edit_category_label') }}</p>
-      <div class="bank-category-popover">
-        <p class="bank-category-popover__label">{{ t('bank.edit_category_label') }}</p>
         <Select
           v-model="categoryEditValue"
           :options="categoryOptions"
