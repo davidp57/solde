@@ -11,27 +11,19 @@ Quand un sujet est livré, mettre à jour `CHANGELOG.md` et passer le ticket en 
 
 ## Calibration estimations
 
-Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dessous).
+Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 | Lot | Estimé Copilot | Réel Copilot | Ratio | Estimé gestion | Réel gestion | Ajustement |
 | --- | --- | --- | --- | --- | --- | --- |
 | UI | ~65 min | ~30 min | **0,46** | 15 min | ? | ↓ facteur → 1,00 |
+| CR2 | ~70 min | ~20 min | **0,29** | — | — | voir note |
 
-> Lot UI : estimations 2x trop élevées. Les tickets UI/bulk-replace et les vérifications de tickets "déjà fait" ont été surestimés. Pour les prochains lots, utiliser les réels de ce lot comme calibration : bulk-replace ~3 min, ajout d’une fonction simple ~7 min, mise à jour de N routeurs/vues ~18 min.
+> Lot UI : estimations 2x trop élevées. Les tickets UI/bulk-replace et les vérifications de tickets "déjà fait" ont été surestimés.
+> Lot CR2 : ratio 0,29 — très inférieur à 1,15. Cependant ces tickets étaient tous très petits (i18n, tests, nav, squelette) et le facteur 1,00 reflète déjà une marge nulle. Plutôt que d'abaisser le facteur en dessous de 1,00 (ce qui serait contre-productif), la leçon est : **pour les tickets de finition/tests simples, l'estimation de référence doit être 3–5 min, pas 10–20 min**. Facteur maintenu à 1,00 ; calibration des estimations unitaires à revoir pour ces catégories.
 
 ---
 
 ## Lots actifs
-
-### Lot CR2 — Correctifs & finitions post-MOB
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| TEC-157 | i18n : supprimer chaînes en dur dans AppMobileCardList + CashView | P3 | ~10 min | 2026-05-03 | 2026-05-04 | 2026-05-04 |
-| TEC-158 | Tests intégration suggest_cheque_number (statut, date, incrément, accès) | P2 | ~20 min | 2026-05-03 | 2026-05-04 | 2026-05-04 |
-| TEC-159 | Tests validation cheque_number_template dans settings API | P2 | ~15 min | 2026-05-03 | 2026-05-04 | 2026-05-04 |
-| BIZ-165 | Navigation précédent/suivant sur preview factures client | P2 | ~10 min | 2026-05-03 | 2026-05-04 | 2026-05-04 |
-| CHR-078 | Squelette i18n anglais | P3 | ~15 min | 2026-04-23 | 2026-05-04 | 2026-05-04 |
 
 ### Hors lots
 
@@ -42,6 +34,11 @@ Facteur de marge actuel : **1,00** (0%) — raméné après Lot UI (voir ci-dess
 ---
 
 ## Détails
+
+### BIZ-166 — Vue contacts : onglet clients par défaut + tri par récence
+
+Onglet "Clients" activé par défaut (ordre : Clients > Fournisseurs > Tout).
+Tri synthétique : facture < 6 mois en tête, puis ordre alphabétique (nom, prénom).
 
 ### BIZ-034 — Support multi-compte banque
 
@@ -54,7 +51,7 @@ Décisions métier nécessaires avant implémentation.
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
-| CR2 | Correctifs & finitions post-MOB | v1.5 | TEC-157, TEC-158, TEC-159, BIZ-165, CHR-078 | 2026-05-04 | ~70 min | — |
+| CR2 | Correctifs & finitions post-MOB | v1.5 | TEC-157, TEC-158, TEC-159, BIZ-165, BIZ-166, CHR-078 | 2026-05-04 | ~80 min | ~25 min |
 | Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 | — | — |
 | CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 | — | — |
 | DOC | Documentation utilisateur | v1.5 | BIZ-161, BIZ-162, BIZ-163 | 2026-05-03 | ~115 min | ~45 min |
@@ -66,12 +63,12 @@ Décisions métier nécessaires avant implémentation.
 
 | Ticket | Titre | Est. | Réel |
 | --- | --- | --- | --- |
-| TEC-157 | i18n AppMobileCardList + CashView | ~10 min | — |
-| TEC-158 | Tests intégration suggest_cheque_number (5 tests) | ~20 min | — |
-| TEC-159 | Tests cheque_number_template settings API (4 tests) | ~15 min | — |
-| BIZ-165 | Navigation prev/next preview factures client | ~10 min | — |
-| CHR-078 | Squelette i18n anglais (en.ts) | ~15 min | — |
-| **Total** | | **~70 min** | **—** |
+| TEC-157 | i18n AppMobileCardList + CashView | ~10 min | ~3 min |
+| TEC-158 | Tests intégration suggest_cheque_number (5 tests) | ~20 min | ~5 min |
+| TEC-159 | Tests cheque_number_template settings API (4 tests) | ~15 min | ~4 min |
+| BIZ-165 | Navigation prev/next preview factures client | ~10 min | ~5 min |
+| CHR-078 | Squelette i18n anglais (en.ts) | ~15 min | ~3 min |
+| **Total** | | **~70 min** | **~20 min** |
 
 ### Détail
 
