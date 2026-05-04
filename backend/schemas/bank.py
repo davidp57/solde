@@ -7,7 +7,12 @@ from decimal import Decimal as _Decimal
 
 from pydantic import BaseModel, Field, field_validator
 
-from backend.models.bank import BankTransactionCategory, BankTransactionSource, DepositType
+from backend.models.bank import (
+    BankAccountType,
+    BankTransactionCategory,
+    BankTransactionSource,
+    DepositType,
+)
 
 
 class BankTransactionCreate(BaseModel):
@@ -17,6 +22,7 @@ class BankTransactionCreate(BaseModel):
     description: str = ""
     balance_after: _Decimal = _Decimal("0")
     source: BankTransactionSource = BankTransactionSource.MANUAL
+    bank_account: BankAccountType = BankAccountType.COURANT
 
 
 class BankTransactionRead(BaseModel):
@@ -26,6 +32,7 @@ class BankTransactionRead(BaseModel):
     reference: str | None
     description: str
     balance_after: _Decimal
+    bank_account: BankAccountType
     reconciled: bool
     reconciled_with: str | None
     source: BankTransactionSource
@@ -47,6 +54,10 @@ class BankTransactionUpdate(BaseModel):
     reference: str | None = None
     description: str | None = None
     detected_category: BankTransactionCategory | None = None
+    # Fields below are only applied when editing a manual transaction
+    date: _Date | None = None
+    amount: _Decimal | None = None
+    bank_account: BankAccountType | None = None
 
 
 class BankReconcileBulkRequest(BaseModel):
@@ -150,3 +161,5 @@ class DepositRead(BaseModel):
 
 class BankBalanceRead(BaseModel):
     balance: _Decimal
+    balance_courant: _Decimal
+    balance_epargne: _Decimal

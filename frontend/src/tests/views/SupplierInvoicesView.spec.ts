@@ -59,17 +59,19 @@ vi.mock('../../api/invoices', () => ({
 vi.mock('../../api/payments', () => ({
   listPayments: vi.fn(),
   createPayment: vi.fn(),
+  suggestChequeNumber: vi.fn().mockResolvedValue('20250101.01'),
 }))
 
 import SupplierInvoicesView from '../../views/SupplierInvoicesView.vue'
 import { listContactsApi } from '../../api/contacts'
 import { listInvoicesApi } from '../../api/invoices'
-import { createPayment, listPayments } from '../../api/payments'
+import { createPayment, listPayments, suggestChequeNumber } from '../../api/payments'
 
 const mockListContactsApi = vi.mocked(listContactsApi)
 const mockListInvoicesApi = vi.mocked(listInvoicesApi)
 const mockListPayments = vi.mocked(listPayments)
 const mockCreatePayment = vi.mocked(createPayment)
+const mockSuggestChequeNumber = vi.mocked(suggestChequeNumber)
 
 const invoiceFixture = {
   id: 1,
@@ -410,6 +412,9 @@ describe('SupplierInvoicesView — payment dialog', () => {
   })
 
   it('requires a cheque number when method is cheque', async () => {
+    // override: suggestion returns empty so the field stays empty
+    mockSuggestChequeNumber.mockResolvedValueOnce('')
+
     const wrapper = mountView()
     await flushView()
 
@@ -419,7 +424,7 @@ describe('SupplierInvoicesView — payment dialog', () => {
     await paymentButton!.trigger('click')
     await flushView()
 
-    // method is 'cheque' by default, cheque_number is empty — submit should be blocked
+    // method is 'cheque', cheque_number is empty — submit should be blocked
     const paymentForm = wrapper.findAll('form').at(-1)!
     await paymentForm.trigger('submit')
     await flushView()
@@ -428,5 +433,70 @@ describe('SupplierInvoicesView — payment dialog', () => {
     expect(toastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'warn' }),
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Preview dialog bottom navigation (BIZ-168)
+// ---------------------------------------------------------------------------
+
+describe('SupplierInvoicesView — preview dialog bottom navigation', () => {
+  // Variants with file_path so the preview button (v-if="data.file_path") is rendered
+  const invoiceWithFile = { ...invoiceFixture, file_path: 'uploads/FF-2025-001.pdf' }
+  const paidInvoiceWithFile = { ...paidInvoiceFixture, file_path: 'uploads/FF-2025-002.pdf' }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockListContactsApi.mockResolvedValue([
+      { id: 10, type: 'fournisseur', nom: 'Martin', prenom: 'Bob', email: null, telephone: null },
+    ] as never)
+    // Two invoices with file_path so the preview button is rendered for each
+    mockListInvoicesApi.mockResolvedValue([invoiceWithFile, paidInvoiceWithFile] as never)
+    mockListPayments.mockResolvedValue([])
+  })
+
+  it('shows navigation counter and advances via bottom bar Next button', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    const previewButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'invoices.supplier.preview_file')
+    expect(previewButtons.length).toBeGreaterThanOrEqual(1)
+
+    await previewButtons[0].trigger('click')
+    await flushView()
+
+    // Counter shows "1 / 2"
+    expect(wrapper.text()).toContain('1 / 2')
+
+    // Click the last enabled Next button (bottom bar is last in the DOM)
+    const nextButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'common.next' && !btn.element.disabled)
+    expect(nextButtons.length).toBeGreaterThanOrEqual(1)
+    await nextButtons[nextButtons.length - 1].trigger('click')
+    await flushView()
+
+    // Counter now shows "2 / 2"
+    expect(wrapper.text()).toContain('2 / 2')
+  })
+
+  it('disables Previous at the first invoice in both nav bars', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    const previewButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'invoices.supplier.preview_file')
+    await previewButtons[0].trigger('click')
+    await flushView()
+
+    const prevButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'common.previous')
+    expect(prevButtons.length).toBeGreaterThanOrEqual(1)
+    // All Previous buttons must be disabled at index 0
+    expect(prevButtons.every((btn) => btn.element.disabled)).toBe(true)
   })
 })

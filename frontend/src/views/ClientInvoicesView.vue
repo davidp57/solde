@@ -133,6 +133,75 @@
         {{ t('common.api_limit_warning') }}
       </Message>
       <AppTableSkeleton v-if="loading && !invoices.length" :rows="8" :cols="5" />
+      <template v-else-if="isMobile">
+        <AppMobileCardList :items="invoiceRows" :empty-message="t('invoices.client.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight: 700">{{ data.number }}</span>
+              <Tag
+                :value="t(`invoices.statuses.${data.status}`)"
+                :severity="statusSeverity(data.status)"
+              />
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('invoices.contact') }} :</span>
+              <span class="app-mobile-card-value">{{ contactName(data.contact_id) }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+              <span class="app-mobile-card-value" style="font-weight: 600">{{ formatAmount(data.total_amount) }} €</span>
+            </div>
+            <div v-if="data.label" class="app-mobile-card-row">
+              <Tag :value="t(`invoices.labels.${data.label}`)" severity="info" size="small" />
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                icon="pi pi-eye"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.history')"
+                @click="openHistory(data)"
+              />
+              <Button
+                v-if="canRecordPayment(data)"
+                icon="pi pi-wallet"
+                size="small"
+                severity="success"
+                text
+                :title="t('invoices.record_payment')"
+                @click="openPaymentDialog(data)"
+              />
+              <Button
+                v-if="isInvoiceEditable(data)"
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.edit')"
+                @click="openEditDialog(data)"
+              />
+              <Button
+                icon="pi pi-file-pdf"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.generate_pdf')"
+                @click="openPdf(data)"
+              />
+              <Button
+                v-if="data.status === 'draft'"
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                text
+                :title="t('common.delete')"
+                @click="confirmDelete(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
         v-else
         v-model:filters="tableFilters"
@@ -387,7 +456,7 @@
       v-model:visible="writeOffDialogVisible"
       :header="t('invoices.write_off_confirm_title')"
       modal
-      :style="{ width: '30rem' }"
+      :style="{ width: 'min(30rem, 100vw)' }"
     >
       <div class="write-off-dialog-body">
         <p>{{ t('invoices.write_off_confirm_msg') }}</p>
@@ -419,7 +488,28 @@
       class="app-dialog app-dialog--xlarge"
       @hide="onHistoryHide"
     >
-      <div v-if="historyInvoice" class="history-dialog history-dialog--with-preview">
+      <div v-if="historyIndex >= 0" class="preview-nav-bar">
+        <Button
+          icon="pi pi-chevron-left"
+          text
+          rounded
+          size="small"
+          :disabled="historyIndex <= 0"
+          :title="t('common.previous')"
+          @click="goToPrevHistory"
+        />
+        <span class="preview-nav-bar__counter">{{ historyIndex + 1 }} / {{ displayedInvoices.length }}</span>
+        <Button
+          icon="pi pi-chevron-right"
+          text
+          rounded
+          size="small"
+          :disabled="historyIndex >= displayedInvoices.length - 1"
+          :title="t('common.next')"
+          @click="goToNextHistory"
+        />
+      </div>
+      <div v-if="historyInvoice" ref="historyDialogBodyRef" class="history-dialog history-dialog--with-preview">
         <section class="app-dialog-intro history-dialog__intro">
           <div>
             <p class="app-dialog-intro__eyebrow">{{ t('invoices.history') }}</p>
@@ -466,6 +556,22 @@
             <div v-else-if="historyPayments.length === 0" class="app-empty-state">
               {{ t('invoices.no_payments') }}
             </div>
+            <AppMobileCardList v-else-if="isMobile" :items="historyPaymentRows" :empty-message="t('invoices.no_payments')">
+              <template #card="{ item: data }">
+                <div class="app-mobile-card-row app-mobile-card-row--between">
+                  <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+                  <span class="app-mobile-card-value" style="font-weight:700">{{ parseFloat(data.amount).toFixed(2) }} €</span>
+                </div>
+                <div class="app-mobile-card-row">
+                  <span class="app-mobile-card-label">{{ t('payments.method') }} :</span>
+                  <span class="app-mobile-card-value">{{ t(`payments.methods.${data.method}`) }}</span>
+                </div>
+                <div v-if="data.cheque_number" class="app-mobile-card-row">
+                  <span class="app-mobile-card-label">{{ t('payments.cheque_number') }} :</span>
+                  <span class="app-mobile-card-value">{{ data.cheque_number }}</span>
+                </div>
+              </template>
+            </AppMobileCardList>
             <DataTable
               v-else
               v-model:filters="historyTableFilters"
@@ -560,6 +666,28 @@
             </div>
           </div><!-- end history-dialog__preview -->
         </div><!-- end history-dialog__body -->
+
+        <div v-if="historyIndex >= 0" class="preview-nav-bar preview-nav-bar--bottom">
+          <Button
+            icon="pi pi-chevron-left"
+            text
+            rounded
+            size="small"
+            :disabled="historyIndex <= 0"
+            :title="t('common.previous')"
+            @click="goToPrevHistoryBottom"
+          />
+          <span class="preview-nav-bar__counter">{{ historyIndex + 1 }} / {{ displayedInvoices.length }}</span>
+          <Button
+            icon="pi pi-chevron-right"
+            text
+            rounded
+            size="small"
+            :disabled="historyIndex >= displayedInvoices.length - 1"
+            :title="t('common.next')"
+            @click="goToNextHistoryBottom"
+          />
+        </div>
 
       </div>
     </Dialog>
@@ -671,9 +799,11 @@ import {
   type Invoice,
   type InvoiceStatus,
 } from '../api/invoices'
-import { createPayment, listPayments, type Payment } from '../api/payments'
+import { createPayment, listPayments, suggestChequeNumber, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
 import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
@@ -707,6 +837,7 @@ import { formatDisplayDate } from '@/utils/format'
 import { getErrorDetail } from '@/utils/errorUtils'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const route = useRoute()
 const router = useRouter()
@@ -744,6 +875,15 @@ const writeOffLoading = ref(false)
 // History dialog
 const historyVisible = ref(false)
 const historyInvoice = ref<Invoice | null>(null)
+const historyIndex = ref(-1)
+const historyDialogBodyRef = ref<HTMLElement | null>(null)
+
+function scrollHistoryDialogToBottom(): void {
+  nextTick(() => {
+    const el = historyDialogBodyRef.value?.closest('.p-dialog-content') as HTMLElement | null
+    if (el) el.scrollTop = el.scrollHeight
+  })
+}
 const historyLoading = ref(false)
 const historyPayments = ref<Payment[]>([])
 const historyPdfBlobUrl = ref<string | null>(null)
@@ -759,6 +899,22 @@ const paymentForm = ref({
   reference: '',
   notes: '',
 })
+
+watch(
+  () => paymentForm.value.method,
+  (method) => {
+    // Guard: only fire when dialog is already open (i.e. user toggled method inside the dialog).
+    // When openPaymentDialog resets the form, the dialog is not yet visible so this watch is skipped;
+    // the direct suggestChequeNumber() call in openPaymentDialog handles the initial suggestion.
+    if (paymentDialogVisible.value && method === 'cheque' && !paymentForm.value.cheque_number) {
+      void suggestChequeNumber().then((n) => {
+        if (paymentForm.value.method === 'cheque' && !paymentForm.value.cheque_number) {
+          paymentForm.value.cheque_number = n
+        }
+      })
+    }
+  },
+)
 const historyPaymentRows = computed(() =>
   historyPayments.value.map((payment) => ({
     ...payment,
@@ -1063,8 +1219,12 @@ async function duplicate(invoice: Invoice) {
 }
 
 async function openHistory(invoice: Invoice) {
+  historyIndex.value = displayedInvoices.value.findIndex((r) => r.id === invoice.id)
   historyInvoice.value = invoice
   historyVisible.value = true
+  if (historyPdfBlobUrl.value) {
+    URL.revokeObjectURL(historyPdfBlobUrl.value)
+  }
   historyPdfBlobUrl.value = null
   historyPdfLoading.value = true
   await Promise.all([
@@ -1081,6 +1241,32 @@ function onHistoryHide() {
     URL.revokeObjectURL(historyPdfBlobUrl.value)
     historyPdfBlobUrl.value = null
   }
+}
+
+async function goToPrevHistory(): Promise<void> {
+  const idx = historyIndex.value - 1
+  if (idx < 0) return
+  historyIndex.value = idx
+  const invoice = invoices.value.find((i) => i.id === displayedInvoices.value[idx]?.id)
+  if (invoice) await openHistory(invoice)
+}
+
+async function goToNextHistory(): Promise<void> {
+  const idx = historyIndex.value + 1
+  if (idx >= displayedInvoices.value.length) return
+  historyIndex.value = idx
+  const invoice = invoices.value.find((i) => i.id === displayedInvoices.value[idx]?.id)
+  if (invoice) await openHistory(invoice)
+}
+
+async function goToPrevHistoryBottom(): Promise<void> {
+  await goToPrevHistory()
+  scrollHistoryDialogToBottom()
+}
+
+async function goToNextHistoryBottom(): Promise<void> {
+  await goToNextHistory()
+  scrollHistoryDialogToBottom()
 }
 
 async function loadHistoryPayments(invoiceId: number) {
@@ -1108,6 +1294,11 @@ function openPaymentDialog(invoice: Invoice) {
     notes: '',
   }
   paymentDialogVisible.value = true
+  void suggestChequeNumber().then((n) => {
+    if (paymentForm.value.method === 'cheque' && !paymentForm.value.cheque_number) {
+      paymentForm.value.cheque_number = n
+    }
+  })
 }
 
 async function submitPayment() {
@@ -1366,5 +1557,31 @@ onMounted(async () => {
   .history-dialog__summary {
     grid-template-columns: 1fr;
   }
+}
+
+.preview-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--app-space-1);
+  padding-bottom: var(--app-space-3);
+  border-bottom: 1px solid var(--app-surface-border);
+  margin-bottom: var(--app-space-4);
+}
+
+.preview-nav-bar--bottom {
+  padding-bottom: 0;
+  border-bottom: none;
+  padding-top: var(--app-space-3);
+  border-top: 1px solid var(--app-surface-border);
+  margin-bottom: 0;
+  margin-top: var(--app-space-4);
+}
+
+.preview-nav-bar__counter {
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+  min-width: 3.5rem;
+  text-align: center;
 }
 </style>

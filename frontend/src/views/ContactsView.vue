@@ -34,9 +34,9 @@
     <AppPanel :title="t('contacts.workspace_title')" :subtitle="t('contacts.workspace_subtitle')">
       <Tabs v-model:value="activeTab" class="contacts-tabs">
         <TabList>
-          <Tab value="all">{{ t('contacts.tabs.all') }} ({{ contacts.length }})</Tab>
           <Tab value="client">{{ t('contacts.tabs.clients') }} ({{ clientCount + mixedCount }})</Tab>
           <Tab value="fournisseur">{{ t('contacts.tabs.suppliers') }} ({{ supplierCount + mixedCount }})</Tab>
+          <Tab value="all">{{ t('contacts.tabs.all') }} ({{ contacts.length }})</Tab>
         </TabList>
       </Tabs>
 
@@ -76,6 +76,57 @@
         {{ t('common.api_limit_warning') }}
       </Message>
       <AppTableSkeleton v-if="loading && !contacts.length" :rows="8" :cols="5" />
+      <template v-else-if="isMobile">
+        <AppMobileCardList :items="contactRows" :empty-message="t('contacts.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <div style="display:flex;align-items:center;gap:0.4rem">
+                <span class="app-mobile-card-value" style="font-weight:700">{{ data.nom }} {{ data.prenom }}</span>
+                <Tag v-if="data.blocked" :value="t('contacts.blocked_badge')" severity="danger" />
+              </div>
+              <Tag :value="t(`contacts.types.${data.type}`)" :severity="typeSeverity(data.type)" />
+            </div>
+            <div v-if="data.email" class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('contacts.email') }} :</span>
+              <span class="app-mobile-card-value">{{ data.email }}</span>
+            </div>
+            <div v-if="data.telephone" class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('contacts.telephone') }} :</span>
+              <span class="app-mobile-card-value">{{ data.telephone }}</span>
+            </div>
+            <div v-if="data.last_invoice_ref" class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('contacts.last_invoice') }} :</span>
+              <span class="app-mobile-card-value">{{ data.last_invoice_ref }} &mdash; {{ formatDisplayDate(data.last_invoice_date) }}</span>
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                icon="pi pi-history"
+                size="small"
+                severity="info"
+                text
+                :title="t('contact_history.title')"
+                @click="openHistoryDialog(data.id)"
+              />
+              <Button
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('contacts.edit')"
+                @click="openEditDialog(data)"
+              />
+              <Button
+                icon="pi pi-trash"
+                size="small"
+                severity="danger"
+                text
+                :title="t('common.delete')"
+                @click="confirmDelete(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
         v-else
         v-model:filters="tableFilters"
@@ -366,6 +417,7 @@ import { computed, onMounted, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
+import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
@@ -378,6 +430,7 @@ import ContactForm from '@/components/ContactForm.vue'
 import ContactHistoryDialog from '@/components/ContactHistoryDialog.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 import {
   collectActiveFilterLabels,
 } from '../composables/activeFilterLabels'
@@ -385,13 +438,14 @@ import { inFilter, textFilter, useDataTableFilters } from '../composables/useDat
 import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const toast = useToast()
 
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const search = ref('')
-const activeTab = ref<'all' | 'client' | 'fournisseur'>('all')
+const activeTab = ref<'all' | 'client' | 'fournisseur'>('client')
 const dialogVisible = ref(false)
 const contactFormRef = ref<InstanceType<typeof ContactForm> | null>(null)
 const editingContact = ref<Contact | null>(null)
@@ -457,8 +511,22 @@ const tabContacts = computed(() => {
   if (activeTab.value === 'fournisseur') return contacts.value.filter((c) => c.type === 'fournisseur' || c.type === 'les_deux')
   return contacts.value
 })
+
+function sortContacts(list: Contact[]): Contact[] {
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+  return [...list].sort((a, b) => {
+    const aRecent = a.last_invoice_date !== null && new Date(a.last_invoice_date) >= sixMonthsAgo
+    const bRecent = b.last_invoice_date !== null && new Date(b.last_invoice_date) >= sixMonthsAgo
+    if (aRecent !== bRecent) return aRecent ? -1 : 1
+    const nomCmp = (a.nom ?? '').localeCompare(b.nom ?? '', 'fr', { sensitivity: 'base' })
+    if (nomCmp !== 0) return nomCmp
+    return (a.prenom ?? '').localeCompare(b.prenom ?? '', 'fr', { sensitivity: 'base' })
+  })
+}
+
 const contactRows = computed(() =>
-  tabContacts.value.map((contact) => ({
+  sortContacts(tabContacts.value).map((contact) => ({
     ...contact,
     type_label: t(`contacts.types.${contact.type}`),
   })),
@@ -512,13 +580,13 @@ function debouncedLoad(): void {
 }
 
 const hasAnyFilters = computed(
-  () => hasActiveFilters.value || Boolean(search.value) || activeTab.value !== 'all',
+  () => hasActiveFilters.value || Boolean(search.value) || activeTab.value !== 'client',
 )
 
 function resetAllFilters(): void {
   resetFilters()
   search.value = ''
-  activeTab.value = 'all'
+  activeTab.value = 'client'
   void loadContacts()
 }
 

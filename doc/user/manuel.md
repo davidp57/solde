@@ -369,6 +369,8 @@ Solde détecte automatiquement la catégorie de chaque transaction (frais bancai
 
 La catégorie détermine les écritures comptables générées lors du rapprochement.
 
+> **Catégorie « Sans écriture »** — Si une transaction doit apparaître sur le relevé bancaire mais ne doit générer aucune écriture comptable (par exemple un virement vers un compte extérieur à Solde), assigner la catégorie **Sans écriture**. Lors du rapprochement, aucune écriture ne sera créée, quelle que soit la configuration des règles.
+
 ### Rapprochement bancaire
 
 Le rapprochement lie une transaction bancaire à un paiement ou une remise enregistrés dans Solde, et génère les écritures comptables correspondantes.

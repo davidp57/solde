@@ -18,7 +18,14 @@ from backend.models.accounting_rule import (
     EntrySide,
     TriggerType,
 )
-from backend.models.bank import Deposit, DepositType
+from backend.models.bank import (
+    BankAccountType,
+    BankTransaction,
+    BankTransactionCategory,
+    BankTransactionSource,
+    Deposit,
+    DepositType,
+)
 from backend.models.contact import Contact, ContactType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.invoice import (
@@ -33,6 +40,7 @@ from backend.models.payment import Payment, PaymentMethod
 from backend.models.salary import Salary
 from backend.services.accounting_engine import (
     _render_template,
+    generate_entries_for_bank_transaction,
     generate_entries_for_deposit,
     generate_entries_for_invoice,
     generate_entries_for_payment,
@@ -758,6 +766,160 @@ class TestSeedDefaultRules:
         count = await seed_default_rules(db_session)
 
         assert count == len(DEFAULT_RULES) - 1
+
+
+# ---------------------------------------------------------------------------
+# generate_entries_for_bank_transaction
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateEntriesForBankTransaction:
+    @pytest.mark.asyncio
+    async def test_no_entry_category_returns_empty(self, db_session: AsyncSession) -> None:
+        """NO_ENTRY category must never produce accounting entries, even when a rule exists."""
+        await _seed_one_rule(db_session, TriggerType.BANK_FEES, "627000", "512100")
+        tx = BankTransaction(
+            date=date(2024, 5, 1),
+            amount=Decimal("-15.00"),
+            description="Ignoré",
+            detected_category=BankTransactionCategory.NO_ENTRY,
+            balance_after=Decimal("1000.00"),
+            source=BankTransactionSource.MANUAL,
+        )
+        db_session.add(tx)
+        await db_session.commit()
+        await db_session.refresh(tx)
+
+        entries = await generate_entries_for_bank_transaction(db_session, tx)
+
+        assert entries == []
+
+    @pytest.mark.asyncio
+    async def test_non_banktransaction_object_returns_empty(self, db_session: AsyncSession) -> None:
+        """Passing an arbitrary object returns empty list."""
+        entries = await generate_entries_for_bank_transaction(db_session, object())
+        assert entries == []
+
+    @pytest.mark.asyncio
+    async def test_uncategorized_returns_empty(self, db_session: AsyncSession) -> None:
+        """Uncategorized transactions have no trigger mapping and return empty list."""
+        tx = BankTransaction(
+            date=date(2024, 5, 1),
+            amount=Decimal("-10.00"),
+            description="Non catégorisé",
+            detected_category=BankTransactionCategory.UNCATEGORIZED,
+            balance_after=Decimal("990.00"),
+            source=BankTransactionSource.MANUAL,
+        )
+        db_session.add(tx)
+        await db_session.commit()
+        await db_session.refresh(tx)
+
+        entries = await generate_entries_for_bank_transaction(db_session, tx)
+
+        assert entries == []
+
+    @pytest.mark.asyncio
+    async def test_bank_fee_with_rule_generates_entries(self, db_session: AsyncSession) -> None:
+        """A BANK_FEE transaction with an active rule generates two balanced entries."""
+        await _create_fiscal_year(
+            db_session, name="2024", start=date(2024, 1, 1), end=date(2024, 12, 31)
+        )
+        await _seed_one_rule(db_session, TriggerType.BANK_FEES, "627000", "512100")
+        tx = BankTransaction(
+            date=date(2024, 5, 1),
+            amount=Decimal("-15.00"),
+            description="Frais tenue de compte",
+            detected_category=BankTransactionCategory.BANK_FEE,
+            balance_after=Decimal("985.00"),
+            source=BankTransactionSource.IMPORT,
+        )
+        db_session.add(tx)
+        await db_session.commit()
+        await db_session.refresh(tx)
+
+        entries = await generate_entries_for_bank_transaction(db_session, tx)
+
+        assert len(entries) == 2
+        assert any(e.account_number == "627000" for e in entries)
+        assert any(e.account_number == "512100" for e in entries)
+        total_debit = sum(e.debit for e in entries)
+        total_credit = sum(e.credit for e in entries)
+        assert total_debit == total_credit == Decimal("15.00")
+
+    @pytest.mark.asyncio
+    async def test_internal_transfer_courant_side_generates_entries(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Regression: INTERNAL_TRANSFER on COURANT side must generate accounting entries.
+
+        A transfer from COURANT to EPARGNE (negative on COURANT) should produce
+        512102 D / 512100 C (TO_SAVINGS rule).
+        """
+        await _create_fiscal_year(
+            db_session, name="2024", start=date(2024, 1, 1), end=date(2024, 12, 31)
+        )
+        await _seed_one_rule(
+            db_session, TriggerType.BANK_INTERNAL_TRANSFER_TO_SAVINGS, "512102", "512100"
+        )
+        tx = BankTransaction(
+            date=date(2024, 5, 1),
+            amount=Decimal("-1000.00"),
+            description="Virement vers épargne",
+            detected_category=BankTransactionCategory.INTERNAL_TRANSFER,
+            bank_account=BankAccountType.COURANT,
+            balance_after=Decimal("4000.00"),
+            source=BankTransactionSource.IMPORT,
+        )
+        db_session.add(tx)
+        await db_session.commit()
+        await db_session.refresh(tx)
+
+        entries = await generate_entries_for_bank_transaction(db_session, tx)
+
+        assert len(entries) == 2
+        debit_entry = next(e for e in entries if e.debit > 0)
+        credit_entry = next(e for e in entries if e.credit > 0)
+        assert debit_entry.account_number == "512102"
+        assert credit_entry.account_number == "512100"
+        assert debit_entry.debit == credit_entry.credit == Decimal("1000.00")
+
+    @pytest.mark.asyncio
+    async def test_internal_transfer_epargne_side_returns_empty(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Regression: INTERNAL_TRANSFER on EPARGNE side must NOT generate accounting entries.
+
+        Both sides of an internal transfer are imported as separate transactions. If both
+        generated entries, 512102 would be debited and credited by the same amount (net zero).
+        The accounting entry is generated solely from the COURANT side.
+        """
+        await _create_fiscal_year(
+            db_session, name="2024", start=date(2024, 1, 1), end=date(2024, 12, 31)
+        )
+        await _seed_one_rule(
+            db_session, TriggerType.BANK_INTERNAL_TRANSFER_TO_SAVINGS, "512102", "512100"
+        )
+        await _seed_one_rule(
+            db_session, TriggerType.BANK_INTERNAL_TRANSFER_FROM_SAVINGS, "512100", "512102"
+        )
+        # Mirror transaction on EPARGNE side (positive: money arrived from COURANT)
+        tx = BankTransaction(
+            date=date(2024, 5, 1),
+            amount=Decimal("1000.00"),
+            description="Virement depuis courant",
+            detected_category=BankTransactionCategory.INTERNAL_TRANSFER,
+            bank_account=BankAccountType.EPARGNE,
+            balance_after=Decimal("5000.00"),
+            source=BankTransactionSource.IMPORT,
+        )
+        db_session.add(tx)
+        await db_session.commit()
+        await db_session.refresh(tx)
+
+        entries = await generate_entries_for_bank_transaction(db_session, tx)
+
+        assert entries == []
 
     @pytest.mark.asyncio
     async def test_seeded_rules_have_entries(self, db_session: AsyncSession) -> None:

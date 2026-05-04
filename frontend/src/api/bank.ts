@@ -23,7 +23,9 @@ export type BankTransactionCategory =
   | 'sepa_debit'
   | 'other_credit'
   | 'other_debit'
+  | 'no_entry'
 export type BankImportFormat = 'csv' | 'ofx' | 'qif'
+export type BankAccountType = 'courant' | 'epargne'
 
 export interface BankTransaction {
   id: number
@@ -36,6 +38,7 @@ export interface BankTransaction {
   reconciled_with: string | null
   source: BankTransactionSource
   detected_category: BankTransactionCategory
+  bank_account: BankAccountType
   payment_id: number | null
   payment_ids: number[]
 }
@@ -60,6 +63,7 @@ export interface BankTransactionCreate {
   description?: string
   balance_after?: string
   source?: BankTransactionSource
+  bank_account?: BankAccountType
 }
 
 export interface BankTransactionUpdate {
@@ -68,6 +72,10 @@ export interface BankTransactionUpdate {
   reference?: string | null
   description?: string | null
   detected_category?: BankTransactionCategory
+  // Manual transactions only
+  date?: string
+  amount?: string
+  bank_account?: BankAccountType
 }
 
 export interface Deposit {
@@ -112,8 +120,14 @@ export interface FundsChartRow {
   balance: number
 }
 
-export async function getBankBalance(): Promise<{ balance: string }> {
-  const response = await apiClient.get<{ balance: string }>('/api/bank/balance')
+export interface BankBalance {
+  balance: string
+  balance_courant: string
+  balance_epargne: string
+}
+
+export async function getBankBalance(): Promise<BankBalance> {
+  const response = await apiClient.get<BankBalance>('/api/bank/balance')
   return response.data
 }
 
@@ -128,6 +142,7 @@ export async function listTransactions(params?: {
   from_date?: string
   to_date?: string
   unreconciled_only?: boolean
+  bank_account?: BankAccountType
   skip?: number
   limit?: number
 }): Promise<BankTransaction[]> {
@@ -148,6 +163,10 @@ export async function updateTransaction(
   return response.data
 }
 
+export async function deleteTransaction(id: number): Promise<void> {
+  await apiClient.delete(`/api/bank/transactions/${id}`)
+}
+
 export async function reconcileTransactionsBulk(ids: number[]): Promise<number> {
   const response = await apiClient.post<number>('/api/bank/transactions/reconcile-bulk', { ids })
   return response.data
@@ -165,9 +184,10 @@ export async function importCsv(content: string): Promise<BankImportResult> {
   return response.data
 }
 
-export async function importOfx(content: string): Promise<BankImportResult> {
+export async function importOfx(content: string, defaultBankAccount: BankAccountType = 'courant'): Promise<BankImportResult> {
   const response = await apiClient.post<BankImportResult>('/api/bank/transactions/import-ofx', {
     content,
+    default_bank_account: defaultBankAccount,
   })
   return response.data
 }
@@ -182,9 +202,10 @@ export async function importQif(content: string): Promise<BankImportResult> {
 export async function importBankStatement(
   format: BankImportFormat,
   content: string,
+  defaultBankAccount: BankAccountType = 'courant',
 ): Promise<BankImportResult> {
   if (format === 'ofx') {
-    return importOfx(content)
+    return importOfx(content, defaultBankAccount)
   }
   if (format === 'qif') {
     return importQif(content)

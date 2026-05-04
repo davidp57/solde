@@ -1,5 +1,6 @@
 """Bank API router — transactions, CSV import, deposit slips and reconciliation."""
 
+import logging
 from datetime import date
 from decimal import Decimal
 from typing import Annotated, cast
@@ -9,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.models.bank import BankTransaction, BankTransactionSource
+from backend.models.bank import BankAccountType, BankTransaction, BankTransactionSource
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.bank import (
@@ -27,6 +28,7 @@ from backend.schemas.bank import (
     DepositRead,
 )
 from backend.services import bank_service
+from backend.services import settings as settings_service
 from backend.services.audit_service import AuditAction, record_audit
 from backend.services.bank_import import (
     BankImportError,
@@ -34,6 +36,8 @@ from backend.services.bank_import import (
     parse_ofx,
     parse_qif,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/bank", tags=["bank"])
 
@@ -89,8 +93,8 @@ async def get_balance(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
 ) -> BankBalanceRead:
-    balance = await bank_service.get_bank_balance(db)
-    return BankBalanceRead(balance=balance)
+    balance_data = await bank_service.get_bank_balance(db)
+    return BankBalanceRead(**balance_data)
 
 
 @router.get("/chart/funds")
@@ -109,6 +113,7 @@ async def list_transactions(
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
     unreconciled_only: bool = Query(default=False),
+    bank_account: BankAccountType | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=1000, ge=1, le=1000),
 ) -> list[BankTransactionRead]:
@@ -117,6 +122,7 @@ async def list_transactions(
         from_date=from_date,
         to_date=to_date,
         unreconciled_only=unreconciled_only,
+        bank_account=bank_account,
         skip=skip,
         limit=limit,
     )
@@ -160,6 +166,18 @@ async def update_transaction(
     tx = await bank_service.get_transaction(db, tx_id)
     if tx is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    # date/amount/bank_account can only be changed on manual transactions
+    manual_only_fields = {
+        k for k in ("date", "amount", "bank_account") if payload.model_fields_set.intersection({k})
+    }
+    if manual_only_fields and tx.source not in (
+        "manual",
+        "system_opening",
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=("date, amount and bank_account can only be updated on manual transactions"),
+        )
     updated = await bank_service.update_transaction(db, tx, payload)
     await record_audit(
         db,
@@ -169,6 +187,31 @@ async def update_transaction(
         target_type="bank_transaction",
     )
     return await _serialize_transaction(db, updated)
+
+
+@router.delete("/transactions/{tx_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_transaction(
+    tx_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> None:
+    tx = await bank_service.get_transaction(db, tx_id)
+    if tx is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Transaction not found")
+    try:
+        await bank_service.delete_manual_transaction(db, tx)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_TRANSACTION_DELETED,
+        actor=current_user,
+        target_id=tx_id,
+        target_type="bank_transaction",
+    )
 
 
 @router.post("/transactions/reconcile-bulk", response_model=int)
@@ -418,6 +461,7 @@ async def import_csv(
     try:
         rows = parse_credit_mutuel_csv(payload.content)
     except BankImportError as exc:
+        logger.warning("CSV import rejected: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
@@ -442,14 +486,38 @@ async def _import_rows(
     """Persist parsed rows, skipping duplicates by reference. Returns created + skipped count."""
     created: list[BankTransactionRead] = []
     skipped = 0
+
+    # For non-Excel imports, compute a per-account cut-off date based on the latest
+    # Excel-imported transaction. Rows on or before that date are already covered.
+    excel_cutoffs: dict[BankAccountType, date] = {}
+    if source not in (BankTransactionSource.IMPORT_EXCEL, BankTransactionSource.IMPORT):
+        excel_cutoffs = await bank_service.get_excel_cutoffs(db)
+        if excel_cutoffs:
+            logger.info(
+                "Excel cut-off dates applied: %s",
+                {k: str(v) for k, v in excel_cutoffs.items()},
+            )
+
     for row in rows:
+        raw_account = row.get("bank_account", "courant")
+        bank_account = (
+            BankAccountType(str(raw_account))
+            if raw_account in (BankAccountType.COURANT, BankAccountType.EPARGNE)
+            else BankAccountType.COURANT
+        )
+        tx_date = cast(date, row["date"])
+        cutoff = excel_cutoffs.get(bank_account)
+        if cutoff and tx_date <= cutoff:
+            skipped += 1
+            continue
         tx_payload = BankTransactionCreate(
-            date=cast(date, row["date"]),
+            date=tx_date,
             amount=cast(Decimal, row["amount"]),
             balance_after=cast(Decimal, row["balance_after"]),
             description=str(row.get("description", "")),
             reference=cast(str | None, row.get("reference")),
             source=source,
+            bank_account=bank_account,
         )
         tx = await bank_service.add_transaction(db, tx_payload)
         if tx is None:
@@ -461,6 +529,7 @@ async def _import_rows(
 
 class OFXImportRequest(BaseModel):
     content: str  # raw OFX/QFX text
+    default_bank_account: BankAccountType = BankAccountType.COURANT  # used for single-account files
 
 
 class QIFImportRequest(BaseModel):
@@ -478,9 +547,18 @@ async def import_ofx(
     current_user: _WriteAccess,
 ) -> BankImportResult:
     """Import transactions from an OFX/QFX bank statement export."""
+    settings = await settings_service.get_settings(db)
+    courant_acctid = settings.bank_account_courant_acctid if settings else None
+    epargne_acctid = settings.bank_account_epargne_acctid if settings else None
     try:
-        rows = parse_ofx(payload.content)
+        rows = parse_ofx(
+            payload.content,
+            courant_acctid=courant_acctid,
+            epargne_acctid=epargne_acctid,
+            default_bank_account=payload.default_bank_account,
+        )
     except BankImportError as exc:
+        logger.warning("OFX import rejected: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc
@@ -509,6 +587,7 @@ async def import_qif(
     try:
         rows = parse_qif(payload.content)
     except BankImportError as exc:
+        logger.warning("QIF import rejected: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
         ) from exc

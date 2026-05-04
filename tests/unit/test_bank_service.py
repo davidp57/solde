@@ -739,7 +739,9 @@ async def test_get_bank_balance(db_session: AsyncSession) -> None:
         BankTransactionCreate(date=date(2024, 1, 2), amount=Decimal("-100.00")),
     )
     balance = await bank_service.get_bank_balance(db_session)
-    assert balance == Decimal("400.00")
+    assert balance["balance"] == Decimal("400.00")
+    assert balance["balance_courant"] == Decimal("400.00")
+    assert balance["balance_epargne"] == Decimal("0")
 
 
 # ---------------------------------------------------------------------------

@@ -46,7 +46,52 @@
         </div>
       </div>
 
+      <template v-if="isMobile">
+        <AppMobileCardList :items="ruleRows" :empty-message="t('accounting.rules.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value" style="font-weight:700">{{ data.name }}</span>
+              <Tag
+                :value="data.is_active ? t('common.active') : t('common.inactive')"
+                :severity="data.is_active ? 'success' : 'secondary'"
+              />
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('accounting.rules.trigger_type') }}</span>
+              <span class="app-mobile-card-value">{{ triggerLabel(data.trigger_type) }}</span>
+            </div>
+            <div v-if="data.description" class="app-mobile-card-row">
+              <span class="app-mobile-card-value" style="font-style:italic">{{ data.description }}</span>
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('accounting.rules.priority') }}</span>
+              <span class="app-mobile-card-value">{{ data.priority }}</span>
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                :icon="data.is_active ? 'pi pi-eye-slash' : 'pi pi-eye'"
+                :severity="data.is_active ? 'secondary' : 'success'"
+                text
+                rounded
+                size="small"
+                :title="data.is_active ? t('accounting.rules.deactivate') : t('accounting.rules.activate')"
+                @click="toggleRule(data)"
+              />
+              <Button
+                v-if="canManageApplication"
+                icon="pi pi-pencil"
+                text
+                rounded
+                size="small"
+                :title="t('accounting.rules.edit')"
+                @click="openEdit(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
+        v-else
         v-model:filters="tableFilters"
         :value="ruleRows"
         :loading="loading"
@@ -205,6 +250,7 @@ import { useToast } from 'primevue/usetoast'
 import AccountingRuleDialog from '../components/accounting/AccountingRuleDialog.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
 import AppListState from '../components/ui/AppListState.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
@@ -222,9 +268,11 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { useAuthStore } from '../stores/auth'
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const toast = useToast()
 const confirm = useConfirm()
 const { canManageApplication } = storeToRefs(useAuthStore())

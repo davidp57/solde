@@ -15,7 +15,7 @@
         <div class="contact-history-actions">
           <Tag :value="t(`contacts.types.${history.contact.type}`)" />
           <Button
-            v-if="Number(history.total_due) > 0"
+            v-if="Number(history.total_due) > 0 && history.contact.type === 'client'"
             :label="t('contact_history.mark_douteux')"
             icon="pi pi-exclamation-triangle"
             severity="warn"
@@ -61,8 +61,41 @@
           @click="resetInvoiceFilters"
         />
       </template>
+      <AppMobileCardList
+        v-if="isMobile && history.invoices.length"
+        :items="invoiceRows"
+        :empty-message="t('contact_history.no_invoices')"
+      >
+        <template #card="{ item: data }">
+          <div class="app-mobile-card-row app-mobile-card-row--between">
+            <span class="app-mobile-card-value" style="font-weight:700">{{ data.number }}</span>
+            <Tag
+              :value="t(`invoices.statuses.${data.status}`)"
+              :severity="statusSeverity(data.status)"
+            />
+          </div>
+          <div class="app-mobile-card-row app-mobile-card-row--between">
+            <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+            <span class="app-mobile-card-value" style="font-weight:600">{{ fmt(data.total_amount) }} €</span>
+          </div>
+          <div v-if="Number(data.balance_due) > 0" class="app-mobile-card-row app-mobile-card-row--between">
+            <span class="app-mobile-card-label">{{ t('contact_history.total_due') }} :</span>
+            <span class="app-mobile-card-value contact-history-due">{{ fmt(data.balance_due) }} €</span>
+          </div>
+          <div class="app-mobile-card-actions">
+            <Button
+              icon="pi pi-eye"
+              size="small"
+              severity="secondary"
+              text
+              :title="t('contact_history.view_invoice')"
+              @click.stop="openInvoiceDetail(data)"
+            />
+          </div>
+        </template>
+      </AppMobileCardList>
       <DataTable
-        v-if="history.invoices.length"
+        v-else-if="history.invoices.length"
         v-model:filters="invoiceTableFilters"
         :value="invoiceRows"
         class="app-data-table"
@@ -196,8 +229,38 @@
           @click="resetPaymentFilters"
         />
       </template>
+      <AppMobileCardList
+        v-if="isMobile && history.payments.length"
+        :items="paymentRows"
+        :empty-message="t('contact_history.no_payments')"
+      >
+        <template #card="{ item: data }">
+          <div class="app-mobile-card-row app-mobile-card-row--between">
+            <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
+            <span class="app-mobile-card-value" style="font-weight:700">{{ fmt(data.amount) }} €</span>
+          </div>
+          <div class="app-mobile-card-row">
+            <span class="app-mobile-card-label">{{ t('payments.method') }} :</span>
+            <span class="app-mobile-card-value">{{ t(`payments.methods.${data.method}`) }}</span>
+          </div>
+          <div v-if="data.invoice_number" class="app-mobile-card-row">
+            <span class="app-mobile-card-label">{{ t('payments.invoice') }} :</span>
+            <span class="app-mobile-card-value">{{ data.invoice_number }}</span>
+          </div>
+          <div class="app-mobile-card-actions">
+            <Button
+              icon="pi pi-eye"
+              size="small"
+              severity="secondary"
+              text
+              :title="t('contact_history.view_payment')"
+              @click.stop="openPaymentDetail(data)"
+            />
+          </div>
+        </template>
+      </AppMobileCardList>
       <DataTable
-        v-if="history.payments.length"
+        v-else-if="history.payments.length"
         v-model:filters="paymentTableFilters"
         :value="paymentRows"
         class="app-data-table"
@@ -572,6 +635,7 @@ import AppFilterMultiSelect from './ui/AppFilterMultiSelect.vue'
 import AppNumberRangeFilter from './ui/AppNumberRangeFilter.vue'
 import AppPanel from './ui/AppPanel.vue'
 import AppStatCard from './ui/AppStatCard.vue'
+import AppMobileCardList from './ui/AppMobileCardList.vue'
 import AppTableSkeleton from './ui/AppTableSkeleton.vue'
 import { getContactHistoryApi, markCreanceDouteuse } from '../api/accounting'
 import type { ContactHistory, ContactInvoiceSummary, ContactPaymentSummary } from '../api/accounting'
@@ -587,12 +651,14 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { formatDisplayDate } from '@/utils/format'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import InvoiceEmailDialog from './InvoiceEmailDialog.vue'
 
 const props = defineProps<{ contactId: number }>()
 const emit = defineEmits<{ 'contact-loaded': [name: string] }>()
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const toast = useToast()
 

@@ -250,6 +250,8 @@ Import an OFX file exported from your bank: click "Importer", select the file, c
 
 Click the pencil icon in the Categorie column to change the detected category. The category determines which accounting entries are generated during reconciliation.
 
+**Special category — "Sans écriture" (`no_entry`):** Assigning this category to a transaction explicitly prevents any accounting entry from being generated at reconciliation time, regardless of configured rules. Use it for bank movements that must appear on the statement but require no accounting counterpart (e.g. interbank transfers between accounts not managed in Solde, one-off technical adjustments). It is architecturally impossible to create an accounting rule for this category.
+
 ### Reconciliation
 
 Reconciliation links a bank transaction to a payment or deposit recorded in Solde, and generates the corresponding accounting entries.

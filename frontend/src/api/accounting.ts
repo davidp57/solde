@@ -574,6 +574,7 @@ export interface DashboardAlert {
 
 export interface DashboardKPIs {
   bank_balance: number | null
+  bank_epargne_balance: number | null
   cash_balance: number | null
   unpaid_count: number
   unpaid_total: number

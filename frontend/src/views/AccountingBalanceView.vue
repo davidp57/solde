@@ -64,7 +64,37 @@
         </div>
       </div>
 
+      <template v-if="isMobile">
+        <AppMobileCardList :items="balanceRows" :empty-message="t('accounting.balance.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span
+                class="app-mobile-card-value"
+                style="font-weight:700"
+                :class="{ 'balance-account-number--focus': data.focus_key }"
+              >{{ data.account_number }}</span>
+              <span class="app-mobile-card-value">{{ t(`accounting.account_types.${data.account_type}`) }}</span>
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-value">{{ data.account_label }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('accounting.balance.total_debit') }}</span>
+              <span class="app-mobile-card-value">{{ data.total_debit_value.toFixed(2) }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('accounting.balance.total_credit') }}</span>
+              <span class="app-mobile-card-value">{{ data.total_credit_value.toFixed(2) }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('accounting.balance.solde') }}</span>
+              <span class="app-mobile-card-value" style="font-weight:600">{{ formatAccountingAmount(data.solde_value) }}</span>
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
+        v-else
         v-model:filters="tableFilters"
         :value="balanceRows"
         :row-class="rowClass"
@@ -194,6 +224,7 @@ import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import AppDateInput from '../components/ui/AppDateInput.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
@@ -205,6 +236,7 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { focusAccounts, getFocusAccountKey, type FocusAccountKey } from '../utils/focusAccounts'
 import { formatAccountingAmount } from '../utils/format'
@@ -218,6 +250,7 @@ type BalanceRowView = BalanceRow & {
 }
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const fiscalYearStore = useFiscalYearStore()
 
 const rows = ref<BalanceRow[]>([])
@@ -352,6 +385,13 @@ onMounted(async () => {
   --balance-focus-bg: rgba(248, 113, 113, 0.14);
   --balance-focus-accent: rgba(248, 113, 113, 0.4);
   --balance-focus-fg: #ffe1e1;
+}
+
+.balance-focus-chip--savings_account,
+:deep(.balance-row--focus-savings_account) {
+  --balance-focus-bg: rgba(251, 146, 60, 0.14);
+  --balance-focus-accent: rgba(251, 146, 60, 0.42);
+  --balance-focus-fg: #fff0e0;
 }
 
 .balance-focus-chip--cheques_to_deposit,

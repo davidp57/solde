@@ -126,6 +126,53 @@
       </div>
 
       <AppTableSkeleton v-if="loading && !groups.length" :rows="8" :cols="5" />
+      <template v-else-if="isMobile">
+        <AppMobileCardList :items="journalRows" :empty-message="t('accounting.journal.empty')">
+          <template #card="{ item: data }">
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-value">{{ formatDisplayDate(data.date) }}</span>
+              <Tag
+                v-if="data.source_type"
+                :value="t(`accounting.journal.sources.${data.source_type}`)"
+                :severity="sourceSeverity(data.source_type)"
+              />
+              <span v-else>{{ t('accounting.journal.sources.manual') }}</span>
+            </div>
+            <div class="app-mobile-card-row">
+              <span class="app-mobile-card-value" style="font-weight:600">{{ data.label }}</span>
+            </div>
+            <div v-if="data.source_contact_name" class="app-mobile-card-row">
+              <span class="app-mobile-card-label">{{ t('accounting.journal.contact') }}</span>
+              <span class="app-mobile-card-value">{{ data.source_contact_name }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('accounting.journal.debit') }}</span>
+              <span class="app-mobile-card-value">{{ formatEntryAmount(data.total_debit) }}</span>
+            </div>
+            <div class="app-mobile-card-row app-mobile-card-row--between">
+              <span class="app-mobile-card-label">{{ t('accounting.journal.credit') }}</span>
+              <span class="app-mobile-card-value">{{ formatEntryAmount(data.total_credit) }}</span>
+            </div>
+            <div class="app-mobile-card-actions">
+              <Button
+                icon="pi pi-eye"
+                size="small"
+                severity="secondary"
+                text
+                @click="openDetailDialog(data)"
+              />
+              <Button
+                v-if="data.editable"
+                icon="pi pi-pencil"
+                size="small"
+                severity="secondary"
+                text
+                @click="openEditDialog(data)"
+              />
+            </div>
+          </template>
+        </AppMobileCardList>
+      </template>
       <DataTable
         v-else
         v-model:filters="tableFilters"
@@ -369,7 +416,7 @@
           <div class="app-form-grid">
             <div class="app-field">
               <label class="app-field__label">{{ t('accounting.journal.date') }}</label>
-              <InputText v-model="manualForm.date" data-testid="journal-date-input" type="date" />
+              <AppDateInput v-model="manualForm.date" data-testid="journal-date-input" />
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('accounting.journal.label') }}</label>
@@ -647,6 +694,7 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppAccountSelect from '../components/ui/AppAccountSelect.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
+import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import {
   dateRangeFilter,
   inFilter,
@@ -654,6 +702,7 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
+import { useBreakpoints } from '../composables/useBreakpoints'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
 
@@ -667,6 +716,7 @@ type JournalSourceInfo = Pick<
 >
 
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 const toast = useToast()
 const router = useRouter()
 const fiscalYearStore = useFiscalYearStore()
