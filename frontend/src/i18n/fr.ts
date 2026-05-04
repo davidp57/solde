@@ -1,4 +1,4 @@
-﻿export default {
+export default {
   app: {
     name: 'Solde ⚖️',
     active_fiscal_year: 'Exercice actif',
@@ -207,6 +207,7 @@
     yes: 'Oui',
     no: 'Non',
     date_filter_placeholder: 'JJ/MM/AAAA',
+    amount_placeholder: '0,00',
     confirm: 'Confirmer',
     all: 'Tous',
     actions: 'Actions',

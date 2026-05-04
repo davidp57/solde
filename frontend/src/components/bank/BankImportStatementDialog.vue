@@ -152,11 +152,18 @@ async function submit(): Promise<void> {
     })
     emit('saved')
   } catch (err: unknown) {
-    const detail =
+    const rawDetail =
       err &&
       typeof err === 'object' &&
-      'response' in err &&
-      (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+      'response' in err
+        ? (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+        : undefined
+    const detail =
+      typeof rawDetail === 'string'
+        ? rawDetail
+        : Array.isArray(rawDetail)
+          ? rawDetail.map((d: unknown) => (typeof d === 'object' && d && 'msg' in d ? (d as { msg: string }).msg : String(d))).join(', ')
+          : undefined
     toast.add({
       severity: 'error',
       summary: detail ? t('bank.import_error') : t('common.error.unknown'),
