@@ -52,14 +52,30 @@ document.addEventListener(
 
 // Select-all on focus for InputNumber and DatePicker fields so that typing
 // immediately overwrites the existing value instead of inserting into it.
+function isPrimeNumericOrDateInput(el: HTMLInputElement): boolean {
+  return !!(
+    el.closest('[data-pc-name="inputnumber"]') ||
+    el.closest('[data-pc-name="datepicker"]')
+  )
+}
+
+// Keyboard / Tab focus → select immediately
 document.addEventListener(
   'focusin',
   (e: FocusEvent) => {
-    if (!(e.target instanceof HTMLInputElement)) return
-    const inNumber = (e.target as HTMLInputElement).closest('[data-pc-name="inputnumber"]')
-    const inDate = (e.target as HTMLInputElement).closest('[data-pc-name="datepicker"]')
-    if (inNumber || inDate) {
-      requestAnimationFrame(() => (e.target as HTMLInputElement).select())
+    if (e.target instanceof HTMLInputElement && isPrimeNumericOrDateInput(e.target)) {
+      e.target.select()
+    }
+  },
+  true,
+)
+
+// Mouse click focus → browser repositions cursor on mouseup, so re-select there
+document.addEventListener(
+  'mouseup',
+  (e: MouseEvent) => {
+    if (e.target instanceof HTMLInputElement && isPrimeNumericOrDateInput(e.target)) {
+      e.target.select()
     }
   },
   true,
