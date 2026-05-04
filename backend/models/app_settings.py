@@ -71,3 +71,7 @@ class AppSettings(Base):
     cheque_number_template: Mapped[str] = mapped_column(
         String(100), nullable=False, default="{date}.{seq}"
     )
+
+    # Bank account ACCTID mapping (OFX import)
+    bank_account_courant_acctid: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    bank_account_epargne_acctid: Mapped[str | None] = mapped_column(String(50), nullable=True)

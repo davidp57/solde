@@ -387,6 +387,13 @@ onMounted(async () => {
   --balance-focus-fg: #ffe1e1;
 }
 
+.balance-focus-chip--savings_account,
+:deep(.balance-row--focus-savings_account) {
+  --balance-focus-bg: rgba(251, 146, 60, 0.14);
+  --balance-focus-accent: rgba(251, 146, 60, 0.42);
+  --balance-focus-fg: #fff0e0;
+}
+
 .balance-focus-chip--cheques_to_deposit,
 :deep(.balance-row--focus-cheques_to_deposit) {
   --balance-focus-bg: rgba(129, 140, 248, 0.14);

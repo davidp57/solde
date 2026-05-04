@@ -416,7 +416,7 @@
           <div class="app-form-grid">
             <div class="app-field">
               <label class="app-field__label">{{ t('accounting.journal.date') }}</label>
-              <InputText v-model="manualForm.date" data-testid="journal-date-input" type="date" />
+              <AppDateInput v-model="manualForm.date" data-testid="journal-date-input" />
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('accounting.journal.label') }}</label>

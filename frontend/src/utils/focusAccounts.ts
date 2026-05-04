@@ -5,6 +5,7 @@ export type FocusAccountKey =
   | 'supplier_payables'
   | 'cash'
   | 'current_account'
+  | 'savings_account'
   | 'cheques_to_deposit'
 
 export const focusAccounts: ReadonlyArray<{ account_number: string; key: FocusAccountKey }> = [
@@ -12,6 +13,7 @@ export const focusAccounts: ReadonlyArray<{ account_number: string; key: FocusAc
   { account_number: '401000', key: 'supplier_payables' },
   { account_number: '531000', key: 'cash' },
   { account_number: '512100', key: 'current_account' },
+  { account_number: '512102', key: 'savings_account' },
   { account_number: '511200', key: 'cheques_to_deposit' },
 ]
 
