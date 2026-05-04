@@ -266,7 +266,10 @@ async def get_excel_cutoffs(db: AsyncSession) -> dict[BankAccountType, date]:
         select(BankTransaction.bank_account, func.max(BankTransaction.date))
         .where(
             BankTransaction.source.in_(
-                [BankTransactionSource.IMPORT_EXCEL, BankTransactionSource.IMPORT]
+                [
+                    BankTransactionSource.IMPORT_EXCEL,
+                    BankTransactionSource.IMPORT,  # legacy: Excel imports before source enum
+                ]
             )
         )
         .group_by(BankTransaction.bank_account)

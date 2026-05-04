@@ -36,9 +36,9 @@
                 @click="doConfirmDeposit(deposit)"
               />
             </div>
-            <div v-if="deposit.type !== 'cheques' && formatEspecesList(deposit.denomination_details).length" class="bank-pending-deposit-row__denom">
+            <div v-if="deposit.type !== 'cheques' && (depositEspecesLines.get(deposit.id) ?? []).length" class="bank-pending-deposit-row__denom">
               <span
-                v-for="line in formatEspecesList(deposit.denomination_details)"
+                v-for="line in depositEspecesLines.get(deposit.id)"
                 :key="line"
                 class="bank-pending-deposit-row__denom-line"
               >{{ line }}</span>
@@ -286,6 +286,14 @@ const chartBars = computed(() => {
     chargesHeight: Math.max((row.charges / maxValue) * 100, row.charges > 0 ? 4 : 0),
     produitsHeight: Math.max((row.produits / maxValue) * 100, row.produits > 0 ? 4 : 0),
   }))
+})
+
+const depositEspecesLines = computed<Map<number, string[]>>(() => {
+  const map = new Map<number, string[]>()
+  for (const deposit of pendingDeposits.value) {
+    map.set(deposit.id, formatEspecesList(deposit.denomination_details))
+  }
+  return map
 })
 
 const resourcesChartSeries = computed<TrendLineChartSeries[]>(() => [
