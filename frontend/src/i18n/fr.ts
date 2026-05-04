@@ -695,6 +695,8 @@ export default {
     filter_all_accounts: 'Tous les comptes',
     filter_account_courant: 'Compte courant',
     filter_account_epargne: 'Compte épargne',
+    tab_courant: 'Relevé - Compte courant',
+    tab_epargne: 'Relevé - Compte épargne',
     transactions_title: 'Relevé de compte',
     deposits_title: 'Bordereaux de remise',
     transactions_empty: 'Aucune opération bancaire ne correspond aux filtres actuels.',
