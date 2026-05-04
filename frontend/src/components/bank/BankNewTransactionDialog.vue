@@ -24,6 +24,7 @@
               mode="decimal"
               :min-fraction-digits="2"
               :max-fraction-digits="2"
+              placeholder="0,00"
             />
           </div>
           <div class="app-field app-field--full">
@@ -85,7 +86,7 @@ const toast = useToast()
 const saving = ref(false)
 const form = ref({
   date: new Date(),
-  amount: 0,
+  amount: null as number | null,
   description: '',
   reference: '',
   bank_account: 'courant' as BankAccountType,
@@ -106,7 +107,7 @@ watch(
     } else {
       form.value = {
         date: new Date(),
-        amount: 0,
+        amount: null,
         description: '',
         reference: '',
         bank_account: (props.defaultBankAccount ?? 'courant') as BankAccountType,
@@ -122,6 +123,7 @@ function toIsoDate(d: Date | string): string {
 }
 
 async function submit(): Promise<void> {
+  if (form.value.amount === null) return
   saving.value = true
   try {
     if (props.editTransaction) {
