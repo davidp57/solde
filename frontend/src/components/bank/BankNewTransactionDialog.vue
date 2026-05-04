@@ -74,7 +74,7 @@ import { useToast } from 'primevue/usetoast'
 import Select from 'primevue/select'
 import { addTransaction, updateTransaction, type BankAccountType, type BankTransaction } from '@/api/bank'
 
-const props = defineProps<{ visible: boolean; editTransaction?: BankTransaction | null }>()
+const props = defineProps<{ visible: boolean; editTransaction?: BankTransaction | null; defaultBankAccount?: BankAccountType | null }>()
 const emit = defineEmits<{
   'update:visible': [val: boolean]
   saved: []
@@ -108,7 +108,7 @@ watch(
         amount: 0,
         description: '',
         reference: '',
-        bank_account: 'courant' as BankAccountType,
+        bank_account: (props.defaultBankAccount ?? 'courant') as BankAccountType,
       }
     }
   },

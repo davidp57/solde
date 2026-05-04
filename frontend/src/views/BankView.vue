@@ -754,6 +754,7 @@
     <!-- Dialogs -->
     <BankNewTransactionDialog
       v-model:visible="txDialogVisible"
+      :default-bank-account="selectedBankAccount"
       @saved="loadAll"
     />
     <BankNewTransactionDialog
