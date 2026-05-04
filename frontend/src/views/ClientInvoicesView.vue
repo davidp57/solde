@@ -1222,6 +1222,9 @@ async function openHistory(invoice: Invoice) {
   historyIndex.value = displayedInvoices.value.findIndex((r) => r.id === invoice.id)
   historyInvoice.value = invoice
   historyVisible.value = true
+  if (historyPdfBlobUrl.value) {
+    URL.revokeObjectURL(historyPdfBlobUrl.value)
+  }
   historyPdfBlobUrl.value = null
   historyPdfLoading.value = true
   await Promise.all([

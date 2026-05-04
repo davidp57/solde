@@ -1327,15 +1327,6 @@ onMounted(async () => {
   margin-top: var(--app-space-4);
 }
 
-.preview-nav-bar--bottom {
-  padding-bottom: 0;
-  border-bottom: none;
-  padding-top: var(--app-space-3);
-  border-top: 1px solid var(--app-surface-border);
-  margin-bottom: 0;
-  margin-top: var(--app-space-4);
-}
-
 .preview-nav-bar__counter {
   font-size: 0.85rem;
   color: var(--p-text-muted-color);

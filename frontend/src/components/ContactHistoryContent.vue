@@ -15,7 +15,7 @@
         <div class="contact-history-actions">
           <Tag :value="t(`contacts.types.${history.contact.type}`)" />
           <Button
-            v-if="Number(history.total_due) > 0 && history.contact.type !== 'fournisseur'"
+            v-if="Number(history.total_due) > 0 && history.contact.type === 'client'"
             :label="t('contact_history.mark_douteux')"
             icon="pi pi-exclamation-triangle"
             severity="warn"

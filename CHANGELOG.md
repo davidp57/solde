@@ -39,10 +39,17 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-164** — Annotation de type `payment_date: date | None` dans `GET /api/payments/suggest_cheque_number` (était `date` alors que le paramètre est optionnel)
 - **BIZ-167** — Bouton « Passer en créance douteuse » masqué pour les contacts de type Fournisseur (n'a de sens que pour les clients)
 - **BIZ-168** — Barre de navigation Précédent / Suivant dupliquée en bas des dialogs preview factures client et fournisseur ; le défilement est conservé en bas du dialog lors de la navigation depuis la barre du bas (pour faciliter la consultation du PDF attaché)
+- **CR-077** — CSS dupliqué supprimé dans `SupplierInvoicesView` (bloc `.preview-nav-bar--bottom` en double)
+- **CR-077** — Fuite mémoire Blob URL corrigée dans `ClientInvoicesView` : l'ancienne URL est révoquée avant d'en créer une nouvelle à l'ouverture de l'historique
+- **CR-077** — Bouton « Passer en créance douteuse » désormais masqué pour les contacts de type `les_deux` (visible uniquement pour `type === 'client'`)
+- **CR-077** — Commentaire d'en-tête de `frontend/src/i18n/en.ts` corrigé : précise que les sections absentes tombent en fallback French via `fallbackLocale: 'fr'`
 
 ### Tests
 - **TEC-158** — 5 nouveaux tests d'intégration pour `GET /api/payments/suggest_cheque_number` : statut 200 + format, date par défaut (aujourd'hui), incrément séquentiel, 401 sans auth, 403 pour `readonly`
 - **TEC-159** — 4 nouveaux tests d'intégration pour `cheque_number_template` dans settings API : valeur par défaut renvoyée, mise à jour valide, rejet sans `{seq}`, rejet avec placeholder non supporté
+- **CR-077** — Tests de régression renforcés sur `suggest_cheque_number` : vérification du format exact `YYYYMMDD.NN` et de la date d'aujourd'hui utilisée en fallback
+- **CR-077** — 2 nouveaux tests Vitest pour la navigation Précédent / Suivant du dialog historique (`ClientInvoicesView`)
+- **CR-077** — 2 nouveaux tests Vitest pour la navigation Précédent / Suivant du dialog preview facture fournisseur, barre du bas (`SupplierInvoicesView`)
 
 ---
 

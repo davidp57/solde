@@ -413,3 +413,64 @@ describe('ClientInvoicesView', () => {
     expect(wrapper.text()).toContain('invoices.client.metrics.overdue_count')
   })
 })
+
+// ---------------------------------------------------------------------------
+// History dialog navigation (BIZ-165 + BIZ-168)
+// ---------------------------------------------------------------------------
+
+describe('ClientInvoicesView — history dialog navigation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockListContactsApi.mockResolvedValue([
+      { id: 10, type: 'client', nom: 'Dupont', prenom: 'Alice', email: null, telephone: null },
+    ] as never)
+    // Both invoices returned for every call so displayedInvoices has 2 entries
+    mockListInvoicesApi.mockResolvedValue([invoiceFixture, historicalInvoiceFixture] as never)
+    mockListPayments.mockResolvedValue([])
+  })
+
+  it('shows navigation counter and advances to next invoice on click', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    const historyButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'invoices.history')
+    expect(historyButtons.length).toBeGreaterThanOrEqual(1)
+
+    await historyButtons[0].trigger('click')
+    await flushView()
+
+    // Counter shows "1 / 2" (top bar or bottom bar)
+    expect(wrapper.text()).toContain('1 / 2')
+
+    // Click the first enabled Next button
+    const nextButton = wrapper
+      .findAll('button')
+      .find((btn) => btn.attributes('title') === 'common.next' && !btn.element.disabled)
+    expect(nextButton).toBeTruthy()
+    await nextButton!.trigger('click')
+    await flushView()
+
+    // Counter now shows "2 / 2"
+    expect(wrapper.text()).toContain('2 / 2')
+  })
+
+  it('disables the Previous button when at the first invoice', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    const historyButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'invoices.history')
+    await historyButtons[0].trigger('click')
+    await flushView()
+
+    const prevButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'common.previous')
+    expect(prevButtons.length).toBeGreaterThanOrEqual(1)
+    // All Previous buttons must be disabled at index 0
+    expect(prevButtons.every((btn) => btn.element.disabled)).toBe(true)
+  })
+})
