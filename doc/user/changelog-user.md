@@ -11,6 +11,11 @@ Ce document présente les changements visibles dans l'application, version par v
 #### Saisie des règlements
 - Lorsque le mode de paiement **chèque** est sélectionné, le numéro de chèque est **suggéré automatiquement** au format `AAAAMMJJ.NN` (exemple : `20260504.01`). Le numéro reste modifiable avant validation.
 
+### Trésorier
+
+#### Relevé bancaire — catégories
+- Nouvelle catégorie **« Sans écriture »** : en attribuant cette catégorie à une transaction bancaire, vous indiquez explicitement qu'aucune écriture comptable ne doit être générée lors du rapprochement. Utile pour les virements vers des comptes extérieurs à Solde ou les ajustements techniques ponctuels.
+
 ### Administrateur
 
 #### Paramètres

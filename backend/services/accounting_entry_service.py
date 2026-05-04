@@ -33,6 +33,7 @@ from backend.schemas.accounting_entry import (
     ResultatRead,
 )
 from backend.services.accounting_engine import _next_entry_number
+from backend.services.fiscal_year_service import find_fiscal_year_id_for_date
 
 # ---------------------------------------------------------------------------
 # Journal
@@ -463,6 +464,13 @@ async def get_grouped_journal(
             continue
         lines.sort(key=lambda line: (line.date, line.id))
         first_line = lines[0]
+        # When filtering by account, totals reflect only that account's contribution.
+        # All sibling lines are still included in `lines` for context (counterpart display).
+        total_lines = (
+            [line for line in lines if line.account_number == account_number]
+            if account_number
+            else lines
+        )
         groups.append(
             AccountingEntryGroupRead(
                 group_key=group_key,
@@ -476,9 +484,9 @@ async def get_grouped_journal(
                 source_invoice_id=first_line.source_invoice_id,
                 source_invoice_type=first_line.source_invoice_type,
                 source_invoice_number=first_line.source_invoice_number,
-                line_count=len(lines),
-                total_debit=sum((line.debit for line in lines), Decimal("0")),
-                total_credit=sum((line.credit for line in lines), Decimal("0")),
+                line_count=len(total_lines),
+                total_debit=sum((line.debit for line in total_lines), Decimal("0")),
+                total_credit=sum((line.credit for line in total_lines), Decimal("0")),
                 account_numbers=_ordered_unique(line.account_number for line in lines),
                 editable=any(line.editable for line in lines),
                 lines=lines,
@@ -725,6 +733,11 @@ async def create_manual_entry(
     db: AsyncSession, payload: ManualEntryCreate
 ) -> tuple[AccountingEntry, AccountingEntry]:
     """Create a balanced debit + credit entry pair."""
+    # Auto-derive fiscal_year_id from the date when the caller did not supply one.
+    fiscal_year_id = payload.fiscal_year_id
+    if fiscal_year_id is None:
+        fiscal_year_id = await find_fiscal_year_id_for_date(db, payload.date)
+
     debit_num = await _next_entry_number(db)
 
     debit_entry = AccountingEntry(
@@ -734,7 +747,7 @@ async def create_manual_entry(
         label=payload.label,
         debit=payload.amount,
         credit=Decimal("0"),
-        fiscal_year_id=payload.fiscal_year_id,
+        fiscal_year_id=fiscal_year_id,
         source_type=EntrySourceType.MANUAL,
         source_id=None,
     )
@@ -752,7 +765,7 @@ async def create_manual_entry(
         label=payload.label,
         debit=Decimal("0"),
         credit=payload.amount,
-        fiscal_year_id=payload.fiscal_year_id,
+        fiscal_year_id=fiscal_year_id,
         source_type=EntrySourceType.MANUAL,
         source_id=manual_group_id,
         group_key=build_entry_group_key(EntrySourceType.MANUAL, manual_group_id),

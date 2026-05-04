@@ -29,7 +29,6 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BIZ-034 | Support multi-compte banque | P3 | ~60 min | 2026-04-21 | 2026-05-04 | |
 | BIZ-034d | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
 
 ---
@@ -52,6 +51,7 @@ Décisions métier nécessaires avant implémentation.
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
+| BIZ-034 | Support multi-compte banque + bugfixes comptables | v1.5 | BIZ-034, fix virement, fix journal filtré, fix fiscal_year_id manuel | 2026-05-04 | — | — |
 | CR2 | Correctifs & finitions post-MOB | v1.5 | TEC-157, TEC-158, TEC-159, BIZ-165, BIZ-166, BIZ-167, BIZ-168, CHR-078 | 2026-05-04 | ~95 min | ~30 min |
 | Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 | — | — |
 | CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 | — | — |

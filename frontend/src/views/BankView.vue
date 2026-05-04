@@ -1399,6 +1399,7 @@ const categoryOptions = [
   { label: t('bank.categories.other_credit'), value: 'other_credit' },
   { label: t('bank.categories.other_debit'), value: 'other_debit' },
   { label: t('bank.categories.uncategorized'), value: 'uncategorized' },
+  { label: t('bank.categories.no_entry'), value: 'no_entry' },
 ]
 
 const yesNoOptions = [

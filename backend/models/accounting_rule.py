@@ -44,6 +44,14 @@ class EntrySide(StrEnum):
     CREDIT = "credit"
 
 
+# Bank transaction categories that must never trigger any accounting rule.
+# Any category listed here is silently ignored by the accounting engine, and
+# the API rejects any attempt to create a rule whose trigger_type would
+# correspond to one of these categories.
+# NOTE: keep this list in sync with BankTransactionCategory in bank.py.
+NON_TRIGGERABLE_CATEGORIES: frozenset[str] = frozenset({"no_entry"})
+
+
 class AccountingRule(Base):
     """A named rule that generates accounting entries when its trigger fires."""
 

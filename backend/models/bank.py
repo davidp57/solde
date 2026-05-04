@@ -46,6 +46,7 @@ class BankTransactionCategory(StrEnum):
     SEPA_DEBIT = "sepa_debit"
     OTHER_CREDIT = "other_credit"
     OTHER_DEBIT = "other_debit"
+    NO_ENTRY = "no_entry"  # Phantom category: never triggers any accounting rule
 
 
 class DepositType(StrEnum):

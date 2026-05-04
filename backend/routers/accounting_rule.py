@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.models.accounting_rule import NON_TRIGGERABLE_CATEGORIES
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.accounting_rule import (
@@ -58,6 +59,13 @@ async def create_rule(
     _: _AdminAccess,
 ) -> AccountingRuleRead:
     existing = await accounting_rule_service.list_rules(db)
+    if payload.trigger_type in NON_TRIGGERABLE_CATEGORIES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                "This trigger_type corresponds to a non-triggerable category and cannot have a rule"
+            ),
+        )
     if any(r.trigger_type == payload.trigger_type for r in existing):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

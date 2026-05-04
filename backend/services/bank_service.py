@@ -256,6 +256,24 @@ async def recompute_bank_balances(db: AsyncSession) -> bool:
     return changed
 
 
+async def get_excel_cutoffs(db: AsyncSession) -> dict[BankAccountType, date]:
+    """Return the max date of Excel-imported transactions per bank account.
+
+    Used as a cut-off when importing OFX/CSV/QIF files to avoid re-importing
+    transactions that were already captured through the Excel import.
+    """
+    result = await db.execute(
+        select(BankTransaction.bank_account, func.max(BankTransaction.date))
+        .where(
+            BankTransaction.source.in_(
+                [BankTransactionSource.IMPORT_EXCEL, BankTransactionSource.IMPORT]
+            )
+        )
+        .group_by(BankTransaction.bank_account)
+    )
+    return {row[0]: row[1] for row in result.all()}
+
+
 async def add_transaction(
     db: AsyncSession, payload: BankTransactionCreate
 ) -> BankTransaction | None:

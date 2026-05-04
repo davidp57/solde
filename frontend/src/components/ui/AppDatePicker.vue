@@ -147,6 +147,27 @@ function tryEmit() {
   }
 }
 
+function stepDay(delta: number) {
+  const current = parseInt(dayStr.value, 10)
+  const base = isNaN(current) ? (delta > 0 ? 1 : 31) : current
+  dayStr.value = String(Math.min(31, Math.max(1, base + delta))).padStart(2, '0')
+  tryEmit()
+}
+
+function stepMonth(delta: number) {
+  const current = parseInt(monthStr.value, 10)
+  const base = isNaN(current) ? (delta > 0 ? 1 : 12) : current
+  monthStr.value = String(Math.min(12, Math.max(1, base + delta))).padStart(2, '0')
+  tryEmit()
+}
+
+function stepYear(delta: number) {
+  const current = parseInt(yearStr.value, 10)
+  const base = isNaN(current) ? new Date().getFullYear() : current
+  yearStr.value = String(Math.min(9999, Math.max(1000, base + delta)))
+  tryEmit()
+}
+
 function onDayInput() {
   if (dayStr.value.length === 2) {
     monthRef.value?.focus()
@@ -168,6 +189,8 @@ function onYearInput() {
 }
 
 function onDayKeydown(e: KeyboardEvent) {
+  if (e.key === 'ArrowUp') { e.preventDefault(); stepDay(1); return }
+  if (e.key === 'ArrowDown') { e.preventDefault(); stepDay(-1); return }
   const input = e.target as HTMLInputElement
   if (e.key === 'ArrowRight' && input.selectionStart === dayStr.value.length) {
     e.preventDefault()
@@ -177,6 +200,8 @@ function onDayKeydown(e: KeyboardEvent) {
 }
 
 function onMonthKeydown(e: KeyboardEvent) {
+  if (e.key === 'ArrowUp') { e.preventDefault(); stepMonth(1); return }
+  if (e.key === 'ArrowDown') { e.preventDefault(); stepMonth(-1); return }
   const input = e.target as HTMLInputElement
   if (e.key === 'Backspace' && monthStr.value === '') {
     e.preventDefault()
@@ -194,6 +219,8 @@ function onMonthKeydown(e: KeyboardEvent) {
 }
 
 function onYearKeydown(e: KeyboardEvent) {
+  if (e.key === 'ArrowUp') { e.preventDefault(); stepYear(1); return }
+  if (e.key === 'ArrowDown') { e.preventDefault(); stepYear(-1); return }
   const input = e.target as HTMLInputElement
   if (e.key === 'Backspace' && yearStr.value === '') {
     e.preventDefault()

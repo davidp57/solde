@@ -240,7 +240,18 @@ def parse_ofx(
         stmtrs_segments = [content]
 
     if len(stmtrs_segments) == 1:
-        rows = _parse_ofx_segment(stmtrs_segments[0], bank_account=default_bank_account)
+        # Even for single-segment files, try to match the ACCTID against configured accounts.
+        # Fall back to default_bank_account only when no ACCTID is present or recognised.
+        seg = stmtrs_segments[0]
+        m = re.search(r"<ACCTID>\s*([^\n<]+)", seg, re.IGNORECASE)
+        acctid = m.group(1).strip() if m else ""
+        if acctid and epargne_acctid and acctid == epargne_acctid:
+            resolved_account = "epargne"
+        elif acctid and courant_acctid and acctid == courant_acctid:
+            resolved_account = "courant"
+        else:
+            resolved_account = default_bank_account
+        rows = _parse_ofx_segment(seg, bank_account=resolved_account)
     else:
         # Multi-account file
         if not courant_acctid and not epargne_acctid:
