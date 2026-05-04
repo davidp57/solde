@@ -37,7 +37,7 @@
         />
         <AppStatCard
           :label="t('bank.funds_chart_savings_account')"
-          :value="formatAmount(balanceEpargne) + ' €'"
+          :value="formatAmount(balanceEpargne)"
         />
         <AppStatCard
           :label="t('bank.period_variation')"
@@ -59,7 +59,7 @@
         />
         <AppStatCard
           :label="t('bank.funds_chart_savings_account')"
-          :value="formatAmount(balanceEpargne) + ' €'"
+          :value="formatAmount(balanceEpargne)"
         />
         <AppStatCard
           :label="t('bank.period_variation')"

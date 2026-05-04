@@ -19,8 +19,6 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-034** — Dashboard : stat card « Solde épargne » en complément du solde courant
 - **TEC-160** — Migration Alembic `0050` : colonne `bank_account` sur `bank_transactions` (valeur par défaut : `courant`)
 - **TEC-161** — Migration Alembic `0051` : colonnes `bank_account_courant_acctid` et `bank_account_epargne_acctid` dans `app_settings`
-
-### Ajouté
 - **BIZ-164** — Mode téléphone : vue carte mobile sur toutes les listes de l'application (Factures client/fournisseur, Contacts, Banque, Règlements, Caisse, Salaires, Employés, Comptabilité, Exercices, Règles comptables, Journal, Balance, Bilan, Résultat, Utilisateurs) — les DataTables laissent place à des cartes empilées sous 767 px
 - **BIZ-164** — Composable `useBreakpoints` (breakpoint 767 px via `window.matchMedia`, avec listener réactif)
 - **BIZ-164** — Composant générique `AppMobileCardList` avec slot `#card="{ item }"` et typage générique `T` pour inférence TypeScript correcte dans les slots
