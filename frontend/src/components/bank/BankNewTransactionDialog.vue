@@ -92,8 +92,9 @@ const form = ref({
 })
 
 watch(
-  () => props.editTransaction,
-  (tx) => {
+  [() => props.editTransaction, () => props.visible],
+  ([tx]) => {
+    if (!props.visible) return
     if (tx) {
       form.value = {
         date: new Date(tx.date + 'T12:00:00'),
