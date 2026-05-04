@@ -51,7 +51,7 @@ Décisions métier nécessaires avant implémentation.
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
-| CR2 | Correctifs & finitions post-MOB | v1.5 | TEC-157, TEC-158, TEC-159, BIZ-165, BIZ-166, CHR-078 | 2026-05-04 | ~80 min | ~25 min |
+| CR2 | Correctifs & finitions post-MOB | v1.5 | TEC-157, TEC-158, TEC-159, BIZ-165, BIZ-166, BIZ-167, CHR-078 | 2026-05-04 | ~85 min | ~27 min |
 | Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 | — | — |
 | CR | Correctifs revue de code | v1.3.1 | TEC-133, TEC-134, TEC-135, TEC-136, TEC-137, TEC-138, TEC-139, TEC-140, TEC-141, TEC-155 | 2026-05-02 | — | — |
 | DOC | Documentation utilisateur | v1.5 | BIZ-161, BIZ-162, BIZ-163 | 2026-05-03 | ~115 min | ~45 min |

@@ -37,6 +37,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-164** — Tuile dépôt espèces : `total_amount` affiché même si `denomination_details` est vide ou invalide (fallback `v-else-if`)
 - **BIZ-164** — Suppression du double appel API de suggestion de numéro de chèque à l'ouverture du dialog (guard `paymentDialogVisible` dans le `watch`)
 - **BIZ-164** — Annotation de type `payment_date: date | None` dans `GET /api/payments/suggest_cheque_number` (était `date` alors que le paramètre est optionnel)
+- **BIZ-167** — Bouton « Passer en créance douteuse » masqué pour les contacts de type Fournisseur (n'a de sens que pour les clients)
 
 ### Tests
 - **TEC-158** — 5 nouveaux tests d'intégration pour `GET /api/payments/suggest_cheque_number` : statut 200 + format, date par défaut (aujourd'hui), incrément séquentiel, 401 sans auth, 403 pour `readonly`
