@@ -435,3 +435,68 @@ describe('SupplierInvoicesView — payment dialog', () => {
     )
   })
 })
+
+// ---------------------------------------------------------------------------
+// Preview dialog bottom navigation (BIZ-168)
+// ---------------------------------------------------------------------------
+
+describe('SupplierInvoicesView — preview dialog bottom navigation', () => {
+  // Variants with file_path so the preview button (v-if="data.file_path") is rendered
+  const invoiceWithFile = { ...invoiceFixture, file_path: 'uploads/FF-2025-001.pdf' }
+  const paidInvoiceWithFile = { ...paidInvoiceFixture, file_path: 'uploads/FF-2025-002.pdf' }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockListContactsApi.mockResolvedValue([
+      { id: 10, type: 'fournisseur', nom: 'Martin', prenom: 'Bob', email: null, telephone: null },
+    ] as never)
+    // Two invoices with file_path so the preview button is rendered for each
+    mockListInvoicesApi.mockResolvedValue([invoiceWithFile, paidInvoiceWithFile] as never)
+    mockListPayments.mockResolvedValue([])
+  })
+
+  it('shows navigation counter and advances via bottom bar Next button', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    const previewButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'invoices.supplier.preview_file')
+    expect(previewButtons.length).toBeGreaterThanOrEqual(1)
+
+    await previewButtons[0].trigger('click')
+    await flushView()
+
+    // Counter shows "1 / 2"
+    expect(wrapper.text()).toContain('1 / 2')
+
+    // Click the last enabled Next button (bottom bar is last in the DOM)
+    const nextButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'common.next' && !btn.element.disabled)
+    expect(nextButtons.length).toBeGreaterThanOrEqual(1)
+    await nextButtons[nextButtons.length - 1].trigger('click')
+    await flushView()
+
+    // Counter now shows "2 / 2"
+    expect(wrapper.text()).toContain('2 / 2')
+  })
+
+  it('disables Previous at the first invoice in both nav bars', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    const previewButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'invoices.supplier.preview_file')
+    await previewButtons[0].trigger('click')
+    await flushView()
+
+    const prevButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'common.previous')
+    expect(prevButtons.length).toBeGreaterThanOrEqual(1)
+    // All Previous buttons must be disabled at index 0
+    expect(prevButtons.every((btn) => btn.element.disabled)).toBe(true)
+  })
+})
