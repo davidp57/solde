@@ -35,6 +35,20 @@
               @change="onFileSelected"
             />
           </div>
+          <div v-if="isOfxOrQif" class="app-field app-field--span-2">
+            <label class="app-field__label">{{ t('bank.import_default_account') }}</label>
+            <Select
+              v-model="defaultBankAccount"
+              :options="[
+                { label: t('bank.filter_account_courant'), value: 'courant' },
+                { label: t('bank.filter_account_epargne'), value: 'epargne' },
+              ]"
+              option-label="label"
+              option-value="value"
+              class="w-full"
+            />
+            <small class="app-field__hint">{{ t('bank.import_default_account_help') }}</small>
+          </div>
         </div>
       </section>
       <div class="app-form-actions">
@@ -56,12 +70,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
+import Select from 'primevue/select'
 import { useToast } from 'primevue/usetoast'
-import { importBankStatement, type BankImportFormat } from '@/api/bank'
+import { importBankStatement, type BankImportFormat, type BankAccountType } from '@/api/bank'
 
 defineProps<{ visible: boolean }>()
 const emit = defineEmits<{
@@ -75,6 +90,12 @@ const saving = ref(false)
 const fileName = ref('')
 const fileContent = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
+const defaultBankAccount = ref<BankAccountType>('courant')
+
+const isOfxOrQif = computed(() => {
+  if (!fileName.value) return false
+  return detectFormat(fileName.value) !== 'csv'
+})
 
 function detectFormat(name: string): BankImportFormat {
   const lower = name.toLowerCase()
@@ -99,10 +120,11 @@ async function submit(): Promise<void> {
   }
   saving.value = true
   try {
-    const result = await importBankStatement(detectFormat(fileName.value), fileContent.value)
+    const result = await importBankStatement(detectFormat(fileName.value), fileContent.value, defaultBankAccount.value)
     emit('update:visible', false)
     fileName.value = ''
     fileContent.value = ''
+    defaultBankAccount.value = 'courant'
     const summary =
       result.skipped > 0
         ? t('bank.import_success_with_skipped', { n: result.created.length, s: result.skipped })

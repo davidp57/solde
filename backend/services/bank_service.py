@@ -445,6 +445,24 @@ async def update_transaction(
     return tx
 
 
+async def delete_manual_transaction(db: AsyncSession, tx: BankTransaction) -> None:
+    """Delete a manual (or system_opening) transaction and recompute balances.
+
+    Raises ValueError if the transaction has a non-manual source or is reconciled.
+    """
+    if tx.source not in (
+        BankTransactionSource.MANUAL,
+        BankTransactionSource.SYSTEM_OPENING,
+    ):
+        raise ValueError("Only manual transactions can be deleted")
+    if tx.reconciled:
+        raise ValueError("Reconciled transactions cannot be deleted")
+    await db.delete(tx)
+    await db.flush()
+    await recompute_bank_balances(db)
+    await db.commit()
+
+
 async def reconcile_transactions_bulk(
     db: AsyncSession,
     *,

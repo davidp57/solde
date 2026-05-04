@@ -29,7 +29,8 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BIZ-034 | Support multi-compte banque | P3 | ~60 min | 2026-04-21 | | |
+| BIZ-034 | Support multi-compte banque | P3 | ~60 min | 2026-04-21 | 2026-05-04 | |
+| BIZ-034d | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
 
 ---
 

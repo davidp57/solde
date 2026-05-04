@@ -71,6 +71,10 @@ export interface BankTransactionUpdate {
   reference?: string | null
   description?: string | null
   detected_category?: BankTransactionCategory
+  // Manual transactions only
+  date?: string
+  amount?: string
+  bank_account?: BankAccountType
 }
 
 export interface Deposit {
@@ -158,6 +162,10 @@ export async function updateTransaction(
   return response.data
 }
 
+export async function deleteTransaction(id: number): Promise<void> {
+  await apiClient.delete(`/api/bank/transactions/${id}`)
+}
+
 export async function reconcileTransactionsBulk(ids: number[]): Promise<number> {
   const response = await apiClient.post<number>('/api/bank/transactions/reconcile-bulk', { ids })
   return response.data
@@ -175,9 +183,10 @@ export async function importCsv(content: string): Promise<BankImportResult> {
   return response.data
 }
 
-export async function importOfx(content: string): Promise<BankImportResult> {
+export async function importOfx(content: string, defaultBankAccount: BankAccountType = 'courant'): Promise<BankImportResult> {
   const response = await apiClient.post<BankImportResult>('/api/bank/transactions/import-ofx', {
     content,
+    default_bank_account: defaultBankAccount,
   })
   return response.data
 }
@@ -192,9 +201,10 @@ export async function importQif(content: string): Promise<BankImportResult> {
 export async function importBankStatement(
   format: BankImportFormat,
   content: string,
+  defaultBankAccount: BankAccountType = 'courant',
 ): Promise<BankImportResult> {
   if (format === 'ofx') {
-    return importOfx(content)
+    return importOfx(content, defaultBankAccount)
   }
   if (format === 'qif') {
     return importQif(content)

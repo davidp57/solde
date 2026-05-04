@@ -700,11 +700,18 @@ export default {
     transactions_empty: 'Aucune opération bancaire ne correspond aux filtres actuels.',
     deposits_empty: 'Aucun bordereau ne correspond aux filtres actuels.',
     new_transaction: 'Nouvelle opération',
+    edit_transaction: 'Modifier l\'opération',
+    delete_transaction: 'Supprimer l\'opération',
+    delete_transaction_title: 'Supprimer l\'opération',
+    delete_transaction_confirm: 'Cette opération sera supprimée définitivement. Confirmer ?',
+    transaction_deleted: 'Opération supprimée.',
     new_deposit: 'Nouveau bordereau',
     import_statement: 'Importer un relevé',
+    import_default_account: 'Compte cible',
+    import_default_account_help: 'Compte sur lequel importer les transactions (ignoré si le fichier contient plusieurs comptes avec ACCTID).',
     import_csv: 'Importer CSV',
     transaction_intro:
-      'Ajoutez une opération manuelle avec son solde après écriture pour garder un rapprochement lisible.',
+      'Ajoutez une opération manuelle avec sa date, son montant et le compte concerné.',
     import_intro:
       'Chargez un relevé bancaire au format CSV, OFX ou QIF pour importer rapidement plusieurs opérations.',
     deposit_intro:
@@ -729,7 +736,6 @@ export default {
     tx_description: 'Libellé',
     tx_reference: 'Réf. comptable',
     tx_account: 'Compte',
-    tx_balance: 'Solde après',
     tx_balance_short: 'Solde',
     tx_category: 'Catégorie détectée',
     tx_category_short: 'Catégorie',

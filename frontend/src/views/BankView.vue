@@ -242,6 +242,24 @@
                   </div>
                   <div class="app-mobile-card-actions">
                     <Button
+                      v-if="canEditOrDelete(data)"
+                      icon="pi pi-pencil"
+                      size="small"
+                      severity="secondary"
+                      text
+                      :title="t('bank.edit_transaction')"
+                      @click="openEditTransactionDialog(data)"
+                    />
+                    <Button
+                      v-if="canEditOrDelete(data)"
+                      icon="pi pi-trash"
+                      size="small"
+                      severity="danger"
+                      text
+                      :title="t('bank.delete_transaction')"
+                      @click="deleteManualTx(data)"
+                    />
+                    <Button
                       v-if="canLinkExistingSupplierPayment(data)"
                       icon="pi pi-link"
                       size="small"
@@ -498,6 +516,24 @@
               <Column :header="t('common.actions')" style="width: 7.25rem">
                 <template #body="{ data }">
                   <Button
+                    v-if="canEditOrDelete(data)"
+                    icon="pi pi-pencil"
+                    size="small"
+                    severity="secondary"
+                    text
+                    :title="t('bank.edit_transaction')"
+                    @click="openEditTransactionDialog(data)"
+                  />
+                  <Button
+                    v-if="canEditOrDelete(data)"
+                    icon="pi pi-trash"
+                    size="small"
+                    severity="danger"
+                    text
+                    :title="t('bank.delete_transaction')"
+                    @click="deleteManualTx(data)"
+                  />
+                  <Button
                     v-if="canLinkExistingSupplierPayment(data)"
                     icon="pi pi-link"
                     size="small"
@@ -720,6 +756,11 @@
       v-model:visible="txDialogVisible"
       @saved="loadAll"
     />
+    <BankNewTransactionDialog
+      v-model:visible="editTransactionDialogVisible"
+      :edit-transaction="editingTransaction"
+      @saved="loadAll"
+    />
     <BankImportStatementDialog
       v-model:visible="importDialogVisible"
       @saved="loadAll"
@@ -755,6 +796,8 @@
     <Popover ref="categoryEditPopover">
       <div class="bank-category-popover">
         <p class="bank-category-popover__label">{{ t('bank.edit_category_label') }}</p>
+      <div class="bank-category-popover">
+        <p class="bank-category-popover__label">{{ t('bank.edit_category_label') }}</p>
         <Select
           v-model="categoryEditValue"
           :options="categoryOptions"
@@ -771,6 +814,8 @@
         />
       </div>
     </Popover>
+
+    <ConfirmDialog />
 
     <!-- Reconcile-before-date popover -->
     <Popover ref="reconcileBeforePopover">
@@ -795,6 +840,8 @@
 </template>
 
 <script setup lang="ts">
+import ConfirmDialog from 'primevue/confirmdialog'
+import { useConfirm } from 'primevue/useconfirm'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
@@ -809,7 +856,6 @@ import Tabs from 'primevue/tabs'
 import Message from 'primevue/message'
 import Tag from 'primevue/tag'
 import ToggleButton from 'primevue/togglebutton'
-import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppDatePicker from '../components/ui/AppDatePicker.vue'
@@ -835,6 +881,7 @@ import {
   listDeposits,
   listTransactions,
   updateTransaction,
+  deleteTransaction,
   reconcileTransactionsBulk,
   confirmDeposit as confirmDepositApi,
   type BankTransaction,
@@ -858,6 +905,7 @@ import { useBreakpoints } from '../composables/useBreakpoints'
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const toast = useToast()
+const confirm = useConfirm()
 const fiscalYearStore = useFiscalYearStore()
 
 // Core bank data
@@ -894,6 +942,37 @@ const clientPaymentDialogVisible = ref(false)
 const existingClientPaymentDialogVisible = ref(false)
 const supplierPaymentDialogVisible = ref(false)
 const existingSupplierPaymentDialogVisible = ref(false)
+
+// Edit/delete state for manual transactions
+const editTransactionDialogVisible = ref(false)
+const editingTransaction = ref<BankTransaction | null>(null)
+
+function canEditOrDelete(tx: BankTransaction): boolean {
+  return (tx.source === 'manual' || tx.source === 'system_opening') && !tx.reconciled
+}
+
+function openEditTransactionDialog(tx: BankTransaction): void {
+  editingTransaction.value = tx
+  editTransactionDialogVisible.value = true
+}
+
+async function deleteManualTx(tx: BankTransaction): Promise<void> {
+  confirm.require({
+    message: t('bank.delete_transaction_confirm'),
+    header: t('bank.delete_transaction_title'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptSeverity: 'danger',
+    accept: async () => {
+      try {
+        await deleteTransaction(tx.id)
+        transactions.value = transactions.value.filter((t) => t.id !== tx.id)
+        toast.add({ severity: 'success', summary: t('bank.transaction_deleted'), life: 2000 })
+      } catch {
+        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+      }
+    },
+  })
+}
 
 // Selected transactions for dialogs
 const clientPaymentTransaction = ref<BankTransaction | null>(null)
