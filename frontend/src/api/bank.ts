@@ -23,6 +23,7 @@ export type BankTransactionCategory =
   | 'sepa_debit'
   | 'other_credit'
   | 'other_debit'
+  | 'no_entry'
 export type BankImportFormat = 'csv' | 'ofx' | 'qif'
 export type BankAccountType = 'courant' | 'epargne'
 

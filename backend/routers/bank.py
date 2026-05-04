@@ -529,7 +529,7 @@ async def _import_rows(
 
 class OFXImportRequest(BaseModel):
     content: str  # raw OFX/QFX text
-    default_bank_account: str = "courant"  # used for single-account files
+    default_bank_account: BankAccountType = BankAccountType.COURANT  # used for single-account files
 
 
 class QIFImportRequest(BaseModel):

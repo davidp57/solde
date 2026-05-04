@@ -29,7 +29,7 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| BIZ-034d | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
+| BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
 
 ---
 
@@ -44,6 +44,10 @@ Tri synthétique : facture < 6 mois en tête, puis ordre alphabétique (nom, pr�
 
 Distinguer compte courant et compte épargne dans les données, imports et écrans.
 Décisions métier nécessaires avant implémentation.
+
+### BIZ-169 — Édition/suppression des opérations manuelles
+
+Permettre de modifier ou supprimer les opérations bancaires créées manuellement depuis BankView (opérations sans import source).
 
 ---
 

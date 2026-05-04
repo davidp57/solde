@@ -24,7 +24,7 @@
               mode="decimal"
               :min-fraction-digits="2"
               :max-fraction-digits="2"
-              placeholder="0,00"
+              :placeholder="t('common.amount_placeholder')"
             />
           </div>
           <div class="app-field app-field--full">
