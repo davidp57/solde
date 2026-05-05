@@ -31,6 +31,7 @@ from backend.schemas.bank import (
     BankTransactionCreate,
     BankTransactionUpdate,
     DepositCreate,
+    DepositUpdate,
 )
 from backend.services import bank_service
 
@@ -869,9 +870,148 @@ async def test_list_deposits_filter_by_date_range(db_session: AsyncSession) -> N
     assert [deposit.id for deposit in deposits] == [kept.id]
 
 
-# ---------------------------------------------------------------------------
-# reconcile_transactions_bulk — accounting entries
-# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_update_deposit_removes_payment(db_session: AsyncSession) -> None:
+    """Removing a payment from a cheques deposit frees it (in_deposit=False)."""
+    p1 = await _make_payment(db_session)
+
+    contact = await db_session.get(Contact, p1.contact_id)
+    assert contact is not None
+    inv = await db_session.get(Invoice, p1.invoice_id)
+    assert inv is not None
+    p2 = Payment(
+        invoice_id=inv.id,
+        contact_id=contact.id,
+        amount=Decimal("60.00"),
+        date=date(2024, 3, 2),
+        method=PaymentMethod.CHEQUE,
+        deposited=False,
+    )
+    db_session.add(p2)
+    await db_session.flush()
+
+    deposit = await bank_service.create_deposit(
+        db_session,
+        DepositCreate(
+            date=date(2024, 3, 1),
+            type=DepositType.CHEQUES,
+            payment_ids=[p1.id, p2.id],
+        ),
+    )
+
+    updated = await bank_service.update_deposit(
+        db_session,
+        deposit.id,
+        DepositUpdate(payment_ids=[p1.id]),
+    )
+
+    assert updated.total_amount == Decimal("100.00")
+    await db_session.refresh(p2)
+    assert p2.in_deposit is False
+    assert p2.deposit_date is None
+
+
+@pytest.mark.asyncio
+async def test_update_deposit_confirmed_raises(db_session: AsyncSession) -> None:
+    """Updating a confirmed deposit is forbidden."""
+    p = await _make_payment(db_session)
+    deposit = await bank_service.create_deposit(
+        db_session,
+        DepositCreate(
+            date=date(2024, 3, 1),
+            type=DepositType.CHEQUES,
+            payment_ids=[p.id],
+        ),
+    )
+    deposit.confirmed = True
+    await db_session.flush()
+
+    with pytest.raises(ValueError, match="confirmed"):
+        await bank_service.update_deposit(db_session, deposit.id, DepositUpdate(payment_ids=[p.id]))
+
+
+@pytest.mark.asyncio
+async def test_update_deposit_especes_amount(db_session: AsyncSession) -> None:
+    """Updating total_amount of an especes deposit works."""
+    deposit = await bank_service.create_deposit(
+        db_session,
+        DepositCreate(
+            date=date(2024, 3, 1),
+            type=DepositType.ESPECES,
+            total_amount=Decimal("200.00"),
+        ),
+    )
+
+    updated = await bank_service.update_deposit(
+        db_session,
+        deposit.id,
+        DepositUpdate(
+            total_amount=Decimal("180.00"), denomination_details='[{"value":20,"count":9}]'
+        ),
+    )
+
+    assert updated.total_amount == Decimal("180.00")
+    assert updated.denomination_details == '[{"value":20,"count":9}]'
+
+
+@pytest.mark.asyncio
+async def test_update_deposit_empty_payment_ids_raises(db_session: AsyncSession) -> None:
+    """Removing all payments from a cheques deposit is forbidden."""
+    p = await _make_payment(db_session)
+    deposit = await bank_service.create_deposit(
+        db_session,
+        DepositCreate(
+            date=date(2024, 3, 1),
+            type=DepositType.CHEQUES,
+            payment_ids=[p.id],
+        ),
+    )
+
+    with pytest.raises(ValueError, match="at least one"):
+        await bank_service.update_deposit(db_session, deposit.id, DepositUpdate(payment_ids=[]))
+
+
+@pytest.mark.asyncio
+async def test_delete_deposit_frees_payments(db_session: AsyncSession) -> None:
+    """Deleting a deposit resets in_deposit on linked payments."""
+    p = await _make_payment(db_session)
+    deposit = await bank_service.create_deposit(
+        db_session,
+        DepositCreate(
+            date=date(2024, 3, 1),
+            type=DepositType.CHEQUES,
+            payment_ids=[p.id],
+        ),
+    )
+    deposit_id = deposit.id
+
+    await bank_service.delete_deposit(db_session, deposit_id)
+
+    await db_session.refresh(p)
+    assert p.in_deposit is False
+    assert p.deposit_date is None
+
+    result = await db_session.get(type(deposit), deposit_id)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_delete_deposit_confirmed_raises(db_session: AsyncSession) -> None:
+    """Deleting a confirmed deposit is forbidden."""
+    p = await _make_payment(db_session)
+    deposit = await bank_service.create_deposit(
+        db_session,
+        DepositCreate(
+            date=date(2024, 3, 1),
+            type=DepositType.CHEQUES,
+            payment_ids=[p.id],
+        ),
+    )
+    deposit.confirmed = True
+    await db_session.flush()
+
+    with pytest.raises(ValueError, match="confirmed"):
+        await bank_service.delete_deposit(db_session, deposit.id)
 
 
 async def _seed_bank_fee_rule(db: AsyncSession) -> AccountingRule:

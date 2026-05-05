@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from backend.models.cash import CashEntrySource, CashMovementType
+from backend.models.contact import Contact
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
 from backend.schemas.payment import PaymentCreate, PaymentRead, PaymentUpdate
@@ -27,21 +28,33 @@ def _build_payment_read(
     payment: Payment,
     invoice_number: str | None,
     invoice_type: InvoiceType | None,
+    contact_name: str | None = None,
 ) -> PaymentRead:
     """Build a PaymentRead DTO from an ORM Payment and pre-fetched invoice metadata."""
     read = PaymentRead.model_validate(payment)
-    return read.model_copy(update={"invoice_number": invoice_number, "invoice_type": invoice_type})
+    return read.model_copy(
+        update={
+            "invoice_number": invoice_number,
+            "invoice_type": invoice_type,
+            "contact_name": contact_name,
+        }
+    )
 
 
 async def _to_payment_read(db: AsyncSession, payment: Payment) -> PaymentRead:
     """Build a PaymentRead DTO enriched with invoice metadata."""
     result = await db.execute(
-        select(Invoice.number, Invoice.type).where(Invoice.id == payment.invoice_id)
+        select(Invoice.number, Invoice.type, Contact.nom, Contact.prenom)
+        .join(Contact, Contact.id == Invoice.contact_id, isouter=True)
+        .where(Invoice.id == payment.invoice_id)
     )
     row = result.one_or_none()
     invoice_number: str | None = row[0] if row else None
     invoice_type: InvoiceType | None = InvoiceType(row[1]) if row and row[1] else None
-    return _build_payment_read(payment, invoice_number, invoice_type)
+    contact_name: str | None = None
+    if row and row[2]:
+        contact_name = f"{row[2]} {row[3]}".strip() if row[3] else row[2]
+    return _build_payment_read(payment, invoice_number, invoice_type, contact_name)
 
 
 async def _get_payment_orm(db: AsyncSession, payment_id: int) -> Payment | None:
@@ -183,11 +196,17 @@ async def list_payments(
     from_date: date | None = None,
     to_date: date | None = None,
     undeposited_only: bool = False,
+    inconsistent_only: bool = False,
     skip: int = 0,
     limit: int = 100,
 ) -> list[PaymentRead]:
     inv = aliased(Invoice)
-    query = select(Payment, inv.number, inv.type).join(inv, Payment.invoice_id == inv.id)
+    cnt = aliased(Contact)
+    query = (
+        select(Payment, inv.number, inv.type, cnt.nom, cnt.prenom)
+        .join(inv, Payment.invoice_id == inv.id)
+        .join(cnt, cnt.id == inv.contact_id, isouter=True)
+    )
     if invoice_id is not None:
         query = query.where(Payment.invoice_id == invoice_id)
     if invoice_type is not None:
@@ -201,12 +220,26 @@ async def list_payments(
     if undeposited_only:
         # Only truly free cheques: not yet in any deposit slip, not yet confirmed
         query = query.where(Payment.deposited == False).where(Payment.in_deposit == False)  # noqa: E712
+    if inconsistent_only:
+        # Cheques marked as deposited but missing deposit_date
+        query = (
+            query.where(Payment.method == PaymentMethod.CHEQUE)
+            .where(
+                Payment.deposited == True  # noqa: E712
+            )
+            .where(Payment.deposit_date.is_(None))
+        )
     query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     rows = result.all()
     return [
-        _build_payment_read(payment, inv_number, InvoiceType(inv_type) if inv_type else None)
-        for payment, inv_number, inv_type in rows
+        _build_payment_read(
+            payment,
+            inv_number,
+            InvoiceType(inv_type) if inv_type else None,
+            f"{nom} {prenom}".strip() if nom and prenom else nom,
+        )
+        for payment, inv_number, inv_type, nom, prenom in rows
     ]
 
 
@@ -301,6 +334,29 @@ def _validate_treasury_managed_payment_update(
 
     if payload.deposit_date is not None and payload.deposit_date != payment.deposit_date:
         raise ValueError("payments cannot change deposit date after creation")
+
+
+async def fix_inconsistent_deposit_date(
+    db: AsyncSession, payment_id: int, deposit_date: date
+) -> PaymentRead:
+    """Set deposit_date on a cheque payment that has deposited=True but deposit_date=NULL.
+
+    This corrects data produced by Excel imports that marked cheques as deposited
+    without recording the deposit date.
+    """
+    payment = await _get_payment_orm(db, payment_id)
+    if payment is None:
+        raise LookupError("Payment not found")
+    if payment.method != PaymentMethod.CHEQUE:
+        raise ValueError("only cheque payments can be corrected with this endpoint")
+    if not payment.deposited:
+        raise ValueError("payment is not marked as deposited")
+    if payment.deposit_date is not None:
+        raise ValueError("payment already has a deposit date")
+    payment.deposit_date = deposit_date
+    await db.commit()
+    await db.refresh(payment)
+    return await _to_payment_read(db, payment)
 
 
 async def _create_treasury_entries_for_payment(

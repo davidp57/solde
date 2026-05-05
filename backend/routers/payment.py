@@ -37,6 +37,7 @@ async def list_payments(
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
     undeposited_only: bool = Query(default=False),
+    inconsistent_only: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=1000, ge=1, le=1000),
 ) -> list[PaymentRead]:
@@ -48,6 +49,7 @@ async def list_payments(
         from_date=from_date,
         to_date=to_date,
         undeposited_only=undeposited_only,
+        inconsistent_only=inconsistent_only,
         skip=skip,
         limit=limit,
     )
@@ -155,3 +157,28 @@ async def delete_payment(
         target_type="payment",
         detail=detail,
     )
+
+
+@router.post("/{payment_id}/fix-deposit-date", response_model=PaymentRead)
+async def fix_deposit_date(
+    payment_id: int,
+    deposit_date: date,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> PaymentRead:
+    """Correct a cheque payment with deposited=True but missing deposit_date."""
+    try:
+        updated = await payment_service.fix_inconsistent_deposit_date(db, payment_id, deposit_date)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.PAYMENT_UPDATED,
+        actor=current_user,
+        target_id=payment_id,
+        target_type="payment",
+        detail={"deposit_date": str(deposit_date), "fix": "inconsistent_deposit_date"},
+    )
+    return updated
