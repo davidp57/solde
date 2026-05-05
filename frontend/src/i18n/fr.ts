@@ -1917,6 +1917,18 @@ export default {
     col_target: 'Cible',
     col_detail: 'Détail',
     load_error: 'Erreur lors du chargement.',
+    inconsistent_payments_title: 'Paiements chèques incohérents',
+    inconsistent_payments_subtitle:
+      'Chèques marqués comme remis mais sans date de remise — produits par un import Excel. Corrigez la date pour les exclure du calcul « Chèques non remis » du tableau de bord.',
+    inconsistent_payments_empty: 'Aucun paiement incohérent détecté.',
+    inconsistent_payments_fix: 'Corriger',
+    inconsistent_payments_fixed: 'Date de remise enregistrée.',
+    inconsistent_payments_fix_error: 'Erreur lors de la correction.',
+    col_payment_date: 'Date paiement',
+    col_invoice: 'Facture',
+    col_contact: 'Contact',
+    col_amount: 'Montant',
+    col_deposit_date: 'Date de remise',
     action: {
       auth: {
         login: {
