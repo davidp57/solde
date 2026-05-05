@@ -111,13 +111,12 @@
               <span class="bank-pending-deposit-row__date">{{ formatDisplayDate(deposit.date) }}</span>
             </div>
             <Button
-              :label="t('bank.deposit_confirm')"
-              icon="pi pi-check"
-              severity="success"
+              :label="t('bank.deposit_actions_btn')"
+              icon="pi pi-ellipsis-h"
+              severity="secondary"
               size="small"
               class="bank-pending-deposit-row__btn"
-              :loading="confirmingDepositId === deposit.id"
-              @click="confirmDeposit(deposit)"
+              @click="openDepositActions(deposit)"
             />
           </div>
           <div v-if="deposit.type !== 'cheques' && formatEspecesList(deposit.denomination_details).length" class="bank-pending-deposit-row__denom">
@@ -1180,6 +1179,13 @@
       :payments="undepositedPayments"
       @saved="loadAll"
     />
+    <BankDepositActionsDialog
+      v-if="depositActionsTarget"
+      v-model:visible="depositActionsDialogVisible"
+      :deposit="depositActionsTarget"
+      @updated="loadAll"
+      @cancelled="loadAll"
+    />
 
     <!-- Category edit popover -->
     <Popover ref="categoryEditPopover">
@@ -1262,6 +1268,7 @@ import BankLinkClientPaymentDialog from '../components/bank/BankLinkClientPaymen
 import BankSupplierPaymentDialog from '../components/bank/BankSupplierPaymentDialog.vue'
 import BankLinkSupplierPaymentDialog from '../components/bank/BankLinkSupplierPaymentDialog.vue'
 import BankNewDepositDialog from '../components/bank/BankNewDepositDialog.vue'
+import BankDepositActionsDialog from '../components/bank/BankDepositActionsDialog.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import {
   getBankBalance,
@@ -1307,6 +1314,8 @@ const undepositedPayments = ref<Payment[]>([])
 const loadingTx = ref(false)
 const loadingDeposits = ref(false)
 const confirmingDepositId = ref<number | null>(null)
+const depositActionsDialogVisible = ref(false)
+const depositActionsTarget = ref<Deposit | null>(null)
 const activeTab = ref('transactions_courant')
 const unreconciledOnly = ref(false)
 
@@ -1736,6 +1745,13 @@ async function confirmDeposit(deposit: Deposit): Promise<void> {
   } finally {
     confirmingDepositId.value = null
   }
+}
+// confirmDeposit is kept for possible reuse but the primary UX is via openDepositActions
+void confirmDeposit
+
+function openDepositActions(deposit: Deposit): void {
+  depositActionsTarget.value = deposit
+  depositActionsDialogVisible.value = true
 }
 
 async function loadDeposits(): Promise<void> {

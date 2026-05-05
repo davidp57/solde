@@ -8,7 +8,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Protocol
 
-from sqlalchemy import func, insert, select
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_entry import AccountingEntry
@@ -30,6 +30,7 @@ from backend.schemas.bank import (
     BankTransactionCreate,
     BankTransactionUpdate,
     DepositCreate,
+    DepositUpdate,
 )
 from backend.services import payment as payment_service
 from backend.services.bank_import import detect_transaction_category
@@ -795,6 +796,126 @@ async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
     await db.commit()
     await db.refresh(deposit)
     return deposit
+
+
+async def update_deposit(db: AsyncSession, deposit_id: int, payload: DepositUpdate) -> Deposit:
+    """Update an unconfirmed deposit slip (modify payment selection or amount).
+
+    Cheques deposit: ``payment_ids`` replaces the current selection.  The set
+    must remain non-empty and all entries must be cheque payments that are not
+    already assigned to another slip.
+    Especes deposit: ``total_amount`` and/or ``denomination_details`` can be
+    updated independently.
+    """
+    deposit = await get_deposit(db, deposit_id)
+    if deposit is None:
+        raise LookupError("Deposit not found")
+    if deposit.confirmed:
+        raise ValueError("Cannot update a confirmed deposit")
+
+    if deposit.type == DepositType.CHEQUES:
+        if payload.payment_ids is not None:
+            new_ids = payload.payment_ids
+            if not new_ids:
+                raise ValueError("A cheques deposit must include at least one payment")
+
+            current_pids = await get_deposit_payment_ids(db, deposit_id)
+            current_set = set(current_pids)
+            new_set = set(new_ids)
+
+            # Validate new payments
+            if new_set:
+                result = await db.execute(select(Payment).where(Payment.id.in_(new_set)))
+                new_payments = list(result.scalars().all())
+                if len(new_payments) != len(new_set):
+                    raise ValueError("one or more payment_ids not found")
+                invalid = next((p for p in new_payments if p.method != PaymentMethod.CHEQUE), None)
+                if invalid:
+                    raise ValueError("all payments in a cheques deposit must be cheque payments")
+                # Check that payments not already in THIS deposit aren't busy elsewhere
+                busy = [
+                    p
+                    for p in new_payments
+                    if p.id not in current_set and (p.deposited or p.in_deposit)
+                ]
+                if busy:
+                    raise ValueError(
+                        f"payments {[p.id for p in busy]} are already assigned to another deposit"
+                    )
+
+            # Remove payments no longer selected
+            to_remove = current_set - new_set
+            if to_remove:
+                await db.execute(
+                    delete(deposit_payments).where(
+                        deposit_payments.c.deposit_id == deposit_id,
+                        deposit_payments.c.payment_id.in_(to_remove),
+                    )
+                )
+                rm_result = await db.execute(select(Payment).where(Payment.id.in_(to_remove)))
+                for p in rm_result.scalars().all():
+                    p.in_deposit = False
+                    p.deposit_date = None
+                await db.flush()
+
+            # Add newly selected payments
+            to_add = new_set - current_set
+            if to_add:
+                add_result = await db.execute(select(Payment).where(Payment.id.in_(to_add)))
+                for p in add_result.scalars().all():
+                    p.in_deposit = True
+                    p.deposit_date = deposit.date
+                await db.execute(
+                    insert(deposit_payments),
+                    [{"deposit_id": deposit_id, "payment_id": pid} for pid in to_add],
+                )
+                await db.flush()
+
+            # Recompute total_amount from the final set
+            all_pids = new_set
+            if all_pids:
+                total_result = await db.execute(select(Payment).where(Payment.id.in_(all_pids)))
+                deposit.total_amount = sum(
+                    (p.amount for p in total_result.scalars().all()), Decimal("0")
+                )
+
+    else:
+        # DepositType.ESPECES
+        if payload.total_amount is not None:
+            if payload.total_amount <= Decimal("0"):
+                raise ValueError("total_amount must be a positive amount")
+            deposit.total_amount = payload.total_amount
+        if payload.denomination_details is not None:
+            deposit.denomination_details = payload.denomination_details
+
+    await db.commit()
+    await db.refresh(deposit)
+    return deposit
+
+
+async def delete_deposit(db: AsyncSession, deposit_id: int) -> None:
+    """Cancel and delete an unconfirmed deposit slip.
+
+    For cheques deposits, all linked payments are freed (``in_deposit`` reset
+    to ``False``) so they can be included in a new slip.
+    """
+    deposit = await get_deposit(db, deposit_id)
+    if deposit is None:
+        raise LookupError("Deposit not found")
+    if deposit.confirmed:
+        raise ValueError("Cannot cancel a confirmed deposit")
+
+    if deposit.type == DepositType.CHEQUES:
+        pids = await get_deposit_payment_ids(db, deposit_id)
+        if pids:
+            result = await db.execute(select(Payment).where(Payment.id.in_(pids)))
+            for p in result.scalars().all():
+                p.in_deposit = False
+                p.deposit_date = None
+            await db.flush()
+
+    await db.delete(deposit)
+    await db.commit()
 
 
 async def get_transaction_payment_ids(db: AsyncSession, tx_id: int) -> list[int]:
