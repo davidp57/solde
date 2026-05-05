@@ -30,6 +30,7 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
+| BIZ-170 | Gestion des bordereaux en attente : édition et actions | P2 | ~60 min | 2026-05-05 | 2026-05-05 | |
 
 ---
 
@@ -48,6 +49,19 @@ Décisions métier nécessaires avant implémentation.
 ### BIZ-169 — Édition/suppression des opérations manuelles
 
 Permettre de modifier ou supprimer les opérations bancaires créées manuellement depuis BankView (opérations sans import source).
+
+### BIZ-170 — Gestion des bordereaux en attente : édition et actions
+
+Remplacer le simple bouton « Confirmer le dépôt » sur chaque bordereau en attente par un bouton « Actions » qui ouvre un dialogue modal permettant :
+- de **modifier le bordereau** : retirer un ou plusieurs chèques ou billets de la liste incluse ;
+- quatre choix de sortie :
+  - **Annuler les changements** — ferme le dialogue sans rien sauvegarder ;
+  - **Valider les changements** — enregistre les modifications sans confirmer le dépôt (bordereau reste en attente) ;
+  - **Annuler le dépôt** — supprime le bordereau (les paiements retournent à l'état « non remis ») ;
+  - **Confirmer le dépôt** — enregistre les modifications éventuelles et passe le bordereau en confirmé.
+
+**Backend :** ajouter un endpoint `PATCH /api/bank/deposits/{id}` pour mettre à jour `payment_ids` / `denomination_details` / `total_amount` d'un dépôt non confirmé ; ajouter un endpoint `DELETE /api/bank/deposits/{id}` pour annuler un bordereau non confirmé.
+**Frontend :** nouveau composant `BankDepositActionsDialog.vue` ; mise à jour de `BankView.vue` et des i18n.
 
 ---
 
