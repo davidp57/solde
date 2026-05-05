@@ -96,12 +96,12 @@
               <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
               <span class="app-mobile-card-value" style="font-weight: 600">{{ formatAmount(data.total_amount) }} €</span>
             </div>
-            <div v-if="data.reference" class="app-mobile-card-row">
-              <span class="app-mobile-card-label">{{ t('invoices.reference') }} :</span>
-              <span class="app-mobile-card-value">{{ data.reference }}</span>
-            </div>
-            <div class="app-mobile-card-row">
-              <i v-if="data.file_path" class="pi pi-paperclip" style="font-size: 0.9rem; color: var(--p-primary-color)" />
+            <div v-if="data.reference || data.file_path" class="app-mobile-card-row">
+              <template v-if="data.reference">
+                <span class="app-mobile-card-label">{{ t('invoices.reference') }} :</span>
+                <span class="app-mobile-card-value">{{ data.reference }}</span>
+              </template>
+              <i v-if="data.file_path" class="pi pi-paperclip supplier-card__attachment" />
             </div>
             <div class="app-mobile-card-actions">
               <Button
@@ -457,15 +457,11 @@
         <section class="app-dialog-intro history-dialog__intro">
           <div>
             <p class="app-dialog-intro__eyebrow">{{ contactName(previewInvoice.contact_id) }}</p>
-            <p class="app-dialog-intro__text">
-              {{ t('invoices.date') }} : {{ formatDisplayDate(previewInvoice.date) }}
-              <template v-if="previewInvoice.due_date">
-                &nbsp;·&nbsp; {{ t('invoices.due_date') }} : {{ formatDisplayDate(previewInvoice.due_date) }}
-              </template>
-              <template v-if="previewInvoice.reference">
-                &nbsp;·&nbsp; {{ t('invoices.reference') }} : {{ previewInvoice.reference }}
-              </template>
-            </p>
+            <div class="supplier-preview-meta">
+              <span>{{ t('invoices.date') }} : {{ formatDisplayDate(previewInvoice.date) }}</span>
+              <span v-if="previewInvoice.due_date">{{ t('invoices.due_date') }} : {{ formatDisplayDate(previewInvoice.due_date) }}</span>
+              <span v-if="previewInvoice.reference">{{ t('invoices.reference') }} : {{ previewInvoice.reference }}</span>
+            </div>
           </div>
           <div class="app-inline-actions">
             <Tag
@@ -477,7 +473,8 @@
               size="small"
               severity="secondary"
               outlined
-              :label="t('invoices.supplier.download_file')"
+              :label="isMobile ? undefined : t('invoices.supplier.download_file')"
+              :title="t('invoices.supplier.download_file')"
               :loading="previewDownloading"
               :disabled="!previewInvoice.file_path"
               @click="downloadFile(previewInvoice)"
@@ -487,14 +484,16 @@
               size="small"
               severity="secondary"
               outlined
-              :label="t('invoices.upload_file')"
+              :label="isMobile ? undefined : t('invoices.upload_file')"
+              :title="t('invoices.upload_file')"
               @click="openUploadFromPreview"
             />
             <Button
               v-if="canRecordPayment(previewInvoice)"
               icon="pi pi-wallet"
               size="small"
-              :label="t('invoices.record_payment')"
+              :label="isMobile ? undefined : t('invoices.record_payment')"
+              :title="t('invoices.record_payment')"
               @click="openPaymentDialog(previewInvoice!)"
             />
           </div>
@@ -1399,6 +1398,20 @@ onMounted(async () => {
   gap: var(--app-space-3);
 }
 
+.supplier-preview-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.9rem;
+  color: var(--p-text-muted-color);
+}
+
+.supplier-card__attachment {
+  font-size: 0.9rem;
+  color: var(--p-primary-color);
+  margin-left: auto;
+}
+
 .history-dialog__summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1438,6 +1451,22 @@ onMounted(async () => {
 @media (max-width: 900px) {
   .supplier-preview-dialog__body {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .history-dialog__intro {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .history-dialog__label {
+    font-size: 0.7rem;
+    letter-spacing: 0.03em;
+  }
+
+  .history-dialog__value {
+    font-size: 0.9rem;
   }
 }
 </style>
