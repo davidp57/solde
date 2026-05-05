@@ -26,6 +26,7 @@ from backend.schemas.bank import (
     BankTransactionUpdate,
     DepositCreate,
     DepositRead,
+    DepositUpdate,
 )
 from backend.services import bank_service
 from backend.services import settings as settings_service
@@ -742,4 +743,70 @@ async def get_deposit(
         confirmed=deposit.confirmed,
         confirmed_date=deposit.confirmed_date,
         payment_ids=pids,
+    )
+
+
+@router.patch("/deposits/{deposit_id}", response_model=DepositRead)
+async def update_deposit(
+    deposit_id: int,
+    payload: DepositUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> DepositRead:
+    try:
+        deposit = await bank_service.update_deposit(db, deposit_id, payload)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
+    pids = await bank_service.get_deposit_payment_ids(db, deposit.id)
+    await record_audit(
+        db,
+        action=AuditAction.BANK_DEPOSIT_UPDATED,
+        actor=current_user,
+        target_id=deposit.id,
+        target_type="bank_deposit",
+        detail={
+            "action": "updated",
+            "total_amount": str(deposit.total_amount),
+            "payment_count": len(pids),
+        },
+    )
+    return DepositRead(
+        id=deposit.id,
+        date=deposit.date,
+        type=deposit.type,
+        total_amount=deposit.total_amount,
+        bank_reference=deposit.bank_reference,
+        notes=deposit.notes,
+        denomination_details=deposit.denomination_details,
+        confirmed=deposit.confirmed,
+        confirmed_date=deposit.confirmed_date,
+        payment_ids=pids,
+    )
+
+
+@router.delete("/deposits/{deposit_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_deposit(
+    deposit_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> None:
+    try:
+        await bank_service.delete_deposit(db, deposit_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+        ) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_DEPOSIT_CANCELLED,
+        actor=current_user,
+        target_id=deposit_id,
+        target_type="bank_deposit",
+        detail={"action": "cancelled"},
     )

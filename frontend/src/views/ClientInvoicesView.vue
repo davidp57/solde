@@ -151,9 +151,6 @@
               <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
               <span class="app-mobile-card-value" style="font-weight: 600">{{ formatAmount(data.total_amount) }} €</span>
             </div>
-            <div v-if="data.label" class="app-mobile-card-row">
-              <Tag :value="t(`invoices.labels.${data.label}`)" severity="info" size="small" />
-            </div>
             <div class="app-mobile-card-actions">
               <Button
                 icon="pi pi-eye"

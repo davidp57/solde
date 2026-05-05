@@ -30,10 +30,16 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
+| BIZ-171 | Améliorations tuiles et détail factures — mobile | P2 | ~35 min | 2026-05-05 | 2026-05-05 | 2026-05-05 |
+| BIZ-172 | Section admin : paiements chèques incohérents | P2 | ~45 min | 2026-05-05 | 2026-05-05 | 2026-05-05 |
 
 ---
 
 ## Détails
+
+### BIZ-172 — Section admin : paiements chèques incohérents
+
+Panneau dans la vue Supervision système (admin uniquement) listant les paiements par chèque dont `deposited=True` mais `deposit_date=NULL` (état incohérent produit par l'import Excel). Chaque ligne propose une action « Corriger » avec un sélecteur de date pour poser la `deposit_date` manquante. Ces paiements sont actuellement comptabilisés à tort dans "Chèques non remis" sur le dashboard.
 
 ### BIZ-166 — Vue contacts : onglet clients par défaut + tri par récence
 
@@ -49,12 +55,24 @@ Décisions métier nécessaires avant implémentation.
 
 Permettre de modifier ou supprimer les opérations bancaires créées manuellement depuis BankView (opérations sans import source).
 
+### BIZ-171 — Améliorations tuiles et détail factures — mobile
+
+Améliorations de l'expérience mobile sur les vues factures client et fournisseur :
+- Tuile facture client : supprimer l'étiquette (label catégorie) qui n'apporte rien en vue liste et augmente la hauteur de la tuile inutilement.
+- Tuile facture fournisseur : fusionner la ligne « Référence fournisseur » et l'icône trombone en une seule ligne ; supprimer la div dédiée au seul trombone.
+- Détail facture fournisseur (dialog prévisualisation) : présenter date / échéance / référence sur lignes séparées au lieu d'une phrase en ligne ; rendre les boutons icon-only sur mobile ; empiler la section header en colonne sur mobile ; réduire la taille des labels de la grille TOTAL / RÉGLÉ / RESTANT DÛ pour éviter le débordement sur 2 lignes.
+
+
+
 ---
 
 ## Lots terminés récents (≤ 3 jours)
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
+| BIZ-172 | Paiements chèques incohérents | v1.6 | BIZ-172 | 2026-05-05 | ~45 min | — |
+| BIZ-171 | Améliorations factures mobile | v1.6 | BIZ-171 | 2026-05-05 | ~35 min | — |
+| BIZ-170 | Gestion bordereaux en attente | v1.6 | BIZ-170 | 2026-05-05 | ~60 min | ~45 min |
 | BIZ-034 | Support multi-compte banque + bugfixes comptables | v1.5 | BIZ-034, fix virement, fix journal filtré, fix fiscal_year_id manuel | 2026-05-04 | — | — |
 | CR2 | Correctifs & finitions post-MOB | v1.5 | TEC-157, TEC-158, TEC-159, BIZ-165, BIZ-166, BIZ-167, BIZ-168, CHR-078 | 2026-05-04 | ~95 min | ~30 min |
 | Wizard | Wizard factures & Contacts | v1.2 | BIZ-144, BIZ-145, BIZ-147, BIZ-151 | 2026-05-02 | — | — |

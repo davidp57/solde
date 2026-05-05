@@ -1243,3 +1243,170 @@ async def test_reconcile_transactions_bulk_skips_already_reconciled(
     )
     assert bulk_resp.status_code == 200
     assert bulk_resp.json() == 1
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/bank/deposits/{id} — update deposit
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_update_deposit_removes_payment(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    """Removing one payment from a cheques deposit via PATCH frees it."""
+    p1_id = await _make_payment(db_session)
+
+    # Create a second cheque payment
+    p1_obj = await db_session.get(Payment, p1_id)
+    assert p1_obj is not None
+    p2 = Payment(
+        invoice_id=p1_obj.invoice_id,
+        contact_id=p1_obj.contact_id,
+        amount=Decimal("60.00"),
+        date=date(2024, 3, 2),
+        method=PaymentMethod.CHEQUE,
+        deposited=False,
+    )
+    db_session.add(p2)
+    await db_session.commit()
+    await db_session.refresh(p2)
+
+    create_resp = await client.post(
+        "/api/bank/deposits",
+        json={"date": "2024-03-10", "type": "cheques", "payment_ids": [p1_id, p2.id]},
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    deposit_id = create_resp.json()["id"]
+
+    patch_resp = await client.patch(
+        f"/api/bank/deposits/{deposit_id}",
+        json={"payment_ids": [p1_id]},
+        headers=auth_headers,
+    )
+    assert patch_resp.status_code == 200
+    data = patch_resp.json()
+    assert data["payment_ids"] == [p1_id]
+    assert float(data["total_amount"]) == pytest.approx(100.00)
+
+    await db_session.refresh(p2)
+    assert p2.in_deposit is False
+    assert p2.deposit_date is None
+
+
+@pytest.mark.asyncio
+async def test_update_deposit_not_found(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    resp = await client.patch(
+        "/api/bank/deposits/99999",
+        json={"payment_ids": [1]},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_deposit_confirmed_is_rejected(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    p_id = await _make_payment(db_session)
+    create_resp = await client.post(
+        "/api/bank/deposits",
+        json={"date": "2024-03-10", "type": "cheques", "payment_ids": [p_id]},
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    deposit_id = create_resp.json()["id"]
+
+    # Confirm the deposit first
+    await client.post(
+        f"/api/bank/deposits/{deposit_id}/confirm",
+        headers=auth_headers,
+    )
+
+    patch_resp = await client.patch(
+        f"/api/bank/deposits/{deposit_id}",
+        json={"payment_ids": [p_id]},
+        headers=auth_headers,
+    )
+    assert patch_resp.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/bank/deposits/{id} — cancel deposit
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_delete_deposit_frees_payments(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    p_id = await _make_payment(db_session)
+    create_resp = await client.post(
+        "/api/bank/deposits",
+        json={"date": "2024-03-10", "type": "cheques", "payment_ids": [p_id]},
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    deposit_id = create_resp.json()["id"]
+
+    del_resp = await client.delete(
+        f"/api/bank/deposits/{deposit_id}",
+        headers=auth_headers,
+    )
+    assert del_resp.status_code == 204
+
+    get_resp = await client.get(f"/api/bank/deposits/{deposit_id}", headers=auth_headers)
+    assert get_resp.status_code == 404
+
+    p_obj = await db_session.get(Payment, p_id)
+    assert p_obj is not None
+    assert p_obj.in_deposit is False
+    assert p_obj.deposit_date is None
+
+
+@pytest.mark.asyncio
+async def test_delete_deposit_not_found(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    resp = await client.delete("/api/bank/deposits/99999", headers=auth_headers)
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_confirmed_deposit_is_rejected(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+) -> None:
+    p_id = await _make_payment(db_session)
+    create_resp = await client.post(
+        "/api/bank/deposits",
+        json={"date": "2024-03-10", "type": "cheques", "payment_ids": [p_id]},
+        headers=auth_headers,
+    )
+    assert create_resp.status_code == 201
+    deposit_id = create_resp.json()["id"]
+
+    await client.post(
+        f"/api/bank/deposits/{deposit_id}/confirm",
+        headers=auth_headers,
+    )
+
+    del_resp = await client.delete(
+        f"/api/bank/deposits/{deposit_id}",
+        headers=auth_headers,
+    )
+    assert del_resp.status_code == 422

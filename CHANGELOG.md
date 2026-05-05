@@ -9,6 +9,28 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
+## [Non publié]
+
+---
+
+## [1.6.0] — 2026-05-05
+
+### Ajouté
+- **BIZ-170** — Gestion des bordereaux en attente : bouton « Actions » remplace « Confirmer le dépôt » ; dialogue modal permettant de modifier la sélection (retirer des chèques ou billets), puis de choisir entre : annuler les changements, valider les changements, annuler le dépôt ou confirmer le dépôt
+- **BIZ-170** — Backend : endpoint `PATCH /api/bank/deposits/{id}` (mise à jour d'un bordereau non confirmé) et `DELETE /api/bank/deposits/{id}` (annulation avec libération des paiements)
+- **BIZ-170** — Panneau « Dépôts en attente » factorisé en composant partagé `BankPendingDepositsPanel` (BankView + Dashboard)
+- **BIZ-171** — Tuiles factures client : suppression de la ligne étiquette (catégorie) pour alléger les cartes mobiles
+- **BIZ-171** — Tuiles factures fournisseur : référence et trombone fusionnés sur une seule ligne conditionnelle
+- **BIZ-171** — Dialog prévisualisation facture fournisseur : date, échéance et référence sur lignes séparées ; boutons icône uniquement sur mobile ; intro empilée en colonne ; libellés TOTAL/RÉGLÉ/RESTANT DÛ réduits pour éviter le débordement
+- **BIZ-172** — Vue Supervision (admin) : panneau « Paiements chèques incohérents » listant les chèques marqués comme remis mais sans date de remise, avec sélecteur de date et bouton « Corriger » par ligne
+- **BIZ-172** — Backend : filtre `inconsistent_only` sur `GET /api/payments/` et endpoint dédié `POST /api/payments/{id}/fix-deposit-date` pour corriger les données importées sans altérer les validateurs d'immutabilité
+
+### Corrigé
+- **BIZ-170** — Dépôts espèces : suppression du champ « total » éditable dans les dialogues de création et d'édition ; le total est désormais toujours calculé depuis les coupures saisies
+- **BIZ-170** — Confirmations demandées avant « Annuler le dépôt » (danger) et « Confirmer le dépôt » (succès)
+
+---
+
 ## [1.5.1] — 2026-05-04
 
 ### Ajouté

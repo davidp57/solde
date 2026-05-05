@@ -9,6 +9,7 @@ export interface Payment {
   invoice_number?: string | null
   invoice_type?: PaymentInvoiceType | null
   contact_id: number
+  contact_name?: string | null
   amount: string
   date: string
   method: PaymentMethod
@@ -39,6 +40,8 @@ export interface PaymentUpdate {
   cheque_number?: string | null
   reference?: string | null
   notes?: string | null
+  deposited?: boolean
+  deposit_date?: string | null
 }
 
 export interface PaymentListParams {
@@ -48,6 +51,7 @@ export interface PaymentListParams {
   from_date?: string
   to_date?: string
   undeposited_only?: boolean
+  inconsistent_only?: boolean
   skip?: number
   limit?: number
 }
@@ -79,5 +83,14 @@ export async function deletePayment(id: number): Promise<void> {
 export async function suggestChequeNumber(paymentDate?: string): Promise<string> {
   const params = paymentDate ? { payment_date: paymentDate } : {}
   const response = await apiClient.get<string>('/api/payments/suggest_cheque_number', { params })
+  return response.data
+}
+
+export async function fixDepositDate(id: number, depositDate: string): Promise<Payment> {
+  const response = await apiClient.post<Payment>(
+    `/api/payments/${id}/fix-deposit-date`,
+    null,
+    { params: { deposit_date: depositDate } },
+  )
   return response.data
 }

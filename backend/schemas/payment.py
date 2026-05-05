@@ -55,6 +55,7 @@ class PaymentRead(PaymentBase):
     id: int
     invoice_number: str | None = None
     invoice_type: InvoiceType | None = None
+    contact_name: str | None = None
     deposited: bool
     in_deposit: bool
     deposit_date: datetime.date | None
