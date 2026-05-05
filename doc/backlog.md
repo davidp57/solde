@@ -30,6 +30,7 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
+| BIZ-171 | Améliorations tuiles et détail factures — mobile | P2 | ~35 min | 2026-05-05 | 2026-05-05 | |
 
 ---
 
@@ -48,6 +49,13 @@ Décisions métier nécessaires avant implémentation.
 ### BIZ-169 — Édition/suppression des opérations manuelles
 
 Permettre de modifier ou supprimer les opérations bancaires créées manuellement depuis BankView (opérations sans import source).
+
+### BIZ-171 — Améliorations tuiles et détail factures — mobile
+
+Améliorations de l'expérience mobile sur les vues factures client et fournisseur :
+- Tuile facture client : supprimer l'étiquette (label catégorie) qui n'apporte rien en vue liste et augmente la hauteur de la tuile inutilement.
+- Tuile facture fournisseur : fusionner la ligne « Référence fournisseur » et l'icône trombone en une seule ligne ; supprimer la div dédiée au seul trombone.
+- Détail facture fournisseur (dialog prévisualisation) : présenter date / échéance / référence sur lignes séparées au lieu d'une phrase en ligne ; rendre les boutons icon-only sur mobile ; empiler la section header en colonne sur mobile ; réduire la taille des labels de la grille TOTAL / RÉGLÉ / RESTANT DÛ pour éviter le débordement sur 2 lignes.
 
 
 
