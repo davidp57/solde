@@ -91,53 +91,7 @@
       />
     </AppPanel>
 
-    <AppPanel
-      v-if="pendingDeposits.length > 0"
-      :title="t('bank.pending_deposits_title')"
-      :subtitle="t('bank.pending_deposits_subtitle')"
-    >
-      <div class="bank-pending-deposits">
-        <div
-          v-for="deposit in pendingDeposits"
-          :key="deposit.id"
-          class="bank-pending-deposit-row"
-        >
-          <div class="bank-pending-deposit-row__left">
-            <div class="bank-pending-deposit-row__top">
-              <Tag
-                :value="t(`bank.deposit_types.${deposit.type}`)"
-                :severity="deposit.type === 'cheques' ? 'info' : 'warn'"
-              />
-              <span class="bank-pending-deposit-row__date">{{ formatDisplayDate(deposit.date) }}</span>
-            </div>
-            <Button
-              :label="t('bank.deposit_confirm')"
-              icon="pi pi-check"
-              severity="success"
-              size="small"
-              class="bank-pending-deposit-row__btn"
-              :loading="confirmingDepositId === deposit.id"
-              @click="confirmDeposit(deposit)"
-            />
-          </div>
-          <div v-if="deposit.type !== 'cheques' && formatEspecesList(deposit.denomination_details).length" class="bank-pending-deposit-row__denom">
-            <span
-              v-for="line in formatEspecesList(deposit.denomination_details)"
-              :key="line"
-              class="bank-pending-deposit-row__denom-line"
-            >{{ line }}</span>
-            <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(deposit.total_amount) }}</span>
-          </div>
-          <div v-else-if="deposit.type !== 'cheques'" class="bank-pending-deposit-row__denom">
-            <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(deposit.total_amount) }}</span>
-          </div>
-          <div v-else-if="deposit.type === 'cheques'" class="bank-pending-deposit-row__denom">
-            <span class="bank-pending-deposit-row__denom-line">{{ t('bank.deposit_cheques_summary', { count: deposit.payment_ids.length }) }}</span>
-            <span class="bank-pending-deposit-row__amount app-money">{{ formatAmount(deposit.total_amount) }}</span>
-          </div>
-        </div>
-      </div>
-    </AppPanel>
+    <BankPendingDepositsPanel :deposits="pendingDeposits" @refresh="loadAll" />
 
     <AppPanel :title="t('bank.title')" dense>
       <div class="app-toolbar">
@@ -1181,6 +1135,7 @@
       @saved="loadAll"
     />
 
+
     <!-- Category edit popover -->
     <Popover ref="categoryEditPopover">
       <div class="bank-category-popover">
@@ -1262,6 +1217,7 @@ import BankLinkClientPaymentDialog from '../components/bank/BankLinkClientPaymen
 import BankSupplierPaymentDialog from '../components/bank/BankSupplierPaymentDialog.vue'
 import BankLinkSupplierPaymentDialog from '../components/bank/BankLinkSupplierPaymentDialog.vue'
 import BankNewDepositDialog from '../components/bank/BankNewDepositDialog.vue'
+import BankPendingDepositsPanel from '../components/bank/BankPendingDepositsPanel.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import {
   getBankBalance,
@@ -1271,7 +1227,6 @@ import {
   updateTransaction,
   deleteTransaction,
   reconcileTransactionsBulk,
-  confirmDeposit as confirmDepositApi,
   type BankTransaction,
   type BankTransactionCategory,
   type BankAccountType,
@@ -1306,7 +1261,6 @@ const pendingDeposits = ref<Deposit[]>([])
 const undepositedPayments = ref<Payment[]>([])
 const loadingTx = ref(false)
 const loadingDeposits = ref(false)
-const confirmingDepositId = ref<number | null>(null)
 const activeTab = ref('transactions_courant')
 const unreconciledOnly = ref(false)
 
@@ -1533,18 +1487,6 @@ function formatAmount(value: string | number): string {
   return `${parseFloat(String(value)).toFixed(2)} €`
 }
 
-function formatEspecesList(denominationDetails: string | null): string[] {
-  if (!denominationDetails) return []
-  try {
-    const lines: { value: number; count: number }[] = JSON.parse(denominationDetails)
-    return lines
-      .filter((l) => l.count > 0)
-      .map((l) => `${l.count}\u00d7${l.value % 1 === 0 ? l.value : l.value.toFixed(2)}\u00a0\u20ac`)
-  } catch {
-    return []
-  }
-}
-
 function formatSignedAmount(value: number): string {
   return value > 0 ? `+${formatAmount(value)}` : formatAmount(value)
 }
@@ -1722,19 +1664,6 @@ async function loadTransactions(): Promise<void> {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
     loadingTx.value = false
-  }
-}
-
-async function confirmDeposit(deposit: Deposit): Promise<void> {
-  confirmingDepositId.value = deposit.id
-  try {
-    await confirmDepositApi(deposit.id)
-    toast.add({ severity: 'success', summary: t('bank.deposit_confirmed_success'), life: 3000 })
-    await loadDeposits()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
-  } finally {
-    confirmingDepositId.value = null
   }
 }
 
@@ -1938,108 +1867,4 @@ onMounted(async () => {
   padding-bottom: 0;
 }
 
-.bank-pending-deposits {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-3);
-}
-
-.bank-pending-deposit-row {
-  display: flex;
-  align-items: stretch;
-  gap: var(--app-space-4);
-  padding: var(--app-space-3) var(--app-space-4);
-  background: var(--app-surface-muted);
-  border: 1px solid var(--app-surface-border);
-  border-radius: var(--app-radius);
-}
-
-.bank-pending-deposit-row__left {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--app-space-3);
-  flex: 1;
-  min-width: 0;
-}
-
-.bank-pending-deposit-row__top {
-  display: contents;
-}
-
-.bank-pending-deposit-row__btn {
-  margin-left: auto;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.bank-pending-deposit-row__date {
-  font-variant-numeric: tabular-nums;
-  font-size: 0.85rem;
-  color: var(--p-text-muted-color);
-}
-
-.bank-pending-deposit-row__amount {
-  font-weight: 700;
-  font-size: 0.82rem;
-  text-align: left;
-  color: var(--p-green-500);
-  white-space: nowrap;
-}
-
-.bank-pending-deposit-row__denom {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: var(--app-space-2);
-  border-left: 2px solid var(--app-surface-border);
-  padding-left: var(--app-space-3);
-  flex: 0 0 22rem;
-}
-
-.bank-pending-deposit-row__denom-line {
-  font-size: 0.82rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--p-text-muted-color);
-  white-space: nowrap;
-}
-
-@media (max-width: 767px) {
-  .bank-pending-deposit-row__left {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--app-space-2);
-  }
-
-  .bank-pending-deposit-row__top {
-    display: flex;
-    align-items: center;
-    gap: var(--app-space-2);
-    flex-wrap: wrap;
-  }
-
-  .bank-pending-deposit-row__btn {
-    margin-left: 0;
-  }
-
-  .bank-pending-deposit-row__btn :deep(.p-button) {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .bank-pending-deposit-row__denom {
-    flex-direction: column;
-    align-items: flex-start;
-    flex-wrap: nowrap;
-    gap: 0.15rem;
-    flex: 0 0 auto;
-    min-width: 6.5rem;
-  }
-
-  .bank-pending-deposit-row__amount {
-    padding-top: 0.25rem;
-  }
-}
 </style>

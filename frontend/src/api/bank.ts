@@ -308,6 +308,21 @@ export async function confirmDeposit(id: number): Promise<Deposit> {
   return response.data
 }
 
+export interface DepositUpdate {
+  payment_ids?: number[]
+  total_amount?: string | null
+  denomination_details?: string | null
+}
+
+export async function updateDeposit(id: number, payload: DepositUpdate): Promise<Deposit> {
+  const response = await apiClient.patch<Deposit>(`/api/bank/deposits/${id}`, payload)
+  return response.data
+}
+
+export async function deleteDeposit(id: number): Promise<void> {
+  await apiClient.delete(`/api/bank/deposits/${id}`)
+}
+
 export async function createDeposit(payload: DepositCreate): Promise<Deposit> {
   const response = await apiClient.post<Deposit>('/api/bank/deposits', payload)
   return response.data

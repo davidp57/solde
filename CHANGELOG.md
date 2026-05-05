@@ -9,6 +9,14 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ---
 
+## [Non publié]
+
+### Ajouté
+- **BIZ-170** — Gestion des bordereaux en attente : bouton « Actions » remplace « Confirmer le dépôt » ; dialogue modal permettant de modifier la sélection (retirer des chèques ou billets), puis de choisir entre : annuler les changements, valider les changements, annuler le dépôt ou confirmer le dépôt
+- **BIZ-170** — Backend : endpoint `PATCH /api/bank/deposits/{id}` (mise à jour d'un bordereau non confirmé) et `DELETE /api/bank/deposits/{id}` (annulation avec libération des paiements)
+
+---
+
 ## [1.5.1] — 2026-05-04
 
 ### Ajouté

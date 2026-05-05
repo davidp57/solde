@@ -35,22 +35,8 @@
         </div>
       </section>
 
-      <!-- ESPECES: montant + détail billets -->
+      <!-- ESPECES: détail coupures -->
       <template v-if="form.type === 'especes'">
-        <section class="app-dialog-section">
-          <div class="app-form-grid">
-            <div class="app-field app-field--full">
-              <label class="app-field__label">{{ t('bank.deposit_amount') }}</label>
-              <InputNumber
-                v-model="form.total_amount"
-                :min="0.01"
-                :min-fraction-digits="2"
-                :max-fraction-digits="2"
-                locale="fr-FR"
-              />
-            </div>
-          </div>
-        </section>
         <section class="app-dialog-section">
           <div class="app-dialog-section__header">
             <h3 class="app-dialog-section__title">
@@ -199,7 +185,6 @@ const form = ref({
   type: 'cheques' as 'cheques' | 'especes',
   bank_reference: '',
   payment_ids: [] as number[],
-  total_amount: null as number | null,
   denominations: [] as DenominationLine[],
 })
 
@@ -235,7 +220,7 @@ const denominationTotal = computed(() =>
 
 const canSubmit = computed(() => {
   if (form.value.type === 'especes') {
-    return (form.value.total_amount ?? 0) > 0
+    return denominationTotal.value > 0
   }
   return form.value.payment_ids.length > 0
 })
@@ -264,7 +249,6 @@ watch(
   () => {
     if (_isPrefilling) return
     form.value.payment_ids = []
-    form.value.total_amount = null
     form.value.denominations = []
   },
 )
@@ -280,7 +264,6 @@ watch(
       type: 'especes',
       bank_reference: '',
       payment_ids: [],
-      total_amount: p.total_amount,
       denominations: [...p.denominations],
     }
     await nextTick()
@@ -301,7 +284,7 @@ async function submit(): Promise<void> {
       await createDeposit({
         date: toIsoDate(form.value.date),
         type: 'especes',
-        total_amount: String(form.value.total_amount ?? 0),
+        total_amount: String(denominationTotal.value.toFixed(2)),
         denomination_details: denomDetails,
         bank_reference: form.value.bank_reference || null,
       })

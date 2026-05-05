@@ -144,6 +144,26 @@ class DepositCreate(BaseModel):
         return v
 
 
+class DepositUpdate(BaseModel):
+    """Partial update of an unconfirmed deposit slip.
+
+    Cheques deposit: supply ``payment_ids`` to replace the current selection
+    (must remain non-empty and all cheque payments).
+    Especes deposit: supply ``total_amount`` and/or ``denomination_details``.
+    """
+
+    payment_ids: list[int] | None = None
+    total_amount: _Decimal | None = None
+    denomination_details: str | None = None
+
+    @field_validator("payment_ids")
+    @classmethod
+    def payment_ids_no_duplicates(cls, v: list[int] | None) -> list[int] | None:
+        if v is not None and len(v) != len(set(v)):
+            raise ValueError("duplicate payment ids are not allowed")
+        return v
+
+
 class DepositRead(BaseModel):
     id: int
     date: _Date
