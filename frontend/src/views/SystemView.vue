@@ -279,6 +279,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
@@ -306,6 +307,7 @@ import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 
 const { t } = useI18n()
+const toast = useToast()
 
 // --- State ---
 const systemInfo = ref<SystemInfo | null>(null)
@@ -472,7 +474,7 @@ async function loadInconsistentPayments(): Promise<void> {
     const raw = await listPayments({ inconsistent_only: true })
     inconsistentPayments.value = raw.map((p) => ({
       ...p,
-      contact_label: p.invoice_number ?? String(p.contact_id),
+      contact_label: p.contact_name ?? p.invoice_number ?? String(p.contact_id),
       _fixDate: null,
       _fixing: false,
     }))
@@ -491,8 +493,10 @@ async function fixInconsistentPayment(row: InconsistentRow): Promise<void> {
   try {
     await fixDepositDate(row.id, toLocalDateString(row._fixDate))
     inconsistentPayments.value = inconsistentPayments.value.filter((r) => r.id !== row.id)
+    toast.add({ severity: 'success', summary: t('system.inconsistent_payments_fixed'), life: 3000 })
   } catch {
     row._fixing = false
+    toast.add({ severity: 'error', summary: t('system.inconsistent_payments_fix_error'), life: 5000 })
   }
 }
 

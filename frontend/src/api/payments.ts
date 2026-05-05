@@ -9,6 +9,7 @@ export interface Payment {
   invoice_number?: string | null
   invoice_type?: PaymentInvoiceType | null
   contact_id: number
+  contact_name?: string | null
   amount: string
   date: string
   method: PaymentMethod
