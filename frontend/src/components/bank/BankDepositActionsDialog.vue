@@ -51,22 +51,8 @@
         </Message>
       </template>
 
-      <!-- Especes: amount + denomination details -->
+      <!-- Espèces: denomination details -->
       <template v-else>
-        <section class="app-dialog-section">
-          <div class="app-form-grid">
-            <div class="app-field app-field--full">
-              <label class="app-field__label">{{ t('bank.deposit_amount') }}</label>
-              <InputNumber
-                v-model="espForm.total_amount"
-                :min="0.01"
-                :min-fraction-digits="2"
-                :max-fraction-digits="2"
-                locale="fr-FR"
-              />
-            </div>
-          </div>
-        </section>
         <section class="app-dialog-section">
           <div class="app-dialog-section__header">
             <h3 class="app-dialog-section__title">{{ t('bank.deposit_denomination_title') }}</h3>
@@ -112,6 +98,9 @@
             class="bank-denomination-add"
             @click="addDenomination"
           />
+          <p v-if="denominationTotal > 0" class="bank-denomination-total">
+            {{ t('bank.deposit_denomination_total', { amount: formatAmount(denominationTotal) }) }}
+          </p>
         </section>
       </template>
 
@@ -159,7 +148,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, watchEffect } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
@@ -200,7 +189,6 @@ const selectedIds = ref<number[]>([...props.deposit.payment_ids])
 
 // --- espèces state ---
 interface EspForm {
-  total_amount: number | null
   denominations: DenominationLine[]
 }
 
@@ -214,7 +202,6 @@ function parseDenominations(raw: string | null): DenominationLine[] {
 }
 
 const espForm = ref<EspForm>({
-  total_amount: props.deposit.total_amount ? parseFloat(props.deposit.total_amount) : null,
   denominations: parseDenominations(props.deposit.denomination_details),
 })
 
@@ -229,7 +216,6 @@ watch(
     // Reset form from current deposit
     selectedIds.value = [...props.deposit.payment_ids]
     espForm.value = {
-      total_amount: props.deposit.total_amount ? parseFloat(props.deposit.total_amount) : null,
       denominations: parseDenominations(props.deposit.denomination_details),
     }
     if (props.deposit.type !== 'cheques') return
@@ -266,18 +252,11 @@ const denominationTotal = computed(() =>
   espForm.value.denominations.reduce((sum, l) => sum + (l.value ?? 0) * (l.count ?? 0), 0),
 )
 
-// Keep total_amount in sync with denomination lines as the user edits them.
-watchEffect(() => {
-  if (denominationTotal.value > 0) {
-    espForm.value.total_amount = parseFloat(denominationTotal.value.toFixed(2))
-  }
-})
-
 const canSave = computed(() => {
   if (props.deposit.type === 'cheques') {
     return selectedIds.value.length > 0
   }
-  return (espForm.value.total_amount ?? 0) > 0
+  return denominationTotal.value > 0
 })
 
 function formatAmount(value: string | number): string {
@@ -299,17 +278,9 @@ function buildUpdatePayload() {
   const validLines = espForm.value.denominations.filter(
     (l) => (l.value ?? 0) > 0 && (l.count ?? 0) > 0,
   )
-  const denomDetails = validLines.length > 0 ? JSON.stringify(validLines) : null
-  // Prefer the denomination sum when lines are defined; fall back to the manually entered total.
-  const finalTotal =
-    denominationTotal.value > 0
-      ? String(denominationTotal.value.toFixed(2))
-      : espForm.value.total_amount != null
-        ? String(espForm.value.total_amount)
-        : null
   return {
-    total_amount: finalTotal,
-    denomination_details: denomDetails,
+    total_amount: String(denominationTotal.value.toFixed(2)),
+    denomination_details: validLines.length > 0 ? JSON.stringify(validLines) : null,
   }
 }
 
