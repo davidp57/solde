@@ -105,6 +105,14 @@ git pull --rebase
 ```
 This avoids non-fast-forward push rejections. If a push is rejected, always use `git pull --rebase` (not `git merge`) before retrying.
 
+## Recette (acceptance testing) phase
+
+During a recette phase, fixes are committed directly to `develop` without a feature branch. Apply the following rules:
+
+- Keep `doc/recette.md` up to date: every fix or micro-feature = one numbered ticket `REC-NNN` with title, type (`fix`/`feat`/`chore`), files changed, and commit hash.
+- Update `CHANGELOG.md` (`[Non publié]` section) for every user-visible correction.
+- Still run the full quality gate before every push.
+
 ---
 
 ## Documentation maintenance
