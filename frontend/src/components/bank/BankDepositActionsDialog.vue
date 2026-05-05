@@ -159,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, watchEffect } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
@@ -261,6 +261,18 @@ const selectedTotal = computed(() => {
     .reduce((sum, p) => sum + parseFloat(p.amount), 0)
 })
 
+/** Sum of valid denomination lines (value × count). Zero when no lines are set. */
+const denominationTotal = computed(() =>
+  espForm.value.denominations.reduce((sum, l) => sum + (l.value ?? 0) * (l.count ?? 0), 0),
+)
+
+// Keep total_amount in sync with denomination lines as the user edits them.
+watchEffect(() => {
+  if (denominationTotal.value > 0) {
+    espForm.value.total_amount = parseFloat(denominationTotal.value.toFixed(2))
+  }
+})
+
 const canSave = computed(() => {
   if (props.deposit.type === 'cheques') {
     return selectedIds.value.length > 0
@@ -284,14 +296,19 @@ function buildUpdatePayload() {
   if (props.deposit.type === 'cheques') {
     return { payment_ids: selectedIds.value }
   }
-  const denomDetails =
-    espForm.value.denominations.length > 0
-      ? JSON.stringify(
-          espForm.value.denominations.filter((l) => (l.value ?? 0) > 0 && (l.count ?? 0) > 0),
-        )
-      : null
+  const validLines = espForm.value.denominations.filter(
+    (l) => (l.value ?? 0) > 0 && (l.count ?? 0) > 0,
+  )
+  const denomDetails = validLines.length > 0 ? JSON.stringify(validLines) : null
+  // Prefer the denomination sum when lines are defined; fall back to the manually entered total.
+  const finalTotal =
+    denominationTotal.value > 0
+      ? String(denominationTotal.value.toFixed(2))
+      : espForm.value.total_amount != null
+        ? String(espForm.value.total_amount)
+        : null
   return {
-    total_amount: espForm.value.total_amount != null ? String(espForm.value.total_amount) : null,
+    total_amount: finalTotal,
     denomination_details: denomDetails,
   }
 }
