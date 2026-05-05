@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from calendar import monthrange
 from collections.abc import Sequence
 from datetime import date
@@ -881,12 +882,25 @@ async def update_deposit(db: AsyncSession, deposit_id: int, payload: DepositUpda
 
     else:
         # DepositType.ESPECES
-        if payload.total_amount is not None:
+        if payload.denomination_details is not None:
+            deposit.denomination_details = payload.denomination_details
+            # Recompute total from denominations; ignore any client-supplied total_amount
+            try:
+                lines = json.loads(payload.denomination_details)
+                deposit.total_amount = sum(
+                    (
+                        Decimal(str(line["value"])) * int(line["count"])
+                        for line in lines
+                        if line.get("count", 0)
+                    ),
+                    Decimal("0"),
+                )
+            except Exception as exc:
+                raise ValueError("invalid denomination_details format") from exc
+        elif payload.total_amount is not None:
             if payload.total_amount <= Decimal("0"):
                 raise ValueError("total_amount must be a positive amount")
             deposit.total_amount = payload.total_amount
-        if payload.denomination_details is not None:
-            deposit.denomination_details = payload.denomination_details
 
     await db.commit()
     await db.refresh(deposit)
@@ -914,6 +928,9 @@ async def delete_deposit(db: AsyncSession, deposit_id: int) -> None:
                 p.deposit_date = None
             await db.flush()
 
+    # Always clean up the association rows (prevents FK constraint errors)
+    await db.execute(delete(deposit_payments).where(deposit_payments.c.deposit_id == deposit_id))
+    await db.flush()
     await db.delete(deposit)
     await db.commit()
 

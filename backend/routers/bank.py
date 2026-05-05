@@ -764,7 +764,7 @@ async def update_deposit(
     pids = await bank_service.get_deposit_payment_ids(db, deposit.id)
     await record_audit(
         db,
-        action=AuditAction.BANK_DEPOSIT_CREATED,
+        action=AuditAction.BANK_DEPOSIT_UPDATED,
         actor=current_user,
         target_id=deposit.id,
         target_type="bank_deposit",
@@ -804,7 +804,7 @@ async def delete_deposit(
         ) from exc
     await record_audit(
         db,
-        action=AuditAction.BANK_DEPOSIT_CREATED,
+        action=AuditAction.BANK_DEPOSIT_CANCELLED,
         actor=current_user,
         target_id=deposit_id,
         target_type="bank_deposit",
