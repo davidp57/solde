@@ -853,6 +853,8 @@ export default {
     deposit_actions_cancel_deposit: 'Annuler le dépôt',
     deposit_actions_saved: 'Bordereau mis à jour.',
     deposit_actions_cancelled: 'Dépôt annulé.',
+    deposit_confirm_confirm_msg: 'Le dépôt sera confirmé et ne pourra plus être modifié. Continuer ?',
+    deposit_cancel_confirm_msg: 'Le dépôt sera supprimé définitivement. Les paiements associés redeviendront disponibles. Confirmer ?',
     deposit_cheques_summary: '{count} chèque(s)',
     deposit_especes_summary: '{count} encaissement(s)',
     deposit_especes_summary_no_denom: 'Espèces (pas de détail)',

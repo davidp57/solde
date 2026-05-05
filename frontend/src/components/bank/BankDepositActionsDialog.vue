@@ -144,6 +144,7 @@
         </div>
       </div>
     </div>
+    <ConfirmDialog />
   </Dialog>
 </template>
 
@@ -152,9 +153,11 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
+import ConfirmDialog from 'primevue/confirmdialog'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import Message from 'primevue/message'
+import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import {
   confirmDeposit as apiConfirmDeposit,
@@ -180,6 +183,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const confirm = useConfirm()
 const toast = useToast()
 
 // --- cheques state ---
@@ -298,34 +302,54 @@ async function saveChanges(): Promise<void> {
   }
 }
 
-async function confirmDeposit(): Promise<void> {
-  saving.value = 'confirm'
-  try {
-    // First apply pending changes, then confirm
-    await apiUpdateDeposit(props.deposit.id, buildUpdatePayload())
-    await apiConfirmDeposit(props.deposit.id)
-    toast.add({ severity: 'success', summary: t('bank.deposit_confirmed_success'), life: 3000 })
-    emit('update:visible', false)
-    emit('updated')
-  } catch (err) {
-    toast.add({ severity: 'error', summary: t('common.error'), detail: getErrorDetail(err), life: 5000 })
-  } finally {
-    saving.value = false
-  }
+function confirmDeposit(): void {
+  confirm.require({
+    message: t('bank.deposit_confirm_confirm_msg'),
+    header: t('bank.deposit_confirm'),
+    icon: 'pi pi-check-circle',
+    acceptSeverity: 'success',
+    acceptLabel: t('bank.deposit_confirm'),
+    rejectLabel: t('common.cancel'),
+    accept: async () => {
+      saving.value = 'confirm'
+      try {
+        // First apply pending changes, then confirm
+        await apiUpdateDeposit(props.deposit.id, buildUpdatePayload())
+        await apiConfirmDeposit(props.deposit.id)
+        toast.add({ severity: 'success', summary: t('bank.deposit_confirmed_success'), life: 3000 })
+        emit('update:visible', false)
+        emit('updated')
+      } catch (err) {
+        toast.add({ severity: 'error', summary: t('common.error'), detail: getErrorDetail(err), life: 5000 })
+      } finally {
+        saving.value = false
+      }
+    },
+  })
 }
 
-async function cancelDeposit(): Promise<void> {
-  saving.value = 'delete'
-  try {
-    await apiDeleteDeposit(props.deposit.id)
-    toast.add({ severity: 'success', summary: t('bank.deposit_actions_cancelled'), life: 3000 })
-    emit('update:visible', false)
-    emit('cancelled')
-  } catch (err) {
-    toast.add({ severity: 'error', summary: t('common.error'), detail: getErrorDetail(err), life: 5000 })
-  } finally {
-    saving.value = false
-  }
+function cancelDeposit(): void {
+  confirm.require({
+    message: t('bank.deposit_cancel_confirm_msg'),
+    header: t('bank.deposit_actions_cancel_deposit'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptSeverity: 'danger',
+    acceptLabel: t('bank.deposit_actions_cancel_deposit'),
+    rejectLabel: t('common.cancel'),
+    accept: async () => {
+      saving.value = 'delete'
+      try {
+        await apiDeleteDeposit(props.deposit.id)
+        toast.add({ severity: 'success', summary: t('bank.deposit_actions_cancelled'), life: 3000 })
+        emit('update:visible', false)
+        emit('cancelled')
+      } catch (err) {
+        toast.add({ severity: 'error', summary: t('common.error'), detail: getErrorDetail(err), life: 5000 })
+      } finally {
+        saving.value = false
+      }
+    },
+  })
 }
 </script>
 
