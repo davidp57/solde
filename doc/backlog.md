@@ -31,10 +31,15 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
 | BIZ-171 | Améliorations tuiles et détail factures — mobile | P2 | ~35 min | 2026-05-05 | 2026-05-05 | |
+| BIZ-172 | Section admin : paiements chèques incohérents | P2 | ~45 min | 2026-05-05 | 2026-05-05 | |
 
 ---
 
 ## Détails
+
+### BIZ-172 — Section admin : paiements chèques incohérents
+
+Panneau dans la vue Supervision système (admin uniquement) listant les paiements par chèque dont `deposited=True` mais `deposit_date=NULL` (état incohérent produit par l'import Excel). Chaque ligne propose une action « Corriger » avec un sélecteur de date pour poser la `deposit_date` manquante. Ces paiements sont actuellement comptabilisés à tort dans "Chèques non remis" sur le dashboard.
 
 ### BIZ-166 — Vue contacts : onglet clients par défaut + tri par récence
 

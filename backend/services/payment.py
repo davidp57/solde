@@ -183,6 +183,7 @@ async def list_payments(
     from_date: date | None = None,
     to_date: date | None = None,
     undeposited_only: bool = False,
+    inconsistent_only: bool = False,
     skip: int = 0,
     limit: int = 100,
 ) -> list[PaymentRead]:
@@ -201,6 +202,15 @@ async def list_payments(
     if undeposited_only:
         # Only truly free cheques: not yet in any deposit slip, not yet confirmed
         query = query.where(Payment.deposited == False).where(Payment.in_deposit == False)  # noqa: E712
+    if inconsistent_only:
+        # Cheques marked as deposited but missing deposit_date
+        query = (
+            query.where(Payment.method == PaymentMethod.CHEQUE)
+            .where(
+                Payment.deposited == True  # noqa: E712
+            )
+            .where(Payment.deposit_date.is_(None))
+        )
     query = query.order_by(Payment.date.desc(), Payment.id.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     rows = result.all()
@@ -301,6 +311,29 @@ def _validate_treasury_managed_payment_update(
 
     if payload.deposit_date is not None and payload.deposit_date != payment.deposit_date:
         raise ValueError("payments cannot change deposit date after creation")
+
+
+async def fix_inconsistent_deposit_date(
+    db: AsyncSession, payment_id: int, deposit_date: date
+) -> PaymentRead:
+    """Set deposit_date on a cheque payment that has deposited=True but deposit_date=NULL.
+
+    This corrects data produced by Excel imports that marked cheques as deposited
+    without recording the deposit date.
+    """
+    payment = await _get_payment_orm(db, payment_id)
+    if payment is None:
+        raise LookupError("Payment not found")
+    if payment.method != PaymentMethod.CHEQUE:
+        raise ValueError("only cheque payments can be corrected with this endpoint")
+    if not payment.deposited:
+        raise ValueError("payment is not marked as deposited")
+    if payment.deposit_date is not None:
+        raise ValueError("payment already has a deposit date")
+    payment.deposit_date = deposit_date
+    await db.commit()
+    await db.refresh(payment)
+    return await _to_payment_read(db, payment)
 
 
 async def _create_treasury_entries_for_payment(

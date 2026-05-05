@@ -203,6 +203,47 @@
       </template>
     </AppPanel>
 
+    <!-- Inconsistent cheque payments (admin) -->
+    <AppPanel
+      :title="t('system.inconsistent_payments_title')"
+      :subtitle="t('system.inconsistent_payments_subtitle')"
+    >
+      <p v-if="inconsistentPayments.length === 0" class="empty-message">
+        {{ t('system.inconsistent_payments_empty') }}
+      </p>
+      <DataTable v-else :value="inconsistentPayments" size="small" striped-rows>
+        <Column :header="t('system.col_payment_date')" style="white-space: nowrap">
+          <template #body="{ data }">{{ data.date }}</template>
+        </Column>
+        <Column :header="t('system.col_invoice')">
+          <template #body="{ data }">{{ data.invoice_number ?? '—' }}</template>
+        </Column>
+        <Column :header="t('system.col_contact')">
+          <template #body="{ data }">{{ data.contact_label }}</template>
+        </Column>
+        <Column :header="t('system.col_amount')" style="text-align: right">
+          <template #body="{ data }">{{ formatAmount(data.amount) }}</template>
+        </Column>
+        <Column :header="t('system.col_deposit_date')" style="min-width: 12rem">
+          <template #body="{ data }">
+            <AppDatePicker v-model="data._fixDate" show-clear style="width: 10rem" />
+          </template>
+        </Column>
+        <Column header="" style="width: 6rem">
+          <template #body="{ data }">
+            <Button
+              :label="t('system.inconsistent_payments_fix')"
+              size="small"
+              severity="success"
+              :disabled="!data._fixDate"
+              :loading="data._fixing"
+              @click="fixInconsistentPayment(data)"
+            />
+          </template>
+        </Column>
+      </DataTable>
+    </AppPanel>
+
     <!-- Audit log -->
     <AppPanel :title="t('system.audit_title')" :subtitle="t('system.audit_subtitle')">
       <p v-if="auditLogs.length === 0" class="empty-message">{{ t('system.audit_empty') }}</p>
@@ -258,6 +299,8 @@ import {
   listBackupsApi,
   restoreBackupApi,
 } from '@/api/settings'
+import { listPayments, fixDepositDate, type Payment } from '@/api/payments'
+import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
@@ -271,6 +314,10 @@ const backupFiles = ref<BackupFile[]>([])
 const backing = ref(false)
 const backupError = ref('')
 const backupLabel = ref('')
+
+// --- Inconsistent payments state ---
+type InconsistentRow = Payment & { contact_label: string; _fixDate: Date | null; _fixing: boolean }
+const inconsistentPayments = ref<InconsistentRow[]>([])
 
 // --- Restore state ---
 const restoreTarget = ref<BackupFile | null>(null)
@@ -299,6 +346,10 @@ const filteredLogs = computed(() => {
 })
 
 // --- Methods ---
+function formatAmount(value: string | number): string {
+  return `${parseFloat(String(value)).toFixed(2)} €`
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`
@@ -416,6 +467,35 @@ async function pollUntilHealthy(): Promise<void> {
   throw new Error('Server did not come back online within the expected time.')
 }
 
+async function loadInconsistentPayments(): Promise<void> {
+  try {
+    const raw = await listPayments({ inconsistent_only: true })
+    inconsistentPayments.value = raw.map((p) => ({
+      ...p,
+      contact_label: p.invoice_number ?? String(p.contact_id),
+      _fixDate: null,
+      _fixing: false,
+    }))
+  } catch {
+    // silently ignore — non-critical section
+  }
+}
+
+function toLocalDateString(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+async function fixInconsistentPayment(row: InconsistentRow): Promise<void> {
+  if (!row._fixDate) return
+  row._fixing = true
+  try {
+    await fixDepositDate(row.id, toLocalDateString(row._fixDate))
+    inconsistentPayments.value = inconsistentPayments.value.filter((r) => r.id !== row.id)
+  } catch {
+    row._fixing = false
+  }
+}
+
 async function loadLogs(): Promise<void> {
   logsLoading.value = true
   try {
@@ -444,6 +524,7 @@ onMounted(async () => {
     getAuditLogsApi()
       .then((d) => (auditLogs.value = d))
       .catch(() => {}),
+    loadInconsistentPayments(),
   ])
 })
 </script>
