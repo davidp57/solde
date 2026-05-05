@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-05-04 — active branch `develop` — current version: 1.5.1
+> Last updated: 2026-05-05 — active branch `develop` — current version: 1.6.0
 
 ---
 
@@ -23,8 +23,9 @@
 | **1.3** | Supplier invoice preview, cash count UX, dashboard deposits, multi-email contacts, blocked client, supplier cash payments | ✅ Released 2026-05-02 |
 | **1.4** | Lot CR (security), Lot UI (UX & API), Lot DOC (help page), TEC-156 (chat auth fix) | ✅ Released 2026-05-03 |
 | **1.5** | Lot MOB (mobile UI), Lot BIZ-034 (dual-account banking), cheque numbering, navigation UX, contacts sort | ✅ Released 2026-05-04 |
+| **1.6** | BIZ-170 (pending deposits management), BIZ-171 (mobile invoice UX), BIZ-172 (admin: fix inconsistent cheques) | ✅ Released 2026-05-05 |
 
-Test suite: **1043 backend + 148 frontend Vitest — 0 failures.**
+Test suite: **1055 backend + 148 frontend Vitest — 0 failures.**
 
 ---
 

@@ -4,7 +4,14 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
-## Version 1.5.2 *(à venir)*
+## Version 1.6.0 — 5 mai 2026
+
+### Tous les utilisateurs
+
+#### Factures — vue sur téléphone
+- Les **tuiles de factures client** sont allégées : la ligne de catégorie est retirée pour éviter les cartes trop hautes.
+- Les **tuiles de factures fournisseur** regroupent la référence et le trombone sur une seule ligne.
+- La **fenêtre de prévisualisation d'une facture fournisseur** s'affiche mieux sur mobile : date, échéance et référence sur lignes séparées ; boutons réduits aux icônes ; totaux non tronqués.
 
 ### Trésorier
 
@@ -14,6 +21,12 @@ Ce document présente les changements visibles dans l'application, version par v
 - Quatre actions disponibles : annuler les changements, enregistrer les changements sans confirmer, **annuler le dépôt** (les règlements sont libérés), ou **confirmer le dépôt**.
 - Une confirmation est demandée avant d'annuler ou de valider définitivement un dépôt.
 - Le total d'un dépôt espèces est désormais **calculé automatiquement** depuis les coupures saisies — il n'est plus possible de saisir un montant total incohérent avec le détail.
+
+### Administrateur
+
+#### Supervision — Cohérence des données
+- Nouveau panneau **« Paiements chèques incohérents »** : liste les chèques marqués comme remis mais sans date de remise (état pouvant résulter d'un import Excel ancien).
+- Pour chaque ligne, il suffit de choisir la date de remise et de cliquer **« Corriger »** pour mettre les données en ordre.
 
 ---
 
