@@ -4,6 +4,19 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.5.2 *(à venir)*
+
+### Trésorier
+
+#### Banque — Dépôts en attente
+- Le bouton **« Confirmer le dépôt »** est remplacé par un bouton **« Actions »** qui ouvre une fenêtre de gestion complète.
+- Depuis cette fenêtre, il est possible de **retirer des chèques** d'un bordereau existant, ou de **modifier les coupures** d'un dépôt espèces.
+- Quatre actions disponibles : annuler les changements, enregistrer les changements sans confirmer, **annuler le dépôt** (les règlements sont libérés), ou **confirmer le dépôt**.
+- Une confirmation est demandée avant d'annuler ou de valider définitivement un dépôt.
+- Le total d'un dépôt espèces est désormais **calculé automatiquement** depuis les coupures saisies — il n'est plus possible de saisir un montant total incohérent avec le détail.
+
+---
+
 ## Version 1.5.1 — 4 mai 2026
 
 ### Tous les utilisateurs
