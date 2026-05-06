@@ -11,6 +11,18 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Sécurité
+- **TEC-160** — Prévention des doublons de numéros d'écriture comptable (index unique + retry)
+- **TEC-165** — Limitation de la longueur maximale des mots de passe à 128 caractères (protection DoS bcrypt)
+- **TEC-169** — Ajout de `max_length` sur les champs texte des schémas bancaires (référence, description, notes)
+- **TEC-172** — Protection CSRF renforcée sur le endpoint `/api/auth/refresh` (header `X-Requested-With` obligatoire)
+
+### Amélioré
+- **TEC-164** — `next_entry_number` rendue publique pour réutilisation externe
+- **TEC-167** — Allocation par lot des numéros d'écriture (`next_entry_numbers`) — réduction des requêtes DB
+- **TEC-168** — Cache de l'environnement Jinja2 pour la génération PDF (`@lru_cache`)
+- **TEC-162** — Remplacement des `.catch(() => {})` silencieux par `console.error` dans le frontend
+
 ---
 
 ## [1.6.0] — 2026-05-05

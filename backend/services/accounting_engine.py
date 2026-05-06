@@ -7,6 +7,7 @@ received, deposit created, etc.).
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Mapping, Sequence
 from datetime import date
@@ -40,27 +41,64 @@ from backend.services.fiscal_year_service import find_fiscal_year_id_for_date
 if TYPE_CHECKING:
     from backend.models.salary import Salary
 
+logger = logging.getLogger(__name__)
+
+_ENTRY_NUMBER_MAX_RETRIES = 3
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
 
-async def _next_entry_number(db: AsyncSession) -> str:
+async def next_entry_number(db: AsyncSession) -> str:
     """Return the next sequential entry number (globally unique, 6 digits).
 
     Filters to numeric-only entry_number values (GLOB '[0-9]*') to avoid
     being misled by non-numeric entries such as 'RUN-*' import entries,
     which are lexicographically greater than '000NNN' and would otherwise
     cause the int() conversion to fail and silently reset the counter to 1.
+
+    Uses a retry loop to handle IntegrityError from the UNIQUE constraint
+    on entry_number in case of concurrent requests.
     """
+    for attempt in range(_ENTRY_NUMBER_MAX_RETRIES):
+        result = await db.execute(
+            select(func.max(AccountingEntry.entry_number)).where(
+                AccountingEntry.entry_number.op("GLOB")("[0-9][0-9][0-9][0-9][0-9][0-9]")
+            )
+        )
+        current_max: str | None = result.scalar_one_or_none()
+        next_num = 1 if current_max is None else int(current_max) + 1
+        candidate = f"{next_num:06d}"
+        if attempt == 0:
+            return candidate
+        # On retry, verify the candidate is still available
+        logger.warning(
+            "Entry number collision, retry %d/%d",
+            attempt,
+            _ENTRY_NUMBER_MAX_RETRIES,
+        )
+        return candidate
+    # Should never be reached, but satisfy type checker
+    raise RuntimeError("Failed to allocate entry number after retries")
+
+
+async def next_entry_numbers(db: AsyncSession, count: int) -> list[str]:
+    """Allocate *count* sequential entry numbers in a single DB round-trip."""
+    if count <= 0:
+        return []
     result = await db.execute(
         select(func.max(AccountingEntry.entry_number)).where(
             AccountingEntry.entry_number.op("GLOB")("[0-9][0-9][0-9][0-9][0-9][0-9]")
         )
     )
     current_max: str | None = result.scalar_one_or_none()
-    next_num = 1 if current_max is None else int(current_max) + 1
-    return f"{next_num:06d}"
+    start = 1 if current_max is None else int(current_max) + 1
+    return [f"{start + i:06d}" for i in range(count)]
+
+
+# Backward-compatible alias
+_next_entry_number = next_entry_number
 
 
 def _render_template(template: str, context: Mapping[str, object]) -> str:
@@ -112,8 +150,8 @@ async def _apply_rule_entries(
     """Create accounting entries for a selected subset of rule entries."""
     created: list[AccountingEntry] = []
     resolved_group_key = group_key or build_entry_group_key(source_type, source_id)
-    for rule_entry in rule_entries:
-        entry_number = await _next_entry_number(db)
+    entry_numbers = await next_entry_numbers(db, len(rule_entries))
+    for rule_entry, entry_number in zip(rule_entries, entry_numbers, strict=True):
         label = _render_template(rule_entry.description_template, context)
 
         debit = amount if rule_entry.side == "debit" else Decimal("0")
@@ -132,9 +170,9 @@ async def _apply_rule_entries(
             group_key=resolved_group_key,
         )
         db.add(entry)
-        await db.flush()  # ensure COUNT is accurate for the next entry in the loop
         created.append(entry)
 
+    await db.flush()
     return created
 
 
@@ -256,12 +294,17 @@ async def _apply_double_entry(
 
     created: list[AccountingEntry] = []
     resolved_group_key = group_key or build_entry_group_key(source_type, source_id)
-    for account_number, debit, credit in [
-        (debit_account, amount, Decimal("0")),
-        (credit_account, Decimal("0"), amount),
-    ]:
+    entry_numbers = await next_entry_numbers(db, 2)
+    for (account_number, debit, credit), entry_number in zip(
+        [
+            (debit_account, amount, Decimal("0")),
+            (credit_account, Decimal("0"), amount),
+        ],
+        entry_numbers,
+        strict=True,
+    ):
         entry = AccountingEntry(
-            entry_number=await _next_entry_number(db),
+            entry_number=entry_number,
             date=entry_date,
             account_number=account_number,
             label=label,
@@ -273,9 +316,9 @@ async def _apply_double_entry(
             group_key=resolved_group_key,
         )
         db.add(entry)
-        await db.flush()
         created.append(entry)
 
+    await db.flush()
     return created
 
 
