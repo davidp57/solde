@@ -524,10 +524,10 @@ onMounted(async () => {
       .catch(() => (systemInfoError.value = true)),
     listBackupsApi()
       .then((d) => (backupFiles.value = d))
-      .catch(() => {}),
+      .catch((e) => console.error('Failed to load backups', e)),
     getAuditLogsApi()
       .then((d) => (auditLogs.value = d))
-      .catch(() => {}),
+      .catch((e) => console.error('Failed to load audit logs', e)),
     loadInconsistentPayments(),
   ])
 })

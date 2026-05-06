@@ -24,6 +24,7 @@ export async function loginApi(request: LoginRequest): Promise<TokenResponse> {
 export async function refreshApi(): Promise<TokenResponse> {
   const response = await axios.post<TokenResponse>('/api/auth/refresh', null, {
     withCredentials: true,
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
   })
   return response.data
 }

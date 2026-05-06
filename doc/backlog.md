@@ -17,13 +17,44 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 | --- | --- | --- | --- | --- | --- | --- |
 | UI | ~65 min | ~30 min | **0,46** | 15 min | ? | ↓ facteur → 1,00 |
 | CR2 | ~70 min | ~20 min | **0,29** | — | — | voir note |
+| REV | ~190 min | ~70 min | **0,37** | 15 min | — | voir note REV |
 
 > Lot UI : estimations 2x trop élevées. Les tickets UI/bulk-replace et les vérifications de tickets "déjà fait" ont été surestimés.
 > Lot CR2 : ratio 0,29 — très inférieur à 1,15. Cependant ces tickets étaient tous très petits (i18n, tests, nav, squelette) et le facteur 1,00 reflète déjà une marge nulle. Plutôt que d'abaisser le facteur en dessous de 1,00 (ce qui serait contre-productif), la leçon est : **pour les tickets de finition/tests simples, l'estimation de référence doit être 3–5 min, pas 10–20 min**. Facteur maintenu à 1,00 ; calibration des estimations unitaires à revoir pour ces catégories.
+> Lot REV : ratio 0,37. Cause principale : 3 tickets sur 11 étaient en réalité déjà traités (TEC-161, TEC-163, TEC-166 = 80 min estimés → 7 min réels). Les tickets d'implémentation pure (TEC-160, TEC-162, TEC-167, TEC-169, TEC-172) ont un ratio ~0,55. **Leçon** : avant d'estimer un ticket de « review fix », vérifier si le problème existe réellement. Pour les tickets d'implémentation technique, appliquer un facteur **0,60** par rapport à l'estimation initiale naïve.
 
 ---
 
 ## Lots actifs
+
+### Lot BK — Backup automatique (v1.7) — ~4h Copilot + 15 min gestion
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| BIZ-173 | Migration Alembic + modèle BackupDestination | P1 | ~15 min | 2026-05-05 | | |
+| BIZ-174 | Schemas Pydantic backup | P1 | ~10 min | 2026-05-05 | | |
+| BIZ-175 | Service rclone (backup_destination_service) | P1 | ~25 min | 2026-05-05 | | |
+| BIZ-176 | Dockerfile — installation rclone | P1 | ~5 min | 2026-05-05 | | |
+| BIZ-177 | Scheduler APScheduler + lifespan main.py | P1 | ~30 min | 2026-05-05 | | |
+| BIZ-178 | Service restore (test-restore + restore distante) | P1 | ~15 min | 2026-05-05 | | |
+| BIZ-179 | Router backup.py (12 endpoints) | P1 | ~35 min | 2026-05-05 | | |
+| BIZ-180 | Frontend api/backup.ts | P1 | ~10 min | 2026-05-05 | | |
+| BIZ-181 | Frontend SettingsBackupPanel.vue | P1 | ~45 min | 2026-05-05 | | |
+| BIZ-182 | Frontend SettingsView + i18n fr/en | P1 | ~15 min | 2026-05-05 | | |
+| BIZ-183 | Tests unitaires backend (rclone mock, scheduler) | P1 | ~15 min | 2026-05-05 | | |
+| BIZ-184 | Tests intégration API backup | P1 | ~20 min | 2026-05-05 | | |
+
+---
+
+### Lot REV2 — Refactoring technique différé (v1.7) — ~55 min Copilot + 15 min gestion
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-170 | Standardiser les codes d'erreur API (EN + code structuré) | P2 | ~20 min | 2026-05-06 | | |
+| TEC-171 | Audit : supprimer les commit() dans les services | P2 | ~20 min | 2026-05-06 | | |
+| TEC-173 | Découper bank.py en sous-routeurs | P3 | ~15 min | 2026-05-06 | | |
+
+---
 
 ### Hors lots
 
@@ -36,6 +67,95 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 ---
 
 ## Détails
+
+### TEC-170 — Standardiser les codes d'erreur API
+
+Certaines erreurs sont en français (`"Une transaction avec cette référence existe déjà."`), d'autres en anglais (`"Invoice not found"`). Standardiser : champ `code` structuré (EN, machine-readable) + `detail` humain ; le frontend affiche via i18n selon le `code`.
+
+### TEC-171 — Audit : supprimer les commit() dans les services
+
+Certains services (`accounting_account`, `accounting_rule_service`, etc.) font `await db.commit()` directement. Le pattern correct : les services font `flush()`, la session commit/rollback est gérée par `get_db()`. Auditer et corriger pour éviter les commits partiels.
+
+### TEC-173 — Découper bank.py en sous-routeurs
+
+`backend/routers/bank.py` (~550 lignes, 15+ endpoints) est le plus gros routeur. Découper en `bank_transactions.py`, `bank_deposits.py`, `bank_import.py` pour la maintenabilité.
+
+### BIZ-173 — Migration Alembic + modèle BackupDestination
+
+Migration Alembic ajoutant 7 colonnes dans `app_settings` : `backup_enabled` (bool), `backup_schedule_type` (str, "interval"|"cron"), `backup_interval_hours` (int), `backup_cron_expression` (str|None), `backup_include_uploads` (bool), `backup_notify_on_failure` (bool), `backup_last_run_at` (datetime|None), `backup_last_run_status` (str|None). Nouvelle table `backup_destination` : `id`, `name`, `type` (local|smb|onedrive), `enabled` (bool), `rclone_remote_name` (str), `rclone_config` (JSON text), `target_path` (str), `created_at`. Création de `backend/models/backup_destination.py` avec le modèle SQLAlchemy.
+
+### BIZ-174 — Schemas Pydantic backup
+
+Création de `backend/schemas/backup.py` avec : `BackupDestinationRead`, `BackupDestinationCreate`, `BackupDestinationUpdate` (champs name, type, enabled, rclone_remote_name, rclone_config, target_path), `BackupScheduleRead`, `BackupScheduleUpdate` (enabled, schedule_type, interval_hours, cron_expression, include_uploads, notify_on_failure), `BackupRunStatus` (last_run_at, status, destinations_results), `BackupConnectionTestResult` (success, message), `BackupRestoreTestResult` (ok, integrity_check, tables_found, tables_missing, error).
+
+### BIZ-175 — Service rclone (backup_destination_service)
+
+Création de `backend/services/backup_destination_service.py` avec :
+- `write_rclone_config(destinations)` → génère `data/rclone.conf` à partir des destinations en base (section `[nom]` par destination selon le type : `type = local`, `type = smb` avec host/user/pass/share, `type = onedrive` avec token depuis rclone_config).
+- `sync_destination(dest, src_paths)` → subprocess `rclone sync {src} {remote}:{path} --update --config data/rclone.conf` pour chaque chemin source.
+- `test_destination_connection(dest)` → subprocess `rclone lsd {remote}: --config ...`, retourne `BackupConnectionTestResult`.
+- `fetch_remote_backup(dest, filename)` → `rclone copy {remote}:backups/{file} data/backups/ --config ...` pour rapatrier un backup distant avant restore.
+
+### BIZ-176 — Dockerfile — installation rclone
+
+Ajout de `rclone` dans le Dockerfile stage runtime : `RUN apt-get update && apt-get install -y --no-install-recommends rclone && rm -rf /var/lib/apt/lists/*`. Vérification : `docker exec solde rclone version`.
+
+### BIZ-177 — Scheduler APScheduler + lifespan main.py
+
+Ajout de `apscheduler>=3.10` dans `pyproject.toml`. Création de `backend/services/backup_scheduler.py` avec :
+- `BackupScheduler` (wrapper `AsyncIOScheduler`) : `start()`, `stop()`, `reload(settings)` — replanifie le job selon `backup_schedule_type` (interval ou cron), annule l'ancien job si les settings changent.
+- `run_backup_job(db_path, backup_dir, settings)` : appelle `create_backup()`, appelle `sync_destination()` pour chaque destination activée, met à jour `backup_last_run_at` et `backup_last_run_status` en base, envoie un email via le service SMTP existant si échec et `backup_notify_on_failure=True`.
+- Intégration dans `backend/main.py` lifespan : démarrer le scheduler au startup si `backup_enabled`, arrêter au shutdown. Exposer `reload_scheduler()` appelé depuis le router settings quand les paramètres de planification sont mis à jour.
+
+### BIZ-178 — Service restore (test-restore + restore distante)
+
+Création de `backend/services/backup_restore_service.py` avec :
+- `test_restore(backup_path)` : ouvre le fichier `.db` via `sqlite3`, exécute `PRAGMA integrity_check`, vérifie la présence des tables attendues (liste hardcodée des tables du modèle), retourne `BackupRestoreTestResult` sans toucher à la DB live.
+- `restore_from_destination(dest, filename, backup_dir, db_path)` : appelle `fetch_remote_backup()` pour rapatrier le fichier si la destination est distante, puis appelle `restore_backup()` existant dans `backup_service.py`.
+
+### BIZ-179 — Router backup.py (12 endpoints)
+
+Création de `backend/routers/backup.py` (admin uniquement) avec :
+- `GET /api/backup/destinations` — liste toutes les destinations.
+- `POST /api/backup/destinations` — créer une destination (génère rclone.conf).
+- `PUT /api/backup/destinations/{id}` — modifier.
+- `DELETE /api/backup/destinations/{id}` — supprimer.
+- `POST /api/backup/destinations/{id}/test` — teste la connexion rclone, retourne `BackupConnectionTestResult`.
+- `GET /api/backup/schedule` — lit les settings de planification depuis `AppSettings`.
+- `PUT /api/backup/schedule` — met à jour les settings + replanifie le scheduler.
+- `POST /api/backup/run` — déclenche un backup immédiat (background task).
+- `GET /api/backup/status` — retourne `BackupRunStatus` (dernier run, statut par destination).
+- `POST /api/backup/backups/{filename}/test-restore` — dry-run `test_restore()` sur un fichier local.
+- `POST /api/backup/backups/{filename}/restore` — restore réelle (locale ou distante) ; accepte `?destination_id=` optionnel pour les fichiers distants.
+- `GET /api/backup/oauth/onedrive/start` — spawn `rclone authorize onedrive`, capture le port local, retourne `{ port, auth_url }` avec l'URL construite en remplaçant `127.0.0.1` par `{request.client.host}` (NAS IP).
+- `GET /api/backup/oauth/onedrive/status` — poll : retourne `{ done, token }` une fois que rclone a capturé le token, ou `{ done: false }` tant que l'autorisation est en cours (timeout 5 min).
+
+### BIZ-180 — Frontend api/backup.ts
+
+Création de `frontend/src/api/backup.ts` avec les interfaces TypeScript (`BackupDestination`, `BackupDestinationCreate`, `BackupSchedule`, `BackupRunStatus`, `BackupConnectionTestResult`, `BackupRestoreTestResult`) et les fonctions client pour tous les endpoints de `backup.py`.
+
+### BIZ-181 — Frontend SettingsBackupPanel.vue
+
+Création de `frontend/src/components/settings/SettingsBackupPanel.vue` avec :
+- **Section planification** : toggle activé/désactivé, sélecteur interval (heures) ou cron (input expression + preview "prochain run dans X"), checkbox inclure uploads, checkbox notifier en cas d'échec.
+- **Section destinations** : `DataTable` avec colonnes nom / type / statut / activé ; actions Tester (badge ✓/✗), Activer/Désactiver, Supprimer.
+- **Dialog ajouter destination** : champ type (local / SMB / OneDrive) → formulaire adapté : local = chemin cible ; SMB = host, share, user, password, chemin cible ; OneDrive = bouton « Autoriser OneDrive » (ouvre le dialog OAuth).
+- **Dialog OneDrive OAuth** : bouton → `GET /api/backup/oauth/onedrive/start` → ouvre `auth_url` dans un nouvel onglet → poll `GET /api/backup/oauth/onedrive/status` toutes les 2s → affiche spinner « En attente d'autorisation » → quand `done=true`, le token est stocké côté backend dans `rclone_config`, dialog se ferme.
+- **Section statut** : date du dernier run, icône succès/erreur, résultat par destination.
+- **Bouton « Lancer maintenant »** : déclenche `POST /api/backup/run`, toast confirmation.
+- **Section restauration** : liste les backups locaux (`GET /api/settings/backups`) + backups distants (par destination) ; chaque entrée a deux boutons : « Tester » (dry-run, modale avec rapport intégrité) et « Restaurer » (confirmation puis restore réelle).
+
+### BIZ-182 — Frontend SettingsView + i18n fr/en
+
+Ajout de `<SettingsBackupPanel />` dans `SettingsView.vue` après `<SettingsSmtpPanel />`. Ajout de toutes les clés `settings.backup.*` dans `frontend/src/i18n/fr.ts` et `en.ts` (planification, destinations, types, OAuth, statuts, restore).
+
+### BIZ-183 — Tests unitaires backend
+
+Tests pour `backup_destination_service` (mock subprocess rclone : génération `rclone.conf` par type, parsing résultat sync, test connexion OK/KO) et `backup_restore_service` (test-restore sur fichier DB valide et fichier corrompu). Fichier : `tests/unit/test_backup_services.py`.
+
+### BIZ-184 — Tests intégration API backup
+
+Tests pour les endpoints du router `backup.py` : CRUD destinations (create/list/update/delete), test connexion (mock rclone), trigger backup (mock job), GET status, test-restore (mock service), PUT schedule (vérifie settings en base). Fichier : `tests/integration/test_backup_api.py`.
 
 ### BIZ-172 — Section admin : paiements chèques incohérents
 
@@ -70,6 +190,7 @@ Améliorations de l'expérience mobile sur les vues factures client et fournisse
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
+| REV | Revue de code technique | v1.6.1 | TEC-160–165, 167–169, 172 (+ TEC-161, 163, 166 déjà faits) | 2026-05-06 | ~190 min | ~70 min |
 | BIZ-172 | Paiements chèques incohérents | v1.6 | BIZ-172 | 2026-05-05 | ~45 min | — |
 | BIZ-171 | Améliorations factures mobile | v1.6 | BIZ-171 | 2026-05-05 | ~35 min | — |
 | BIZ-170 | Gestion bordereaux en attente | v1.6 | BIZ-170 | 2026-05-05 | ~60 min | ~45 min |
@@ -82,7 +203,25 @@ Améliorations de l'expérience mobile sur les vues factures client et fournisse
 | MOB | Mode téléphone | v1.5 | BIZ-164 | 2026-05-03 | ~90 min | — |
 
 <details>
-<summary>Lot CR2 — Correctifs &amp; finitions post-MOB (2026-05-04)</summary>
+<summary>Lot REV — Revue de code technique (2026-05-06)</summary>
+
+| Ticket | Titre | Est. | Réel | Note |
+| --- | --- | --- | --- | --- |
+| TEC-160 | Fix race condition entry_number | ~15 min | ~10 min | Migration + unique index + retry |
+| TEC-161 | Masquer clés API/SMTP | ~15 min | ~2 min | Déjà traité (schema excluait déjà les champs) |
+| TEC-162 | Frontend .catch vides | ~30 min | ~8 min | 11 occurrences → console.error |
+| TEC-163 | Optimiser fonds mensuels | ~20 min | ~2 min | Déjà efficace (2 queries, pas N) |
+| TEC-164 | Rendre next_entry_number public | ~5 min | ~2 min | Fusionné avec TEC-160 |
+| TEC-165 | max_length mot de passe | ~5 min | ~2 min | +2 lignes |
+| TEC-166 | Tests accounting_engine | ~45 min | ~3 min | Tests déjà existants (8 classes) |
+| TEC-167 | Allocation batch numéros | ~15 min | ~8 min | next_entry_numbers + refacto apply |
+| TEC-168 | Cache Jinja2 Environment | ~5 min | ~2 min | @lru_cache |
+| TEC-169 | max_length schemas bank | ~20 min | ~8 min | Field(max_length=…) |
+| TEC-172 | CSRF X-Requested-With | ~15 min | ~8 min | Header check + frontend + tests |
+| — | Quality gate + fixes | — | ~15 min | ruff, mypy, pytest, eslint, vue-tsc, vitest |
+| **Total** | | **~190 min** | **~70 min** | Ratio 0,37 |
+
+</details>
 
 | Ticket | Titre | Est. | Réel |
 | --- | --- | --- | --- |
