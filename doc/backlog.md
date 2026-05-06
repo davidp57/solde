@@ -17,9 +17,11 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 | --- | --- | --- | --- | --- | --- | --- |
 | UI | ~65 min | ~30 min | **0,46** | 15 min | ? | ↓ facteur → 1,00 |
 | CR2 | ~70 min | ~20 min | **0,29** | — | — | voir note |
+| REV | ~190 min | ~70 min | **0,37** | 15 min | — | voir note REV |
 
 > Lot UI : estimations 2x trop élevées. Les tickets UI/bulk-replace et les vérifications de tickets "déjà fait" ont été surestimés.
 > Lot CR2 : ratio 0,29 — très inférieur à 1,15. Cependant ces tickets étaient tous très petits (i18n, tests, nav, squelette) et le facteur 1,00 reflète déjà une marge nulle. Plutôt que d'abaisser le facteur en dessous de 1,00 (ce qui serait contre-productif), la leçon est : **pour les tickets de finition/tests simples, l'estimation de référence doit être 3–5 min, pas 10–20 min**. Facteur maintenu à 1,00 ; calibration des estimations unitaires à revoir pour ces catégories.
+> Lot REV : ratio 0,37. Cause principale : 3 tickets sur 11 étaient en réalité déjà traités (TEC-161, TEC-163, TEC-166 = 80 min estimés → 7 min réels). Les tickets d'implémentation pure (TEC-160, TEC-162, TEC-167, TEC-169, TEC-172) ont un ratio ~0,55. **Leçon** : avant d'estimer un ticket de « review fix », vérifier si le problème existe réellement. Pour les tickets d'implémentation technique, appliquer un facteur **0,60** par rapport à l'estimation initiale naïve.
 
 ---
 
@@ -44,24 +46,13 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 ---
 
-### Lot REV — Revue de code technique (v1.7) — ~4h35 Copilot + 15 min gestion
+### Lot REV2 — Refactoring technique différé (v1.7) — ~55 min Copilot + 15 min gestion
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-160 | Fix race condition numérotation écritures comptables | P1 | ~15 min | 2026-05-06 | | |
-| TEC-161 | Masquer clés API/SMTP dans réponse settings | P1 | ~15 min | 2026-05-06 | | |
-| TEC-162 | Frontend : remonter les erreurs silencieuses (.catch vides) | P1 | ~30 min | 2026-05-06 | | |
-| TEC-163 | Optimiser requête mensuelle fonds bancaires | P1 | ~20 min | 2026-05-06 | | |
-| TEC-164 | Rendre `_next_entry_number` public (API interne) | P2 | ~5 min | 2026-05-06 | | |
-| TEC-165 | Validation max_length mot de passe (DoS bcrypt) | P1 | ~5 min | 2026-05-06 | | |
-| TEC-166 | Tests unitaires accounting_engine.py | P1 | ~45 min | 2026-05-06 | | |
-| TEC-167 | Allocation batch des numéros d'écriture | P2 | ~15 min | 2026-05-06 | | |
-| TEC-168 | Cache singleton Jinja2 Environment (pdf_service) | P2 | ~5 min | 2026-05-06 | | |
-| TEC-169 | max_length sur schemas Pydantic (bank, payment) | P2 | ~20 min | 2026-05-06 | | |
-| TEC-170 | Standardiser les codes d'erreur API (EN + code structuré) | P2 | ~30 min | 2026-05-06 | | |
-| TEC-171 | Audit : supprimer les commit() dans les services | P2 | ~25 min | 2026-05-06 | | |
-| TEC-172 | CSRF defense-in-depth sur refresh token | P3 | ~15 min | 2026-05-06 | | |
-| TEC-173 | Découper bank.py en sous-routeurs | P3 | ~20 min | 2026-05-06 | | |
+| TEC-170 | Standardiser les codes d'erreur API (EN + code structuré) | P2 | ~20 min | 2026-05-06 | | |
+| TEC-171 | Audit : supprimer les commit() dans les services | P2 | ~20 min | 2026-05-06 | | |
+| TEC-173 | Découper bank.py en sous-routeurs | P3 | ~15 min | 2026-05-06 | | |
 
 ---
 
@@ -77,46 +68,6 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 ## Détails
 
-### TEC-160 — Fix race condition numérotation écritures comptables
-
-`_next_entry_number()` dans `accounting_engine.py` fait `SELECT MAX + 1` sans contrainte UNIQUE ni retry. Risque de doublons en cas de requêtes concurrentes. Ajouter une contrainte UNIQUE sur `accounting_entries.entry_number` (migration Alembic) + retry sur `IntegrityError` comme pour `invoice_service._next_number()`.
-
-### TEC-161 — Masquer clés API/SMTP dans réponse settings
-
-`GET /api/settings` expose `chat_api_key` et `smtp_password` en clair aux managers (secrétaire, trésorier). Masquer dans `AppSettingsRead` (ne montrer que les 4 derniers caractères). Le full value n'est modifiable que par admin via PUT.
-
-### TEC-162 — Frontend : remonter les erreurs silencieuses
-
-~10 occurrences de `.catch(() => {})` dans les vues et composants (ClientInvoicesView, ContactHistoryContent, DashboardView, SupplierInvoiceForm…). Remplacer par des toasts d'erreur ou au minimum un `console.error`. Les opérations critiques doivent informer l'utilisateur.
-
-### TEC-163 — Optimiser requête mensuelle fonds bancaires
-
-`get_monthly_funds_series()` dans `bank_service.py` exécute 6-24 requêtes séparées (une par fenêtre de mois). Refactorer en une seule requête avec `GROUP BY` sur mois ou utiliser des window functions.
-
-### TEC-164 — Rendre `_next_entry_number` public
-
-La fonction `_next_entry_number` est préfixée `_` (convention privée) mais importée par `accounting_entry_service.py`. Renommer en `next_entry_number` ou extraire dans un module utilitaire partagé.
-
-### TEC-165 — Validation max_length mot de passe
-
-Pas de longueur maximale sur les mots de passe dans les schemas Pydantic (`PasswordChangeRequest`, `UserCreate`). Un attaquant peut soumettre un mot de passe multi-Mo forçant bcrypt à consommer du CPU excessivement. Ajouter `max_length=128`.
-
-### TEC-166 — Tests unitaires accounting_engine.py
-
-L'accounting engine est le cœur métier (génération d'écritures, application de règles, exercices fiscaux). Cible de couverture projet : ≥ 90%. Créer `tests/unit/test_accounting_engine.py` avec tests pour : `_next_entry_number`, `_apply_rule`, `_generate_split_client_invoice_entries`, `generate_entries_for_payment`, `generate_entries_for_deposit`.
-
-### TEC-167 — Allocation batch des numéros d'écriture
-
-`_next_entry_number` est appelée N fois dans une boucle lors de la création de N écritures (ex : facture splitée = 4-6 appels séquentiels `SELECT MAX + flush`). Créer `_next_entry_numbers(db, count)` qui réserve une plage en un seul appel.
-
-### TEC-168 — Cache singleton Jinja2 Environment
-
-`pdf_service._template_env()` crée un nouvel `Environment` + `FileSystemLoader` à chaque génération PDF. Mettre en cache avec `@lru_cache` au niveau module.
-
-### TEC-169 — max_length sur schemas Pydantic (bank, payment)
-
-Les champs `description`, `notes`, `reference` dans `BankTransactionCreate`, `PaymentCreate` etc. n'ont pas de `max_length` Pydantic. Ajouter les contraintes correspondant aux limites des colonnes DB (`String(100)`, `String(500)`, `Text` → 10000).
-
 ### TEC-170 — Standardiser les codes d'erreur API
 
 Certaines erreurs sont en français (`"Une transaction avec cette référence existe déjà."`), d'autres en anglais (`"Invoice not found"`). Standardiser : champ `code` structuré (EN, machine-readable) + `detail` humain ; le frontend affiche via i18n selon le `code`.
@@ -124,10 +75,6 @@ Certaines erreurs sont en français (`"Une transaction avec cette référence ex
 ### TEC-171 — Audit : supprimer les commit() dans les services
 
 Certains services (`accounting_account`, `accounting_rule_service`, etc.) font `await db.commit()` directement. Le pattern correct : les services font `flush()`, la session commit/rollback est gérée par `get_db()`. Auditer et corriger pour éviter les commits partiels.
-
-### TEC-172 — CSRF defense-in-depth sur refresh token
-
-`POST /api/auth/refresh` utilise un cookie HttpOnly avec `samesite="strict"`. Ajouter une vérification de header custom (`X-Requested-With: XMLHttpRequest`) comme defense-in-depth pour les navigateurs anciens ne supportant pas SameSite.
 
 ### TEC-173 — Découper bank.py en sous-routeurs
 
@@ -243,6 +190,7 @@ Améliorations de l'expérience mobile sur les vues factures client et fournisse
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
+| REV | Revue de code technique | v1.6.1 | TEC-160–165, 167–169, 172 (+ TEC-161, 163, 166 déjà faits) | 2026-05-06 | ~190 min | ~70 min |
 | BIZ-172 | Paiements chèques incohérents | v1.6 | BIZ-172 | 2026-05-05 | ~45 min | — |
 | BIZ-171 | Améliorations factures mobile | v1.6 | BIZ-171 | 2026-05-05 | ~35 min | — |
 | BIZ-170 | Gestion bordereaux en attente | v1.6 | BIZ-170 | 2026-05-05 | ~60 min | ~45 min |
@@ -255,7 +203,25 @@ Améliorations de l'expérience mobile sur les vues factures client et fournisse
 | MOB | Mode téléphone | v1.5 | BIZ-164 | 2026-05-03 | ~90 min | — |
 
 <details>
-<summary>Lot CR2 — Correctifs &amp; finitions post-MOB (2026-05-04)</summary>
+<summary>Lot REV — Revue de code technique (2026-05-06)</summary>
+
+| Ticket | Titre | Est. | Réel | Note |
+| --- | --- | --- | --- | --- |
+| TEC-160 | Fix race condition entry_number | ~15 min | ~10 min | Migration + unique index + retry |
+| TEC-161 | Masquer clés API/SMTP | ~15 min | ~2 min | Déjà traité (schema excluait déjà les champs) |
+| TEC-162 | Frontend .catch vides | ~30 min | ~8 min | 11 occurrences → console.error |
+| TEC-163 | Optimiser fonds mensuels | ~20 min | ~2 min | Déjà efficace (2 queries, pas N) |
+| TEC-164 | Rendre next_entry_number public | ~5 min | ~2 min | Fusionné avec TEC-160 |
+| TEC-165 | max_length mot de passe | ~5 min | ~2 min | +2 lignes |
+| TEC-166 | Tests accounting_engine | ~45 min | ~3 min | Tests déjà existants (8 classes) |
+| TEC-167 | Allocation batch numéros | ~15 min | ~8 min | next_entry_numbers + refacto apply |
+| TEC-168 | Cache Jinja2 Environment | ~5 min | ~2 min | @lru_cache |
+| TEC-169 | max_length schemas bank | ~20 min | ~8 min | Field(max_length=…) |
+| TEC-172 | CSRF X-Requested-With | ~15 min | ~8 min | Header check + frontend + tests |
+| — | Quality gate + fixes | — | ~15 min | ruff, mypy, pytest, eslint, vue-tsc, vitest |
+| **Total** | | **~190 min** | **~70 min** | Ratio 0,37 |
+
+</details>
 
 | Ticket | Titre | Est. | Réel |
 | --- | --- | --- | --- |
