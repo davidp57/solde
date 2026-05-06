@@ -1228,7 +1228,7 @@ async function openHistory(invoice: Invoice) {
     loadHistoryPayments(invoice.id),
     downloadInvoicePdfApi(invoice.id)
       .then((blob) => { historyPdfBlobUrl.value = URL.createObjectURL(blob) })
-      .catch(() => {})
+      .catch((e) => console.error('Failed to download invoice PDF', e))
       .finally(() => { historyPdfLoading.value = false }),
   ])
 }

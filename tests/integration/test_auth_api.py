@@ -235,6 +235,7 @@ async def test_refresh_token(client: AsyncClient, admin_user: User) -> None:
     response = await client.post(
         "/api/auth/refresh",
         cookies={"refresh_token": refresh_cookie},
+        headers={"X-Requested-With": "XMLHttpRequest"},
     )
     assert response.status_code == 200
     assert "access_token" in response.json()
@@ -246,6 +247,7 @@ async def test_refresh_token_invalid(client: AsyncClient) -> None:
     response = await client.post(
         "/api/auth/refresh",
         cookies={"refresh_token": "not.a.valid.token"},
+        headers={"X-Requested-With": "XMLHttpRequest"},
     )
     assert response.status_code == 401
 

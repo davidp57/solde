@@ -1,10 +1,12 @@
 """PDF generation service — uses WeasyPrint (lazy import for RAM constraint)."""
 
+from functools import lru_cache
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
 
+@lru_cache(maxsize=1)
 def _template_env() -> Environment:
     template_dir = Path(__file__).parent.parent / "templates"
     return Environment(loader=FileSystemLoader(str(template_dir)), autoescape=True)
