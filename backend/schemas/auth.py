@@ -7,12 +7,15 @@ from pydantic import BaseModel, field_validator
 from backend.models.user import UserRole
 
 PASSWORD_MIN_LENGTH = 8
+PASSWORD_MAX_LENGTH = 128
 
 
 def _validate_password_complexity(value: str) -> str:
-    """Enforce password policy: min 8 chars, ≥ 1 ASCII uppercase, ≥ 1 ASCII digit."""
+    """Enforce password policy: min 8 chars, max 128 chars, ≥ 1 ASCII uppercase, ≥ 1 ASCII digit."""
     if len(value) < PASSWORD_MIN_LENGTH:
         raise ValueError(f"Password must be at least {PASSWORD_MIN_LENGTH} characters")
+    if len(value) > PASSWORD_MAX_LENGTH:
+        raise ValueError(f"Password must be at most {PASSWORD_MAX_LENGTH} characters")
     if not any(c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" for c in value):
         raise ValueError("Password must contain at least one uppercase letter")
     if not any(c in "0123456789" for c in value):

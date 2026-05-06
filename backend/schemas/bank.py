@@ -18,8 +18,8 @@ from backend.models.bank import (
 class BankTransactionCreate(BaseModel):
     date: _Date
     amount: _Decimal
-    reference: str | None = None
-    description: str = ""
+    reference: str | None = Field(default=None, max_length=200)
+    description: str = Field(default="", max_length=500)
     balance_after: _Decimal = _Decimal("0")
     source: BankTransactionSource = BankTransactionSource.MANUAL
     bank_account: BankAccountType = BankAccountType.COURANT
@@ -50,9 +50,9 @@ class BankImportResult(BaseModel):
 
 class BankTransactionUpdate(BaseModel):
     reconciled: bool | None = None
-    reconciled_with: str | None = None
-    reference: str | None = None
-    description: str | None = None
+    reconciled_with: str | None = Field(default=None, max_length=200)
+    reference: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=500)
     detected_category: BankTransactionCategory | None = None
     # Fields below are only applied when editing a manual transaction
     date: _Date | None = None
@@ -132,9 +132,9 @@ class DepositCreate(BaseModel):
     total_amount: _Decimal | None = None
     # Optional JSON-encoded denomination breakdown for cash deposits.
     # e.g. [{"value": 50, "count": 3}, {"value": 20, "count": 4}]
-    denomination_details: str | None = None
-    bank_reference: str | None = None
-    notes: str | None = None
+    denomination_details: str | None = Field(default=None, max_length=2000)
+    bank_reference: str | None = Field(default=None, max_length=100)
+    notes: str | None = Field(default=None, max_length=2000)
 
     @field_validator("payment_ids")
     @classmethod
@@ -154,7 +154,7 @@ class DepositUpdate(BaseModel):
 
     payment_ids: list[int] | None = None
     total_amount: _Decimal | None = None
-    denomination_details: str | None = None
+    denomination_details: str | None = Field(default=None, max_length=2000)
 
     @field_validator("payment_ids")
     @classmethod

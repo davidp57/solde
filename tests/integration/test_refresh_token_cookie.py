@@ -65,6 +65,7 @@ async def test_refresh_reads_cookie_and_returns_new_cookie(
     refresh_resp = await client.post(
         "/api/auth/refresh",
         cookies={"refresh_token": refresh_cookie},
+        headers={"X-Requested-With": "XMLHttpRequest"},
     )
     assert refresh_resp.status_code == 200
 
@@ -80,8 +81,22 @@ async def test_refresh_reads_cookie_and_returns_new_cookie(
 @pytest.mark.asyncio
 async def test_refresh_without_cookie_returns_401(client: AsyncClient) -> None:
     """POST /auth/refresh without a cookie returns 401."""
-    response = await client.post("/api/auth/refresh")
+    response = await client.post(
+        "/api/auth/refresh",
+        headers={"X-Requested-With": "XMLHttpRequest"},
+    )
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_without_x_requested_with_returns_403(client: AsyncClient) -> None:
+    """POST /auth/refresh without X-Requested-With header returns 403 (CSRF protection)."""
+    response = await client.post(
+        "/api/auth/refresh",
+        cookies={"refresh_token": "some.token.value"},
+    )
+    assert response.status_code == 403
+    assert "X-Requested-With" in response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -133,6 +148,7 @@ async def test_refresh_updates_must_change_password(
     refresh_resp = await client.post(
         "/api/auth/refresh",
         cookies={"refresh_token": refresh_cookie or ""},
+        headers={"X-Requested-With": "XMLHttpRequest"},
     )
     assert refresh_resp.status_code == 200
     assert refresh_resp.json()["must_change_password"] is False

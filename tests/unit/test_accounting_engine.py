@@ -1039,3 +1039,41 @@ class TestNextEntryNumber:
         # Must continue from 000004, not reset to 000001
         result = await _next_entry_number(db_session)
         assert result == "000004"
+
+
+class TestNextEntryNumbers:
+    """TEC-167: Batch allocation of entry numbers."""
+
+    @pytest.mark.asyncio
+    async def test_allocates_empty_for_zero(self, db_session: AsyncSession) -> None:
+        from backend.services.accounting_engine import next_entry_numbers
+
+        nums = await next_entry_numbers(db_session, 0)
+        assert nums == []
+
+    @pytest.mark.asyncio
+    async def test_allocates_sequential_batch(self, db_session: AsyncSession) -> None:
+        from backend.services.accounting_engine import next_entry_numbers
+
+        nums = await next_entry_numbers(db_session, 4)
+        assert nums == ["000001", "000002", "000003", "000004"]
+
+    @pytest.mark.asyncio
+    async def test_continues_from_existing_max(self, db_session: AsyncSession) -> None:
+        from backend.models.accounting_entry import AccountingEntry
+        from backend.services.accounting_engine import next_entry_numbers
+
+        entry = AccountingEntry(
+            entry_number="000010",
+            date=date(2025, 1, 1),
+            account_number="411100",
+            label="test",
+            debit=Decimal("100"),
+            credit=Decimal("0"),
+            source_type=EntrySourceType.MANUAL,
+        )
+        db_session.add(entry)
+        await db_session.flush()
+
+        nums = await next_entry_numbers(db_session, 3)
+        assert nums == ["000011", "000012", "000013"]
