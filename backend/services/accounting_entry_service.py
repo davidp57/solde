@@ -32,7 +32,7 @@ from backend.schemas.accounting_entry import (
     ManualEntryUpdate,
     ResultatRead,
 )
-from backend.services.accounting_engine import _next_entry_number
+from backend.services.accounting_engine import next_entry_number
 from backend.services.fiscal_year_service import find_fiscal_year_id_for_date
 
 # ---------------------------------------------------------------------------
@@ -738,7 +738,7 @@ async def create_manual_entry(
     if fiscal_year_id is None:
         fiscal_year_id = await find_fiscal_year_id_for_date(db, payload.date)
 
-    debit_num = await _next_entry_number(db)
+    debit_num = await next_entry_number(db)
 
     debit_entry = AccountingEntry(
         entry_number=debit_num,
@@ -757,7 +757,7 @@ async def create_manual_entry(
     debit_entry.source_id = manual_group_id
     debit_entry.group_key = build_entry_group_key(EntrySourceType.MANUAL, manual_group_id)
 
-    credit_num = await _next_entry_number(db)
+    credit_num = await next_entry_number(db)
     credit_entry = AccountingEntry(
         entry_number=credit_num,
         date=payload.date,

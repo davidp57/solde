@@ -239,6 +239,12 @@ async def refresh_token(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TokenResponse:
     """Exchange a valid refresh token (from cookie) for new access + refresh tokens."""
+    # CSRF defense-in-depth: require X-Requested-With header (cannot be sent cross-origin)
+    if not request.headers.get("x-requested-with"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Missing X-Requested-With header",
+        )
     cookie_token = request.cookies.get(_REFRESH_COOKIE)
     if not cookie_token:
         raise HTTPException(
