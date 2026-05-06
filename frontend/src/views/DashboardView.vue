@@ -9,7 +9,7 @@
     <template v-else>
       <BankPendingDepositsPanel
         :deposits="pendingDeposits"
-        @refresh="listDeposits({ confirmed: false }).then((d) => (pendingDeposits.value = d)).catch(() => {})"
+        @refresh="listDeposits({ confirmed: false }).then((d) => (pendingDeposits.value = d)).catch((e) => console.error('Failed to refresh deposits', e))"
       />
 
       <section class="dashboard-quick-actions" :aria-label="t('dashboard.quick_actions_title')">
@@ -337,7 +337,7 @@ onMounted(async () => {
   await Promise.all([
     loadChart(),
     loadResourcesChart(),
-    listDeposits({ confirmed: false }).then((d) => (pendingDeposits.value = d)).catch(() => {}),
+    listDeposits({ confirmed: false }).then((d) => (pendingDeposits.value = d)).catch((e) => console.error('Failed to load deposits', e)),
   ])
 })
 </script>

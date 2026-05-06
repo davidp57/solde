@@ -1068,7 +1068,7 @@ function openEditDialog(invoice: Invoice) {
         editFileIsPdf.value = blob.type === 'application/pdf'
         editFileBlobUrl.value = URL.createObjectURL(blob)
       })
-      .catch(() => {})
+      .catch((e) => console.error('Failed to download invoice file', e))
       .finally(() => { editFileLoading.value = false })
   }
 }
@@ -1101,7 +1101,7 @@ async function openPreviewDialog(invoice: Invoice) {
   const tasks: Promise<void>[] = [
     listPayments({ invoice_id: invoice.id })
       .then((p) => { previewPayments.value = p })
-      .catch(() => {})
+      .catch((e) => console.error('Failed to load payments', e))
       .finally(() => { previewPaymentsLoading.value = false }),
   ]
 
@@ -1112,7 +1112,7 @@ async function openPreviewDialog(invoice: Invoice) {
           previewIsPdf.value = blob.type === 'application/pdf'
           previewBlobUrl.value = URL.createObjectURL(blob)
         })
-        .catch(() => {})
+        .catch((e) => console.error('Failed to download invoice file', e))
         .finally(() => { previewFileLoading.value = false }),
     )
   }

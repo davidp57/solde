@@ -794,7 +794,7 @@ async function loadInvoiceDetailData(id: number): Promise<void> {
       const tasks: Promise<void>[] = [
         listPayments({ invoice_id: inv.id })
           .then((p) => { invoiceDetailPayments.value = p })
-          .catch(() => {})
+          .catch((e) => console.error('Failed to load payments', e))
           .finally(() => { invoiceDetailPaymentsLoading.value = false }),
       ]
       if (inv.file_path) {
@@ -804,7 +804,7 @@ async function loadInvoiceDetailData(id: number): Promise<void> {
               invoiceFileBlobIsPdf.value = blob.type === 'application/pdf'
               invoiceFileBlobUrl.value = URL.createObjectURL(blob)
             })
-            .catch(() => {})
+            .catch((e) => console.error('Failed to download invoice file', e))
             .finally(() => { invoiceFileLoading.value = false }),
         )
       }
