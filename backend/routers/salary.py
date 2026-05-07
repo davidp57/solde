@@ -2,10 +2,11 @@
 
 from typing import TYPE_CHECKING, Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.errors import not_found
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.salary import (
@@ -132,7 +133,7 @@ async def get_salary(
 ) -> SalaryRead:
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
+        raise not_found("Salary")
     return _to_read(salary)
 
 
@@ -145,7 +146,7 @@ async def update_salary(
 ) -> SalaryRead:
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
+        raise not_found("Salary")
     updated = await salary_service.update_salary(db, salary, payload)
     await record_audit(
         db,
@@ -165,7 +166,7 @@ async def delete_salary(
 ) -> None:
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Salary not found")
+        raise not_found("Salary")
     detail = {"employee_id": salary.employee_id, "month": salary.month}
     await salary_service.delete_salary(db, salary)
     await record_audit(
@@ -187,8 +188,5 @@ async def get_previous_salary(
     """Return pre-CEA fields from the most recent salary for quick copy."""
     previous = await salary_service.get_previous_salary(db, employee_id)
     if previous is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No previous salary found for this employee",
-        )
+        raise not_found("Salary")
     return previous

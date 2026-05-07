@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.errors import not_found
 from backend.models.user import User, UserRole
 from backend.routers.auth import get_current_user, require_role
 from backend.schemas.app_comment import AppCommentCreate, AppCommentRead, AppCommentUpdate
@@ -47,7 +48,7 @@ async def update_comment(
     """Toggle is_resolved on a comment (admin only)."""
     result = await app_comment_service.toggle_resolved(db, comment_id, payload.is_resolved)
     if result is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+        raise not_found("Comment")
     return result
 
 
@@ -60,4 +61,4 @@ async def delete_comment(
     """Delete a comment (admin only)."""
     deleted = await app_comment_service.delete_comment(db, comment_id)
     if not deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+        raise not_found("Comment")

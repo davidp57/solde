@@ -678,7 +678,7 @@ class TestManualEntryAPI:
         )
 
         assert response.status_code == 404
-        assert response.json()["detail"] == "manual entry pair not found"
+        assert response.json()["detail"]["detail"] == "manual entry pair not found"
 
 
 # ---------------------------------------------------------------------------

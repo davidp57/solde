@@ -6,12 +6,13 @@ import logging
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import PlainTextResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.errors import not_found
 from backend.models.app_settings import AppSettings
 from backend.models.chat_log import ChatLog
 from backend.models.user import User, UserRole
@@ -101,10 +102,7 @@ async def get_manual(
 ) -> str:
     """Return the user manual as raw Markdown (authenticated users only)."""
     if not _MANUEL_PATH.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Manuel utilisateur introuvable.",
-        )
+        raise not_found("User manual")
     return _MANUEL_PATH.read_text(encoding="utf-8")
 
 
@@ -114,8 +112,5 @@ async def get_changelog(
 ) -> str:
     """Return the user-facing changelog as raw Markdown (authenticated users only)."""
     if not _CHANGELOG_USER_PATH.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Changelog utilisateur introuvable.",
-        )
+        raise not_found("User changelog")
     return _CHANGELOG_USER_PATH.read_text(encoding="utf-8")

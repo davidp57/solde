@@ -41,7 +41,7 @@ async def create_contact(db: AsyncSession, payload: ContactCreate) -> Contact:
                     sort_order=idx,
                 )
             )
-    await db.commit()
+    await db.flush()
     result = await db.execute(
         select(Contact).where(Contact.id == contact.id).options(selectinload(Contact.emails))
     )
@@ -157,7 +157,7 @@ async def update_contact(db: AsyncSession, contact: Contact, payload: ContactUpd
                     sort_order=idx,
                 )
             )
-    await db.commit()
+    await db.flush()
     result = await db.execute(
         select(Contact).where(Contact.id == contact.id).options(selectinload(Contact.emails))
     )
@@ -167,7 +167,7 @@ async def update_contact(db: AsyncSession, contact: Contact, payload: ContactUpd
 async def delete_contact(db: AsyncSession, contact: Contact) -> None:
     """Soft-delete: mark as inactive rather than removing the row."""
     contact.is_active = False
-    await db.commit()
+    await db.flush()
 
 
 async def get_contact_history(db: AsyncSession, contact_id: int) -> ContactHistory | None:
@@ -301,7 +301,7 @@ async def mark_creance_douteuse(
         source_id=contact_id,
     )
     db.add(credit_entry)
-    await db.commit()
+    await db.flush()
     await db.refresh(debit_entry)
     await db.refresh(credit_entry)
     return debit_entry, credit_entry
@@ -362,7 +362,7 @@ async def import_emails_from_rows(
         updated_indices.append(i)
 
     if updated > 0:
-        await db.commit()
+        await db.flush()
 
     return ContactEmailImportResult(
         rows_processed=len(rows),

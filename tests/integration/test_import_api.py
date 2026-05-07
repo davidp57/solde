@@ -295,15 +295,17 @@ async def test_get_import_run_exposes_source_data_for_blocked_operations(
 
 
 @pytest.mark.asyncio
-async def test_get_import_run_returns_localized_404(
+async def test_get_import_run_returns_structured_404(
     client: AsyncClient,
     auth_headers: dict,
 ) -> None:
-    """Missing reversible runs should return a localized not-found message."""
+    """Missing reversible runs should return a structured not-found error."""
     response = await client.get("/api/import/runs/999999", headers=auth_headers)
 
     assert response.status_code == 404
-    assert response.json() == {"detail": "Import préparé introuvable (id : 999999)"}
+    detail = response.json()["detail"]
+    assert detail["code"] == "IMPORT_RUN_NOT_FOUND"
+    assert detail["detail"] == "Import run not found (id: 999999)"
 
 
 @pytest.mark.asyncio
@@ -442,8 +444,9 @@ async def test_preview_gestion_rejects_invalid_comparison_date_range(
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": "La date de début doit être inférieure ou égale à la date de fin"
+    assert response.json()["detail"] == {
+        "code": "IMPORT_DATE_RANGE_INVALID",
+        "detail": "Start date must be before or equal to end date",
     }
 
 
@@ -474,8 +477,9 @@ async def test_preview_comptabilite_rejects_invalid_comparison_date_range(
     )
 
     assert response.status_code == 422
-    assert response.json() == {
-        "detail": "La date de début doit être inférieure ou égale à la date de fin"
+    assert response.json()["detail"] == {
+        "code": "IMPORT_DATE_RANGE_INVALID",
+        "detail": "Start date must be before or equal to end date",
     }
 
 
@@ -2598,7 +2602,8 @@ async def test_reversible_import_run_undo_rejects_manually_modified_object(
     )
 
     assert undo_response.status_code == 409
-    assert undo_response.json()["detail"] == "L'état courant ne correspond plus à l'état attendu"
+    detail = undo_response.json()["detail"]["detail"]
+    assert detail == "L'état courant ne correspond plus à l'état attendu"
 
 
 @pytest.mark.asyncio

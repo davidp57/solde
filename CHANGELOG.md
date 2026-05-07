@@ -23,6 +23,11 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **TEC-168** — Cache de l'environnement Jinja2 pour la génération PDF (`@lru_cache`)
 - **TEC-162** — Remplacement des `.catch(() => {})` silencieux par `console.error` dans le frontend
 
+### Refactorisé
+- **TEC-170** — Standardisation des codes d'erreur API : format structuré `{"code": "...", "detail": "..."}`, helpers centralisés (`backend/errors.py`), composable frontend `useApiError`, clés i18n FR/EN
+- **TEC-171** — Suppression de tous les `db.commit()` dans les services et routeurs ; utilisation de `flush()` uniquement (commit/rollback gérés par `get_db()`)
+- **TEC-173** — Découpage de `bank.py` (781 lignes) en 3 sous-routeurs : `bank_transactions.py`, `bank_import.py`, `bank_deposits.py`
+
 ---
 
 ## [1.6.0] — 2026-05-05
