@@ -71,7 +71,7 @@ async def create_salary(db: AsyncSession, payload: SalaryCreate) -> Salary:
     )
 
     await generate_entries_for_salary(db, salary)
-    await db.commit()
+    await db.flush()
     # Reload with employee relationship — db.refresh() only reloads columns, leaving
     # the relationship expired; accessing it in _to_read() would trigger a sync lazy-load
     # which raises MissingGreenlet on AsyncSession.
@@ -85,7 +85,7 @@ async def update_salary(db: AsyncSession, salary: Salary, payload: SalaryUpdate)
     for field, value in payload.model_dump(exclude_unset=True, exclude_none=False).items():
         if value is not None:
             setattr(salary, field, value)
-    await db.commit()
+    await db.flush()
     # Same as create_salary: reload with selectinload to avoid expired relationship access.
     result = await db.execute(
         select(Salary).options(selectinload(Salary.employee)).where(Salary.id == salary.id)
@@ -95,7 +95,7 @@ async def update_salary(db: AsyncSession, salary: Salary, payload: SalaryUpdate)
 
 async def delete_salary(db: AsyncSession, salary: Salary) -> None:
     await db.delete(salary)
-    await db.commit()
+    await db.flush()
 
 
 async def get_monthly_summary(

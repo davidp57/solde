@@ -266,7 +266,7 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
                     amount=_compute_line_amount(ln.quantity, ln.unit_price),
                 )
                 db.add(line)
-            await db.commit()
+            await db.flush()
         except IntegrityError:
             await db.rollback()
             db.expunge_all()  # remove stale pending objects before next attempt
@@ -409,7 +409,7 @@ async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpd
         await db.flush()
         await generate_entries_for_invoice(db, invoice)
     invoice_id = invoice.id  # save before expire clears attributes
-    await db.commit()
+    await db.flush()
     db.expire(invoice)  # force selectinload to re-query lines from DB
     return await get_invoice(db, invoice_id)  # type: ignore[return-value]
 
@@ -429,7 +429,7 @@ async def update_invoice_status(
         )  # noqa: PLC0415
 
         await generate_entries_for_invoice(db, invoice)
-    await db.commit()
+    await db.flush()
     await db.refresh(invoice)
     return invoice
 
@@ -456,7 +456,7 @@ async def write_off_invoice(db: AsyncSession, invoice: Invoice) -> Invoice:
     invoice.updated_at = datetime.now(UTC)
     await db.flush()
     await generate_entries_for_write_off(db, invoice, remaining)
-    await db.commit()
+    await db.flush()
     await db.refresh(invoice)
     return invoice
 
@@ -488,7 +488,7 @@ async def restore_from_writeoff(db: AsyncSession, invoice: Invoice) -> Invoice:
     invoice.updated_at = datetime.now(UTC)
     await db.flush()
     await generate_entries_for_restore_from_writeoff(db, invoice, amount)
-    await db.commit()
+    await db.flush()
     await db.refresh(invoice)
     return invoice
 
@@ -529,7 +529,7 @@ async def duplicate_invoice(db: AsyncSession, source: Invoice) -> Invoice:
         )
         db.add(line)
 
-    await db.commit()
+    await db.flush()
     return await get_invoice(db, copy.id)  # type: ignore[return-value]
 
 
@@ -538,13 +538,13 @@ async def delete_invoice(db: AsyncSession, invoice: Invoice) -> None:
     if invoice.status != InvoiceStatus.DRAFT:
         raise InvoiceDeleteError("Only draft invoices can be deleted")
     await db.delete(invoice)
-    await db.commit()
+    await db.flush()
 
 
 async def set_pdf_path(db: AsyncSession, invoice: Invoice, pdf_path: str) -> Invoice:
     """Update the pdf_path field after PDF generation."""
     invoice.pdf_path = pdf_path
-    await db.commit()
+    await db.flush()
     await db.refresh(invoice)
     return invoice
 
@@ -552,6 +552,6 @@ async def set_pdf_path(db: AsyncSession, invoice: Invoice, pdf_path: str) -> Inv
 async def set_file_path(db: AsyncSession, invoice: Invoice, file_path: str) -> Invoice:
     """Update the file_path field after a supplier file upload."""
     invoice.file_path = file_path
-    await db.commit()
+    await db.flush()
     await db.refresh(invoice)
     return invoice

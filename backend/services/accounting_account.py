@@ -28,7 +28,7 @@ async def seed_default_accounts(db: AsyncSession) -> int:
             account = AccountingAccount(**data)
             db.add(account)
             inserted += 1
-    await db.commit()
+    await db.flush()
     return inserted
 
 
@@ -61,7 +61,7 @@ async def get_account_by_number(db: AsyncSession, number: str) -> AccountingAcco
 async def create_account(db: AsyncSession, payload: AccountingAccountCreate) -> AccountingAccount:
     account = AccountingAccount(**payload.model_dump(), is_default=False)
     db.add(account)
-    await db.commit()
+    await db.flush()
     await db.refresh(account)
     return account
 
@@ -71,6 +71,6 @@ async def update_account(
 ) -> AccountingAccount:
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(account, field, value)
-    await db.commit()
+    await db.flush()
     await db.refresh(account)
     return account

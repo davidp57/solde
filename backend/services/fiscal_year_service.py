@@ -87,7 +87,7 @@ async def create_fiscal_year(db: AsyncSession, payload: FiscalYearCreate) -> Fis
         status=FiscalYearStatus.OPEN,
     )
     db.add(fy)
-    await db.commit()
+    await db.flush()
     await db.refresh(fy)
     return fy
 
@@ -178,7 +178,7 @@ async def close_fiscal_year(db: AsyncSession, fy: FiscalYear) -> FiscalYear:
         )
 
     fy.status = FiscalYearStatus.CLOSED
-    await db.commit()
+    await db.flush()
     await db.refresh(fy)
     return fy
 
@@ -193,7 +193,7 @@ async def administrative_close_fiscal_year(db: AsyncSession, fy: FiscalYear) -> 
         raise FiscalYearError("Only OPEN fiscal years can be administratively closed")
 
     fy.status = FiscalYearStatus.CLOSED
-    await db.commit()
+    await db.flush()
     await db.refresh(fy)
     return fy
 
@@ -275,6 +275,6 @@ async def open_new_fiscal_year(
             )
         )
 
-    await db.commit()
+    await db.flush()
     await db.refresh(new_fy)
     return new_fy

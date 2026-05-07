@@ -3,10 +3,11 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.errors import api_error, conflict, not_found
 from backend.models.invoice import InvoiceType
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
@@ -78,9 +79,9 @@ async def create_payment(
     try:
         payment = await payment_service.create_payment(db, payload)
     except payment_service.InvoiceNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "PAYMENT_NOT_FOUND", str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise api_error(status.HTTP_400_BAD_REQUEST, "PAYMENT_INVALID", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.PAYMENT_CREATED,
@@ -104,7 +105,7 @@ async def get_payment(
 ) -> PaymentRead:
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+        raise not_found("Payment")
     return payment
 
 
@@ -118,9 +119,9 @@ async def update_payment(
     try:
         updated = await payment_service.update_payment(db, payment_id, payload)
     except LookupError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "PAYMENT_NOT_FOUND", str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise api_error(status.HTTP_400_BAD_REQUEST, "PAYMENT_INVALID", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.PAYMENT_UPDATED,
@@ -139,7 +140,7 @@ async def delete_payment(
 ) -> None:
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+        raise not_found("Payment")
     detail = {
         "invoice_id": payment.invoice_id,
         "amount": str(payment.amount),
@@ -148,7 +149,7 @@ async def delete_payment(
     try:
         await payment_service.delete_payment(db, payment_id)
     except payment_service.PaymentDeleteError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise conflict("PAYMENT_CONFLICT", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.PAYMENT_DELETED,
@@ -170,9 +171,9 @@ async def fix_deposit_date(
     try:
         updated = await payment_service.fix_inconsistent_deposit_date(db, payment_id, deposit_date)
     except LookupError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "PAYMENT_NOT_FOUND", str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise api_error(status.HTTP_400_BAD_REQUEST, "PAYMENT_INVALID", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.PAYMENT_UPDATED,

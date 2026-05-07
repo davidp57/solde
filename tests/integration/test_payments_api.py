@@ -85,7 +85,7 @@ async def test_create_payment_client_virement_is_rejected(
 
     assert response.status_code == 400
     assert (
-        response.json()["detail"]
+        response.json()["detail"]["detail"]
         == "client virement payments must be created from bank reconciliation"
     )
 
@@ -108,7 +108,7 @@ async def test_create_payment_returns_404_for_unknown_invoice(
     )
 
     assert response.status_code == 404
-    assert response.json()["detail"] == "Invoice not found"
+    assert response.json()["detail"]["detail"] == "Invoice not found"
 
 
 @pytest.mark.asyncio
@@ -178,7 +178,7 @@ async def test_update_payment(
         headers=auth_headers,
     )
     assert update_resp.status_code == 400
-    assert update_resp.json()["detail"] == "payments cannot change amount after creation"
+    assert update_resp.json()["detail"]["detail"] == "payments cannot change amount after creation"
 
 
 @pytest.mark.asyncio
@@ -243,7 +243,7 @@ async def test_update_payment_rejects_manual_client_virement(
 
     assert update_resp.status_code == 400
     assert (
-        update_resp.json()["detail"]
+        update_resp.json()["detail"]["detail"]
         == "client virement payments must be created from bank reconciliation"
     )
 
@@ -274,7 +274,7 @@ async def test_update_payment_rejects_switch_between_cheque_and_cash(
 
     assert update_resp.status_code == 400
     assert (
-        update_resp.json()["detail"]
+        update_resp.json()["detail"]["detail"]
         == "client cheque and cash payments cannot change method after creation"
     )
 
@@ -305,7 +305,7 @@ async def test_update_cash_payment_rejects_amount_change(
 
     assert update_resp.status_code == 400
     assert (
-        update_resp.json()["detail"] == "cash client payments cannot change amount after creation"
+        update_resp.json()["detail"]["detail"] == "cash client payments cannot change amount after creation"
     )
 
 
@@ -334,7 +334,7 @@ async def test_update_cheque_payment_rejects_date_change(
     )
 
     assert update_resp.status_code == 400
-    assert update_resp.json()["detail"] == "payments cannot change date after creation"
+    assert update_resp.json()["detail"]["detail"] == "payments cannot change date after creation"
 
 
 @pytest.mark.asyncio
@@ -357,7 +357,7 @@ async def test_delete_payment(
 
     del_resp = await client.delete(f"/api/payments/{payment_id}", headers=auth_headers)
     assert del_resp.status_code == 409
-    assert del_resp.json()["detail"] == "payments cannot be deleted after creation"
+    assert del_resp.json()["detail"]["detail"] == "payments cannot be deleted after creation"
 
     get_resp = await client.get(f"/api/payments/{payment_id}", headers=auth_headers)
     assert get_resp.status_code == 200

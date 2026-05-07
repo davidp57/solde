@@ -97,7 +97,7 @@ async def add_cash_entry(db: AsyncSession, payload: CashEntryCreate) -> CashRegi
         description=payload.description,
         source=CashEntrySource.MANUAL,
     )
-    await db.commit()
+    await db.flush()
     await db.refresh(entry)
     return entry
 
@@ -134,7 +134,7 @@ async def create_cash_entry_record(
 
 async def get_cash_entry(db: AsyncSession, entry_id: int) -> CashRegister | None:
     if await recompute_cash_balances(db):
-        await db.commit()
+        await db.flush()
     result = await db.execute(select(CashRegister).where(CashRegister.id == entry_id))
     return result.scalar_one_or_none()
 
@@ -167,7 +167,7 @@ async def delete_cash_entry(db: AsyncSession, entry: CashRegister) -> int:
     await db.delete(entry)
     await db.flush()
     await recompute_cash_balances(db)
-    await db.commit()
+    await db.flush()
     return len(linked_entries)
 
 
@@ -180,7 +180,7 @@ async def update_cash_entry(
         setattr(entry, field, value)
     await db.flush()
     await recompute_cash_balances(db)
-    await db.commit()
+    await db.flush()
     await db.refresh(entry)
     return entry
 
@@ -194,7 +194,7 @@ async def list_cash_entries(
     limit: int = 100,
 ) -> list[CashRegister]:
     if await recompute_cash_balances(db):
-        await db.commit()
+        await db.flush()
     query = select(CashRegister)
     if from_date is not None:
         query = query.where(CashRegister.date >= from_date)
@@ -213,7 +213,7 @@ async def get_monthly_funds_series(
     months: int = 6,
 ) -> list[dict[str, Decimal | str]]:
     if await recompute_cash_balances(db):
-        await db.commit()
+        await db.flush()
 
     result = await db.execute(
         select(CashRegister.date, CashRegister.balance_after).order_by(
@@ -254,7 +254,7 @@ async def create_cash_count(db: AsyncSession, payload: CashCountCreate) -> CashC
         notes=payload.notes,
     )
     db.add(count)
-    await db.commit()
+    await db.flush()
     await db.refresh(count)
     return count
 

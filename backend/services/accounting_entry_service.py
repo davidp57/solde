@@ -771,7 +771,7 @@ async def create_manual_entry(
         group_key=build_entry_group_key(EntrySourceType.MANUAL, manual_group_id),
     )
     db.add(credit_entry)
-    await db.commit()
+    await db.flush()
     await db.refresh(debit_entry)
     await db.refresh(credit_entry)
     return debit_entry, credit_entry
@@ -820,7 +820,7 @@ async def update_manual_entry(
     credit_entry.source_id = manual_group_id
     credit_entry.group_key = group_key
 
-    await db.commit()
+    await db.flush()
     await db.refresh(debit_entry)
     await db.refresh(credit_entry)
     return debit_entry, credit_entry

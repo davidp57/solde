@@ -60,7 +60,7 @@ async def update_rule(
                 )
             )
 
-    await db.commit()
+    await db.flush()
     await db.refresh(rule)
     return rule
 
@@ -84,7 +84,7 @@ async def create_rule(db: AsyncSession, payload: AccountingRuleCreate) -> Accoun
                 description_template=entry_data.description_template,
             )
         )
-    await db.commit()
+    await db.flush()
     loaded = await get_rule(db, rule.id)
     assert loaded is not None
     return loaded
@@ -92,7 +92,7 @@ async def create_rule(db: AsyncSession, payload: AccountingRuleCreate) -> Accoun
 
 async def delete_rule(db: AsyncSession, rule: AccountingRule) -> None:
     await db.delete(rule)
-    await db.commit()
+    await db.flush()
 
 
 def _render_template(template: str, context: Mapping[str, object]) -> str:

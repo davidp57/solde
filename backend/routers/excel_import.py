@@ -6,11 +6,12 @@ from datetime import date
 from pathlib import Path
 from typing import Annotated, NoReturn
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, Form, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import get_settings
 from backend.database import get_db
+from backend.errors import api_error, conflict, not_found, unprocessable
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.services import excel_import, import_reversible
@@ -39,33 +40,35 @@ async def _read_limited(upload: UploadFile) -> bytes:
     """Read upload content, enforcing the size limit."""
     content = await upload.read(_MAX_UPLOAD_BYTES + 1)
     if len(content) > _MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="Fichier trop volumineux (limite : 10 Mo)",
+        raise api_error(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            "FILE_TOO_LARGE",
+            "File too large (limit: 10 MB)",
         )
     return content
 
 
 def _check_excel_extension(filename: str | None) -> None:
     if not filename or not filename.lower().endswith((".xlsx", ".xls")):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Le fichier doit être au format Excel (.xlsx ou .xls)",
+        raise unprocessable(
+            "IMPORT_INVALID_FORMAT",
+            "File must be in Excel format (.xlsx or .xls)",
         )
 
 
 def _read_path_limited(file_path: Path) -> bytes:
     if not file_path.is_file():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Fichier de test introuvable : {file_path}",
+        raise conflict(
+            "IMPORT_FILE_NOT_FOUND",
+            f"Test file not found: {file_path}",
         )
 
     size = file_path.stat().st_size
     if size > _MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="Fichier trop volumineux (limite : 10 Mo)",
+        raise api_error(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            "FILE_TOO_LARGE",
+            "File too large (limit: 10 MB)",
         )
 
     return file_path.read_bytes()
@@ -107,7 +110,7 @@ def _get_test_import_shortcuts() -> list[_TestImportShortcut]:
 
 def _require_test_import_shortcuts_enabled() -> None:
     if not get_settings().enable_test_import_shortcuts:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+        raise not_found("Resource")
 
 
 def _serialize_test_import_shortcut(shortcut: _TestImportShortcut) -> dict[str, object]:
@@ -134,7 +137,7 @@ def _get_test_import_shortcut_by_alias(alias: str) -> _TestImportShortcut:
     for shortcut in _get_test_import_shortcuts():
         if shortcut.alias == alias:
             return shortcut
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Raccourci d'import inconnu")
+    raise not_found("Import shortcut")
 
 
 async def _run_test_import_shortcut(
@@ -145,9 +148,9 @@ async def _run_test_import_shortcut(
     comparison_end_date: date | None = None,
 ) -> dict[str, object]:
     if shortcut.file_path is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Chemin non configuré pour {shortcut.label}",
+        raise conflict(
+            "IMPORT_PATH_NOT_CONFIGURED",
+            f"Path not configured for {shortcut.label}",
         )
 
     path = Path(shortcut.file_path)
@@ -173,23 +176,22 @@ async def _run_test_import_shortcut(
 
 def _raise_import_run_error(exc: Exception) -> NoReturn:
     if isinstance(exc, ImportFileOpenError):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(exc),
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "IMPORT_FILE_OPEN_ERROR",
+            str(exc),
         ) from exc
     if isinstance(exc, ImportSheetError):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(exc),
-        ) from exc
+        raise unprocessable("IMPORT_SHEET_ERROR", str(exc)) from exc
     if isinstance(exc, LookupError):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "IMPORT_RESOURCE_NOT_FOUND", str(exc)) from exc
     if isinstance(exc, ValueError):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise conflict("IMPORT_CONFLICT", str(exc)) from exc
     logger.exception("Unexpected error in import run")
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="An unexpected error occurred during import.",
+    raise api_error(
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+        "IMPORT_UNEXPECTED_ERROR",
+        "An unexpected error occurred during import.",
     ) from exc
 
 
@@ -234,9 +236,8 @@ async def preview_gestion(
         and comparison_end_date is not None
         and comparison_start_date > comparison_end_date
     ):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="La date de début doit être inférieure ou égale à la date de fin",
+        raise unprocessable(
+            "IMPORT_DATE_RANGE_INVALID", "Start date must be before or equal to end date"
         )
     content = await _read_limited(file)
     result = await excel_import.preview_gestion_file(
@@ -264,9 +265,8 @@ async def preview_comptabilite(
         and comparison_end_date is not None
         and comparison_start_date > comparison_end_date
     ):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="La date de début doit être inférieure ou égale à la date de fin",
+        raise unprocessable(
+            "IMPORT_DATE_RANGE_INVALID", "Start date must be before or equal to end date"
         )
     content = await _read_limited(file)
     result = await excel_import.preview_comptabilite_file(
@@ -294,9 +294,8 @@ async def prepare_gestion_run(
         and comparison_end_date is not None
         and comparison_start_date > comparison_end_date
     ):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="La date de début doit être inférieure ou égale à la date de fin",
+        raise unprocessable(
+            "IMPORT_DATE_RANGE_INVALID", "Start date must be before or equal to end date"
         )
     content = await _read_limited(file)
     try:
@@ -328,9 +327,8 @@ async def prepare_comptabilite_run(
         and comparison_end_date is not None
         and comparison_start_date > comparison_end_date
     ):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="La date de début doit être inférieure ou égale à la date de fin",
+        raise unprocessable(
+            "IMPORT_DATE_RANGE_INVALID", "Start date must be before or equal to end date"
         )
     content = await _read_limited(file)
     try:
@@ -356,9 +354,10 @@ async def get_import_run(
     """Return one prepared or executed reversible import run."""
     run = await import_reversible.get_import_run(db, run_id)
     if run is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Import préparé introuvable (id : {run_id})",
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            "IMPORT_RUN_NOT_FOUND",
+            f"Import run not found (id: {run_id})",
         )
     return import_reversible.serialize_run(run)
 
@@ -491,9 +490,8 @@ async def run_test_import_shortcut(
         and comparison_end_date is not None
         and comparison_start_date > comparison_end_date
     ):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="La date de début doit être inférieure ou égale à la date de fin",
+        raise unprocessable(
+            "IMPORT_DATE_RANGE_INVALID", "Start date must be before or equal to end date"
         )
     shortcut = _get_test_import_shortcut_by_alias(alias)
     return await _run_test_import_shortcut(

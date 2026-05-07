@@ -7,12 +7,13 @@ from pathlib import Path
 from typing import Annotated, NoReturn
 
 import anyio
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import get_settings as get_app_config
 from backend.database import get_db
+from backend.errors import api_error, unprocessable
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.settings import (
@@ -44,16 +45,14 @@ _ManagerRequired = Annotated[
 
 def _raise_selective_reset_error(exc: Exception) -> NoReturn:
     if isinstance(exc, LookupError):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "RESET_NOT_FOUND", str(exc)) from exc
     if isinstance(exc, ValueError):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
-        ) from exc
+        raise unprocessable("RESET_INVALID", str(exc)) from exc
     logger.exception("Unexpected error in selective reset")
-    raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail="An unexpected error occurred during selective reset.",
+    raise api_error(
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+        "RESET_UNEXPECTED_ERROR",
+        "An unexpected error occurred during selective reset.",
     ) from exc
 
 
@@ -106,9 +105,10 @@ async def reset_db(
     Disabled in production (debug=False).
     """
     if not get_app_config().debug:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Database reset is only available in debug mode",
+        raise api_error(
+            status.HTTP_403_FORBIDDEN,
+            "RESET_DEBUG_ONLY",
+            "Database reset is only available in debug mode",
         )
     result = await settings_service.reset_data(db)
     await record_audit(db, action=AuditAction.DB_RESET, actor=current_user, detail=result)
@@ -199,9 +199,10 @@ async def create_backup(
     backup_dir = _get_backup_dir()
 
     if not Path(db_path).exists():
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database file not found on disk.",
+        raise api_error(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "BACKUP_DB_NOT_FOUND",
+            "Database file not found on disk.",
         )
 
     backup_file = await do_backup(
@@ -301,16 +302,18 @@ async def restore_backup(
     then SIGTERM is sent to the process for a clean restart.
     """
     if not _SAFE_BACKUP_RE.fullmatch(filename):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid backup filename.",
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "BACKUP_INVALID_FILENAME",
+            "Invalid backup filename.",
         )
 
     backup_file = Path(_BACKUP_DIR) / filename
     if not backup_file.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Backup file not found.",
+        raise api_error(
+            status.HTTP_404_NOT_FOUND,
+            "BACKUP_FILE_NOT_FOUND",
+            "Backup file not found.",
         )
 
     db_path = _get_db_path()
@@ -322,7 +325,7 @@ async def restore_backup(
         detail={"filename": filename},
     )
     # Commit the audit entry now — the engine will be disposed in the background task.
-    await db.commit()
+    await db.flush()
 
     from backend.services.backup_service import restore_backup as do_restore  # noqa: PLC0415
 
