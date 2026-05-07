@@ -1046,9 +1046,8 @@ async def test_link_existing_client_payments_rejects_amount_mismatch(
     )
 
     assert link_response.status_code == 422
-    assert (
-        link_response.json()["detail"]["detail"] == "linked payments total must match bank transaction amount"
-    )
+    detail = link_response.json()["detail"]["detail"]
+    assert detail == "linked payments total must match bank transaction amount"
 
 
 @pytest.mark.asyncio
@@ -1080,7 +1079,8 @@ async def test_link_existing_client_payment_rejects_amount_mismatch(
     )
 
     assert link_response.status_code == 422
-    assert link_response.json()["detail"]["detail"] == "bank transaction amount must match payment amount"
+    detail = link_response.json()["detail"]["detail"]
+    assert detail == "bank transaction amount must match payment amount"
 
 
 @pytest.mark.asyncio

@@ -325,7 +325,7 @@ async def restore_backup(
         detail={"filename": filename},
     )
     # Commit the audit entry now — the engine will be disposed in the background task.
-    await db.flush()
+    await db.commit()
 
     from backend.services.backup_service import restore_backup as do_restore  # noqa: PLC0415
 

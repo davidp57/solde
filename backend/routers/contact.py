@@ -164,7 +164,7 @@ async def mark_douteux(
     result = await contact_service.mark_creance_douteuse(db, contact_id)
     if result is None:
         raise api_error(
-            status.HTTP_404_NOT_FOUND,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
             "CONTACT_NO_OUTSTANDING_BALANCE",
             "Contact not found or no outstanding balance",
         )

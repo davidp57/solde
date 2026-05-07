@@ -79,7 +79,7 @@ async def create_payment(
     try:
         payment = await payment_service.create_payment(db, payload)
     except payment_service.InvoiceNotFoundError as exc:
-        raise api_error(status.HTTP_404_NOT_FOUND, "PAYMENT_NOT_FOUND", str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "INVOICE_NOT_FOUND", str(exc)) from exc
     except ValueError as exc:
         raise api_error(status.HTTP_400_BAD_REQUEST, "PAYMENT_INVALID", str(exc)) from exc
     await record_audit(

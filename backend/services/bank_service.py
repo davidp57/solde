@@ -571,7 +571,7 @@ async def create_client_payments_from_transaction(
             payment_date=tx.date,
             reference=tx.description or None,
             notes=tx.description or None,
-            commit=False,
+            flush_and_refresh=False,
         )
         payments.append(payment)
 

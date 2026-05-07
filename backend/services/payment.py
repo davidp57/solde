@@ -76,7 +76,7 @@ async def create_bank_reconciled_client_payment(
     payment_date: date,
     reference: str | None = None,
     notes: str | None = None,
-    commit: bool = True,
+    flush_and_refresh: bool = True,
 ) -> PaymentRead:
     """Create a client virement originating from a reconciled bank transaction."""
     invoice = await _get_invoice(db, invoice_id)
@@ -100,7 +100,7 @@ async def create_bank_reconciled_client_payment(
         allow_client_virement=True,
         deposited=True,
         deposit_date=payment_date,
-        commit=commit,
+        flush_and_refresh=flush_and_refresh,
     )
 
 
@@ -112,7 +112,7 @@ async def create_bank_reconciled_supplier_payment(
     payment_date: date,
     reference: str | None = None,
     notes: str | None = None,
-    commit: bool = True,
+    flush_and_refresh: bool = True,
 ) -> PaymentRead:
     """Create a supplier virement originating from a reconciled bank transaction."""
     invoice = await _get_invoice(db, invoice_id)
@@ -135,7 +135,7 @@ async def create_bank_reconciled_supplier_payment(
         payload,
         deposited=True,
         deposit_date=payment_date,
-        commit=commit,
+        flush_and_refresh=flush_and_refresh,
     )
 
 
@@ -146,7 +146,7 @@ async def _create_payment(
     allow_client_virement: bool = False,
     deposited: bool | None = None,
     deposit_date: date | None = None,
-    commit: bool = True,
+    flush_and_refresh: bool = True,
 ) -> PaymentRead:
     """Persist a payment and all its side effects."""
     invoice = await _get_invoice(db, payload.invoice_id)
@@ -176,7 +176,7 @@ async def _create_payment(
     )
 
     await generate_entries_for_payment(db, payment, invoice.type)
-    if commit:
+    if flush_and_refresh:
         await db.flush()
         await db.refresh(payment)
     return await _to_payment_read(db, payment)
