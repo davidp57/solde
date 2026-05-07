@@ -111,7 +111,7 @@ export default {
     IMPORT_RESOURCE_NOT_FOUND: 'Import resource not found.',
     IMPORT_CONFLICT: 'Import conflict.',
     IMPORT_UNEXPECTED_ERROR: 'Unexpected error during import.',
-    IMPORT_SHORTCUT_NOT_FOUND: 'Import shortcut not found.',,
+    IMPORT_SHORTCUT_NOT_FOUND: 'Import shortcut not found.',
     INVOICE_NOT_FOUND: 'Invoice not found.',
     INVOICE_OPERATION_FAILED: 'Invoice operation failed.',
     INVOICE_PDF_CLIENT_ONLY: 'PDF generation is only available for client invoices.',
