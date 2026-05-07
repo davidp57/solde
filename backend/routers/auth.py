@@ -210,7 +210,7 @@ async def login(
             action=AuditAction.LOGIN_FAILURE,
             detail={"attempted_username": form_data.username, "ip": client_ip},
         )
-        await db.flush()
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",

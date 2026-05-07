@@ -304,9 +304,8 @@ async def test_update_cash_payment_rejects_amount_change(
     )
 
     assert update_resp.status_code == 400
-    assert (
-        update_resp.json()["detail"]["detail"] == "cash client payments cannot change amount after creation"
-    )
+    detail = update_resp.json()["detail"]["detail"]
+    assert detail == "cash client payments cannot change amount after creation"
 
 
 @pytest.mark.asyncio

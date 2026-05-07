@@ -28,7 +28,8 @@ def api_error(
 
 def not_found(resource: str) -> HTTPException:
     """404 error for a missing resource."""
-    code = f"{resource.upper()}_NOT_FOUND"
+    normalized = resource.upper().replace(" ", "_").replace("-", "_")
+    code = f"{normalized}_NOT_FOUND"
     return api_error(status.HTTP_404_NOT_FOUND, code, f"{resource} not found")
 
 
