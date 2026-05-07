@@ -35,21 +35,21 @@ async def test_get_history_empty(
 @pytest.mark.asyncio
 async def test_mark_douteux_not_found(client: AsyncClient, auth_headers: dict) -> None:
     response = await client.post("/api/contacts/999/mark-douteux", headers=auth_headers)
-    assert response.status_code == 404
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
 async def test_mark_douteux_no_balance(
     client: AsyncClient, auth_headers: dict, db_session: AsyncSession
 ) -> None:
-    """Contact with no unpaid invoices → 404 (no balance)."""
+    """Contact with no unpaid invoices → 422 (no balance)."""
     contact = Contact(type=ContactType.CLIENT, nom="Martin")
     db_session.add(contact)
     await db_session.commit()
     await db_session.refresh(contact)
 
     response = await client.post(f"/api/contacts/{contact.id}/mark-douteux", headers=auth_headers)
-    assert response.status_code == 404
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio

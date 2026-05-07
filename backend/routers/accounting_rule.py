@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.errors import conflict, not_found, unprocessable
 from backend.models.accounting_rule import NON_TRIGGERABLE_CATEGORIES
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
@@ -48,7 +49,7 @@ async def get_rule(
 ) -> AccountingRuleRead:
     rule = await accounting_rule_service.get_rule(db, rule_id)
     if rule is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+        raise not_found("Rule")
     return rule  # type: ignore[return-value]
 
 
@@ -60,16 +61,14 @@ async def create_rule(
 ) -> AccountingRuleRead:
     existing = await accounting_rule_service.list_rules(db)
     if payload.trigger_type in NON_TRIGGERABLE_CATEGORIES:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=(
-                "This trigger_type corresponds to a non-triggerable category and cannot have a rule"
-            ),
+        raise unprocessable(
+            "RULE_NON_TRIGGERABLE",
+            "This trigger_type corresponds to a non-triggerable category and cannot have a rule",
         )
     if any(r.trigger_type == payload.trigger_type for r in existing):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A rule with this trigger_type already exists",
+        raise conflict(
+            "RULE_TRIGGER_EXISTS",
+            "A rule with this trigger_type already exists",
         )
     rule = await accounting_rule_service.create_rule(db, payload)
     return rule  # type: ignore[return-value]
@@ -83,7 +82,7 @@ async def delete_rule(
 ) -> None:
     rule = await accounting_rule_service.get_rule(db, rule_id)
     if rule is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+        raise not_found("Rule")
     await accounting_rule_service.delete_rule(db, rule)
 
 
@@ -96,7 +95,7 @@ async def update_rule(
 ) -> AccountingRuleRead:
     rule = await accounting_rule_service.get_rule(db, rule_id)
     if rule is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+        raise not_found("Rule")
     updated = await accounting_rule_service.update_rule(db, rule, payload)
     return updated  # type: ignore[return-value]
 
@@ -127,5 +126,5 @@ async def preview_rule(
         entry_date=payload.entry_date,
     )
     if entries is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rule not found")
+        raise not_found("Rule")
     return entries

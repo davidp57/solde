@@ -935,5 +935,5 @@ async def seed_default_rules(db: AsyncSession) -> int:
         count += 1
         existing_triggers.add(trigger_type)
 
-    await db.commit()
+    await db.flush()
     return count
