@@ -558,7 +558,7 @@ async def apply_selective_reset(
 
     await recompute_bank_balances(db)
     await recompute_cash_balances(db)
-    await db.commit()
+    await db.flush()
     db.expunge_all()
     return plan.to_preview()
 
@@ -570,7 +570,7 @@ async def get_settings(db: AsyncSession) -> AppSettings:
     if settings is None:
         settings = AppSettings(id=_SETTINGS_ID)
         db.add(settings)
-        await db.commit()
+        await db.flush()
         await db.refresh(settings)
     return settings
 
@@ -674,7 +674,7 @@ async def update_settings(db: AsyncSession, payload: AppSettingsUpdate) -> AppSe
     settings = await get_settings(db)
     for field_name, value in payload.model_dump(exclude_unset=True).items():
         setattr(settings, field_name, value)
-    await db.commit()
+    await db.flush()
     await db.refresh(settings)
     return settings
 
@@ -811,7 +811,7 @@ async def upsert_treasury_system_opening(
     await db.flush()
     await recompute_bank_balances(db)
     await recompute_cash_balances(db)
-    await db.commit()
+    await db.flush()
 
     return await get_treasury_system_opening(db)
 
@@ -835,7 +835,7 @@ async def reset_data(db: AsyncSession) -> dict[str, int]:
         deleted[table.name] = result.rowcount or 0
         logger.debug("reset_data: deleted %d rows from %s", deleted[table.name], table.name)
 
-    await db.commit()
+    await db.flush()
     db.expunge_all()
     logger.info("reset_data: database reset completed while preserving users only")
     return deleted
@@ -871,7 +871,7 @@ async def bootstrap_accounting_setup(db: AsyncSession) -> dict[str, int]:
         fiscal_years_created += 1
 
     if fiscal_years_created:
-        await db.commit()
+        await db.flush()
 
     return {
         "accounts_inserted": accounts_inserted,

@@ -50,9 +50,9 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-170 | Standardiser les codes d'erreur API (EN + code structuré) | P2 | ~20 min | 2026-05-06 | | |
-| TEC-171 | Audit : supprimer les commit() dans les services | P2 | ~20 min | 2026-05-06 | | |
-| TEC-173 | Découper bank.py en sous-routeurs | P3 | ~15 min | 2026-05-06 | | |
+| TEC-170 | Standardiser les codes d'erreur API (EN + code structuré) | P2 | ~20 min | 2026-05-06 | 2026-05-07 | 2026-05-07 |
+| TEC-171 | Audit : supprimer les commit() dans les services | P2 | ~20 min | 2026-05-06 | 2026-05-07 | 2026-05-07 |
+| TEC-173 | Découper bank.py en sous-routeurs | P3 | ~15 min | 2026-05-06 | 2026-05-07 | 2026-05-07 |
 
 ---
 

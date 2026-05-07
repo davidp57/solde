@@ -921,7 +921,7 @@ async def test_create_client_payment_from_debit_transaction_is_rejected(
 
     assert reconcile_response.status_code == 422
     assert (
-        reconcile_response.json()["detail"]
+        reconcile_response.json()["detail"]["detail"]
         == "only positive bank transactions can create client payments"
     )
 
@@ -1047,7 +1047,7 @@ async def test_link_existing_client_payments_rejects_amount_mismatch(
 
     assert link_response.status_code == 422
     assert (
-        link_response.json()["detail"] == "linked payments total must match bank transaction amount"
+        link_response.json()["detail"]["detail"] == "linked payments total must match bank transaction amount"
     )
 
 
@@ -1080,7 +1080,7 @@ async def test_link_existing_client_payment_rejects_amount_mismatch(
     )
 
     assert link_response.status_code == 422
-    assert link_response.json()["detail"] == "bank transaction amount must match payment amount"
+    assert link_response.json()["detail"]["detail"] == "bank transaction amount must match payment amount"
 
 
 @pytest.mark.asyncio

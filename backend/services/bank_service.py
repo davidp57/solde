@@ -211,7 +211,7 @@ async def _finalize_payment_links(
 
     await _store_transaction_payment_links(db, tx=tx, payments=payments)
     await db.flush()
-    await db.commit()
+    await db.flush()
     await db.refresh(tx)
     return tx
 
@@ -298,7 +298,7 @@ async def add_transaction(
         source=payload.source,
         bank_account=payload.bank_account,
     )
-    await db.commit()
+    await db.flush()
     await db.refresh(tx)
     return tx
 
@@ -375,7 +375,7 @@ async def get_monthly_funds_series(
     months: int = 6,
 ) -> list[dict[str, Decimal | str]]:
     if await recompute_bank_balances(db):
-        await db.commit()
+        await db.flush()
 
     result = await db.execute(
         select(BankTransaction.date, BankTransaction.balance_after)
@@ -463,7 +463,7 @@ async def update_transaction(
         setattr(tx, field, value)
     await db.flush()
     await recompute_bank_balances(db)
-    await db.commit()
+    await db.flush()
     await db.refresh(tx)
     return tx
 
@@ -483,7 +483,7 @@ async def delete_manual_transaction(db: AsyncSession, tx: BankTransaction) -> No
     await db.delete(tx)
     await db.flush()
     await recompute_bank_balances(db)
-    await db.commit()
+    await db.flush()
 
 
 async def reconcile_transactions_bulk(
@@ -508,7 +508,7 @@ async def reconcile_transactions_bulk(
         tx.reconciled = True
         await accounting_engine.generate_entries_for_bank_transaction(db, tx)
 
-    await db.commit()
+    await db.flush()
     return len(txs)
 
 
@@ -536,7 +536,7 @@ async def create_client_payment_from_transaction(
 
     await _store_transaction_payment_links(db, tx=tx, payments=[payment])
     await db.flush()
-    await db.commit()
+    await db.flush()
     await db.refresh(tx)
     return tx
 
@@ -577,7 +577,7 @@ async def create_client_payments_from_transaction(
 
     await _store_transaction_payment_links(db, tx=tx, payments=payments)
     await db.flush()
-    await db.commit()
+    await db.flush()
     await db.refresh(tx)
     return tx
 
@@ -606,7 +606,7 @@ async def create_supplier_payment_from_transaction(
 
     await _store_transaction_payment_links(db, tx=tx, payments=[payment])
     await db.flush()
-    await db.commit()
+    await db.flush()
     await db.refresh(tx)
     return tx
 
@@ -794,7 +794,7 @@ async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
         db.add(deposit)
         await db.flush()
 
-    await db.commit()
+    await db.flush()
     await db.refresh(deposit)
     return deposit
 
@@ -902,7 +902,7 @@ async def update_deposit(db: AsyncSession, deposit_id: int, payload: DepositUpda
                 raise ValueError("total_amount must be a positive amount")
             deposit.total_amount = payload.total_amount
 
-    await db.commit()
+    await db.flush()
     await db.refresh(deposit)
     return deposit
 
@@ -932,7 +932,7 @@ async def delete_deposit(db: AsyncSession, deposit_id: int) -> None:
     await db.execute(delete(deposit_payments).where(deposit_payments.c.deposit_id == deposit_id))
     await db.flush()
     await db.delete(deposit)
-    await db.commit()
+    await db.flush()
 
 
 async def get_transaction_payment_ids(db: AsyncSession, tx_id: int) -> list[int]:
@@ -1083,6 +1083,6 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
 
     await generate_entries_for_deposit(db, deposit)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(deposit)
     return deposit

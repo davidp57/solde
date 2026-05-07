@@ -177,7 +177,7 @@ async def _create_payment(
 
     await generate_entries_for_payment(db, payment, invoice.type)
     if commit:
-        await db.commit()
+        await db.flush()
         await db.refresh(payment)
     return await _to_payment_read(db, payment)
 
@@ -255,7 +255,7 @@ async def update_payment(db: AsyncSession, payment_id: int, payload: PaymentUpda
         setattr(payment, field, value)
     await db.flush()
     await _refresh_invoice_status(db, payment.invoice_id)
-    await db.commit()
+    await db.flush()
     await db.refresh(payment)
     return await _to_payment_read(db, payment)
 
@@ -354,7 +354,7 @@ async def fix_inconsistent_deposit_date(
     if payment.deposit_date is not None:
         raise ValueError("payment already has a deposit date")
     payment.deposit_date = deposit_date
-    await db.commit()
+    await db.flush()
     await db.refresh(payment)
     return await _to_payment_read(db, payment)
 
