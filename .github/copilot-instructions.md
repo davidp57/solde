@@ -97,6 +97,23 @@ npx vitest run
 
 All checks must be green before pushing or opening a PR. Never bypass with `--no-verify` unless there is a documented exceptional reason.
 
+## Commit, push and PR workflow
+
+When asked to commit, push and/or open a PR, follow these steps **in order**:
+
+1. **Run the full quality gate** (see section above) — all checks must be green
+2. **Verify zero errors in VS Code**
+3. **Commit** using Conventional Commits format
+4. **Push** the branch
+5. **Create the PR on GitHub** targeting the appropriate base branch (see Git Flow rules):
+   - Request a **Copilot review** on the PR
+   - Provide the PR title and description as copyable markdown blocks in the chat
+6. **Monitor reviews** — check for review comments every ~2 minutes until the review is complete:
+   - Address every review comment: fix the issue in the code and re-run the quality gate
+   - Resolve the review thread once the fix is applied
+   - Push the updated commits
+   - Repeat until all threads are resolved and the PR is approved
+
 ## Multi-PC workflow
 
 This project is developed on two machines. Before starting any work on a branch:
