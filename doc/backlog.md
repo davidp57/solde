@@ -35,55 +35,15 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-185 | Régression : aperçu PDF non fonctionnel dans Chrome | P1 | ~20 min | 2026-05-10 | 2026-05-10 | 2026-05-10 |
-| BIZ-186 | Filigrane « Payé » sur le PDF des factures réglées | P2 | ~20 min | 2026-05-10 | 2026-05-10 | 2026-05-10 |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
-| BIZ-171 | Améliorations tuiles et détail factures — mobile | P2 | ~35 min | 2026-05-05 | 2026-05-05 | 2026-05-05 |
-| BIZ-172 | Section admin : paiements chèques incohérents | P2 | ~45 min | 2026-05-05 | 2026-05-05 | 2026-05-05 |
 
 ---
 
 ## Détails
 
-### BIZ-186 — Filigrane « Payé » sur le PDF des factures réglées
-
-Lorsqu'une facture est intégralement payée (`status = paid`), le PDF généré doit afficher un filigrane « Payé » en rouge en diagonale sur chaque page. Implémentation recommandée : overlay CSS positionné en `position: fixed` avec `transform: rotate(-45deg)`, centré sur la page, texte rouge semi-transparent (opacity ~0.15) en grande taille, compatible WeasyPrint. Le backend doit passer le flag `is_paid` au contexte du template Jinja2 `invoice.html`. La facture partiellement payée ne porte pas de filigrane.
-
-### TEC-185 — Régression : aperçu PDF non fonctionnel dans Chrome
-
-Régression sur le preview des factures PDF dans Chrome. TEC-146 avait remplacé `<embed>` par `<object type="application/pdf">` pour corriger ce problème (livré en v1.2.1 / v1.3.0), mais l'aperçu reste non fonctionnel dans Chrome. Investiguer pourquoi la solution `<object>` ne suffit pas (politique Content-Security-Policy, header `Content-Disposition: attachment` côté API, restrictions Chrome sur les PDF inline, blob URL vs URL directe…) et appliquer un correctif durable.
-
-
-### TEC-173 — Découper bank.py en sous-routeurs
-
-`backend/routers/bank.py` (~550 lignes, 15+ endpoints) est le plus gros routeur. Découper en `bank_transactions.py`, `bank_deposits.py`, `bank_import.py` pour la maintenabilité.
-
-### BIZ-172 — Section admin : paiements chèques incohérents
-
-Panneau dans la vue Supervision système (admin uniquement) listant les paiements par chèque dont `deposited=True` mais `deposit_date=NULL` (état incohérent produit par l'import Excel). Chaque ligne propose une action « Corriger » avec un sélecteur de date pour poser la `deposit_date` manquante. Ces paiements sont actuellement comptabilisés à tort dans "Chèques non remis" sur le dashboard.
-
-### BIZ-166 — Vue contacts : onglet clients par défaut + tri par récence
-
-Onglet "Clients" activé par défaut (ordre : Clients > Fournisseurs > Tout).
-Tri synthétique : facture < 6 mois en tête, puis ordre alphabétique (nom, prénom).
-
-### BIZ-034 — Support multi-compte banque
-
-Distinguer compte courant et compte épargne dans les données, imports et écrans.
-Décisions métier nécessaires avant implémentation.
-
 ### BIZ-169 — Édition/suppression des opérations manuelles
 
 Permettre de modifier ou supprimer les opérations bancaires créées manuellement depuis BankView (opérations sans import source).
-
-### BIZ-171 — Améliorations tuiles et détail factures — mobile
-
-Améliorations de l'expérience mobile sur les vues factures client et fournisseur :
-- Tuile facture client : supprimer l'étiquette (label catégorie) qui n'apporte rien en vue liste et augmente la hauteur de la tuile inutilement.
-- Tuile facture fournisseur : fusionner la ligne « Référence fournisseur » et l'icône trombone en une seule ligne ; supprimer la div dédiée au seul trombone.
-- Détail facture fournisseur (dialog prévisualisation) : présenter date / échéance / référence sur lignes séparées au lieu d'une phrase en ligne ; rendre les boutons icon-only sur mobile ; empiler la section header en colonne sur mobile ; réduire la taille des labels de la grille TOTAL / RÉGLÉ / RESTANT DÛ pour éviter le débordement sur 2 lignes.
-
-
 
 ---
 
@@ -92,6 +52,7 @@ Améliorations de l'expérience mobile sur les vues factures client et fournisse
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
 | BK | Backup automatique | v1.7 | BIZ-173→184 | 2026-05-11 | ~4h | — |
+| TEC-185/BIZ-186 | Fix Chrome PDF + filigrane Payé | v1.6.3 | TEC-185, BIZ-186 | 2026-05-10 | ~40 min | — |
 | REV2 | Refactoring technique différé | v1.6.2 | TEC-170, TEC-171, TEC-173 | 2026-05-07 | ~55 min | — |
 | REV | Revue de code technique | v1.6.1 | TEC-160–165, 167–169, 172 (+ TEC-161, 163, 166 déjà faits) | 2026-05-06 | ~190 min | ~70 min |
 | BIZ-172 | Paiements chèques incohérents | v1.6 | BIZ-172 | 2026-05-05 | ~45 min | — |

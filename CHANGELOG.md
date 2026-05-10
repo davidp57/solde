@@ -32,7 +32,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **TEC-185** — Régression aperçu PDF Chrome : remplacement de `<embed>` / `<object>` par `<iframe>` dans tous les composants d'aperçu PDF (factures client, fournisseur, historique contact, dialogue email)
 
 ### Ajouté
-- **BIZ-173→184** — Lot BK : Sauvegarde automatique — planification (intervalle ou cron), destinations de sauvegarde (local, SMB, OneDrive via rclone), test de connexion, restauration, test de restauration (intégrité SQLite + vérification des tables), email de notification en cas d'échec
+- **BIZ-173→184** — Lot BK : Sauvegarde automatique — planification (intervalle ou cron), destinations de sauvegarde (local, SMB, OneDrive via rclone), test de connexion, restauration, test de restauration (intégrité SQLite + vérification des tables), e-mail de notification en cas d'échec
 - **BIZ-173→184** — Backend : migration Alembic (colonnes `backup_*` dans `app_settings`, table `backup_destination`), modèle `BackupDestination`, schémas Pydantic, services `backup_destination_service`, `backup_restore_service`, `backup_scheduler` (APScheduler), router 12 endpoints `/api/backup/…`
 - **BIZ-173→184** — Docker : rclone installé dans l'image, `rclone.conf` généré dynamiquement depuis les destinations activées
 - **BIZ-173→184** — Frontend : API `backup.ts`, panneau `SettingsBackupPanel.vue` (planification, statut, destinations, restauration, OAuth OneDrive), clés i18n FR/EN

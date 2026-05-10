@@ -313,7 +313,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, reactive } from 'vue'
+import { onMounted, onBeforeUnmount, ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -369,6 +369,7 @@ const runningNow = ref(false)
 const oauthPolling = ref(false)
 const oauthDone = ref(false)
 let _oauthToken: string | null = null
+let _oauthPollCancel: (() => void) | null = null
 
 const schedule = reactive<BackupSchedule>({
   enabled: false,
@@ -413,6 +414,11 @@ const destTypeOptions = [
 // ---------------------------------------------------------------------------
 onMounted(async () => {
   await Promise.all([loadSchedule(), loadDestinations(), loadFiles(), loadStatus()])
+})
+
+onBeforeUnmount(() => {
+  _oauthPollCancel?.()
+  _oauthPollCancel = null
 })
 
 // ---------------------------------------------------------------------------
@@ -574,16 +580,29 @@ async function startOneDriveAuth() {
     window.open(auth_url, '_blank')
     oauthPolling.value = true
     oauthDone.value = false
-    _pollOAuthStatus()
+    _oauthPollCancel?.()
+    _oauthPollCancel = _pollOAuthStatus()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error'), life: 3000 })
   }
 }
 
-async function _pollOAuthStatus() {
+function _pollOAuthStatus(): () => void {
   const maxAttempts = 150 // ~5 min at 2s interval
   let attempts = 0
+  let cancelled = false
+  let timeoutId: ReturnType<typeof setTimeout> | null = null
+
+  const cancel = () => {
+    cancelled = true
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId)
+      timeoutId = null
+    }
+  }
+
   const poll = async () => {
+    if (cancelled) return
     if (attempts++ >= maxAttempts) {
       oauthPolling.value = false
       toast.add({ severity: 'warn', summary: t('settings.backup_onedrive_timeout'), life: 5000 })
@@ -591,19 +610,25 @@ async function _pollOAuthStatus() {
     }
     try {
       const status = await pollOneDriveOAuthStatus()
+      if (cancelled) return
       if (status.done && status.token) {
         _oauthToken = status.token
         oauthDone.value = true
         oauthPolling.value = false
         toast.add({ severity: 'success', summary: t('settings.backup_onedrive_authorized'), life: 3000 })
+        cancel()
       } else {
-        setTimeout(poll, 2000)
+        timeoutId = setTimeout(poll, 2000)
       }
     } catch {
-      setTimeout(poll, 2000)
+      if (!cancelled) {
+        timeoutId = setTimeout(poll, 2000)
+      }
     }
   }
-  setTimeout(poll, 2000)
+
+  timeoutId = setTimeout(poll, 2000)
+  return cancel
 }
 
 // ---------------------------------------------------------------------------

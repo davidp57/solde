@@ -17,7 +17,10 @@ from backend.models.backup_destination import BackupDestination
 from backend.schemas.backup import BackupConnectionTestResult, BackupRestoreTestResult
 from backend.services import backup_destination_service as bds
 from backend.services.backup_restore_service import (
+    _EXPECTED_TABLES,
     _do_test_restore,
+)
+from backend.services.backup_restore_service import (
     test_restore as service_test_restore,
 )
 
@@ -49,24 +52,7 @@ def _make_dest(
 def _make_valid_db(path: Path) -> None:
     """Create a minimal SQLite file that passes the integrity check."""
     conn = sqlite3.connect(str(path))
-    required_tables = [
-        "users",
-        "app_settings",
-        "contacts",
-        "accounting_accounts",
-        "accounting_entries",
-        "accounting_rules",
-        "invoices",
-        "invoice_lines",
-        "payments",
-        "bank_transactions",
-        "deposits",
-        "cash_register",
-        "fiscal_years",
-        "salaries",
-        "import_logs",
-    ]
-    for table in required_tables:
+    for table in _EXPECTED_TABLES:
         conn.execute(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY)")
     conn.commit()
     conn.close()
