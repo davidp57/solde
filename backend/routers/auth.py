@@ -315,7 +315,7 @@ async def update_me(
         )
 
     current_user.email = normalized_email
-    await db.commit()
+    await db.flush()
     await db.refresh(current_user)
     return current_user
 
@@ -342,7 +342,7 @@ async def change_my_password(
     current_user.password_changed_at = datetime.now(UTC)
     current_user.must_change_password = False
     await record_audit(db, action=AuditAction.PASSWORD_CHANGED, actor=current_user)
-    await db.commit()
+    await db.flush()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -381,7 +381,7 @@ async def create_user(
         target_type="user",
         detail={"target_username": user.username, "role": user.role},
     )
-    await db.commit()
+    await db.flush()
     await db.refresh(user)
     return user
 
@@ -453,7 +453,7 @@ async def update_user(
         target_type="user",
         detail={"target_username": user.username, "changes": changes},
     )
-    await db.commit()
+    await db.flush()
     await db.refresh(user)
     return user
 
@@ -489,5 +489,5 @@ async def reset_user_password(
         target_type="user",
         detail={"target_username": user.username},
     )
-    await db.commit()
+    await db.flush()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
