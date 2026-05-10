@@ -1949,6 +1949,12 @@ export default {
     col_date: 'Date',
     col_label: 'Libellé',
     restore_btn: 'Restaurer',
+    validate_btn: 'Vérifier l\'intégrité',
+    backup_validate_title: 'Vérification de la sauvegarde',
+    backup_validate_ok: 'Sauvegarde valide ✓',
+    backup_validate_fail: 'Sauvegarde invalide ou corrompue',
+    backup_validate_integrity: 'Résultat intégrité',
+    backup_validate_tables_missing: 'Tables manquantes',
     restore_step1_title: 'Restaurer une sauvegarde',
     restore_step1_msg:
       'Toutes les données actuelles seront remplacées par la sauvegarde sélectionnée. ' +

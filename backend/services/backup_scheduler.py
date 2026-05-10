@@ -138,6 +138,24 @@ async def run_backup_job(
             await _send_failure_email(str(exc))
         return
 
+    # Step 1b — validate the new backup (integrity check)
+    try:
+        from backend.services.backup_restore_service import test_restore
+
+        validation = await test_restore(str(backup_file))
+        if not validation.ok:
+            detail = validation.error or (
+                f"integrity={validation.integrity_check}, missing={validation.tables_missing}"
+            )
+            logger.error("Backup validation failed for %s: %s", backup_file.name, detail)
+            await _update_run_status(False, f"Validation échouée : {detail}")
+            if notify_on_failure:
+                await _send_failure_email(f"Validation du backup échouée : {detail}")
+            return
+        logger.info("Backup validated OK: %s", backup_file.name)
+    except Exception as exc:
+        logger.warning("Backup validation error (non-blocking): %s", exc)
+
     # Step 2 — sync to destinations
     async with get_session() as db:
         result = await db.execute(
