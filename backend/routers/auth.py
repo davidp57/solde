@@ -42,11 +42,13 @@ _REFRESH_COOKIE_PATH = "/api/auth"
 def _set_refresh_cookie(response: Response, token: str) -> None:
     """Set the refresh token as an HttpOnly cookie on the response."""
     settings = get_settings()
+    # cookie_secure can be explicitly set; falls back to True in production, False in debug/test
+    secure = settings.cookie_secure if settings.cookie_secure is not None else not settings.debug
     response.set_cookie(
         key=_REFRESH_COOKIE,
         value=token,
         httponly=True,
-        secure=not settings.debug,
+        secure=secure,
         samesite="strict",
         path=_REFRESH_COOKIE_PATH,
         max_age=settings.jwt_refresh_token_expire_days * 86400,
