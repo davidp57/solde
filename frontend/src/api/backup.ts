@@ -90,14 +90,14 @@ export interface OneDriveOAuthStatus {
 // ---------------------------------------------------------------------------
 
 export async function listDestinations(): Promise<BackupDestination[]> {
-  const { data } = await apiClient.get<BackupDestination[]>('/backup/destinations')
+  const { data } = await apiClient.get<BackupDestination[]>('/api/backup/destinations')
   return data
 }
 
 export async function createDestination(
   payload: BackupDestinationCreate,
 ): Promise<BackupDestination> {
-  const { data } = await apiClient.post<BackupDestination>('/backup/destinations', payload)
+  const { data } = await apiClient.post<BackupDestination>('/api/backup/destinations', payload)
   return data
 }
 
@@ -105,17 +105,17 @@ export async function updateDestination(
   id: number,
   payload: BackupDestinationUpdate,
 ): Promise<BackupDestination> {
-  const { data } = await apiClient.put<BackupDestination>(`/backup/destinations/${id}`, payload)
+  const { data } = await apiClient.put<BackupDestination>(`/api/backup/destinations/${id}`, payload)
   return data
 }
 
 export async function deleteDestination(id: number): Promise<void> {
-  await apiClient.delete(`/backup/destinations/${id}`)
+  await apiClient.delete(`/api/backup/destinations/${id}`)
 }
 
 export async function testDestination(id: number): Promise<BackupConnectionTestResult> {
   const { data } = await apiClient.post<BackupConnectionTestResult>(
-    `/backup/destinations/${id}/test`,
+    `/api/backup/destinations/${id}/test`,
   )
   return data
 }
@@ -125,12 +125,12 @@ export async function testDestination(id: number): Promise<BackupConnectionTestR
 // ---------------------------------------------------------------------------
 
 export async function getSchedule(): Promise<BackupSchedule> {
-  const { data } = await apiClient.get<BackupSchedule>('/backup/schedule')
+  const { data } = await apiClient.get<BackupSchedule>('/api/backup/schedule')
   return data
 }
 
 export async function updateSchedule(payload: BackupScheduleUpdate): Promise<BackupSchedule> {
-  const { data } = await apiClient.put<BackupSchedule>('/backup/schedule', payload)
+  const { data } = await apiClient.put<BackupSchedule>('/api/backup/schedule', payload)
   return data
 }
 
@@ -139,11 +139,11 @@ export async function updateSchedule(payload: BackupScheduleUpdate): Promise<Bac
 // ---------------------------------------------------------------------------
 
 export async function triggerBackup(): Promise<void> {
-  await apiClient.post('/backup/run')
+  await apiClient.post('/api/backup/run')
 }
 
 export async function getBackupStatus(): Promise<BackupRunStatus> {
-  const { data } = await apiClient.get<BackupRunStatus>('/backup/status')
+  const { data } = await apiClient.get<BackupRunStatus>('/api/backup/status')
   return data
 }
 
@@ -153,7 +153,7 @@ export async function getBackupStatus(): Promise<BackupRunStatus> {
 
 export async function testRestoreBackup(filename: string): Promise<BackupRestoreTestResult> {
   const { data } = await apiClient.post<BackupRestoreTestResult>(
-    `/backup/backups/${encodeURIComponent(filename)}/test-restore`,
+    `/api/backup/backups/${encodeURIComponent(filename)}/test-restore`,
   )
   return data
 }
@@ -163,7 +163,7 @@ export async function restoreBackup(
   destinationId?: number,
 ): Promise<void> {
   const params = destinationId !== undefined ? { destination_id: destinationId } : {}
-  await apiClient.post(`/backup/backups/${encodeURIComponent(filename)}/restore`, null, { params })
+  await apiClient.post(`/api/backup/backups/${encodeURIComponent(filename)}/restore`, null, { params })
 }
 
 // ---------------------------------------------------------------------------
@@ -171,11 +171,11 @@ export async function restoreBackup(
 // ---------------------------------------------------------------------------
 
 export async function startOneDriveOAuth(): Promise<OneDriveOAuthStart> {
-  const { data } = await apiClient.get<OneDriveOAuthStart>('/backup/oauth/onedrive/start')
+  const { data } = await apiClient.get<OneDriveOAuthStart>('/api/backup/oauth/onedrive/start')
   return data
 }
 
 export async function pollOneDriveOAuthStatus(): Promise<OneDriveOAuthStatus> {
-  const { data } = await apiClient.get<OneDriveOAuthStatus>('/backup/oauth/onedrive/status')
+  const { data } = await apiClient.get<OneDriveOAuthStatus>('/api/backup/oauth/onedrive/status')
   return data
 }

@@ -238,6 +238,11 @@ export default {
       forbidden: 'Accès refusé.',
       notFound: 'Ressource introuvable.',
     },
+    saved: 'Enregistré.',
+    save_failed: "Impossible d'enregistrer.",
+    deleted: 'Supprimé.',
+    required_fields: 'Veuillez remplir tous les champs requis.',
+    close: 'Fermer',
     api_limit_warning:
       "Limite d'affichage atteinte (1 000 éléments). Les résultats peuvent être incomplets — affinez les filtres pour réduire le volume chargé.",
   },

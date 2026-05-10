@@ -74,6 +74,11 @@ export default {
       forbidden: 'Access denied.',
       notFound: 'Resource not found.',
     },
+    saved: 'Saved.',
+    save_failed: 'Failed to save.',
+    deleted: 'Deleted.',
+    required_fields: 'Please fill in all required fields.',
+    close: 'Close',
     api_limit_warning:
       'Display limit reached (1,000 items). Results may be incomplete — refine the filters to reduce the loaded volume.',
   },
