@@ -5,6 +5,8 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
+from backend.models.invoice import InvoiceStatus
+
 
 @lru_cache(maxsize=1)
 def _template_env() -> Environment:
@@ -21,7 +23,7 @@ def render_invoice_html(
     """Render the invoice Jinja2 template to an HTML string."""
     env = _template_env()
     template = env.get_template("invoice.html")
-    is_paid = getattr(invoice, "status", None) == "paid"
+    is_paid = getattr(invoice, "status", None) == InvoiceStatus.PAID
     return template.render(
         invoice=invoice,
         contact_name=contact_name,
