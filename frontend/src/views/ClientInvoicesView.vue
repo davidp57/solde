@@ -651,10 +651,10 @@
               <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
             </div>
             <div v-else-if="historyPdfBlobUrl" class="history-dialog__preview-frame">
-              <embed
+              <iframe
                 :src="historyPdfBlobUrl"
-                type="application/pdf"
                 class="history-dialog__preview-embed"
+                :title="t('invoices.email_preview')"
               />
             </div>
             <div v-else class="history-dialog__preview-empty">

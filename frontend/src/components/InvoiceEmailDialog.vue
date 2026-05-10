@@ -65,12 +65,11 @@
       <div class="invoice-email-dialog__preview">
         <p class="invoice-email-dialog__preview-label">{{ t('invoices.email_preview') }}</p>
         <Skeleton v-if="pdfLoading" class="invoice-email-dialog__embed" border-radius="4px" />
-        <object
+        <iframe
           v-else-if="pdfBlobUrl"
-          :data="pdfBlobUrl"
-          type="application/pdf"
+          :src="pdfBlobUrl"
           class="invoice-email-dialog__embed"
-          :aria-label="t('invoices.email_preview_title')"
+          :title="t('invoices.email_preview_title')"
         />
         <div v-else class="invoice-email-dialog__preview-empty">
           <i class="pi pi-file-pdf" />
