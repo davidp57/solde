@@ -77,13 +77,16 @@ export interface BackupRestoreTestResult {
 }
 
 export interface OneDriveOAuthStart {
-  port: number
-  auth_url: string
+  user_code: string       // e.g. "ABCD-1234" — user enters this at verification_uri
+  verification_uri: string  // https://microsoft.com/devicelogin
+  expires_in: number
+  message: string
 }
 
 export interface OneDriveOAuthStatus {
   done: boolean
   token: string | null
+  error: string | null
 }
 
 // ---------------------------------------------------------------------------

@@ -211,21 +211,52 @@
         </div>
       </template>
 
-      <!-- OneDrive — token manuel -->
+      <!-- OneDrive — Device Authorization Flow (headless, works in Docker) -->
       <template v-else-if="newDest.type === 'onedrive'">
         <div class="app-field col-span-2">
-          <Message severity="info" :closable="false">
-            {{ t('settings.backup_onedrive_manual_info') }}
-          </Message>
-          <div class="onedrive-cmd">
-            <code>rclone authorize onedrive --auth-no-open-browser</code>
-          </div>
-          <label class="app-field__label">{{ t('settings.backup_onedrive_token_paste') }}</label>
-          <Textarea v-model="onedriveTokenJson" class="w-full" :rows="4" />
-          <small v-if="onedriveTokenJson && !onedriveTokenValid" class="app-field__help p-error">
-            {{ t('settings.backup_onedrive_token_invalid') }}
-          </small>
-          <Tag v-else-if="onedriveTokenValid" severity="success" :value="t('settings.backup_onedrive_token_valid')" class="mt-1" />
+          <!-- Step 0: start button -->
+          <template v-if="!oauthPolling && !oauthDone">
+            <Message severity="info" :closable="false">
+              {{ t('settings.backup_onedrive_device_info') }}
+            </Message>
+            <Button
+              :label="t('settings.backup_onedrive_start_btn')"
+              icon="pi pi-microsoft"
+              class="mt-2"
+              @click="startOneDriveAuth"
+            />
+            <small v-if="oauthError" class="app-field__help p-error mt-1">{{ oauthError }}</small>
+          </template>
+
+          <!-- Step 1: polling — show device code -->
+          <template v-else-if="oauthPolling">
+            <Message severity="info" :closable="false">
+              {{ t('settings.backup_onedrive_device_waiting') }}
+            </Message>
+            <div class="onedrive-device-code">
+              <span class="onedrive-device-code__label">{{ t('settings.backup_onedrive_user_code') }}</span>
+              <code class="onedrive-device-code__code">{{ deviceUserCode }}</code>
+            </div>
+            <a :href="deviceVerificationUri" target="_blank" rel="noopener" class="onedrive-link">
+              {{ deviceVerificationUri }}
+            </a>
+            <div class="onedrive-spinner">
+              <ProgressSpinner style="width:24px;height:24px" stroke-width="4" />
+              <span>{{ t('settings.backup_onedrive_polling') }}</span>
+            </div>
+          </template>
+
+          <!-- Step 2: done -->
+          <template v-else-if="oauthDone">
+            <Tag severity="success" :value="t('settings.backup_onedrive_authorized')" icon="pi pi-check" />
+            <Button
+              :label="t('settings.backup_onedrive_restart')"
+              severity="secondary"
+              size="small"
+              class="mt-2"
+              @click="startOneDriveAuth"
+            />
+          </template>
         </div>
       </template>
     </div>
@@ -247,16 +278,17 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, reactive, computed } from 'vue'
+import { onMounted, ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
+import Message from 'primevue/message'
 import Password from 'primevue/password'
+import ProgressSpinner from 'primevue/progressspinner'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
-import Textarea from 'primevue/textarea'
 import ConfirmDialog from 'primevue/confirmdialog'
 import Toast from 'primevue/toast'
 import ToggleSwitch from 'primevue/toggleswitch'
@@ -272,6 +304,8 @@ import {
   updateSchedule,
   triggerBackup,
   getBackupStatus,
+  startOneDriveOAuth,
+  pollOneDriveOAuthStatus,
   type BackupDestination,
   type BackupSchedule,
   type BackupRunStatus,
@@ -291,17 +325,69 @@ const savingDest = ref(false)
 const showAddDestDialog = ref(false)
 const editDestId = ref<number | null>(null)
 const runningNow = ref(false)
-const onedriveTokenJson = ref('')
+// OneDrive device authorization flow state
+const oauthPolling = ref(false)
+const oauthDone = ref(false)
+const oauthToken = ref<string | null>(null)
+const oauthError = ref('')
+const deviceUserCode = ref('')
+const deviceVerificationUri = ref('')
+let _oauthPollTimer: ReturnType<typeof setTimeout> | null = null
 
-const onedriveTokenValid = computed(() => {
-  if (!onedriveTokenJson.value.trim()) return false
+async function startOneDriveAuth(): Promise<void> {
+  oauthPolling.value = false
+  oauthDone.value = false
+  oauthToken.value = null
+  oauthError.value = ''
+  deviceUserCode.value = ''
+  deviceVerificationUri.value = ''
+  if (_oauthPollTimer !== null) clearTimeout(_oauthPollTimer)
+
   try {
-    const j = JSON.parse(onedriveTokenJson.value)
-    return typeof j.access_token === 'string' && j.access_token.length > 0
+    const data = await startOneDriveOAuth()
+    deviceUserCode.value = data.user_code
+    deviceVerificationUri.value = data.verification_uri
+    oauthPolling.value = true
+    schedulePoll()
   } catch {
-    return false
+    oauthError.value = t('settings.backup_onedrive_start_error')
   }
-})
+}
+
+function schedulePoll(): void {
+  _oauthPollTimer = setTimeout(() => void pollOnce(), 3000)
+}
+
+async function pollOnce(): Promise<void> {
+  if (!oauthPolling.value) return
+  try {
+    const status = await pollOneDriveOAuthStatus()
+    if (status.done && status.token) {
+      oauthToken.value = status.token
+      oauthPolling.value = false
+      oauthDone.value = true
+      return
+    }
+    if (status.error) {
+      oauthError.value = status.error
+      oauthPolling.value = false
+      return
+    }
+  } catch {
+    // network hiccup — keep polling
+  }
+  if (oauthPolling.value) schedulePoll()
+}
+
+function resetOneDriveAuth(): void {
+  if (_oauthPollTimer !== null) clearTimeout(_oauthPollTimer)
+  oauthPolling.value = false
+  oauthDone.value = false
+  oauthToken.value = null
+  oauthError.value = ''
+  deviceUserCode.value = ''
+  deviceVerificationUri.value = ''
+}
 
 const schedule = reactive<BackupSchedule>({
   enabled: false,
@@ -458,7 +544,7 @@ function openAddDestDialog() {
   smbForm.host = ''
   smbForm.user = ''
   smbForm.pass = ''
-  onedriveTokenJson.value = ''
+  resetOneDriveAuth()
   showAddDestDialog.value = true
 }
 
@@ -471,7 +557,7 @@ function openEditDestDialog(dest: BackupDestination) {
   smbForm.host = ''
   smbForm.user = ''
   smbForm.pass = ''
-  onedriveTokenJson.value = ''
+  resetOneDriveAuth()
   showAddDestDialog.value = true
 }
 
@@ -491,8 +577,8 @@ async function saveNewDest() {
         user: smbForm.user,
         pass: smbForm.pass,
       })
-    } else if (newDest.type === 'onedrive' && onedriveTokenValid.value) {
-      rclone_config = JSON.stringify({ token: onedriveTokenJson.value })
+    } else if (newDest.type === 'onedrive' && oauthToken.value) {
+      rclone_config = oauthToken.value
     }
 
     const created = await createDestination({
@@ -523,8 +609,8 @@ async function saveEditDest() {
     let rclone_config: string | null = null
     if (newDest.type === 'smb' && smbForm.host) {
       rclone_config = JSON.stringify({ host: smbForm.host, user: smbForm.user, pass: smbForm.pass })
-    } else if (newDest.type === 'onedrive' && onedriveTokenValid.value) {
-      rclone_config = JSON.stringify({ token: onedriveTokenJson.value })
+    } else if (newDest.type === 'onedrive' && oauthToken.value) {
+      rclone_config = oauthToken.value
     }
 
     const updated = await updateDestination(editDestId.value!, {
@@ -553,14 +639,38 @@ function formatDate(iso: string): string {
 </script>
 
 <style scoped>
-.onedrive-cmd {
+.onedrive-device-code {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+.onedrive-device-code__label {
+  font-size: 0.9rem;
+  color: var(--text-color-secondary);
+}
+.onedrive-device-code__code {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   background: var(--surface-ground);
   border: 1px solid var(--surface-border);
   border-radius: 6px;
-  padding: 0.5rem 0.75rem;
+  padding: 0.3rem 0.75rem;
+}
+.onedrive-link {
+  display: block;
   margin-bottom: 0.75rem;
-  font-size: 0.85rem;
-  word-break: break-all;
+  color: var(--primary-color);
+  text-decoration: underline;
+  font-size: 0.9rem;
+}
+.onedrive-spinner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-color-secondary);
+  font-size: 0.9rem;
 }
 .backup-section {
   margin-bottom: 2rem;
