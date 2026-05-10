@@ -239,6 +239,18 @@ Le PDF est joint automatiquement. Un envoi réussi est tracé dans l'historique 
 
 Sur la fiche facture, cliquer sur **Télécharger PDF**.
 
+### L'aperçu PDF ne s'affiche pas dans Chrome
+
+Si l'aperçu PDF reste vide dans Chrome (dialogue de facture, envoi par e-mail, historique contact), vérifier le réglage suivant dans Chrome :
+
+1. Dans la barre d'adresse, saisir `chrome://settings/content/pdfDocuments`
+2. S'assurer que l'option **« Ouvrir les PDF dans Chrome »** est sélectionnée (et non « Télécharger les PDF »).
+3. Relancer la page.
+
+Si le paramètre est correct et que l'aperçu ne fonctionne toujours pas, vérifier l'absence d'extensions Chrome qui interceptent les PDF (ex. Adobe Acrobat, PDF Viewer tiers). Les désactiver temporairement pour tester.
+
+> Ce paramètre est propre à chaque navigateur. Il n'affecte pas le téléchargement du PDF (bouton **Télécharger PDF**).
+
 ### Passer une facture en irrécouvrable
 
 1. Ouvrir la fiche facture.

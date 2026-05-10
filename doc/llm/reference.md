@@ -167,7 +167,13 @@ A PDF preview is shown on the right side of the dialog. The PDF is attached auto
 ### Downloading the PDF
 
 Open the invoice → click "Télécharger PDF".
+### Known issue: PDF preview blank in Chrome
 
+If the PDF preview area is blank in Chrome (invoice dialog, email dialog, contact history), the root cause is almost always the Chrome setting **"Download PDFs"** (instead of opening them inline). Fix: `chrome://settings/content/pdfDocuments` → select **"Open PDFs in Chrome"**.
+
+Secondary cause: a third-party Chrome extension intercepting PDF blob URLs (e.g. Adobe Acrobat extension, download manager). Ask the user to temporarily disable PDF-related extensions.
+
+This setting is per-browser and per-user. It does not affect the "Télécharger PDF" download button. The PDF viewer in the app uses `<iframe>` with a blob URL — it requires Chrome's built-in PDF viewer to be active.
 ### Writing off an invoice (irrécouvrable)
 
 Open the invoice → "Passer en irrécouvrable". This marks the invoice as a bad debt and generates accounting entries automatically. The invoice disappears from the unpaid list.
