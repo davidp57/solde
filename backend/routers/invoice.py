@@ -10,7 +10,6 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
-    HTTPException,
     Query,
     UploadFile,
     status,
@@ -19,6 +18,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.errors import api_error, conflict, not_found, unprocessable
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
@@ -120,9 +120,8 @@ async def create_invoice(
     try:
         invoice = await invoice_service.create_invoice(db, payload)
     except BlockedContactError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Ce contact est marqué comme indésirable : la création de facture est bloquée.",
+        raise unprocessable(
+            "CONTACT_BLOCKED", "Contact is marked as blocked: invoice creation denied"
         ) from exc
     await record_audit(
         db,
@@ -148,7 +147,7 @@ async def get_invoice(
     """Get a single invoice by ID."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     return invoice
 
 
@@ -162,11 +161,11 @@ async def update_invoice(
     """Partially update an invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     try:
         updated = await invoice_service.update_invoice(db, invoice, payload)
     except InvoiceUpdateError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise conflict("INVOICE_OPERATION_FAILED", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.INVOICE_UPDATED,
@@ -188,12 +187,12 @@ async def update_status(
     """Change the status of an invoice (enforces valid transitions)."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     old_status = invoice.status
     try:
         updated = await invoice_service.update_invoice_status(db, invoice, payload.status)
     except InvoiceStatusError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise conflict("INVOICE_OPERATION_FAILED", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.INVOICE_STATUS_CHANGED,
@@ -214,11 +213,11 @@ async def write_off_invoice(
     """Mark a client invoice as irrecoverable and generate write-off accounting entries."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     try:
         updated = await invoice_service.write_off_invoice(db, invoice)
     except InvoiceStatusError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise conflict("INVOICE_OPERATION_FAILED", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.INVOICE_WRITTEN_OFF,
@@ -239,11 +238,11 @@ async def restore_from_writeoff(
     """Restore an irrecoverable invoice: generate reversal entries and recompute status."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     try:
         updated = await invoice_service.restore_from_writeoff(db, invoice)
     except InvoiceStatusError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise conflict("INVOICE_OPERATION_FAILED", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.INVOICE_RESTORED_FROM_WRITEOFF,
@@ -268,7 +267,7 @@ async def duplicate_invoice(
     """Create a draft copy of an existing invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     duplicate = await invoice_service.duplicate_invoice(db, invoice)
     await record_audit(
         db,
@@ -290,12 +289,12 @@ async def delete_invoice(
     """Delete an invoice. Only draft invoices can be deleted."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     detail = {"number": invoice.number, "type": invoice.type}
     try:
         await invoice_service.delete_invoice(db, invoice)
     except InvoiceDeleteError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise conflict("INVOICE_OPERATION_FAILED", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.INVOICE_DELETED,
@@ -318,11 +317,12 @@ async def get_invoice_pdf(
 
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     if invoice.type != InvoiceType.CLIENT:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="PDF generation is only available for client invoices",
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "INVOICE_PDF_CLIENT_ONLY",
+            "PDF generation is only available for client invoices",
         )
 
     from sqlalchemy import select  # noqa: PLC0415
@@ -342,9 +342,10 @@ async def get_invoice_pdf(
         )
     except Exception as exc:
         logger.exception("PDF generation failed for invoice %d", invoice_id)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="PDF generation failed",
+        raise api_error(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "INVOICE_PDF_GENERATION_FAILED",
+            "PDF generation failed",
         ) from exc
 
     pdf_path = pdf_service.save_invoice_pdf(invoice.number, pdf_bytes)
@@ -371,11 +372,12 @@ async def get_invoice_email_preview(
 
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     if invoice.type != InvoiceType.CLIENT:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email preview is only available for client invoices",
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "INVOICE_EMAIL_CLIENT_ONLY",
+            "Email preview is only available for client invoices",
         )
 
     app_settings = await settings_service.get_settings(db)
@@ -383,10 +385,7 @@ async def get_invoice_email_preview(
     result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
     contact = result.scalar_one_or_none()
     if contact is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Contact not found",
-        )
+        raise not_found("Contact")
 
     recipients: list[str] = []
     if contact.email:
@@ -396,10 +395,7 @@ async def get_invoice_email_preview(
             recipients.append(ce.email)
 
     if not recipients:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Contact has no email address",
-        )
+        raise unprocessable("CONTACT_NO_EMAIL", "Contact has no email address")
 
     return InvoiceEmailPreview(
         recipients=recipients,
@@ -430,11 +426,12 @@ async def send_invoice_email(
 
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     if invoice.type != InvoiceType.CLIENT:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email sending is only available for client invoices",
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "INVOICE_EMAIL_CLIENT_ONLY",
+            "Email sending is only available for client invoices",
         )
 
     app_settings = await settings_service.get_settings(db)
@@ -448,9 +445,8 @@ async def send_invoice_email(
             app_settings.smtp_from_email,
         ]
     ):
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="SMTP is not configured",
+        raise api_error(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "SMTP_NOT_CONFIGURED", "SMTP is not configured"
         )
 
     from sqlalchemy import select  # noqa: PLC0415
@@ -465,23 +461,17 @@ async def send_invoice_email(
     )
     contact = result.scalar_one_or_none()
     if contact is None:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="Contact not found",
-        )
+        raise not_found("Contact")
     if not payload.recipients:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="No recipients specified",
-        )
+        raise unprocessable("EMAIL_NO_RECIPIENTS", "No recipients specified")
 
     # Security: only allow addresses that belong to this contact.
     allowed_recipients = {addr for addr in [contact.email] if addr}
     allowed_recipients.update(ce.email for ce in contact.emails)
     if invalid := [r for r in payload.recipients if r not in allowed_recipients]:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=f"Recipient(s) not allowed for this contact: {', '.join(invalid)}",
+        raise unprocessable(
+            "EMAIL_RECIPIENTS_NOT_ALLOWED",
+            f"Recipient(s) not allowed for this contact: {', '.join(invalid)}",
         )
 
     contact_name = contact.nom
@@ -510,9 +500,8 @@ async def send_invoice_email(
             override_body=payload.body,
         )
     except email_service.EmailSendError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Email delivery failed: {exc}",
+        raise api_error(
+            status.HTTP_502_BAD_GATEWAY, "EMAIL_DELIVERY_FAILED", f"Email delivery failed: {exc}"
         ) from exc
 
     # Auto-transition draft → sent
@@ -539,9 +528,9 @@ async def download_invoice_file(
     """Return the uploaded file attachment for a supplier invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     if not invoice.file_path:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No file attached")
+        raise api_error(status.HTTP_404_NOT_FOUND, "INVOICE_NO_FILE", "No file attached")
     # Resolve absolute path from stored relative filename
     stored = invoice.file_path
     if Path(stored).is_absolute():
@@ -550,9 +539,11 @@ async def download_invoice_file(
         base = Path("data/uploads/invoices").resolve()
         file_path = (base / stored).resolve()
         if not file_path.is_relative_to(base):
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file path")
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST, "INVOICE_INVALID_PATH", "Invalid file path"
+            )
     if not file_path.is_file():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk")
+        raise api_error(status.HTTP_404_NOT_FOUND, "INVOICE_FILE_MISSING", "File not found on disk")
     suffix = file_path.suffix.lower()
     media_type_map = {
         ".pdf": "application/pdf",
@@ -579,33 +570,35 @@ async def upload_invoice_file(
     """Upload a file attachment for a supplier invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+        raise not_found("Invoice")
     if invoice.type != InvoiceType.FOURNISSEUR:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File upload is only for supplier invoices",
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "INVOICE_FILE_SUPPLIER_ONLY",
+            "File upload is only for supplier invoices",
         )
 
     # Validate content type
     if file.content_type not in _ALLOWED_MIME_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail=f"File type '{file.content_type}' is not allowed. Use PDF, JPEG, PNG, or WebP.",
+        raise api_error(
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            "INVOICE_FILE_TYPE_NOT_ALLOWED",
+            f"File type '{file.content_type}' is not allowed. Use PDF, JPEG, PNG, or WebP.",
         )
 
     # Read and validate size
     content = await file.read()
     if len(content) > _MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="File exceeds 10 MB limit",
+        raise api_error(
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "FILE_TOO_LARGE", "File exceeds 10 MB limit"
         )
 
     # Validate actual file content against magic bytes (not just the client-supplied MIME type)
     if not _content_matches_allowed_type(content):
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="File content does not match an allowed type (PDF, JPEG, PNG, WebP).",
+        raise api_error(
+            status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            "INVOICE_FILE_CONTENT_INVALID",
+            "File content does not match an allowed type (PDF, JPEG, PNG, WebP).",
         )
 
     # Save with a UUID-based name to prevent path traversal

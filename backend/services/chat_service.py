@@ -149,7 +149,7 @@ async def stream_chat(
                 "question": last_question[:200] if last_question else None,
             },
         )
-        await db.commit()
+        await db.flush()
     except Exception:  # noqa: BLE001
         logger.exception("Failed to log chat question")
 

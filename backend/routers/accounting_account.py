@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.errors import conflict, not_found
 from backend.models.accounting_account import AccountType
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
@@ -59,10 +60,7 @@ async def create_account(
     """Create a new account."""
     existing = await account_service.get_account_by_number(db, payload.number)
     if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Account number {payload.number} already exists",
-        )
+        raise conflict("ACCOUNT_NUMBER_EXISTS", f"Account number {payload.number} already exists")
     return await account_service.create_account(db, payload)  # type: ignore[return-value]
 
 
@@ -74,7 +72,7 @@ async def get_account(
 ) -> AccountingAccountRead:
     account = await account_service.get_account(db, account_id)
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+        raise not_found("Account")
     return account  # type: ignore[return-value]
 
 
@@ -87,5 +85,5 @@ async def update_account(
 ) -> AccountingAccountRead:
     account = await account_service.get_account(db, account_id)
     if account is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+        raise not_found("Account")
     return await account_service.update_account(db, account, payload)  # type: ignore[return-value]

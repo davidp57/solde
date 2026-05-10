@@ -339,7 +339,7 @@ class TestResetDatabase:
         with patch("backend.routers.settings.get_app_config", new=lambda: prod_settings):
             response = await client.post("/api/settings/reset-db", headers=auth_headers)
         assert response.status_code == 403
-        assert "debug" in response.json()["detail"].lower()
+        assert "debug" in response.json()["detail"]["detail"].lower()
 
     async def test_reset_db_deletes_everything_except_users(
         self, client: AsyncClient, auth_headers: dict, db_session
@@ -450,7 +450,7 @@ class TestSelectiveReset:
             )
 
             assert response.status_code == 404
-            assert response.json()["detail"] == "Fiscal year not found"
+            assert response.json()["detail"]["detail"] == "Fiscal year not found"
 
     async def test_selective_reset_preview_and_apply_for_gestion(
         self, client: AsyncClient, auth_headers: dict, db_session

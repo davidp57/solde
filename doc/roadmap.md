@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-05-05 — active branch `develop` — current version: 1.6.0
+> Last updated: 2026-05-07 — active branch `develop` — current version: 1.6.2
 
 ---
 
@@ -24,6 +24,9 @@
 | **1.4** | Lot CR (security), Lot UI (UX & API), Lot DOC (help page), TEC-156 (chat auth fix) | ✅ Released 2026-05-03 |
 | **1.5** | Lot MOB (mobile UI), Lot BIZ-034 (dual-account banking), cheque numbering, navigation UX, contacts sort | ✅ Released 2026-05-04 |
 | **1.6** | BIZ-170 (pending deposits management), BIZ-171 (mobile invoice UX), BIZ-172 (admin: fix inconsistent cheques) | ✅ Released 2026-05-05 |
+| **1.6.1** | Lot REV — technical code review (TEC-160–169, TEC-172) | ✅ Merged 2026-05-06 |
+| **1.6.2** | Lot REV2 — standardize API errors, remove service commits, split bank router (TEC-170, TEC-171, TEC-173) | ✅ Merged 2026-05-07 |
+| **1.7** | Lot BK — automated backup (BIZ-173–184) | 🔜 Planned |
 
 Test suite: **1055 backend + 148 frontend Vitest — 0 failures.**
 

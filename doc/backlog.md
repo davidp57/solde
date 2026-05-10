@@ -46,16 +46,6 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 ---
 
-### Lot REV2 — Refactoring technique différé (v1.7) — ~55 min Copilot + 15 min gestion
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| TEC-170 | Standardiser les codes d'erreur API (EN + code structuré) | P2 | ~20 min | 2026-05-06 | | |
-| TEC-171 | Audit : supprimer les commit() dans les services | P2 | ~20 min | 2026-05-06 | | |
-| TEC-173 | Découper bank.py en sous-routeurs | P3 | ~15 min | 2026-05-06 | | |
-
----
-
 ### Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -78,13 +68,6 @@ Lorsqu'une facture est intégralement payée (`status = paid`), le PDF généré
 
 Régression sur le preview des factures PDF dans Chrome. TEC-146 avait remplacé `<embed>` par `<object type="application/pdf">` pour corriger ce problème (livré en v1.2.1 / v1.3.0), mais l'aperçu reste non fonctionnel dans Chrome. Investiguer pourquoi la solution `<object>` ne suffit pas (politique Content-Security-Policy, header `Content-Disposition: attachment` côté API, restrictions Chrome sur les PDF inline, blob URL vs URL directe…) et appliquer un correctif durable.
 
-### TEC-170 — Standardiser les codes d'erreur API
-
-Certaines erreurs sont en français (`"Une transaction avec cette référence existe déjà."`), d'autres en anglais (`"Invoice not found"`). Standardiser : champ `code` structuré (EN, machine-readable) + `detail` humain ; le frontend affiche via i18n selon le `code`.
-
-### TEC-171 — Audit : supprimer les commit() dans les services
-
-Certains services (`accounting_account`, `accounting_rule_service`, etc.) font `await db.commit()` directement. Le pattern correct : les services font `flush()`, la session commit/rollback est gérée par `get_db()`. Auditer et corriger pour éviter les commits partiels.
 
 ### TEC-173 — Découper bank.py en sous-routeurs
 
@@ -200,6 +183,7 @@ Améliorations de l'expérience mobile sur les vues factures client et fournisse
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
+| REV2 | Refactoring technique différé | v1.6.2 | TEC-170, TEC-171, TEC-173 | 2026-05-07 | ~55 min | — |
 | REV | Revue de code technique | v1.6.1 | TEC-160–165, 167–169, 172 (+ TEC-161, 163, 166 déjà faits) | 2026-05-06 | ~190 min | ~70 min |
 | BIZ-172 | Paiements chèques incohérents | v1.6 | BIZ-172 | 2026-05-05 | ~45 min | — |
 | BIZ-171 | Améliorations factures mobile | v1.6 | BIZ-171 | 2026-05-05 | ~35 min | — |

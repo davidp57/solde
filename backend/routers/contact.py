@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.errors import api_error, not_found
 from backend.models.contact import ContactType
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
@@ -91,7 +92,7 @@ async def get_contact(
     """Get a single contact by ID."""
     contact = await contact_service.get_contact(db, contact_id)
     if contact is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+        raise not_found("Contact")
     return contact  # type: ignore[return-value]
 
 
@@ -105,7 +106,7 @@ async def update_contact(
     """Partially update a contact."""
     contact = await contact_service.get_contact(db, contact_id)
     if contact is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+        raise not_found("Contact")
     updated = await contact_service.update_contact(db, contact, payload)
     await record_audit(
         db,
@@ -127,7 +128,7 @@ async def delete_contact(
     """Soft-delete a contact (marks as inactive)."""
     contact = await contact_service.get_contact(db, contact_id)
     if contact is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+        raise not_found("Contact")
     detail = {"nom": contact.nom, "type": contact.type}
     await contact_service.delete_contact(db, contact)
     await record_audit(
@@ -149,7 +150,7 @@ async def get_contact_history(
     """Get full history of a contact: invoices, payments, and balance due."""
     history = await contact_service.get_contact_history(db, contact_id)
     if history is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contact not found")
+        raise not_found("Contact")
     return history
 
 
@@ -162,9 +163,10 @@ async def mark_douteux(
     """Transfer the outstanding client balance to a doubtful receivable account (416xxx)."""
     result = await contact_service.mark_creance_douteuse(db, contact_id)
     if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Contact not found or no outstanding balance",
+        raise api_error(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "CONTACT_NO_OUTSTANDING_BALANCE",
+            "Contact not found or no outstanding balance",
         )
     debit_entry, credit_entry = result
     await record_audit(
