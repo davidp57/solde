@@ -1,8 +1,9 @@
 """Application settings model — single-row table (id always = 1)."""
 
+from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Integer, Numeric, String
+from sqlalchemy import Boolean, DateTime, Integer, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
@@ -75,3 +76,15 @@ class AppSettings(Base):
     # Bank account ACCTID mapping (OFX import)
     bank_account_courant_acctid: Mapped[str | None] = mapped_column(String(50), nullable=True)
     bank_account_epargne_acctid: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    # Backup
+    backup_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    backup_schedule_type: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="interval"
+    )
+    backup_interval_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=24)
+    backup_cron_expression: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    backup_include_uploads: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    backup_notify_on_failure: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    backup_last_run_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    backup_last_run_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
