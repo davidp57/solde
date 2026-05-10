@@ -77,11 +77,16 @@ async def sync_destination(
 ) -> None:
     """Run ``rclone sync`` for each source path to the destination.
 
+    Each source is synced into its own sub-folder at the destination so that
+    multiple sources (e.g. backups + uploads) do not overwrite each other.
+    Example: target_path=/srv/solde → syncs to /srv/solde/backups and /srv/solde/uploads.
+
     Raises RuntimeError if rclone returns a non-zero exit code.
     """
     conf = str(_RCLONE_CONF_PATH.resolve())
     for src in src_paths:
-        remote = f"{dest.rclone_remote_name}:{dest.target_path}"
+        subdir = Path(src).name  # "backups", "uploads", etc.
+        remote = f"{dest.rclone_remote_name}:{dest.target_path}/{subdir}"
         cmd = ["rclone", "sync", src, remote, "--update", "--config", conf]
         logger.debug("rclone sync: %s -> %s", src, remote)
         await _run_rclone(cmd)

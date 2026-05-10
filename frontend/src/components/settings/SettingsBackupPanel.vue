@@ -137,6 +137,14 @@
               @click="testConnection(dest)"
             />
             <Button
+              icon="pi pi-pencil"
+              :title="t('common.edit')"
+              severity="secondary"
+              text
+              size="small"
+              @click="openEditDestDialog(dest)"
+            />
+            <Button
               icon="pi pi-trash"
               :title="t('common.delete')"
               severity="danger"
@@ -155,10 +163,10 @@
 
   </AppPanel>
 
-  <!-- ── Dialog ajouter destination ─────────────────────────────────── -->
+  <!-- ── Dialog ajouter / éditer destination ───────────────────────── -->
   <Dialog
     v-model:visible="showAddDestDialog"
-    :header="t('settings.backup_add_destination')"
+    :header="editDestId ? t('settings.backup_edit_destination') : t('settings.backup_add_destination')"
     modal
     :style="{ width: '480px' }"
   >
@@ -224,13 +232,14 @@
         :label="t('common.save')"
         icon="pi pi-check"
         :loading="savingDest"
-        @click="saveNewDest"
+        @click="editDestId ? saveEditDest() : saveNewDest()"
       />
     </template>
   </Dialog>
 
   <!-- ── Toasts ─────────────────────────────────────────────────────── -->
   <Toast />
+  <ConfirmDialog />
 </template>
 
 <script setup lang="ts">
@@ -243,6 +252,7 @@ import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
+import ConfirmDialog from 'primevue/confirmdialog'
 import Toast from 'primevue/toast'
 import ToggleSwitch from 'primevue/toggleswitch'
 import { useToast } from 'primevue/usetoast'
@@ -276,8 +286,7 @@ const destinations = ref<BackupDestination[]>([])
 const loadingDests = ref(false)
 const savingDest = ref(false)
 const showAddDestDialog = ref(false)
-const testRestoreResult = ref(null)
-const showTestRestoreDialog = ref(false)
+const editDestId = ref<number | null>(null)
 const runningNow = ref(false)
 const oauthPolling = ref(false)
 const oauthDone = ref(false)
@@ -436,10 +445,25 @@ function confirmDeleteDest(dest: BackupDestination) {
 }
 
 function openAddDestDialog() {
+  editDestId.value = null
   newDest.name = ''
   newDest.type = 'local'
   newDest.rclone_remote_name = ''
   newDest.target_path = ''
+  smbForm.host = ''
+  smbForm.user = ''
+  smbForm.pass = ''
+  oauthDone.value = false
+  _oauthToken = null
+  showAddDestDialog.value = true
+}
+
+function openEditDestDialog(dest: BackupDestination) {
+  editDestId.value = dest.id
+  newDest.name = dest.name
+  newDest.type = dest.type
+  newDest.rclone_remote_name = dest.rclone_remote_name
+  newDest.target_path = dest.target_path
   smbForm.host = ''
   smbForm.user = ''
   smbForm.pass = ''
@@ -476,6 +500,38 @@ async function saveNewDest() {
       rclone_config,
     })
     destinations.value.push(created)
+    showAddDestDialog.value = false
+    toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } finally {
+    savingDest.value = false
+  }
+}
+
+async function saveEditDest() {
+  if (!newDest.name || !newDest.rclone_remote_name) {
+    toast.add({ severity: 'warn', summary: t('common.required_fields'), life: 3000 })
+    return
+  }
+
+  savingDest.value = true
+  try {
+    let rclone_config: string | null = null
+    if (newDest.type === 'smb' && smbForm.host) {
+      rclone_config = JSON.stringify({ host: smbForm.host, user: smbForm.user, pass: smbForm.pass })
+    } else if (newDest.type === 'onedrive' && _oauthToken) {
+      rclone_config = JSON.stringify({ token: _oauthToken })
+    }
+
+    const updated = await updateDestination(editDestId.value!, {
+      name: newDest.name,
+      type: newDest.type,
+      rclone_remote_name: newDest.rclone_remote_name,
+      target_path: newDest.target_path,
+      ...(rclone_config !== null ? { rclone_config } : {}),
+    })
+    destinations.value = destinations.value.map((d) => (d.id === updated.id ? updated : d))
     showAddDestDialog.value = false
     toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
   } catch {
