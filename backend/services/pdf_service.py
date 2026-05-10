@@ -21,11 +21,13 @@ def render_invoice_html(
     """Render the invoice Jinja2 template to an HTML string."""
     env = _template_env()
     template = env.get_template("invoice.html")
+    is_paid = getattr(invoice, "status", None) == "paid"
     return template.render(
         invoice=invoice,
         contact_name=contact_name,
         contact_address=contact_address,
         settings=settings,
+        is_paid=is_paid,
     )
 
 
