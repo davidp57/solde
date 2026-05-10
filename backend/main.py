@@ -22,6 +22,7 @@ from backend.routers import (
     accounting_rule,
     app_comment,
     auth,
+    backup,
     bank,
     cash,
     chat,
@@ -214,9 +215,29 @@ if not _TESTING:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifecycle: initialise DB on startup."""
+    """Application lifecycle: initialise DB and start backup scheduler on startup."""
+    from sqlalchemy import select
+
+    from backend.database import get_session
+    from backend.models.app_settings import AppSettings
+    from backend.services.backup_scheduler import reload_scheduler, start_scheduler, stop_scheduler
+
     await init_db()
+
+    # Start scheduler and configure job based on current settings
+    start_scheduler()
+    try:
+        async with get_session() as db:
+            result = await db.execute(select(AppSettings).where(AppSettings.id == 1))
+            app_settings = result.scalar_one_or_none()
+            if app_settings:
+                reload_scheduler(app_settings)
+    except Exception:
+        pass  # Scheduler starts even if settings cannot be read yet
+
     yield
+
+    stop_scheduler()
 
 
 def create_app() -> FastAPI:
@@ -248,6 +269,7 @@ def create_app() -> FastAPI:
             "description": "Excel historical import — preview, validation and commit.",
         },
         {"name": "settings", "description": "Application settings."},
+        {"name": "backup", "description": "Backup destinations, scheduling and restore."},
     ]
 
     app = FastAPI(
@@ -318,6 +340,7 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router, prefix="/api")
     app.include_router(excel_import.router, prefix="/api")
     app.include_router(settings.router, prefix="/api")
+    app.include_router(backup.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
     app.include_router(app_comment.router, prefix="/api")
 
