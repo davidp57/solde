@@ -87,6 +87,9 @@
             :severity="runStatus.last_run_status === 'success' ? 'success' : 'danger'"
             class="ml-2"
           />
+          <span v-if="runStatus.last_run_status !== 'success' && runStatus.last_run_error" class="backup-status__error ml-2">
+            {{ runStatus.last_run_error }}
+          </span>
         </span>
         <span v-else class="text-color-secondary">{{ t('settings.backup_never_run') }}</span>
         <Button
@@ -293,6 +296,7 @@ const schedule = reactive<BackupSchedule>({
 const runStatus = reactive<BackupRunStatus>({
   last_run_at: null,
   last_run_status: null,
+  last_run_error: null,
   destinations_results: [],
 })
 
@@ -563,7 +567,15 @@ function formatDate(iso: string): string {
 }
 .backup-status {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.backup-status__error {
+  font-size: 0.8em;
+  color: var(--p-red-500);
+  word-break: break-all;
 }
 
 .dest-list {

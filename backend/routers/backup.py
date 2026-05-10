@@ -294,6 +294,7 @@ async def get_status(
     return BackupRunStatus(
         last_run_at=s.backup_last_run_at,
         last_run_status=s.backup_last_run_status,
+        last_run_error=s.backup_last_run_error,
     )
 
 
@@ -384,19 +385,17 @@ async def onedrive_oauth_start(
 
     _onedrive_oauth_token = None
 
-    # Pick a random available port
-    import socket
-
-    with socket.socket() as sock:
-        sock.bind(("", 0))
-        port = sock.getsockname()[1]
+    # rclone's public client_id only has http://127.0.0.1:53682/ registered as redirect_uri.
+    # We must use that exact port, and bind on 0.0.0.0 so the callback is reachable from the
+    # browser (Docker maps host:53682 → container:53682 via docker-compose).
+    port = 53682
 
     cmd = [
         "rclone",
         "authorize",
         "onedrive",
         "--auth-no-open-browser",
-        f"--auth-addr=127.0.0.1:{port}",
+        f"--auth-addr=0.0.0.0:{port}",
     ]
 
     try:

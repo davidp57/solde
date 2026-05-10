@@ -35,6 +35,7 @@ export default {
   common: {
     loading: 'Loading…',
     save: 'Save',
+    name: 'Name',
     search: 'Search',
     cancel: 'Cancel',
     discard: 'Discard changes',

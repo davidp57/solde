@@ -198,6 +198,7 @@ export default {
   common: {
     loading: 'Chargement…',
     save: 'Enregistrer',
+    name: 'Nom',
     search: 'Rechercher',
     cancel: 'Annuler',
     discard: 'Abandonner les modifications',

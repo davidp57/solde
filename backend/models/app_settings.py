@@ -88,3 +88,4 @@ class AppSettings(Base):
     backup_notify_on_failure: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     backup_last_run_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     backup_last_run_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    backup_last_run_error: Mapped[str | None] = mapped_column(String(1000), nullable=True)

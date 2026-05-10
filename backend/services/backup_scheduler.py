@@ -171,8 +171,8 @@ async def run_backup_job(
     logger.info("Backup job finished: %s", status_str)
 
 
-async def _update_run_status(success: bool, _error: str | None) -> None:
-    """Persist last_run_at and last_run_status to app_settings."""
+async def _update_run_status(success: bool, error: str | None) -> None:
+    """Persist last_run_at, last_run_status and last_run_error to app_settings."""
     from backend.database import get_session
 
     async with get_session() as db:
@@ -181,6 +181,7 @@ async def _update_run_status(success: bool, _error: str | None) -> None:
         if settings:
             settings.backup_last_run_at = datetime.now(UTC).replace(tzinfo=None)
             settings.backup_last_run_status = "success" if success else "failure"
+            settings.backup_last_run_error = error[:1000] if error else None
             await db.commit()
 
 
