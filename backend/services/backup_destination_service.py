@@ -48,12 +48,18 @@ def _build_rclone_conf(destinations: list[BackupDestination]) -> str:
         elif dest.type == "onedrive":
             token = extra.get("token", "{}")
             drive_id = extra.get("drive_id", "")
-            cfg[section] = {
+            section_cfg: dict[str, str] = {
                 "type": "onedrive",
                 "token": token,
                 "drive_id": drive_id,
                 "drive_type": extra.get("drive_type", "personal"),
             }
+            # Include the client_id used to obtain the token so that rclone uses
+            # the same app when refreshing — mandatory for non-rclone client IDs.
+            if extra.get("client_id"):
+                section_cfg["client_id"] = extra["client_id"]
+                section_cfg["client_secret"] = extra.get("client_secret", "")
+            cfg[section] = section_cfg
         else:
             cfg[section] = {"type": dest.type}
             cfg[section].update(extra)
