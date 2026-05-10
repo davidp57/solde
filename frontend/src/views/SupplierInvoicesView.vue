@@ -366,11 +366,11 @@
             <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
           </div>
           <div v-else-if="editFileBlobUrl" class="supplier-preview-dialog__file-frame">
-            <embed
+            <iframe
               v-if="editFileIsPdf"
               :src="editFileBlobUrl"
-              type="application/pdf"
               class="supplier-preview-dialog__embed"
+              :title="t('invoices.supplier.preview_file')"
             />
             <img
               v-else
@@ -569,11 +569,11 @@
               <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
             </div>
             <div v-else-if="previewBlobUrl" class="supplier-preview-dialog__file-frame">
-              <embed
+              <iframe
                 v-if="previewIsPdf"
                 :src="previewBlobUrl"
-                type="application/pdf"
                 class="supplier-preview-dialog__embed"
+                :title="t('invoices.supplier.preview_file')"
               />
               <img
                 v-else

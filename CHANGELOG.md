@@ -28,6 +28,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **TEC-171** — Suppression de tous les `db.commit()` dans les services et routeurs ; utilisation de `flush()` uniquement (commit/rollback gérés par `get_db()`)
 - **TEC-173** — Découpage de `bank.py` (781 lignes) en 3 sous-routeurs : `bank_transactions.py`, `bank_import.py`, `bank_deposits.py`
 
+### Corrigé
+- **TEC-185** — Régression aperçu PDF Chrome : remplacement de `<embed>` / `<object>` par `<iframe>` dans tous les composants d'aperçu PDF (factures client, fournisseur, historique contact, dialogue email)
+
 ### Ajouté
 - **BIZ-186** — Filigrane « PAYÉ » en rouge diagonal sur les PDF des factures intégralement réglées
 
