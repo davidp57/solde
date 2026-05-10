@@ -12,6 +12,7 @@ import configparser
 import io
 import json
 import logging
+import re
 from pathlib import Path
 
 from backend.models.backup_destination import BackupDestination
@@ -112,6 +113,17 @@ async def fetch_remote_backup(
     await _run_rclone(cmd)
 
 
+_RCLONE_TS_RE = re.compile(r"^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} (?:ERROR : |WARNING: )?")
+
+
+def _rclone_summary(stderr: str) -> str:
+    """Return the last meaningful rclone stderr line, with timestamp stripped."""
+    lines = [ln.strip() for ln in stderr.splitlines() if ln.strip()]
+    if not lines:
+        return "Erreur rclone inconnue"
+    return _RCLONE_TS_RE.sub("", lines[-1]) or "Erreur rclone inconnue"
+
+
 async def _run_rclone(cmd: list[str]) -> str:
     """Execute an rclone command asynchronously; raises RuntimeError on failure."""
     try:
@@ -126,6 +138,6 @@ async def _run_rclone(cmd: list[str]) -> str:
 
     if proc.returncode != 0:
         err = stderr.decode(errors="replace").strip()
-        raise RuntimeError(f"rclone a échoué (code {proc.returncode}): {err}")
+        raise RuntimeError(f"rclone (code {proc.returncode}): {_rclone_summary(err)}")
 
     return stdout.decode(errors="replace")
