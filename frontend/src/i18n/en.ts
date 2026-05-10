@@ -178,6 +178,7 @@ export default {
     backup_dest_type: 'Type',
     backup_dest_local: 'Local',
     backup_add_destination: 'Add destination',
+    backup_edit_destination: 'Edit destination',
     backup_rclone_remote_name: 'rclone remote name',
     backup_rclone_remote_help: 'Name used in rclone.conf (e.g. nas-smb, onedrive-personal)',
     backup_target_path: 'Destination path',
