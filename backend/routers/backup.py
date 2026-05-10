@@ -35,9 +35,9 @@ router = APIRouter(prefix="/backup", tags=["backup"])
 
 _AdminRequired = Annotated[User, Depends(require_role(UserRole.ADMIN))]
 
-# Shared state for OneDrive OAuth (one-at-a-time flow)
+# Shared state for OneDrive Device Authorization Flow (one-at-a-time)
 _onedrive_oauth_token: str | None = None
-_onedrive_oauth_proc: asyncio.subprocess.Process | None = None
+_onedrive_oauth_proc = None  # kept for backwards compat, unused
 
 # Regex to validate backup filenames and prevent path traversal.
 _SAFE_BACKUP_RE = re.compile(r"^solde_backup_(?:\d{8}_\d{6}|\d{14})[a-zA-Z0-9_-]*\.db$")
@@ -369,68 +369,73 @@ async def restore_backup_endpoint(
 
 
 # ---------------------------------------------------------------------------
-# OneDrive OAuth
+# OneDrive OAuth — Device Authorization Flow (RFC 8628)
+#
+# Works in Docker/NAS/headless environments: the user visits
+# https://microsoft.com/devicelogin on any device and enters a short code.
+# The server polls Microsoft until the token arrives — no redirect URI needed.
 # ---------------------------------------------------------------------------
+
+_ONEDRIVE_CLIENT_ID = "b15665d9-eda6-4092-8539-0eec376afd59"
+_ONEDRIVE_DEVICE_URL = (
+    "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
+)
+_ONEDRIVE_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+_ONEDRIVE_SCOPES = "Files.Read Files.ReadWrite offline_access"
 
 
 @router.get("/oauth/onedrive/start", response_model=OneDriveOAuthStart)
 async def onedrive_oauth_start(
     _current_user: _AdminRequired,
 ) -> OneDriveOAuthStart:
-    """Start the OneDrive OAuth2 flow via rclone authorize.
+    """Start the OneDrive Device Authorization Flow.
 
-    Returns the port and auth URL for the user to open in their browser.
+    Returns a short user_code and verification_uri for the user to visit on any
+    device.  A background task polls Microsoft until the token is issued.
     """
-    global _onedrive_oauth_proc, _onedrive_oauth_token
+    import httpx
+
+    global _onedrive_oauth_token, _onedrive_oauth_proc
 
     _onedrive_oauth_token = None
-
-    # rclone v1.60 does not support --auth-addr; the server binds to 127.0.0.1:53682.
-    # In a Docker/NAS context the OAuth callback cannot reach the container loopback,
-    # so the automated flow is not usable — the frontend uses manual token input instead.
-    port = 53682
-
-    cmd = [
-        "rclone",
-        "authorize",
-        "onedrive",
-        "--auth-no-open-browser",
-    ]
+    _onedrive_oauth_proc = None  # not used with device flow
 
     try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-    except FileNotFoundError as exc:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                _ONEDRIVE_DEVICE_URL,
+                data={
+                    "client_id": _ONEDRIVE_CLIENT_ID,
+                    "scope": _ONEDRIVE_SCOPES,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except httpx.HTTPError as exc:
         raise api_error(
-            status.HTTP_500_INTERNAL_SERVER_ERROR,
-            "RCLONE_NOT_FOUND",
-            "rclone n'est pas installé ou introuvable dans le PATH.",
+            status.HTTP_502_BAD_GATEWAY,
+            "ONEDRIVE_DEVICE_CODE_FAILED",
+            f"Impossible de démarrer l'autorisation OneDrive : {exc}",
         ) from exc
 
-    _onedrive_oauth_proc = proc
+    device_code = data["device_code"]
+    interval = int(data.get("interval", 5))
 
-    # Schedule background token capture
-    asyncio.create_task(_capture_onedrive_token(proc))
+    asyncio.create_task(_poll_device_token(device_code, interval))
 
-    auth_url = (
-        f"https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
-        f"?client_id=b15665d9-eda6-4092-8539-0eec376afd59"
-        f"&response_type=code"
-        f"&redirect_uri=http%3A%2F%2F127.0.0.1%3A{port}%2F"
-        f"&scope=Files.Read+Files.ReadWrite+offline_access"
+    return OneDriveOAuthStart(
+        user_code=data["user_code"],
+        verification_uri=data["verification_uri"],
+        expires_in=int(data.get("expires_in", 900)),
+        message=data.get("message", ""),
     )
-
-    return OneDriveOAuthStart(port=port, auth_url=auth_url)
 
 
 @router.get("/oauth/onedrive/status", response_model=OneDriveOAuthStatus)
 async def onedrive_oauth_status(
     _current_user: _AdminRequired,
 ) -> OneDriveOAuthStatus:
-    """Poll for the OneDrive OAuth2 token captured by rclone."""
+    """Poll for the OneDrive token (consumed once available)."""
     global _onedrive_oauth_token
 
     if _onedrive_oauth_token is not None:
@@ -440,31 +445,91 @@ async def onedrive_oauth_status(
     return OneDriveOAuthStatus(done=False)
 
 
-async def _capture_onedrive_token(proc: asyncio.subprocess.Process) -> None:
-    """Background task: capture the token from rclone authorize output."""
+async def _poll_device_token(device_code: str, interval: int) -> None:
+    """Background task: poll Microsoft token endpoint until granted or expired."""
+    import json as _json
+    from datetime import UTC, datetime, timedelta
+
+    import httpx
+
     global _onedrive_oauth_token
 
-    try:
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
-        # rclone authorize may print the token JSON to stdout or stderr
-        output = ""
-        if stdout:
-            output += stdout.decode(errors="replace")
-        if stderr:
-            output += stderr.decode(errors="replace")
-        import json as _json
+    max_wait = 900  # 15 min
+    waited = 0
 
-        for line in output.splitlines():
-            line = line.strip()
-            if line.startswith("{") and "access_token" in line:
-                try:
-                    _json.loads(line)  # validate JSON
-                    _onedrive_oauth_token = line
-                    return
-                except ValueError:
-                    pass
-    except (TimeoutError, Exception) as exc:
-        logger.warning("OneDrive OAuth token capture failed: %s", exc)
+    while waited < max_wait:
+        await asyncio.sleep(interval)
+        waited += interval
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.post(
+                    _ONEDRIVE_TOKEN_URL,
+                    data={
+                        "grant_type": (
+                            "urn:ietf:params:oauth:grant-type:device_code"
+                        ),
+                        "client_id": _ONEDRIVE_CLIENT_ID,
+                        "device_code": device_code,
+                    },
+                )
+                data = resp.json()
+
+            error = data.get("error")
+            if error == "authorization_pending":
+                continue
+            if error == "slow_down":
+                interval = min(interval + 5, 30)
+                continue
+            if error in ("expired_token", "access_denied", "bad_verification_code"):
+                logger.warning("OneDrive device flow ended: %s", error)
+                return
+
+            if "access_token" not in data:
+                logger.warning("Unexpected device flow response: %s", data)
+                return
+
+            # Build rclone-compatible token JSON
+            expiry = datetime.now(UTC) + timedelta(seconds=int(data.get("expires_in", 3600)))
+            rclone_token = _json.dumps(
+                {
+                    "access_token": data["access_token"],
+                    "token_type": data.get("token_type", "Bearer"),
+                    "refresh_token": data.get("refresh_token", ""),
+                    "expiry": expiry.strftime("%Y-%m-%dT%H:%M:%S.000000000Z"),
+                }
+            )
+
+            # Fetch drive_id from Microsoft Graph
+            drive_id = ""
+            drive_type = "personal"
+            try:
+                async with httpx.AsyncClient(timeout=10) as client:
+                    gr = await client.get(
+                        "https://graph.microsoft.com/v1.0/me/drive",
+                        headers={"Authorization": f"Bearer {data['access_token']}"},
+                    )
+                    if gr.is_success:
+                        gdata = gr.json()
+                        drive_id = gdata.get("id", "")
+                        drive_type = gdata.get("driveType", "personal")
+            except Exception as exc:
+                logger.warning("Could not fetch OneDrive drive_id: %s", exc)
+
+            # Package as rclone_config JSON
+            _onedrive_oauth_token = _json.dumps(
+                {
+                    "token": rclone_token,
+                    "drive_id": drive_id,
+                    "drive_type": drive_type,
+                }
+            )
+            logger.info("OneDrive device flow: token obtained (drive_id=%s)", drive_id)
+            return
+
+        except Exception as exc:
+            logger.warning("OneDrive device flow poll error: %s", exc)
+
+    logger.warning("OneDrive device flow: timed out after %d s", max_wait)
 
 
 # ---------------------------------------------------------------------------
