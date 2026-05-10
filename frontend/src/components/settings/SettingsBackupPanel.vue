@@ -211,17 +211,21 @@
         </div>
       </template>
 
-      <!-- OneDrive OAuth -->
+      <!-- OneDrive — token manuel -->
       <template v-else-if="newDest.type === 'onedrive'">
         <div class="app-field col-span-2">
-          <Button
-            :label="oauthDone ? t('settings.backup_onedrive_authorized') : t('settings.backup_onedrive_authorize')"
-            :icon="oauthDone ? 'pi pi-check' : 'pi pi-external-link'"
-            :severity="oauthDone ? 'success' : 'primary'"
-            outlined
-            @click="startOneDriveAuth"
-          />
-          <small v-if="oauthPolling" class="ml-2">{{ t('settings.backup_onedrive_waiting') }}</small>
+          <Message severity="info" :closable="false">
+            {{ t('settings.backup_onedrive_manual_info') }}
+          </Message>
+          <div class="onedrive-cmd">
+            <code>rclone authorize onedrive --auth-no-open-browser</code>
+          </div>
+          <label class="app-field__label">{{ t('settings.backup_onedrive_token_paste') }}</label>
+          <Textarea v-model="onedriveTokenJson" class="w-full" :rows="4" />
+          <small v-if="onedriveTokenJson && !onedriveTokenValid" class="app-field__help p-error">
+            {{ t('settings.backup_onedrive_token_invalid') }}
+          </small>
+          <Tag v-else-if="onedriveTokenValid" severity="success" :value="t('settings.backup_onedrive_token_valid')" class="mt-1" />
         </div>
       </template>
     </div>
@@ -243,7 +247,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onBeforeUnmount, ref, reactive } from 'vue'
+import { onMounted, ref, reactive, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
@@ -252,6 +256,7 @@ import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
+import Textarea from 'primevue/textarea'
 import ConfirmDialog from 'primevue/confirmdialog'
 import Toast from 'primevue/toast'
 import ToggleSwitch from 'primevue/toggleswitch'
@@ -267,8 +272,6 @@ import {
   updateSchedule,
   triggerBackup,
   getBackupStatus,
-  startOneDriveOAuth,
-  pollOneDriveOAuthStatus,
   type BackupDestination,
   type BackupSchedule,
   type BackupRunStatus,
@@ -288,10 +291,17 @@ const savingDest = ref(false)
 const showAddDestDialog = ref(false)
 const editDestId = ref<number | null>(null)
 const runningNow = ref(false)
-const oauthPolling = ref(false)
-const oauthDone = ref(false)
-let _oauthToken: string | null = null
-let _oauthPollCancel: (() => void) | null = null
+const onedriveTokenJson = ref('')
+
+const onedriveTokenValid = computed(() => {
+  if (!onedriveTokenJson.value.trim()) return false
+  try {
+    const j = JSON.parse(onedriveTokenJson.value)
+    return typeof j.access_token === 'string' && j.access_token.length > 0
+  } catch {
+    return false
+  }
+})
 
 const schedule = reactive<BackupSchedule>({
   enabled: false,
@@ -337,11 +347,6 @@ const destTypeOptions = [
 // ---------------------------------------------------------------------------
 onMounted(async () => {
   await Promise.all([loadSchedule(), loadDestinations(), loadStatus()])
-})
-
-onBeforeUnmount(() => {
-  _oauthPollCancel?.()
-  _oauthPollCancel = null
 })
 
 // ---------------------------------------------------------------------------
@@ -453,8 +458,7 @@ function openAddDestDialog() {
   smbForm.host = ''
   smbForm.user = ''
   smbForm.pass = ''
-  oauthDone.value = false
-  _oauthToken = null
+  onedriveTokenJson.value = ''
   showAddDestDialog.value = true
 }
 
@@ -467,8 +471,7 @@ function openEditDestDialog(dest: BackupDestination) {
   smbForm.host = ''
   smbForm.user = ''
   smbForm.pass = ''
-  oauthDone.value = false
-  _oauthToken = null
+  onedriveTokenJson.value = ''
   showAddDestDialog.value = true
 }
 
@@ -488,8 +491,8 @@ async function saveNewDest() {
         user: smbForm.user,
         pass: smbForm.pass,
       })
-    } else if (newDest.type === 'onedrive' && _oauthToken) {
-      rclone_config = JSON.stringify({ token: _oauthToken })
+    } else if (newDest.type === 'onedrive' && onedriveTokenValid.value) {
+      rclone_config = JSON.stringify({ token: onedriveTokenJson.value })
     }
 
     const created = await createDestination({
@@ -520,8 +523,8 @@ async function saveEditDest() {
     let rclone_config: string | null = null
     if (newDest.type === 'smb' && smbForm.host) {
       rclone_config = JSON.stringify({ host: smbForm.host, user: smbForm.user, pass: smbForm.pass })
-    } else if (newDest.type === 'onedrive' && _oauthToken) {
-      rclone_config = JSON.stringify({ token: _oauthToken })
+    } else if (newDest.type === 'onedrive' && onedriveTokenValid.value) {
+      rclone_config = JSON.stringify({ token: onedriveTokenJson.value })
     }
 
     const updated = await updateDestination(editDestId.value!, {
@@ -542,66 +545,6 @@ async function saveEditDest() {
 }
 
 // ---------------------------------------------------------------------------
-// OneDrive OAuth
-// ---------------------------------------------------------------------------
-async function startOneDriveAuth() {
-  try {
-    const { auth_url } = await startOneDriveOAuth()
-    window.open(auth_url, '_blank')
-    oauthPolling.value = true
-    oauthDone.value = false
-    _oauthPollCancel?.()
-    _oauthPollCancel = _pollOAuthStatus()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
-  }
-}
-
-function _pollOAuthStatus(): () => void {
-  const maxAttempts = 150 // ~5 min at 2s interval
-  let attempts = 0
-  let cancelled = false
-  let timeoutId: ReturnType<typeof setTimeout> | null = null
-
-  const cancel = () => {
-    cancelled = true
-    if (timeoutId !== null) {
-      clearTimeout(timeoutId)
-      timeoutId = null
-    }
-  }
-
-  const poll = async () => {
-    if (cancelled) return
-    if (attempts++ >= maxAttempts) {
-      oauthPolling.value = false
-      toast.add({ severity: 'warn', summary: t('settings.backup_onedrive_timeout'), life: 5000 })
-      return
-    }
-    try {
-      const status = await pollOneDriveOAuthStatus()
-      if (cancelled) return
-      if (status.done && status.token) {
-        _oauthToken = status.token
-        oauthDone.value = true
-        oauthPolling.value = false
-        toast.add({ severity: 'success', summary: t('settings.backup_onedrive_authorized'), life: 3000 })
-        cancel()
-      } else {
-        timeoutId = setTimeout(poll, 2000)
-      }
-    } catch {
-      if (!cancelled) {
-        timeoutId = setTimeout(poll, 2000)
-      }
-    }
-  }
-
-  timeoutId = setTimeout(poll, 2000)
-  return cancel
-}
-
-// ---------------------------------------------------------------------------
 // Formatting
 // ---------------------------------------------------------------------------
 function formatDate(iso: string): string {
@@ -610,6 +553,15 @@ function formatDate(iso: string): string {
 </script>
 
 <style scoped>
+.onedrive-cmd {
+  background: var(--surface-ground);
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  word-break: break-all;
+}
 .backup-section {
   margin-bottom: 2rem;
 }
