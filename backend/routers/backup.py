@@ -385,9 +385,9 @@ async def onedrive_oauth_start(
 
     _onedrive_oauth_token = None
 
-    # rclone's public client_id only has http://127.0.0.1:53682/ registered as redirect_uri.
-    # We must use that exact port, and bind on 0.0.0.0 so the callback is reachable from the
-    # browser (Docker maps host:53682 → container:53682 via docker-compose).
+    # rclone v1.60 does not support --auth-addr; the server binds to 127.0.0.1:53682.
+    # In a Docker/NAS context the OAuth callback cannot reach the container loopback,
+    # so the automated flow is not usable — the frontend uses manual token input instead.
     port = 53682
 
     cmd = [
@@ -395,7 +395,6 @@ async def onedrive_oauth_start(
         "authorize",
         "onedrive",
         "--auth-no-open-browser",
-        f"--auth-addr=0.0.0.0:{port}",
     ]
 
     try:
