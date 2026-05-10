@@ -299,6 +299,8 @@
 import { onMounted, onBeforeUnmount, ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
+import Column from 'primevue/column'
+import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
@@ -732,8 +734,5 @@ function formatSize(bytes: number): string {
   color: var(--text-color-secondary);
   font-style: italic;
   padding: 0.25rem 0;
-}
-  flex-wrap: wrap;
-  gap: 0.5rem;
 }
 </style>
