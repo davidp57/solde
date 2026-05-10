@@ -150,46 +150,6 @@
       </div>
     </section>
 
-    <!-- ── Restauration ──────────────────────────────────────────────── -->
-    <section class="backup-section">
-      <h3 class="backup-section__title">{{ t('settings.backup_restore_title') }}</h3>
-      <DataTable
-        :value="backupFiles"
-        class="p-datatable-sm"
-        :loading="loadingFiles"
-        :empty-message="t('settings.backup_no_files')"
-      >
-        <Column field="filename" :header="t('settings.backup_filename')" />
-        <Column field="size_bytes" :header="t('settings.backup_size')">
-          <template #body="{ data }">{{ formatSize(data.size_bytes) }}</template>
-        </Column>
-        <Column field="created_at" :header="t('common.date')">
-          <template #body="{ data }">{{ formatDate(data.created_at) }}</template>
-        </Column>
-        <Column :header="t('common.actions')" style="width: 12rem">
-          <template #body="{ data }">
-            <div class="flex gap-1">
-              <Button
-                icon="pi pi-search"
-                :title="t('settings.backup_test_restore')"
-                severity="secondary"
-                text
-                size="small"
-                @click="testRestore(data.filename)"
-              />
-              <Button
-                icon="pi pi-upload"
-                :title="t('settings.backup_restore')"
-                severity="warning"
-                text
-                size="small"
-                @click="confirmRestore(data.filename)"
-              />
-            </div>
-          </template>
-        </Column>
-      </DataTable>
-    </section>
   </AppPanel>
 
   <!-- ── Dialog ajouter destination ─────────────────────────────────── -->
@@ -266,31 +226,6 @@
     </template>
   </Dialog>
 
-  <!-- ── Dialog test-restore ─────────────────────────────────────────── -->
-  <Dialog
-    v-model:visible="showTestRestoreDialog"
-    :header="t('settings.backup_test_restore_result')"
-    modal
-    :style="{ width: '480px' }"
-  >
-    <div v-if="testRestoreResult">
-      <div class="mb-3">
-        <Tag
-          :value="testRestoreResult.ok ? t('settings.backup_test_restore_ok') : t('settings.backup_test_restore_fail')"
-          :severity="testRestoreResult.ok ? 'success' : 'danger'"
-        />
-        <span class="ml-2">{{ t('settings.backup_integrity') }}: {{ testRestoreResult.integrity_check }}</span>
-      </div>
-      <div v-if="testRestoreResult.tables_missing.length > 0" class="text-red-500">
-        {{ t('settings.backup_tables_missing') }}: {{ testRestoreResult.tables_missing.join(', ') }}
-      </div>
-      <div v-if="testRestoreResult.error" class="text-red-500">{{ testRestoreResult.error }}</div>
-    </div>
-    <template #footer>
-      <Button :label="t('common.close')" severity="secondary" @click="showTestRestoreDialog = false" />
-    </template>
-  </Dialog>
-
   <!-- ── Toasts ─────────────────────────────────────────────────────── -->
   <Toast />
 </template>
@@ -299,8 +234,6 @@
 import { onMounted, onBeforeUnmount, ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
@@ -321,16 +254,12 @@ import {
   updateSchedule,
   triggerBackup,
   getBackupStatus,
-  testRestoreBackup,
-  restoreBackup,
   startOneDriveOAuth,
   pollOneDriveOAuthStatus,
   type BackupDestination,
   type BackupSchedule,
   type BackupRunStatus,
-  type BackupRestoreTestResult,
 } from '@/api/backup'
-import { listBackupsApi, type BackupFile } from '@/api/settings'
 import AppPanel from '@/components/ui/AppPanel.vue'
 
 const { t } = useI18n()
@@ -344,10 +273,8 @@ const destinations = ref<BackupDestination[]>([])
 const loadingDests = ref(false)
 const savingDest = ref(false)
 const showAddDestDialog = ref(false)
-const testRestoreResult = ref<BackupRestoreTestResult | null>(null)
+const testRestoreResult = ref(null)
 const showTestRestoreDialog = ref(false)
-const backupFiles = ref<BackupFile[]>([])
-const loadingFiles = ref(false)
 const runningNow = ref(false)
 const oauthPolling = ref(false)
 const oauthDone = ref(false)
@@ -396,7 +323,7 @@ const destTypeOptions = [
 // Lifecycle
 // ---------------------------------------------------------------------------
 onMounted(async () => {
-  await Promise.all([loadSchedule(), loadDestinations(), loadFiles(), loadStatus()])
+  await Promise.all([loadSchedule(), loadDestinations(), loadStatus()])
 })
 
 onBeforeUnmount(() => {
@@ -422,7 +349,7 @@ async function saveSchedule() {
     Object.assign(schedule, saved)
     toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
   } catch {
-    toast.add({ severity: 'error', summary: t('common.error'), detail: t('common.save_failed'), life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), detail: t('common.save_failed'), life: 4000 })
   }
 }
 
@@ -436,7 +363,7 @@ async function runNow() {
     toast.add({ severity: 'info', summary: t('settings.backup_started'), life: 3000 })
     setTimeout(loadStatus, 3000)
   } catch {
-    toast.add({ severity: 'error', summary: t('common.error'), life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   } finally {
     runningNow.value = false
   }
@@ -468,7 +395,7 @@ async function toggleDestEnabled(dest: BackupDestination, v: boolean) {
     await updateDestination(dest.id, { enabled: v })
     dest.enabled = v
   } catch {
-    toast.add({ severity: 'error', summary: t('common.error'), life: 3000 })
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   }
 }
 
@@ -482,7 +409,7 @@ async function testConnection(dest: BackupDestination) {
       life: 5000,
     })
   } catch {
-    toast.add({ severity: 'error', summary: t('common.error'), life: 3000 })
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   }
 }
 
@@ -498,7 +425,7 @@ function confirmDeleteDest(dest: BackupDestination) {
         destinations.value = destinations.value.filter((d) => d.id !== dest.id)
         toast.add({ severity: 'success', summary: t('common.deleted'), life: 2000 })
       } catch {
-        toast.add({ severity: 'error', summary: t('common.error'), life: 3000 })
+        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
       }
     },
   })
@@ -548,7 +475,7 @@ async function saveNewDest() {
     showAddDestDialog.value = false
     toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
   } catch {
-    toast.add({ severity: 'error', summary: t('common.error'), life: 4000 })
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   } finally {
     savingDest.value = false
   }
@@ -566,7 +493,7 @@ async function startOneDriveAuth() {
     _oauthPollCancel?.()
     _oauthPollCancel = _pollOAuthStatus()
   } catch {
-    toast.add({ severity: 'error', summary: t('common.error'), life: 3000 })
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   }
 }
 
@@ -615,54 +542,10 @@ function _pollOAuthStatus(): () => void {
 }
 
 // ---------------------------------------------------------------------------
-// Backup files + restore
-// ---------------------------------------------------------------------------
-async function loadFiles() {
-  loadingFiles.value = true
-  try {
-    backupFiles.value = await listBackupsApi()
-  } finally {
-    loadingFiles.value = false
-  }
-}
-
-async function testRestore(filename: string) {
-  try {
-    testRestoreResult.value = await testRestoreBackup(filename)
-    showTestRestoreDialog.value = true
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error'), life: 3000 })
-  }
-}
-
-function confirmRestore(filename: string) {
-  confirm.require({
-    message: t('settings.backup_confirm_restore', { filename }),
-    header: t('common.confirm'),
-    icon: 'pi pi-exclamation-triangle',
-    acceptSeverity: 'warning',
-    accept: async () => {
-      try {
-        await restoreBackup(filename)
-        toast.add({ severity: 'info', summary: t('settings.backup_restoring'), life: 5000 })
-      } catch {
-        toast.add({ severity: 'error', summary: t('common.error'), life: 3000 })
-      }
-    },
-  })
-}
-
-// ---------------------------------------------------------------------------
 // Formatting
 // ---------------------------------------------------------------------------
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} o`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`
-  return `${(bytes / 1024 / 1024).toFixed(1)} Mo`
 }
 </script>
 
