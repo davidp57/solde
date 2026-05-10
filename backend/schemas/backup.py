@@ -94,6 +94,7 @@ class BackupDestinationResult(BaseModel):
 class BackupRunStatus(BaseModel):
     last_run_at: datetime | None
     last_run_status: str | None  # success | failure | None
+    last_run_error: str | None = None
     destinations_results: list[BackupDestinationResult] = []
 
 
