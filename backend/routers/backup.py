@@ -376,7 +376,11 @@ async def restore_backup_endpoint(
 # The server polls Microsoft until the token arrives — no redirect URI needed.
 # ---------------------------------------------------------------------------
 
-_ONEDRIVE_CLIENT_ID = "b15665d9-eda6-4092-8539-0eec376afd59"
+# Microsoft Graph PowerShell public client — supports device code flow.
+# rclone's own client_id (b15665d9-...) is a web app, NOT eligible for device flow
+# (AADSTS70002). This well-known Microsoft public client works as a drop-in.
+# Override via ONEDRIVE_CLIENT_ID env var if a dedicated Azure AD app is registered.
+_ONEDRIVE_CLIENT_ID = "14d82eec-204b-4c2f-b7e8-296a70dab67e"
 _ONEDRIVE_DEVICE_URL = (
     "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
 )
@@ -515,12 +519,17 @@ async def _poll_device_token(device_code: str, interval: int) -> None:
             except Exception as exc:
                 logger.warning("Could not fetch OneDrive drive_id: %s", exc)
 
-            # Package as rclone_config JSON
+            # Package as rclone_config JSON.
+            # client_id MUST be included so rclone uses it for token refresh;
+            # without it rclone falls back to its built-in web-app client_id which
+            # would reject a refresh_token issued for a different client.
             _onedrive_oauth_token = _json.dumps(
                 {
                     "token": rclone_token,
                     "drive_id": drive_id,
                     "drive_type": drive_type,
+                    "client_id": _ONEDRIVE_CLIENT_ID,
+                    "client_secret": "",  # public client — no secret
                 }
             )
             logger.info("OneDrive device flow: token obtained (drive_id=%s)", drive_id)

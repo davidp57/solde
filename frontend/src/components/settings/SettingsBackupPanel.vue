@@ -349,8 +349,22 @@ async function startOneDriveAuth(): Promise<void> {
     deviceVerificationUri.value = data.verification_uri
     oauthPolling.value = true
     schedulePoll()
-  } catch {
-    oauthError.value = t('settings.backup_onedrive_start_error')
+  } catch (err: unknown) {
+    // Extract the detail message from the API error response if available
+    const apiMsg =
+      err &&
+      typeof err === 'object' &&
+      'response' in err &&
+      err.response &&
+      typeof err.response === 'object' &&
+      'data' in err.response &&
+      err.response.data &&
+      typeof err.response.data === 'object' &&
+      'detail' in err.response.data &&
+      typeof (err.response.data as { detail: unknown }).detail === 'string'
+        ? (err.response.data as { detail: string }).detail
+        : null
+    oauthError.value = apiMsg ?? t('settings.backup_onedrive_start_error')
   }
 }
 
