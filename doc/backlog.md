@@ -60,6 +60,8 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
+| TEC-185 | Régression : aperçu PDF non fonctionnel dans Chrome | P1 | ~20 min | 2026-05-10 | | |
+| BIZ-186 | Filigrane « Payé » sur le PDF des factures réglées | P2 | ~20 min | 2026-05-10 | | |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
 | BIZ-171 | Améliorations tuiles et détail factures — mobile | P2 | ~35 min | 2026-05-05 | 2026-05-05 | 2026-05-05 |
 | BIZ-172 | Section admin : paiements chèques incohérents | P2 | ~45 min | 2026-05-05 | 2026-05-05 | 2026-05-05 |
@@ -67,6 +69,14 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 ---
 
 ## Détails
+
+### BIZ-186 — Filigrane « Payé » sur le PDF des factures réglées
+
+Lorsqu'une facture est intégralement payée (`status = paid`), le PDF généré doit afficher un filigrane « Payé » en rouge en diagonale sur chaque page. Implémentation recommandée : overlay CSS positionné en `position: fixed` avec `transform: rotate(-45deg)`, centré sur la page, texte rouge semi-transparent (opacity ~0.15) en grande taille, compatible WeasyPrint. Le backend doit passer le flag `is_paid` au contexte du template Jinja2 `invoice.html`. La facture partiellement payée ne porte pas de filigrane.
+
+### TEC-185 — Régression : aperçu PDF non fonctionnel dans Chrome
+
+Régression sur le preview des factures PDF dans Chrome. TEC-146 avait remplacé `<embed>` par `<object type="application/pdf">` pour corriger ce problème (livré en v1.2.1 / v1.3.0), mais l'aperçu reste non fonctionnel dans Chrome. Investiguer pourquoi la solution `<object>` ne suffit pas (politique Content-Security-Policy, header `Content-Disposition: attachment` côté API, restrictions Chrome sur les PDF inline, blob URL vs URL directe…) et appliquer un correctif durable.
 
 ### TEC-170 — Standardiser les codes d'erreur API
 
