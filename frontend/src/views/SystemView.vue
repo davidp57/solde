@@ -29,6 +29,9 @@
       <Message v-if="systemInfoError" severity="error">{{ t('system.load_error') }}</Message>
     </AppPanel>
 
+    <!-- Automated backup -->
+    <SettingsBackupPanel />
+
     <!-- Backups -->
     <AppPanel :title="t('system.backup_title')" :subtitle="t('system.backup_subtitle')">
       <div class="backup-actions">
@@ -304,6 +307,7 @@ import { listPayments, fixDepositDate, type Payment } from '@/api/payments'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
+import SettingsBackupPanel from '@/components/settings/SettingsBackupPanel.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 
 const { t } = useI18n()

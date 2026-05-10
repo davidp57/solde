@@ -9,7 +9,6 @@
     <SettingsSmtpPanel />
     <SettingsSystemOpeningPanel />
     <SettingsChatPanel />
-    <SettingsBackupPanel />
     <SettingsDangerZonePanel />
   </AppPage>
 </template>
@@ -22,7 +21,6 @@ import SettingsAssociationPanel from '@/components/settings/SettingsAssociationP
 import SettingsSmtpPanel from '@/components/settings/SettingsSmtpPanel.vue'
 import SettingsChatPanel from '@/components/settings/SettingsChatPanel.vue'
 import SettingsSystemOpeningPanel from '@/components/settings/SettingsSystemOpeningPanel.vue'
-import SettingsBackupPanel from '@/components/settings/SettingsBackupPanel.vue'
 import SettingsDangerZonePanel from '@/components/settings/SettingsDangerZonePanel.vue'
 
 const { t } = useI18n()

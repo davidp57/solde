@@ -113,58 +113,41 @@
     <section class="backup-section">
       <h3 class="backup-section__title">{{ t('settings.backup_destinations_title') }}</h3>
 
-      <DataTable
-        :value="destinations"
-        class="p-datatable-sm mb-3"
-        :loading="loadingDests"
-        :empty-message="t('settings.backup_no_destinations')"
-      >
-        <Column field="name" :header="t('common.name')" />
-        <Column field="type" :header="t('settings.backup_dest_type')">
-          <template #body="{ data }">
-            <Tag :value="data.type" severity="secondary" />
-          </template>
-        </Column>
-        <Column :header="t('common.enabled')">
-          <template #body="{ data }">
+      <div class="dest-list">
+        <div v-if="destinations.length === 0 && !loadingDests" class="dest-list__empty">
+          {{ t('settings.backup_no_destinations') }}
+        </div>
+        <div v-for="dest in destinations" :key="dest.id" class="dest-row">
+          <span class="dest-row__name">{{ dest.name }}</span>
+          <Tag :value="dest.type" severity="secondary" class="dest-row__type" />
+          <div class="dest-row__actions">
             <ToggleSwitch
-              :model-value="data.enabled"
-              @update:model-value="(v) => toggleDestEnabled(data, v)"
+              :model-value="dest.enabled"
+              @update:model-value="(v) => toggleDestEnabled(dest, v)"
             />
-          </template>
-        </Column>
-        <Column :header="t('common.actions')" style="width: 10rem">
-          <template #body="{ data }">
-            <div class="flex gap-1">
-              <Button
-                icon="pi pi-wifi"
-                :title="t('settings.backup_test_connection')"
-                severity="secondary"
-                text
-                size="small"
-                @click="testConnection(data)"
-              />
-              <Button
-                icon="pi pi-trash"
-                :title="t('common.delete')"
-                severity="danger"
-                text
-                size="small"
-                @click="confirmDeleteDest(data)"
-              />
-            </div>
-          </template>
-        </Column>
-      </DataTable>
-
-      <Button
-        :label="t('settings.backup_add_destination')"
-        icon="pi pi-plus"
-        severity="secondary"
-        outlined
-        size="small"
-        @click="openAddDestDialog"
-      />
+            <Button
+              icon="pi pi-wifi"
+              :title="t('settings.backup_test_connection')"
+              severity="secondary"
+              text
+              size="small"
+              @click="testConnection(dest)"
+            />
+            <Button
+              icon="pi pi-trash"
+              :title="t('common.delete')"
+              severity="danger"
+              text
+              size="small"
+              @click="confirmDeleteDest(dest)"
+            />
+          </div>
+        </div>
+        <button class="dest-row dest-row--add" @click="openAddDestDialog">
+          <i class="pi pi-plus-circle" />
+          <span>{{ t('settings.backup_add_destination') }}</span>
+        </button>
+      </div>
     </section>
 
     <!-- ── Restauration ──────────────────────────────────────────────── -->
@@ -316,8 +299,6 @@
 import { onMounted, onBeforeUnmount, ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
-import Column from 'primevue/column'
-import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
@@ -698,6 +679,60 @@ function formatSize(bytes: number): string {
 .backup-status {
   display: flex;
   align-items: center;
+}
+
+.dest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dest-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--border-radius);
+  background: var(--surface-card);
+}
+
+.dest-row__name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.dest-row__type {
+  font-size: 0.8rem;
+}
+
+.dest-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.dest-row--add {
+  cursor: pointer;
+  border-style: dashed;
+  background: transparent;
+  color: var(--text-color-secondary);
+  font-size: 0.875rem;
+  gap: 0.5rem;
+  justify-content: flex-start;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.dest-row--add:hover {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.dest-list__empty {
+  color: var(--text-color-secondary);
+  font-style: italic;
+  padding: 0.25rem 0;
+}
   flex-wrap: wrap;
   gap: 0.5rem;
 }
