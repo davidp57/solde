@@ -93,7 +93,7 @@ async def create_destination(
     await _regenerate_rclone_conf(db)
     await record_audit(
         db,
-        action=AuditAction.SETTINGS_UPDATED,
+        action=AuditAction.BACKUP_DESTINATION_CREATED,
         actor=current_user,
         detail={"action": "create_backup_destination", "name": payload.name},
     )
@@ -123,7 +123,7 @@ async def update_destination(
     await _regenerate_rclone_conf(db)
     await record_audit(
         db,
-        action=AuditAction.SETTINGS_UPDATED,
+        action=AuditAction.BACKUP_DESTINATION_UPDATED,
         actor=current_user,
         detail={"action": "update_backup_destination", "id": destination_id},
     )
@@ -150,7 +150,7 @@ async def delete_destination(
     await _regenerate_rclone_conf(db)
     await record_audit(
         db,
-        action=AuditAction.SETTINGS_UPDATED,
+        action=AuditAction.BACKUP_DESTINATION_DELETED,
         actor=current_user,
         detail={"action": "delete_backup_destination", "id": destination_id},
     )
@@ -257,9 +257,9 @@ async def trigger_backup(
     background_tasks: BackgroundTasks,
 ) -> dict[str, str]:
     """Trigger an immediate backup (runs in background)."""
-    from backend.services.backup_scheduler import _resolve_db_path, run_backup_job
+    from backend.services.backup_scheduler import run_backup_job
 
-    db_path = _resolve_db_path()
+    db_path = _get_db_path()
     backup_dir = str(Path(_BACKUP_DIR).resolve())
 
     from backend.models.app_settings import AppSettings
@@ -447,9 +447,13 @@ async def _capture_onedrive_token(proc: asyncio.subprocess.Process) -> None:
     global _onedrive_oauth_token
 
     try:
-        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
-        output = stderr.decode(errors="replace") if stderr else ""
-        # rclone prints the token JSON after "Paste the following into your remote machine --->"
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=300)
+        # rclone authorize may print the token JSON to stdout or stderr
+        output = ""
+        if stdout:
+            output += stdout.decode(errors="replace")
+        if stderr:
+            output += stderr.decode(errors="replace")
         import json as _json
 
         for line in output.splitlines():

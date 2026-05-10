@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-05-07 — active branch `develop` — current version: 1.6.2
+> Last updated: 2026-05-11 — active branch `develop` — current version: 1.7.0 (PR open)
 
 ---
 
@@ -26,9 +26,10 @@
 | **1.6** | BIZ-170 (pending deposits management), BIZ-171 (mobile invoice UX), BIZ-172 (admin: fix inconsistent cheques) | ✅ Released 2026-05-05 |
 | **1.6.1** | Lot REV — technical code review (TEC-160–169, TEC-172) | ✅ Merged 2026-05-06 |
 | **1.6.2** | Lot REV2 — standardize API errors, remove service commits, split bank router (TEC-170, TEC-171, TEC-173) | ✅ Merged 2026-05-07 |
-| **1.7** | Lot BK — automated backup (BIZ-173–184) | 🔜 Planned |
+| **1.6.3** | TEC-185 (Chrome PDF fix), BIZ-186 (paid watermark on PDF) | ✅ Released 2026-05-10 |
+| **1.7** | Lot BK — automated backup (BIZ-173–184) | 🔧 In progress (PR #85) |
 
-Test suite: **1055 backend + 148 frontend Vitest — 0 failures.**
+Test suite: **1090 backend + 148 frontend Vitest — 0 failures.**
 
 ---
 
