@@ -69,6 +69,18 @@ _SKIP_PARAGRAPHS_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Lines that look like a postal address (street), not a person's name
+_STREET_START_RE = re.compile(
+    r"^(\d+\s|résidence\b|rue\b|avenue\b|all[eé]e\b|impasse\b|boulevard\b|bd\b|chemins?\b|place\b|lotissements?\b|domaine\b|cité\b|voie\b|squares?\b|sq\b)",
+    re.IGNORECASE,
+)
+
+# Salutation lines to skip (not a person's name)
+_SALUTATION_RE = re.compile(
+    r"^(m\.?\s*$|mme\.?\s*$|mr\.?\s*$|monsieur\b|madame\b|a\s+l.attention|objet\s*:|sujet\s*:|r[eé]f[eé]rence\s*:)",
+    re.IGNORECASE,
+)
+
 # Price pattern: "26,00€" or "26.00" or "130 €"
 _PRICE_RE = re.compile(r"([\d\s]+[,.][\d]+)\s*€?")
 
@@ -208,39 +220,58 @@ def _get_tables(path: Path) -> list[list[list[str]]]:
 
 def _extract_client_block(paragraphs: list[str]) -> tuple[str | None, str | None]:
     """
-    Extract client name and address from document paragraphs.
+    Extract client name and address, anchored on the first postal code line.
 
-    The structure of these invoices is:
-      [0] "LES ETUDES"                 ← header (skip)
-      [4] "PRENOM NOM"                 ← client name
-      [5] "street address"             ← address line 1
-      [6] "POSTAL_CODE CITY"           ← address line 2
-      [10] "Metz, le DD mois YYYY"     ← date (skip)
+    Walk backwards from the ZIP CITY line to collect the address block
+    (up to 4 lines), then identify the name as the first line that is
+    neither a street address nor a salutation.
     """
     postal_re = re.compile(r"\b\d{5}\b")
-    client_name: str | None = None
-    address_lines: list[str] = []
 
-    for para in paragraphs:
-        # Skip known header/footer content
-        if _SKIP_PARAGRAPHS_RE.match(para):
+    def _is_skipped(para: str) -> bool:
+        return bool(
+            _SKIP_PARAGRAPHS_RE.match(para)
+            or re.match(r"^[A-Za-z\u00c0-\u00ff][A-Za-z\u00c0-\u00ff\s-]+,\s*le\s+", para, re.IGNORECASE)
+        )
+
+    # Locate the first non-header paragraph that contains a 5-digit postal code.
+    postal_idx: int | None = None
+    for i, para in enumerate(paragraphs):
+        if _is_skipped(para):
             continue
-        # Skip city+date header line (e.g. "Metz, le 18 janvier 2025")
-        if re.match(r"^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s-]+,\s*le\s+", para, re.IGNORECASE):
-            continue
-        # Stop at "Facture n°" line
         if re.match(r"^facture\s*n", para, re.IGNORECASE):
             break
+        if postal_re.search(para):
+            postal_idx = i
+            break
 
+    if postal_idx is None:
+        # Fallback: return the first non-header, non-date paragraph
+        for para in paragraphs:
+            if not _is_skipped(para):
+                return para, None
+        return None, None
+
+    # Walk backwards from the postal line (up to 4 lines) to collect the address block.
+    above: list[str] = []
+    for i in range(postal_idx - 1, max(postal_idx - 5, -1), -1):
+        para = paragraphs[i]
+        if _is_skipped(para):
+            break
+        above.insert(0, para)  # keep top-to-bottom order
+
+    # Identify the client name: first line that is not a street and not a salutation.
+    client_name: str | None = None
+    street_lines: list[str] = []
+    for line in above:
         if client_name is None:
-            client_name = para
-        else:
-            address_lines.append(para)
-            # Stop after postal code line
-            if postal_re.search(para):
-                break
+            if not _STREET_START_RE.match(line) and not _SALUTATION_RE.match(line):
+                client_name = line
+        elif _STREET_START_RE.match(line):
+            street_lines.append(line)
 
-    address = "\n".join(address_lines) if address_lines else None
+    city_line = paragraphs[postal_idx]
+    address = "\n".join(street_lines + [city_line]) if street_lines else city_line
     return client_name, address
 
 
@@ -288,11 +319,13 @@ def parse_docx(path: Path) -> ParsedInvoice | None:
     except Exception:
         return None
 
-    # Extract date from any paragraph containing a date pattern
+    # Extract date from any paragraph — only accept dates whose year matches the filename year.
+    # This avoids picking up years from addresses or personal dates in the document.
+    filename_year = int(number.split("-")[0])
     invoice_date: date | None = None
     for para in paragraphs:
         d = _parse_date(para)
-        if d:
+        if d and d.year == filename_year:
             invoice_date = d
             break
 
