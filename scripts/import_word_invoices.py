@@ -114,6 +114,9 @@ class InvoiceRecord:
     contact_created: bool
     year: int
     amount: Decimal
+    invoice_date: date | None
+    filename: str
+    nb_lines: int
 
 
 # ---------------------------------------------------------------------------
@@ -578,6 +581,38 @@ def _write_excel_report(report: "ImportReport", out_path: Path, dry_run: bool) -
     else:
         ws3.append(["(aucun nouveau contact)"])
 
+    # ---- Sheet 4: Toutes les factures ----
+    ws4 = wb.create_sheet("Factures")
+    _header(
+        ws4,
+        ["N\u00b0 facture", "Contact", "Nouveau", "Date", "Ann\u00e9e", "Nb lignes", "Montant (\u20ac)", "Fichier source"],
+        [14, 32, 10, 14, 8, 10, 18, 40],
+    )
+    date_fmt = "DD/MM/YYYY"
+    for rec in sorted(records, key=lambda r: r.number):
+        ws4.append([
+            rec.number,
+            rec.client_name,
+            "\u2713" if rec.contact_created else "",
+            rec.invoice_date if rec.invoice_date else "Non trouv\u00e9e",
+            rec.year,
+            rec.nb_lines,
+            float(rec.amount),
+            rec.filename,
+        ])
+        r = ws4.max_row
+        ws4.cell(r, 3).alignment = center
+        ws4.cell(r, 5).alignment = center
+        ws4.cell(r, 6).alignment = center
+        ws4.cell(r, 7).number_format = euro_fmt
+        if rec.invoice_date:
+            ws4.cell(r, 4).number_format = date_fmt
+        if rec.contact_created:
+            for c in (1, 2, 3):
+                ws4.cell(r, c).fill = new_fill
+    _total(ws4, ["TOTAL", "", "", "", "", "", float(sum(rec.amount for rec in records)), ""])
+    ws4.cell(ws4.max_row, 7).number_format = euro_fmt
+
     wb.save(str(out_path))
     print(f"\nRapport Excel g\u00e9n\u00e9r\u00e9 : {out_path}")
 
@@ -684,6 +719,9 @@ def main() -> None:
                     contact_created=created_contact,
                     year=(parsed.invoice_date or date.today()).year,
                     amount=parsed.total_amount,
+                    invoice_date=parsed.invoice_date,
+                    filename=docx_file.name,
+                    nb_lines=len(parsed.lines),
                 ))
             except sqlite3.IntegrityError as exc:
                 conn.rollback()
@@ -698,6 +736,9 @@ def main() -> None:
                 contact_created=created_contact,
                 year=(parsed.invoice_date or date.today()).year,
                 amount=parsed.total_amount,
+                invoice_date=parsed.invoice_date,
+                filename=docx_file.name,
+                nb_lines=len(parsed.lines),
             ))
 
     conn.close()
