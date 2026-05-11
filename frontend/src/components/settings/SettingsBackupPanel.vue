@@ -258,11 +258,13 @@
         <div v-if="oauthDone" class="app-field col-span-2">
           <label class="app-field__label">{{ t('settings.backup_target_path') }}</label>
           <div class="onedrive-path-row">
-            <InputText
-              v-model="newDest.target_path"
-              class="flex-1"
-              :placeholder="t('settings.backup_onedrive_path_placeholder')"
-            />
+            <div style="flex: 1; min-width: 0;">
+              <InputText
+                v-model="newDest.target_path"
+                class="w-full"
+                :placeholder="t('settings.backup_onedrive_path_placeholder')"
+              />
+            </div>
             <Button
               icon="pi pi-folder-open"
               :title="t('settings.backup_browse_onedrive')"
@@ -827,9 +829,6 @@ function formatDate(iso: string): string {
   display: flex;
   gap: 0.5rem;
   align-items: center;
-}
-.onedrive-path-row .flex-1 {
-  flex: 1;
 }
 .folder-breadcrumb {
   display: flex;
