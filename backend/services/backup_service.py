@@ -3,7 +3,7 @@
 import os
 import re
 import sqlite3
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 import anyio
@@ -39,7 +39,7 @@ async def create_backup(
     backup_path = Path(backup_dir)
     backup_path.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     name = f"solde_backup_{timestamp}"
     if label and (slug := _slugify_label(label)):
         name = f"{name}_{slug}"
