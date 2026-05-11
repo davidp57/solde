@@ -116,6 +116,14 @@
                 @click="openHistoryDialog(data.id)"
               />
               <Button
+                icon="pi pi-arrow-right-arrow-left"
+                size="small"
+                severity="warn"
+                text
+                :title="t('contacts.merge')"
+                @click="openMergeDialog(data)"
+              />
+              <Button
                 icon="pi pi-pencil"
                 size="small"
                 severity="secondary"
@@ -256,6 +264,15 @@
                 :title="t('contact_history.title')"
                 :aria-label="t('contact_history.title')"
                 @click="openHistoryDialog(data.id)"
+              />
+              <Button
+                icon="pi pi-arrow-right-arrow-left"
+                size="small"
+                severity="warn"
+                text
+                :title="t('contacts.merge')"
+                :aria-label="t('contacts.merge')"
+                @click="openMergeDialog(data)"
               />
               <Button
                 icon="pi pi-pencil"
@@ -402,6 +419,12 @@
     </Dialog>
 
     <ContactHistoryDialog v-model="historyDialogVisible" :contact-id="selectedContactId" />
+    <ContactMergeDialog
+      v-model:visible="mergeDialogVisible"
+      :source-contact="mergeSourceContact"
+      :contacts="contacts"
+      @merged="onMerged"
+    />
     <ConfirmDialog />
   </AppPage>
 </template>
@@ -436,6 +459,7 @@ import type { ContactEmailImportResult, ContactEmailImportRow } from '@/api/cont
 import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'
 import ContactHistoryDialog from '@/components/ContactHistoryDialog.vue'
+import ContactMergeDialog from '@/components/ContactMergeDialog.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import { useBreakpoints } from '@/composables/useBreakpoints'
@@ -473,6 +497,19 @@ const editingContact = ref<Contact | null>(null)
 const formWrapperEl = ref<HTMLElement | null>(null)
 const historyDialogVisible = ref(false)
 const selectedContactId = ref<number | null>(null)
+
+const mergeDialogVisible = ref(false)
+const mergeSourceContact = ref<Contact | null>(null)
+
+function openMergeDialog(contact: Contact): void {
+  mergeSourceContact.value = contact
+  mergeDialogVisible.value = true
+}
+
+function onMerged(sourceId: number): void {
+  // Remove the source contact from the local list (it's now inactive)
+  contacts.value = contacts.value.filter((c) => c.id !== sourceId)
+}
 
 function focusFormInput(): void {
   nextTick(() => {
