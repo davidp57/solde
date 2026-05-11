@@ -359,6 +359,10 @@ def parse_docx(path: Path) -> ParsedInvoice | None:
             if invoice_date:
                 break
 
+    # Final fallback: use the file's last-modified date (filesystem metadata)
+    if invoice_date is None:
+        invoice_date = date.fromtimestamp(path.stat().st_mtime)
+
     client_name, client_address = _extract_client_block(paragraphs)
     lines, total = _extract_lines_and_total(tables)
 
