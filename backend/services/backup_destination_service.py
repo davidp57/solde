@@ -156,12 +156,17 @@ async def refresh_onedrive_tokens(destinations: list[BackupDestination]) -> None
 async def sync_destination(
     dest: BackupDestination,
     src_paths: list[str],
+    run_ts: str,
 ) -> None:
-    """Run ``rclone sync`` for each source path to the destination.
+    """Run ``rclone copy`` for each source path to the destination.
 
-    Each source is synced into its own sub-folder at the destination so that
-    multiple sources (e.g. backups + uploads) do not overwrite each other.
-    Example: target_path=/srv/solde → syncs to /srv/solde/backups and /srv/solde/uploads.
+    Files are placed under a dated sub-folder named after the backup run
+    timestamp (``run_ts``, format ``YYYY-MM-DDTHH-MM-SS``) so every backup
+    run creates its own directory at the destination.
+
+    Example: target_path=solde, run_ts=2026-05-11T14-30-00
+      → solde/2026-05-11T14-30-00/backups/
+      → solde/2026-05-11T14-30-00/uploads/
 
     Raises RuntimeError if rclone returns a non-zero exit code.
     """
@@ -169,7 +174,7 @@ async def sync_destination(
     for src in src_paths:
         subdir = Path(src).name  # "backups", "uploads", etc.
         base = dest.target_path.rstrip("/") if dest.target_path else ""
-        remote_path = f"{base}/{subdir}" if base else subdir
+        remote_path = f"{base}/{run_ts}/{subdir}" if base else f"{run_ts}/{subdir}"
         remote = f"{dest.rclone_remote_name}:{remote_path}"
         cmd = ["rclone", "copy", src, remote, "--config", conf]
         logger.info("rclone copy: %s -> %s", src, remote)
