@@ -13,6 +13,7 @@ import io
 import json
 import logging
 import re
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from backend.models.backup_destination import BackupDestination
@@ -77,6 +78,81 @@ def write_rclone_config(destinations: list[BackupDestination]) -> None:
     logger.debug("rclone.conf written (%d destinations)", len(destinations))
 
 
+async def refresh_onedrive_tokens(destinations: list[BackupDestination]) -> None:
+    """Pre-refresh expired OneDrive OAuth tokens in-place before backup.
+
+    Updates ``dest.rclone_config`` in memory so the caller can immediately
+    call ``write_rclone_config``.  Also persists the new token to the DB
+    so future runs start with a fresh token.
+    """
+    import httpx
+
+    for dest in destinations:
+        if dest.type != "onedrive" or not dest.rclone_config:
+            continue
+        try:
+            config = json.loads(dest.rclone_config)
+            token = json.loads(config.get("token", "{}"))
+            expiry_str = token.get("expiry", "")
+            if not expiry_str:
+                continue
+
+            # Normalize nanoseconds and parse expiry
+            expiry = datetime.fromisoformat(expiry_str[:19] + "+00:00")
+            if expiry > datetime.now(UTC) + timedelta(minutes=5):
+                continue  # Token still valid for at least 5 minutes
+
+            refresh_token = token.get("refresh_token", "")
+            client_id = config.get("client_id", "")
+            if not refresh_token or not client_id:
+                logger.warning(
+                    "OneDrive dest %s: expired token but missing refresh_token/client_id",
+                    dest.id,
+                )
+                continue
+
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.post(
+                    "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+                    data={
+                        "client_id": client_id,
+                        "grant_type": "refresh_token",
+                        "refresh_token": refresh_token,
+                    },
+                )
+
+            if not resp.is_success:
+                logger.warning(
+                    "OneDrive token refresh failed for dest %s: %s",
+                    dest.id,
+                    resp.text[:300],
+                )
+                continue
+
+            data = resp.json()
+            if "access_token" not in data:
+                logger.warning("No access_token in refresh response for dest %s", dest.id)
+                continue
+
+            new_expiry = datetime.now(UTC) + timedelta(seconds=int(data.get("expires_in", 3600)))
+            new_token = {
+                "access_token": data["access_token"],
+                "token_type": data.get("token_type", "Bearer"),
+                "refresh_token": data.get("refresh_token", refresh_token),
+                "expiry": new_expiry.strftime("%Y-%m-%dT%H:%M:%S.000000000Z"),
+            }
+            config["token"] = json.dumps(new_token)
+            dest.rclone_config = json.dumps(config)
+            logger.info(
+                "Pre-refreshed OneDrive token for dest %s (new expiry: %s)",
+                dest.id,
+                new_expiry.isoformat(),
+            )
+
+        except Exception as exc:
+            logger.warning("OneDrive token pre-refresh error for dest %s: %s", dest.id, exc)
+
+
 async def sync_destination(
     dest: BackupDestination,
     src_paths: list[str],
@@ -92,9 +168,11 @@ async def sync_destination(
     conf = str(_RCLONE_CONF_PATH.resolve())
     for src in src_paths:
         subdir = Path(src).name  # "backups", "uploads", etc.
-        remote = f"{dest.rclone_remote_name}:{dest.target_path}/{subdir}"
-        cmd = ["rclone", "sync", src, remote, "--update", "--config", conf]
-        logger.debug("rclone sync: %s -> %s", src, remote)
+        base = dest.target_path.rstrip("/") if dest.target_path else ""
+        remote_path = f"{base}/{subdir}" if base else subdir
+        remote = f"{dest.rclone_remote_name}:{remote_path}"
+        cmd = ["rclone", "copy", src, remote, "--config", conf]
+        logger.info("rclone copy: %s -> %s", src, remote)
         await _run_rclone(cmd)
 
 
