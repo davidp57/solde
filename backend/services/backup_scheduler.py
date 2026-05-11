@@ -172,13 +172,14 @@ async def run_backup_job(
 
     if destinations:
         write_rclone_config(destinations)
+        run_ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
         src_paths = [backup_dir]
         if include_uploads:
             src_paths.append(str(Path("data/uploads").resolve()))
 
         for dest in destinations:
             try:
-                await sync_destination(dest, src_paths)
+                await sync_destination(dest, src_paths, run_ts)
                 logger.info("Synced to destination %s (%s)", dest.name, dest.type)
             except Exception as exc:
                 overall_success = False
