@@ -26,6 +26,14 @@ _JOB_ID = "backup_job"
 # Module-level scheduler instance shared across requests
 _scheduler: AsyncIOScheduler | None = None
 
+# In-memory flag — True while run_backup_job is executing
+_backup_running: bool = False
+
+
+def is_backup_running() -> bool:
+    """Return True if a backup job is currently executing."""
+    return _backup_running
+
 
 def get_scheduler() -> AsyncIOScheduler:
     """Return the module-level scheduler (lazy init)."""
@@ -110,6 +118,26 @@ def _resolve_db_path() -> str:
 
 
 async def run_backup_job(
+    db_path: str,
+    backup_dir: str,
+    include_uploads: bool,
+    notify_on_failure: bool,
+) -> None:
+    """Execute one backup cycle (called by the scheduler)."""
+    global _backup_running
+    _backup_running = True
+    try:
+        await _run_backup_job_inner(
+            db_path=db_path,
+            backup_dir=backup_dir,
+            include_uploads=include_uploads,
+            notify_on_failure=notify_on_failure,
+        )
+    finally:
+        _backup_running = False
+
+
+async def _run_backup_job_inner(
     db_path: str,
     backup_dir: str,
     include_uploads: bool,
