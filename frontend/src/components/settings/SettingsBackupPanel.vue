@@ -424,12 +424,52 @@ const editDestId = ref<number | null>(null)
 const runningNow = ref(false)
 const backupRunning = ref(false)
 let _pollTimer: ReturnType<typeof setInterval> | null = null
+let _idleTimer: ReturnType<typeof setInterval> | null = null
 
 function _stopPolling() {
   backupRunning.value = false
   if (_pollTimer !== null) {
     clearInterval(_pollTimer)
     _pollTimer = null
+  }
+}
+
+function _startActivePolling() {
+  if (_pollTimer !== null) return
+  if (_idleTimer !== null) {
+    clearInterval(_idleTimer)
+    _idleTimer = null
+  }
+  backupRunning.value = true
+  _pollTimer = setInterval(async () => {
+    await loadStatus()
+    if (!runStatus.is_running) {
+      _stopPolling()
+      _startIdleWatch()
+      if (runStatus.last_run_status === 'success') {
+        toast.add({ severity: 'success', summary: t('settings.backup_success'), life: 4000 })
+      } else if (runStatus.last_run_status === 'failure') {
+        toast.add({ severity: 'error', summary: t('settings.backup_failure'), detail: runStatus.last_run_error ?? '', life: 6000 })
+      }
+    }
+  }, 3000)
+}
+
+function _startIdleWatch() {
+  if (_idleTimer !== null) return
+  _idleTimer = setInterval(async () => {
+    await loadStatus()
+    if (runStatus.is_running) {
+      _startActivePolling()
+    }
+  }, 10000)
+}
+
+function _stopAll() {
+  _stopPolling()
+  if (_idleTimer !== null) {
+    clearInterval(_idleTimer)
+    _idleTimer = null
   }
 }
 // OneDrive device authorization flow state
@@ -630,25 +670,14 @@ const destTypeOptions = [
 // ---------------------------------------------------------------------------
 onMounted(async () => {
   await Promise.all([loadSchedule(), loadDestinations(), loadStatus()])
-  // If a backup is already running (e.g. user navigated away and came back),
-  // resume the polling so the spinner stays visible until it completes.
-  if (runStatus.is_running && _pollTimer === null) {
-    backupRunning.value = true
-    _pollTimer = setInterval(async () => {
-      await loadStatus()
-      if (!runStatus.is_running) {
-        _stopPolling()
-        if (runStatus.last_run_status === 'success') {
-          toast.add({ severity: 'success', summary: t('settings.backup_success'), life: 4000 })
-        } else if (runStatus.last_run_status === 'failure') {
-          toast.add({ severity: 'error', summary: t('settings.backup_failure'), detail: runStatus.last_run_error ?? '', life: 6000 })
-        }
-      }
-    }, 3000)
+  if (runStatus.is_running) {
+    _startActivePolling()
+  } else {
+    _startIdleWatch()
   }
 })
 
-onUnmounted(() => _stopPolling())
+onUnmounted(() => _stopAll())
 
 // ---------------------------------------------------------------------------
 // Schedule
@@ -680,19 +709,7 @@ async function runNow() {
   try {
     await triggerBackup()
     toast.add({ severity: 'info', summary: t('settings.backup_started'), life: 3000 })
-    // Start polling until is_running becomes false (backup completed)
-    backupRunning.value = true
-    _pollTimer = setInterval(async () => {
-      await loadStatus()
-      if (!runStatus.is_running) {
-        _stopPolling()
-        if (runStatus.last_run_status === 'success') {
-          toast.add({ severity: 'success', summary: t('settings.backup_success'), life: 4000 })
-        } else {
-          toast.add({ severity: 'error', summary: t('settings.backup_failure'), detail: runStatus.last_run_error ?? '', life: 6000 })
-        }
-      }
-    }, 3000)
+    _startActivePolling()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   } finally {
