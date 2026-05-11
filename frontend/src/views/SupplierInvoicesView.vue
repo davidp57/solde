@@ -374,12 +374,18 @@
             <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
           </div>
           <div v-else-if="editFileBlobUrl" class="supplier-preview-dialog__file-frame">
-            <iframe
+            <object
               v-if="editFileIsPdf"
-              :src="editFileBlobUrl"
+              :data="editFileBlobUrl"
+              type="application/pdf"
               class="supplier-preview-dialog__embed"
-              :title="t('invoices.supplier.preview_file')"
-            />
+            >
+              <iframe
+                :src="editFileBlobUrl"
+                :title="t('invoices.supplier.preview_file')"
+                style="width:100%;height:100%;border:none"
+              />
+            </object>
             <img
               v-else
               :src="editFileBlobUrl"
@@ -577,12 +583,18 @@
               <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
             </div>
             <div v-else-if="previewBlobUrl" class="supplier-preview-dialog__file-frame">
-              <iframe
+              <object
                 v-if="previewIsPdf"
-                :src="previewBlobUrl"
+                :data="previewBlobUrl"
+                type="application/pdf"
                 class="supplier-preview-dialog__embed"
-                :title="t('invoices.supplier.preview_file')"
-              />
+              >
+                <iframe
+                  :src="previewBlobUrl"
+                  :title="t('invoices.supplier.preview_file')"
+                  style="width:100%;height:100%;border:none"
+                />
+              </object>
               <img
                 v-else
                 :src="previewBlobUrl"
