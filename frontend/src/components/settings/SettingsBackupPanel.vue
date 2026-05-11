@@ -254,24 +254,14 @@
           </template>
         </div>
 
-        <!-- Path selector — shown once authorized or in edit mode -->
-        <div v-if="oauthDone || editDestId" class="app-field col-span-2">
+        <!-- Path selector — shown once authorized -->
+        <div v-if="oauthDone" class="app-field col-span-2">
           <label class="app-field__label">{{ t('settings.backup_target_path') }}</label>
-          <div class="onedrive-path-row">
-            <InputText
-              v-model="newDest.target_path"
-              class="flex-1"
-              :placeholder="t('settings.backup_onedrive_path_placeholder')"
-            />
-            <Button
-              v-if="oauthDone"
-              icon="pi pi-folder-open"
-              :title="t('settings.backup_browse_onedrive')"
-              severity="secondary"
-              outlined
-              @click="openFolderBrowser"
-            />
-          </div>
+          <InputText
+            v-model="newDest.target_path"
+            class="w-full"
+            :placeholder="t('settings.backup_onedrive_path_placeholder')"
+          />
         </div>
       </template>
     </div>
@@ -283,54 +273,6 @@
         icon="pi pi-check"
         :loading="savingDest"
         @click="editDestId ? saveEditDest() : saveNewDest()"
-      />
-    </template>
-  </Dialog>
-
-  <!-- ── OneDrive folder browser ─────────────────────────────────────── -->
-  <Dialog
-    v-model:visible="showFolderBrowser"
-    :header="t('settings.backup_onedrive_browse_title')"
-    modal
-    :style="{ width: '460px' }"
-  >
-    <div class="folder-breadcrumb">
-      <button
-        v-for="(crumb, i) in folderBreadcrumb"
-        :key="i"
-        class="folder-breadcrumb__item"
-        :class="{ 'folder-breadcrumb__item--last': i === folderBreadcrumb.length - 1 }"
-        :disabled="i === folderBreadcrumb.length - 1"
-        @click="navigateTo(i)"
-      >
-        {{ crumb.name }}<span v-if="i < folderBreadcrumb.length - 1" class="folder-breadcrumb__sep"> / </span>
-      </button>
-    </div>
-    <div v-if="folderLoading" class="folder-loading">
-      <ProgressSpinner style="width: 28px; height: 28px" stroke-width="4" />
-    </div>
-    <div v-else-if="folderError" class="p-error folder-error">{{ folderError }}</div>
-    <div v-else class="folder-list">
-      <button
-        v-for="item in folderItems"
-        :key="item.id"
-        class="folder-item"
-        @click="navigateInto(item)"
-      >
-        <i class="pi pi-folder folder-item__icon" />
-        <span class="folder-item__name">{{ item.name }}</span>
-        <i class="pi pi-chevron-right folder-item__arrow" />
-      </button>
-      <div v-if="folderItems.length === 0" class="folder-empty">
-        {{ t('settings.backup_onedrive_no_subfolders') }}
-      </div>
-    </div>
-    <template #footer>
-      <Button :label="t('common.cancel')" severity="secondary" @click="showFolderBrowser = false" />
-      <Button
-        :label="t('settings.backup_onedrive_choose_folder')"
-        icon="pi pi-check"
-        @click="chooseCurrentFolder"
       />
     </template>
   </Dialog>
@@ -491,73 +433,6 @@ const newDest = reactive({
 // Auto-generate a safe rclone remote name from the destination display name.
 function generateRemoteName(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'remote'
-}
-
-// ---------------------------------------------------------------------------
-// OneDrive folder browser
-// ---------------------------------------------------------------------------
-const showFolderBrowser = ref(false)
-const folderLoading = ref(false)
-const folderError = ref('')
-const folderItems = ref<{ id: string; name: string }[]>([])
-const folderBreadcrumb = ref<{ id: string | null; name: string }[]>([])
-
-function extractAccessToken(): string | null {
-  if (!oauthToken.value) return null
-  try {
-    const config = JSON.parse(oauthToken.value) as { token: string }
-    const tok = JSON.parse(config.token) as { access_token: string }
-    return tok.access_token
-  } catch {
-    return null
-  }
-}
-
-async function fetchFolderChildren(itemId: string | null): Promise<void> {
-  const accessToken = extractAccessToken()
-  if (!accessToken) return
-  folderLoading.value = true
-  folderError.value = ''
-  try {
-    const base = 'https://graph.microsoft.com/v1.0/me/drive'
-    const url = itemId
-      ? `${base}/items/${itemId}/children?$select=id,name,folder`
-      : `${base}/root/children?$select=id,name,folder`
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-    const data = (await resp.json()) as { value: { id: string; name: string; folder?: unknown }[] }
-    folderItems.value = data.value
-      .filter((item) => item.folder !== undefined)
-      .sort((a, b) => a.name.localeCompare(b.name))
-  } catch {
-    folderError.value = t('settings.backup_onedrive_browse_error')
-  } finally {
-    folderLoading.value = false
-  }
-}
-
-async function openFolderBrowser(): Promise<void> {
-  folderBreadcrumb.value = [{ id: null, name: 'OneDrive' }]
-  await fetchFolderChildren(null)
-  showFolderBrowser.value = true
-}
-
-async function navigateInto(item: { id: string; name: string }): Promise<void> {
-  folderBreadcrumb.value.push(item)
-  await fetchFolderChildren(item.id)
-}
-
-async function navigateTo(index: number): Promise<void> {
-  folderBreadcrumb.value = folderBreadcrumb.value.slice(0, index + 1)
-  await fetchFolderChildren(folderBreadcrumb.value[index].id)
-}
-
-function chooseCurrentFolder(): void {
-  newDest.target_path = folderBreadcrumb.value
-    .slice(1)
-    .map((c) => c.name)
-    .join('/')
-  showFolderBrowser.value = false
 }
 
 const smbForm = reactive({ host: '', user: '', pass: '' })
@@ -817,84 +692,6 @@ function formatDate(iso: string): string {
   gap: 0.5rem;
   color: var(--text-color-secondary);
   font-size: 0.9rem;
-}
-.onedrive-path-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-}
-.onedrive-path-row .flex-1 {
-  flex: 1;
-}
-.folder-breadcrumb {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0;
-  margin-bottom: 0.75rem;
-  font-size: 0.85rem;
-  color: var(--text-color-secondary);
-}
-.folder-breadcrumb__item {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  color: var(--primary-color);
-  font-size: inherit;
-}
-.folder-breadcrumb__item--last {
-  color: var(--text-color);
-  cursor: default;
-  font-weight: 600;
-}
-.folder-breadcrumb__sep {
-  color: var(--text-color-secondary);
-  pointer-events: none;
-}
-.folder-loading {
-  display: flex;
-  justify-content: center;
-  padding: 1.5rem 0;
-}
-.folder-error {
-  padding: 0.5rem 0;
-}
-.folder-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  max-height: 320px;
-  overflow-y: auto;
-}
-.folder-item {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.45rem 0.6rem;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.1s;
-  width: 100%;
-}
-.folder-item:hover {
-  background: var(--surface-hover);
-}
-.folder-item__icon {
-  color: var(--p-yellow-500);
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-.folder-item__name {
-  flex: 1;
-  font-size: 0.9rem;
-}
-.folder-item__arrow {
-  color: var(--text-color-secondary);
-  font-size: 0.75rem;
-  flex-shrink: 0;
 }
 .folder-empty {
   color: var(--text-color-secondary);
