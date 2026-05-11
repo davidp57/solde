@@ -1069,6 +1069,7 @@ export default {
     backup_failure: 'Échec',
     backup_run_now: 'Lancer maintenant',
     backup_started: 'Sauvegarde démarrée',
+    backup_in_progress: 'Sauvegarde en cours…',
     backup_destinations_title: 'Destinations',
     backup_no_destinations: 'Aucune destination configurée',
     backup_dest_type: 'Type',

@@ -173,6 +173,7 @@ export default {
     backup_failure: 'Failure',
     backup_run_now: 'Run now',
     backup_started: 'Backup started',
+    backup_in_progress: 'Backup in progress…',
     backup_destinations_title: 'Destinations',
     backup_no_destinations: 'No destination configured',
     backup_dest_type: 'Type',
