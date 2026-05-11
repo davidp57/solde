@@ -8,6 +8,7 @@ Manages a single recurring job that:
 """
 
 import logging
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -29,10 +30,23 @@ _scheduler: AsyncIOScheduler | None = None
 # In-memory flag — True while run_backup_job is executing
 _backup_running: bool = False
 
+# In-memory progress 0–100 — updated at each step of the active backup
+_backup_progress: int = 0
+
 
 def is_backup_running() -> bool:
     """Return True if a backup job is currently executing."""
     return _backup_running
+
+
+def get_backup_progress() -> int:
+    """Return the current backup progress percentage (0–100)."""
+    return _backup_progress
+
+
+def _set_progress(pct: int) -> None:
+    global _backup_progress
+    _backup_progress = max(0, min(100, pct))
 
 
 def get_scheduler() -> AsyncIOScheduler:
@@ -126,6 +140,7 @@ async def run_backup_job(
     """Execute one backup cycle (called by the scheduler)."""
     global _backup_running
     _backup_running = True
+    _set_progress(0)
     try:
         await _run_backup_job_inner(
             db_path=db_path,
@@ -157,9 +172,11 @@ async def _run_backup_job_inner(
     error_details: list[str] = []
 
     # Step 1 — create local backup
+    _set_progress(0)
     try:
         backup_file = await create_backup(db_path=db_path, backup_dir=backup_dir)
         logger.info("Backup created: %s", backup_file)
+        _set_progress(5)
     except Exception as exc:
         logger.error("Backup creation failed: %s", exc, exc_info=exc)
         await _update_run_status(False, f"Backup creation failed: {exc}")
@@ -184,6 +201,7 @@ async def _run_backup_job_inner(
         logger.info("Backup validated OK: %s", backup_file.name)
     except Exception as exc:
         logger.warning("Backup validation error (non-blocking): %s", exc)
+    _set_progress(10)
 
     # Step 2 — sync to destinations
     async with get_session() as db:
@@ -205,15 +223,32 @@ async def _run_backup_job_inner(
         if include_uploads:
             src_paths.append(str(Path("data/uploads").resolve()))
 
-        for dest in destinations:
+        dest_count = len(destinations)
+        for i, dest in enumerate(destinations):
+            # Allocate a slice of 10–100% per destination
+            dest_start = 10 + int(90 * i / dest_count)
+            dest_end = 10 + int(90 * (i + 1) / dest_count)
+            _set_progress(dest_start)
+
+            def _make_progress_cb(start: int, end: int) -> Callable[[int, int], None]:
+                def cb(done: int, total: int) -> None:
+                    if total > 0:
+                        _set_progress(start + int((end - start) * done / total))
+
+                return cb
+
             try:
-                await sync_destination(dest, src_paths, run_ts)
+                await sync_destination(
+                    dest, src_paths, run_ts, on_progress=_make_progress_cb(dest_start, dest_end)
+                )
                 logger.info("Synced to destination %s (%s)", dest.name, dest.type)
             except Exception as exc:
                 overall_success = False
                 msg = f"{dest.name}: {exc}"
                 error_details.append(msg)
                 logger.error("Sync failed for destination %s: %s", dest.name, exc)
+            finally:
+                _set_progress(dest_end)
 
     # Step 3 — update status
     status_str = "success" if overall_success else "failure"

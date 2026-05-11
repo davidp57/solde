@@ -289,16 +289,20 @@ async def get_status(
 
     result = await db.execute(select(AppSettings).where(AppSettings.id == 1))
     s = result.scalar_one_or_none()
-    from backend.services.backup_scheduler import is_backup_running
+    from backend.services.backup_scheduler import get_backup_progress, is_backup_running
 
     running = is_backup_running()
+    progress = get_backup_progress() if running else 0
     if s is None:
-        return BackupRunStatus(last_run_at=None, last_run_status=None, is_running=running)
+        return BackupRunStatus(
+            last_run_at=None, last_run_status=None, is_running=running, backup_progress=progress
+        )
     return BackupRunStatus(
         last_run_at=s.backup_last_run_at,
         last_run_status=s.backup_last_run_status,
         last_run_error=s.backup_last_run_error,
         is_running=running,
+        backup_progress=progress,
     )
 
 

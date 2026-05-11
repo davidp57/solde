@@ -96,6 +96,7 @@ class BackupRunStatus(BaseModel):
     last_run_status: str | None  # success | failure | None
     last_run_error: str | None = None
     is_running: bool = False
+    backup_progress: int = 0  # 0–100
     destinations_results: list[BackupDestinationResult] = []
 
 

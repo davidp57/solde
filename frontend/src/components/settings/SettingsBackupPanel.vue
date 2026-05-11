@@ -83,6 +83,9 @@
         <span v-if="backupRunning" class="backup-running-indicator">
           <ProgressSpinner style="width: 1.1rem; height: 1.1rem" stroke-width="4" />
           {{ t('settings.backup_in_progress') }}
+          <span v-if="runStatus.backup_progress > 0" class="backup-progress-pct">
+            {{ runStatus.backup_progress }} %
+          </span>
         </span>
         <template v-else>
           <span v-if="runStatus.last_run_at">
@@ -496,6 +499,7 @@ const runStatus = reactive<BackupRunStatus>({
   last_run_status: null,
   last_run_error: null,
   is_running: false,
+  backup_progress: 0,
   destinations_results: [],
 })
 
@@ -972,6 +976,11 @@ function formatDate(iso: string): string {
   gap: 0.5rem;
   font-style: italic;
   color: var(--text-color-secondary);
+}
+.backup-progress-pct {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--p-primary-color);
 }
 
 .backup-status__error {
