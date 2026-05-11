@@ -11,6 +11,7 @@ export type InvoiceStatus =
   | 'overdue'
   | 'disputed'
   | 'irrecoverable'
+  | 'archived'
 
 export interface InvoiceLine {
   id: number
@@ -175,5 +176,18 @@ export async function uploadInvoiceFileApi(id: number, file: File): Promise<Invo
 
 export async function downloadInvoiceFileApi(id: number): Promise<Blob> {
   const response = await apiClient.get(`/api/invoices/${id}/file`, { responseType: 'blob' })
+  return response.data
+}
+
+export interface BulkArchiveResult {
+  archived: number
+  skipped: number
+  errors: string[]
+}
+
+export async function bulkArchiveInvoicesApi(ids: number[]): Promise<BulkArchiveResult> {
+  const response = await apiClient.post<BulkArchiveResult>('/api/invoices/bulk-archive', {
+    invoice_ids: ids,
+  })
   return response.data
 }

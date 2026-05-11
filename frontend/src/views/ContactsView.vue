@@ -58,6 +58,14 @@
             :disabled="!hasAnyFilters"
             @click="resetAllFilters"
           />
+          <Button
+            :label="t('common.export_excel')"
+            icon="pi pi-file-excel"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="doExportExcel"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -431,6 +439,7 @@ import ContactHistoryDialog from '@/components/ContactHistoryDialog.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import { useBreakpoints } from '@/composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import {
   collectActiveFilterLabels,
 } from '../composables/activeFilterLabels'
@@ -441,6 +450,18 @@ const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const toast = useToast()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'nom', header: t('contacts.nom') },
+  { field: 'prenom', header: t('contacts.prenom') },
+  { field: 'type_label', header: t('contacts.type') },
+  { field: 'email', header: t('contacts.email') },
+  { field: 'telephone', header: t('contacts.telephone') },
+  { field: 'last_invoice_date', header: t('contacts.last_invoice') },
+]
+function doExportExcel(): void {
+  exportToExcel(displayedContacts.value, exportColumns, 'contacts-export')
+}
 
 const contacts = ref<Contact[]>([])
 const loading = ref(false)

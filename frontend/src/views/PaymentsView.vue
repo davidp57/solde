@@ -45,6 +45,14 @@
             :disabled="!hasAnyFilters"
             @click="resetAllFilters"
           />
+          <Button
+            :label="t('common.export_excel')"
+            icon="pi pi-file-excel"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="doExportExcel"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -350,6 +358,7 @@ import { useFiscalYearStore } from '@/stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
 import { collectActiveFilterLabels } from '../composables/activeFilterLabels'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import {
   dateRangeFilter,
   inFilter,
@@ -363,6 +372,18 @@ const { isMobile } = useBreakpoints()
 const route = useRoute()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'date', header: t('payments.date') },
+  { field: 'amount_value', header: t('payments.amount') },
+  { field: 'method_label', header: t('payments.method') },
+  { field: 'reference_value', header: t('payments.reference') },
+  { field: 'cheque_number', header: t('payments.cheque_number') },
+  { field: 'deposited_label', header: t('payments.deposited') },
+]
+function doExportExcel(): void {
+  exportToExcel(filtered.value, exportColumns, 'payments-export')
+}
 
 const payments = ref<Payment[]>([])
 const loading = ref(false)

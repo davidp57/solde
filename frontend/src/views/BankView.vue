@@ -110,6 +110,17 @@
               @click="resetActiveFilters"
             />
           </div>
+          <div class="app-field">
+            <label class="app-field__label">&nbsp;</label>
+            <Button
+              :label="t('common.export_excel')"
+              icon="pi pi-file-excel"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="doExportExcel"
+            />
+          </div>
         </div>
       </div>
 
@@ -1244,12 +1255,27 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const toast = useToast()
 const confirm = useConfirm()
 const fiscalYearStore = useFiscalYearStore()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'date', header: t('bank.tx_date') },
+  { field: 'amount_value', header: t('bank.tx_amount') },
+  { field: 'description', header: t('bank.tx_description') },
+  { field: 'reconciled_with', header: t('bank.tx_reference') },
+  { field: 'balance_after_value', header: t('bank.tx_balance_short') },
+  { field: 'reconciled_label', header: t('bank.tx_reconciled_short') },
+  { field: 'detected_category_label', header: t('bank.tx_category_short') },
+  { field: 'source_label', header: t('bank.tx_source_short') },
+]
+function doExportExcel(): void {
+  exportToExcel(displayedTransactions.value, exportColumns, 'bank-transactions-export')
+}
 
 // Core bank data
 const balance = ref('0')

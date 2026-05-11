@@ -89,8 +89,9 @@ _VALID_TRANSITIONS: dict[InvoiceStatus, set[InvoiceStatus]] = {
         InvoiceStatus.PARTIAL,
         InvoiceStatus.OVERDUE,
     },
-    InvoiceStatus.PAID: set(),  # final state
+    InvoiceStatus.PAID: {InvoiceStatus.ARCHIVED},
     InvoiceStatus.IRRECOVERABLE: set(),  # managed via dedicated write-off/restore endpoints
+    InvoiceStatus.ARCHIVED: set(),  # final state — managed via archive endpoint
 }
 
 
@@ -552,6 +553,54 @@ async def set_pdf_path(db: AsyncSession, invoice: Invoice, pdf_path: str) -> Inv
 async def set_file_path(db: AsyncSession, invoice: Invoice, file_path: str) -> Invoice:
     """Update the file_path field after a supplier file upload."""
     invoice.file_path = file_path
+    await db.flush()
+    await db.refresh(invoice)
+    return invoice
+
+
+async def archive_invoice(db: AsyncSession, invoice: Invoice) -> Invoice:
+    """Archive a PAID client invoice: freeze the PDF (generate if missing), then set ARCHIVED.
+
+    No accounting entries are generated — the invoice is simply frozen for archival.
+    PDF generation is attempted but non-blocking: if it fails (e.g. WeasyPrint unavailable),
+    the invoice is still archived without a PDF.
+    """
+    if invoice.status != InvoiceStatus.PAID:
+        raise InvoiceStatusError(
+            f"Only PAID invoices can be archived (current: {invoice.status!r})"
+        )
+
+    # Generate and save the PDF if it has not been produced yet
+    if not invoice.pdf_path:
+        try:
+            from sqlalchemy import select  # noqa: PLC0415
+
+            from backend.models.contact import Contact  # noqa: PLC0415
+            from backend.services import pdf_service  # noqa: PLC0415
+            from backend.services import settings as settings_service
+
+            result = await db.execute(select(Contact).where(Contact.id == invoice.contact_id))
+            contact = result.scalar_one_or_none()
+            contact_name = contact.nom if contact else "Inconnu"
+            if contact and contact.prenom:
+                contact_name = f"{contact.prenom} {contact.nom}"
+
+            app_settings = await settings_service.get_settings(db)
+            pdf_bytes = pdf_service.generate_invoice_pdf(
+                invoice, contact_name, app_settings, contact.adresse if contact else None
+            )
+            pdf_path = pdf_service.save_invoice_pdf(invoice.number, pdf_bytes)
+            invoice.pdf_path = pdf_path
+        except Exception:
+            import logging  # noqa: PLC0415
+
+            logging.getLogger(__name__).warning(
+                "PDF generation failed for invoice %s during archival — archived without PDF",
+                invoice.number,
+            )
+
+    invoice.status = InvoiceStatus.ARCHIVED
+    invoice.updated_at = datetime.now(UTC)
     await db.flush()
     await db.refresh(invoice)
     return invoice

@@ -244,6 +244,7 @@ export default {
     deleted: 'Supprimé.',
     required_fields: 'Veuillez remplir tous les champs requis.',
     close: 'Fermer',
+    export_excel: 'Exporter Excel',
     api_limit_warning:
       "Limite d'affichage atteinte (1 000 éléments). Les résultats peuvent être incomplets — affinez les filtres pour réduire le volume chargé.",
   },
@@ -550,6 +551,12 @@ export default {
       "La facture reprendra son statut précédent. Une écriture de reprise sera générée (411 / 754). Confirmer ?",
     hide_irrecoverable: 'Masquer les irrécouvrables',
     show_irrecoverable: 'Afficher les irrécouvrables',
+    bulk_archive: 'Archiver la sélection',
+    bulk_archive_confirm_title: 'Archiver les factures',
+    bulk_archive_confirm_msg:
+      'Les factures payées sélectionnées seront archivées définitivement. Cette action est irréversible.',
+    bulk_archive_result: '{archived} facture(s) archivée(s), {skipped} ignorée(s).',
+    download_file: 'Télécharger le document',
     statuses: {
       draft: 'Brouillon',
       sent: 'Émise',
@@ -558,6 +565,7 @@ export default {
       overdue: 'En retard',
       disputed: 'Litige',
       irrecoverable: 'Irrécouvrable',
+      archived: 'Archivée',
     },
     labels: {
       cs: 'Cours scolaires',

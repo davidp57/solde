@@ -61,6 +61,17 @@
             <label class="app-field__label">{{ t('common.search') }}</label>
             <Button :label="t('common.search')" icon="pi pi-search" @click="load" />
           </div>
+          <div class="app-field">
+            <label class="app-field__label">&nbsp;</label>
+            <Button
+              :label="t('common.export_excel')"
+              icon="pi pi-file-excel"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="doExportExcel"
+            />
+          </div>
         </div>
       </div>
 
@@ -237,6 +248,7 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { focusAccounts, getFocusAccountKey, type FocusAccountKey } from '../utils/focusAccounts'
 import { formatAccountingAmount } from '../utils/format'
@@ -252,6 +264,18 @@ type BalanceRowView = BalanceRow & {
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const fiscalYearStore = useFiscalYearStore()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'account_number', header: t('accounting.balance.account_number') },
+  { field: 'account_label', header: t('accounting.balance.account_label') },
+  { field: 'account_type_label', header: t('accounting.balance.account_type') },
+  { field: 'total_debit_value', header: t('accounting.balance.total_debit') },
+  { field: 'total_credit_value', header: t('accounting.balance.total_credit') },
+  { field: 'solde_value', header: t('accounting.balance.solde') },
+]
+function doExportExcel(): void {
+  exportToExcel(balanceRows.value, exportColumns, 'accounting-balance-export')
+}
 
 const rows = ref<BalanceRow[]>([])
 const fiscalYears = computed(() => fiscalYearStore.fiscalYears)

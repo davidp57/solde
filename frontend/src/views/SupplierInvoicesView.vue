@@ -52,6 +52,14 @@
               :title="t('common.reset_filters')"
               @click="resetFilters"
             />
+            <Button
+              :label="t('common.export_excel')"
+              icon="pi pi-file-excel"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="doExportExcel"
+            />
           </div>
         </div>
 
@@ -722,6 +730,7 @@ import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 
 import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import { listContactsApi, type Contact } from '../api/contacts'
@@ -759,6 +768,18 @@ const router = useRouter()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 const { isMobile } = useBreakpoints()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'number', header: t('invoices.number') },
+  { field: 'date', header: t('invoices.date') },
+  { field: 'contact_name', header: t('invoices.contact') },
+  { field: 'reference', header: t('invoices.reference') },
+  { field: 'total_amount_value', header: t('invoices.total') },
+  { field: 'status_label', header: t('invoices.status') },
+]
+function doExportExcel(): void {
+  exportToExcel(displayedInvoices.value, exportColumns, 'supplier-invoices-export')
+}
 
 const invoices = ref<Invoice[]>([])
 const contacts = ref<Contact[]>([])
