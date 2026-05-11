@@ -80,24 +80,31 @@
     <section class="backup-section">
       <h3 class="backup-section__title">{{ t('settings.backup_status_title') }}</h3>
       <div class="backup-status">
-        <span v-if="runStatus.last_run_at">
-          {{ t('settings.backup_last_run') }} {{ formatDate(runStatus.last_run_at) }}
-          <Tag
-            :value="runStatus.last_run_status === 'success' ? t('settings.backup_success') : t('settings.backup_failure')"
-            :severity="runStatus.last_run_status === 'success' ? 'success' : 'danger'"
-            class="ml-2"
-          />
-          <span v-if="runStatus.last_run_status !== 'success' && runStatus.last_run_error" class="backup-status__error ml-2">
-            {{ runStatus.last_run_error }}
-          </span>
+        <span v-if="backupRunning" class="backup-running-indicator">
+          <ProgressSpinner style="width: 1.1rem; height: 1.1rem" stroke-width="4" />
+          {{ t('settings.backup_in_progress') }}
         </span>
-        <span v-else class="text-color-secondary">{{ t('settings.backup_never_run') }}</span>
+        <template v-else>
+          <span v-if="runStatus.last_run_at">
+            {{ t('settings.backup_last_run') }} {{ formatDate(runStatus.last_run_at) }}
+            <Tag
+              :value="runStatus.last_run_status === 'success' ? t('settings.backup_success') : t('settings.backup_failure')"
+              :severity="runStatus.last_run_status === 'success' ? 'success' : 'danger'"
+              class="ml-2"
+            />
+            <span v-if="runStatus.last_run_status !== 'success' && runStatus.last_run_error" class="backup-status__error ml-2">
+              {{ runStatus.last_run_error }}
+            </span>
+          </span>
+          <span v-else class="text-color-secondary">{{ t('settings.backup_never_run') }}</span>
+        </template>
         <Button
           :label="t('settings.backup_run_now')"
           icon="pi pi-play"
           severity="secondary"
           outlined
           :loading="runningNow"
+          :disabled="backupRunning"
           class="ml-3"
           @click="runNow"
         />
@@ -339,7 +346,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, reactive } from 'vue'
+import { onMounted, onUnmounted, ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
@@ -387,6 +394,16 @@ const savingDest = ref(false)
 const showAddDestDialog = ref(false)
 const editDestId = ref<number | null>(null)
 const runningNow = ref(false)
+const backupRunning = ref(false)
+let _pollTimer: ReturnType<typeof setInterval> | null = null
+
+function _stopPolling() {
+  backupRunning.value = false
+  if (_pollTimer !== null) {
+    clearInterval(_pollTimer)
+    _pollTimer = null
+  }
+}
 // OneDrive device authorization flow state
 const oauthPolling = ref(false)
 const oauthDone = ref(false)
@@ -582,6 +599,8 @@ onMounted(async () => {
   await Promise.all([loadSchedule(), loadDestinations(), loadStatus()])
 })
 
+onUnmounted(() => _stopPolling())
+
 // ---------------------------------------------------------------------------
 // Schedule
 // ---------------------------------------------------------------------------
@@ -609,10 +628,23 @@ async function saveSchedule() {
 // ---------------------------------------------------------------------------
 async function runNow() {
   runningNow.value = true
+  const prevLastRunAt = runStatus.last_run_at
   try {
     await triggerBackup()
     toast.add({ severity: 'info', summary: t('settings.backup_started'), life: 3000 })
-    setTimeout(loadStatus, 3000)
+    // Start polling until last_run_at changes (backup completed)
+    backupRunning.value = true
+    _pollTimer = setInterval(async () => {
+      await loadStatus()
+      if (runStatus.last_run_at !== prevLastRunAt) {
+        _stopPolling()
+        if (runStatus.last_run_status === 'success') {
+          toast.add({ severity: 'success', summary: t('settings.backup_success'), life: 4000 })
+        } else {
+          toast.add({ severity: 'error', summary: t('settings.backup_failure'), detail: runStatus.last_run_error ?? '', life: 6000 })
+        }
+      }
+    }, 3000)
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   } finally {
@@ -785,6 +817,8 @@ async function saveEditDest() {
 // Formatting
 // ---------------------------------------------------------------------------
 function formatDate(iso: string): string {
+  // The backend stores naive datetimes (local server time, TZ=Europe/Paris).
+  // Treat the ISO string as local time directly — no Z suffix needed.
   return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
 }
 </script>
@@ -912,9 +946,16 @@ function formatDate(iso: string): string {
 }
 .backup-status {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   flex-wrap: wrap;
   gap: 0.25rem;
+}
+.backup-running-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-style: italic;
+  color: var(--text-color-secondary);
 }
 
 .backup-status__error {

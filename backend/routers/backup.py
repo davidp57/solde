@@ -381,9 +381,7 @@ async def restore_backup_endpoint(
 # (AADSTS70002). This well-known Microsoft public client works as a drop-in.
 # Override via ONEDRIVE_CLIENT_ID env var if a dedicated Azure AD app is registered.
 _ONEDRIVE_CLIENT_ID = "14d82eec-204b-4c2f-b7e8-296a70dab67e"
-_ONEDRIVE_DEVICE_URL = (
-    "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
-)
+_ONEDRIVE_DEVICE_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/devicecode"
 _ONEDRIVE_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
 _ONEDRIVE_SCOPES = "Files.Read Files.ReadWrite offline_access"
 
@@ -469,9 +467,7 @@ async def _poll_device_token(device_code: str, interval: int) -> None:
                 resp = await client.post(
                     _ONEDRIVE_TOKEN_URL,
                     data={
-                        "grant_type": (
-                            "urn:ietf:params:oauth:grant-type:device_code"
-                        ),
+                        "grant_type": ("urn:ietf:params:oauth:grant-type:device_code"),
                         "client_id": _ONEDRIVE_CLIENT_ID,
                         "device_code": device_code,
                     },

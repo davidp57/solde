@@ -122,13 +122,13 @@ class BackupRestoreTestResult(BaseModel):
 
 
 class OneDriveOAuthStart(BaseModel):
-    user_code: str        # e.g. "ABCD-1234" — user enters this at verification_uri
+    user_code: str  # e.g. "ABCD-1234" — user enters this at verification_uri
     verification_uri: str  # https://microsoft.com/devicelogin
-    expires_in: int       # seconds until the code expires
-    message: str          # human-readable instruction from Microsoft
+    expires_in: int  # seconds until the code expires
+    message: str  # human-readable instruction from Microsoft
 
 
 class OneDriveOAuthStatus(BaseModel):
     done: bool
-    token: str | None = None   # rclone_config JSON when done
+    token: str | None = None  # rclone_config JSON when done
     error: str | None = None

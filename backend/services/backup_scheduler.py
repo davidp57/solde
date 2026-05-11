@@ -8,7 +8,7 @@ Manages a single recurring job that:
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -172,7 +172,7 @@ async def run_backup_job(
 
     if destinations:
         write_rclone_config(destinations)
-        run_ts = datetime.now(UTC).strftime("%Y-%m-%dT%H-%M-%S")
+        run_ts = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
         src_paths = [backup_dir]
         if include_uploads:
             src_paths.append(str(Path("data/uploads").resolve()))
@@ -205,7 +205,7 @@ async def _update_run_status(success: bool, error: str | None) -> None:
         result = await db.execute(select(AppSettings).where(AppSettings.id == 1))
         settings = result.scalar_one_or_none()
         if settings:
-            settings.backup_last_run_at = datetime.now(UTC).replace(tzinfo=None)
+            settings.backup_last_run_at = datetime.now()
             settings.backup_last_run_status = "success" if success else "failure"
             settings.backup_last_run_error = error[:1000] if error else None
             await db.commit()

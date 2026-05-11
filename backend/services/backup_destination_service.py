@@ -285,26 +285,32 @@ async def _graph_upload_dir(
     src_dir: Path,
     remote_path: str,
 ) -> None:
-    """Upload all files from ``src_dir`` to ``remote_path`` on OneDrive."""
+    """Upload all files from ``src_dir`` to ``remote_path`` on OneDrive.
+
+    Recurses into sub-directories, preserving the relative path structure.
+    """
     if not dest.rclone_config:
         raise RuntimeError(f"OneDrive dest {dest.id} has no rclone_config")
     config = json.loads(dest.rclone_config)
     drive_id = config.get("drive_id", "")
     access_token = _graph_access_token(dest)
 
-    files = sorted(src_dir.iterdir()) if src_dir.is_dir() else []
-    if not files:
-        logger.info("Graph upload: no files in %s, skipping", src_dir)
+    if not src_dir.is_dir():
+        logger.info("Graph upload: %s is not a directory, skipping", src_dir)
+        return
+
+    all_files = sorted(p for p in src_dir.rglob("*") if p.is_file())
+    if not all_files:
+        logger.info("Graph upload: no files under %s, skipping", src_dir)
         return
 
     async with httpx.AsyncClient() as client:
-        for local_file in files:
-            if not local_file.is_file():
-                continue
-            file_remote = f"{remote_path}/{local_file.name}"
+        for local_file in all_files:
+            rel = local_file.relative_to(src_dir)
+            file_remote = f"{remote_path}/{rel.as_posix()}"
             logger.info(
                 "Graph upload: %s → drives/%s/root:/%s",
-                local_file.name,
+                rel,
                 drive_id,
                 file_remote,
             )
