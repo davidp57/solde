@@ -2,18 +2,18 @@
 
 Both InvoiceStatus values are stored as VARCHAR strings in SQLite — no schema change
 is needed. This migration serves as a documentation marker for the feature
-introduced in BIZ-187 (Lot FW — Import Word + Archivage + Export Excel).
+introduced in BIZ-195 (Lot FW — Import Word + Archivage + Export Excel).
 
-Revision ID: 0053
-Revises: 0052
+Revision ID: 0054
+Revises: a3f8c2d1b904
 Create Date: 2026-05-11
 """
 
 from collections.abc import Sequence
 
 # revision identifiers, used by Alembic.
-revision: str = "0053"
-down_revision: str | None = "0052"
+revision: str = "0054"
+down_revision: str | None = "a3f8c2d1b904"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
