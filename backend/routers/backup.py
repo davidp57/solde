@@ -227,8 +227,12 @@ async def update_schedule(
         s.backup_interval_hours = payload.interval_hours
     if payload.cron_expression is not None:
         s.backup_cron_expression = payload.cron_expression
+    if payload.daily_time is not None:
+        s.backup_daily_time = payload.daily_time
     if payload.include_uploads is not None:
         s.backup_include_uploads = payload.include_uploads
+    if payload.include_all_backups is not None:
+        s.backup_include_all_backups = payload.include_all_backups
     if payload.notify_on_failure is not None:
         s.backup_notify_on_failure = payload.notify_on_failure
 
@@ -267,6 +271,7 @@ async def trigger_backup(
     result = await db.execute(select(AppSettings).where(AppSettings.id == 1))
     s = result.scalar_one_or_none()
     include_uploads = s.backup_include_uploads if s else True
+    include_all_backups = s.backup_include_all_backups if s else False
     notify_on_failure = s.backup_notify_on_failure if s else False
 
     background_tasks.add_task(
@@ -274,6 +279,7 @@ async def trigger_backup(
         db_path=db_path,
         backup_dir=backup_dir,
         include_uploads=include_uploads,
+        include_all_backups=include_all_backups,
         notify_on_failure=notify_on_failure,
     )
     return {"status": "started"}

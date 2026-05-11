@@ -94,10 +94,18 @@ def reload_scheduler(settings: AppSettings) -> None:
     db_path = _resolve_db_path()
     backup_dir = str(Path("data/backups").resolve())
     include_uploads = settings.backup_include_uploads
+    include_all_backups = settings.backup_include_all_backups
     notify_on_failure = settings.backup_notify_on_failure
 
     trigger: IntervalTrigger | CronTrigger
-    if settings.backup_schedule_type == "cron" and settings.backup_cron_expression:
+    if settings.backup_schedule_type == "daily":
+        raw_time = (settings.backup_daily_time or "02:00").strip()
+        parts = raw_time.split(":")
+        hour = int(parts[0]) if len(parts) >= 1 else 2
+        minute = int(parts[1]) if len(parts) >= 2 else 0
+        trigger = CronTrigger(hour=hour, minute=minute)
+        logger.info("Backup scheduled daily at %02d:%02d", hour, minute)
+    elif settings.backup_schedule_type == "cron" and settings.backup_cron_expression:
         trigger = CronTrigger.from_crontab(settings.backup_cron_expression)
         logger.info("Backup scheduled via cron: %s", settings.backup_cron_expression)
     else:
@@ -113,6 +121,7 @@ def reload_scheduler(settings: AppSettings) -> None:
             "db_path": db_path,
             "backup_dir": backup_dir,
             "include_uploads": include_uploads,
+            "include_all_backups": include_all_backups,
             "notify_on_failure": notify_on_failure,
         },
         replace_existing=True,
@@ -136,6 +145,7 @@ async def run_backup_job(
     backup_dir: str,
     include_uploads: bool,
     notify_on_failure: bool,
+    include_all_backups: bool = False,
 ) -> None:
     """Execute one backup cycle (called by the scheduler)."""
     global _backup_running
@@ -146,6 +156,7 @@ async def run_backup_job(
             db_path=db_path,
             backup_dir=backup_dir,
             include_uploads=include_uploads,
+            include_all_backups=include_all_backups,
             notify_on_failure=notify_on_failure,
         )
     finally:
@@ -157,6 +168,7 @@ async def _run_backup_job_inner(
     backup_dir: str,
     include_uploads: bool,
     notify_on_failure: bool,
+    include_all_backups: bool = False,
 ) -> None:
     """Execute one backup cycle (called by the scheduler)."""
     from backend.database import get_session
@@ -219,7 +231,12 @@ async def _run_backup_job_inner(
     if destinations:
         write_rclone_config(destinations)
         run_ts = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
-        src_paths = [backup_dir]
+        # By default send only the freshly created backup file (not the whole backups dir).
+        # When include_all_backups is True, send the entire backups directory instead.
+        if include_all_backups:
+            src_paths: list[str] = [backup_dir]
+        else:
+            src_paths = [str(backup_file)]
         if include_uploads:
             src_paths.append(str(Path("data/uploads").resolve()))
 

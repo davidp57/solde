@@ -38,6 +38,20 @@
           />
         </div>
 
+        <div v-else-if="schedule.schedule_type === 'daily'" class="app-field">
+          <label for="backup_daily_time" class="app-field__label">
+            {{ t('settings.backup_daily_time') }}
+          </label>
+          <InputText
+            id="backup_daily_time"
+            v-model="schedule.daily_time"
+            placeholder="02:00"
+            class="w-full"
+            @blur="saveSchedule"
+          />
+          <small class="app-field__help">{{ t('settings.backup_daily_time_help') }}</small>
+        </div>
+
         <div v-else class="app-field">
           <label for="backup_cron" class="app-field__label">
             {{ t('settings.backup_cron_expression') }}
@@ -60,6 +74,17 @@
           />
           <label for="backup_include_uploads" class="app-field__label">
             {{ t('settings.backup_include_uploads') }}
+          </label>
+        </div>
+
+        <div class="settings-switch">
+          <ToggleSwitch
+            id="backup_include_all_backups"
+            v-model="schedule.include_all_backups"
+            @change="saveSchedule"
+          />
+          <label for="backup_include_all_backups" class="app-field__label">
+            {{ t('settings.backup_include_all_backups') }}
           </label>
         </div>
 
@@ -490,7 +515,9 @@ const schedule = reactive<BackupSchedule>({
   schedule_type: 'interval',
   interval_hours: 24,
   cron_expression: null,
+  daily_time: '02:00',
   include_uploads: true,
+  include_all_backups: false,
   notify_on_failure: false,
 })
 
@@ -588,6 +615,7 @@ const smbForm = reactive({ host: '', user: '', pass: '' })
 // ---------------------------------------------------------------------------
 const scheduleTypeOptions = [
   { label: t('settings.backup_schedule_interval'), value: 'interval' },
+  { label: t('settings.backup_schedule_daily'), value: 'daily' },
   { label: t('settings.backup_schedule_cron'), value: 'cron' },
 ]
 

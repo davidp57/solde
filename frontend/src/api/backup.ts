@@ -35,19 +35,23 @@ export interface BackupDestinationUpdate {
 
 export interface BackupSchedule {
   enabled: boolean
-  schedule_type: 'interval' | 'cron'
+  schedule_type: 'interval' | 'daily' | 'cron'
   interval_hours: number
   cron_expression: string | null
+  daily_time: string | null
   include_uploads: boolean
+  include_all_backups: boolean
   notify_on_failure: boolean
 }
 
 export interface BackupScheduleUpdate {
   enabled?: boolean
-  schedule_type?: 'interval' | 'cron'
+  schedule_type?: 'interval' | 'daily' | 'cron'
   interval_hours?: number
   cron_expression?: string | null
+  daily_time?: string | null
   include_uploads?: boolean
+  include_all_backups?: boolean
   notify_on_failure?: boolean
 }
 
