@@ -457,18 +457,12 @@
             <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
           </div>
           <div v-else-if="invoiceFileBlobUrl" class="chd-supplier__file-frame">
-            <object
+            <embed
               v-if="invoiceFileBlobIsPdf"
-              :data="invoiceFileBlobUrl"
+              :src="invoiceFileBlobUrl"
               type="application/pdf"
               class="chd-supplier__embed"
-            >
-              <iframe
-                :src="invoiceFileBlobUrl"
-                :title="t('invoices.supplier.preview_file')"
-                style="width:100%;height:100%;border:none"
-              />
-            </object>
+            />
             <img
               v-else
               :src="invoiceFileBlobUrl"
