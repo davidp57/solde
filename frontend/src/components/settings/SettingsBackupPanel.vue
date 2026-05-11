@@ -579,6 +579,12 @@ function openEditDestDialog(dest: BackupDestination) {
   smbForm.user = ''
   smbForm.pass = ''
   resetOneDriveAuth()
+  // If the destination already has an OneDrive token, reuse it so the path
+  // field is immediately editable without forcing a new authorization.
+  if (dest.type === 'onedrive' && dest.rclone_config) {
+    oauthToken.value = dest.rclone_config
+    oauthDone.value = true
+  }
   showAddDestDialog.value = true
 }
 
