@@ -30,9 +30,17 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 - **TEC-185** — Régression aperçu PDF Chrome : remplacement de `<embed>` / `<object>` par `<iframe>` dans tous les composants d'aperçu PDF (factures client, fournisseur, historique contact, dialogue email)
+- **BIZ-189** — Sauvegarde automatique : le spinner de progression n'était pas visible lorsqu'un backup planifié se déclenchait pendant que la page de paramètres était déjà ouverte ; ajout d'une veille (10 s) qui détecte le démarrage et active le polling rapide (3 s)
 
 ### Ajouté
+- **BIZ-173→184** — Lot BK : Sauvegarde automatique — planification (intervalle ou cron), destinations de sauvegarde (local, SMB, OneDrive via rclone), test de connexion, restauration, test de restauration (intégrité SQLite + vérification des tables), e-mail de notification en cas d'échec
+- **BIZ-173→184** — Backend : migration Alembic (colonnes `backup_*` dans `app_settings`, table `backup_destination`), modèle `BackupDestination`, schémas Pydantic, services `backup_destination_service`, `backup_restore_service`, `backup_scheduler` (APScheduler), router 12 endpoints `/api/backup/…`
+- **BIZ-173→184** — Docker : rclone installé dans l'image, `rclone.conf` généré dynamiquement depuis les destinations activées
+- **BIZ-173→184** — Frontend : API `backup.ts`, panneau `SettingsBackupPanel.vue` (planification, statut, destinations, restauration, OAuth OneDrive), clés i18n FR/EN
 - **BIZ-186** — Filigrane « PAYÉ » en rouge diagonal sur les PDF des factures intégralement réglées
+- **BIZ-187** — Sauvegarde automatique : nouveau type de planification **Quotidien (heure fixe)** — saisir l'heure au format HH:MM pour déclencher la sauvegarde chaque jour à l'heure choisie
+- **BIZ-187** — Migration Alembic : colonnes `backup_daily_time` (String 5, défaut `"02:00"`) et `backup_include_all_backups` (Boolean, défaut `False`) dans `app_settings`
+- **BIZ-188** — Sauvegarde automatique : par défaut, seul le fichier snapshot `.db` le plus récent est envoyé vers la destination ; option **« Inclure tous les fichiers de sauvegarde précédents »** (désactivée par défaut) pour envoyer l'intégralité du dossier `backups/`
 
 ---
 

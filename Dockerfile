@@ -52,8 +52,8 @@ COPY doc/ ./doc/
 
 # Copy built Vue.js frontend from stage 1
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist
-# Install curl for healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+# Install curl for healthcheck and rclone for backup destinations
+RUN apt-get update && apt-get install -y --no-install-recommends curl rclone \
     && rm -rf /var/lib/apt/lists/*
 
 # Ensure data directory exists and is owned by solde user

@@ -25,6 +25,7 @@ for module_name in (
     "backend.models.app_comment",
     "backend.models.app_settings",
     "backend.models.audit_log",
+    "backend.models.backup_destination",
     "backend.models.bank",
     "backend.models.cash",
     "backend.models.contact",

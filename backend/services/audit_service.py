@@ -23,7 +23,11 @@ class AuditAction(StrEnum):
     PASSWORD_RESET_BY_ADMIN = "admin.user.password_reset"
     DB_RESET = "admin.reset_db"
     SELECTIVE_RESET = "admin.selective_reset"
+    SETTINGS_UPDATED = "admin.settings.update"
     BACKUP_RESTORED = "admin.backup.restore"
+    BACKUP_DESTINATION_CREATED = "admin.backup.destination.create"
+    BACKUP_DESTINATION_UPDATED = "admin.backup.destination.update"
+    BACKUP_DESTINATION_DELETED = "admin.backup.destination.delete"
     # Payments
     PAYMENT_CREATED = "payment.create"
     PAYMENT_UPDATED = "payment.update"

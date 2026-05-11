@@ -29,6 +29,9 @@
       <Message v-if="systemInfoError" severity="error">{{ t('system.load_error') }}</Message>
     </AppPanel>
 
+    <!-- Automated backup -->
+    <SettingsBackupPanel />
+
     <!-- Backups -->
     <AppPanel :title="t('system.backup_title')" :subtitle="t('system.backup_subtitle')">
       <div class="backup-actions">
@@ -66,8 +69,17 @@
           <Column :header="t('system.col_date')">
             <template #body="{ data }">{{ formatDatetime(data.created_at) }}</template>
           </Column>
-          <Column header="" style="width: 4rem">
+          <Column header="" style="width: 7rem">
             <template #body="{ data }">
+              <Button
+                icon="pi pi-shield"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('system.validate_btn')"
+                :loading="validatingFile === data.filename"
+                @click="validateBackup(data)"
+              />
               <Button
                 icon="pi pi-history"
                 size="small"
@@ -143,6 +155,31 @@
           :loading="restoring"
           @click="executeRestore"
         />
+      </template>
+    </Dialog>
+
+    <!-- Backup validation result -->
+    <Dialog
+      v-model:visible="validateDialogVisible"
+      :header="t('system.backup_validate_title')"
+      modal
+      :style="{ width: '30rem' }"
+    >
+      <div v-if="validateResult" class="validate-result">
+        <Message :severity="validateResult.ok ? 'success' : 'error'" :closable="false">
+          {{ validateResult.ok ? t('system.backup_validate_ok') : t('system.backup_validate_fail') }}
+        </Message>
+        <div v-if="!validateResult.ok" class="validate-details">
+          <p v-if="validateResult.error">{{ validateResult.error }}</p>
+          <p v-else>
+            <strong>{{ t('system.backup_validate_integrity') }}</strong> : {{ validateResult.integrity_check }}<br />
+            <strong>{{ t('system.backup_validate_tables_missing') }}</strong> :
+            {{ validateResult.tables_missing.length ? validateResult.tables_missing.join(', ') : '—' }}
+          </p>
+        </div>
+      </div>
+      <template #footer>
+        <Button :label="t('common.close')" @click="validateDialogVisible = false" />
       </template>
     </Dialog>
 
@@ -300,10 +337,12 @@ import {
   listBackupsApi,
   restoreBackupApi,
 } from '@/api/settings'
+import { testRestoreBackup, type BackupRestoreTestResult } from '@/api/backup'
 import { listPayments, fixDepositDate, type Payment } from '@/api/payments'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
+import SettingsBackupPanel from '@/components/settings/SettingsBackupPanel.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 
 const { t } = useI18n()
@@ -327,6 +366,11 @@ const restoreStep1Visible = ref(false)
 const restoreStep2Visible = ref(false)
 const restoring = ref(false)
 const restoreError = ref('')
+
+// --- Validate state ---
+const validatingFile = ref<string | null>(null)
+const validateResult = ref<BackupRestoreTestResult | null>(null)
+const validateDialogVisible = ref(false)
 const logs = ref<LogEntry[]>([])
 const logsLoaded = ref(false)
 const logsLoading = ref(false)
@@ -412,6 +456,18 @@ async function downloadBackup(): Promise<void> {
     }
   } finally {
     backing.value = false
+  }
+}
+
+async function validateBackup(file: BackupFile): Promise<void> {
+  validatingFile.value = file.filename
+  try {
+    validateResult.value = await testRestoreBackup(file.filename)
+    validateDialogVisible.value = true
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } finally {
+    validatingFile.value = null
   }
 }
 
