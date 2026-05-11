@@ -1,9 +1,11 @@
 <template>
-  <div ref="containerRef" class="docx-preview-container" />
+  <div class="docx-preview-container">
+    <div ref="containerRef" />
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { renderAsync } from 'docx-preview'
 
 const props = defineProps<{
@@ -11,25 +13,25 @@ const props = defineProps<{
 }>()
 
 const containerRef = ref<HTMLElement | null>(null)
-let abortController: AbortController | null = null
 
 async function render(blob: Blob): Promise<void> {
   if (!containerRef.value) return
-  abortController?.abort()
-  abortController = new AbortController()
   containerRef.value.innerHTML = ''
-  await renderAsync(blob, containerRef.value, undefined, {
-    className: 'docx-preview',
-    inWrapper: false,
-    ignoreWidth: true,
-    ignoreHeight: true,
-    ignoreFonts: false,
-    breakPages: true,
-    useBase64URL: true,
-    renderChanges: false,
-    renderComments: false,
-  })
+  try {
+    await renderAsync(blob, containerRef.value, undefined, {
+      className: 'docx-preview',
+      ignoreWidth: true,
+      ignoreHeight: true,
+      breakPages: true,
+    })
+  } catch (e) {
+    console.error('DocxPreview render failed', e)
+  }
 }
+
+onMounted(() => {
+  if (props.blob) render(props.blob)
+})
 
 watch(
   () => props.blob,
@@ -37,12 +39,7 @@ watch(
     if (blob) render(blob)
     else if (containerRef.value) containerRef.value.innerHTML = ''
   },
-  { immediate: true },
 )
-
-onBeforeUnmount(() => {
-  abortController?.abort()
-})
 </script>
 
 <style scoped>

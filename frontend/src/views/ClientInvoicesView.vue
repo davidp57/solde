@@ -711,17 +711,11 @@
               </div>
             </div>
             <div v-else-if="historyPdfBlobUrl" class="history-dialog__preview-frame">
-              <object
-                :data="historyPdfBlobUrl"
+              <embed
+                :src="historyPdfBlobUrl"
                 type="application/pdf"
                 class="history-dialog__preview-embed"
-              >
-                <iframe
-                  :src="historyPdfBlobUrl"
-                  :title="t('invoices.email_preview')"
-                  style="width:100%;height:100%;border:none"
-                />
-              </object>
+              />
             </div>
             <div v-else class="history-dialog__preview-empty">
               <i class="pi pi-file-pdf" />

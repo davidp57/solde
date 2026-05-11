@@ -65,18 +65,12 @@
       <div class="invoice-email-dialog__preview">
         <p class="invoice-email-dialog__preview-label">{{ t('invoices.email_preview') }}</p>
         <Skeleton v-if="pdfLoading" class="invoice-email-dialog__embed" border-radius="4px" />
-        <object
+        <embed
           v-else-if="pdfBlobUrl"
-          :data="pdfBlobUrl"
+          :src="pdfBlobUrl"
           type="application/pdf"
           class="invoice-email-dialog__embed"
-        >
-          <iframe
-            :src="pdfBlobUrl"
-            :title="t('invoices.email_preview_title')"
-            style="width:100%;height:100%;border:none"
-          />
-        </object>
+        />
         <div v-else class="invoice-email-dialog__preview-empty">
           <i class="pi pi-file-pdf" />
           <span>{{ t('invoices.email_preview_unavailable') }}</span>
