@@ -196,12 +196,22 @@
                 @click="openEditDialog(data)"
               />
               <Button
+                v-if="!(data.status === 'archived' && data.file_path)"
                 icon="pi pi-file-pdf"
                 size="small"
                 severity="secondary"
                 text
                 :title="t('invoices.generate_pdf')"
                 @click="openPdf(data)"
+              />
+              <Button
+                v-if="data.status === 'archived' && data.file_path"
+                icon="pi pi-download"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.download_file')"
+                @click="downloadFile(data)"
               />
               <Button
                 v-if="data.status === 'draft'"
@@ -372,6 +382,7 @@
                 @click="openEditDialog(data)"
               />
               <Button
+                v-if="!(data.status === 'archived' && data.file_path)"
                 icon="pi pi-file-pdf"
                 size="small"
                 severity="secondary"

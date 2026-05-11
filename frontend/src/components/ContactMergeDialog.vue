@@ -175,9 +175,11 @@ async function doMerge(): Promise<void> {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background: var(--p-surface-100, #f4f4f5);
+  background: var(--p-inputtext-background);
+  border: 1px solid var(--p-inputtext-border-color);
   border-radius: var(--p-border-radius-sm, 4px);
   font-size: 0.95rem;
+  color: var(--p-inputtext-color);
 }
 
 .contact-merge__type-tag {

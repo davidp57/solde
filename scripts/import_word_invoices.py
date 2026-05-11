@@ -115,8 +115,9 @@ class ImportReport:
     created: list[str] = field(default_factory=list)
     skipped_exists: list[str] = field(default_factory=list)
     skipped_no_client: list[str] = field(default_factory=list)
+    file_attached: list[str] = field(default_factory=list)
     errors: list[tuple[str, str]] = field(default_factory=list)
-    invoice_records: list["InvoiceRecord"] = field(default_factory=list)
+    invoice_records: list[InvoiceRecord] = field(default_factory=list)
 
 
 @dataclass
@@ -229,9 +230,13 @@ def _extract_client_block(paragraphs: list[str]) -> tuple[str | None, str | None
     postal_re = re.compile(r"\b\d{5}\b")
 
     def _is_skipped(para: str) -> bool:
+        _date_prefix_re = re.compile(
+            r"^[A-Za-z\u00c0-\u00ff][A-Za-z\u00c0-\u00ff\s-]+,\s*le\s+",
+            re.IGNORECASE,
+        )
         return bool(
             _SKIP_PARAGRAPHS_RE.match(para)
-            or re.match(r"^[A-Za-z\u00c0-\u00ff][A-Za-z\u00c0-\u00ff\s-]+,\s*le\s+", para, re.IGNORECASE)
+            or _date_prefix_re.match(para)
         )
 
     # Locate the first non-header paragraph that contains a 5-digit postal code.
@@ -362,6 +367,26 @@ def _invoice_exists(conn: sqlite3.Connection, number: str) -> bool:
     return row is not None
 
 
+def _get_existing_file_path(conn: sqlite3.Connection, number: str) -> str | None:
+    """Return the current file_path of an existing invoice, or None if unset."""
+    row = conn.execute(
+        "SELECT file_path FROM invoices WHERE number = ?", (number,)
+    ).fetchone()
+    if row is None:
+        return None
+    return row["file_path"] or None
+
+
+def _attach_file_to_invoice(
+    conn: sqlite3.Connection, number: str, file_path: str
+) -> None:
+    """Update file_path for an existing invoice."""
+    conn.execute(
+        "UPDATE invoices SET file_path = ?, updated_at = datetime('now') WHERE number = ?",
+        (file_path, number),
+    )
+
+
 def _find_contact(conn: sqlite3.Connection, client_name: str) -> int | None:
     """Find a contact by name (case-insensitive, both 'NOM PRENOM' and 'PRENOM NOM' order)."""
     norm = _normalize_name(client_name)
@@ -399,7 +424,8 @@ def _create_contact(
     nom, prenom = _split_name(client_name)
     conn.execute(
         """
-        INSERT INTO contacts (type, nom, prenom, adresse, is_active, blocked, created_at, updated_at)
+        INSERT INTO contacts
+            (type, nom, prenom, adresse, is_active, blocked, created_at, updated_at)
         VALUES ('client', ?, ?, ?, 1, 0, datetime('now'), datetime('now'))
         """,
         (nom, prenom, address),
@@ -458,7 +484,8 @@ def _create_invoice(
     for ln in parsed.lines:
         conn.execute(
             """
-            INSERT INTO invoice_lines (invoice_id, description, line_type, quantity, unit_price, amount)
+            INSERT INTO invoice_lines
+                (invoice_id, description, line_type, quantity, unit_price, amount)
             VALUES (?, ?, 'autres', 1, ?, ?)
             """,
             (invoice_id, ln.description, str(ln.amount), str(ln.amount)),
@@ -482,7 +509,7 @@ def _copy_docx(src: Path, upload_dir: Path, dry_run: bool) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _write_excel_report(report: "ImportReport", out_path: Path, dry_run: bool) -> None:
+def _write_excel_report(report: ImportReport, out_path: Path, dry_run: bool) -> None:
     """Write an Excel report: detail by contact/year, totals by year, new contacts."""
     try:
         import openpyxl
@@ -562,7 +589,13 @@ def _write_excel_report(report: "ImportReport", out_path: Path, dry_run: bool) -
     sorted_detail = sorted(detail.keys(), key=lambda k: (_normalize_name(k[0]), k[1]))
     for contact, year in sorted_detail:
         data = detail[(contact, year)]
-        ws1.append([contact, "\u2713" if data["new"] else "", year, data["count"], float(data["amount"])])
+        ws1.append([
+            contact,
+            "\u2713" if data["new"] else "",
+            year,
+            data["count"],
+            float(data["amount"]),
+        ])
         r = ws1.max_row
         ws1.cell(r, 2).alignment = center
         ws1.cell(r, 3).alignment = center
@@ -578,7 +611,11 @@ def _write_excel_report(report: "ImportReport", out_path: Path, dry_run: bool) -
 
     # ---- Sheet 2: Par année ----
     ws2 = wb.create_sheet("Par ann\u00e9e")
-    _header(ws2, ["Ann\u00e9e", "Nb contacts", "Nb factures", "Montant total (\u20ac)"], [8, 14, 14, 20])
+    _header(
+        ws2,
+        ["Ann\u00e9e", "Nb contacts", "Nb factures", "Montant total (\u20ac)"],
+        [8, 14, 14, 20],
+    )
     for year in sorted(year_agg.keys()):
         data = year_agg[year]
         ws2.append([year, len(data["contacts"]), data["count"], float(data["amount"])])
@@ -618,7 +655,10 @@ def _write_excel_report(report: "ImportReport", out_path: Path, dry_run: bool) -
     ws4 = wb.create_sheet("Factures")
     _header(
         ws4,
-        ["N\u00b0 facture", "Contact", "Nouveau", "Date", "Ann\u00e9e", "Nb lignes", "Montant (\u20ac)", "Fichier source"],
+        [
+            "N\u00b0 facture", "Contact", "Nouveau", "Date",
+            "Ann\u00e9e", "Nb lignes", "Montant (\u20ac)", "Fichier source",
+        ],
         [14, 32, 10, 14, 8, 10, 18, 40],
     )
     date_fmt = "DD/MM/YYYY"
@@ -661,7 +701,8 @@ def main() -> None:
     )
     parser.add_argument("--source", required=True, help="Path to folder containing .docx files")
     parser.add_argument("--db", default="data/solde.db", help="Path to SQLite database")
-    parser.add_argument("--commit", action="store_true", help="Write changes to DB (default: dry-run)")
+    parser.add_argument("--commit", action="store_true",
+                        help="Write changes to DB (default: dry-run)")
     parser.add_argument("--verbose", action="store_true", help="Print detailed info per file")
     parser.add_argument(
         "--report",
@@ -704,21 +745,42 @@ def main() -> None:
         parsed = parse_docx(docx_file)
         if parsed is None:
             if args.verbose:
-                print(f"  -> Skipped (name does not match pattern)")
+                print("  -> Skipped (name does not match pattern)")
             continue
 
-        # Skip if already in DB
+        # Skip if already in DB — unless no file is attached yet
         if _invoice_exists(conn, parsed.number):
-            report.skipped_exists.append(parsed.number)
+            existing_fp = _get_existing_file_path(conn, parsed.number)
+            if existing_fp:
+                report.skipped_exists.append(parsed.number)
+                if args.verbose:
+                    print(f"  -> Skipped: invoice {parsed.number} already exists (with file)")
+                continue
+            # Invoice exists but has no file — attach it
+            file_path = _copy_docx(docx_file, upload_dir, dry_run)
+            if not dry_run:
+                try:
+                    _attach_file_to_invoice(conn, parsed.number, file_path)
+                    conn.commit()
+                    report.file_attached.append(parsed.number)
+                except sqlite3.Error as exc:
+                    conn.rollback()
+                    report.errors.append((parsed.number, str(exc)))
+                    if args.verbose:
+                        print(f"  -> ERROR attaching file: {exc}")
+                    continue
+            else:
+                report.file_attached.append(parsed.number)
             if args.verbose:
-                print(f"  -> Skipped: invoice {parsed.number} already exists")
+                action = "Would attach" if dry_run else "Attached"
+                print(f"  -> {action} file to existing invoice {parsed.number}")
             continue
 
         # Resolve or create contact
         if parsed.client_name is None:
             report.skipped_no_client.append(parsed.number)
             if args.verbose:
-                print(f"  -> Skipped: could not extract client name")
+                print("  -> Skipped: could not extract client name")
             continue
 
         contact_id = _find_contact(conn, parsed.client_name)
@@ -731,11 +793,17 @@ def main() -> None:
             created_contact = True
 
         if args.verbose:
-            action = "would create" if dry_run else "created"
-            contact_info = f"contact #{contact_id}" if not created_contact else f"{'would create' if dry_run else 'new'} contact for '{parsed.client_name}'"
-            print(f"  -> Date: {parsed.invoice_date}  Client: {parsed.client_name}  "
-                  f"Total: {parsed.total_amount}€  Lines: {len(parsed.lines)}  "
-                  f"Contact: {contact_info}")
+            if not created_contact:
+                contact_info = f"contact #{contact_id}"
+            elif dry_run:
+                contact_info = f"would create contact for '{parsed.client_name}'"
+            else:
+                contact_info = f"new contact for '{parsed.client_name}'"
+            print(
+                f"  -> Date: {parsed.invoice_date}  Client: {parsed.client_name}  "
+                f"Total: {parsed.total_amount}€  Lines: {len(parsed.lines)}  "
+                f"Contact: {contact_info}"
+            )
 
         # Copy .docx
         file_path = _copy_docx(docx_file, upload_dir, dry_run)
@@ -780,7 +848,10 @@ def main() -> None:
     print(f"\n{'=' * 60}")
     print(f"{'DRY-RUN ' if dry_run else ''}IMPORT REPORT")
     print(f"{'=' * 60}")
-    print(f"  {'Would create' if dry_run else 'Created'}  : {len(report.created)} invoice(s)")
+    verb_create = "Would create" if dry_run else "Created"
+    verb_attach = "Would attach" if dry_run else "Attached"
+    print(f"  {verb_create:<22}: {len(report.created)} invoice(s)")
+    print(f"  {verb_attach} file       : {len(report.file_attached)} invoice(s)")
     print(f"  Skipped (already exists)  : {len(report.skipped_exists)}")
     print(f"  Skipped (no client name)  : {len(report.skipped_no_client)}")
     print(f"  Errors                    : {len(report.errors)}")
@@ -788,8 +859,9 @@ def main() -> None:
         print("\nErrors:")
         for number, msg in report.errors:
             print(f"  - {number}: {msg}")
-    if dry_run and report.created:
-        print(f"\nRun with --commit to actually import {len(report.created)} invoice(s).")
+    if dry_run and (report.created or report.file_attached):
+        total_dry = len(report.created) + len(report.file_attached)
+        print(f"\nRun with --commit to actually import/attach {total_dry} invoice(s).")
 
     if not args.no_report:
         _write_excel_report(report, Path(args.report), dry_run)
