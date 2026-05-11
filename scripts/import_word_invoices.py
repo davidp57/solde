@@ -301,7 +301,7 @@ def _extract_lines_and_total(tables: list[list[list[str]]]) -> tuple[list[Invoic
 
             if _TOTAL_RE.match(desc):
                 total = price
-            else:
+            elif desc:
                 lines.append(InvoiceLine(description=desc, amount=price))
 
     # If total not found from table, sum lines

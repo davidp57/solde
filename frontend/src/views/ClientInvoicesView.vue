@@ -690,6 +690,26 @@
             <div v-if="historyPdfLoading" class="history-dialog__preview-loading">
               <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
             </div>
+            <div
+              v-else-if="historyInvoice?.status === 'archived' && historyInvoice?.file_path"
+            >
+              <div v-if="!historyDocxBlob" class="history-dialog__preview-loading">
+                <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
+              </div>
+              <div v-else class="history-dialog__preview-frame">
+                <DocxPreview :blob="historyDocxBlob" style="max-height: 520px" />
+              </div>
+              <div class="history-dialog__preview-dl">
+                <Button
+                  icon="pi pi-download"
+                  :label="t('invoices.download_file')"
+                  severity="secondary"
+                  outlined
+                  size="small"
+                  @click="historyInvoice && downloadFile(historyInvoice)"
+                />
+              </div>
+            </div>
             <div v-else-if="historyPdfBlobUrl" class="history-dialog__preview-frame">
               <iframe
                 :src="historyPdfBlobUrl"
@@ -855,6 +875,7 @@ import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
+import DocxPreview from '../components/DocxPreview.vue'
 import {
   dateRangeFilter,
   inFilter,
@@ -942,6 +963,7 @@ const historyLoading = ref(false)
 const historyPayments = ref<Payment[]>([])
 const historyPdfBlobUrl = ref<string | null>(null)
 const historyPdfLoading = ref(false)
+const historyDocxBlob = ref<Blob | null>(null)
 const paymentDialogVisible = ref(false)
 const paymentInvoice = ref<Invoice | null>(null)
 const paymentSaving = ref(false)
@@ -1328,6 +1350,18 @@ async function openHistory(invoice: Invoice) {
     URL.revokeObjectURL(historyPdfBlobUrl.value)
   }
   historyPdfBlobUrl.value = null
+  historyDocxBlob.value = null
+  // Archived invoices with a file attachment don't have a generated PDF
+  if (invoice.status === 'archived' && invoice.file_path) {
+    historyPdfLoading.value = false
+    await Promise.all([
+      loadHistoryPayments(invoice.id),
+      downloadInvoiceFileApi(invoice.id)
+        .then((blob) => { historyDocxBlob.value = blob })
+        .catch((e) => console.error('Failed to download docx for preview', e)),
+    ])
+    return
+  }
   historyPdfLoading.value = true
   await Promise.all([
     loadHistoryPayments(invoice.id),
@@ -1343,6 +1377,7 @@ function onHistoryHide() {
     URL.revokeObjectURL(historyPdfBlobUrl.value)
     historyPdfBlobUrl.value = null
   }
+  historyDocxBlob.value = null
 }
 
 async function goToPrevHistory(): Promise<void> {
@@ -1599,6 +1634,12 @@ onMounted(async () => {
 
 .history-dialog__preview-empty .pi {
   font-size: 2.5rem;
+}
+
+.history-dialog__preview-dl {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--app-space-3);
 }
 
 .history-dialog__intro {
