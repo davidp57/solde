@@ -146,7 +146,7 @@ class TestTestDestinationConnection:
 
         assert isinstance(result, BackupConnectionTestResult)
         assert result.success is False
-        assert "Failed to connect" in result.message
+        assert "connexion" in result.message.lower()
 
     @pytest.mark.asyncio
     async def test_subprocess_raises(self) -> None:

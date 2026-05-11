@@ -233,7 +233,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             if app_settings:
                 reload_scheduler(app_settings)
     except Exception:
-        pass  # Scheduler starts even if settings cannot be read yet
+        logger.warning(
+            "Backup scheduler init failed — will retry on next settings update",
+            exc_info=True,
+        )
 
     yield
 

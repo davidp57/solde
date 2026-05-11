@@ -68,7 +68,7 @@ async def list_destinations(
     """List all backup destinations."""
     result = await db.execute(select(BackupDestination).order_by(BackupDestination.id))
     dests = result.scalars().all()
-    return [BackupDestinationRead.model_validate(d) for d in dests]
+    return [BackupDestinationRead.from_orm(d) for d in dests]
 
 
 @router.post(
@@ -99,7 +99,7 @@ async def create_destination(
     )
     await db.commit()
     await db.refresh(dest)
-    return BackupDestinationRead.model_validate(dest)
+    return BackupDestinationRead.from_orm(dest)
 
 
 @router.put("/destinations/{destination_id}", response_model=BackupDestinationRead)
@@ -129,7 +129,7 @@ async def update_destination(
     )
     await db.commit()
     await db.refresh(dest)
-    return BackupDestinationRead.model_validate(dest)
+    return BackupDestinationRead.from_orm(dest)
 
 
 @router.delete("/destinations/{destination_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -218,6 +218,18 @@ async def update_schedule(
             "SETTINGS_NOT_FOUND",
             "Settings not found.",
         )
+
+    if payload.cron_expression is not None:
+        try:
+            from apscheduler.triggers.cron import CronTrigger as _CT
+
+            _CT.from_crontab(payload.cron_expression)
+        except Exception as exc:
+            raise api_error(
+                status.HTTP_400_BAD_REQUEST,
+                "INVALID_CRON",
+                "Expression cron invalide.",
+            ) from exc
 
     if payload.enabled is not None:
         s.backup_enabled = payload.enabled
