@@ -50,10 +50,12 @@ class BackupDestinationUpdate(BaseModel):
 
 class BackupScheduleRead(BaseModel):
     enabled: bool
-    schedule_type: str  # interval | cron
+    schedule_type: str  # interval | daily | cron
     interval_hours: int
     cron_expression: str | None
+    daily_time: str | None
     include_uploads: bool
+    include_all_backups: bool
     notify_on_failure: bool
 
     model_config = {"from_attributes": True}
@@ -65,17 +67,21 @@ class BackupScheduleRead(BaseModel):
             schedule_type=s.backup_schedule_type,
             interval_hours=s.backup_interval_hours,
             cron_expression=s.backup_cron_expression,
+            daily_time=s.backup_daily_time,
             include_uploads=s.backup_include_uploads,
+            include_all_backups=s.backup_include_all_backups,
             notify_on_failure=s.backup_notify_on_failure,
         )
 
 
 class BackupScheduleUpdate(BaseModel):
     enabled: bool | None = None
-    schedule_type: str | None = None  # interval | cron
+    schedule_type: str | None = None  # interval | daily | cron
     interval_hours: int | None = None
     cron_expression: str | None = None
+    daily_time: str | None = None
     include_uploads: bool | None = None
+    include_all_backups: bool | None = None
     notify_on_failure: bool | None = None
 
 

@@ -180,7 +180,8 @@ async def sync_destination(
     if dest.type == "onedrive" and on_progress is not None:
         # Pre-count all files across every source path to report unified progress.
         total_files = sum(
-            sum(1 for p in Path(s).rglob("*") if p.is_file()) for s in src_paths if Path(s).is_dir()
+            (1 if Path(s).is_file() else sum(1 for p in Path(s).rglob("*") if p.is_file()))
+            for s in src_paths
         )
         counter: list[int] = [0]
 
@@ -193,12 +194,31 @@ async def sync_destination(
         _file_cb = None
 
     for i, src in enumerate(src_paths):
-        subdir = Path(src).name  # "backups", "uploads", etc.
+        src_path = Path(src)
+        # Single-file: place under <run_ts>/<parent_dir_name>/; directory: use its own name
+        subdir = src_path.parent.name if src_path.is_file() else src_path.name
         base = dest.target_path.rstrip("/") if dest.target_path else ""
         remote_path = f"{base}/{run_ts}/{subdir}" if base else f"{run_ts}/{subdir}"
 
         if dest.type == "onedrive":
-            await _graph_upload_dir(dest, Path(src), remote_path, on_file_uploaded=_file_cb)
+            if src_path.is_file():
+                # Upload a single file directly (no directory traversal needed)
+                async with httpx.AsyncClient() as client:
+                    config = json.loads(dest.rclone_config or "{}")
+                    drive_id = config.get("drive_id", "")
+                    access_token = _graph_access_token(dest)
+                    file_remote = f"{remote_path}/{src_path.name}"
+                    logger.info(
+                        "Graph upload: %s → drives/%s/root:/%s",
+                        src_path.name,
+                        drive_id,
+                        file_remote,
+                    )
+                    await _graph_upload_file(client, access_token, drive_id, file_remote, src_path)
+                    if _file_cb is not None:
+                        _file_cb()
+            else:
+                await _graph_upload_dir(dest, src_path, remote_path, on_file_uploaded=_file_cb)
         else:
             if on_progress is not None:
                 on_progress(i, len(src_paths))
