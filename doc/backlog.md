@@ -51,7 +51,7 @@ Permettre de modifier ou supprimer les opérations bancaires créées manuelleme
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
-| BK | Backup automatique | v1.7 | BIZ-173→184 | 2026-05-11 | ~4h | — |
+| BK | Backup automatique | v1.7 | BIZ-173→184, BIZ-187, BIZ-188, BIZ-189 | 2026-05-11 | ~4h | — |
 | TEC-185/BIZ-186 | Fix Chrome PDF + filigrane Payé | v1.6.3 | TEC-185, BIZ-186 | 2026-05-10 | ~40 min | — |
 | REV2 | Refactoring technique différé | v1.6.2 | TEC-170, TEC-171, TEC-173 | 2026-05-07 | ~55 min | — |
 | REV | Revue de code technique | v1.6.1 | TEC-160–165, 167–169, 172 (+ TEC-161, 163, 166 déjà faits) | 2026-05-06 | ~190 min | ~70 min |
@@ -83,7 +83,10 @@ Permettre de modifier ou supprimer les opérations bancaires créées manuelleme
 | BIZ-182 | Frontend SettingsView + i18n fr/en | ~15 min | — |
 | BIZ-183 | Tests unitaires backend | ~15 min | — |
 | BIZ-184 | Tests intégration API backup | ~20 min | — |
-| **Total** | | **~4h** | — |
+| BIZ-187 | Type planification quotidien (HH:MM) + option snapshot-only | ~35 min | — |
+| BIZ-188 | Option inclure tous les backups précédents | *(inclus BIZ-187)* | — |
+| BIZ-189 | Fix : spinner visible si backup auto déclenché page ouverte | ~15 min | — |
+| **Total** | | **~4h40** | — |
 
 </details>
 

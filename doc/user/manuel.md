@@ -624,13 +624,17 @@ Permet de programmer des sauvegardes automatiques de la base de données.
 
 1. Activer le toggle **Activer les sauvegardes automatiques**.
 2. Choisir le mode de planification :
+   - **Quotidien (heure fixe)** : saisir l'heure au format HH:MM (ex. `02:00` pour 2 h du matin chaque nuit).
    - **Toutes les N heures** : saisir l'intervalle souhaité (ex. toutes les 24 h).
    - **Expression cron** : saisir une expression cron personnalisée (ex. `0 2 * * *` pour chaque nuit à 2 h).
 3. Cocher **Inclure les fichiers joints** pour inclure les pièces jointes (factures fournisseurs importées) dans la sauvegarde.
-4. Cocher **Notifier en cas d'échec** pour recevoir un e-mail si une sauvegarde échoue (nécessite un SMTP configuré).
-5. Cliquer sur **Enregistrer la planification**.
+4. Cocher **Inclure tous les fichiers de sauvegarde précédents** pour envoyer l'intégralité du dossier de sauvegardes vers la destination. Si cette option est désactivée (comportement par défaut), seul le dernier snapshot est envoyé.
+5. Cocher **Notifier en cas d'échec** pour recevoir un e-mail si une sauvegarde échoue (nécessite un SMTP configuré).
+6. Cliquer sur **Enregistrer la planification**.
 
 Le bouton **Lancer maintenant** déclenche une sauvegarde immédiate sans attendre l'heure planifiée.
+
+> Le spinner de progression s'affiche dans les 10 secondes suivant le démarrage d'une sauvegarde automatique, même si la page était déjà ouverte au moment du déclenchement.
 
 #### Statut du dernier enregistrement
 
