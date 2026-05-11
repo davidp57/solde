@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Patterns
@@ -103,6 +104,16 @@ class ImportReport:
     skipped_exists: list[str] = field(default_factory=list)
     skipped_no_client: list[str] = field(default_factory=list)
     errors: list[tuple[str, str]] = field(default_factory=list)
+    invoice_records: list["InvoiceRecord"] = field(default_factory=list)
+
+
+@dataclass
+class InvoiceRecord:
+    number: str
+    client_name: str
+    contact_created: bool
+    year: int
+    amount: Decimal
 
 
 # ---------------------------------------------------------------------------
@@ -431,6 +442,147 @@ def _copy_docx(src: Path, upload_dir: Path, dry_run: bool) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Report
+# ---------------------------------------------------------------------------
+
+
+def _write_excel_report(report: "ImportReport", out_path: Path, dry_run: bool) -> None:
+    """Write an Excel report: detail by contact/year, totals by year, new contacts."""
+    try:
+        import openpyxl
+        from openpyxl.styles import Alignment, Font, PatternFill
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        print(
+            "WARNING: openpyxl non installé — rapport Excel ignoré. "
+            "Installez-le avec : pip install openpyxl",
+            file=sys.stderr,
+        )
+        return
+
+    from collections import defaultdict
+
+    records = report.invoice_records
+    if not records:
+        return
+
+    # ---- Aggregation ----
+    detail: dict[tuple[str, int], dict[str, Any]] = defaultdict(
+        lambda: {"count": 0, "amount": Decimal("0.00"), "new": False}
+    )
+    for rec in records:
+        key = (rec.client_name, rec.year)
+        detail[key]["count"] += 1
+        detail[key]["amount"] += rec.amount
+        if rec.contact_created:
+            detail[key]["new"] = True
+
+    year_agg: dict[int, dict[str, Any]] = defaultdict(
+        lambda: {"contacts": set(), "count": 0, "amount": Decimal("0.00")}
+    )
+    for rec in records:
+        year_agg[rec.year]["contacts"].add(rec.client_name)
+        year_agg[rec.year]["count"] += 1
+        year_agg[rec.year]["amount"] += rec.amount
+
+    # ---- Styles ----
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="2E6DA4")
+    total_font = Font(bold=True)
+    total_fill = PatternFill("solid", fgColor="D9E1F2")
+    new_fill = PatternFill("solid", fgColor="E2EFDA")
+    center = Alignment(horizontal="center")
+    euro_fmt = '#,##0.00 "\u20ac"'
+
+    def _header(ws: Any, headers: list[str], col_widths: list[int]) -> None:
+        ws.append(headers)
+        row_idx = ws.max_row
+        for i, cell in enumerate(ws[row_idx], 1):
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center
+            ws.column_dimensions[get_column_letter(i)].width = col_widths[i - 1]
+
+    def _total(ws: Any, values: list[Any]) -> None:
+        ws.append(values)
+        row_idx = ws.max_row
+        for cell in ws[row_idx]:
+            cell.font = total_font
+            cell.fill = total_fill
+
+    wb = openpyxl.Workbook()
+
+    # ---- Sheet 1: Détail par contact et année ----
+    ws1 = wb.active
+    ws1.title = "Détail"
+    mode_label = "Simulation (dry-run)" if dry_run else "Import réel"
+    ws1.append([f"Rapport d'import Word \u2014 {mode_label}"])
+    ws1["A1"].font = Font(bold=True, size=12)
+    _header(
+        ws1,
+        ["Contact", "Nouveau", "Année", "Nb factures", "Montant total (\u20ac)"],
+        [32, 10, 8, 14, 20],
+    )
+    sorted_detail = sorted(detail.keys(), key=lambda k: (_normalize_name(k[0]), k[1]))
+    for contact, year in sorted_detail:
+        data = detail[(contact, year)]
+        ws1.append([contact, "\u2713" if data["new"] else "", year, data["count"], float(data["amount"])])
+        r = ws1.max_row
+        ws1.cell(r, 2).alignment = center
+        ws1.cell(r, 3).alignment = center
+        ws1.cell(r, 4).alignment = center
+        ws1.cell(r, 5).number_format = euro_fmt
+        if data["new"]:
+            for c in range(1, 6):
+                ws1.cell(r, c).fill = new_fill
+    total_count = sum(d["count"] for d in detail.values())
+    total_amount = sum(d["amount"] for d in detail.values())
+    _total(ws1, ["TOTAL", "", "", total_count, float(total_amount)])
+    ws1.cell(ws1.max_row, 5).number_format = euro_fmt
+
+    # ---- Sheet 2: Par année ----
+    ws2 = wb.create_sheet("Par ann\u00e9e")
+    _header(ws2, ["Ann\u00e9e", "Nb contacts", "Nb factures", "Montant total (\u20ac)"], [8, 14, 14, 20])
+    for year in sorted(year_agg.keys()):
+        data = year_agg[year]
+        ws2.append([year, len(data["contacts"]), data["count"], float(data["amount"])])
+        r = ws2.max_row
+        for c in range(1, 4):
+            ws2.cell(r, c).alignment = center
+        ws2.cell(r, 4).number_format = euro_fmt
+    all_contacts = {rec.client_name for rec in records}
+    grand_total_amount = sum(d["amount"] for d in year_agg.values())
+    grand_total_count = sum(d["count"] for d in year_agg.values())
+    _total(ws2, ["TOTAL", len(all_contacts), grand_total_count, float(grand_total_amount)])
+    ws2.cell(ws2.max_row, 4).number_format = euro_fmt
+
+    # ---- Sheet 3: Contacts créés ----
+    ws3 = wb.create_sheet("Contacts cr\u00e9\u00e9s")
+    ws3.append(["Contacts qui seraient cr\u00e9\u00e9s" if dry_run else "Contacts cr\u00e9\u00e9s"])
+    ws3["A1"].font = Font(bold=True, size=11)
+    _header(ws3, ["Contact", "Nb factures", "Montant total (\u20ac)"], [32, 14, 20])
+    new_contact_data: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {"count": 0, "amount": Decimal("0.00")}
+    )
+    for rec in records:
+        if rec.contact_created:
+            new_contact_data[rec.client_name]["count"] += 1
+            new_contact_data[rec.client_name]["amount"] += rec.amount
+    if new_contact_data:
+        for contact in sorted(new_contact_data, key=_normalize_name):
+            data = new_contact_data[contact]
+            ws3.append([contact, data["count"], float(data["amount"])])
+            r = ws3.max_row
+            ws3.cell(r, 2).alignment = center
+            ws3.cell(r, 3).number_format = euro_fmt
+    else:
+        ws3.append(["(aucun nouveau contact)"])
+
+    wb.save(str(out_path))
+    print(f"\nRapport Excel g\u00e9n\u00e9r\u00e9 : {out_path}")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -443,6 +595,18 @@ def main() -> None:
     parser.add_argument("--db", default="data/solde.db", help="Path to SQLite database")
     parser.add_argument("--commit", action="store_true", help="Write changes to DB (default: dry-run)")
     parser.add_argument("--verbose", action="store_true", help="Print detailed info per file")
+    parser.add_argument(
+        "--report",
+        metavar="PATH",
+        default="import_report.xlsx",
+        help="Output path for the Excel summary report (default: import_report.xlsx)",
+    )
+    parser.add_argument(
+        "--no-report",
+        action="store_true",
+        dest="no_report",
+        help="Skip generating the Excel report",
+    )
     args = parser.parse_args()
 
     _require_docx()
@@ -514,6 +678,13 @@ def main() -> None:
                 _create_invoice(conn, parsed, contact_id, file_path)
                 conn.commit()
                 report.created.append(parsed.number)
+                report.invoice_records.append(InvoiceRecord(
+                    number=parsed.number,
+                    client_name=parsed.client_name or "",
+                    contact_created=created_contact,
+                    year=(parsed.invoice_date or date.today()).year,
+                    amount=parsed.total_amount,
+                ))
             except sqlite3.IntegrityError as exc:
                 conn.rollback()
                 report.errors.append((parsed.number, str(exc)))
@@ -521,6 +692,13 @@ def main() -> None:
                     print(f"  -> ERROR: {exc}")
         else:
             report.created.append(parsed.number)
+            report.invoice_records.append(InvoiceRecord(
+                number=parsed.number,
+                client_name=parsed.client_name or "",
+                contact_created=created_contact,
+                year=(parsed.invoice_date or date.today()).year,
+                amount=parsed.total_amount,
+            ))
 
     conn.close()
 
@@ -538,6 +716,9 @@ def main() -> None:
             print(f"  - {number}: {msg}")
     if dry_run and report.created:
         print(f"\nRun with --commit to actually import {len(report.created)} invoice(s).")
+
+    if not args.no_report:
+        _write_excel_report(report, Path(args.report), dry_run)
 
 
 if __name__ == "__main__":
