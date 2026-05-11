@@ -18,11 +18,24 @@ class BackupDestinationRead(BaseModel):
     type: str
     enabled: bool
     rclone_remote_name: str
-    rclone_config: str | None
+    has_config: bool  # True if rclone_config is set — secrets are not returned
     target_path: str
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_orm(cls, obj: Any) -> BackupDestinationRead:
+        return cls(
+            id=obj.id,
+            name=obj.name,
+            type=obj.type,
+            enabled=obj.enabled,
+            rclone_remote_name=obj.rclone_remote_name,
+            has_config=bool(obj.rclone_config),
+            target_path=obj.target_path,
+            created_at=obj.created_at,
+        )
 
 
 class BackupDestinationCreate(BaseModel):

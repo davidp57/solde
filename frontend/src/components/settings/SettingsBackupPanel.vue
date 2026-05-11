@@ -59,7 +59,7 @@
           <InputText
             id="backup_cron"
             v-model="schedule.cron_expression"
-            placeholder="0 2 * * *"
+            :placeholder="t('settings.backup_cron_placeholder')"
             class="w-full"
             @blur="saveSchedule"
           />
@@ -661,8 +661,8 @@ const scheduleTypeOptions = [
 
 const destTypeOptions = [
   { label: t('settings.backup_dest_local'), value: 'local' },
-  { label: 'SMB / NAS', value: 'smb' },
-  { label: 'OneDrive', value: 'onedrive' },
+  { label: t('settings.backup_dest_smb'), value: 'smb' },
+  { label: t('settings.backup_dest_onedrive'), value: 'onedrive' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -800,10 +800,9 @@ function openEditDestDialog(dest: BackupDestination) {
   smbForm.user = ''
   smbForm.pass = ''
   resetOneDriveAuth()
-  // If the destination already has an OneDrive token, reuse it so the path
-  // field is immediately editable without forcing a new authorization.
-  if (dest.type === 'onedrive' && dest.rclone_config) {
-    oauthToken.value = dest.rclone_config
+  // If the destination already has a config, mark OAuth as done to allow
+  // editing name/path without requiring re-authorization (token not returned).
+  if (dest.type === 'onedrive' && dest.has_config) {
     oauthDone.value = true
   }
   showAddDestDialog.value = true

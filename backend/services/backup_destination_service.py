@@ -374,7 +374,11 @@ async def test_destination_connection(dest: BackupDestination) -> BackupConnecti
         await _run_rclone(cmd)
         return BackupConnectionTestResult(success=True, message="Connexion réussie")
     except RuntimeError as exc:
-        return BackupConnectionTestResult(success=False, message=str(exc))
+        logger.warning("Destination connection test failed for dest %s: %s", dest.id, exc)
+        return BackupConnectionTestResult(
+            success=False,
+            message="Connexion impossible. Vérifiez les paramètres de la destination.",
+        )
 
 
 async def fetch_remote_backup(
@@ -416,6 +420,7 @@ async def _run_rclone(cmd: list[str]) -> str:
 
     if proc.returncode != 0:
         err = stderr.decode(errors="replace").strip()
-        raise RuntimeError(f"rclone (code {proc.returncode}): {_rclone_summary(err)}")
+        logger.error("rclone command failed (code %d): %s", proc.returncode, err)
+        raise RuntimeError(f"rclone: {_rclone_summary(err)}")
 
     return stdout.decode(errors="replace")

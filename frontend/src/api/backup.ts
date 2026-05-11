@@ -10,7 +10,7 @@ export interface BackupDestination {
   type: 'local' | 'smb' | 'onedrive'
   enabled: boolean
   rclone_remote_name: string
-  rclone_config: string | null
+  has_config: boolean  // true if rclone_config is set — secrets are not returned by the API
   target_path: string
   created_at: string
 }
