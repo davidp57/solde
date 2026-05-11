@@ -41,7 +41,7 @@ _FILENAME_RE = re.compile(r"^facture\s+(\d{4}-\d{4})\.docx$", re.IGNORECASE)
 _DATE_RE = re.compile(
     r"\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\b"
     r"|\b(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})\b"
-    r"|\b(\d{1,2})(?:er|[e\u00e8]me?|[e\u00e8]re?|[e\u00e8])?\s+(janvier|f[e\u00e9]vrier|mars|avril|mai|juin|juillet|ao[u\u00fb]t|septembre|octobre|novembre|d[e\u00e9]cembre)\s+(\d{4})\b",
+    r"|(?<!\d)(\d{1,2})\s*(?:er|[e\u00e8]me?|[e\u00e8]re?|[e\u00e8])?\s+(janvier|f[e\u00e9]vrier|mars|avril|mai|juin|juillet|ao[u\u00fb]t|septembre|octobre|novembre|d[e\u00e9]cembre)\s+(\d{4})\b",
     re.IGNORECASE,
 )
 
