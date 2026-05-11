@@ -37,11 +37,11 @@ from typing import Any
 # Matches "facture YYYY-NNNN.docx" → captures "YYYY-NNNN"
 _FILENAME_RE = re.compile(r"^facture\s+(\d{4}-\d{4})\.docx$", re.IGNORECASE)
 
-# Matches French date patterns: "01/04/2025", "1 avril 2025", "2025-04-01"
+# Matches French date patterns: "01/04/2025", "1 avril 2025", "1er avril 2025", "2025-04-01"
 _DATE_RE = re.compile(
     r"\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\b"
     r"|\b(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})\b"
-    r"|\b(\d{1,2})\s+(janvier|f[eé]vrier|mars|avril|mai|juin|juillet|ao[uû]t|septembre|octobre|novembre|d[eé]cembre)\s+(\d{4})\b",
+    r"|\b(\d{1,2})(?:er|[e\u00e8]me?|[e\u00e8]re?|[e\u00e8])?\s+(janvier|f[e\u00e9]vrier|mars|avril|mai|juin|juillet|ao[u\u00fb]t|septembre|octobre|novembre|d[e\u00e9]cembre)\s+(\d{4})\b",
     re.IGNORECASE,
 )
 
@@ -201,7 +201,17 @@ def _get_paragraphs(path: Path) -> list[str]:
     from docx import Document  # noqa: PLC0415
 
     doc = Document(str(path))
-    return [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    paras = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    # Also include Word page-header paragraphs (date is often written there)
+    for section in doc.sections:
+        try:
+            for p in section.header.paragraphs:
+                text = p.text.strip()
+                if text:
+                    paras.append(text)
+        except Exception:  # noqa: BLE001
+            pass
+    return paras
 
 
 def _get_tables(path: Path) -> list[list[list[str]]]:
@@ -324,8 +334,9 @@ def parse_docx(path: Path) -> ParsedInvoice | None:
     except Exception:
         return None
 
-    # Extract date from any paragraph — only accept dates whose year matches the filename year.
-    # This avoids picking up years from addresses or personal dates in the document.
+    # Extract date from paragraphs (body + page headers).
+    # Only accept a date whose year matches the filename year to avoid false
+    # positives from addresses or birth years in the document.
     filename_year = int(number.split("-")[0])
     invoice_date: date | None = None
     for para in paragraphs:
@@ -333,6 +344,20 @@ def parse_docx(path: Path) -> ParsedInvoice | None:
         if d and d.year == filename_year:
             invoice_date = d
             break
+
+    # Fallback: scan table cells (date sometimes lives in a header row)
+    if invoice_date is None:
+        for table_rows in tables:
+            for row in table_rows:
+                for cell in row:
+                    d = _parse_date(cell)
+                    if d and d.year == filename_year:
+                        invoice_date = d
+                        break
+                if invoice_date:
+                    break
+            if invoice_date:
+                break
 
     client_name, client_address = _extract_client_block(paragraphs)
     lines, total = _extract_lines_and_total(tables)
