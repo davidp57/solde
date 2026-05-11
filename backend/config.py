@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     jwt_access_token_expire_minutes: int = 60
     jwt_refresh_token_expire_days: int = 30
 
+    # Cookie security — set to false when serving over plain HTTP (local Docker without HTTPS)
+    # Defaults to True in production (debug=False) and False in debug/test mode
+    cookie_secure: bool | None = None
+
     # Fiscal year (month number: 8 = August)
     fiscal_year_start_month: int = 8
 
