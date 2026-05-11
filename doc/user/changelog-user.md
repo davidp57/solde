@@ -4,6 +4,23 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.7.1 *(à venir)*
+
+### Tous les utilisateurs
+
+#### Export Excel
+- Un bouton **« Exporter Excel »** est disponible dans toutes les grandes listes : factures fournisseur, paiements, contacts, employés, salaires, mouvements de caisse, transactions bancaires, exercices comptables, plan comptable, règles comptables, journal, grand livre, balance, bilan, compte de résultat.
+- L'export télécharge uniquement les **lignes affichées après filtrage**, au format `.xlsx` directement lisible dans Excel ou LibreOffice Calc.
+
+### Secrétaire
+
+#### Factures client — Archivage
+- Un nouveau statut **« Archivée »** est disponible pour les factures intégralement réglées. Une facture archivée ne peut plus être modifiée.
+- Bouton **« Archiver la sélection »** dans la barre d'outils de la liste des factures client : archive d'un coup toutes les factures payées actuellement visibles.
+- Sur une facture archivée, un bouton **« Télécharger le document »** permet de récupérer le fichier Word d'origine (si disponible).
+
+---
+
 ## Version 1.7.0 *(à venir)*
 
 ### Administrateur

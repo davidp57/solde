@@ -39,6 +39,14 @@
             :disabled="!hasAnyFilters"
             @click="resetAllFilters"
           />
+          <Button
+            :label="t('common.export_excel')"
+            icon="pi pi-file-excel"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="doExportExcel"
+          />
         </div>
         <div class="app-filter-grid">
           <div class="app-field">
@@ -727,6 +735,7 @@ import {
 } from '../composables/useDataTableFilters'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatDisplayMonth } from '../utils/format'
 
@@ -735,6 +744,18 @@ const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'employee_name', header: t('salary.employee') },
+  { field: 'month', header: t('salary.month') },
+  { field: 'hours_value', header: t('salary.hours') },
+  { field: 'gross_value', header: t('salary.gross') },
+  { field: 'net_pay_value', header: t('salary.net_pay') },
+  { field: 'total_cost_value', header: t('salary.total_cost') },
+]
+function doExportExcel(): void {
+  exportToExcel(filteredSalaries.value, exportColumns, 'salary-export')
+}
 
 interface EmployeeOption {
   label: string

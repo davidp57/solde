@@ -41,6 +41,15 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-187** — Sauvegarde automatique : nouveau type de planification **Quotidien (heure fixe)** — saisir l'heure au format HH:MM pour déclencher la sauvegarde chaque jour à l'heure choisie
 - **BIZ-187** — Migration Alembic : colonnes `backup_daily_time` (String 5, défaut `"02:00"`) et `backup_include_all_backups` (Boolean, défaut `False`) dans `app_settings`
 - **BIZ-188** — Sauvegarde automatique : par défaut, seul le fichier snapshot `.db` le plus récent est envoyé vers la destination ; option **« Inclure tous les fichiers de sauvegarde précédents »** (désactivée par défaut) pour envoyer l'intégralité du dossier `backups/`
+- **BIZ-195** — Nouveau statut `archivée` pour les factures client payées (terminal, irréversible) ; badge gris « Archivée » dans les listes
+- **BIZ-196** — Script `scripts/import_word_invoices.py` : import en masse de factures historiques au format Word (`.docx`) dans Solde (mode dry-run par défaut, `--commit` pour valider)
+- **BIZ-197** — Endpoint `POST /api/invoices/bulk-archive` : archivage en masse des factures payées sélectionnées
+- **BIZ-190** — Frontend : type `archived` dans `InvoiceStatus`, badge gris, bouton télécharger le document sur les factures archivées ; masquage des boutons email / dupliquer / créance irrécouvrable pour les archivées
+- **BIZ-191** — Vue factures client : bouton « Archiver la sélection » dans la toolbar, visible dès qu'au moins une facture payée est affichée, avec confirmation et toast de résultat
+- **BIZ-193** — Bouton « Exporter Excel » sur toutes les vues DataTable : factures fournisseur, paiements, contacts, employés, salaires, caisse (entrées), banque (transactions), exercices, plan comptable, règles, journal, grand livre, balance, bilan, compte de résultat — exporte les lignes filtrées visibles au format `.xlsx`
+
+### Technique
+- **TEC-192** — Composable `useTableExport` (SheetJS) : `exportToExcel(rows, columns, filename)` avec 4 tests Vitest
 
 ---
 

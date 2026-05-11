@@ -23,6 +23,8 @@ from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.invoice import (
+    BulkArchiveRequest,
+    BulkArchiveResult,
     InvoiceCreate,
     InvoiceEmailPreview,
     InvoiceEmailSendRequest,
@@ -38,6 +40,7 @@ from backend.services.invoice import (
     InvoiceDeleteError,
     InvoiceStatusError,
     InvoiceUpdateError,
+    archive_invoice,
 )
 
 logger = logging.getLogger(__name__)
@@ -252,6 +255,57 @@ async def restore_from_writeoff(
         detail={"number": invoice.number},
     )
     return updated
+
+
+@router.post("/bulk-archive", response_model=BulkArchiveResult)
+async def bulk_archive_invoices(
+    payload: BulkArchiveRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> BulkArchiveResult:
+    """Archive a batch of PAID client invoices.
+
+    Non-PAID invoices are silently skipped (counted in 'skipped').
+    Returns a summary of archived, skipped, and error counts.
+    """
+    archived_count = 0
+    skipped_count = 0
+    error_msgs: list[str] = []
+    archived_numbers: list[str] = []
+
+    for invoice_id in payload.invoice_ids:
+        invoice = await invoice_service.get_invoice(db, invoice_id)
+        if invoice is None:
+            skipped_count += 1
+            continue
+        if invoice.status != InvoiceStatus.PAID:
+            skipped_count += 1
+            continue
+        try:
+            updated = await archive_invoice(db, invoice)
+            archived_count += 1
+            archived_numbers.append(updated.number)
+        except InvoiceStatusError as exc:
+            error_msgs.append(f"{invoice.number}: {exc}")
+        except Exception as exc:
+            logger.exception("Unexpected error archiving invoice %d", invoice_id)
+            error_msgs.append(f"invoice#{invoice_id}: {exc}")
+
+    if archived_numbers:
+        await record_audit(
+            db,
+            action=AuditAction.INVOICE_BULK_ARCHIVED,
+            actor=current_user,
+            target_id=None,
+            target_type="invoice",
+            detail={"count": archived_count, "numbers": archived_numbers},
+        )
+
+    return BulkArchiveResult(
+        archived=archived_count,
+        skipped=skipped_count,
+        errors=error_msgs,
+    )
 
 
 @router.post(
@@ -525,10 +579,17 @@ async def download_invoice_file(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
 ) -> FileResponse:
-    """Return the uploaded file attachment for a supplier invoice."""
+    """Return the uploaded file attachment for a supplier or archived client invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
         raise not_found("Invoice")
+    # Supplier invoices and archived client invoices can have file attachments
+    if invoice.type == InvoiceType.CLIENT and invoice.status != InvoiceStatus.ARCHIVED:
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "INVOICE_FILE_NOT_AVAILABLE",
+            "File download is only available for supplier invoices or archived client invoices",
+        )
     if not invoice.file_path:
         raise api_error(status.HTTP_404_NOT_FOUND, "INVOICE_NO_FILE", "No file attached")
     # Resolve absolute path from stored relative filename
@@ -551,6 +612,7 @@ async def download_invoice_file(
         ".jpeg": "image/jpeg",
         ".png": "image/png",
         ".webp": "image/webp",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }
     media_type = media_type_map.get(suffix, "application/octet-stream")
     return FileResponse(

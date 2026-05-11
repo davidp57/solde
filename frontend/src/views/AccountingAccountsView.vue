@@ -51,6 +51,14 @@
             :disabled="!hasAnyFilters"
             @click="resetAllFilters"
           />
+          <Button
+            :label="t('common.export_excel')"
+            icon="pi pi-file-excel"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="doExportExcel"
+          />
         </div>
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
@@ -245,11 +253,22 @@ import {
 } from '../composables/activeFilterLabels'
 import { inFilter, textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { getFocusAccountKey, type FocusAccountKey } from '../utils/focusAccounts'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const toast = useToast()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'number', header: t('accounting.accounts.number') },
+  { field: 'label', header: t('accounting.accounts.label') },
+  { field: 'type_label', header: t('accounting.accounts.type') },
+  { field: 'is_default_label', header: t('accounting.accounts.default') },
+]
+function doExportExcel(): void {
+  exportToExcel(displayedAccounts.value, exportColumns, 'accounting-accounts-export')
+}
 
 const accounts = ref<AccountingAccount[]>([])
 const loading = ref(false)

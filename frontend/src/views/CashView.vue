@@ -64,6 +64,17 @@
               @click="resetActiveFilters"
             />
           </div>
+          <div class="app-field">
+            <label class="app-field__label">&nbsp;</label>
+            <Button
+              :label="t('common.export_excel')"
+              icon="pi pi-file-excel"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="doExportExcel"
+            />
+          </div>
         </div>
       </div>
 
@@ -773,6 +784,7 @@ import {
 import { formatDisplayDate } from '@/utils/format'
 import { type CashCountPrefill } from '@/api/bank'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import {
   dateRangeFilter,
   inFilter,
@@ -788,6 +800,18 @@ const router = useRouter()
 const toast = useToast()
 const confirm = useConfirm()
 const fiscalYearStore = useFiscalYearStore()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'date', header: t('cash.entry_date') },
+  { field: 'type_label', header: t('cash.entry_type') },
+  { field: 'amount_value', header: t('cash.entry_amount') },
+  { field: 'reference', header: t('cash.entry_reference') },
+  { field: 'description', header: t('cash.entry_description') },
+  { field: 'balance_after_value', header: t('cash.balance_after') },
+]
+function doExportExcel(): void {
+  exportToExcel(displayedEntries.value, exportColumns, 'cash-export')
+}
 
 const balance = ref('0')
 const fundsChartData = ref<CashFundsChartRow[]>([])

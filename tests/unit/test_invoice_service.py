@@ -18,6 +18,7 @@ from backend.services.invoice import (
     InvoiceDeleteError,
     InvoiceStatusError,
     InvoiceUpdateError,
+    archive_invoice,
     create_invoice,
     delete_invoice,
     duplicate_invoice,
@@ -669,3 +670,39 @@ class TestDeleteInvoice:
         await update_invoice_status(db_session, invoice, InvoiceStatus.SENT)  # type: ignore[arg-type]
         with pytest.raises(InvoiceDeleteError):
             await delete_invoice(db_session, invoice)  # type: ignore[arg-type]
+
+
+class TestArchiveInvoice:
+    async def test_paid_invoice_can_be_archived(self, db_session: AsyncSession):
+        invoice = await _make_invoice(db_session, total_amount=Decimal("100.00"))
+        await update_invoice_status(db_session, invoice, InvoiceStatus.PAID)  # type: ignore[arg-type]
+        invoice.pdf_path = "data/pdfs/facture_test.pdf"  # type: ignore[union-attr]
+        archived = await archive_invoice(db_session, invoice)  # type: ignore[arg-type]
+        assert archived.status == InvoiceStatus.ARCHIVED
+
+    async def test_archive_non_paid_raises(self, db_session: AsyncSession):
+        invoice = await _make_invoice(db_session)
+        with pytest.raises(InvoiceStatusError):
+            await archive_invoice(db_session, invoice)  # type: ignore[arg-type]
+
+    async def test_archive_sent_raises(self, db_session: AsyncSession):
+        invoice = await _make_invoice(db_session)
+        await update_invoice_status(db_session, invoice, InvoiceStatus.SENT)  # type: ignore[arg-type]
+        with pytest.raises(InvoiceStatusError):
+            await archive_invoice(db_session, invoice)  # type: ignore[arg-type]
+
+    async def test_archived_status_is_terminal(self, db_session: AsyncSession):
+        invoice = await _make_invoice(db_session, total_amount=Decimal("100.00"))
+        await update_invoice_status(db_session, invoice, InvoiceStatus.PAID)  # type: ignore[arg-type]
+        invoice.pdf_path = "data/pdfs/facture_test.pdf"  # type: ignore[union-attr]
+        archived = await archive_invoice(db_session, invoice)  # type: ignore[arg-type]
+        with pytest.raises(InvoiceStatusError):
+            await update_invoice_status(db_session, archived, InvoiceStatus.PAID)
+
+    async def test_paid_to_archived_is_valid_transition(self, db_session: AsyncSession):
+        invoice = await _make_invoice(db_session, total_amount=Decimal("50.00"))
+        await update_invoice_status(db_session, invoice, InvoiceStatus.SENT)  # type: ignore[arg-type]
+        await update_invoice_status(db_session, invoice, InvoiceStatus.PAID)  # type: ignore[arg-type]
+        invoice.pdf_path = "data/pdfs/facture_test.pdf"  # type: ignore[union-attr]
+        archived = await archive_invoice(db_session, invoice)  # type: ignore[arg-type]
+        assert archived.status == InvoiceStatus.ARCHIVED

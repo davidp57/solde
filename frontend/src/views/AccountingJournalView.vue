@@ -66,6 +66,14 @@
               :title="t('common.reset_filters')"
               @click="resetAllFilters"
             />
+            <Button
+              :label="t('common.export_excel')"
+              icon="pi pi-file-excel"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="doExportExcel"
+            />
           </div>
         </div>
 
@@ -703,6 +711,7 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatDisplayDate } from '@/utils/format'
 
@@ -720,6 +729,20 @@ const { isMobile } = useBreakpoints()
 const toast = useToast()
 const router = useRouter()
 const fiscalYearStore = useFiscalYearStore()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'date', header: t('accounting.journal.date') },
+  { field: 'source_label', header: t('accounting.journal.source') },
+  { field: 'reference_value', header: t('accounting.journal.reference') },
+  { field: 'contact_display', header: t('accounting.journal.contact') },
+  { field: 'label', header: t('accounting.journal.label') },
+  { field: 'accounts_summary', header: t('accounting.journal.accounts') },
+  { field: 'total_debit_value', header: t('accounting.journal.debit') },
+  { field: 'total_credit_value', header: t('accounting.journal.credit') },
+]
+function doExportExcel(): void {
+  exportToExcel(displayedGroups.value, exportColumns, 'accounting-journal-export')
+}
 
 const groups = ref<AccountingEntryGroupRead[]>([])
 const journalAccounts = ref<AccountingAccount[]>([])

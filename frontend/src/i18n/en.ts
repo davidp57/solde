@@ -51,6 +51,7 @@ export default {
     filter_placeholder: 'Search…',
     refresh: 'Refresh',
     reset_filters: 'Reset filters',
+    export_excel: 'Export Excel',
     previous: 'Previous',
     next: 'Next',
     empty: 'No data.',

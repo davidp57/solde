@@ -96,6 +96,13 @@
               :title="t('common.reset_filters')"
               @click="resetAllFilters"
             />
+            <Button
+              icon="pi pi-file-excel"
+              severity="secondary"
+              text
+              :title="t('common.export_excel')"
+              @click="doExportExcel"
+            />
           </div>
         </div>
 
@@ -124,6 +131,16 @@
               outlined
               size="small"
               @click="showIrrecoverable = !showIrrecoverable; loadInvoices()"
+            />
+          </div>
+          <div v-if="paidInDisplayed.length > 0" class="app-field">
+            <Button
+              :label="t('invoices.bulk_archive')"
+              icon="pi pi-inbox"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="confirmBulkArchive"
             />
           </div>
         </div>
@@ -364,6 +381,17 @@
                 @click="openPdf(data)"
               />
               <Button
+                v-if="data.status === 'archived' && data.file_path"
+                icon="pi pi-download"
+                size="small"
+                severity="secondary"
+                text
+                :title="t('invoices.download_file')"
+                :aria-label="t('invoices.download_file')"
+                @click="downloadFile(data)"
+              />
+              <Button
+                v-if="data.status !== 'archived'"
                 icon="pi pi-send"
                 size="small"
                 severity="secondary"
@@ -373,6 +401,7 @@
                 @click="sendEmail(data)"
               />
               <Button
+                v-if="data.status !== 'archived'"
                 icon="pi pi-copy"
                 size="small"
                 severity="secondary"
@@ -382,7 +411,7 @@
                 @click="duplicate(data)"
               />
               <Button
-                v-if="data.status !== 'draft' && data.status !== 'paid' && data.status !== 'irrecoverable' && parseFloat(data.total_amount) - parseFloat(data.paid_amount) > 0"
+                v-if="data.status !== 'draft' && data.status !== 'paid' && data.status !== 'irrecoverable' && data.status !== 'archived' && parseFloat(data.total_amount) - parseFloat(data.paid_amount) > 0"
                 icon="pi pi-ban"
                 size="small"
                 severity="danger"
@@ -789,7 +818,9 @@ import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
   duplicateInvoiceApi,
+  downloadInvoiceFileApi,
   downloadInvoicePdfApi,
+  bulkArchiveInvoicesApi,
   listInvoicesApi,
   writeOffInvoiceApi,
   restoreFromWriteoffApi,
@@ -802,6 +833,7 @@ import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
+import { useTableExport, type ExportColumn } from '../composables/useTableExport'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
@@ -840,6 +872,20 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
+const { exportToExcel } = useTableExport()
+
+const exportColumns: ExportColumn[] = [
+  { field: 'number', header: 'N° facture' },
+  { field: 'date', header: 'Date' },
+  { field: 'contact_name', header: 'Client' },
+  { field: 'label_label', header: 'Libellé' },
+  { field: 'total_amount_value', header: 'Montant TTC' },
+  { field: 'status_label', header: 'Statut' },
+]
+
+function doExportExcel(): void {
+  exportToExcel(displayedInvoices.value, exportColumns, 'client-invoices-export')
+}
 
 const invoices = ref<Invoice[]>([])
 const allClientInvoices = ref<Invoice[]>([])
@@ -988,6 +1034,10 @@ const selectedFiscalYearLabel = computed(() => fiscalYearStore.selectedFiscalYea
 
 const { receivableMetrics, portfolioMetrics } = useInvoiceMetrics(allClientInvoices, displayedInvoices)
 
+const paidInDisplayed = computed(() =>
+  (displayedInvoices.value as Invoice[]).filter((inv) => inv.status === 'paid'),
+)
+
 const activeFilterLabels = computed(() =>
   collectActiveFilterLabels(
     findSelectedFilterLabel(statusOptions, statusFilter.value),
@@ -1005,6 +1055,7 @@ const statusOptions = [
   { label: t('invoices.statuses.overdue'), value: 'overdue' },
   { label: t('invoices.statuses.disputed'), value: 'disputed' },
   { label: t('invoices.statuses.irrecoverable'), value: 'irrecoverable' },
+  { label: t('invoices.statuses.archived'), value: 'archived' },
 ]
 
 const paymentMethodOptions = [
@@ -1033,6 +1084,7 @@ function canRecordPayment(invoice: Invoice | null): boolean {
   return (
     invoice.status !== 'draft' &&
     invoice.status !== 'irrecoverable' &&
+    invoice.status !== 'archived' &&
     remainingForInvoice(invoice) > 0
   )
 }
@@ -1058,6 +1110,7 @@ function statusSeverity(s: InvoiceStatus): string {
     overdue: 'danger',
     disputed: 'danger',
     irrecoverable: 'secondary',
+    archived: 'secondary',
   }
   return map[s] ?? 'secondary'
 }
@@ -1170,6 +1223,21 @@ function sendEmail(invoice: Invoice): void {
   emailDialogInvoiceId.value = invoice.id
 }
 
+async function downloadFile(invoice: Invoice): Promise<void> {
+  try {
+    const blob = await downloadInvoiceFileApi(invoice.id)
+    const ext = invoice.file_path?.split('.').pop() ?? 'docx'
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `facture-${invoice.number ?? invoice.id}.${ext}`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  }
+}
+
 async function onEmailSent(): Promise<void> {
   emailDialogInvoiceId.value = null
   await refreshInvoicesData()
@@ -1199,6 +1267,32 @@ async function restoreFromWriteoff(invoice: Invoice): Promise<void> {
   try {
     await restoreFromWriteoffApi(invoice.id)
     toast.add({ severity: 'success', summary: t('invoices.restore_from_writeoff'), life: 3000 })
+    await refreshInvoicesData()
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  }
+}
+
+function confirmBulkArchive(): void {
+  confirm.require({
+    header: t('invoices.bulk_archive_confirm_title'),
+    message: t('invoices.bulk_archive_confirm_msg'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('common.confirm'),
+    rejectLabel: t('common.cancel'),
+    accept: () => executeBulkArchive(),
+  })
+}
+
+async function executeBulkArchive(): Promise<void> {
+  const ids = paidInDisplayed.value.map((inv) => inv.id)
+  try {
+    const result = await bulkArchiveInvoicesApi(ids)
+    toast.add({
+      severity: 'success',
+      summary: t('invoices.bulk_archive_result', { archived: result.archived, skipped: result.skipped }),
+      life: 5000,
+    })
     await refreshInvoicesData()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })

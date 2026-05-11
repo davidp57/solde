@@ -62,6 +62,17 @@
               :disabled="!accountNumber || !fiscalYearId"
             />
           </div>
+          <div class="app-field">
+            <label class="app-field__label">&nbsp;</label>
+            <Button
+              :label="t('common.export_excel')"
+              icon="pi pi-file-excel"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="doExportExcel"
+            />
+          </div>
         </div>
       </div>
 
@@ -241,12 +252,25 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { formatAccountingAmount, formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const fiscalYearStore = useFiscalYearStore()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'date', header: t('accounting.journal.date') },
+  { field: 'entry_number', header: t('accounting.journal.entry_number') },
+  { field: 'label', header: t('accounting.journal.label') },
+  { field: 'debit_value', header: t('accounting.journal.debit') },
+  { field: 'credit_value', header: t('accounting.journal.credit') },
+  { field: 'running_balance_value', header: t('accounting.balance.solde') },
+]
+function doExportExcel(): void {
+  exportToExcel(ledgerRows.value, exportColumns, 'accounting-ledger-export')
+}
 
 const ledger = ref<LedgerRead | null>(null)
 const accounts = ref<AccountingAccount[]>([])
