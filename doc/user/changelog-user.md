@@ -10,8 +10,12 @@ Ce document présente les changements visibles dans l'application, version par v
 
 #### Paramètres — Sauvegarde automatique
 - Nouveau panneau **« Sauvegarde automatique »** dans les paramètres (visible uniquement par les administrateurs).
-- Il est possible d'**activer ou désactiver** les sauvegardes automatiques et de choisir leur fréquence : toutes les N heures ou selon un planning personnalisé (expression cron).
-- Le **statut du dernier enregistrement** (date, heure, succès ou échec) est visible en temps réel.
+- Il est possible d'**activer ou désactiver** les sauvegardes automatiques et de choisir leur fréquence :
+  - **Quotidien (heure fixe)** : la sauvegarde se déclenche chaque jour à l'heure choisie (format HH:MM).
+  - **Toutes les N heures** : sauvegarde répétée selon un intervalle en heures.
+  - **Expression cron** : planning avancé personnalisé.
+- Par défaut, seul le **dernier fichier de sauvegarde** (snapshot de la base) est envoyé vers la destination. L'option **« Inclure tous les fichiers de sauvegarde précédents »** permet d'envoyer l'intégralité des sauvegardes disponibles.
+- Le **statut du dernier enregistrement** (date, heure, succès ou échec) est visible en temps réel, y compris lorsque la sauvegarde a été déclenchée automatiquement — le spinner apparaît dans les 10 secondes suivant le démarrage.
 - Il est possible d'ajouter plusieurs **destinations de sauvegarde** : dossier local sur le serveur, partage réseau (SMB/NAS), ou OneDrive.
 - Chaque destination peut être **testée** (connexion vérifiée) avant d'être activée.
 - La liste des sauvegardes disponibles permet de **tester la restauration** (vérification de l'intégrité du fichier) ou de **restaurer** une sauvegarde précédente.
