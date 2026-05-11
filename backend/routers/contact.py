@@ -17,6 +17,7 @@ from backend.schemas.contact import (
     ContactHistory,
     ContactRead,
     ContactUpdate,
+    MergeContactResult,
 )
 from backend.services import contact as contact_service
 from backend.services.audit_service import AuditAction, record_audit
@@ -30,6 +31,12 @@ _WriteAccess = Annotated[
 _ReadAccess = Annotated[
     User,
     Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
+]
+
+
+_AdminAccess = Annotated[
+    User,
+    Depends(require_role(UserRole.ADMIN)),
 ]
 
 
@@ -184,3 +191,36 @@ async def mark_douteux(
         "account_client": credit_entry.account_number,
         "amount": str(debit_entry.debit),
     }
+
+
+@router.post("/{contact_id}/merge", response_model=MergeContactResult)
+async def merge_contact(
+    contact_id: int,
+    target_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _AdminAccess,
+) -> MergeContactResult:
+    """Merge source contact into target. Reassigns all linked records and soft-deletes source.
+
+    Only ADMIN role is allowed. The source contact (contact_id) is soft-deleted;
+    the target contact (target_id query param) is kept.
+    """
+    try:
+        result = await contact_service.merge_contacts(db, source_id=contact_id, target_id=target_id)
+    except ValueError as exc:
+        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "MERGE_ERROR", str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.CONTACT_MERGED,
+        actor=current_user,
+        target_id=target_id,
+        target_type="contact",
+        detail={
+            "source_id": contact_id,
+            "invoices_reassigned": result.invoices_reassigned,
+            "payments_reassigned": result.payments_reassigned,
+            "cash_entries_reassigned": result.cash_entries_reassigned,
+            "salaries_reassigned": result.salaries_reassigned,
+        },
+    )
+    return result

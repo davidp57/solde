@@ -142,3 +142,20 @@ export async function importContactEmailsApi(rows: ContactEmailImportRow[]): Pro
   const response = await apiClient.post<ContactEmailImportResult>('/api/contacts/import-emails', rows)
   return response.data
 }
+
+export interface MergeContactResult {
+  target_id: number
+  invoices_reassigned: number
+  payments_reassigned: number
+  cash_entries_reassigned: number
+  salaries_reassigned: number
+}
+
+export async function mergeContactApi(sourceId: number, targetId: number): Promise<MergeContactResult> {
+  const response = await apiClient.post<MergeContactResult>(
+    `/api/contacts/${sourceId}/merge`,
+    null,
+    { params: { target_id: targetId } },
+  )
+  return response.data
+}
