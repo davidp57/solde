@@ -18,6 +18,7 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 | UI | ~65 min | ~30 min | **0,46** | 15 min | ? | ↓ facteur → 1,00 |
 | CR2 | ~70 min | ~20 min | **0,29** | — | — | voir note |
 | REV | ~190 min | ~70 min | **0,37** | 15 min | — | voir note REV |
+| BK | ~280 min | ~2h04+ (6 tickets n/m) | **≤0,44** | 15 min | ~10 min | ratio partiel, 6 tickets non mesurés |
 
 > Lot UI : estimations 2x trop élevées. Les tickets UI/bulk-replace et les vérifications de tickets "déjà fait" ont été surestimés.
 > Lot CR2 : ratio 0,29 — très inférieur à 1,15. Cependant ces tickets étaient tous très petits (i18n, tests, nav, squelette) et le facteur 1,00 reflète déjà une marge nulle. Plutôt que d'abaisser le facteur en dessous de 1,00 (ce qui serait contre-productif), la leçon est : **pour les tickets de finition/tests simples, l'estimation de référence doit être 3–5 min, pas 10–20 min**. Facteur maintenu à 1,00 ; calibration des estimations unitaires à revoir pour ces catégories.
@@ -51,7 +52,7 @@ Permettre de modifier ou supprimer les opérations bancaires créées manuelleme
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
-| BK | Backup automatique | v1.7 | BIZ-173→184, BIZ-187, BIZ-188, BIZ-189 | 2026-05-11 | ~4h | — |
+| BK | Backup automatique | v1.7 | BIZ-173→184, BIZ-187, BIZ-188, BIZ-189 | 2026-05-11 | ~4h40 | ~2h+ (partiel) |
 | TEC-185/BIZ-186 | Fix Chrome PDF + filigrane Payé | v1.6.3 | TEC-185, BIZ-186 | 2026-05-10 | ~40 min | — |
 | REV2 | Refactoring technique différé | v1.6.2 | TEC-170, TEC-171, TEC-173 | 2026-05-07 | ~55 min | — |
 | REV | Revue de code technique | v1.6.1 | TEC-160–165, 167–169, 172 (+ TEC-161, 163, 166 déjà faits) | 2026-05-06 | ~190 min | ~70 min |
@@ -71,22 +72,23 @@ Permettre de modifier ou supprimer les opérations bancaires créées manuelleme
 
 | Ticket | Titre | Est. | Réel |
 | --- | --- | --- | --- |
-| BIZ-173 | Migration Alembic + modèle BackupDestination | ~15 min | — |
-| BIZ-174 | Schemas Pydantic backup | ~10 min | — |
-| BIZ-175 | Service rclone (backup_destination_service) | ~25 min | — |
-| BIZ-176 | Dockerfile — installation rclone | ~5 min | — |
-| BIZ-177 | Scheduler APScheduler + lifespan main.py | ~30 min | — |
-| BIZ-178 | Service restore (test-restore + restore distante) | ~15 min | — |
-| BIZ-179 | Router backup.py (12 endpoints) | ~35 min | — |
-| BIZ-180 | Frontend api/backup.ts | ~10 min | — |
-| BIZ-181 | Frontend SettingsBackupPanel.vue | ~45 min | — |
-| BIZ-182 | Frontend SettingsView + i18n fr/en | ~15 min | — |
-| BIZ-183 | Tests unitaires backend | ~15 min | — |
-| BIZ-184 | Tests intégration API backup | ~20 min | — |
-| BIZ-187 | Type planification quotidien (HH:MM) + option snapshot-only | ~35 min | — |
-| BIZ-188 | Option inclure tous les backups précédents | *(inclus BIZ-187)* | — |
-| BIZ-189 | Fix : spinner visible si backup auto déclenché page ouverte | ~15 min | — |
-| **Total** | | **~4h40** | — |
+| BIZ-173 | Migration Alembic + modèle BackupDestination | ~15 min | ~7 min |
+| BIZ-174 | Schemas Pydantic backup | ~10 min | ~5 min |
+| BIZ-175 | Service rclone (backup_destination_service) | ~25 min | ~9 min |
+| BIZ-176 | Dockerfile — installation rclone | ~5 min | ~3 min |
+| BIZ-177 | Scheduler APScheduler + lifespan main.py | ~30 min | ~14 min |
+| BIZ-178 | Service restore (test-restore + restore distante) | ~15 min | ~9 min |
+| BIZ-179 | Router backup.py (12 endpoints) | ~35 min | ~19 min |
+| BIZ-180 | Frontend api/backup.ts | ~10 min | ~7 min |
+| BIZ-181 | Frontend SettingsBackupPanel.vue | ~45 min | ~16 min |
+| BIZ-182 | Frontend SettingsView + i18n fr/en | ~15 min | n/m |
+| BIZ-183 | Tests unitaires backend | ~15 min | n/m |
+| BIZ-184 | Tests intégration API backup | ~20 min | n/m |
+| BIZ-187 | Type planification quotidien (HH:MM) + option snapshot-only | ~35 min | n/m |
+| BIZ-188 | Option inclure tous les backups précédents | *(inclus BIZ-187)* | n/m |
+| BIZ-189 | Fix : spinner visible si backup auto déclenché page ouverte | ~15 min | n/m |
+| PR review (Copilot) | Corrections commentaires revue | — | ~35 min |
+| **Total** | | **~4h40** | **~2h04 mesurés** (6 tickets n/m) |
 
 </details>
 
