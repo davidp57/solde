@@ -2,9 +2,13 @@
 
 Provides:
 - write_rclone_config: regenerates data/rclone.conf from DB destinations
-- sync_destination: runs ``rclone sync`` for a given destination
-- test_destination_connection: runs ``rclone lsd`` to verify connectivity
+- sync_destination: syncs local paths to a remote destination
+- test_destination_connection: verifies connectivity to a destination
 - fetch_remote_backup: copies a remote backup file locally before restore
+
+OneDrive destinations bypass rclone and upload directly via Microsoft Graph API
+because rclone v1.60 DEV has a broken upload-session implementation for personal
+OneDrive accounts.  Graph API uploads are made with httpx.
 """
 
 import asyncio
@@ -13,8 +17,11 @@ import io
 import json
 import logging
 import re
+import urllib.parse
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+
+import httpx
 
 from backend.models.backup_destination import BackupDestination
 from backend.schemas.backup import BackupConnectionTestResult
@@ -85,8 +92,6 @@ async def refresh_onedrive_tokens(destinations: list[BackupDestination]) -> None
     call ``write_rclone_config``.  Also persists the new token to the DB
     so future runs start with a fresh token.
     """
-    import httpx
-
     for dest in destinations:
         if dest.type != "onedrive" or not dest.rclone_config:
             continue
@@ -158,27 +163,152 @@ async def sync_destination(
     src_paths: list[str],
     run_ts: str,
 ) -> None:
-    """Run ``rclone copy`` for each source path to the destination.
+    """Sync local paths to a remote destination under a dated sub-folder.
 
-    Files are placed under a dated sub-folder named after the backup run
-    timestamp (``run_ts``, format ``YYYY-MM-DDTHH-MM-SS``) so every backup
-    run creates its own directory at the destination.
+    Files land under ``<target_path>/<run_ts>/<source_name>/``.
+    OneDrive destinations use the Microsoft Graph API directly (bypassing
+    rclone's broken upload-session in v1.60 DEV).  All other destination
+    types use ``rclone copy``.
 
-    Example: target_path=solde, run_ts=2026-05-11T14-30-00
-      → solde/2026-05-11T14-30-00/backups/
-      → solde/2026-05-11T14-30-00/uploads/
-
-    Raises RuntimeError if rclone returns a non-zero exit code.
+    Raises RuntimeError on failure.
     """
-    conf = str(_RCLONE_CONF_PATH.resolve())
     for src in src_paths:
         subdir = Path(src).name  # "backups", "uploads", etc.
         base = dest.target_path.rstrip("/") if dest.target_path else ""
         remote_path = f"{base}/{run_ts}/{subdir}" if base else f"{run_ts}/{subdir}"
-        remote = f"{dest.rclone_remote_name}:{remote_path}"
-        cmd = ["rclone", "copy", src, remote, "--config", conf]
-        logger.info("rclone copy: %s -> %s", src, remote)
-        await _run_rclone(cmd)
+
+        if dest.type == "onedrive":
+            await _graph_upload_dir(dest, Path(src), remote_path)
+        else:
+            conf = str(_RCLONE_CONF_PATH.resolve())
+            remote = f"{dest.rclone_remote_name}:{remote_path}"
+            cmd = ["rclone", "copy", src, remote, "--config", conf]
+            logger.info("rclone copy: %s -> %s", src, remote)
+            await _run_rclone(cmd)
+
+
+# ---------------------------------------------------------------------------
+# Microsoft Graph API upload helpers (OneDrive)
+# ---------------------------------------------------------------------------
+
+_GRAPH_BASE = "https://graph.microsoft.com/v1.0"
+_GRAPH_CHUNK_SIZE = 10 * 1024 * 1024  # 10 MiB — must be a multiple of 320 KiB
+_GRAPH_SMALL_LIMIT = 4 * 1024 * 1024  # use simple PUT below 4 MiB
+
+
+def _graph_access_token(dest: BackupDestination) -> str:
+    """Extract the current access_token from dest.rclone_config."""
+    if not dest.rclone_config:
+        raise RuntimeError(f"OneDrive dest {dest.id} has no rclone_config")
+    config = json.loads(dest.rclone_config)
+    token = json.loads(config.get("token", "{}"))
+    access_token = token.get("access_token", "")
+    if not access_token:
+        raise RuntimeError(f"OneDrive dest {dest.id}: no access_token in config")
+    return str(access_token)
+
+
+async def _graph_upload_file(
+    client: httpx.AsyncClient,
+    access_token: str,
+    drive_id: str,
+    remote_path: str,
+    local_file: Path,
+) -> None:
+    """Upload one file to OneDrive via Microsoft Graph API.
+
+    Uses a simple PUT for files ≤ 4 MiB and an upload session for larger files.
+    ``remote_path`` is a OneDrive path relative to the drive root, e.g.
+    ``solde/backups/2026-05-11T14-00-00/backups/solde_backup_20260511.db``.
+    """
+    file_size = local_file.stat().st_size
+    auth = {"Authorization": f"Bearer {access_token}"}
+    encoded = urllib.parse.quote(remote_path)
+
+    # Drive-relative endpoint works for both personal and business drives.
+    item_url = f"{_GRAPH_BASE}/drives/{drive_id}/root:/{encoded}"
+
+    if file_size <= _GRAPH_SMALL_LIMIT:
+        # Simple PUT
+        content = local_file.read_bytes()
+        resp = await client.put(
+            f"{item_url}:/content",
+            headers={**auth, "Content-Type": "application/octet-stream"},
+            content=content,
+            timeout=60,
+        )
+        resp.raise_for_status()
+        logger.debug("Graph PUT %s → %d", local_file.name, resp.status_code)
+    else:
+        # Create upload session
+        resp = await client.post(
+            f"{item_url}:/createUploadSession",
+            headers=auth,
+            json={"item": {"@microsoft.graph.conflictBehavior": "replace"}},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        upload_url: str = resp.json()["uploadUrl"]
+
+        # Upload chunks — personal OneDrive upload session URLs are pre-authenticated
+        # (SAS-style). Do NOT include the Authorization header for segment PUTs.
+        uploaded = 0
+        with local_file.open("rb") as fh:
+            while uploaded < file_size:
+                chunk = fh.read(_GRAPH_CHUNK_SIZE)
+                if not chunk:
+                    break
+                end = uploaded + len(chunk) - 1
+                chunk_resp = await client.put(
+                    upload_url,
+                    headers={
+                        "Content-Range": f"bytes {uploaded}-{end}/{file_size}",
+                        "Content-Type": "application/octet-stream",
+                    },
+                    content=chunk,
+                    timeout=120,
+                )
+                if chunk_resp.status_code not in (200, 201, 202):
+                    chunk_resp.raise_for_status()
+                uploaded += len(chunk)
+                logger.debug(
+                    "Graph chunk %s: %d/%d bytes uploaded",
+                    local_file.name,
+                    uploaded,
+                    file_size,
+                )
+        logger.info("Graph upload session %s → done (%d bytes)", local_file.name, file_size)
+
+
+async def _graph_upload_dir(
+    dest: BackupDestination,
+    src_dir: Path,
+    remote_path: str,
+) -> None:
+    """Upload all files from ``src_dir`` to ``remote_path`` on OneDrive."""
+    if not dest.rclone_config:
+        raise RuntimeError(f"OneDrive dest {dest.id} has no rclone_config")
+    config = json.loads(dest.rclone_config)
+    drive_id = config.get("drive_id", "")
+    access_token = _graph_access_token(dest)
+
+    files = sorted(src_dir.iterdir()) if src_dir.is_dir() else []
+    if not files:
+        logger.info("Graph upload: no files in %s, skipping", src_dir)
+        return
+
+    async with httpx.AsyncClient() as client:
+        for local_file in files:
+            if not local_file.is_file():
+                continue
+            file_remote = f"{remote_path}/{local_file.name}"
+            logger.info(
+                "Graph upload: %s → drives/%s/root:/%s",
+                local_file.name,
+                drive_id,
+                file_remote,
+            )
+            await _graph_upload_file(client, access_token, drive_id, file_remote, local_file)
 
 
 async def test_destination_connection(dest: BackupDestination) -> BackupConnectionTestResult:
