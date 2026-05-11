@@ -55,6 +55,7 @@ export interface BackupRunStatus {
   last_run_at: string | null
   last_run_status: 'success' | 'failure' | null
   last_run_error: string | null
+  is_running: boolean
   destinations_results: Array<{
     destination_id: number
     destination_name: string
