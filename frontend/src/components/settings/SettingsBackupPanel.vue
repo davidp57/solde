@@ -257,14 +257,11 @@
         <!-- Path selector — shown once authorized -->
         <div v-if="oauthDone" class="app-field col-span-2">
           <label class="app-field__label">{{ t('settings.backup_target_path') }}</label>
-          <div class="onedrive-path-row">
-            <div style="flex: 1; min-width: 0;">
-              <InputText
-                v-model="newDest.target_path"
-                class="w-full"
-                :placeholder="t('settings.backup_onedrive_path_placeholder')"
-              />
-            </div>
+          <InputGroup>
+            <InputText
+              v-model="newDest.target_path"
+              :placeholder="t('settings.backup_onedrive_path_placeholder')"
+            />
             <Button
               icon="pi pi-folder-open"
               :title="t('settings.backup_browse_onedrive')"
@@ -272,7 +269,7 @@
               outlined
               @click="openFolderBrowser"
             />
-          </div>
+          </InputGroup>
         </div>
       </template>
     </div>
@@ -348,6 +345,7 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
+import InputGroup from 'primevue/inputgroup'
 import Message from 'primevue/message'
 import Password from 'primevue/password'
 import ProgressSpinner from 'primevue/progressspinner'
@@ -824,11 +822,6 @@ function formatDate(iso: string): string {
   gap: 0.5rem;
   color: var(--text-color-secondary);
   font-size: 0.9rem;
-}
-.onedrive-path-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
 }
 .folder-breadcrumb {
   display: flex;

@@ -118,6 +118,7 @@ async def run_backup_job(
     """Execute one backup cycle (called by the scheduler)."""
     from backend.database import get_session
     from backend.services.backup_destination_service import (
+        refresh_onedrive_tokens,
         sync_destination,
         write_rclone_config,
     )
@@ -162,6 +163,12 @@ async def run_backup_job(
             select(BackupDestination).where(BackupDestination.enabled.is_(True))
         )
         destinations = list(result.scalars().all())
+        # Pre-refresh expired OneDrive tokens so rclone always starts with a
+        # valid access_token (avoids relying on rclone's own refresh mechanism).
+        await refresh_onedrive_tokens(destinations)
+        if any(d.type == "onedrive" for d in destinations):
+            # Persist refreshed tokens back to DB in the same session.
+            await db.commit()
 
     if destinations:
         write_rclone_config(destinations)
