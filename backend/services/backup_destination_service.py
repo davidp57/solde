@@ -18,6 +18,7 @@ import json
 import logging
 import re
 import urllib.parse
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -162,6 +163,7 @@ async def sync_destination(
     dest: BackupDestination,
     src_paths: list[str],
     run_ts: str,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> None:
     """Sync local paths to a remote destination under a dated sub-folder.
 
@@ -170,21 +172,43 @@ async def sync_destination(
     rclone's broken upload-session in v1.60 DEV).  All other destination
     types use ``rclone copy``.
 
+    ``on_progress(done, total)`` is called after each uploaded file (OneDrive)
+    or at start/end (rclone, no per-file info available).
+
     Raises RuntimeError on failure.
     """
-    for src in src_paths:
+    if dest.type == "onedrive" and on_progress is not None:
+        # Pre-count all files across every source path to report unified progress.
+        total_files = sum(
+            sum(1 for p in Path(s).rglob("*") if p.is_file()) for s in src_paths if Path(s).is_dir()
+        )
+        counter: list[int] = [0]
+
+        def _on_file() -> None:
+            counter[0] += 1
+            on_progress(counter[0], total_files)
+
+        _file_cb: Callable[[], None] | None = _on_file
+    else:
+        _file_cb = None
+
+    for i, src in enumerate(src_paths):
         subdir = Path(src).name  # "backups", "uploads", etc.
         base = dest.target_path.rstrip("/") if dest.target_path else ""
         remote_path = f"{base}/{run_ts}/{subdir}" if base else f"{run_ts}/{subdir}"
 
         if dest.type == "onedrive":
-            await _graph_upload_dir(dest, Path(src), remote_path)
+            await _graph_upload_dir(dest, Path(src), remote_path, on_file_uploaded=_file_cb)
         else:
+            if on_progress is not None:
+                on_progress(i, len(src_paths))
             conf = str(_RCLONE_CONF_PATH.resolve())
             remote = f"{dest.rclone_remote_name}:{remote_path}"
             cmd = ["rclone", "copy", src, remote, "--config", conf]
             logger.info("rclone copy: %s -> %s", src, remote)
             await _run_rclone(cmd)
+            if on_progress is not None:
+                on_progress(i + 1, len(src_paths))
 
 
 # ---------------------------------------------------------------------------
@@ -284,10 +308,12 @@ async def _graph_upload_dir(
     dest: BackupDestination,
     src_dir: Path,
     remote_path: str,
+    on_file_uploaded: Callable[[], None] | None = None,
 ) -> None:
     """Upload all files from ``src_dir`` to ``remote_path`` on OneDrive.
 
     Recurses into sub-directories, preserving the relative path structure.
+    Calls ``on_file_uploaded()`` after each successful file upload.
     """
     if not dest.rclone_config:
         raise RuntimeError(f"OneDrive dest {dest.id} has no rclone_config")
@@ -315,6 +341,8 @@ async def _graph_upload_dir(
                 file_remote,
             )
             await _graph_upload_file(client, access_token, drive_id, file_remote, local_file)
+            if on_file_uploaded is not None:
+                on_file_uploaded()
 
 
 async def test_destination_connection(dest: BackupDestination) -> BackupConnectionTestResult:
