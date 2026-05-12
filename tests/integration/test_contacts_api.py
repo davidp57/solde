@@ -71,13 +71,13 @@ class TestListContacts:
         assert response.status_code == 200
         assert len(response.json()) == 101
 
-    async def test_limit_param_is_capped_at_1000(
+    async def test_limit_param_is_capped_at_5000(
         self,
         client: AsyncClient,
         auth_headers: dict,
         db_session: AsyncSession,
     ):
-        response = await client.get("/api/contacts/?limit=1001", headers=auth_headers)
+        response = await client.get("/api/contacts/?limit=5001", headers=auth_headers)
         assert response.status_code == 422
 
     async def test_readonly_user_cannot_list_contacts(
@@ -274,3 +274,101 @@ class TestDeleteContact:
     async def test_returns_404_for_unknown(self, client: AsyncClient, auth_headers: dict):
         response = await client.delete("/api/contacts/99999", headers=auth_headers)
         assert response.status_code == 404
+
+
+class TestMergeContact:
+    async def test_merge_reassigns_nothing_and_soft_deletes_source(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        source = await client.post(
+            "/api/contacts/", json={"type": "client", "nom": "Source"}, headers=auth_headers
+        )
+        target = await client.post(
+            "/api/contacts/", json={"type": "client", "nom": "Cible"}, headers=auth_headers
+        )
+        source_id = source.json()["id"]
+        target_id = target.json()["id"]
+
+        response = await client.post(
+            f"/api/contacts/{source_id}/merge",
+            params={"target_id": target_id},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["target_id"] == target_id
+        assert data["invoices_reassigned"] == 0
+        assert data["payments_reassigned"] == 0
+
+        # Source should be soft-deleted
+        get_source = await client.get(f"/api/contacts/{source_id}", headers=auth_headers)
+        assert get_source.json()["is_active"] is False
+
+    async def test_merge_copies_missing_fields_to_target(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        source = await client.post(
+            "/api/contacts/",
+            json={
+                "type": "client",
+                "nom": "Source",
+                "adresse": "1 rue de la Paix",
+                "telephone": "0600000000",
+            },
+            headers=auth_headers,
+        )
+        target = await client.post(
+            "/api/contacts/", json={"type": "client", "nom": "Cible"}, headers=auth_headers
+        )
+        source_id = source.json()["id"]
+        target_id = target.json()["id"]
+
+        await client.post(
+            f"/api/contacts/{source_id}/merge",
+            params={"target_id": target_id},
+            headers=auth_headers,
+        )
+
+        get_target = await client.get(f"/api/contacts/{target_id}", headers=auth_headers)
+        assert get_target.json()["adresse"] == "1 rue de la Paix"
+        assert get_target.json()["telephone"] == "0600000000"
+
+    async def test_merge_same_contact_returns_422(self, client: AsyncClient, auth_headers: dict):
+        contact = await client.post(
+            "/api/contacts/", json={"type": "client", "nom": "Test"}, headers=auth_headers
+        )
+        contact_id = contact.json()["id"]
+
+        response = await client.post(
+            f"/api/contacts/{contact_id}/merge",
+            params={"target_id": contact_id},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422
+
+    async def test_merge_unknown_source_returns_422(self, client: AsyncClient, auth_headers: dict):
+        target = await client.post(
+            "/api/contacts/", json={"type": "client", "nom": "Cible"}, headers=auth_headers
+        )
+        response = await client.post(
+            "/api/contacts/99999/merge",
+            params={"target_id": target.json()["id"]},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422
+
+    async def test_merge_requires_admin(
+        self, client: AsyncClient, auth_headers: dict, secretaire_auth_headers: dict
+    ):
+        source = await client.post(
+            "/api/contacts/", json={"type": "client", "nom": "Source"}, headers=auth_headers
+        )
+        target = await client.post(
+            "/api/contacts/", json={"type": "client", "nom": "Cible"}, headers=auth_headers
+        )
+        response = await client.post(
+            f"/api/contacts/{source.json()['id']}/merge",
+            params={"target_id": target.json()["id"]},
+            headers=secretaire_auth_headers,
+        )
+        assert response.status_code == 403

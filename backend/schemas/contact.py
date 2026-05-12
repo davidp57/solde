@@ -150,6 +150,14 @@ class ContactHistory(BaseModel):
     total_due: Decimal
 
 
+class MergeContactResult(BaseModel):
+    target_id: int
+    invoices_reassigned: int
+    payments_reassigned: int
+    cash_entries_reassigned: int
+    salaries_reassigned: int
+
+
 class ContactEmailImportRow(BaseModel):
     nom: str
     email: EmailStr

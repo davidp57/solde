@@ -77,6 +77,9 @@ class AppSettings(Base):
     bank_account_courant_acctid: Mapped[str | None] = mapped_column(String(50), nullable=True)
     bank_account_epargne_acctid: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
+    # List display limit (applies to all paginated list views; 0 = unlimited)
+    list_default_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=500)
+
     # Backup
     backup_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     backup_schedule_type: Mapped[str] = mapped_column(

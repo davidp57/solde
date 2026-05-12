@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
@@ -17,6 +17,7 @@ from backend.schemas.contact import (
     ContactHistory,
     ContactRead,
     ContactUpdate,
+    MergeContactResult,
 )
 from backend.services import contact as contact_service
 from backend.services.audit_service import AuditAction, record_audit
@@ -33,18 +34,25 @@ _ReadAccess = Annotated[
 ]
 
 
+_AdminAccess = Annotated[
+    User,
+    Depends(require_role(UserRole.ADMIN)),
+]
+
+
 @router.get("/", response_model=list[ContactRead])
 async def list_contacts(
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     type: ContactType | None = Query(default=None),
     search: str | None = Query(default=None, max_length=100),
     active_only: bool = Query(default=True),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=1000, ge=1, le=1000),
+    limit: int = Query(default=1000, ge=1, le=5000),
 ) -> list[ContactRead]:
     """List contacts with optional filters."""
-    return await contact_service.list_contacts_enriched(
+    items = await contact_service.list_contacts_enriched(
         db,
         type=type,
         search=search,
@@ -52,6 +60,14 @@ async def list_contacts(
         skip=skip,
         limit=limit,
     )
+    total = await contact_service.count_contacts(
+        db,
+        type=type,
+        search=search,
+        active_only=active_only,
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
 @router.post("/", response_model=ContactRead, status_code=status.HTTP_201_CREATED)
@@ -184,3 +200,36 @@ async def mark_douteux(
         "account_client": credit_entry.account_number,
         "amount": str(debit_entry.debit),
     }
+
+
+@router.post("/{contact_id}/merge", response_model=MergeContactResult)
+async def merge_contact(
+    contact_id: int,
+    target_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _AdminAccess,
+) -> MergeContactResult:
+    """Merge source contact into target. Reassigns all linked records and soft-deletes source.
+
+    Only ADMIN role is allowed. The source contact (contact_id) is soft-deleted;
+    the target contact (target_id query param) is kept.
+    """
+    try:
+        result = await contact_service.merge_contacts(db, source_id=contact_id, target_id=target_id)
+    except ValueError as exc:
+        raise api_error(status.HTTP_422_UNPROCESSABLE_ENTITY, "MERGE_ERROR", str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.CONTACT_MERGED,
+        actor=current_user,
+        target_id=target_id,
+        target_type="contact",
+        detail={
+            "source_id": contact_id,
+            "invoices_reassigned": result.invoices_reassigned,
+            "payments_reassigned": result.payments_reassigned,
+            "cash_entries_reassigned": result.cash_entries_reassigned,
+            "salaries_reassigned": result.salaries_reassigned,
+        },
+    )
+    return result

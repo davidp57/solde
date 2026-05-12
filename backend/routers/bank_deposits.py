@@ -3,7 +3,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
@@ -37,13 +37,14 @@ _ReadAccess = Annotated[
 
 @router.get("/deposits", response_model=list[DepositRead])
 async def list_deposits(
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     from_date: date | None = Query(default=None),
     to_date: date | None = Query(default=None),
     confirmed: bool | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=1000, ge=1, le=1000),
+    limit: int = Query(default=1000, ge=1, le=5000),
 ) -> list[DepositRead]:
     deposits = await bank_service.list_deposits(
         db,
@@ -53,6 +54,13 @@ async def list_deposits(
         skip=skip,
         limit=limit,
     )
+    total = await bank_service.count_deposits(
+        db,
+        from_date=from_date,
+        to_date=to_date,
+        confirmed=confirmed,
+    )
+    response.headers["X-Total-Count"] = str(total)
     result: list[DepositRead] = []
     for d in deposits:
         pids = await bank_service.get_deposit_payment_ids(db, d.id)

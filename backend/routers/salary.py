@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
@@ -57,6 +57,7 @@ def _to_read(salary: "Salary") -> SalaryRead:
 
 @router.get("/", response_model=list[SalaryRead])
 async def list_salaries(
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _ReadAccess,
     employee_id: int | None = Query(default=None),
@@ -64,7 +65,7 @@ async def list_salaries(
     from_month: str | None = Query(default=None),
     to_month: str | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=1000, ge=1, le=1000),
+    limit: int = Query(default=1000, ge=1, le=5000),
 ) -> list[SalaryRead]:
     salaries = await salary_service.list_salaries(
         db,
@@ -75,6 +76,14 @@ async def list_salaries(
         skip=skip,
         limit=limit,
     )
+    total = await salary_service.count_salaries(
+        db,
+        employee_id=employee_id,
+        month=month,
+        from_month=from_month,
+        to_month=to_month,
+    )
+    response.headers["X-Total-Count"] = str(total)
     return [_to_read(s) for s in salaries]
 
 

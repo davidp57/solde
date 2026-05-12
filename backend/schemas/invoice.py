@@ -137,6 +137,16 @@ class InvoiceRead(InvoiceBase):
     model_config = {"from_attributes": True}
 
 
+class BulkArchiveRequest(BaseModel):
+    invoice_ids: list[int] = Field(min_length=1)
+
+
+class BulkArchiveResult(BaseModel):
+    archived: int
+    skipped: int
+    errors: list[str]
+
+
 class InvoiceEmailPreview(BaseModel):
     """Email preview returned by GET /{invoice_id}/email-preview."""
 

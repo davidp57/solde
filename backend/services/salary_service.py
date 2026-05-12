@@ -52,6 +52,28 @@ async def list_salaries(
     return list(result.scalars().all())
 
 
+async def count_salaries(
+    db: AsyncSession,
+    *,
+    employee_id: int | None = None,
+    month: str | None = None,
+    from_month: str | None = None,
+    to_month: str | None = None,
+) -> int:
+    """Count salaries matching filters (no limit)."""
+    query = select(func.count()).select_from(Salary)
+    if employee_id is not None:
+        query = query.where(Salary.employee_id == employee_id)
+    if month is not None:
+        query = query.where(Salary.month == month)
+    if from_month is not None:
+        query = query.where(Salary.month >= from_month)
+    if to_month is not None:
+        query = query.where(Salary.month <= to_month)
+    result = await db.execute(query)
+    return result.scalar_one()
+
+
 async def get_salary(db: AsyncSession, salary_id: int) -> Salary | None:
     result = await db.execute(
         select(Salary).options(selectinload(Salary.employee)).where(Salary.id == salary_id)

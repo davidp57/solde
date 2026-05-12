@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient, { parseTotalCount } from './client'
 
 export type DepositType = 'cheques' | 'especes'
 export type BankTransactionSource =
@@ -148,6 +148,18 @@ export async function listTransactions(params?: {
 }): Promise<BankTransaction[]> {
   const response = await apiClient.get<BankTransaction[]>('/api/bank/transactions', { params })
   return response.data
+}
+
+export async function listTransactionsWithCount(params?: {
+  from_date?: string
+  to_date?: string
+  unreconciled_only?: boolean
+  bank_account?: BankAccountType
+  skip?: number
+  limit?: number
+}): Promise<{ items: BankTransaction[]; total: number }> {
+  const response = await apiClient.get<BankTransaction[]>('/api/bank/transactions', { params })
+  return { items: response.data, total: parseTotalCount(response.headers as Record<string, string>) }
 }
 
 export async function addTransaction(payload: BankTransactionCreate): Promise<BankTransaction> {
@@ -301,6 +313,17 @@ export async function listDeposits(params?: {
 }): Promise<Deposit[]> {
   const response = await apiClient.get<Deposit[]>('/api/bank/deposits', { params })
   return response.data
+}
+
+export async function listDepositsWithCount(params?: {
+  from_date?: string
+  to_date?: string
+  confirmed?: boolean
+  skip?: number
+  limit?: number
+}): Promise<{ items: Deposit[]; total: number }> {
+  const response = await apiClient.get<Deposit[]>('/api/bank/deposits', { params })
+  return { items: response.data, total: parseTotalCount(response.headers as Record<string, string>) }
 }
 
 export async function confirmDeposit(id: number): Promise<Deposit> {

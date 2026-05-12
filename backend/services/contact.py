@@ -4,16 +4,18 @@ import unicodedata
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.models.cash import CashRegister
 from backend.models.contact import Contact, ContactType
 from backend.models.contact_email import ContactEmail
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.invoice import Invoice, InvoiceStatus
 from backend.models.payment import Payment
+from backend.models.salary import Salary
 from backend.schemas.contact import (
     ContactCreate,
     ContactEmailImportResult,
@@ -23,6 +25,7 @@ from backend.schemas.contact import (
     ContactPaymentSummary,
     ContactRead,
     ContactUpdate,
+    MergeContactResult,
 )
 
 
@@ -84,6 +87,36 @@ async def list_contacts(
     query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def count_contacts(
+    db: AsyncSession,
+    *,
+    type: ContactType | None = None,
+    search: str | None = None,
+    active_only: bool = True,
+) -> int:
+    """Count contacts matching filters (no limit)."""
+    query = select(func.count()).select_from(Contact)
+    if active_only:
+        query = query.where(Contact.is_active == True)  # noqa: E712
+    if type is not None:
+        query = query.where(Contact.type == type)
+    if search:
+        term = f"%{search}%"
+        query = query.where(
+            or_(
+                Contact.nom.ilike(term),
+                Contact.prenom.ilike(term),
+                Contact.email.ilike(term),
+                Contact.child_first_name.ilike(term),
+                Contact.child_last_name.ilike(term),
+                Contact.other_parent_first_name.ilike(term),
+                Contact.other_parent_last_name.ilike(term),
+            )
+        )
+    result = await db.execute(query)
+    return result.scalar_one()
 
 
 async def list_contacts_enriched(
@@ -372,4 +405,72 @@ async def import_emails_from_rows(
         updated_indices=updated_indices,
         not_found_indices=not_found_indices,
         already_has_email_indices=already_has_email_indices,
+    )
+
+
+async def merge_contacts(
+    db: AsyncSession,
+    source_id: int,
+    target_id: int,
+) -> MergeContactResult:
+    """Merge source contact into target contact.
+
+    Reassigns all FK references (invoices, payments, cash, salaries) from source
+    to target, copies optional fields that are empty on target, then soft-deletes
+    the source contact.
+
+    Raises ValueError if source or target does not exist, or if they are the same.
+    """
+    if source_id == target_id:
+        raise ValueError("source_id and target_id must be different")
+
+    source = await get_contact(db, source_id)
+    target = await get_contact(db, target_id)
+    if source is None:
+        raise ValueError(f"Source contact {source_id} not found")
+    if target is None:
+        raise ValueError(f"Target contact {target_id} not found")
+
+    # Reassign invoices
+    invoices_result = await db.execute(
+        update(Invoice).where(Invoice.contact_id == source_id).values(contact_id=target_id)
+    )
+    invoices_reassigned: int = invoices_result.rowcount  # type: ignore[attr-defined]
+
+    # Reassign payments
+    payments_result = await db.execute(
+        update(Payment).where(Payment.contact_id == source_id).values(contact_id=target_id)
+    )
+    payments_reassigned: int = payments_result.rowcount  # type: ignore[attr-defined]
+
+    # Reassign cash entries (contact_id is nullable)
+    cash_result = await db.execute(
+        update(CashRegister)
+        .where(CashRegister.contact_id == source_id)
+        .values(contact_id=target_id)
+    )
+    cash_reassigned: int = cash_result.rowcount  # type: ignore[attr-defined]
+
+    # Reassign salaries (employee_id FK)
+    salaries_result = await db.execute(
+        update(Salary).where(Salary.employee_id == source_id).values(employee_id=target_id)
+    )
+    salaries_reassigned: int = salaries_result.rowcount  # type: ignore[attr-defined]
+
+    # Copy optional text fields from source to target when target is empty
+    for field in ("adresse", "telephone", "email", "notes"):
+        if not getattr(target, field) and getattr(source, field):
+            setattr(target, field, getattr(source, field))
+
+    # Soft-delete source contact
+    source.is_active = False
+
+    await db.flush()
+
+    return MergeContactResult(
+        target_id=target_id,
+        invoices_reassigned=invoices_reassigned,
+        payments_reassigned=payments_reassigned,
+        cash_entries_reassigned=cash_reassigned,
+        salaries_reassigned=salaries_reassigned,
     )
