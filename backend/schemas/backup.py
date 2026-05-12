@@ -134,6 +134,7 @@ class BackupRestoreTestResult(BaseModel):
     integrity_check: str  # "ok" or SQLite integrity_check result
     tables_found: list[str] = []
     tables_missing: list[str] = []
+    error_code: str | None = None
     error: str | None = None
 
 

@@ -35,7 +35,7 @@ async def test_get_history_empty(
 @pytest.mark.asyncio
 async def test_mark_douteux_not_found(client: AsyncClient, auth_headers: dict) -> None:
     response = await client.post("/api/contacts/999/mark-douteux", headers=auth_headers)
-    assert response.status_code == 422
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio

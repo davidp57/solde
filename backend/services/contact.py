@@ -424,8 +424,14 @@ async def merge_contacts(
     if source_id == target_id:
         raise ValueError("source_id and target_id must be different")
 
-    source = await get_contact(db, source_id)
-    target = await get_contact(db, target_id)
+    source_result = await db.execute(
+        select(Contact).where(Contact.id == source_id).options(selectinload(Contact.emails))
+    )
+    source = source_result.scalar_one_or_none()
+    target_result = await db.execute(
+        select(Contact).where(Contact.id == target_id).options(selectinload(Contact.emails))
+    )
+    target = target_result.scalar_one_or_none()
     if source is None:
         raise ValueError(f"Source contact {source_id} not found")
     if target is None:
@@ -461,6 +467,26 @@ async def merge_contacts(
     for field in ("adresse", "telephone", "email", "notes"):
         if not getattr(target, field) and getattr(source, field):
             setattr(target, field, getattr(source, field))
+
+    # Merge additional email addresses with deduplication.
+    existing_emails = {
+        target.email.strip().lower() for _ in [0] if target.email and target.email.strip()
+    }
+    existing_emails.update(
+        email.email.strip().lower()
+        for email in target.emails
+        if email.email and email.email.strip()
+    )
+    next_sort_order = max((email.sort_order for email in target.emails), default=-1) + 1
+    for source_email in list(source.emails):
+        normalized = source_email.email.strip().lower()
+        if not normalized or normalized in existing_emails:
+            await db.delete(source_email)
+            continue
+        source_email.contact_id = target_id
+        source_email.sort_order = next_sort_order
+        next_sort_order += 1
+        existing_emails.add(normalized)
 
     # Soft-delete source contact
     source.is_active = False

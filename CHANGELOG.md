@@ -31,7 +31,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **TEC-173** — Découpage de `bank.py` (781 lignes) en 3 sous-routeurs : `bank_transactions.py`, `bank_import.py`, `bank_deposits.py`
 
 ### Corrigé
-- **TEC-185** — Régression aperçu PDF Chrome : remplacement de `<embed>` / `<object>` par `<iframe>` dans tous les composants d'aperçu PDF (factures client, fournisseur, historique contact, dialogue email)
+- **TEC-185** — Régression aperçu PDF Chrome : standardisation des aperçus intégrés sur `<embed>` (abandon de `<object>`) avec paramètres viewer pour masquer le volet pages quand le moteur PDF du navigateur le permet
 - **TEC-185** — Aperçus PDF intégrés : demande explicite de masquage du volet latéral « Pages » par défaut quand le moteur PDF du navigateur le permet
 - **BIZ-189** — Sauvegarde automatique : le spinner de progression n'était pas visible lorsqu'un backup planifié se déclenchait pendant que la page de paramètres était déjà ouverte ; ajout d'une veille (10 s) qui détecte le démarrage et active le polling rapide (3 s)
 - **BIZ-198** — Limite d'affichage : alignement UX/documentation pour expliciter que la désactivation de la limite côté session charge jusqu'au plafond API (5 000 éléments)

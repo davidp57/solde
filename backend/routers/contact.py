@@ -177,12 +177,16 @@ async def mark_douteux(
     current_user: _WriteAccess,
 ) -> dict[str, int | str]:
     """Transfer the outstanding client balance to a doubtful receivable account (416xxx)."""
+    contact = await contact_service.get_contact(db, contact_id)
+    if contact is None:
+        raise not_found("Contact")
+
     result = await contact_service.mark_creance_douteuse(db, contact_id)
     if result is None:
         raise api_error(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             "CONTACT_NO_OUTSTANDING_BALANCE",
-            "Contact not found or no outstanding balance",
+            "Contact has no outstanding balance",
         )
     debit_entry, credit_entry = result
     await record_audit(

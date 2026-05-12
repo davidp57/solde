@@ -211,7 +211,6 @@ async def _finalize_payment_links(
 
     await _store_transaction_payment_links(db, tx=tx, payments=payments)
     await db.flush()
-    await db.flush()
     await db.refresh(tx)
     return tx
 

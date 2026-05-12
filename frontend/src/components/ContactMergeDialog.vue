@@ -76,6 +76,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'primevue/usetoast'
 import { mergeContactApi, type Contact } from '@/api/contacts'
+import { getApiErrorMessage } from '@/composables/useApiError'
 import type { ContactType } from '@/api/types'
 
 const props = defineProps<{
@@ -149,10 +150,7 @@ async function doMerge(): Promise<void> {
     emit('merged', props.sourceContact.id)
     onClose(false)
   } catch (err: unknown) {
-    const msg =
-      (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-      t('common.error.unknown')
-    errorMessage.value = msg
+    errorMessage.value = getApiErrorMessage(err) ?? t('common.error.unknown')
   } finally {
     loading.value = false
   }
