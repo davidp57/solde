@@ -11,6 +11,7 @@ from fastapi import (
     BackgroundTasks,
     Depends,
     Query,
+    Response,
     UploadFile,
     status,
 )
@@ -23,6 +24,8 @@ from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.invoice import (
+    BulkArchiveRequest,
+    BulkArchiveResult,
     InvoiceCreate,
     InvoiceEmailPreview,
     InvoiceEmailSendRequest,
@@ -38,6 +41,7 @@ from backend.services.invoice import (
     InvoiceDeleteError,
     InvoiceStatusError,
     InvoiceUpdateError,
+    archive_invoice,
 )
 
 logger = logging.getLogger(__name__)
@@ -85,6 +89,7 @@ async def preview_next_number(
 
 @router.get("/", response_model=list[InvoiceRead])
 async def list_invoices(
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     invoice_type: InvoiceType | None = Query(default=None),
@@ -94,10 +99,10 @@ async def list_invoices(
     to_date: date | None = Query(default=None),
     year: int | None = Query(default=None, ge=2000, le=2100),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=1000, ge=1, le=1000),
+    limit: int = Query(default=1000, ge=1, le=5000),
 ) -> list[Invoice]:
     """List invoices with optional filters."""
-    return await invoice_service.list_invoices(
+    items = await invoice_service.list_invoices(
         db,
         invoice_type=invoice_type,
         status=invoice_status,
@@ -108,6 +113,17 @@ async def list_invoices(
         skip=skip,
         limit=limit,
     )
+    total = await invoice_service.count_invoices(
+        db,
+        invoice_type=invoice_type,
+        status=invoice_status,
+        contact_id=contact_id,
+        from_date=from_date,
+        to_date=to_date,
+        year=year,
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
 @router.post("/", response_model=InvoiceRead, status_code=status.HTTP_201_CREATED)
@@ -254,6 +270,57 @@ async def restore_from_writeoff(
     return updated
 
 
+@router.post("/bulk-archive", response_model=BulkArchiveResult)
+async def bulk_archive_invoices(
+    payload: BulkArchiveRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> BulkArchiveResult:
+    """Archive a batch of PAID client invoices.
+
+    Non-PAID invoices are silently skipped (counted in 'skipped').
+    Returns a summary of archived, skipped, and error counts.
+    """
+    archived_count = 0
+    skipped_count = 0
+    error_msgs: list[str] = []
+    archived_numbers: list[str] = []
+
+    for invoice_id in payload.invoice_ids:
+        invoice = await invoice_service.get_invoice(db, invoice_id)
+        if invoice is None:
+            skipped_count += 1
+            continue
+        if invoice.status != InvoiceStatus.PAID:
+            skipped_count += 1
+            continue
+        try:
+            updated = await archive_invoice(db, invoice)
+            archived_count += 1
+            archived_numbers.append(updated.number)
+        except InvoiceStatusError as exc:
+            error_msgs.append(f"{invoice.number}: {exc}")
+        except Exception as exc:
+            logger.exception("Unexpected error archiving invoice %d", invoice_id)
+            error_msgs.append(f"invoice#{invoice_id}: {exc}")
+
+    if archived_numbers:
+        await record_audit(
+            db,
+            action=AuditAction.INVOICE_BULK_ARCHIVED,
+            actor=current_user,
+            target_id=None,
+            target_type="invoice",
+            detail={"count": archived_count, "numbers": archived_numbers},
+        )
+
+    return BulkArchiveResult(
+        archived=archived_count,
+        skipped=skipped_count,
+        errors=error_msgs,
+    )
+
+
 @router.post(
     "/{invoice_id}/duplicate",
     response_model=InvoiceRead,
@@ -325,6 +392,19 @@ async def get_invoice_pdf(
             "PDF generation is only available for client invoices",
         )
 
+    # Archived invoices can carry an imported source PDF; return it directly when present.
+    if invoice.status == InvoiceStatus.ARCHIVED and invoice.pdf_path:
+        # Resolve path: if relative, relative to project root; if absolute, use as-is
+        stored_pdf = Path(invoice.pdf_path)
+        pdf_path = stored_pdf if stored_pdf.is_absolute() else Path.cwd() / stored_pdf
+
+        if pdf_path.is_file():
+            return FileResponse(
+                path=str(pdf_path),
+                media_type="application/pdf",
+                filename=f"facture_{invoice.number}.pdf",
+            )
+
     from sqlalchemy import select  # noqa: PLC0415
 
     from backend.models.contact import Contact  # noqa: PLC0415
@@ -348,11 +428,11 @@ async def get_invoice_pdf(
             "PDF generation failed",
         ) from exc
 
-    pdf_path = pdf_service.save_invoice_pdf(invoice.number, pdf_bytes)
-    await invoice_service.set_pdf_path(db, invoice, pdf_path)
+    generated_pdf_path = pdf_service.save_invoice_pdf(invoice.number, pdf_bytes)
+    await invoice_service.set_pdf_path(db, invoice, generated_pdf_path)
 
     return FileResponse(
-        path=pdf_path,
+        path=generated_pdf_path,
         media_type="application/pdf",
         filename=f"facture_{invoice.number}.pdf",
     )
@@ -525,10 +605,17 @@ async def download_invoice_file(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
 ) -> FileResponse:
-    """Return the uploaded file attachment for a supplier invoice."""
+    """Return the uploaded file attachment for a supplier or archived client invoice."""
     invoice = await invoice_service.get_invoice(db, invoice_id)
     if invoice is None:
         raise not_found("Invoice")
+    # Supplier invoices and archived client invoices can have file attachments
+    if invoice.type == InvoiceType.CLIENT and invoice.status != InvoiceStatus.ARCHIVED:
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "INVOICE_FILE_NOT_AVAILABLE",
+            "File download is only available for supplier invoices or archived client invoices",
+        )
     if not invoice.file_path:
         raise api_error(status.HTTP_404_NOT_FOUND, "INVOICE_NO_FILE", "No file attached")
     # Resolve absolute path from stored relative filename
@@ -551,6 +638,7 @@ async def download_invoice_file(
         ".jpeg": "image/jpeg",
         ".png": "image/png",
         ".webp": "image/webp",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }
     media_type = media_type_map.get(suffix, "application/octet-stream")
     return FileResponse(

@@ -19,6 +19,13 @@
             outlined
             @click="downloadCsv"
           />
+          <Button
+            :label="t('common.export_excel')"
+            icon="pi pi-file-excel"
+            severity="secondary"
+            outlined
+            @click="doExportExcel"
+          />
         </div>
       </template>
     </AppPageHeader>
@@ -146,11 +153,24 @@ import { getBilanApi, getExportCsvUrl } from '../api/accounting'
 import type { BilanRead } from '../api/accounting'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { formatAccountingAmount } from '../utils/format'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const fiscalYearStore = useFiscalYearStore()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'account_number', header: t('accounting.accounts.number') },
+  { field: 'account_label', header: t('accounting.accounts.label') },
+  { field: 'solde', header: t('accounting.balance.solde') },
+]
+const exportRows = computed(() =>
+  bilan.value ? [...bilan.value.actif, ...bilan.value.passif] : []
+)
+function doExportExcel(): void {
+  exportToExcel(exportRows.value, exportColumns, 'accounting-bilan-export')
+}
 
 const bilan = ref<BilanRead | null>(null)
 const loading = ref(false)

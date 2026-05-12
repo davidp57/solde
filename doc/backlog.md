@@ -28,7 +28,18 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 ## Lots actifs
 
-*(aucun lot actif)*
+### Lot FW — Import Word + Archivage + Export Excel (v1.7.2) — ~395 min Copilot + 15 min gestion
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| BIZ-195 | Statut ARCHIVED — modèle, transitions, service, router, migration | P1 | ~25 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
+| BIZ-196 | Script import_word_invoices.py (parsing + création contacts/factures) | P1 | ~80 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
+| BIZ-197 | Endpoint POST /invoices/bulk-archive + schémas + tests intégration | P1 | ~45 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
+| BIZ-190 | Frontend — types + i18n + badge + boutons UI factures archivées | P1 | ~35 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
+| BIZ-191 | Frontend — action bulk archive (bouton + confirmation + appel API) | P1 | ~30 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
+| TEC-192 | Composable useTableExport (SheetJS) + tests Vitest | P2 | ~30 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
+| BIZ-193 | Bouton export Excel sur toutes les vues DataTable | P2 | ~120 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
+| CHR-194 | Quality gate complet + CHANGELOG + docs + bump version | P2 | ~30 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
 
 ---
 
@@ -42,6 +53,37 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 ## Détails
 
+### BIZ-195 — Statut ARCHIVED — modèle, transitions, service, router, migration
+
+Ajouter `ARCHIVED = "archived"` à `InvoiceStatus` dans `backend/models/invoice.py`. Mettre à jour `_VALID_TRANSITIONS` dans `backend/services/invoice.py` : `PAID → {ARCHIVED}`, `ARCHIVED → {}` (terminal). Ajouter `archive_invoice(db, invoice)` dans le service : génère le PDF WeasyPrint si `pdf_path` est null, puis passe le statut à ARCHIVED. Dans `backend/routers/invoice.py` : relâcher la restriction "FOURNISSEUR uniquement" sur `GET /{id}/file` pour les CLIENT en statut ARCHIVED. Migration Alembic commentée (SQLite stocke les enums en texte, pas de contrainte CHECK à modifier). Tests unitaires des transitions valides/invalides pour ARCHIVED.
+
+### BIZ-196 — Script import_word_invoices.py
+
+Créer `scripts/import_word_invoices.py` (dry-run par défaut, `--commit` pour écrire en base). Args : `--source /chemin/vers/dossier`, `[--db data/solde.db]`, `[--commit]`, `[--verbose]`. Pour chaque `.docx` (pattern `facture YYYY-NNNN.docx`) : extraire le numéro depuis le nom de fichier, la date via `_DATE_RE` (réutilisé depuis `import_addresses_from_docx.py`), le nom client et l'adresse via les patterns de fuzzy-matching existants, les lignes de prestation depuis `doc.tables` (parcourir les tables Word pour identifier colonnes description/quantité/PU/total), le montant total (ligne « Total » du tableau ou somme des lignes). Résolution contact : recherche par nom, création `ContactType.CLIENT` si absent. Skip silencieux si une facture avec ce numéro existe déjà en base (log). Créer la facture : `type=CLIENT`, `status=ARCHIVED`, pas d'écriture comptable. Copier le `.docx` dans `data/uploads/invoices/{uuid}.docx`, stocker dans `invoice.file_path`. Rapport final : N créées, M skippées (doublon), P erreurs. Tests unitaires des fonctions de parsing (dates, noms, tables Word).
+
+### BIZ-197 — Endpoint POST /invoices/bulk-archive + schémas + tests intégration
+
+Ajouter dans `backend/schemas/invoice.py` : `BulkArchiveRequest` (body `invoice_ids: list[int]`) et `BulkArchiveResult` (response `{"archived": int, "skipped": int, "errors": list[str]}`). Ajouter `POST /invoices/bulk-archive` dans `backend/routers/invoice.py` : rôle TRESORIER ou ADMIN requis ; pour chaque ID, vérifier que la facture existe et est PAID (sinon skip avec raison dans errors) ; appeler `archive_invoice()` du service pour chaque facture valide ; retourner `BulkArchiveResult`. Tests intégration dans `tests/integration/test_invoices_api.py` : factures PAID → archivées, factures non-PAID → skippées, accès refusé sans rôle suffisant.
+
+### BIZ-190 — Frontend — types + i18n + badge + boutons UI factures archivées
+
+Ajouter `'archived'` à `InvoiceStatus` dans `frontend/src/api/invoices.ts`. Ajouter clé i18n `invoices.statuses.archived: 'Archivée'` dans `fr.ts` et `'Archived'` dans `en.ts`. Ajouter une couleur/sévérité grise pour le badge statut ARCHIVED dans le composant de badge. Dans `ClientInvoicesView.vue` : pour les factures ARCHIVED, n'afficher que — bouton "Consulter" (vue détail read-only), bouton "PDF" si `pdf_path` non null (affiche le fichier figé, ne génère pas à la volée), bouton "Document" si `file_path` non null (télécharge le `.docx`). Masquer pour ARCHIVED : boutons éditer, payer, envoyer email, dupliquer, passer irrécupérable, restaurer. Ajouter `'archived'` aux options de filtre statut (colonne et dropdown global).
+
+### BIZ-191 — Frontend — action bulk archive
+
+Dans `ClientInvoicesView.vue` : ajouter un bouton "Archiver les factures filtrées" dans la barre d'outils, visible uniquement si au moins une facture PAID est présente dans `displayedInvoices`. Confirmation via `useConfirm()` + `<ConfirmDialog />` : "Archiver X facture(s) payée(s) ? Cette action est irréversible." Appel `POST /invoices/bulk-archive` avec les IDs des factures PAID de `displayedInvoices`. Toast résultat : "N factures archivées" + avertissement si M skippées. Rafraîchir la liste après archivage. Clés i18n : `invoices.bulk_archive_confirm`, `invoices.bulk_archive_result`, `invoices.bulk_archive_btn`.
+
+### TEC-192 — Composable useTableExport (SheetJS) + tests Vitest
+
+Installer `xlsx` (SheetJS) : `npm install xlsx` dans `frontend/`. Créer `frontend/src/composables/useTableExport.ts` exposant `exportToExcel(rows: object[], columns: {field: string, header: string}[], filename: string)` : construire un tableau de données en appliquant les colonnes sur les rows, créer un `WorkSheet` via `XLSX.utils.aoa_to_sheet`, créer un `WorkBook`, télécharger le fichier `.xlsx` via `XLSX.writeFile`. Ajouter clé i18n `common.export_excel: 'Exporter Excel'` dans `fr.ts` et `en.ts`. Tests Vitest dans `frontend/src/tests/` : colonnes correctement mappées, fichier bien déclenché (mock XLSX.writeFile), comportement avec rows vides.
+
+### BIZ-193 — Bouton export Excel sur toutes les vues DataTable
+
+Ajouter `@value-change` sur chaque `DataTable` qui ne tracke pas encore ses lignes affichées (pour exposer les données filtrées courantes). Ajouter un bouton "Exporter Excel" (utilisant `useTableExport`) dans chaque vue avec DataTable : `ClientInvoicesView`, `SupplierInvoicesView`, `BankView` (transactions + dépôts), `CashView` (entrées + comptages de caisse), `ContactsView`, `EmployeesView`, `FiscalYearView`, `AccountingAccountsView`, `AccountingRulesView`, `AccountingJournalView`, `AccountingLedgerView`, `AccountingBalanceView`, `AccountingBilanView`, `AccountingResultatView`. Le bouton exporte uniquement les lignes visibles (après filtrage). Nom du fichier : `{entité}-{date}.xlsx`.
+
+### CHR-194 — Quality gate complet + CHANGELOG + docs + bump version
+
+Exécuter la quality gate complète (ruff check + format, mypy, pytest, eslint, vue-tsc, vitest) et corriger tout problème résiduel. Mettre à jour `CHANGELOG.md` (section `[Non publié]`), `doc/user/changelog-user.md` (sections Secrétaire/Trésorier/Administrateur), et `doc/backlog.md` (statuts tickets). Incrémenter la version patch dans `pyproject.toml` et `frontend/package.json`.
 ### BIZ-169 — Édition/suppression des opérations manuelles
 
 Permettre de modifier ou supprimer les opérations bancaires créées manuellement depuis BankView (opérations sans import source).

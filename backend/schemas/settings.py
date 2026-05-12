@@ -13,6 +13,12 @@ from pydantic import BaseModel, field_validator, model_validator
 from backend.models.import_log import ImportLogType
 
 
+def _validate_list_default_limit(v: int | None) -> int | None:
+    if v is not None and not 0 <= v <= 5000:
+        raise ValueError("list_default_limit must be between 0 and 5000")
+    return v
+
+
 class AppSettingsRead(BaseModel):
     """Settings returned by GET /api/settings.
 
@@ -60,6 +66,16 @@ class AppSettingsRead(BaseModel):
     # Bank account ACCTID mapping (OFX import)
     bank_account_courant_acctid: str | None
     bank_account_epargne_acctid: str | None
+
+    # List display limit for all paginated list views (0 = unlimited)
+    list_default_limit: int
+
+    @field_validator("list_default_limit")
+    @classmethod
+    def validate_list_default_limit(cls, v: int) -> int:
+        validated = _validate_list_default_limit(v)
+        assert validated is not None
+        return validated
 
     @model_validator(mode="before")
     @classmethod
@@ -126,6 +142,9 @@ class AppSettingsUpdate(BaseModel):
     bank_account_courant_acctid: str | None = None
     bank_account_epargne_acctid: str | None = None
 
+    # List display limit for all paginated list views (0 = unlimited)
+    list_default_limit: int | None = None
+
     @field_validator("fiscal_year_start_month")
     @classmethod
     def validate_month(cls, v: int | None) -> int | None:
@@ -153,6 +172,11 @@ class AppSettingsUpdate(BaseModel):
         if v is not None and not 2 <= v <= 6:
             raise ValueError("client_invoice_seq_digits must be between 2 and 6")
         return v
+
+    @field_validator("list_default_limit")
+    @classmethod
+    def validate_list_default_limit(cls, v: int | None) -> int | None:
+        return _validate_list_default_limit(v)
 
     @field_validator("client_invoice_number_template")
     @classmethod

@@ -369,6 +369,28 @@ async def list_transactions(
     return list(result.scalars().all())
 
 
+async def count_transactions(
+    db: AsyncSession,
+    *,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    unreconciled_only: bool = False,
+    bank_account: BankAccountType | None = None,
+) -> int:
+    """Count bank transactions matching filters (no limit)."""
+    query = select(func.count()).select_from(BankTransaction)
+    if from_date is not None:
+        query = query.where(BankTransaction.date >= from_date)
+    if to_date is not None:
+        query = query.where(BankTransaction.date <= to_date)
+    if unreconciled_only:
+        query = query.where(BankTransaction.reconciled == False)  # noqa: E712
+    if bank_account is not None:
+        query = query.where(BankTransaction.bank_account == bank_account)
+    result = await db.execute(query)
+    return result.scalar_one()
+
+
 async def get_monthly_funds_series(
     db: AsyncSession,
     *,
@@ -1000,6 +1022,25 @@ async def list_deposits(
     query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def count_deposits(
+    db: AsyncSession,
+    *,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    confirmed: bool | None = None,
+) -> int:
+    """Count deposits matching filters (no limit)."""
+    query = select(func.count()).select_from(Deposit)
+    if from_date is not None:
+        query = query.where(Deposit.date >= from_date)
+    if to_date is not None:
+        query = query.where(Deposit.date <= to_date)
+    if confirmed is not None:
+        query = query.where(Deposit.confirmed == confirmed)
+    result = await db.execute(query)
+    return result.scalar_one()
 
 
 async def get_deposit_payment_ids(db: AsyncSession, deposit_id: int) -> list[int]:

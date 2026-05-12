@@ -37,6 +37,14 @@
             :disabled="!hasActiveFilters"
             @click="resetFilters"
           />
+          <Button
+            :label="t('common.export_excel')"
+            icon="pi pi-file-excel"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="doExportExcel"
+          />
         </div>
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
@@ -269,6 +277,7 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { useAuthStore } from '../stores/auth'
 
 const { t } = useI18n()
@@ -276,6 +285,16 @@ const { isMobile } = useBreakpoints()
 const toast = useToast()
 const confirm = useConfirm()
 const { canManageApplication } = storeToRefs(useAuthStore())
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'trigger_type', header: t('accounting.rules.trigger_type') },
+  { field: 'name', header: t('accounting.rules.name') },
+  { field: 'is_active_label', header: t('accounting.rules.active') },
+  { field: 'priority', header: t('accounting.rules.priority') },
+]
+function doExportExcel(): void {
+  exportToExcel(displayedRules.value, exportColumns, 'accounting-rules-export')
+}
 
 const dialogVisible = ref(false)
 const editingRule = ref<AccountingRuleRead | null>(null)

@@ -32,6 +32,14 @@
             :disabled="!hasAnyFilters"
             @click="resetAllFilters"
           />
+          <Button
+            :label="t('common.export_excel')"
+            icon="pi pi-file-excel"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="doExportExcel"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -407,11 +415,23 @@ import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
 import { textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const toast = useToast()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'nom', header: t('employees.nom') },
+  { field: 'prenom', header: t('employees.prenom') },
+  { field: 'email', header: t('contacts.email') },
+  { field: 'telephone', header: t('contacts.telephone') },
+  { field: 'is_active', header: t('common.active') },
+]
+function doExportExcel(): void {
+  exportToExcel(displayedEmployees.value, exportColumns, 'employees-export')
+}
 
 const contractTypeOptions = computed(() => [
   { label: t('employees.contract_type_cdi'), value: 'cdi' },

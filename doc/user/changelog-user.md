@@ -4,6 +4,49 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.7.2 *(à venir)*
+
+### Tous les utilisateurs
+
+#### Listes — limite d'affichage configurable
+- Par défaut, chaque grande liste (factures, paiements, contacts, salaires, transactions bancaires) n'affiche désormais que les **500 premiers éléments**.
+- Une **bannière d'avertissement** apparaît en haut de la liste quand des éléments sont masqués, avec un lien **« Désactiver la limite »** pour tout charger d'un clic.
+- Une fois la limite désactivée, une **notice discrète** indique que tous les éléments sont chargés, avec la possibilité de **réactiver la limite**.
+- Ce réglage est **propre à chaque navigateur / onglet** : il s'efface à la fermeture de l'onglet.
+
+### Administrateur
+
+#### Paramètres — limite d'affichage
+- La **valeur de la limite** est configurable dans Paramètres > Association (champ *Limite d'affichage par défaut*).
+- Valeur **0** = pas de limite (toutes les listes chargent tout par défaut).
+- La modification s'applique immédiatement pour tous les utilisateurs dès leur prochaine visite.
+
+---
+
+## Version 1.7.1 *(à venir)*
+
+### Secrétaire
+
+#### Factures archivées
+- Les factures historiques importées depuis Word reprennent correctement le montant déjà réglé : le reste dû est affiché à **0 €** quand la facture était déjà payée.
+- Quand un PDF existe déjà pour une facture importée, il est réutilisé directement pour l'aperçu au lieu de repasser par le document Word.
+- L'aperçu PDF masque désormais le volet latéral des pages quand le navigateur autorise ce réglage.
+
+### Tous les utilisateurs
+
+#### Export Excel
+- Un bouton **« Exporter Excel »** est disponible dans toutes les grandes listes : factures fournisseur, paiements, contacts, employés, salaires, mouvements de caisse, transactions bancaires, exercices comptables, plan comptable, règles comptables, journal, grand livre, balance, bilan, compte de résultat.
+- L'export télécharge uniquement les **lignes affichées après filtrage**, au format `.xlsx` directement lisible dans Excel ou LibreOffice Calc.
+
+### Secrétaire
+
+#### Factures client — Archivage
+- Un nouveau statut **« Archivée »** est disponible pour les factures intégralement réglées. Une facture archivée ne peut plus être modifiée.
+- Bouton **« Archiver la sélection »** dans la barre d'outils de la liste des factures client : archive d'un coup toutes les factures payées actuellement visibles.
+- Sur une facture archivée, un bouton **« Télécharger le document »** permet de récupérer le fichier Word d'origine (si disponible).
+
+---
+
 ## Version 1.7.0 *(à venir)*
 
 ### Administrateur

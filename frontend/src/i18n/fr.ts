@@ -244,8 +244,14 @@ export default {
     deleted: 'Supprimé.',
     required_fields: 'Veuillez remplir tous les champs requis.',
     close: 'Fermer',
+    export_excel: 'Exporter Excel',
     api_limit_warning:
-      "Limite d'affichage atteinte (1 000 éléments). Les résultats peuvent être incomplets — affinez les filtres pour réduire le volume chargé.",
+      "Limite d'affichage atteinte (5 000 éléments). Les résultats peuvent être incomplets — affinez les filtres pour réduire le volume chargé.",
+    list_limit_active_warning:
+      'Limite à {limit} éléments active — {total} éléments disponibles sur le serveur.',
+    list_limit_disable: 'Désactiver la limite',
+    list_limit_disabled_info: 'Limite désactivée — jusqu\'à 5 000 éléments sont chargés.',
+    list_limit_enable: 'Réactiver la limite',
   },
   chat: {
     title: 'Assistant Solde',
@@ -353,6 +359,16 @@ export default {
     email_label_placeholder: 'Ex : E-mail principal',
     email_address: 'Adresse e-mail',
     add_email: 'Ajouter une adresse',
+    merge: 'Fusionner',
+    merge_title: 'Fusionner deux contacts',
+    merge_source_label: 'Contact à supprimer (source)',
+    merge_target_label: 'Contact à conserver (cible)',
+    merge_warning: 'Cette opération est irréversible. Toutes les factures, paiements, mouvements de caisse et fiches de salaire seront rattachés au contact cible, et le contact source sera désactivé.',
+    merge_confirm: 'Confirmer la fusion',
+    merge_select_placeholder: 'Rechercher un contact…',
+    merge_same_contact_error: 'Le contact source et le contact cible doivent être différents.',
+    merge_success: 'Contact fusionné avec succès. {invoices} facture(s), {payments} paiement(s) réassigné(s).',
+    merge_admin_only: 'La fusion de contacts est réservée aux administrateurs.',
   },
   employees: {
     title: 'Employés',
@@ -416,6 +432,13 @@ export default {
       metrics: {
         visible_count: 'Factures affichees',
         total_count: '{count} au total',
+        visible_loaded_breakdown: '{shown} affichées / {loaded} chargées',
+        server_available_when_limited: '{count} disponibles sur le serveur (limite atteinte)',
+        server_scope_fully_loaded: 'Périmètre serveur entièrement chargé',
+        filtered_count_label: 'Affichées (filtrées)',
+        loaded_count_label: 'Chargées (UI)',
+        server_available_label: 'Disponibles serveur',
+        server_loaded_label: 'Serveur (chargé)',
         total_amount: 'Montant facture',
         average_amount: 'Panier moyen {amount} EUR',
         paid_amount: 'Deja encaisse',
@@ -550,6 +573,12 @@ export default {
       "La facture reprendra son statut précédent. Une écriture de reprise sera générée (411 / 754). Confirmer ?",
     hide_irrecoverable: 'Masquer les irrécouvrables',
     show_irrecoverable: 'Afficher les irrécouvrables',
+    bulk_archive: 'Archiver la sélection',
+    bulk_archive_confirm_title: 'Archiver les factures',
+    bulk_archive_confirm_msg:
+      'Les factures payées sélectionnées seront archivées définitivement. Cette action est irréversible.',
+    bulk_archive_result: '{archived} facture(s) archivée(s), {skipped} ignorée(s).',
+    download_file: 'Télécharger le document',
     statuses: {
       draft: 'Brouillon',
       sent: 'Émise',
@@ -558,6 +587,7 @@ export default {
       overdue: 'En retard',
       disputed: 'Litige',
       irrecoverable: 'Irrécouvrable',
+      archived: 'Archivée',
     },
     labels: {
       cs: 'Cours scolaires',
@@ -989,6 +1019,9 @@ export default {
     bank_account_courant_acctid_help: 'Numéro de compte tel qu\'il apparaît dans le fichier OFX exporté par votre banque (balise ACCTID). Requis pour l\'import multi-comptes.',
     bank_account_epargne_acctid: 'Identifiant compte épargne (ACCTID OFX)',
     bank_account_epargne_acctid_help: 'Numéro de compte épargne tel qu\'il apparaît dans le fichier OFX. Requis pour l\'import multi-comptes.',
+    list_default_limit: 'Limite d\'affichage par défaut',
+    list_default_limit_help:
+      'Nombre maximum d\'éléments chargés par défaut dans les listes (factures, paiements, contacts, etc.). Valeur 0 = charger jusqu\'à 5 000 éléments par requête. Chaque utilisateur peut désactiver temporairement la limite pour sa session.',
     section_chat: 'Assistant IA',
     section_chat_subtitle: 'Configurez le fournisseur et la clé API pour activer le chatbot.',
     chat_provider: 'Fournisseur',

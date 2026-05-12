@@ -51,6 +51,7 @@ export default {
     filter_placeholder: 'Search…',
     refresh: 'Refresh',
     reset_filters: 'Reset filters',
+    export_excel: 'Export Excel',
     previous: 'Previous',
     next: 'Next',
     empty: 'No data.',
@@ -81,7 +82,12 @@ export default {
     required_fields: 'Please fill in all required fields.',
     close: 'Close',
     api_limit_warning:
-      'Display limit reached (1,000 items). Results may be incomplete — refine the filters to reduce the loaded volume.',
+      'Display limit reached (5,000 items). Results may be incomplete — refine the filters to reduce the loaded volume.',
+    list_limit_active_warning:
+      'Limit of {limit} items active — {total} items available on the server.',
+    list_limit_disable: 'Disable limit',
+    list_limit_disabled_info: 'Limit disabled — up to 5,000 items are loaded.',
+    list_limit_enable: 'Re-enable limit',
   },
   api_errors: {
     ACCOUNT_NOT_FOUND: 'Account not found.',
@@ -224,6 +230,9 @@ export default {
     backup_tables_missing: 'Missing tables',
     backup_confirm_restore: 'Restore file "{filename}"? The application will restart.',
     backup_restoring: 'Restoring, the application will restart…',
+    list_default_limit: 'Default display limit',
+    list_default_limit_help:
+      'Maximum number of items loaded by default in list views (invoices, payments, contacts, etc.). 0 = load up to 5,000 items per request. Each user can temporarily disable the limit for their session.',
   },
 
 }

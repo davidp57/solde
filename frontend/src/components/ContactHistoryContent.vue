@@ -457,11 +457,12 @@
             <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
           </div>
           <div v-else-if="invoiceFileBlobUrl" class="chd-supplier__file-frame">
-            <iframe
+            <embed
               v-if="invoiceFileBlobIsPdf"
-              :src="invoiceFileBlobUrl"
+              :src="`${invoiceFileBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
+              type="application/pdf"
               class="chd-supplier__embed"
-              :title="t('invoices.supplier.preview_file')"
+               :title="t('invoices.file')"
             />
             <img
               v-else
@@ -487,7 +488,9 @@
           >{{ t('invoices.due_date') }} : {{ formatDisplayDate(invoiceDetail.due_date) }}</span
         >
       </div>
-      <section class="app-stat-grid contact-history-dialog__stats">
+      <div class="contact-history-dialog__body">
+        <div class="contact-history-dialog__main">
+          <section class="app-stat-grid contact-history-dialog__stats">
         <AppStatCard
           :label="t('invoices.total')"
           :value="`${fmt(invoiceDetail.total_amount)} €`"
@@ -503,13 +506,13 @@
           :tone="invoiceRemaining > 0 ? 'danger' : 'default'"
         />
       </section>
-      <DataTable
-        v-if="invoiceDetail.lines.length"
-        :value="invoiceDetail.lines"
-        size="small"
-        class="app-data-table contact-history-dialog__lines"
-        striped-rows
-      >
+          <DataTable
+            v-if="invoiceDetail.lines.length"
+            :value="invoiceDetail.lines"
+            size="small"
+            class="app-data-table contact-history-dialog__lines"
+            striped-rows
+          >
         <Column field="description" :header="t('invoices.line_description')" />
         <Column
           field="quantity"
@@ -533,23 +536,25 @@
         >
           <template #body="{ data }">{{ fmt(data.amount) }} €</template>
         </Column>
-      </DataTable>
-      <div class="contact-history-dialog__actions">
-        <Button
-          icon="pi pi-file-pdf"
-          :label="t('invoices.generate_pdf')"
-          severity="secondary"
-          outlined
-          :loading="downloadingPdf"
-          @click="downloadPdf(invoiceDetail)"
-        />
-        <Button
-          v-if="contactEmail && invoiceDetail.type === 'client'"
-          icon="pi pi-send"
-          :label="t('invoices.send_email')"
-          @click="sendEmail(invoiceDetail)"
-        />
-      </div>
+          </DataTable>
+          <div class="contact-history-dialog__actions">
+            <Button
+              icon="pi pi-file-pdf"
+              :label="t('invoices.generate_pdf')"
+              severity="secondary"
+              outlined
+              :loading="downloadingPdf"
+              @click="downloadPdf(invoiceDetail)"
+            />
+            <Button
+              v-if="contactEmail && invoiceDetail.type === 'client'"
+              icon="pi pi-send"
+              :label="t('invoices.send_email')"
+              @click="sendEmail(invoiceDetail)"
+            />
+          </div>
+        </div><!-- end contact-history-dialog__main -->
+      </div><!-- end contact-history-dialog__body -->
     </div>
   </template>
 
@@ -969,6 +974,17 @@ onMounted(loadHistory)
   gap: 0.75rem;
   flex-wrap: wrap;
   padding-top: 0.5rem;
+}
+
+.contact-history-dialog__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.contact-history-dialog__main {
+  display: flex;
+  flex-direction: column;
 }
 
 /* Inline detail navigation bar */
