@@ -7,6 +7,8 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+      # OneDrive OAuth callback — rclone's registered redirect_uri uses port 53682
+      - "53682:53682"
     volumes:
       - ./data:/app/data
     env_file:

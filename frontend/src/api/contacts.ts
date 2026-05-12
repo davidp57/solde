@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient, { parseTotalCount } from './client'
 import type { ContactType } from './types'
 
 export interface ContactEmail {
@@ -104,6 +104,19 @@ export async function listContactsApi(filters: ContactFilters = {}): Promise<Con
   return response.data
 }
 
+export async function listContactsWithCountApi(
+  filters: ContactFilters = {},
+): Promise<{ items: Contact[]; total: number }> {
+  const params = new URLSearchParams()
+  if (filters.type) params.set('type', filters.type)
+  if (filters.search) params.set('search', filters.search)
+  if (filters.active_only !== undefined) params.set('active_only', String(filters.active_only))
+  if (filters.skip !== undefined) params.set('skip', String(filters.skip))
+  if (filters.limit !== undefined) params.set('limit', String(filters.limit))
+  const response = await apiClient.get<Contact[]>(`/api/contacts/?${params}`)
+  return { items: response.data, total: parseTotalCount(response.headers as Record<string, string>) }
+}
+
 export async function getContactApi(id: number): Promise<Contact> {
   const response = await apiClient.get<Contact>(`/api/contacts/${id}`)
   return response.data
@@ -140,5 +153,22 @@ export interface ContactEmailImportResult {
 
 export async function importContactEmailsApi(rows: ContactEmailImportRow[]): Promise<ContactEmailImportResult> {
   const response = await apiClient.post<ContactEmailImportResult>('/api/contacts/import-emails', rows)
+  return response.data
+}
+
+export interface MergeContactResult {
+  target_id: number
+  invoices_reassigned: number
+  payments_reassigned: number
+  cash_entries_reassigned: number
+  salaries_reassigned: number
+}
+
+export async function mergeContactApi(sourceId: number, targetId: number): Promise<MergeContactResult> {
+  const response = await apiClient.post<MergeContactResult>(
+    `/api/contacts/${sourceId}/merge`,
+    null,
+    { params: { target_id: targetId } },
+  )
   return response.data
 }

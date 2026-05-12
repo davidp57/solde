@@ -1,0 +1,156 @@
+"""Pydantic schemas for backup destinations and scheduling."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel
+
+# ---------------------------------------------------------------------------
+# Backup destination
+# ---------------------------------------------------------------------------
+
+
+class BackupDestinationRead(BaseModel):
+    id: int
+    name: str
+    type: str
+    enabled: bool
+    rclone_remote_name: str
+    has_config: bool  # True if rclone_config is set — secrets are not returned
+    target_path: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_orm(cls, obj: Any) -> BackupDestinationRead:
+        return cls(
+            id=obj.id,
+            name=obj.name,
+            type=obj.type,
+            enabled=obj.enabled,
+            rclone_remote_name=obj.rclone_remote_name,
+            has_config=bool(obj.rclone_config),
+            target_path=obj.target_path,
+            created_at=obj.created_at,
+        )
+
+
+class BackupDestinationCreate(BaseModel):
+    name: str
+    type: str  # local | smb | onedrive
+    enabled: bool = True
+    rclone_remote_name: str
+    rclone_config: str | None = None  # JSON
+    target_path: str = ""
+
+
+class BackupDestinationUpdate(BaseModel):
+    name: str | None = None
+    type: str | None = None
+    enabled: bool | None = None
+    rclone_remote_name: str | None = None
+    rclone_config: str | None = None
+    target_path: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Backup schedule (stored in app_settings)
+# ---------------------------------------------------------------------------
+
+
+class BackupScheduleRead(BaseModel):
+    enabled: bool
+    schedule_type: str  # interval | daily | cron
+    interval_hours: int
+    cron_expression: str | None
+    daily_time: str | None
+    include_uploads: bool
+    include_all_backups: bool
+    notify_on_failure: bool
+
+    model_config = {"from_attributes": True}
+
+    @classmethod
+    def from_settings(cls, s: Any) -> BackupScheduleRead:
+        return cls(
+            enabled=s.backup_enabled,
+            schedule_type=s.backup_schedule_type,
+            interval_hours=s.backup_interval_hours,
+            cron_expression=s.backup_cron_expression,
+            daily_time=s.backup_daily_time,
+            include_uploads=s.backup_include_uploads,
+            include_all_backups=s.backup_include_all_backups,
+            notify_on_failure=s.backup_notify_on_failure,
+        )
+
+
+class BackupScheduleUpdate(BaseModel):
+    enabled: bool | None = None
+    schedule_type: str | None = None  # interval | daily | cron
+    interval_hours: int | None = None
+    cron_expression: str | None = None
+    daily_time: str | None = None
+    include_uploads: bool | None = None
+    include_all_backups: bool | None = None
+    notify_on_failure: bool | None = None
+
+
+# ---------------------------------------------------------------------------
+# Backup run status
+# ---------------------------------------------------------------------------
+
+
+class BackupDestinationResult(BaseModel):
+    destination_id: int
+    destination_name: str
+    success: bool
+    error: str | None = None
+
+
+class BackupRunStatus(BaseModel):
+    last_run_at: datetime | None
+    last_run_status: str | None  # success | failure | None
+    last_run_error: str | None = None
+    is_running: bool = False
+    backup_progress: int = 0  # 0–100
+    destinations_results: list[BackupDestinationResult] = []
+
+
+# ---------------------------------------------------------------------------
+# Connection and restore test results
+# ---------------------------------------------------------------------------
+
+
+class BackupConnectionTestResult(BaseModel):
+    success: bool
+    message: str
+
+
+class BackupRestoreTestResult(BaseModel):
+    ok: bool
+    integrity_check: str  # "ok" or SQLite integrity_check result
+    tables_found: list[str] = []
+    tables_missing: list[str] = []
+    error_code: str | None = None
+    error: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# OneDrive OAuth
+# ---------------------------------------------------------------------------
+
+
+class OneDriveOAuthStart(BaseModel):
+    user_code: str  # e.g. "ABCD-1234" — user enters this at verification_uri
+    verification_uri: str  # https://microsoft.com/devicelogin
+    expires_in: int  # seconds until the code expires
+    message: str  # human-readable instruction from Microsoft
+
+
+class OneDriveOAuthStatus(BaseModel):
+    done: bool
+    token: str | None = None  # rclone_config JSON when done
+    error: str | None = None

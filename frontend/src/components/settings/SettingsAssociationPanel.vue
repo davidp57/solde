@@ -238,6 +238,19 @@
           />
           <small class="app-field__hint">{{ t('settings.bank_account_epargne_acctid_help') }}</small>
         </div>
+        <div class="app-field app-field--full">
+          <label for="list_default_limit" class="app-field__label">{{ t('settings.list_default_limit') }}</label>
+          <InputNumber
+            id="list_default_limit"
+            v-model="form.list_default_limit"
+            :min="0"
+            :max="5000"
+            :step="100"
+            show-buttons
+            class="w-full"
+          />
+          <small class="app-field__hint">{{ t('settings.list_default_limit_help') }}</small>
+        </div>
       </div>
     </AppPanel>
 
@@ -293,6 +306,7 @@ interface AssociationForm {
   cheque_number_template: string
   bank_account_courant_acctid: string
   bank_account_epargne_acctid: string
+  list_default_limit: number
 }
 
 const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long' })
@@ -319,6 +333,7 @@ const defaultForm = (): AssociationForm => ({
   cheque_number_template: '{date}.{seq}',
   bank_account_courant_acctid: '',
   bank_account_epargne_acctid: '',
+  list_default_limit: 500,
 })
 
 const form = ref<AssociationForm>(defaultForm())
@@ -347,6 +362,7 @@ async function load(): Promise<void> {
       cheque_number_template: data.cheque_number_template ?? '{date}.{seq}',
       bank_account_courant_acctid: data.bank_account_courant_acctid ?? '',
       bank_account_epargne_acctid: data.bank_account_epargne_acctid ?? '',
+      list_default_limit: data.list_default_limit ?? 500,
     }
   } catch {
     errorMessage.value = t('common.error.unknown')
@@ -376,6 +392,7 @@ async function save(): Promise<void> {
       cheque_number_template: form.value.cheque_number_template || '{date}.{seq}',
       bank_account_courant_acctid: form.value.bank_account_courant_acctid || null,
       bank_account_epargne_acctid: form.value.bank_account_epargne_acctid || null,
+      list_default_limit: form.value.list_default_limit,
     })
     successMessage.value = t('settings.saved')
   } catch {

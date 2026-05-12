@@ -18,6 +18,7 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 | UI | ~65 min | ~30 min | **0,46** | 15 min | ? | ↓ facteur → 1,00 |
 | CR2 | ~70 min | ~20 min | **0,29** | — | — | voir note |
 | REV | ~190 min | ~70 min | **0,37** | 15 min | — | voir note REV |
+| BK | ~280 min | ~2h04+ (6 tickets n/m) | **≤0,44** | 15 min | ~10 min | ratio partiel, 6 tickets non mesurés |
 
 > Lot UI : estimations 2x trop élevées. Les tickets UI/bulk-replace et les vérifications de tickets "déjà fait" ont été surestimés.
 > Lot CR2 : ratio 0,29 — très inférieur à 1,15. Cependant ces tickets étaient tous très petits (i18n, tests, nav, squelette) et le facteur 1,00 reflète déjà une marge nulle. Plutôt que d'abaisser le facteur en dessous de 1,00 (ce qui serait contre-productif), la leçon est : **pour les tickets de finition/tests simples, l'estimation de référence doit être 3–5 min, pas 10–20 min**. Facteur maintenu à 1,00 ; calibration des estimations unitaires à revoir pour ces catégories.
@@ -27,32 +28,7 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 ## Lots actifs
 
-### Lot BK — Backup automatique (v1.7) — ~4h Copilot + 15 min gestion
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| BIZ-173 | Migration Alembic + modèle BackupDestination | P1 | ~15 min | 2026-05-05 | | |
-| BIZ-174 | Schemas Pydantic backup | P1 | ~10 min | 2026-05-05 | | |
-| BIZ-175 | Service rclone (backup_destination_service) | P1 | ~25 min | 2026-05-05 | | |
-| BIZ-176 | Dockerfile — installation rclone | P1 | ~5 min | 2026-05-05 | | |
-| BIZ-177 | Scheduler APScheduler + lifespan main.py | P1 | ~30 min | 2026-05-05 | | |
-| BIZ-178 | Service restore (test-restore + restore distante) | P1 | ~15 min | 2026-05-05 | | |
-| BIZ-179 | Router backup.py (12 endpoints) | P1 | ~35 min | 2026-05-05 | | |
-| BIZ-180 | Frontend api/backup.ts | P1 | ~10 min | 2026-05-05 | | |
-| BIZ-181 | Frontend SettingsBackupPanel.vue | P1 | ~45 min | 2026-05-05 | | |
-| BIZ-182 | Frontend SettingsView + i18n fr/en | P1 | ~15 min | 2026-05-05 | | |
-| BIZ-183 | Tests unitaires backend (rclone mock, scheduler) | P1 | ~15 min | 2026-05-05 | | |
-| BIZ-184 | Tests intégration API backup | P1 | ~20 min | 2026-05-05 | | |
-
----
-
-### Lot REV2 — Refactoring technique différé (v1.7) — ~55 min Copilot + 15 min gestion
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| TEC-170 | Standardiser les codes d'erreur API (EN + code structuré) | P2 | ~20 min | 2026-05-06 | | |
-| TEC-171 | Audit : supprimer les commit() dans les services | P2 | ~20 min | 2026-05-06 | | |
-| TEC-173 | Découper bank.py en sous-routeurs | P3 | ~15 min | 2026-05-06 | | |
+Aucun lot actif en cours de livraison.
 
 ---
 
@@ -61,128 +37,45 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
-| BIZ-171 | Améliorations tuiles et détail factures — mobile | P2 | ~35 min | 2026-05-05 | 2026-05-05 | 2026-05-05 |
-| BIZ-172 | Section admin : paiements chèques incohérents | P2 | ~45 min | 2026-05-05 | 2026-05-05 | 2026-05-05 |
 
 ---
 
 ## Détails
 
-### TEC-170 — Standardiser les codes d'erreur API
+### BIZ-195 — Statut ARCHIVED — modèle, transitions, service, router, migration
 
-Certaines erreurs sont en français (`"Une transaction avec cette référence existe déjà."`), d'autres en anglais (`"Invoice not found"`). Standardiser : champ `code` structuré (EN, machine-readable) + `detail` humain ; le frontend affiche via i18n selon le `code`.
+Ajouter `ARCHIVED = "archived"` à `InvoiceStatus` dans `backend/models/invoice.py`. Mettre à jour `_VALID_TRANSITIONS` dans `backend/services/invoice.py` : `PAID → {ARCHIVED}`, `ARCHIVED → {}` (terminal). Ajouter `archive_invoice(db, invoice)` dans le service : génère le PDF WeasyPrint si `pdf_path` est null, puis passe le statut à ARCHIVED. Dans `backend/routers/invoice.py` : relâcher la restriction "FOURNISSEUR uniquement" sur `GET /{id}/file` pour les CLIENT en statut ARCHIVED. Migration Alembic commentée (SQLite stocke les enums en texte, pas de contrainte CHECK à modifier). Tests unitaires des transitions valides/invalides pour ARCHIVED.
 
-### TEC-171 — Audit : supprimer les commit() dans les services
+### BIZ-196 — Script import_word_invoices.py
 
-Certains services (`accounting_account`, `accounting_rule_service`, etc.) font `await db.commit()` directement. Le pattern correct : les services font `flush()`, la session commit/rollback est gérée par `get_db()`. Auditer et corriger pour éviter les commits partiels.
+Créer `scripts/import_word_invoices.py` (dry-run par défaut, `--commit` pour écrire en base). Args : `--source /chemin/vers/dossier`, `[--db data/solde.db]`, `[--commit]`, `[--verbose]`. Pour chaque `.docx` (pattern `facture YYYY-NNNN.docx`) : extraire le numéro depuis le nom de fichier, la date via `_DATE_RE` (réutilisé depuis `import_addresses_from_docx.py`), le nom client et l'adresse via les patterns de fuzzy-matching existants, les lignes de prestation depuis `doc.tables` (parcourir les tables Word pour identifier colonnes description/quantité/PU/total), le montant total (ligne « Total » du tableau ou somme des lignes). Résolution contact : recherche par nom, création `ContactType.CLIENT` si absent. Skip silencieux si une facture avec ce numéro existe déjà en base (log). Créer la facture : `type=CLIENT`, `status=ARCHIVED`, pas d'écriture comptable. Copier le `.docx` dans `data/uploads/invoices/{uuid}.docx`, stocker dans `invoice.file_path`. Rapport final : N créées, M skippées (doublon), P erreurs. Tests unitaires des fonctions de parsing (dates, noms, tables Word).
 
-### TEC-173 — Découper bank.py en sous-routeurs
+### BIZ-197 — Endpoint POST /invoices/bulk-archive + schémas + tests intégration
 
-`backend/routers/bank.py` (~550 lignes, 15+ endpoints) est le plus gros routeur. Découper en `bank_transactions.py`, `bank_deposits.py`, `bank_import.py` pour la maintenabilité.
+Ajouter dans `backend/schemas/invoice.py` : `BulkArchiveRequest` (body `invoice_ids: list[int]`) et `BulkArchiveResult` (response `{"archived": int, "skipped": int, "errors": list[str]}`). Ajouter `POST /invoices/bulk-archive` dans `backend/routers/invoice.py` : rôle TRESORIER ou ADMIN requis ; pour chaque ID, vérifier que la facture existe et est PAID (sinon skip avec raison dans errors) ; appeler `archive_invoice()` du service pour chaque facture valide ; retourner `BulkArchiveResult`. Tests intégration dans `tests/integration/test_invoices_api.py` : factures PAID → archivées, factures non-PAID → skippées, accès refusé sans rôle suffisant.
 
-### BIZ-173 — Migration Alembic + modèle BackupDestination
+### BIZ-190 — Frontend — types + i18n + badge + boutons UI factures archivées
 
-Migration Alembic ajoutant 7 colonnes dans `app_settings` : `backup_enabled` (bool), `backup_schedule_type` (str, "interval"|"cron"), `backup_interval_hours` (int), `backup_cron_expression` (str|None), `backup_include_uploads` (bool), `backup_notify_on_failure` (bool), `backup_last_run_at` (datetime|None), `backup_last_run_status` (str|None). Nouvelle table `backup_destination` : `id`, `name`, `type` (local|smb|onedrive), `enabled` (bool), `rclone_remote_name` (str), `rclone_config` (JSON text), `target_path` (str), `created_at`. Création de `backend/models/backup_destination.py` avec le modèle SQLAlchemy.
+Ajouter `'archived'` à `InvoiceStatus` dans `frontend/src/api/invoices.ts`. Ajouter clé i18n `invoices.statuses.archived: 'Archivée'` dans `fr.ts` et `'Archived'` dans `en.ts`. Ajouter une couleur/sévérité grise pour le badge statut ARCHIVED dans le composant de badge. Dans `ClientInvoicesView.vue` : pour les factures ARCHIVED, n'afficher que — bouton "Consulter" (vue détail read-only), bouton "PDF" si `pdf_path` non null (affiche le fichier figé, ne génère pas à la volée), bouton "Document" si `file_path` non null (télécharge le `.docx`). Masquer pour ARCHIVED : boutons éditer, payer, envoyer email, dupliquer, passer irrécupérable, restaurer. Ajouter `'archived'` aux options de filtre statut (colonne et dropdown global).
 
-### BIZ-174 — Schemas Pydantic backup
+### BIZ-191 — Frontend — action bulk archive
 
-Création de `backend/schemas/backup.py` avec : `BackupDestinationRead`, `BackupDestinationCreate`, `BackupDestinationUpdate` (champs name, type, enabled, rclone_remote_name, rclone_config, target_path), `BackupScheduleRead`, `BackupScheduleUpdate` (enabled, schedule_type, interval_hours, cron_expression, include_uploads, notify_on_failure), `BackupRunStatus` (last_run_at, status, destinations_results), `BackupConnectionTestResult` (success, message), `BackupRestoreTestResult` (ok, integrity_check, tables_found, tables_missing, error).
+Dans `ClientInvoicesView.vue` : ajouter un bouton "Archiver les factures filtrées" dans la barre d'outils, visible uniquement si au moins une facture PAID est présente dans `displayedInvoices`. Confirmation via `useConfirm()` + `<ConfirmDialog />` : "Archiver X facture(s) payée(s) ? Cette action est irréversible." Appel `POST /invoices/bulk-archive` avec les IDs des factures PAID de `displayedInvoices`. Toast résultat : "N factures archivées" + avertissement si M skippées. Rafraîchir la liste après archivage. Clés i18n : `invoices.bulk_archive_confirm`, `invoices.bulk_archive_result`, `invoices.bulk_archive_btn`.
 
-### BIZ-175 — Service rclone (backup_destination_service)
+### TEC-192 — Composable useTableExport (SheetJS) + tests Vitest
 
-Création de `backend/services/backup_destination_service.py` avec :
-- `write_rclone_config(destinations)` → génère `data/rclone.conf` à partir des destinations en base (section `[nom]` par destination selon le type : `type = local`, `type = smb` avec host/user/pass/share, `type = onedrive` avec token depuis rclone_config).
-- `sync_destination(dest, src_paths)` → subprocess `rclone sync {src} {remote}:{path} --update --config data/rclone.conf` pour chaque chemin source.
-- `test_destination_connection(dest)` → subprocess `rclone lsd {remote}: --config ...`, retourne `BackupConnectionTestResult`.
-- `fetch_remote_backup(dest, filename)` → `rclone copy {remote}:backups/{file} data/backups/ --config ...` pour rapatrier un backup distant avant restore.
+Installer `xlsx` (SheetJS) : `npm install xlsx` dans `frontend/`. Créer `frontend/src/composables/useTableExport.ts` exposant `exportToExcel(rows: object[], columns: {field: string, header: string}[], filename: string)` : construire un tableau de données en appliquant les colonnes sur les rows, créer un `WorkSheet` via `XLSX.utils.aoa_to_sheet`, créer un `WorkBook`, télécharger le fichier `.xlsx` via `XLSX.writeFile`. Ajouter clé i18n `common.export_excel: 'Exporter Excel'` dans `fr.ts` et `en.ts`. Tests Vitest dans `frontend/src/tests/` : colonnes correctement mappées, fichier bien déclenché (mock XLSX.writeFile), comportement avec rows vides.
 
-### BIZ-176 — Dockerfile — installation rclone
+### BIZ-193 — Bouton export Excel sur toutes les vues DataTable
 
-Ajout de `rclone` dans le Dockerfile stage runtime : `RUN apt-get update && apt-get install -y --no-install-recommends rclone && rm -rf /var/lib/apt/lists/*`. Vérification : `docker exec solde rclone version`.
+Ajouter `@value-change` sur chaque `DataTable` qui ne tracke pas encore ses lignes affichées (pour exposer les données filtrées courantes). Ajouter un bouton "Exporter Excel" (utilisant `useTableExport`) dans chaque vue avec DataTable : `ClientInvoicesView`, `SupplierInvoicesView`, `BankView` (transactions + dépôts), `CashView` (entrées + comptages de caisse), `ContactsView`, `EmployeesView`, `FiscalYearView`, `AccountingAccountsView`, `AccountingRulesView`, `AccountingJournalView`, `AccountingLedgerView`, `AccountingBalanceView`, `AccountingBilanView`, `AccountingResultatView`. Le bouton exporte uniquement les lignes visibles (après filtrage). Nom du fichier : `{entité}-{date}.xlsx`.
 
-### BIZ-177 — Scheduler APScheduler + lifespan main.py
+### CHR-194 — Quality gate complet + CHANGELOG + docs + bump version
 
-Ajout de `apscheduler>=3.10` dans `pyproject.toml`. Création de `backend/services/backup_scheduler.py` avec :
-- `BackupScheduler` (wrapper `AsyncIOScheduler`) : `start()`, `stop()`, `reload(settings)` — replanifie le job selon `backup_schedule_type` (interval ou cron), annule l'ancien job si les settings changent.
-- `run_backup_job(db_path, backup_dir, settings)` : appelle `create_backup()`, appelle `sync_destination()` pour chaque destination activée, met à jour `backup_last_run_at` et `backup_last_run_status` en base, envoie un email via le service SMTP existant si échec et `backup_notify_on_failure=True`.
-- Intégration dans `backend/main.py` lifespan : démarrer le scheduler au startup si `backup_enabled`, arrêter au shutdown. Exposer `reload_scheduler()` appelé depuis le router settings quand les paramètres de planification sont mis à jour.
-
-### BIZ-178 — Service restore (test-restore + restore distante)
-
-Création de `backend/services/backup_restore_service.py` avec :
-- `test_restore(backup_path)` : ouvre le fichier `.db` via `sqlite3`, exécute `PRAGMA integrity_check`, vérifie la présence des tables attendues (liste hardcodée des tables du modèle), retourne `BackupRestoreTestResult` sans toucher à la DB live.
-- `restore_from_destination(dest, filename, backup_dir, db_path)` : appelle `fetch_remote_backup()` pour rapatrier le fichier si la destination est distante, puis appelle `restore_backup()` existant dans `backup_service.py`.
-
-### BIZ-179 — Router backup.py (12 endpoints)
-
-Création de `backend/routers/backup.py` (admin uniquement) avec :
-- `GET /api/backup/destinations` — liste toutes les destinations.
-- `POST /api/backup/destinations` — créer une destination (génère rclone.conf).
-- `PUT /api/backup/destinations/{id}` — modifier.
-- `DELETE /api/backup/destinations/{id}` — supprimer.
-- `POST /api/backup/destinations/{id}/test` — teste la connexion rclone, retourne `BackupConnectionTestResult`.
-- `GET /api/backup/schedule` — lit les settings de planification depuis `AppSettings`.
-- `PUT /api/backup/schedule` — met à jour les settings + replanifie le scheduler.
-- `POST /api/backup/run` — déclenche un backup immédiat (background task).
-- `GET /api/backup/status` — retourne `BackupRunStatus` (dernier run, statut par destination).
-- `POST /api/backup/backups/{filename}/test-restore` — dry-run `test_restore()` sur un fichier local.
-- `POST /api/backup/backups/{filename}/restore` — restore réelle (locale ou distante) ; accepte `?destination_id=` optionnel pour les fichiers distants.
-- `GET /api/backup/oauth/onedrive/start` — spawn `rclone authorize onedrive`, capture le port local, retourne `{ port, auth_url }` avec l'URL construite en remplaçant `127.0.0.1` par `{request.client.host}` (NAS IP).
-- `GET /api/backup/oauth/onedrive/status` — poll : retourne `{ done, token }` une fois que rclone a capturé le token, ou `{ done: false }` tant que l'autorisation est en cours (timeout 5 min).
-
-### BIZ-180 — Frontend api/backup.ts
-
-Création de `frontend/src/api/backup.ts` avec les interfaces TypeScript (`BackupDestination`, `BackupDestinationCreate`, `BackupSchedule`, `BackupRunStatus`, `BackupConnectionTestResult`, `BackupRestoreTestResult`) et les fonctions client pour tous les endpoints de `backup.py`.
-
-### BIZ-181 — Frontend SettingsBackupPanel.vue
-
-Création de `frontend/src/components/settings/SettingsBackupPanel.vue` avec :
-- **Section planification** : toggle activé/désactivé, sélecteur interval (heures) ou cron (input expression + preview "prochain run dans X"), checkbox inclure uploads, checkbox notifier en cas d'échec.
-- **Section destinations** : `DataTable` avec colonnes nom / type / statut / activé ; actions Tester (badge ✓/✗), Activer/Désactiver, Supprimer.
-- **Dialog ajouter destination** : champ type (local / SMB / OneDrive) → formulaire adapté : local = chemin cible ; SMB = host, share, user, password, chemin cible ; OneDrive = bouton « Autoriser OneDrive » (ouvre le dialog OAuth).
-- **Dialog OneDrive OAuth** : bouton → `GET /api/backup/oauth/onedrive/start` → ouvre `auth_url` dans un nouvel onglet → poll `GET /api/backup/oauth/onedrive/status` toutes les 2s → affiche spinner « En attente d'autorisation » → quand `done=true`, le token est stocké côté backend dans `rclone_config`, dialog se ferme.
-- **Section statut** : date du dernier run, icône succès/erreur, résultat par destination.
-- **Bouton « Lancer maintenant »** : déclenche `POST /api/backup/run`, toast confirmation.
-- **Section restauration** : liste les backups locaux (`GET /api/settings/backups`) + backups distants (par destination) ; chaque entrée a deux boutons : « Tester » (dry-run, modale avec rapport intégrité) et « Restaurer » (confirmation puis restore réelle).
-
-### BIZ-182 — Frontend SettingsView + i18n fr/en
-
-Ajout de `<SettingsBackupPanel />` dans `SettingsView.vue` après `<SettingsSmtpPanel />`. Ajout de toutes les clés `settings.backup.*` dans `frontend/src/i18n/fr.ts` et `en.ts` (planification, destinations, types, OAuth, statuts, restore).
-
-### BIZ-183 — Tests unitaires backend
-
-Tests pour `backup_destination_service` (mock subprocess rclone : génération `rclone.conf` par type, parsing résultat sync, test connexion OK/KO) et `backup_restore_service` (test-restore sur fichier DB valide et fichier corrompu). Fichier : `tests/unit/test_backup_services.py`.
-
-### BIZ-184 — Tests intégration API backup
-
-Tests pour les endpoints du router `backup.py` : CRUD destinations (create/list/update/delete), test connexion (mock rclone), trigger backup (mock job), GET status, test-restore (mock service), PUT schedule (vérifie settings en base). Fichier : `tests/integration/test_backup_api.py`.
-
-### BIZ-172 — Section admin : paiements chèques incohérents
-
-Panneau dans la vue Supervision système (admin uniquement) listant les paiements par chèque dont `deposited=True` mais `deposit_date=NULL` (état incohérent produit par l'import Excel). Chaque ligne propose une action « Corriger » avec un sélecteur de date pour poser la `deposit_date` manquante. Ces paiements sont actuellement comptabilisés à tort dans "Chèques non remis" sur le dashboard.
-
-### BIZ-166 — Vue contacts : onglet clients par défaut + tri par récence
-
-Onglet "Clients" activé par défaut (ordre : Clients > Fournisseurs > Tout).
-Tri synthétique : facture < 6 mois en tête, puis ordre alphabétique (nom, prénom).
-
-### BIZ-034 — Support multi-compte banque
-
-Distinguer compte courant et compte épargne dans les données, imports et écrans.
-Décisions métier nécessaires avant implémentation.
-
+Exécuter la quality gate complète (ruff check + format, mypy, pytest, eslint, vue-tsc, vitest) et corriger tout problème résiduel. Mettre à jour `CHANGELOG.md` (section `[Non publié]`), `doc/user/changelog-user.md` (sections Secrétaire/Trésorier/Administrateur), et `doc/backlog.md` (statuts tickets). Incrémenter la version patch dans `pyproject.toml` et `frontend/package.json`.
 ### BIZ-169 — Édition/suppression des opérations manuelles
 
 Permettre de modifier ou supprimer les opérations bancaires créées manuellement depuis BankView (opérations sans import source).
-
-### BIZ-171 — Améliorations tuiles et détail factures — mobile
-
-Améliorations de l'expérience mobile sur les vues factures client et fournisseur :
-- Tuile facture client : supprimer l'étiquette (label catégorie) qui n'apporte rien en vue liste et augmente la hauteur de la tuile inutilement.
-- Tuile facture fournisseur : fusionner la ligne « Référence fournisseur » et l'icône trombone en une seule ligne ; supprimer la div dédiée au seul trombone.
-- Détail facture fournisseur (dialog prévisualisation) : présenter date / échéance / référence sur lignes séparées au lieu d'une phrase en ligne ; rendre les boutons icon-only sur mobile ; empiler la section header en colonne sur mobile ; réduire la taille des labels de la grille TOTAL / RÉGLÉ / RESTANT DÛ pour éviter le débordement sur 2 lignes.
-
-
 
 ---
 
@@ -190,6 +83,10 @@ Améliorations de l'expérience mobile sur les vues factures client et fournisse
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
+| FW | Import Word + Archivage + Export Excel | v1.7.2 | BIZ-190→197, TEC-192, CHR-194 | 2026-05-12 | ~395 min | ~2h50 |
+| BK | Backup automatique | v1.7 | BIZ-173→184, BIZ-187, BIZ-188, BIZ-189 | 2026-05-11 | ~4h40 | ~2h+ (partiel) |
+| TEC-185/BIZ-186 | Fix Chrome PDF + filigrane Payé | v1.6.3 | TEC-185, BIZ-186 | 2026-05-10 | ~40 min | — |
+| REV2 | Refactoring technique différé | v1.6.2 | TEC-170, TEC-171, TEC-173 | 2026-05-07 | ~55 min | — |
 | REV | Revue de code technique | v1.6.1 | TEC-160–165, 167–169, 172 (+ TEC-161, 163, 166 déjà faits) | 2026-05-06 | ~190 min | ~70 min |
 | BIZ-172 | Paiements chèques incohérents | v1.6 | BIZ-172 | 2026-05-05 | ~45 min | — |
 | BIZ-171 | Améliorations factures mobile | v1.6 | BIZ-171 | 2026-05-05 | ~35 min | — |
@@ -201,6 +98,31 @@ Améliorations de l'expérience mobile sur les vues factures client et fournisse
 | DOC | Documentation utilisateur | v1.5 | BIZ-161, BIZ-162, BIZ-163 | 2026-05-03 | ~115 min | ~45 min |
 | UI | Améliorations UI & saisie | v1.4 | BIZ-149, BIZ-150, BIZ-157, BIZ-158 | 2026-05-03 | ~65 min | ~30 min |
 | MOB | Mode téléphone | v1.5 | BIZ-164 | 2026-05-03 | ~90 min | — |
+
+<details>
+<summary>Lot BK — Backup automatique (2026-05-11)</summary>
+
+| Ticket | Titre | Est. | Réel |
+| --- | --- | --- | --- |
+| BIZ-173 | Migration Alembic + modèle BackupDestination | ~15 min | ~7 min |
+| BIZ-174 | Schemas Pydantic backup | ~10 min | ~5 min |
+| BIZ-175 | Service rclone (backup_destination_service) | ~25 min | ~9 min |
+| BIZ-176 | Dockerfile — installation rclone | ~5 min | ~3 min |
+| BIZ-177 | Scheduler APScheduler + lifespan main.py | ~30 min | ~14 min |
+| BIZ-178 | Service restore (test-restore + restore distante) | ~15 min | ~9 min |
+| BIZ-179 | Router backup.py (12 endpoints) | ~35 min | ~19 min |
+| BIZ-180 | Frontend api/backup.ts | ~10 min | ~7 min |
+| BIZ-181 | Frontend SettingsBackupPanel.vue | ~45 min | ~16 min |
+| BIZ-182 | Frontend SettingsView + i18n fr/en | ~15 min | n/m |
+| BIZ-183 | Tests unitaires backend | ~15 min | n/m |
+| BIZ-184 | Tests intégration API backup | ~20 min | n/m |
+| BIZ-187 | Type planification quotidien (HH:MM) + option snapshot-only | ~35 min | n/m |
+| BIZ-188 | Option inclure tous les backups précédents | *(inclus BIZ-187)* | n/m |
+| BIZ-189 | Fix : spinner visible si backup auto déclenché page ouverte | ~15 min | n/m |
+| PR review (Copilot) | Corrections commentaires revue | — | ~35 min |
+| **Total** | | **~4h40** | **~2h04 mesurés** (6 tickets n/m) |
+
+</details>
 
 <details>
 <summary>Lot REV — Revue de code technique (2026-05-06)</summary>
@@ -320,7 +242,7 @@ Purge des clés expirées toutes les 100 tentatives dans `rate_limiter.py`.
 
 </details>
 
-Tickets fermés hors lots récents : **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**, **TEC-156**.
+Tickets fermés hors lots récents : **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**, **TEC-156**, **BIZ-198**, **BIZ-199**, **BIZ-200**.
 
 > Lots et tickets plus anciens → [backlog-archive.md](backlog-archive.md)
 

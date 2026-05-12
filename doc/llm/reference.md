@@ -167,7 +167,13 @@ A PDF preview is shown on the right side of the dialog. The PDF is attached auto
 ### Downloading the PDF
 
 Open the invoice → click "Télécharger PDF".
+### Known issue: PDF preview blank in Chrome
 
+If the PDF preview area is blank in Chrome (invoice dialog, email dialog, contact history), the root cause is almost always the Chrome setting **"Download PDFs"** (instead of opening them inline). Fix: `chrome://settings/content/pdfDocuments` → select **"Open PDFs in Chrome"**.
+
+Secondary cause: a third-party Chrome extension intercepting PDF blob URLs (e.g. Adobe Acrobat extension, download manager). Ask the user to temporarily disable PDF-related extensions.
+
+This setting is per-browser and per-user. It does not affect the "Télécharger PDF" download button. The PDF viewer in the app uses `<embed>` with a blob URL (and viewer parameters) — it requires Chrome's built-in PDF viewer to be active.
 ### Writing off an invoice (irrécouvrable)
 
 Open the invoice → "Passer en irrécouvrable". This marks the invoice as a bad debt and generates accounting entries automatically. The invoice disappears from the unpaid list.
@@ -404,7 +410,12 @@ When a user cannot resolve a problem themselves, they need to contact their admi
 - **Close a fiscal year** — irreversible operation. All entries for the period must be finalised first.
 
 ### Backups
-- The administrator is responsible for regular database backups. Users cannot trigger backups themselves.
+- The administrator configures automatic backups under **Paramètres → Sauvegarde automatique**. Three schedule modes are available: **Quotidien** (daily at a fixed HH:MM time — recommended), **Toutes les N heures** (interval), and **Expression cron** (advanced).
+- Backup destinations include: **Local** (folder on the server), **SMB** (network share), and **OneDrive** (Microsoft account, authorised via a device-code flow).
+- By default, only the latest `.db` snapshot is sent to the destination. The "Inclure tous les fichiers de sauvegarde précédents" option sends the full backup folder.
+- The administrator can also trigger an **on-demand backup** from **Administration → Supervision système → Sauvegardes** and download the resulting `.db` file.
+- A spinner and progress percentage appear in the settings panel whenever a backup is running — including automatically scheduled ones (visible within ~10 seconds of the backup starting).
+- A **failure notification email** can be enabled (requires SMTP configuration).
 - If data appears lost or corrupted, contact the administrator immediately — do not attempt to re-enter data.
 
 ### System supervision

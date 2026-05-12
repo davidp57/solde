@@ -23,6 +23,17 @@
             <label class="app-field__label">{{ t('common.search') }}</label>
             <Button :label="t('common.search')" icon="pi pi-refresh" @click="load" />
           </div>
+          <div class="app-field">
+            <label class="app-field__label">&nbsp;</label>
+            <Button
+              :label="t('common.export_excel')"
+              icon="pi pi-file-excel"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="doExportExcel"
+            />
+          </div>
         </div>
       </div>
 
@@ -154,11 +165,24 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import { getResultatApi, type ResultatRead } from '../api/accounting'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { formatAccountingAmount } from '../utils/format'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const fiscalYearStore = useFiscalYearStore()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'account_number', header: t('accounting.balance.account_number') },
+  { field: 'account_label', header: t('accounting.balance.account_label') },
+  { field: 'solde', header: t('accounting.balance.solde') },
+]
+const exportRows = computed(() =>
+  resultat.value ? [...resultat.value.charges, ...resultat.value.produits] : []
+)
+function doExportExcel(): void {
+  exportToExcel(exportRows.value, exportColumns, 'accounting-resultat-export')
+}
 
 const resultat = ref<ResultatRead | null>(null)
 const fiscalYears = computed(() => fiscalYearStore.fiscalYears)

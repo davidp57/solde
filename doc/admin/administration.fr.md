@@ -45,7 +45,37 @@ Les migrations de base de données s'exécutent automatiquement au démarrage. A
 
 ### Sauvegardes
 
-#### Depuis l'interface d'administration (recommandé)
+#### Sauvegarde automatique (planifiée)
+
+La sauvegarde automatique se configure dans **Paramètres → Sauvegarde automatique** (compte administrateur uniquement).
+
+**Modes de planification disponibles :**
+
+| Mode | Description |
+|---|---|
+| **Quotidien (heure fixe)** | Déclenche la sauvegarde chaque jour à l'heure saisie au format HH:MM (heure locale du serveur). Recommandé pour la plupart des usages. |
+| **Toutes les N heures** | Répète la sauvegarde selon un intervalle fixe. |
+| **Expression cron** | Planning avancé 5 champs (ex. `0 2 * * *`). |
+
+**Options de contenu :**
+- **Inclure les fichiers joints** : envoie aussi le dossier `data/uploads/` (pièces jointes fournisseur) vers la destination.
+- **Inclure tous les fichiers de sauvegarde précédents** : envoie l'intégralité du dossier `data/backups/`. Si désactivé (comportement par défaut), seul le dernier snapshot `.db` est transmis — ce qui réduit considérablement le volume transféré.
+
+**Suivi en temps réel :** le panneau affiche un spinner et un pourcentage de progression dès qu'une sauvegarde est en cours, y compris lorsqu'elle a été déclenchée automatiquement par le planificateur (détection en moins de 10 secondes si la page est déjà ouverte).
+
+**Destinations disponibles :**
+
+| Type | Description |
+|---|---|
+| **Local** | Dossier sur le serveur (chemin absolu). |
+| **SMB (réseau)** | Partage NAS/serveur via SMB — renseigner hôte, partage, identifiant, mot de passe. |
+| **OneDrive** | Compte Microsoft OneDrive — cliquer sur **Autoriser OneDrive** et suivre le flux d'authentification appareil. |
+
+Chaque destination peut être activée ou désactivée indépendamment et testée sans effectuer de sauvegarde (**Tester la connexion**).
+
+**Notification en cas d'échec :** cocher l'option et configurer le SMTP (Paramètres → E-mail) pour recevoir un e-mail si une sauvegarde planifiée échoue.
+
+#### Depuis l'interface d'administration (sauvegarde à la demande)
 
 1. Aller dans **Administration → Supervision système → Sauvegardes**.
 2. Optionnel : saisir un libellé pour identifier la sauvegarde.

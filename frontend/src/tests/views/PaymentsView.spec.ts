@@ -24,7 +24,7 @@ vi.mock('primevue/useconfirm', () => ({
 }))
 
 vi.mock('../../api/payments', () => ({
-  listPayments: vi.fn(),
+  listPaymentsWithCount: vi.fn(),
   updatePayment: vi.fn(),
   deletePayment: vi.fn(),
 }))
@@ -61,14 +61,28 @@ vi.mock('../../stores/fiscalYear', () => ({
   useFiscalYearStore: () => fiscalYearStoreMock,
 }))
 
+const limitStoreMock = {
+  systemLimit: 500,
+  init: vi.fn().mockResolvedValue(undefined),
+  effectiveLimit: vi.fn().mockReturnValue(500),
+  requestLimit: vi.fn().mockReturnValue(500),
+  setTotalCount: vi.fn(),
+  isDisabled: vi.fn().mockReturnValue(false),
+  hasMore: vi.fn().mockReturnValue(false),
+}
+
+vi.mock('../../stores/listLimit', () => ({
+  useListLimitStore: () => limitStoreMock,
+}))
+
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {} }),
 }))
 
 import PaymentsView from '../../views/PaymentsView.vue'
-import { listPayments, updatePayment } from '../../api/payments'
+import { listPaymentsWithCount, updatePayment } from '../../api/payments'
 
-const mockListPayments = vi.mocked(listPayments)
+const mockListPaymentsWithCount = vi.mocked(listPaymentsWithCount)
 const mockUpdatePayment = vi.mocked(updatePayment)
 
 const paymentFixture = {
@@ -272,6 +286,7 @@ function mountView() {
         Tag: TagStub,
         ToggleButton: ToggleButtonStub,
         AppTableSkeleton: { template: '<div />' },
+        AppListLimitBanner: ContainerStub,
       },
     },
   })
@@ -281,7 +296,7 @@ describe('PaymentsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     fiscalYearStoreMock.initialize.mockResolvedValue(undefined)
-    mockListPayments.mockResolvedValue([paymentFixture])
+    mockListPaymentsWithCount.mockResolvedValue({ items: [paymentFixture], total: 1 })
     mockUpdatePayment.mockResolvedValue({ ...paymentFixture, reference: 'REF-2025-002' })
   })
 
@@ -289,7 +304,7 @@ describe('PaymentsView', () => {
     const wrapper = mountView()
     await flushView()
 
-    expect(mockListPayments).toHaveBeenCalledWith(
+    expect(mockListPaymentsWithCount).toHaveBeenCalledWith(
       expect.objectContaining({
         invoice_type: 'client',
         from_date: '2025-01-01',
@@ -301,7 +316,7 @@ describe('PaymentsView', () => {
   })
 
   it('falls back to the invoice number when the payment reference is empty', async () => {
-    mockListPayments.mockResolvedValue([{ ...paymentFixture, reference: null }])
+    mockListPaymentsWithCount.mockResolvedValue({ items: [{ ...paymentFixture, reference: null }], total: 1 })
 
     const wrapper = mountView()
     await flushView()
@@ -316,7 +331,7 @@ describe('PaymentsView', () => {
     const wrapper = mountView()
     await flushView()
 
-    expect(mockListPayments).toHaveBeenCalledWith(
+    expect(mockListPaymentsWithCount).toHaveBeenCalledWith(
       expect.objectContaining({
         invoice_type: 'client',
         from_date: undefined,

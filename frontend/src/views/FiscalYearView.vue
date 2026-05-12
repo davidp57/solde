@@ -31,6 +31,14 @@
             :disabled="!hasActiveFilters"
             @click="resetFilters"
           />
+          <Button
+            :label="t('common.export_excel')"
+            icon="pi pi-file-excel"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="doExportExcel"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -269,12 +277,23 @@ import {
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { formatDisplayDate } from '@/utils/format'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const toast = useToast()
 const confirm = useConfirm()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'name', header: t('accounting.fiscalYear.name') },
+  { field: 'start_date', header: t('accounting.fiscalYear.start_date') },
+  { field: 'end_date', header: t('accounting.fiscalYear.end_date') },
+  { field: 'status_label', header: t('accounting.fiscalYear.status') },
+]
+function doExportExcel(): void {
+  exportToExcel(displayedFiscalYears.value, exportColumns, 'fiscal-years-export')
+}
 
 const fiscalYears = ref<FiscalYearRead[]>([])
 const loading = ref(false)

@@ -141,3 +141,44 @@ def send_invoice_email(
                 server.send_message(msg)
     except (smtplib.SMTPException, OSError) as exc:
         raise EmailSendError(f"Failed to send email: {exc}") from exc
+
+
+def send_plain_email(
+    *,
+    host: str,
+    port: int,
+    user: str | None,
+    password: str | None,
+    use_tls: bool,
+    from_email: str,
+    to_email: str,
+    subject: str,
+    body: str,
+) -> None:
+    """Send a plain-text email (no attachment).
+
+    Used for system notifications such as backup failure alerts.
+    Raises EmailSendError if delivery fails.
+    """
+    msg = MIMEMultipart()
+    msg["From"] = from_email
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain", "utf-8"))
+
+    try:
+        if use_tls:
+            ctx = ssl.create_default_context()
+            with smtplib.SMTP(host, port, timeout=15) as server:
+                server.ehlo()
+                server.starttls(context=ctx)
+                if user and password:
+                    server.login(user, password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=15) as server:
+                if user and password:
+                    server.login(user, password)
+                server.send_message(msg)
+    except (smtplib.SMTPException, OSError) as exc:
+        raise EmailSendError(f"Failed to send plain email: {exc}") from exc

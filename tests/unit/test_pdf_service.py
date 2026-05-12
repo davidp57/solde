@@ -44,6 +44,7 @@ class _FakeInvoice:
     total_vat: Decimal = Decimal("0.00")
     notes: str | None = None
     lines: list[Any] = field(default_factory=lambda: [_InvoiceLine()])
+    status: str = "sent"
 
 
 @dataclass
@@ -114,6 +115,22 @@ def test_render_invoice_html_no_address_omitted() -> None:
     html = render_invoice_html(_FakeInvoice(), "Alice Martin", _FakeSettings(), None)
     # No address block should appear beyond the contact name
     assert "57000" not in html
+
+
+def test_render_invoice_html_paid_shows_watermark() -> None:
+    invoice = _FakeInvoice(status="paid")
+    html = render_invoice_html(invoice, "Alice Martin", _FakeSettings())
+    assert '<div class="watermark">' in html
+    assert "PAY\u00c9" in html
+
+
+def test_render_invoice_html_non_paid_no_watermark() -> None:
+    for status in ("sent", "partial", "draft", "overdue"):
+        invoice = _FakeInvoice(status=status)
+        html = render_invoice_html(invoice, "Alice Martin", _FakeSettings())
+        assert '<div class="watermark">' not in html, (
+            f"Watermark should not appear for status={status!r}"
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -3,10 +3,11 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.errors import api_error, conflict, not_found
 from backend.models.invoice import InvoiceType
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
@@ -29,6 +30,7 @@ _ReadAccess = Annotated[
 
 @router.get("/", response_model=list[PaymentRead])
 async def list_payments(
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     invoice_id: int | None = Query(default=None),
@@ -39,7 +41,7 @@ async def list_payments(
     undeposited_only: bool = Query(default=False),
     inconsistent_only: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=1000, ge=1, le=1000),
+    limit: int = Query(default=1000, ge=1, le=5000),
 ) -> list[PaymentRead]:
     payments = await payment_service.list_payments(
         db,
@@ -53,6 +55,17 @@ async def list_payments(
         skip=skip,
         limit=limit,
     )
+    total = await payment_service.count_payments(
+        db,
+        invoice_id=invoice_id,
+        invoice_type=invoice_type,
+        contact_id=contact_id,
+        from_date=from_date,
+        to_date=to_date,
+        undeposited_only=undeposited_only,
+        inconsistent_only=inconsistent_only,
+    )
+    response.headers["X-Total-Count"] = str(total)
     return payments
 
 
@@ -78,9 +91,9 @@ async def create_payment(
     try:
         payment = await payment_service.create_payment(db, payload)
     except payment_service.InvoiceNotFoundError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "INVOICE_NOT_FOUND", str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise api_error(status.HTTP_400_BAD_REQUEST, "PAYMENT_INVALID", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.PAYMENT_CREATED,
@@ -104,7 +117,7 @@ async def get_payment(
 ) -> PaymentRead:
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+        raise not_found("Payment")
     return payment
 
 
@@ -118,9 +131,9 @@ async def update_payment(
     try:
         updated = await payment_service.update_payment(db, payment_id, payload)
     except LookupError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "PAYMENT_NOT_FOUND", str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise api_error(status.HTTP_400_BAD_REQUEST, "PAYMENT_INVALID", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.PAYMENT_UPDATED,
@@ -139,7 +152,7 @@ async def delete_payment(
 ) -> None:
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+        raise not_found("Payment")
     detail = {
         "invoice_id": payment.invoice_id,
         "amount": str(payment.amount),
@@ -148,7 +161,7 @@ async def delete_payment(
     try:
         await payment_service.delete_payment(db, payment_id)
     except payment_service.PaymentDeleteError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        raise conflict("PAYMENT_CONFLICT", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.PAYMENT_DELETED,
@@ -170,9 +183,9 @@ async def fix_deposit_date(
     try:
         updated = await payment_service.fix_inconsistent_deposit_date(db, payment_id, deposit_date)
     except LookupError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        raise api_error(status.HTTP_404_NOT_FOUND, "PAYMENT_NOT_FOUND", str(exc)) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        raise api_error(status.HTTP_400_BAD_REQUEST, "PAYMENT_INVALID", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.PAYMENT_UPDATED,

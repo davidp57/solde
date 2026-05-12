@@ -37,6 +37,13 @@ This project follows **git flow**:
 
 All work happens on feature branches. Never commit directly to `main` or `develop`.
 
+### Mandatory release branch rule
+
+When preparing a release (version bump, changelog freeze, release notes, final docs sync), always work on a dedicated `release/x.y.z` branch.
+
+- If the current branch is not `release/*`, create or rename to `release/x.y.z` before continuing release preparation tasks.
+- Do not prepare a release from `feature/*`, `fix/*`, or `develop`.
+
 ### Branch naming
 
 ```
@@ -96,6 +103,23 @@ npx vitest run
 ```
 
 All checks must be green before pushing or opening a PR. Never bypass with `--no-verify` unless there is a documented exceptional reason.
+
+## Commit, push and PR workflow
+
+When asked to commit, push and/or open a PR, follow these steps **in order**:
+
+1. **Run the full quality gate** (see section above) — all checks must be green
+2. **Verify zero errors in VS Code**
+3. **Commit** using Conventional Commits format
+4. **Push** the branch
+5. **Create the PR on GitHub** targeting the appropriate base branch (see Git Flow rules):
+   - Request a **Copilot review** on the PR
+   - Provide the PR title and description as copyable markdown blocks in the chat
+6. **Monitor reviews** — check for review comments every ~2 minutes until the review is complete:
+   - Address every review comment: fix the issue in the code and re-run the quality gate
+   - Resolve the review thread once the fix is applied
+   - Push the updated commits
+   - Repeat until all threads are resolved and the PR is approved
 
 ## Multi-PC workflow
 
@@ -229,7 +253,8 @@ After every change (feature, fix, refactor):
 
 When asked to create a release, follow these steps **in order**:
 
-1. **Analyse changes** since the last release (git log, CHANGELOG Unreleased section)
+1. **Ensure branch is `release/x.y.z`** before any release edit. If needed, rename/create the branch first.
+2. **Analyse changes** since the last release (git log, CHANGELOG Unreleased section)
 2. **Determine the version bump** following Semantic Versioning (semver):
    - `MAJOR` (x.0.0): breaking changes
    - `MINOR` (0.x.0): new features, backward-compatible
@@ -250,6 +275,19 @@ When asked to create a release, follow these steps **in order**:
    - Title: `release: vX.Y.Z` or descriptive feature title
    - Description in **English**: summary of changes, breaking changes (if any), migration notes (if any)
    - Always provide the PR title and description as **copyable markdown blocks** in the chat, so the user can paste them directly into GitHub
+
+### Release collection checklist (mandatory)
+
+Before validating release documentation, check all items below:
+
+1. `git log <last_release_tag_or_main>..HEAD --oneline` reviewed and grouped by ticket (`BIZ/TEC/CHR`).
+2. Every major `BIZ` feature appears in `CHANGELOG.md` under the correct section.
+3. Every user-visible change in `CHANGELOG.md` has a plain-French entry in `doc/user/changelog-user.md`.
+4. Critical release themes are explicitly covered: backups, imports/migrations, invoice/payment status lifecycle, auth/roles/security, exports/reporting.
+5. `doc/user/`, `doc/admin/`, and `doc/dev/` are updated for impacted workflows.
+6. `doc/backlog.md` statuses/lots are aligned with delivered tickets.
+7. Release notes file `doc/releases/vX.Y.Z.md` exists and matches changelog scope.
+8. Final consistency pass: no major feature present in code/commits but missing from release docs.
 
 ---
 

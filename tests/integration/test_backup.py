@@ -211,4 +211,4 @@ async def test_backup_endpoint_db_not_found(
         resp = await client.post("/api/settings/backup", headers=auth_headers)
 
     assert resp.status_code == 500
-    assert resp.json()["detail"] == "Database file not found on disk."
+    assert resp.json()["detail"]["detail"] == "Database file not found on disk."

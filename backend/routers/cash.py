@@ -4,10 +4,11 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
+from backend.errors import api_error, not_found, unprocessable
 from backend.models.cash import CashEntrySource
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
@@ -98,7 +99,7 @@ async def get_entry(
 ) -> CashEntryRead:
     entry = await cash_service.get_cash_entry(db, entry_id)
     if entry is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cash entry not found")
+        raise not_found("Cash entry")
     return entry  # type: ignore[return-value]
 
 
@@ -110,7 +111,7 @@ async def get_entry_connections(
 ) -> CashEntryConnectionsRead:
     entry = await cash_service.get_cash_entry(db, entry_id)
     if entry is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cash entry not found")
+        raise not_found("Cash entry")
     if entry.source != CashEntrySource.MANUAL:
         return CashEntryConnectionsRead(
             can_delete=False,
@@ -137,7 +138,7 @@ async def update_entry(
 ) -> CashEntryRead:
     entry = await cash_service.get_cash_entry(db, entry_id)
     if entry is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cash entry not found")
+        raise not_found("Cash entry")
     updated = await cash_service.update_cash_entry(db, entry, payload)
     await record_audit(
         db,
@@ -157,18 +158,19 @@ async def delete_entry(
 ) -> None:
     entry = await cash_service.get_cash_entry(db, entry_id)
     if entry is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cash entry not found")
+        raise not_found("Cash entry")
     if entry.source != CashEntrySource.MANUAL:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Only manual cash entries can be deleted",
+        raise unprocessable(
+            "CASH_ENTRY_NOT_MANUAL",
+            "Only manual cash entries can be deleted",
         )
     try:
         await cash_service.delete_cash_entry(db, entry)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
+        raise api_error(
+            status.HTTP_409_CONFLICT,
+            "CASH_ENTRY_HAS_DEPENDENCIES",
+            str(exc),
         ) from exc
     await record_audit(
         db,

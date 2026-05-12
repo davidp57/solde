@@ -52,6 +52,14 @@
               :title="t('common.reset_filters')"
               @click="resetFilters"
             />
+            <Button
+              :label="t('common.export_excel')"
+              icon="pi pi-file-excel"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="doExportExcel"
+            />
           </div>
         </div>
 
@@ -75,9 +83,12 @@
         </div>
       </div>
 
-      <Message v-if="invoices.length >= 1000" severity="warn" :closable="false" class="mb-2">
-        {{ t('common.api_limit_warning') }}
-      </Message>
+      <AppListLimitBanner
+        :view-key="LIMIT_VIEW_KEY"
+        :fetched-count="invoices.length"
+        :limit="limitStore.systemLimit"
+        @reload="loadInvoices"
+      />
       <template v-if="isMobile">
         <AppMobileCardList :items="invoiceRows" :empty-message="t('invoices.supplier.empty')">
           <template #card="{ item: data }">
@@ -368,9 +379,10 @@
           <div v-else-if="editFileBlobUrl" class="supplier-preview-dialog__file-frame">
             <embed
               v-if="editFileIsPdf"
-              :src="editFileBlobUrl"
+              :src="`${editFileBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
               type="application/pdf"
               class="supplier-preview-dialog__embed"
+               :title="t('invoices.file')"
             />
             <img
               v-else
@@ -571,9 +583,10 @@
             <div v-else-if="previewBlobUrl" class="supplier-preview-dialog__file-frame">
               <embed
                 v-if="previewIsPdf"
-                :src="previewBlobUrl"
+                :src="`${previewBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
                 type="application/pdf"
                 class="supplier-preview-dialog__embed"
+                :title="t('invoices.file')"
               />
               <img
                 v-else
@@ -702,7 +715,6 @@ import Dialog from 'primevue/dialog'
 import FileUpload from 'primevue/fileupload'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
-import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
@@ -721,14 +733,16 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
+import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import { useBreakpoints } from '../composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 
 import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
   downloadInvoiceFileApi,
-  listInvoicesApi,
+  listInvoicesWithCountApi,
   uploadInvoiceFileApi,
   type Invoice,
   type InvoiceStatus,
@@ -748,6 +762,7 @@ import {
 } from '../composables/activeFilterLabels'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { useListLimitStore } from '../stores/listLimit'
 import { formatContactDisplayName } from '../utils/contact'
 import { formatDisplayDate } from '@/utils/format'
 import { getErrorDetail } from '@/utils/errorUtils'
@@ -758,7 +773,21 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
+const limitStore = useListLimitStore()
+const LIMIT_VIEW_KEY = 'invoices-supplier'
 const { isMobile } = useBreakpoints()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'number', header: t('invoices.number') },
+  { field: 'date', header: t('invoices.date') },
+  { field: 'contact_name', header: t('invoices.contact') },
+  { field: 'reference', header: t('invoices.reference') },
+  { field: 'total_amount_value', header: t('invoices.total') },
+  { field: 'status_label', header: t('invoices.status') },
+]
+function doExportExcel(): void {
+  exportToExcel(displayedInvoices.value, exportColumns, 'supplier-invoices-export')
+}
 
 const invoices = ref<Invoice[]>([])
 const contacts = ref<Contact[]>([])
@@ -1021,13 +1050,18 @@ function statusSeverity(s: InvoiceStatus): string {
 async function loadInvoices() {
   loading.value = true
   try {
-    const filters: Record<string, unknown> = { invoice_type: 'fournisseur' }
+    const filters: Record<string, unknown> = {
+      invoice_type: 'fournisseur',
+      limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
+    }
     if (fiscalYearStore.selectedFiscalYear) {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
       filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
     }
     if (statusFilter.value) filters.invoice_status = statusFilter.value
-    invoices.value = await listInvoicesApi(filters)
+    const { items, total } = await listInvoicesWithCountApi(filters)
+    limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
+    invoices.value = items
     openInvoiceFromQuery()
   } finally {
     loading.value = false
@@ -1235,7 +1269,7 @@ watch(
 )
 
 onMounted(async () => {
-  await fiscalYearStore.initialize()
+  await Promise.all([fiscalYearStore.initialize(), limitStore.init()])
   await Promise.all([loadInvoices(), loadContacts()])
 })
 </script>

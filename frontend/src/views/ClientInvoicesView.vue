@@ -13,8 +13,8 @@
     <section class="app-stat-grid">
       <AppStatCard
         :label="t('invoices.client.metrics.visible_count')"
-        :value="portfolioMetrics.visibleCount"
-        :caption="t('invoices.client.metrics.total_count', { count: invoices.length })"
+        :value="filteredCount"
+        :breakdown="invoiceCountBreakdown"
       />
       <AppStatCard
         :label="t('invoices.client.metrics.total_amount')"
@@ -83,7 +83,7 @@
           <div class="app-toolbar__meta-actions">
             <AppListState
               :displayed-count="displayedInvoices.length"
-              :total-count="invoices.length"
+              :total-count="loadedCount"
               :loading="loading"
               :search-text="globalFilter"
               :active-filters="activeFilterLabels"
@@ -95,6 +95,13 @@
               text
               :title="t('common.reset_filters')"
               @click="resetAllFilters"
+            />
+            <Button
+              icon="pi pi-file-excel"
+              severity="secondary"
+              text
+              :title="t('common.export_excel')"
+              @click="doExportExcel"
             />
           </div>
         </div>
@@ -126,12 +133,25 @@
               @click="showIrrecoverable = !showIrrecoverable; loadInvoices()"
             />
           </div>
+          <div v-if="paidInDisplayed.length > 0" class="app-field">
+            <Button
+              :label="t('invoices.bulk_archive')"
+              icon="pi pi-inbox"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="confirmBulkArchive"
+            />
+          </div>
         </div>
       </div>
 
-      <Message v-if="invoices.length >= 1000" severity="warn" :closable="false" class="mb-2">
-        {{ t('common.api_limit_warning') }}
-      </Message>
+      <AppListLimitBanner
+        :view-key="LIMIT_VIEW_KEY"
+        :fetched-count="rawFetchedCount"
+        :limit="limitStore.systemLimit"
+        @reload="loadInvoices"
+      />
       <AppTableSkeleton v-if="loading && !invoices.length" :rows="8" :cols="5" />
       <template v-else-if="isMobile">
         <AppMobileCardList :items="invoiceRows" :empty-message="t('invoices.client.empty')">
@@ -364,6 +384,7 @@
                 @click="openPdf(data)"
               />
               <Button
+                v-if="data.status !== 'archived'"
                 icon="pi pi-send"
                 size="small"
                 severity="secondary"
@@ -373,6 +394,7 @@
                 @click="sendEmail(data)"
               />
               <Button
+                v-if="data.status !== 'archived'"
                 icon="pi pi-copy"
                 size="small"
                 severity="secondary"
@@ -382,7 +404,7 @@
                 @click="duplicate(data)"
               />
               <Button
-                v-if="data.status !== 'draft' && data.status !== 'paid' && data.status !== 'irrecoverable' && parseFloat(data.total_amount) - parseFloat(data.paid_amount) > 0"
+                v-if="data.status !== 'draft' && data.status !== 'paid' && data.status !== 'irrecoverable' && data.status !== 'archived' && parseFloat(data.total_amount) - parseFloat(data.paid_amount) > 0"
                 icon="pi pi-ban"
                 size="small"
                 severity="danger"
@@ -652,9 +674,10 @@
             </div>
             <div v-else-if="historyPdfBlobUrl" class="history-dialog__preview-frame">
               <embed
-                :src="historyPdfBlobUrl"
+                :src="`${historyPdfBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
                 type="application/pdf"
                 class="history-dialog__preview-embed"
+                 :title="t('invoices.email_preview')"
               />
             </div>
             <div v-else class="history-dialog__preview-empty">
@@ -775,7 +798,6 @@ import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
-import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
@@ -790,7 +812,9 @@ import {
   deleteInvoiceApi,
   duplicateInvoiceApi,
   downloadInvoicePdfApi,
+  bulkArchiveInvoicesApi,
   listInvoicesApi,
+  listInvoicesWithCountApi,
   writeOffInvoiceApi,
   restoreFromWriteoffApi,
   type Invoice,
@@ -799,9 +823,11 @@ import {
 import { createPayment, listPayments, suggestChequeNumber, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
 import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
+import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
+import { useTableExport, type ExportColumn } from '../composables/useTableExport'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
@@ -829,20 +855,38 @@ import {
   isOverdueInvoice,
 } from '../composables/useInvoiceMetrics'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { useListLimitStore } from '../stores/listLimit'
 import { formatContactDisplayName } from '../utils/contact'
 import { formatDisplayDate } from '@/utils/format'
 import { getErrorDetail } from '@/utils/errorUtils'
 
 const { t } = useI18n()
+const limitStore = useListLimitStore()
+const LIMIT_VIEW_KEY = 'invoices-client'
 const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
+const { exportToExcel } = useTableExport()
+
+const exportColumns = computed<ExportColumn[]>(() => [
+  { field: 'number', header: t('invoices.number') },
+  { field: 'date', header: t('invoices.date') },
+  { field: 'contact_name', header: t('invoices.contact') },
+  { field: 'label_label', header: t('invoices.label') },
+  { field: 'total_amount_value', header: t('invoices.total') },
+  { field: 'status_label', header: t('invoices.status') },
+])
+
+function doExportExcel(): void {
+  exportToExcel(displayedInvoices.value, exportColumns.value, 'client-invoices-export')
+}
 
 const invoices = ref<Invoice[]>([])
 const allClientInvoices = ref<Invoice[]>([])
+const rawFetchedCount = ref(0)
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -985,8 +1029,42 @@ const paymentRemaining = computed(() => {
 })
 
 const selectedFiscalYearLabel = computed(() => fiscalYearStore.selectedFiscalYear?.name ?? null)
+const serverTotalCount = computed(() => limitStore.totalCounts[LIMIT_VIEW_KEY] ?? invoices.value.length)
+const filteredCount = computed(() => displayedInvoices.value.length)
+const loadedCount = computed(() => invoices.value.length)
+const invoiceCountBreakdown = computed(() => {
+  const rows: Array<{ value: number; label: string }> = [
+    {
+      value: filteredCount.value,
+      label: t('invoices.client.metrics.filtered_count_label'),
+    },
+    {
+      value: loadedCount.value,
+      label: t('invoices.client.metrics.loaded_count_label'),
+    },
+  ]
+
+  if (limitReached.value) {
+    rows.push({
+      value: serverTotalCount.value,
+      label: t('invoices.client.metrics.server_available_label'),
+    })
+  }
+
+  return rows
+})
+const limitReached = computed(
+  () =>
+    limitStore.systemLimit > 0 &&
+    rawFetchedCount.value >= limitStore.systemLimit &&
+    serverTotalCount.value > rawFetchedCount.value,
+)
 
 const { receivableMetrics, portfolioMetrics } = useInvoiceMetrics(allClientInvoices, displayedInvoices)
+
+const paidInDisplayed = computed(() =>
+  (displayedInvoices.value as Invoice[]).filter((inv) => inv.status === 'paid'),
+)
 
 const activeFilterLabels = computed(() =>
   collectActiveFilterLabels(
@@ -1005,6 +1083,7 @@ const statusOptions = [
   { label: t('invoices.statuses.overdue'), value: 'overdue' },
   { label: t('invoices.statuses.disputed'), value: 'disputed' },
   { label: t('invoices.statuses.irrecoverable'), value: 'irrecoverable' },
+  { label: t('invoices.statuses.archived'), value: 'archived' },
 ]
 
 const paymentMethodOptions = [
@@ -1033,6 +1112,7 @@ function canRecordPayment(invoice: Invoice | null): boolean {
   return (
     invoice.status !== 'draft' &&
     invoice.status !== 'irrecoverable' &&
+    invoice.status !== 'archived' &&
     remainingForInvoice(invoice) > 0
   )
 }
@@ -1058,6 +1138,7 @@ function statusSeverity(s: InvoiceStatus): string {
     overdue: 'danger',
     disputed: 'danger',
     irrecoverable: 'secondary',
+    archived: 'secondary',
   }
   return map[s] ?? 'secondary'
 }
@@ -1065,7 +1146,10 @@ function statusSeverity(s: InvoiceStatus): string {
 async function loadInvoices() {
   loading.value = true
   try {
-    const filters: Record<string, unknown> = { invoice_type: 'client', limit: 1000 }
+    const filters: Record<string, unknown> = {
+      invoice_type: 'client',
+      limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
+    }
     // Skip fiscal-year date filter for cross-year queries (overdue, unpaid from dashboard)
     const skipDateFilter = unpaidOnly.value || statusFilter.value === 'overdue'
     if (fiscalYearStore.selectedFiscalYear && !skipDateFilter) {
@@ -1077,7 +1161,9 @@ async function loadInvoices() {
     if (statusFilter.value && statusFilter.value !== 'overdue') {
       filters.invoice_status = statusFilter.value
     }
-    const all = await listInvoicesApi(filters)
+    const { items: all, total } = await listInvoicesWithCountApi(filters)
+    limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
+    rawFetchedCount.value = all.length
     if (unpaidOnly.value) {
       invoices.value = all.filter(
         (inv) =>
@@ -1099,7 +1185,7 @@ async function loadInvoices() {
 }
 
 async function loadReceivablesSnapshot() {
-  allClientInvoices.value = await listInvoicesApi({ invoice_type: 'client', limit: 1000 })
+  allClientInvoices.value = await listInvoicesApi({ invoice_type: 'client', limit: 5000 })
 }
 
 async function refreshInvoicesData() {
@@ -1199,6 +1285,32 @@ async function restoreFromWriteoff(invoice: Invoice): Promise<void> {
   try {
     await restoreFromWriteoffApi(invoice.id)
     toast.add({ severity: 'success', summary: t('invoices.restore_from_writeoff'), life: 3000 })
+    await refreshInvoicesData()
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  }
+}
+
+function confirmBulkArchive(): void {
+  confirm.require({
+    header: t('invoices.bulk_archive_confirm_title'),
+    message: t('invoices.bulk_archive_confirm_msg'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('common.confirm'),
+    rejectLabel: t('common.cancel'),
+    accept: () => executeBulkArchive(),
+  })
+}
+
+async function executeBulkArchive(): Promise<void> {
+  const ids = paidInDisplayed.value.map((inv) => inv.id)
+  try {
+    const result = await bulkArchiveInvoicesApi(ids)
+    toast.add({
+      severity: 'success',
+      summary: t('invoices.bulk_archive_result', { archived: result.archived, skipped: result.skipped }),
+      life: 5000,
+    })
     await refreshInvoicesData()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
@@ -1412,7 +1524,7 @@ watch(
 )
 
 onMounted(async () => {
-  await fiscalYearStore.initialize()
+  await Promise.all([fiscalYearStore.initialize(), limitStore.init()])
   const queryStatus = Array.isArray(route.query.status)
     ? route.query.status[0]
     : route.query.status
@@ -1494,6 +1606,12 @@ onMounted(async () => {
 
 .history-dialog__preview-empty .pi {
   font-size: 2.5rem;
+}
+
+.history-dialog__preview-dl {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--app-space-3);
 }
 
 .history-dialog__intro {
