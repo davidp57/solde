@@ -78,7 +78,8 @@ const showWarning = computed(
   () =>
     props.limit > 0 &&
     !limitStore.isDisabled(props.viewKey) &&
-    limitStore.hasMore(props.viewKey, props.fetchedCount),
+    total.value > props.limit &&
+    props.fetchedCount >= props.limit,
 )
 
 /** Show disabled notice when: user has disabled the limit for this view. */
