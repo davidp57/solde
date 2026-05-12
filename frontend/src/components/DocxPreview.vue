@@ -20,9 +20,10 @@ async function render(blob: Blob): Promise<void> {
   try {
     await renderAsync(blob, containerRef.value, undefined, {
       className: 'docx-preview',
-      ignoreWidth: true,
-      ignoreHeight: true,
+      ignoreWidth: false,
+      ignoreHeight: false,
       breakPages: true,
+      useBase64URL: true,
     })
   } catch (e) {
     console.error('DocxPreview render failed', e)
@@ -51,6 +52,27 @@ watch(
   border: 1px solid var(--app-surface-border);
   border-radius: var(--app-surface-radius-sm);
   background: #fff;
+  padding: 0.75rem;
+}
+
+.docx-preview-container :deep(.docx-preview) {
+  background: #f3f4f6;
   padding: 0.5rem;
+}
+
+.docx-preview-container :deep(.docx-preview-wrapper) {
+  background: transparent;
+  padding: 0;
+}
+
+.docx-preview-container :deep(section.docx) {
+  margin: 0 auto 0.75rem;
+  max-width: 100%;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
+}
+
+.docx-preview-container :deep(section.docx img) {
+  max-width: 100%;
+  height: auto;
 }
 </style>
