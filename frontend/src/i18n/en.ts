@@ -82,7 +82,7 @@ export default {
     required_fields: 'Please fill in all required fields.',
     close: 'Close',
     api_limit_warning:
-      'Display limit reached (1,000 items). Results may be incomplete — refine the filters to reduce the loaded volume.',
+      'Display limit reached (5,000 items). Results may be incomplete — refine the filters to reduce the loaded volume.',
   },
   api_errors: {
     ACCOUNT_NOT_FOUND: 'Account not found.',

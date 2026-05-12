@@ -83,7 +83,7 @@
         </div>
       </div>
 
-      <Message v-if="invoices.length >= 1000" severity="warn" :closable="false" class="mb-2">
+      <Message v-if="invoices.length >= 5000" severity="warn" :closable="false" class="mb-2">
         {{ t('common.api_limit_warning') }}
       </Message>
       <template v-if="isMobile">
@@ -1042,7 +1042,7 @@ function statusSeverity(s: InvoiceStatus): string {
 async function loadInvoices() {
   loading.value = true
   try {
-    const filters: Record<string, unknown> = { invoice_type: 'fournisseur' }
+    const filters: Record<string, unknown> = { invoice_type: 'fournisseur', limit: 5000 }
     if (fiscalYearStore.selectedFiscalYear) {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
       filters.to_date = fiscalYearStore.selectedFiscalYear.end_date

@@ -87,21 +87,21 @@ class TestLimitParamValidation:
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_invoices_limit_above_1000_is_rejected(
+    async def test_invoices_limit_above_5000_is_rejected(
         self,
         client: AsyncClient,
         auth_headers: dict,
     ) -> None:
-        response = await client.get("/api/invoices/?limit=1001", headers=auth_headers)
+        response = await client.get("/api/invoices/?limit=5001", headers=auth_headers)
         assert response.status_code == 422
 
     @pytest.mark.asyncio
-    async def test_limit_1000_is_accepted(
+    async def test_limit_5000_is_accepted(
         self,
         client: AsyncClient,
         auth_headers: dict,
     ) -> None:
-        response = await client.get("/api/invoices/?limit=1000", headers=auth_headers)
+        response = await client.get("/api/invoices/?limit=5000", headers=auth_headers)
         assert response.status_code == 200
 
     @pytest.mark.asyncio

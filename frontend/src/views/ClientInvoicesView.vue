@@ -146,7 +146,7 @@
         </div>
       </div>
 
-      <Message v-if="invoices.length >= 1000" severity="warn" :closable="false" class="mb-2">
+      <Message v-if="invoices.length >= 5000" severity="warn" :closable="false" class="mb-2">
         {{ t('common.api_limit_warning') }}
       </Message>
       <AppTableSkeleton v-if="loading && !invoices.length" :rows="8" :cols="5" />
@@ -1151,7 +1151,7 @@ function statusSeverity(s: InvoiceStatus): string {
 async function loadInvoices() {
   loading.value = true
   try {
-    const filters: Record<string, unknown> = { invoice_type: 'client', limit: 1000 }
+    const filters: Record<string, unknown> = { invoice_type: 'client', limit: 5000 }
     // Skip fiscal-year date filter for cross-year queries (overdue, unpaid from dashboard)
     const skipDateFilter = unpaidOnly.value || statusFilter.value === 'overdue'
     if (fiscalYearStore.selectedFiscalYear && !skipDateFilter) {
@@ -1185,7 +1185,7 @@ async function loadInvoices() {
 }
 
 async function loadReceivablesSnapshot() {
-  allClientInvoices.value = await listInvoicesApi({ invoice_type: 'client', limit: 1000 })
+  allClientInvoices.value = await listInvoicesApi({ invoice_type: 'client', limit: 5000 })
 }
 
 async function refreshInvoicesData() {
