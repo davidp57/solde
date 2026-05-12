@@ -246,7 +246,7 @@ export default {
     close: 'Fermer',
     export_excel: 'Exporter Excel',
     api_limit_warning:
-      "Limite d'affichage atteinte (1 000 éléments). Les résultats peuvent être incomplets — affinez les filtres pour réduire le volume chargé.",
+      "Limite d'affichage atteinte (5 000 éléments). Les résultats peuvent être incomplets — affinez les filtres pour réduire le volume chargé.",
   },
   chat: {
     title: 'Assistant Solde',
