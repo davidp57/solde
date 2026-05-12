@@ -205,7 +205,8 @@ class TestTestRestore:
     async def test_nonexistent_path(self, tmp_path: Path) -> None:
         result = await service_test_restore(str(tmp_path / "does_not_exist.db"))
         assert result.ok is False
-        assert "introuvable" in result.error.lower()
+        assert result.error_code == "BACKUP_FILE_NOT_FOUND"
+        assert "not found" in result.error.lower()
 
     @pytest.mark.asyncio
     async def test_valid_db(self, tmp_path: Path) -> None:
