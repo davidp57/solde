@@ -13,19 +13,8 @@
     <section class="app-stat-grid">
       <AppStatCard
         :label="t('invoices.client.metrics.visible_count')"
-        :value="
-          t('invoices.client.metrics.visible_loaded_breakdown', {
-            shown: filteredCount,
-            loaded: loadedCount,
-          })
-        "
-        :caption="
-          limitReached
-            ? t('invoices.client.metrics.server_available_when_limited', {
-                count: serverTotalCount,
-              })
-            : t('invoices.client.metrics.server_scope_fully_loaded')
-        "
+        :value="filteredCount"
+        :breakdown="invoiceCountBreakdown"
       />
       <AppStatCard
         :label="t('invoices.client.metrics.total_amount')"
@@ -1086,6 +1075,22 @@ const selectedFiscalYearLabel = computed(() => fiscalYearStore.selectedFiscalYea
 const serverTotalCount = computed(() => limitStore.totalCounts[LIMIT_VIEW_KEY] ?? invoices.value.length)
 const filteredCount = computed(() => displayedInvoices.value.length)
 const loadedCount = computed(() => invoices.value.length)
+const invoiceCountBreakdown = computed(() => [
+  {
+    value: filteredCount.value,
+    label: t('invoices.client.metrics.filtered_count_label'),
+  },
+  {
+    value: loadedCount.value,
+    label: t('invoices.client.metrics.loaded_count_label'),
+  },
+  {
+    value: serverTotalCount.value,
+    label: limitReached.value
+      ? t('invoices.client.metrics.server_available_label')
+      : t('invoices.client.metrics.server_loaded_label'),
+  },
+])
 const limitReached = computed(
   () =>
     limitStore.systemLimit > 0 &&
