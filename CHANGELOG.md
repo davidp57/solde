@@ -30,6 +30,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 - **TEC-185** — Régression aperçu PDF Chrome : remplacement de `<embed>` / `<object>` par `<iframe>` dans tous les composants d'aperçu PDF (factures client, fournisseur, historique contact, dialogue email)
+- **TEC-185** — Aperçus PDF intégrés : demande explicite de masquage du volet latéral « Pages » par défaut quand le moteur PDF du navigateur le permet
 - **BIZ-189** — Sauvegarde automatique : le spinner de progression n'était pas visible lorsqu'un backup planifié se déclenchait pendant que la page de paramètres était déjà ouverte ; ajout d'une veille (10 s) qui détecte le démarrage et active le polling rapide (3 s)
 
 ### Ajouté
@@ -43,7 +44,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-187** — Migration Alembic : colonnes `backup_daily_time` (String 5, défaut `"02:00"`) et `backup_include_all_backups` (Boolean, défaut `False`) dans `app_settings`
 - **BIZ-188** — Sauvegarde automatique : par défaut, seul le fichier snapshot `.db` le plus récent est envoyé vers la destination ; option **« Inclure tous les fichiers de sauvegarde précédents »** (désactivée par défaut) pour envoyer l'intégralité du dossier `backups/`
 - **BIZ-195** — Nouveau statut `archivée` pour les factures client payées (terminal, irréversible) ; badge gris « Archivée » dans les listes
-- **BIZ-196** — Script `scripts/import_word_invoices.py` : import en masse de factures historiques au format Word (`.docx`) dans Solde (mode dry-run par défaut, `--commit` pour valider)
+- **BIZ-196** — Script `scripts/import_word_invoices.py` : import en masse de factures historiques au format Word (`.docx`) dans Solde (mode dry-run par défaut, `--commit` pour valider), conversion/rattachement automatique du PDF existant, reprise correcte du montant déjà réglé sur les archives et rapport final détaillant les erreurs et cas ignorés utiles
 - **BIZ-197** — Endpoint `POST /api/invoices/bulk-archive` : archivage en masse des factures payées sélectionnées
 - **BIZ-190** — Frontend : type `archived` dans `InvoiceStatus`, badge gris, bouton télécharger le document sur les factures archivées ; masquage des boutons email / dupliquer / créance irrécouvrable pour les archivées
 - **BIZ-191** — Vue factures client : bouton « Archiver la sélection » dans la toolbar, visible dès qu'au moins une facture payée est affichée, avec confirmation et toast de résultat

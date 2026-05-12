@@ -28,7 +28,7 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 ## Lots actifs
 
-### Lot FW — Import Word + Archivage + Export Excel (v1.7.1) — ~395 min Copilot + 15 min gestion
+### Lot FW — Import Word + Archivage + Export Excel (v1.7.2) — ~395 min Copilot + 15 min gestion
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |

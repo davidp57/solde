@@ -67,7 +67,7 @@
         <Skeleton v-if="pdfLoading" class="invoice-email-dialog__embed" border-radius="4px" />
         <embed
           v-else-if="pdfBlobUrl"
-          :src="pdfBlobUrl"
+          :src="`${pdfBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
           type="application/pdf"
           class="invoice-email-dialog__embed"
         />

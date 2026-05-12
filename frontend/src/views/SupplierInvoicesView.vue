@@ -379,7 +379,7 @@
           <div v-else-if="editFileBlobUrl" class="supplier-preview-dialog__file-frame">
             <embed
               v-if="editFileIsPdf"
-              :src="editFileBlobUrl"
+              :src="`${editFileBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
               type="application/pdf"
               class="supplier-preview-dialog__embed"
             />
@@ -582,7 +582,7 @@
             <div v-else-if="previewBlobUrl" class="supplier-preview-dialog__file-frame">
               <embed
                 v-if="previewIsPdf"
-                :src="previewBlobUrl"
+                :src="`${previewBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
                 type="application/pdf"
                 class="supplier-preview-dialog__embed"
               />

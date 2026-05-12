@@ -459,7 +459,7 @@
           <div v-else-if="invoiceFileBlobUrl" class="chd-supplier__file-frame">
             <embed
               v-if="invoiceFileBlobIsPdf"
-              :src="invoiceFileBlobUrl"
+              :src="`${invoiceFileBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
               type="application/pdf"
               class="chd-supplier__embed"
             />
@@ -476,9 +476,7 @@
     </div>
 
     <!-- Client invoice: existing layout -->
-    <div v-else-if="invoiceDetail" class="contact-history-dialog"
-      :class="{ 'contact-history-dialog--with-preview': invoiceDetail.status === 'archived' && invoiceDetail.file_path }"
-    >
+    <div v-else-if="invoiceDetail" class="contact-history-dialog">
       <div class="contact-history-dialog__meta">
         <Tag
           :value="t(`invoices.statuses.${invoiceDetail.status}`)"
@@ -540,22 +538,12 @@
           </DataTable>
           <div class="contact-history-dialog__actions">
             <Button
-              v-if="!(invoiceDetail.status === 'archived' && invoiceDetail.file_path)"
               icon="pi pi-file-pdf"
               :label="t('invoices.generate_pdf')"
               severity="secondary"
               outlined
               :loading="downloadingPdf"
               @click="downloadPdf(invoiceDetail)"
-            />
-            <Button
-              v-if="invoiceDetail.status === 'archived' && invoiceDetail.file_path"
-              icon="pi pi-download"
-              :label="t('invoices.download_file')"
-              severity="secondary"
-              outlined
-              :loading="downloadingPdf"
-              @click="downloadAttachment(invoiceDetail)"
             />
             <Button
               v-if="contactEmail && invoiceDetail.type === 'client'"
@@ -565,17 +553,6 @@
             />
           </div>
         </div><!-- end contact-history-dialog__main -->
-        <!-- Docx preview for archived client invoices -->
-        <div
-          v-if="invoiceDetail.status === 'archived' && invoiceDetail.file_path"
-          class="contact-history-dialog__preview"
-        >
-          <div v-if="invoiceDocxLoading" class="contact-history-dialog__preview-loading">
-            <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
-          </div>
-          <DocxPreview v-else-if="invoiceDocxBlob" :blob="invoiceDocxBlob" />
-          <div v-else class="app-empty-state">{{ t('common.error.unknown') }}</div>
-        </div>
       </div><!-- end contact-history-dialog__body -->
     </div>
   </template>
@@ -664,7 +641,6 @@ import AppPanel from './ui/AppPanel.vue'
 import AppStatCard from './ui/AppStatCard.vue'
 import AppMobileCardList from './ui/AppMobileCardList.vue'
 import AppTableSkeleton from './ui/AppTableSkeleton.vue'
-import DocxPreview from './DocxPreview.vue'
 import { getContactHistoryApi, markCreanceDouteuse } from '../api/accounting'
 import type { ContactHistory, ContactInvoiceSummary, ContactPaymentSummary } from '../api/accounting'
 import { downloadInvoicePdfApi, downloadInvoiceFileApi, getInvoiceApi } from '../api/invoices'
@@ -704,8 +680,6 @@ const emailDialogInvoiceId = ref<number | null>(null)
 const invoiceFileBlobUrl = ref<string | null>(null)
 const invoiceFileBlobIsPdf = ref(false)
 const invoiceFileLoading = ref(false)
-const invoiceDocxBlob = ref<Blob | null>(null)
-const invoiceDocxLoading = ref(false)
 const invoiceDetailPayments = ref<Payment[]>([])
 const invoiceDetailPaymentsLoading = ref(false)
 
@@ -813,7 +787,6 @@ async function loadInvoiceDetailData(id: number): Promise<void> {
     URL.revokeObjectURL(invoiceFileBlobUrl.value)
     invoiceFileBlobUrl.value = null
   }
-  invoiceDocxBlob.value = null
   invoiceDetailPayments.value = []
   try {
     const inv = await getInvoiceApi(id)
@@ -841,14 +814,6 @@ async function loadInvoiceDetailData(id: number): Promise<void> {
       }
       await Promise.all(tasks)
     }
-    // For archived client invoices with file: load docx blob for preview
-    if (inv.type === 'client' && inv.status === 'archived' && inv.file_path) {
-      invoiceDocxLoading.value = true
-      downloadInvoiceFileApi(inv.id)
-        .then((blob) => { invoiceDocxBlob.value = blob })
-        .catch((e) => console.error('Failed to download docx for preview', e))
-        .finally(() => { invoiceDocxLoading.value = false })
-    }
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
     closeInvoiceDetail()
@@ -862,7 +827,6 @@ function closeInvoiceDetail(): void {
     URL.revokeObjectURL(invoiceFileBlobUrl.value)
     invoiceFileBlobUrl.value = null
   }
-  invoiceDocxBlob.value = null
   invoiceDetailVisible.value = false
   invoiceDetail.value = null
 }
@@ -903,24 +867,6 @@ async function downloadPdf(invoice: Invoice): Promise<void> {
     const a = document.createElement('a')
     a.href = url
     a.download = `facture-${invoice.number ?? invoice.id}.pdf`
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
-  } finally {
-    downloadingPdf.value = false
-  }
-}
-
-async function downloadAttachment(invoice: Invoice): Promise<void> {
-  downloadingPdf.value = true
-  try {
-    const blob = await downloadInvoiceFileApi(invoice.id)
-    const ext = invoice.file_path?.split('.').pop() ?? 'docx'
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `facture-${invoice.number ?? invoice.id}.${ext}`
     a.click()
     URL.revokeObjectURL(url)
   } catch {
@@ -1035,29 +981,9 @@ onMounted(loadHistory)
   gap: var(--app-space-4);
 }
 
-.contact-history-dialog--with-preview .contact-history-dialog__body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 460px;
-  gap: var(--app-space-5);
-  align-items: start;
-}
-
 .contact-history-dialog__main {
   display: flex;
   flex-direction: column;
-}
-
-.contact-history-dialog__preview {
-  position: sticky;
-  top: 0;
-}
-
-.contact-history-dialog__preview-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 300px;
-  color: var(--p-text-muted-color);
 }
 
 /* Inline detail navigation bar */

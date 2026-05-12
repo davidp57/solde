@@ -25,6 +25,13 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ## Version 1.7.1 *(à venir)*
 
+### Secrétaire
+
+#### Factures archivées
+- Les factures historiques importées depuis Word reprennent correctement le montant déjà réglé : le reste dû est affiché à **0 €** quand la facture était déjà payée.
+- Quand un PDF existe déjà pour une facture importée, il est réutilisé directement pour l'aperçu au lieu de repasser par le document Word.
+- L'aperçu PDF masque désormais le volet latéral des pages quand le navigateur autorise ce réglage.
+
 ### Tous les utilisateurs
 
 #### Export Excel
