@@ -432,6 +432,9 @@ export default {
       metrics: {
         visible_count: 'Factures affichees',
         total_count: '{count} au total',
+        visible_loaded_breakdown: '{shown} affichées / {loaded} chargées',
+        server_available_when_limited: '{count} disponibles sur le serveur (limite atteinte)',
+        server_scope_fully_loaded: 'Périmètre serveur entièrement chargé',
         total_amount: 'Montant facture',
         average_amount: 'Panier moyen {amount} EUR',
         paid_amount: 'Deja encaisse',
