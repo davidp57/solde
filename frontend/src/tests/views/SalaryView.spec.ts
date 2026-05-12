@@ -24,7 +24,7 @@ vi.mock('primevue/useconfirm', () => ({
 }))
 
 vi.mock('../../api/accounting', () => ({
-  listSalariesApi: vi.fn(),
+  listSalariesWithCountApi: vi.fn(),
   getSalarySummaryApi: vi.fn(),
   createSalaryApi: vi.fn(),
   updateSalaryApi: vi.fn(),
@@ -65,6 +65,19 @@ vi.mock('../../stores/fiscalYear', () => ({
   useFiscalYearStore: () => fiscalYearStoreMock,
 }))
 
+const limitStoreMock = {
+  systemLimit: 500,
+  init: vi.fn().mockResolvedValue(undefined),
+  effectiveLimit: vi.fn().mockReturnValue(500),
+  setTotalCount: vi.fn(),
+  isDisabled: vi.fn().mockReturnValue(false),
+  hasMore: vi.fn().mockReturnValue(false),
+}
+
+vi.mock('../../stores/listLimit', () => ({
+  useListLimitStore: () => limitStoreMock,
+}))
+
 vi.mock('../../api/client', () => ({
   default: {
     get: vi.fn(),
@@ -76,10 +89,10 @@ vi.mock('../../api/contacts', () => ({
 }))
 
 import SalaryView from '../../views/SalaryView.vue'
-import { getSalarySummaryApi, listSalariesApi } from '../../api/accounting'
+import { getSalarySummaryApi, listSalariesWithCountApi } from '../../api/accounting'
 import { listContactsApi } from '../../api/contacts'
 
-const mockListSalariesApi = vi.mocked(listSalariesApi)
+const mockListSalariesWithCountApi = vi.mocked(listSalariesWithCountApi)
 const mockGetSalarySummaryApi = vi.mocked(getSalarySummaryApi)
 const mockListContactsApi = vi.mocked(listContactsApi)
 
@@ -144,6 +157,7 @@ vi.mock('../../composables/useTableFilter', () => ({
 
 async function flushView() {
   await Promise.resolve()
+  await Promise.resolve()
   await nextTick()
 }
 
@@ -166,6 +180,7 @@ function mountView() {
         Tag: true,
         Textarea: true,
         Toast: true,
+        AppListLimitBanner: ContainerStub,
       },
     },
   })
@@ -194,44 +209,47 @@ describe('SalaryView', () => {
         updated_at: '2026-01-01T00:00:00',
       },
     ])
-    mockListSalariesApi.mockResolvedValue([
-      {
-        id: 1,
-        employee_id: 1,
-        employee_name: 'Alice Martin',
-        month: '2025-07',
-        hours: '10.50' as unknown as number,
-        gross: '1200.40' as unknown as number,
-        employee_charges: '150.10' as unknown as number,
-        employer_charges: '300.20' as unknown as number,
-        tax: '80.30' as unknown as number,
-        net_pay: '970.00' as unknown as number,
-        total_cost: '1500.60' as unknown as number,
-        notes: null,
-        brut_declared: null,
-        conges_payes: null,
-        precarite: null,
-        created_at: '2026-04-13T08:00:00',
-      },
-      {
-        id: 2,
-        employee_id: 1,
-        employee_name: 'Alice Martin',
-        month: '2025-08',
-        hours: '12.00' as unknown as number,
-        gross: '1800.00' as unknown as number,
-        employee_charges: '220.00' as unknown as number,
-        employer_charges: '420.00' as unknown as number,
-        tax: '120.00' as unknown as number,
-        net_pay: '1460.00' as unknown as number,
-        total_cost: '2220.00' as unknown as number,
-        notes: null,
-        brut_declared: null,
-        conges_payes: null,
-        precarite: null,
-        created_at: '2026-04-13T08:00:00',
-      },
-    ])
+    mockListSalariesWithCountApi.mockResolvedValue({
+      items: [
+        {
+          id: 1,
+          employee_id: 1,
+          employee_name: 'Alice Martin',
+          month: '2025-07',
+          hours: '10.50' as unknown as number,
+          gross: '1200.40' as unknown as number,
+          employee_charges: '150.10' as unknown as number,
+          employer_charges: '300.20' as unknown as number,
+          tax: '80.30' as unknown as number,
+          net_pay: '970.00' as unknown as number,
+          total_cost: '1500.60' as unknown as number,
+          notes: null,
+          brut_declared: null,
+          conges_payes: null,
+          precarite: null,
+          created_at: '2026-04-13T08:00:00',
+        },
+        {
+          id: 2,
+          employee_id: 1,
+          employee_name: 'Alice Martin',
+          month: '2025-08',
+          hours: '12.00' as unknown as number,
+          gross: '1800.00' as unknown as number,
+          employee_charges: '220.00' as unknown as number,
+          employer_charges: '420.00' as unknown as number,
+          tax: '120.00' as unknown as number,
+          net_pay: '1460.00' as unknown as number,
+          total_cost: '2220.00' as unknown as number,
+          notes: null,
+          brut_declared: null,
+          conges_payes: null,
+          precarite: null,
+          created_at: '2026-04-13T08:00:00',
+        },
+      ],
+      total: 2,
+    })
     mockGetSalarySummaryApi.mockResolvedValue([])
   })
 
@@ -262,12 +280,14 @@ describe('SalaryView', () => {
     mountView()
     await flushView()
 
-    expect(mockListSalariesApi).toHaveBeenCalledWith({
-      from_month: '2024-08',
-      to_month: '2025-07',
-      employee_id: undefined,
-      month: undefined,
-    })
+    expect(mockListSalariesWithCountApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        from_month: '2024-08',
+        to_month: '2025-07',
+        employee_id: undefined,
+        month: undefined,
+      }),
+    )
     expect(mockGetSalarySummaryApi).toHaveBeenCalledWith({
       from_month: '2024-08',
       to_month: '2025-07',

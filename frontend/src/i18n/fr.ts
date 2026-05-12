@@ -247,6 +247,11 @@ export default {
     export_excel: 'Exporter Excel',
     api_limit_warning:
       "Limite d'affichage atteinte (5 000 éléments). Les résultats peuvent être incomplets — affinez les filtres pour réduire le volume chargé.",
+    list_limit_active_warning:
+      'Limite à {limit} éléments active — {total} éléments disponibles sur le serveur.',
+    list_limit_disable: 'Désactiver la limite',
+    list_limit_disabled_info: 'Limite désactivée — tous les éléments sont chargés.',
+    list_limit_enable: 'Réactiver la limite',
   },
   chat: {
     title: 'Assistant Solde',
@@ -1007,6 +1012,9 @@ export default {
     bank_account_courant_acctid_help: 'Numéro de compte tel qu\'il apparaît dans le fichier OFX exporté par votre banque (balise ACCTID). Requis pour l\'import multi-comptes.',
     bank_account_epargne_acctid: 'Identifiant compte épargne (ACCTID OFX)',
     bank_account_epargne_acctid_help: 'Numéro de compte épargne tel qu\'il apparaît dans le fichier OFX. Requis pour l\'import multi-comptes.',
+    list_default_limit: 'Limite d\'affichage par défaut',
+    list_default_limit_help:
+      'Nombre maximum d\'éléments chargés par défaut dans les listes (factures, paiements, contacts, etc.). Valeur 0 = illimité. Chaque utilisateur peut désactiver temporairement la limite pour sa session.',
     section_chat: 'Assistant IA',
     section_chat_subtitle: 'Configurez le fournisseur et la clé API pour activer le chatbot.',
     chat_provider: 'Fournisseur',

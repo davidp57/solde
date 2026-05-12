@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
-from sqlalchemy import delete, extract, select
+from sqlalchemy import delete, extract, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -321,6 +321,34 @@ async def list_invoices(
     query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def count_invoices(
+    db: AsyncSession,
+    *,
+    invoice_type: InvoiceType | None = None,
+    status: InvoiceStatus | None = None,
+    contact_id: int | None = None,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    year: int | None = None,
+) -> int:
+    """Count invoices matching filters (no limit)."""
+    query = select(func.count()).select_from(Invoice)
+    if invoice_type is not None:
+        query = query.where(Invoice.type == invoice_type)
+    if status is not None:
+        query = query.where(Invoice.status == status)
+    if contact_id is not None:
+        query = query.where(Invoice.contact_id == contact_id)
+    if from_date is not None:
+        query = query.where(Invoice.date >= from_date)
+    if to_date is not None:
+        query = query.where(Invoice.date <= to_date)
+    if year is not None:
+        query = query.where(extract("year", Invoice.date) == year)
+    result = await db.execute(query)
+    return result.scalar_one()
 
 
 async def update_invoice(db: AsyncSession, invoice: Invoice, payload: InvoiceUpdate) -> Invoice:

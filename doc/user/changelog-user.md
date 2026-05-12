@@ -4,6 +4,25 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.7.2 *(à venir)*
+
+### Tous les utilisateurs
+
+#### Listes — limite d'affichage configurable
+- Par défaut, chaque grande liste (factures, paiements, contacts, salaires, transactions bancaires) n'affiche désormais que les **500 premiers éléments**.
+- Une **bannière d'avertissement** apparaît en haut de la liste quand des éléments sont masqués, avec un lien **« Désactiver la limite »** pour tout charger d'un clic.
+- Une fois la limite désactivée, une **notice discrète** indique que tous les éléments sont chargés, avec la possibilité de **réactiver la limite**.
+- Ce réglage est **propre à chaque navigateur / onglet** : il s'efface à la fermeture de l'onglet.
+
+### Administrateur
+
+#### Paramètres — limite d'affichage
+- La **valeur de la limite** est configurable dans Paramètres > Association (champ *Limite d'affichage par défaut*).
+- Valeur **0** = pas de limite (toutes les listes chargent tout par défaut).
+- La modification s'applique immédiatement pour tous les utilisateurs dès leur prochaine visite.
+
+---
+
 ## Version 1.7.1 *(à venir)*
 
 ### Tous les utilisateurs

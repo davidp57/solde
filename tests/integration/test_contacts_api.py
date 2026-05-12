@@ -71,13 +71,13 @@ class TestListContacts:
         assert response.status_code == 200
         assert len(response.json()) == 101
 
-    async def test_limit_param_is_capped_at_1000(
+    async def test_limit_param_is_capped_at_5000(
         self,
         client: AsyncClient,
         auth_headers: dict,
         db_session: AsyncSession,
     ):
-        response = await client.get("/api/contacts/?limit=1001", headers=auth_headers)
+        response = await client.get("/api/contacts/?limit=5001", headers=auth_headers)
         assert response.status_code == 422
 
     async def test_readonly_user_cannot_list_contacts(

@@ -3,7 +3,7 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
@@ -30,6 +30,7 @@ _ReadAccess = Annotated[
 
 @router.get("/", response_model=list[PaymentRead])
 async def list_payments(
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     invoice_id: int | None = Query(default=None),
@@ -40,7 +41,7 @@ async def list_payments(
     undeposited_only: bool = Query(default=False),
     inconsistent_only: bool = Query(default=False),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=1000, ge=1, le=1000),
+    limit: int = Query(default=1000, ge=1, le=5000),
 ) -> list[PaymentRead]:
     payments = await payment_service.list_payments(
         db,
@@ -54,6 +55,17 @@ async def list_payments(
         skip=skip,
         limit=limit,
     )
+    total = await payment_service.count_payments(
+        db,
+        invoice_id=invoice_id,
+        invoice_type=invoice_type,
+        contact_id=contact_id,
+        from_date=from_date,
+        to_date=to_date,
+        undeposited_only=undeposited_only,
+        inconsistent_only=inconsistent_only,
+    )
+    response.headers["X-Total-Count"] = str(total)
     return payments
 
 

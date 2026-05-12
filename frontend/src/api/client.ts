@@ -98,4 +98,12 @@ apiClient.interceptors.response.use(
   },
 )
 
+/** Parse the X-Total-Count header from a response (returns 0 if absent). */
+export function parseTotalCount(headers: Record<string, string>): number {
+  const raw = headers['x-total-count']
+  if (!raw) return 0
+  const n = parseInt(raw, 10)
+  return Number.isFinite(n) ? n : 0
+}
+
 export default apiClient

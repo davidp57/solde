@@ -38,6 +38,19 @@ vi.mock('../../stores/fiscalYear', () => ({
   useFiscalYearStore: () => fiscalYearStoreMock,
 }))
 
+const limitStoreMock = {
+  systemLimit: 500,
+  init: vi.fn().mockResolvedValue(undefined),
+  effectiveLimit: vi.fn().mockReturnValue(500),
+  setTotalCount: vi.fn(),
+  isDisabled: vi.fn().mockReturnValue(false),
+  hasMore: vi.fn().mockReturnValue(false),
+}
+
+vi.mock('../../stores/listLimit', () => ({
+  useListLimitStore: () => limitStoreMock,
+}))
+
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {} }),
   useRouter: () => ({ replace: vi.fn() }),
@@ -48,7 +61,7 @@ vi.mock('../../api/contacts', () => ({
 }))
 
 vi.mock('../../api/invoices', () => ({
-  listInvoicesApi: vi.fn(),
+  listInvoicesWithCountApi: vi.fn(),
   deleteInvoiceApi: vi.fn(),
   downloadInvoiceFileApi: vi.fn(() =>
     Promise.resolve(new Blob(['%PDF'], { type: 'application/pdf' })),
@@ -64,11 +77,11 @@ vi.mock('../../api/payments', () => ({
 
 import SupplierInvoicesView from '../../views/SupplierInvoicesView.vue'
 import { listContactsApi } from '../../api/contacts'
-import { listInvoicesApi } from '../../api/invoices'
+import { listInvoicesWithCountApi } from '../../api/invoices'
 import { createPayment, listPayments, suggestChequeNumber } from '../../api/payments'
 
 const mockListContactsApi = vi.mocked(listContactsApi)
-const mockListInvoicesApi = vi.mocked(listInvoicesApi)
+const mockListInvoicesWithCountApi = vi.mocked(listInvoicesWithCountApi)
 const mockListPayments = vi.mocked(listPayments)
 const mockCreatePayment = vi.mocked(createPayment)
 const mockSuggestChequeNumber = vi.mocked(suggestChequeNumber)
@@ -303,6 +316,7 @@ function mountView() {
         AppNumberRangeFilter: ContainerStub,
         AppTableSkeleton: ContainerStub,
         SupplierInvoiceForm: ContainerStub,
+        AppListLimitBanner: ContainerStub,
         Button: ButtonStub,
         Column: ColumnStub,
         ConfirmDialog: ContainerStub,
@@ -330,7 +344,7 @@ describe('SupplierInvoicesView — payment dialog', () => {
     mockListContactsApi.mockResolvedValue([
       { id: 10, type: 'fournisseur', nom: 'Martin', prenom: 'Bob', email: null, telephone: null },
     ] as never)
-    mockListInvoicesApi.mockResolvedValue([invoiceFixture, paidInvoiceFixture, draftInvoiceFixture] as never)
+    mockListInvoicesWithCountApi.mockResolvedValue({ items: [invoiceFixture, paidInvoiceFixture, draftInvoiceFixture], total: 3 } as never)
     mockListPayments.mockResolvedValue([])
     mockCreatePayment.mockResolvedValue({
       id: 5,
@@ -451,7 +465,7 @@ describe('SupplierInvoicesView — preview dialog bottom navigation', () => {
       { id: 10, type: 'fournisseur', nom: 'Martin', prenom: 'Bob', email: null, telephone: null },
     ] as never)
     // Two invoices with file_path so the preview button is rendered for each
-    mockListInvoicesApi.mockResolvedValue([invoiceWithFile, paidInvoiceWithFile] as never)
+    mockListInvoicesWithCountApi.mockResolvedValue({ items: [invoiceWithFile, paidInvoiceWithFile], total: 2 } as never)
     mockListPayments.mockResolvedValue([])
   })
 

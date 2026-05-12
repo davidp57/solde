@@ -72,9 +72,12 @@
         </div>
       </div>
 
-      <Message v-if="payments.length >= 1000" severity="warn" :closable="false" class="mb-2">
-        {{ t('common.api_limit_warning') }}
-      </Message>
+      <AppListLimitBanner
+        :view-key="LIMIT_VIEW_KEY"
+        :fetched-count="payments.length"
+        :limit="limitStore.systemLimit"
+        @reload="loadPayments"
+      />
       <AppTableSkeleton v-if="loading && !payments.length" :rows="8" :cols="5" />
       <template v-else-if="isMobile">
         <AppMobileCardList :items="paymentRows" :empty-message="t('payments.empty')">
@@ -338,7 +341,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
-  listPayments,
+  listPaymentsWithCount,
   updatePayment,
   type Payment,
   type PaymentMethod,
@@ -353,8 +356,9 @@ import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
 import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
-import Message from 'primevue/message'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
+import AppListLimitBanner from '@/components/ui/AppListLimitBanner.vue'
+import { useListLimitStore } from '@/stores/listLimit'
 import { formatDisplayDate } from '@/utils/format'
 import { collectActiveFilterLabels } from '../composables/activeFilterLabels'
 import { useBreakpoints } from '../composables/useBreakpoints'
@@ -372,6 +376,8 @@ const { isMobile } = useBreakpoints()
 const route = useRoute()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
+const limitStore = useListLimitStore()
+const LIMIT_VIEW_KEY = 'payments'
 const { exportToExcel } = useTableExport()
 const exportColumns: ExportColumn[] = [
   { field: 'date', header: t('payments.date') },
@@ -539,11 +545,15 @@ async function loadPayments() {
           from_date: fiscalYearStore.selectedFiscalYear?.start_date,
           to_date: fiscalYearStore.selectedFiscalYear?.end_date,
         }
-    payments.value = await listPayments({
+    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_KEY)
+    const { items, total } = await listPaymentsWithCount({
       invoice_type: 'client',
       undeposited_only: undepositedOnly.value,
       ...dateFilter,
+      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
     })
+    limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
+    payments.value = items
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -576,7 +586,7 @@ watch(
 )
 
 onMounted(async () => {
-  await fiscalYearStore.initialize()
+  await Promise.all([fiscalYearStore.initialize(), limitStore.init()])
   if (route.query.undeposited === '1') {
     undepositedOnly.value = true
   }

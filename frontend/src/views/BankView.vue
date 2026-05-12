@@ -157,9 +157,12 @@
                 @click="openReconcileBeforePopover"
               />
             </div>
-            <Message v-if="transactions.length >= 1000" severity="warn" :closable="false" class="mb-2">
-              {{ t('common.api_limit_warning') }}
-            </Message>
+            <AppListLimitBanner
+              :view-key="LIMIT_VIEW_TX"
+              :fetched-count="transactions.length"
+              :limit="limitStore.systemLimit"
+              @reload="loadTransactions"
+            />
             <template v-if="isMobile">
               <AppMobileCardList :items="transactionRows" :empty-message="t('bank.transactions_empty')">
                 <template #card="{ item: data }">
@@ -556,9 +559,12 @@
                 @click="openReconcileBeforePopover"
               />
             </div>
-            <Message v-if="transactions.length >= 1000" severity="warn" :closable="false" class="mb-2">
-              {{ t('common.api_limit_warning') }}
-            </Message>
+            <AppListLimitBanner
+              :view-key="LIMIT_VIEW_TX"
+              :fetched-count="transactions.length"
+              :limit="limitStore.systemLimit"
+              @reload="loadTransactions"
+            />
             <template v-if="isMobile">
               <AppMobileCardList :items="transactionRows" :empty-message="t('bank.transactions_empty')">
                 <template #card="{ item: data }">
@@ -931,9 +937,12 @@
           </TabPanel>
 
           <TabPanel value="deposits">
-            <Message v-if="deposits.length >= 1000" severity="warn" :closable="false" class="mb-2">
-              {{ t('common.api_limit_warning') }}
-            </Message>
+            <AppListLimitBanner
+              :view-key="LIMIT_VIEW_DEP"
+              :fetched-count="deposits.length"
+              :limit="limitStore.systemLimit"
+              @reload="loadDeposits"
+            />
             <template v-if="isMobile">
               <AppMobileCardList :items="depositRows" :empty-message="t('bank.deposits_empty')">
                 <template #card="{ item: data }">
@@ -1207,7 +1216,6 @@ import TabList from 'primevue/tablist'
 import TabPanel from 'primevue/tabpanel'
 import TabPanels from 'primevue/tabpanels'
 import Tabs from 'primevue/tabs'
-import Message from 'primevue/message'
 import Tag from 'primevue/tag'
 import ToggleButton from 'primevue/togglebutton'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -1230,11 +1238,13 @@ import BankLinkSupplierPaymentDialog from '../components/bank/BankLinkSupplierPa
 import BankNewDepositDialog from '../components/bank/BankNewDepositDialog.vue'
 import BankPendingDepositsPanel from '../components/bank/BankPendingDepositsPanel.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
+import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import {
   getBankBalance,
   getBankFundsChart,
   listDeposits,
-  listTransactions,
+  listDepositsWithCount,
+  listTransactionsWithCount,
   updateTransaction,
   deleteTransaction,
   reconcileTransactionsBulk,
@@ -1246,6 +1256,7 @@ import {
 } from '@/api/bank'
 import { listPayments, type Payment } from '@/api/payments'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
+import { useListLimitStore } from '@/stores/listLimit'
 import { formatDisplayDate } from '@/utils/format'
 import {
   dateRangeFilter,
@@ -1262,6 +1273,9 @@ const { isMobile } = useBreakpoints()
 const toast = useToast()
 const confirm = useConfirm()
 const fiscalYearStore = useFiscalYearStore()
+const limitStore = useListLimitStore()
+const LIMIT_VIEW_TX = 'bank-transactions'
+const LIMIT_VIEW_DEP = 'bank-deposits'
 const { exportToExcel } = useTableExport()
 const exportColumns: ExportColumn[] = [
   { field: 'date', header: t('bank.tx_date') },
@@ -1680,12 +1694,16 @@ async function openDepositDialog(): Promise<void> {
 async function loadTransactions(): Promise<void> {
   loadingTx.value = true
   try {
-    transactions.value = await listTransactions({
+    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_TX)
+    const { items, total } = await listTransactionsWithCount({
       from_date: fiscalYearStore.selectedFiscalYear?.start_date,
       to_date: fiscalYearStore.selectedFiscalYear?.end_date,
       unreconciled_only: unreconciledOnly.value,
       bank_account: activeTransactionAccount.value,
+      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
     })
+    limitStore.setTotalCount(LIMIT_VIEW_TX, total)
+    transactions.value = items
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -1696,14 +1714,17 @@ async function loadTransactions(): Promise<void> {
 async function loadDeposits(): Promise<void> {
   loadingDeposits.value = true
   try {
-    const [all, pending] = await Promise.all([
-      listDeposits({
+    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_DEP)
+    const [allResult, pending] = await Promise.all([
+      listDepositsWithCount({
         from_date: fiscalYearStore.selectedFiscalYear?.start_date,
         to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+        limit: effectiveLimit > 0 ? effectiveLimit : 5000,
       }),
       listDeposits({ confirmed: false }),
     ])
-    deposits.value = all
+    limitStore.setTotalCount(LIMIT_VIEW_DEP, allResult.total)
+    deposits.value = allResult.items
     pendingDeposits.value = pending
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
@@ -1749,7 +1770,7 @@ watch(
 )
 
 onMounted(async () => {
-  await fiscalYearStore.initialize()
+  await Promise.all([fiscalYearStore.initialize(), limitStore.init()])
   await loadAll()
 })
 </script>

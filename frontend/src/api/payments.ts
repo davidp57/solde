@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient, { parseTotalCount } from './client'
 
 export type PaymentMethod = 'especes' | 'cheque' | 'virement'
 export type PaymentInvoiceType = 'client' | 'fournisseur'
@@ -59,6 +59,13 @@ export interface PaymentListParams {
 export async function listPayments(params?: PaymentListParams): Promise<Payment[]> {
   const response = await apiClient.get<Payment[]>('/api/payments/', { params })
   return response.data
+}
+
+export async function listPaymentsWithCount(
+  params?: PaymentListParams,
+): Promise<{ items: Payment[]; total: number }> {
+  const response = await apiClient.get<Payment[]>('/api/payments/', { params })
+  return { items: response.data, total: parseTotalCount(response.headers as Record<string, string>) }
 }
 
 export async function createPayment(payload: PaymentCreate): Promise<Payment> {

@@ -33,6 +33,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-189** — Sauvegarde automatique : le spinner de progression n'était pas visible lorsqu'un backup planifié se déclenchait pendant que la page de paramètres était déjà ouverte ; ajout d'une veille (10 s) qui détecte le démarrage et active le polling rapide (3 s)
 
 ### Ajouté
+- **BIZ-198** — Limite d'affichage configurable par liste : paramètre global `Limite d'affichage par défaut` (défaut 500, modifiable dans Paramètres > Association), bannière d'avertissement quand des éléments sont masqués, bouton « Désactiver la limite » par session ; applicable aux 6 vues liste (factures client, fournisseur, paiements, contacts, salaires, banque) ; en-tête `X-Total-Count` sur tous les endpoints de liste
 - **BIZ-173→184** — Lot BK : Sauvegarde automatique — planification (intervalle ou cron), destinations de sauvegarde (local, SMB, OneDrive via rclone), test de connexion, restauration, test de restauration (intégrité SQLite + vérification des tables), e-mail de notification en cas d'échec
 - **BIZ-173→184** — Backend : migration Alembic (colonnes `backup_*` dans `app_settings`, table `backup_destination`), modèle `BackupDestination`, schémas Pydantic, services `backup_destination_service`, `backup_restore_service`, `backup_scheduler` (APScheduler), router 12 endpoints `/api/backup/…`
 - **BIZ-173→184** — Docker : rclone installé dans l'image, `rclone.conf` généré dynamiquement depuis les destinations activées

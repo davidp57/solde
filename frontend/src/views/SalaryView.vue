@@ -76,9 +76,12 @@
         </div>
       </div>
 
-      <Message v-if="salaries.length >= 1000" severity="warn" :closable="false" class="mb-2">
-        {{ t('common.api_limit_warning') }}
-      </Message>
+      <AppListLimitBanner
+        :view-key="LIMIT_VIEW_KEY"
+        :fetched-count="salaries.length"
+        :limit="limitStore.systemLimit"
+        @reload="loadSalaries"
+      />
       <template v-if="isMobile">
         <AppMobileCardList :items="salaryRows" :empty-message="t('salary.empty')">
           <template #card="{ item: data }">
@@ -701,7 +704,6 @@ import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
-import Message from 'primevue/message'
 import Textarea from 'primevue/textarea'
 import Toast from 'primevue/toast'
 import { useConfirm } from 'primevue/useconfirm'
@@ -715,7 +717,7 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import {
-  listSalariesApi,
+  listSalariesWithCountApi,
   getSalarySummaryApi,
   createSalaryApi,
   updateSalaryApi,
@@ -737,6 +739,8 @@ import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
+import { useListLimitStore } from '../stores/listLimit'
 import { formatDisplayMonth } from '../utils/format'
 
 const { t } = useI18n()
@@ -744,6 +748,8 @@ const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
+const limitStore = useListLimitStore()
+const LIMIT_VIEW_KEY = 'salaries'
 const { exportToExcel } = useTableExport()
 const exportColumns: ExportColumn[] = [
   { field: 'employee_name', header: t('salary.employee') },
@@ -1047,12 +1053,16 @@ async function loadEmployees() {
 async function loadSalaries() {
   loading.value = true
   try {
-    salaries.value = await listSalariesApi({
+    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_KEY)
+    const { items, total } = await listSalariesWithCountApi({
       employee_id: filterEmployee.value,
       month: filterMonth.value || undefined,
       from_month: salaryMonthRange.value.from_month,
       to_month: salaryMonthRange.value.to_month,
+      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
     })
+    limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
+    salaries.value = items
   } finally {
     loading.value = false
   }
@@ -1197,7 +1207,7 @@ watch(
 )
 
 onMounted(async () => {
-  await fiscalYearStore.initialize()
+  await Promise.all([fiscalYearStore.initialize(), limitStore.init()])
   workforceFromMonth.value = salaryMonthRange.value.from_month ?? ''
   workforceToMonth.value = salaryMonthRange.value.to_month ?? ''
   await Promise.all([loadEmployees(), loadSalaries(), loadSummary(), loadWorkforce()])

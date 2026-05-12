@@ -38,6 +38,19 @@ vi.mock('../../stores/fiscalYear', () => ({
   useFiscalYearStore: () => fiscalYearStoreMock,
 }))
 
+const limitStoreMock = {
+  systemLimit: 500,
+  init: vi.fn().mockResolvedValue(undefined),
+  effectiveLimit: vi.fn().mockReturnValue(500),
+  setTotalCount: vi.fn(),
+  isDisabled: vi.fn().mockReturnValue(false),
+  hasMore: vi.fn().mockReturnValue(false),
+}
+
+vi.mock('../../stores/listLimit', () => ({
+  useListLimitStore: () => limitStoreMock,
+}))
+
 const replaceMock = vi.fn()
 
 vi.mock('vue-router', () => ({
@@ -51,6 +64,7 @@ vi.mock('../../api/contacts', () => ({
 
 vi.mock('../../api/invoices', () => ({
   listInvoicesApi: vi.fn(),
+  listInvoicesWithCountApi: vi.fn(),
   deleteInvoiceApi: vi.fn(),
   duplicateInvoiceApi: vi.fn(),
   downloadInvoicePdfApi: vi.fn(() => Promise.resolve(new Blob(['%PDF'], { type: 'application/pdf' }))),
@@ -65,11 +79,12 @@ vi.mock('../../api/payments', () => ({
 
 import ClientInvoicesView from '../../views/ClientInvoicesView.vue'
 import { listContactsApi } from '../../api/contacts'
-import { listInvoicesApi } from '../../api/invoices'
+import { listInvoicesApi, listInvoicesWithCountApi } from '../../api/invoices'
 import { createPayment, listPayments } from '../../api/payments'
 
 const mockListContactsApi = vi.mocked(listContactsApi)
 const mockListInvoicesApi = vi.mocked(listInvoicesApi)
+const mockListInvoicesWithCountApi = vi.mocked(listInvoicesWithCountApi)
 const mockListPayments = vi.mocked(listPayments)
 const mockCreatePayment = vi.mocked(createPayment)
 
@@ -318,6 +333,7 @@ function mountView() {
         Select: SelectStub,
         Tag: TagStub,
         Textarea: TextareaStub,
+        AppListLimitBanner: ContainerStub,
       },
     },
   })
@@ -329,12 +345,8 @@ describe('ClientInvoicesView', () => {
     mockListContactsApi.mockResolvedValue([
       { id: 10, type: 'client', nom: 'Dupont', prenom: 'Alice', email: null, telephone: null },
     ] as never)
-    mockListInvoicesApi.mockImplementation(async (filters) => {
-      if (filters?.from_date === '2025-01-01' && filters?.to_date === '2025-12-31') {
-        return [invoiceFixture] as never
-      }
-      return [invoiceFixture, historicalInvoiceFixture] as never
-    })
+    mockListInvoicesWithCountApi.mockResolvedValue({ items: [invoiceFixture], total: 1 } as never)
+    mockListInvoicesApi.mockResolvedValue([invoiceFixture, historicalInvoiceFixture] as never)
     mockListPayments.mockResolvedValue([])
     mockCreatePayment.mockResolvedValue({
       id: 7,
@@ -425,6 +437,7 @@ describe('ClientInvoicesView — history dialog navigation', () => {
       { id: 10, type: 'client', nom: 'Dupont', prenom: 'Alice', email: null, telephone: null },
     ] as never)
     // Both invoices returned for every call so displayedInvoices has 2 entries
+    mockListInvoicesWithCountApi.mockResolvedValue({ items: [invoiceFixture, historicalInvoiceFixture], total: 2 } as never)
     mockListInvoicesApi.mockResolvedValue([invoiceFixture, historicalInvoiceFixture] as never)
     mockListPayments.mockResolvedValue([])
   })

@@ -146,9 +146,12 @@
         </div>
       </div>
 
-      <Message v-if="invoices.length >= 5000" severity="warn" :closable="false" class="mb-2">
-        {{ t('common.api_limit_warning') }}
-      </Message>
+      <AppListLimitBanner
+        :view-key="LIMIT_VIEW_KEY"
+        :fetched-count="invoices.length"
+        :limit="limitStore.systemLimit"
+        @reload="loadInvoices"
+      />
       <AppTableSkeleton v-if="loading && !invoices.length" :rows="8" :cols="5" />
       <template v-else-if="isMobile">
         <AppMobileCardList :items="invoiceRows" :empty-message="t('invoices.client.empty')">
@@ -835,7 +838,6 @@ import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
-import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
@@ -853,6 +855,7 @@ import {
   downloadInvoicePdfApi,
   bulkArchiveInvoicesApi,
   listInvoicesApi,
+  listInvoicesWithCountApi,
   writeOffInvoiceApi,
   restoreFromWriteoffApi,
   type Invoice,
@@ -861,6 +864,7 @@ import {
 import { createPayment, listPayments, suggestChequeNumber, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
 import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
+import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
@@ -893,11 +897,14 @@ import {
   isOverdueInvoice,
 } from '../composables/useInvoiceMetrics'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { useListLimitStore } from '../stores/listLimit'
 import { formatContactDisplayName } from '../utils/contact'
 import { formatDisplayDate } from '@/utils/format'
 import { getErrorDetail } from '@/utils/errorUtils'
 
 const { t } = useI18n()
+const limitStore = useListLimitStore()
+const LIMIT_VIEW_KEY = 'invoices-client'
 const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const route = useRoute()
@@ -1151,7 +1158,11 @@ function statusSeverity(s: InvoiceStatus): string {
 async function loadInvoices() {
   loading.value = true
   try {
-    const filters: Record<string, unknown> = { invoice_type: 'client', limit: 5000 }
+    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_KEY)
+    const filters: Record<string, unknown> = {
+      invoice_type: 'client',
+      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
+    }
     // Skip fiscal-year date filter for cross-year queries (overdue, unpaid from dashboard)
     const skipDateFilter = unpaidOnly.value || statusFilter.value === 'overdue'
     if (fiscalYearStore.selectedFiscalYear && !skipDateFilter) {
@@ -1163,7 +1174,8 @@ async function loadInvoices() {
     if (statusFilter.value && statusFilter.value !== 'overdue') {
       filters.invoice_status = statusFilter.value
     }
-    const all = await listInvoicesApi(filters)
+    const { items: all, total } = await listInvoicesWithCountApi(filters)
+    limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
     if (unpaidOnly.value) {
       invoices.value = all.filter(
         (inv) =>
@@ -1552,7 +1564,7 @@ watch(
 )
 
 onMounted(async () => {
-  await fiscalYearStore.initialize()
+  await Promise.all([fiscalYearStore.initialize(), limitStore.init()])
   const queryStatus = Array.isArray(route.query.status)
     ? route.query.status[0]
     : route.query.status

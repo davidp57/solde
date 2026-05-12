@@ -61,6 +61,9 @@ class AppSettingsRead(BaseModel):
     bank_account_courant_acctid: str | None
     bank_account_epargne_acctid: str | None
 
+    # List display limit for all paginated list views (0 = unlimited)
+    list_default_limit: int
+
     @model_validator(mode="before")
     @classmethod
     def inject_chat_enabled(cls, data: Any) -> Any:
@@ -125,6 +128,9 @@ class AppSettingsUpdate(BaseModel):
     # Bank account ACCTID mapping (OFX import)
     bank_account_courant_acctid: str | None = None
     bank_account_epargne_acctid: str | None = None
+
+    # List display limit for all paginated list views (0 = unlimited)
+    list_default_limit: int | None = None
 
     @field_validator("fiscal_year_start_month")
     @classmethod
