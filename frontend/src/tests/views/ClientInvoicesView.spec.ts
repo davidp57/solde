@@ -40,9 +40,12 @@ vi.mock('../../stores/fiscalYear', () => ({
 
 const limitStoreMock = {
   systemLimit: 500,
+  totalCounts: {} as Record<string, number>,
   init: vi.fn().mockResolvedValue(undefined),
   effectiveLimit: vi.fn().mockReturnValue(500),
-  setTotalCount: vi.fn(),
+  setTotalCount: vi.fn((viewKey: string, total: number) => {
+    limitStoreMock.totalCounts[viewKey] = total
+  }),
   isDisabled: vi.fn().mockReturnValue(false),
   hasMore: vi.fn().mockReturnValue(false),
 }
@@ -262,6 +265,16 @@ const TagStub = defineComponent({
   template: '<span>{{ value }}</span>',
 })
 
+const AppListLimitBannerStub = defineComponent({
+  props: {
+    fetchedCount: { type: Number, default: 0 },
+    limit: { type: Number, default: 0 },
+    viewKey: { type: String, default: '' },
+  },
+  template:
+    '<div data-testid="limit-banner-props">banner-fetched:{{ fetchedCount }}|banner-limit:{{ limit }}|banner-view:{{ viewKey }}</div>',
+})
+
 const CurrentRowKey = Symbol('client-invoices-row')
 
 const DataTableRowStub = defineComponent({
@@ -333,7 +346,7 @@ function mountView() {
         Select: SelectStub,
         Tag: TagStub,
         Textarea: TextareaStub,
-        AppListLimitBanner: ContainerStub,
+        AppListLimitBanner: AppListLimitBannerStub,
       },
     },
   })
@@ -423,6 +436,28 @@ describe('ClientInvoicesView', () => {
     expect(wrapper.text()).toContain('invoices.client.metrics.overdue_amount')
     expect(wrapper.text()).toContain('180.00 €')
     expect(wrapper.text()).toContain('invoices.client.metrics.overdue_count')
+  })
+
+  it('passes raw API fetched count to limit banner before local irrecoverable filtering', async () => {
+    mockListInvoicesWithCountApi.mockResolvedValue({
+      items: [
+        invoiceFixture,
+        {
+          ...historicalInvoiceFixture,
+          id: 3,
+          status: 'irrecoverable',
+        },
+      ],
+      total: 1200,
+    } as never)
+
+    const wrapper = mountView()
+    await flushView()
+
+    const banner = wrapper.get('[data-testid="limit-banner-props"]')
+    expect(banner.text()).toContain('banner-fetched:2')
+    expect(banner.text()).toContain('banner-limit:500')
+    expect(banner.text()).toContain('banner-view:invoices-client')
   })
 })
 
