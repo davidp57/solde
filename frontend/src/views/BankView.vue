@@ -1694,13 +1694,12 @@ async function openDepositDialog(): Promise<void> {
 async function loadTransactions(): Promise<void> {
   loadingTx.value = true
   try {
-    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_TX)
     const { items, total } = await listTransactionsWithCount({
       from_date: fiscalYearStore.selectedFiscalYear?.start_date,
       to_date: fiscalYearStore.selectedFiscalYear?.end_date,
       unreconciled_only: unreconciledOnly.value,
       bank_account: activeTransactionAccount.value,
-      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
+      limit: limitStore.requestLimit(LIMIT_VIEW_TX),
     })
     limitStore.setTotalCount(LIMIT_VIEW_TX, total)
     transactions.value = items
@@ -1714,12 +1713,11 @@ async function loadTransactions(): Promise<void> {
 async function loadDeposits(): Promise<void> {
   loadingDeposits.value = true
   try {
-    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_DEP)
     const [allResult, pending] = await Promise.all([
       listDepositsWithCount({
         from_date: fiscalYearStore.selectedFiscalYear?.start_date,
         to_date: fiscalYearStore.selectedFiscalYear?.end_date,
-        limit: effectiveLimit > 0 ? effectiveLimit : 5000,
+        limit: limitStore.requestLimit(LIMIT_VIEW_DEP),
       }),
       listDeposits({ confirmed: false }),
     ])

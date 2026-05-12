@@ -658,10 +658,9 @@ function resetAllFilters(): void {
 async function loadContacts(): Promise<void> {
   loading.value = true
   try {
-    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_KEY)
     const { items, total } = await listContactsWithCountApi({
       search: search.value || undefined,
-      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
+      limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
     })
     limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
     contacts.value = items

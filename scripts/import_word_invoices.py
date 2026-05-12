@@ -524,12 +524,23 @@ def _cleanup_modern_invoice_pdfs(conn: sqlite3.Connection, pdf_dir: Path, dry_ru
     )
     
     removed = 0
+    pdf_root = pdf_dir.resolve()
     for row in cursor.fetchall():
         number = row["number"]
         pdf_path = row["pdf_path"]
         
         # Try to delete the PDF file
         pdf_file = Path(pdf_path)
+        if not pdf_file.is_absolute():
+            pdf_file = (Path.cwd() / pdf_file).resolve()
+        else:
+            pdf_file = pdf_file.resolve()
+
+        try:
+            pdf_file.relative_to(pdf_root)
+        except ValueError:
+            continue
+
         if pdf_file.exists():
             try:
                 if not dry_run:

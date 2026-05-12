@@ -593,6 +593,11 @@ async def archive_invoice(db: AsyncSession, invoice: Invoice) -> Invoice:
     PDF generation is attempted but non-blocking: if it fails (e.g. WeasyPrint unavailable),
     the invoice is still archived without a PDF.
     """
+    if invoice.type != InvoiceType.CLIENT:
+        raise InvoiceStatusError(
+            f"Only client invoices can be archived (current type: {invoice.type!r})"
+        )
+
     if invoice.status != InvoiceStatus.PAID:
         raise InvoiceStatusError(
             f"Only PAID invoices can be archived (current: {invoice.status!r})"

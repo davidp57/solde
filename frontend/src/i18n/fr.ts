@@ -250,7 +250,7 @@ export default {
     list_limit_active_warning:
       'Limite à {limit} éléments active — {total} éléments disponibles sur le serveur.',
     list_limit_disable: 'Désactiver la limite',
-    list_limit_disabled_info: 'Limite désactivée — tous les éléments sont chargés.',
+    list_limit_disabled_info: 'Limite désactivée — jusqu\'à 5 000 éléments sont chargés.',
     list_limit_enable: 'Réactiver la limite',
   },
   chat: {
@@ -1021,7 +1021,7 @@ export default {
     bank_account_epargne_acctid_help: 'Numéro de compte épargne tel qu\'il apparaît dans le fichier OFX. Requis pour l\'import multi-comptes.',
     list_default_limit: 'Limite d\'affichage par défaut',
     list_default_limit_help:
-      'Nombre maximum d\'éléments chargés par défaut dans les listes (factures, paiements, contacts, etc.). Valeur 0 = illimité. Chaque utilisateur peut désactiver temporairement la limite pour sa session.',
+      'Nombre maximum d\'éléments chargés par défaut dans les listes (factures, paiements, contacts, etc.). Valeur 0 = charger jusqu\'à 5 000 éléments par requête. Chaque utilisateur peut désactiver temporairement la limite pour sa session.',
     section_chat: 'Assistant IA',
     section_chat_subtitle: 'Configurez le fournisseur et la clé API pour activer le chatbot.',
     chat_provider: 'Fournisseur',

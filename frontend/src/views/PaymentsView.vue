@@ -545,12 +545,11 @@ async function loadPayments() {
           from_date: fiscalYearStore.selectedFiscalYear?.start_date,
           to_date: fiscalYearStore.selectedFiscalYear?.end_date,
         }
-    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_KEY)
     const { items, total } = await listPaymentsWithCount({
       invoice_type: 'client',
       undeposited_only: undepositedOnly.value,
       ...dateFilter,
-      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
+      limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
     })
     limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
     payments.value = items

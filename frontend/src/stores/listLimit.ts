@@ -1,7 +1,7 @@
 /**
  * Store managing the per-view, per-session list limit toggle.
  *
- * - systemLimit: the default limit configured in app settings (0 = unlimited).
+ * - systemLimit: the default limit configured in app settings (0 = fetch up to API max).
  * - Per-view override stored in sessionStorage so it resets on tab/browser close.
  * - totalCounts: map of viewKey → total items available on the server (from X-Total-Count header).
  */
@@ -13,6 +13,7 @@ import { getSettingsApi } from '../api/settings'
 
 const SESSION_KEY_PREFIX = 'list_limit_disabled_'
 const DEFAULT_FALLBACK_LIMIT = 500
+const MAX_LIST_FETCH_LIMIT = 5000
 
 export const useListLimitStore = defineStore('listLimit', () => {
   const systemLimit = ref<number>(DEFAULT_FALLBACK_LIMIT)
@@ -48,6 +49,12 @@ export const useListLimitStore = defineStore('listLimit', () => {
   function effectiveLimit(viewKey: string): number {
     if (disabledViews.value.has(viewKey)) return 0
     return systemLimit.value
+  }
+
+  /** Return the request limit sent to APIs, honoring the backend hard cap. */
+  function requestLimit(viewKey: string): number {
+    const limit = effectiveLimit(viewKey)
+    return limit > 0 ? limit : MAX_LIST_FETCH_LIMIT
   }
 
   /** Whether the limit is currently disabled for this view. */
@@ -97,6 +104,7 @@ export const useListLimitStore = defineStore('listLimit', () => {
     isLimitActive,
     init,
     effectiveLimit,
+    requestLimit,
     isDisabled,
     disableLimit,
     enableLimit,

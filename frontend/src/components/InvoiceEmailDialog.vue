@@ -70,6 +70,7 @@
           :src="`${pdfBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
           type="application/pdf"
           class="invoice-email-dialog__embed"
+           :title="t('invoices.email_preview')"
         />
         <div v-else class="invoice-email-dialog__preview-empty">
           <i class="pi pi-file-pdf" />

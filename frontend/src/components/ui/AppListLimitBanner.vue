@@ -14,13 +14,13 @@
         })
       }}
     </span>
-    <a
-      href="#"
+    <button
+      type="button"
       class="app-list-limit-banner__link"
-      @click.prevent="limitStore.disableLimit(props.viewKey); emit('reload')"
+      @click="limitStore.disableLimit(props.viewKey); emit('reload')"
     >
       {{ t('common.list_limit_disable') }}
-    </a>
+    </button>
   </Message>
 
   <!-- Limit disabled: subtle info -->
@@ -37,13 +37,13 @@
         })
       }}
     </span>
-    <a
-      href="#"
+    <button
+      type="button"
       class="app-list-limit-banner__link"
-      @click.prevent="limitStore.enableLimit(props.viewKey); emit('reload')"
+      @click="limitStore.enableLimit(props.viewKey); emit('reload')"
     >
       {{ t('common.list_limit_enable') }}
-    </a>
+    </button>
   </Message>
 </template>
 
@@ -108,6 +108,9 @@ const showDisabled = computed(() => limitStore.isDisabled(props.viewKey))
 }
 
 .app-list-limit-banner__link {
+  padding: 0;
+  border: 0;
+  background: none;
   white-space: nowrap;
   font-weight: 600;
   text-decoration: underline;
