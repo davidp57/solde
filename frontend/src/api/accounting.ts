@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient, { parseTotalCount } from './client'
 
 export type AccountType = 'actif' | 'passif' | 'charge' | 'produit'
 
@@ -504,6 +504,18 @@ export async function listSalariesApi(params?: {
 }): Promise<SalaryRead[]> {
   const response = await apiClient.get<SalaryRead[]>('/api/salaries/', { params })
   return response.data.map(normalizeSalaryRead)
+}
+
+export async function listSalariesWithCountApi(params?: {
+  employee_id?: number
+  month?: string
+  from_month?: string
+  to_month?: string
+  skip?: number
+  limit?: number
+}): Promise<{ items: SalaryRead[]; total: number }> {
+  const response = await apiClient.get<SalaryRead[]>('/api/salaries/', { params })
+  return { items: response.data.map(normalizeSalaryRead), total: parseTotalCount(response.headers as Record<string, string>) }
 }
 
 export async function getSalarySummaryApi(params?: {

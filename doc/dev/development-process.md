@@ -15,7 +15,7 @@ Version numbers follow `MAJOR.MINOR.PATCH`:
 - `MINOR`: backward-compatible new feature
 - `PATCH`: backward-compatible bug fix
 
-The application version is defined in `pyproject.toml` (`version = "x.y.z"`) and read at runtime via `importlib.metadata.version("solde")`. The `frontend/package.json` contains a separate frontend package version that is not kept in sync with the backend version.
+The application version is defined in `pyproject.toml` (`version = "x.y.z"`) and read at runtime via `importlib.metadata.version("solde")`. For releases in this repository, `frontend/package.json` is bumped in lockstep for consistency.
 
 The backend reads the version at runtime via `importlib.metadata.version("solde")` and exposes it at `GET /api/health`.
 
@@ -130,7 +130,7 @@ One-paragraph summary in French.
 
 ## Mise à jour
 
-See [../admin/administration.md](../admin/administration.md) for the upgrade procedure.
+See [../admin/administration.fr.md](../admin/administration.fr.md) and [../admin/administration.en.md](../admin/administration.en.md) for the upgrade procedure.
 ```
 
 ---

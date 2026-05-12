@@ -30,6 +30,7 @@ export interface AppSettings {
   cheque_number_template: string
   bank_account_courant_acctid: string | null
   bank_account_epargne_acctid: string | null
+  list_default_limit: number
 }
 
 export interface AppSettingsUpdate {
@@ -62,6 +63,7 @@ export interface AppSettingsUpdate {
   cheque_number_template?: string | null
   bank_account_courant_acctid?: string | null
   bank_account_epargne_acctid?: string | null
+  list_default_limit?: number
 }
 
 export interface SystemOpening {

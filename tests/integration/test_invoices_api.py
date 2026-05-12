@@ -419,3 +419,81 @@ class TestDeleteInvoice:
         )
         r = await client.delete(f"/api/invoices/{created['id']}", headers=auth_headers)
         assert r.status_code == 409
+
+
+class TestBulkArchive:
+    async def _make_paid_invoice(self, client: AsyncClient, headers: dict) -> dict:
+        cid = await _create_contact(client, headers)
+        inv = await _create_invoice(
+            client, headers, cid, lines=[{"description": "Cours", "quantity": 1, "unit_price": 26}]
+        )
+        # DRAFT → SENT
+        r = await client.patch(
+            f"/api/invoices/{inv['id']}/status",
+            json={"status": "sent"},
+            headers=headers,
+        )
+        assert r.status_code == 200
+        # SENT → PAID
+        r = await client.patch(
+            f"/api/invoices/{inv['id']}/status",
+            json={"status": "paid"},
+            headers=headers,
+        )
+        assert r.status_code == 200
+        return r.json()
+
+    async def test_bulk_archive_paid_invoices(self, client: AsyncClient, auth_headers: dict):
+        inv1 = await self._make_paid_invoice(client, auth_headers)
+        inv2 = await self._make_paid_invoice(client, auth_headers)
+        r = await client.post(
+            "/api/invoices/bulk-archive",
+            json={"invoice_ids": [inv1["id"], inv2["id"]]},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["archived"] == 2
+        assert data["skipped"] == 0
+        assert data["errors"] == []
+
+    async def test_bulk_archive_skips_non_paid(self, client: AsyncClient, auth_headers: dict):
+        cid = await _create_contact(client, auth_headers)
+        draft = await _create_invoice(client, auth_headers, cid)
+        paid = await self._make_paid_invoice(client, auth_headers)
+        r = await client.post(
+            "/api/invoices/bulk-archive",
+            json={"invoice_ids": [draft["id"], paid["id"]]},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["archived"] == 1
+        assert data["skipped"] == 1
+
+    async def test_bulk_archive_requires_auth(self, client: AsyncClient):
+        r = await client.post("/api/invoices/bulk-archive", json={"invoice_ids": [1]})
+        assert r.status_code == 401
+
+    async def test_bulk_archive_readonly_forbidden(
+        self, client: AsyncClient, readonly_auth_headers: dict
+    ):
+        r = await client.post(
+            "/api/invoices/bulk-archive",
+            json={"invoice_ids": [1]},
+            headers=readonly_auth_headers,
+        )
+        assert r.status_code == 403
+
+    async def test_archived_invoice_has_correct_status(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        paid = await self._make_paid_invoice(client, auth_headers)
+        await client.post(
+            "/api/invoices/bulk-archive",
+            json={"invoice_ids": [paid["id"]]},
+            headers=auth_headers,
+        )
+        r = await client.get(f"/api/invoices/{paid['id']}", headers=auth_headers)
+        assert r.status_code == 200
+        assert r.json()["status"] == "archived"

@@ -19,7 +19,8 @@ Il est destiné aux utilisateurs disposant d'un rôle **Gestionnaire**, **Compta
 10. [Comptabilité](#10-comptabilité)
 11. [Exercices comptables](#11-exercices-comptables)
 12. [Mon profil](#12-mon-profil)
-13. [Guide par rôle — « Je veux… »](#guide-par-rôle-je-veux)
+13. [Paramètres (administrateur)](#13-paramètres-administrateur)
+14. [Guide par rôle — « Je veux… »](#guide-par-rôle-je-veux)
 
 ---
 
@@ -130,6 +131,17 @@ Un onglet rapide permet aussi de basculer entre **Tous**, **Clients** et **Fourn
 3. Pour ajouter, modifier ou supprimer des adresses e-mail supplémentaires, utiliser la section **Adresses e-mail supplémentaires**.
 4. Cliquer sur **Enregistrer**.
 
+### Fusionner deux contacts
+
+La fusion permet de regrouper deux fiches en double en conservant un seul contact final.
+
+1. Ouvrir la fiche du contact principal à conserver.
+2. Cliquer sur **Fusionner**.
+3. Sélectionner le contact source à fusionner.
+4. Vérifier le récapitulatif et confirmer.
+
+Après fusion, les factures et paiements du contact source sont rattachés au contact conservé.
+
 ### Marquer un client comme indésirable
 
 Cette fonctionnalité s'applique aux contacts de type **Client** ou **Les deux**. Elle permet de bloquer la création de nouvelles factures pour un client en litige ou en défaut de paiement.
@@ -176,6 +188,7 @@ Statuts possibles :
 | **Partiellement payée** | Un ou plusieurs paiements reçus, solde restant dû. |
 | **En retard** | Échéance dépassée, non réglée. |
 | **Irrécouvrable** | Passée en perte (créance douteuse). |
+| **Archivée** | Facture payée gelée pour historique, non modifiable. |
 
 ---
 
@@ -239,6 +252,20 @@ Le PDF est joint automatiquement. Un envoi réussi est tracé dans l'historique 
 
 Sur la fiche facture, cliquer sur **Télécharger PDF**.
 
+Le PDF d'une facture **entièrement réglée** affiche un filigrane **« PAYÉ »** en rouge en diagonale sur chaque page. Les factures partiellement payées ou en attente n'ont pas de filigrane.
+
+### L'aperçu PDF ne s'affiche pas dans Chrome
+
+Si l'aperçu PDF reste vide dans Chrome (dialogue de facture, envoi par e-mail, historique contact), vérifier le réglage suivant dans Chrome :
+
+1. Dans la barre d'adresse, saisir `chrome://settings/content/pdfDocuments`
+2. S'assurer que l'option **« Ouvrir les PDF dans Chrome »** est sélectionnée (et non « Télécharger les PDF »).
+3. Relancer la page.
+
+Si le paramètre est correct et que l'aperçu ne fonctionne toujours pas, vérifier l'absence d'extensions Chrome qui interceptent les PDF (ex. Adobe Acrobat, PDF Viewer tiers). Les désactiver temporairement pour tester.
+
+> Ce paramètre est propre à chaque navigateur. Il n'affecte pas le téléchargement du PDF (bouton **Télécharger PDF**).
+
 ### Passer une facture en irrécouvrable
 
 1. Ouvrir la fiche facture.
@@ -246,6 +273,14 @@ Sur la fiche facture, cliquer sur **Télécharger PDF**.
 3. Confirmer l'action.
 
 La facture est marquée irrécouvrable. Elle disparaît des listes de factures impayées et une écriture comptable de perte peut être générée selon la configuration des règles.
+
+### Archiver des factures payées
+
+Depuis la liste des factures client, le bouton **Archiver la sélection** permet d'archiver en lot les factures déjà payées affichées après filtrage.
+
+- Une facture **archivée** devient en lecture seule.
+- Le bouton de téléchargement du document d'origine reste disponible si un fichier est attaché.
+- L'archivage est irréversible depuis l'interface.
 
 ### Numérotation automatique
 
@@ -581,7 +616,91 @@ Le nouveau mot de passe doit respecter la politique : minimum 8 caractères, au 
 
 ---
 
-## Guide par rôle — « Je veux… »
+## 13. Paramètres (administrateur)
+
+*Cette section est réservée aux utilisateurs ayant le rôle **Administrateur**.*
+
+Les paramètres sont accessibles via le menu **Paramètres** dans la barre latérale.
+
+### Association
+
+Permet de renseigner les informations de l'association (nom, adresse, SIRET, numéro RNA, e-mail de contact) qui apparaissent sur les documents PDF (factures, fiches de salaire).
+
+Le paramètre **Limite d'affichage par défaut** définit le nombre maximum d'éléments chargés par liste.
+
+- Valeur recommandée : `500`.
+- Valeur `0` : charge jusqu'au plafond API (5 000 éléments par requête).
+
+### SMTP — Envoi d'e-mails
+
+Permet de configurer le serveur d'envoi d'e-mails utilisé pour envoyer les factures par mail et les notifications.
+
+- Hôte, port, identifiant et mot de passe du serveur SMTP.
+- Option TLS.
+- Un bouton **Tester** permet de vérifier la configuration avant de l'enregistrer.
+
+> Sans configuration SMTP valide, l'envoi de factures par e-mail et les notifications automatiques (ex. échec de sauvegarde) sont désactivés.
+
+### Sauvegarde automatique
+
+Permet de programmer des sauvegardes automatiques de la base de données.
+
+#### Activer et planifier les sauvegardes
+
+1. Activer le toggle **Activer les sauvegardes automatiques**.
+2. Choisir le mode de planification :
+   - **Quotidien (heure fixe)** : saisir l'heure au format HH:MM (ex. `02:00` pour 2 h du matin chaque nuit).
+   - **Toutes les N heures** : saisir l'intervalle souhaité (ex. toutes les 24 h).
+   - **Expression cron** : saisir une expression cron personnalisée (ex. `0 2 * * *` pour chaque nuit à 2 h).
+3. Cocher **Inclure les fichiers joints** pour inclure les pièces jointes (factures fournisseurs importées) dans la sauvegarde.
+4. Cocher **Inclure tous les fichiers de sauvegarde précédents** pour envoyer l'intégralité du dossier de sauvegardes vers la destination. Si cette option est désactivée (comportement par défaut), seul le dernier snapshot est envoyé.
+5. Cocher **Notifier en cas d'échec** pour recevoir un e-mail si une sauvegarde échoue (nécessite un SMTP configuré).
+6. Cliquer sur **Enregistrer la planification**.
+
+Le bouton **Lancer maintenant** déclenche une sauvegarde immédiate sans attendre l'heure planifiée.
+
+> Le spinner de progression s'affiche dans les 10 secondes suivant le démarrage d'une sauvegarde automatique, même si la page était déjà ouverte au moment du déclenchement.
+
+#### Statut du dernier enregistrement
+
+Le panneau affiche la date, l'heure et le résultat (succès ou échec) de la dernière sauvegarde effectuée.
+
+#### Destinations de sauvegarde
+
+Les sauvegardes peuvent être envoyées vers une ou plusieurs destinations. Cliquer sur **Ajouter une destination** et choisir le type :
+
+| Type | Description |
+|---|---|
+| **Local** | Dossier sur le serveur hébergeant l'application (chemin absolu). |
+| **SMB (réseau)** | Partage réseau (NAS, serveur de fichiers) accessible via le protocole SMB. Renseigner l'hôte, le partage, l'identifiant et le mot de passe. |
+| **OneDrive** | Compte Microsoft OneDrive. Cliquer sur **Autoriser OneDrive** et suivre la procédure d'authentification dans l'onglet qui s'ouvre. |
+
+Chaque destination peut être **activée ou désactivée** individuellement. Le bouton **Tester** vérifie que la connexion à la destination est opérationnelle sans effectuer de sauvegarde.
+
+#### Restauration
+
+La liste des sauvegardes disponibles s'affiche en bas du panneau.
+
+- **Tester la restauration** : vérifie l'intégrité du fichier de sauvegarde (contrôle SQLite + présence des tables attendues) sans toucher aux données en production. Un rapport s'affiche.
+- **Restaurer** : remplace la base de données en production par la sauvegarde sélectionnée. Une confirmation est demandée. **Cette action est irréversible.**
+
+> Il est conseillé de toujours **Tester la restauration** avant de lancer une restauration effective.
+
+### Prix par défaut
+
+Permet de définir les prix unitaires préremplis lors de la création de factures clients.
+
+### Règles d'import OFX
+
+Permet de configurer les règles de catégorisation automatique des transactions bancaires lors de l'import d'un relevé OFX.
+
+### Utilisateurs
+
+Permet de gérer les comptes utilisateurs : créer un compte, modifier le rôle, réinitialiser le mot de passe, désactiver un compte.
+
+---
+
+## 14. Guide par rôle — « Je veux… »
 
 Ce guide recense les actions courantes par rôle et renvoie vers la section correspondante du manuel.
 
@@ -626,4 +745,9 @@ Ce guide recense les actions courantes par rôle et renvoie vers la section corr
 | Gérer les employés | [9. Salaires et employés — Gérer les employés](#gérer-les-employés) |
 | Configurer les règles comptables | [10. Comptabilité — Règles comptables](#règles-comptables) |
 | Créer un exercice comptable | [11. Exercices comptables — Créer un exercice](#créer-un-exercice) |
+| Configurer l'envoi d'e-mails (SMTP) | [13. Paramètres — SMTP](#smtp--envoi-de-mails) |
+| Programmer des sauvegardes automatiques | [13. Paramètres — Sauvegarde automatique](#sauvegarde-automatique) |
+| Ajouter une destination de sauvegarde | [13. Paramètres — Destinations de sauvegarde](#destinations-de-sauvegarde) |
+| Restaurer une sauvegarde | [13. Paramètres — Restauration](#restauration) |
+| Gérer les comptes utilisateurs | [13. Paramètres — Utilisateurs](#utilisateurs) |
 | Toutes les actions Secrétaire et Trésorier | Voir les sections ci-dessus |

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -76,7 +76,7 @@ async def create_bank_reconciled_client_payment(
     payment_date: date,
     reference: str | None = None,
     notes: str | None = None,
-    commit: bool = True,
+    flush_and_refresh: bool = True,
 ) -> PaymentRead:
     """Create a client virement originating from a reconciled bank transaction."""
     invoice = await _get_invoice(db, invoice_id)
@@ -100,7 +100,7 @@ async def create_bank_reconciled_client_payment(
         allow_client_virement=True,
         deposited=True,
         deposit_date=payment_date,
-        commit=commit,
+        flush_and_refresh=flush_and_refresh,
     )
 
 
@@ -112,7 +112,7 @@ async def create_bank_reconciled_supplier_payment(
     payment_date: date,
     reference: str | None = None,
     notes: str | None = None,
-    commit: bool = True,
+    flush_and_refresh: bool = True,
 ) -> PaymentRead:
     """Create a supplier virement originating from a reconciled bank transaction."""
     invoice = await _get_invoice(db, invoice_id)
@@ -135,7 +135,7 @@ async def create_bank_reconciled_supplier_payment(
         payload,
         deposited=True,
         deposit_date=payment_date,
-        commit=commit,
+        flush_and_refresh=flush_and_refresh,
     )
 
 
@@ -146,7 +146,7 @@ async def _create_payment(
     allow_client_virement: bool = False,
     deposited: bool | None = None,
     deposit_date: date | None = None,
-    commit: bool = True,
+    flush_and_refresh: bool = True,
 ) -> PaymentRead:
     """Persist a payment and all its side effects."""
     invoice = await _get_invoice(db, payload.invoice_id)
@@ -176,8 +176,8 @@ async def _create_payment(
     )
 
     await generate_entries_for_payment(db, payment, invoice.type)
-    if commit:
-        await db.commit()
+    if flush_and_refresh:
+        await db.flush()
         await db.refresh(payment)
     return await _to_payment_read(db, payment)
 
@@ -206,6 +206,7 @@ async def list_payments(
         select(Payment, inv.number, inv.type, cnt.nom, cnt.prenom)
         .join(inv, Payment.invoice_id == inv.id)
         .join(cnt, cnt.id == inv.contact_id, isouter=True)
+        .where(Payment.amount > 0)
     )
     if invoice_id is not None:
         query = query.where(Payment.invoice_id == invoice_id)
@@ -243,6 +244,47 @@ async def list_payments(
     ]
 
 
+async def count_payments(
+    db: AsyncSession,
+    *,
+    invoice_id: int | None = None,
+    invoice_type: InvoiceType | None = None,
+    contact_id: int | None = None,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    undeposited_only: bool = False,
+    inconsistent_only: bool = False,
+) -> int:
+    """Count payments matching filters (no limit)."""
+    inv = aliased(Invoice)
+    query = (
+        select(func.count())
+        .select_from(Payment)
+        .join(inv, Payment.invoice_id == inv.id)
+        .where(Payment.amount > 0)
+    )
+    if invoice_id is not None:
+        query = query.where(Payment.invoice_id == invoice_id)
+    if invoice_type is not None:
+        query = query.where(inv.type == invoice_type)
+    if contact_id is not None:
+        query = query.where(Payment.contact_id == contact_id)
+    if from_date is not None:
+        query = query.where(Payment.date >= from_date)
+    if to_date is not None:
+        query = query.where(Payment.date <= to_date)
+    if undeposited_only:
+        query = query.where(Payment.deposited == False).where(Payment.in_deposit == False)  # noqa: E712
+    if inconsistent_only:
+        query = (
+            query.where(Payment.method == PaymentMethod.CHEQUE)
+            .where(Payment.deposited == True)  # noqa: E712
+            .where(Payment.deposit_date.is_(None))
+        )
+    result = await db.execute(query)
+    return result.scalar_one()
+
+
 async def update_payment(db: AsyncSession, payment_id: int, payload: PaymentUpdate) -> PaymentRead:
     payment = await _get_payment_orm(db, payment_id)
     if payment is None:
@@ -255,7 +297,7 @@ async def update_payment(db: AsyncSession, payment_id: int, payload: PaymentUpda
         setattr(payment, field, value)
     await db.flush()
     await _refresh_invoice_status(db, payment.invoice_id)
-    await db.commit()
+    await db.flush()
     await db.refresh(payment)
     return await _to_payment_read(db, payment)
 
@@ -354,7 +396,7 @@ async def fix_inconsistent_deposit_date(
     if payment.deposit_date is not None:
         raise ValueError("payment already has a deposit date")
     payment.deposit_date = deposit_date
-    await db.commit()
+    await db.flush()
     await db.refresh(payment)
     return await _to_payment_read(db, payment)
 

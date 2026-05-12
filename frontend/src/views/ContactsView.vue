@@ -58,6 +58,14 @@
             :disabled="!hasAnyFilters"
             @click="resetAllFilters"
           />
+          <Button
+            :label="t('common.export_excel')"
+            icon="pi pi-file-excel"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="doExportExcel"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -72,9 +80,12 @@
         </div>
       </div>
 
-      <Message v-if="contacts.length >= 1000" severity="warn" :closable="false" class="mb-2">
-        {{ t('common.api_limit_warning') }}
-      </Message>
+      <AppListLimitBanner
+        :view-key="LIMIT_VIEW_KEY"
+        :fetched-count="contacts.length"
+        :limit="limitStore.systemLimit"
+        @reload="loadContacts"
+      />
       <AppTableSkeleton v-if="loading && !contacts.length" :rows="8" :cols="5" />
       <template v-else-if="isMobile">
         <AppMobileCardList :items="contactRows" :empty-message="t('contacts.empty')">
@@ -106,6 +117,14 @@
                 text
                 :title="t('contact_history.title')"
                 @click="openHistoryDialog(data.id)"
+              />
+              <Button
+                icon="pi pi-arrow-right-arrow-left"
+                size="small"
+                severity="warn"
+                text
+                :title="t('contacts.merge')"
+                @click="openMergeDialog(data)"
               />
               <Button
                 icon="pi pi-pencil"
@@ -248,6 +267,15 @@
                 :title="t('contact_history.title')"
                 :aria-label="t('contact_history.title')"
                 @click="openHistoryDialog(data.id)"
+              />
+              <Button
+                icon="pi pi-arrow-right-arrow-left"
+                size="small"
+                severity="warn"
+                text
+                :title="t('contacts.merge')"
+                :aria-label="t('contacts.merge')"
+                @click="openMergeDialog(data)"
               />
               <Button
                 icon="pi pi-pencil"
@@ -394,6 +422,12 @@
     </Dialog>
 
     <ContactHistoryDialog v-model="historyDialogVisible" :contact-id="selectedContactId" />
+    <ContactMergeDialog
+      v-model:visible="mergeDialogVisible"
+      :source-contact="mergeSourceContact"
+      :contacts="contacts"
+      @merged="onMerged"
+    />
     <ConfirmDialog />
   </AppPage>
 </template>
@@ -423,24 +457,42 @@ import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
-import { deleteContactApi, importContactEmailsApi, listContactsApi, type Contact } from '@/api/contacts'
+import { deleteContactApi, importContactEmailsApi, listContactsWithCountApi, type Contact } from '@/api/contacts'
 import type { ContactEmailImportResult, ContactEmailImportRow } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'
 import ContactHistoryDialog from '@/components/ContactHistoryDialog.vue'
+import ContactMergeDialog from '@/components/ContactMergeDialog.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import { useBreakpoints } from '@/composables/useBreakpoints'
+import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import {
   collectActiveFilterLabels,
 } from '../composables/activeFilterLabels'
 import { inFilter, textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
 import { formatDisplayDate } from '@/utils/format'
+import AppListLimitBanner from '@/components/ui/AppListLimitBanner.vue'
+import { useListLimitStore } from '@/stores/listLimit'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
+const limitStore = useListLimitStore()
+const LIMIT_VIEW_KEY = 'contacts'
 const toast = useToast()
+const { exportToExcel } = useTableExport()
+const exportColumns: ExportColumn[] = [
+  { field: 'nom', header: t('contacts.nom') },
+  { field: 'prenom', header: t('contacts.prenom') },
+  { field: 'type_label', header: t('contacts.type') },
+  { field: 'email', header: t('contacts.email') },
+  { field: 'telephone', header: t('contacts.telephone') },
+  { field: 'last_invoice_date', header: t('contacts.last_invoice') },
+]
+function doExportExcel(): void {
+  exportToExcel(displayedContacts.value, exportColumns, 'contacts-export')
+}
 
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
@@ -452,6 +504,19 @@ const editingContact = ref<Contact | null>(null)
 const formWrapperEl = ref<HTMLElement | null>(null)
 const historyDialogVisible = ref(false)
 const selectedContactId = ref<number | null>(null)
+
+const mergeDialogVisible = ref(false)
+const mergeSourceContact = ref<Contact | null>(null)
+
+function openMergeDialog(contact: Contact): void {
+  mergeSourceContact.value = contact
+  mergeDialogVisible.value = true
+}
+
+function onMerged(sourceId: number): void {
+  // Remove the source contact from the local list (it's now inactive)
+  contacts.value = contacts.value.filter((c) => c.id !== sourceId)
+}
 
 function focusFormInput(): void {
   nextTick(() => {
@@ -593,9 +658,12 @@ function resetAllFilters(): void {
 async function loadContacts(): Promise<void> {
   loading.value = true
   try {
-    contacts.value = await listContactsApi({
+    const { items, total } = await listContactsWithCountApi({
       search: search.value || undefined,
+      limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
     })
+    limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
+    contacts.value = items
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -735,7 +803,10 @@ async function doDelete(contact: Contact): Promise<void> {
   }
 }
 
-onMounted(loadContacts)
+onMounted(async () => {
+  await limitStore.init()
+  void loadContacts()
+})
 </script>
 
 <style scoped>

@@ -4,6 +4,77 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.7.2 — 12 mai 2026
+
+### Tous les utilisateurs
+
+#### Listes — limite d'affichage configurable
+- Par défaut, chaque grande liste (factures, paiements, contacts, salaires, transactions bancaires) n'affiche désormais que les **500 premiers éléments**.
+- Une **bannière d'avertissement** apparaît en haut de la liste quand des éléments sont masqués, avec un lien **« Désactiver la limite »** pour tout charger d'un clic.
+- Une fois la limite désactivée, une **notice discrète** indique qu'un chargement jusqu'à **5 000 éléments** est appliqué, avec la possibilité de **réactiver la limite**.
+- Ce réglage est **propre à chaque navigateur / onglet** : il s'efface à la fermeture de l'onglet.
+
+#### Contacts — fusion des doublons
+- Un dialogue de **fusion de contacts** permet de regrouper deux fiches en une seule quand un doublon est détecté.
+- Les informations utiles sont conservées sur la fiche finale et l'historique (factures/paiements) reste rattaché au contact conservé.
+
+### Administrateur
+
+#### Paramètres — limite d'affichage
+- La **valeur de la limite** est configurable dans Paramètres > Association (champ *Limite d'affichage par défaut*).
+- Valeur **0** = chargement jusqu'à **5 000 éléments** par requête.
+- La modification s'applique immédiatement pour tous les utilisateurs dès leur prochaine visite.
+
+#### Sauvegarde OneDrive
+- L'autorisation OneDrive repose désormais sur un **code d'appareil** (device code), mieux adaptée aux déploiements Docker/NAS sans navigateur intégré.
+- Le transfert vers OneDrive est géré directement via l'API Microsoft, avec un suivi d'état plus fiable dans l'interface.
+
+---
+
+## Version 1.7.1 *(à venir)*
+
+### Secrétaire
+
+#### Factures historiques (import Word) et archivées
+- Nouveau script d'import des factures historiques depuis des documents Word (`.docx`), avec reprise des factures déjà payées.
+- Les factures historiques importées depuis Word reprennent correctement le montant déjà réglé : le reste dû est affiché à **0 €** quand la facture était déjà payée.
+- Quand un PDF existe déjà pour une facture importée, il est réutilisé directement pour l'aperçu au lieu de repasser par le document Word.
+- L'aperçu PDF masque désormais le volet latéral des pages quand le navigateur autorise ce réglage.
+
+### Tous les utilisateurs
+
+#### Export Excel
+- Un bouton **« Exporter Excel »** est disponible dans toutes les grandes listes : factures fournisseur, paiements, contacts, employés, salaires, mouvements de caisse, transactions bancaires, exercices comptables, plan comptable, règles comptables, journal, grand livre, balance, bilan, compte de résultat.
+- L'export télécharge uniquement les **lignes affichées après filtrage**, au format `.xlsx` directement lisible dans Excel ou LibreOffice Calc.
+
+### Secrétaire
+
+#### Factures client — Archivage
+- Un nouveau statut **« Archivée »** est disponible pour les factures intégralement réglées. Une facture archivée ne peut plus être modifiée.
+- Bouton **« Archiver la sélection »** dans la barre d'outils de la liste des factures client : archive d'un coup toutes les factures payées actuellement visibles.
+- Sur une facture archivée, un bouton **« Télécharger le document »** permet de récupérer le fichier Word d'origine (si disponible).
+
+---
+
+## Version 1.7.0 *(à venir)*
+
+### Administrateur
+
+#### Paramètres — Sauvegarde automatique (nouvelle fonctionnalité)
+- Nouveau panneau **« Sauvegarde automatique »** dans les paramètres (visible uniquement par les administrateurs).
+- Il est possible d'**activer ou désactiver** les sauvegardes automatiques et de choisir leur fréquence :
+  - **Quotidien (heure fixe)** : la sauvegarde se déclenche chaque jour à l'heure choisie (format HH:MM).
+  - **Toutes les N heures** : sauvegarde répétée selon un intervalle en heures.
+  - **Expression cron** : planning avancé personnalisé.
+- Par défaut, seul le **dernier fichier de sauvegarde** (snapshot de la base) est envoyé vers la destination. L'option **« Inclure tous les fichiers de sauvegarde précédents »** permet d'envoyer l'intégralité des sauvegardes disponibles.
+- Le **statut du dernier enregistrement** (date, heure, succès ou échec) est visible en temps réel, y compris lorsque la sauvegarde a été déclenchée automatiquement — le spinner apparaît dans les 10 secondes suivant le démarrage.
+- Il est possible d'ajouter plusieurs **destinations de sauvegarde** : dossier local sur le serveur, partage réseau (SMB/NAS), ou OneDrive.
+- Chaque destination peut être **testée** (connexion vérifiée) avant d'être activée.
+- La liste des sauvegardes disponibles permet de **tester la restauration** (vérification de l'intégrité du fichier) ou de **restaurer** une sauvegarde précédente.
+- Une **notification par e-mail** peut être activée pour prévenir en cas d'échec de sauvegarde.
+
+---
+
 ## Version 1.6.0 — 5 mai 2026
 
 ### Tous les utilisateurs

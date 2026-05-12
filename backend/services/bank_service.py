@@ -211,7 +211,6 @@ async def _finalize_payment_links(
 
     await _store_transaction_payment_links(db, tx=tx, payments=payments)
     await db.flush()
-    await db.commit()
     await db.refresh(tx)
     return tx
 
@@ -298,7 +297,7 @@ async def add_transaction(
         source=payload.source,
         bank_account=payload.bank_account,
     )
-    await db.commit()
+    await db.flush()
     await db.refresh(tx)
     return tx
 
@@ -369,13 +368,35 @@ async def list_transactions(
     return list(result.scalars().all())
 
 
+async def count_transactions(
+    db: AsyncSession,
+    *,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    unreconciled_only: bool = False,
+    bank_account: BankAccountType | None = None,
+) -> int:
+    """Count bank transactions matching filters (no limit)."""
+    query = select(func.count()).select_from(BankTransaction)
+    if from_date is not None:
+        query = query.where(BankTransaction.date >= from_date)
+    if to_date is not None:
+        query = query.where(BankTransaction.date <= to_date)
+    if unreconciled_only:
+        query = query.where(BankTransaction.reconciled == False)  # noqa: E712
+    if bank_account is not None:
+        query = query.where(BankTransaction.bank_account == bank_account)
+    result = await db.execute(query)
+    return result.scalar_one()
+
+
 async def get_monthly_funds_series(
     db: AsyncSession,
     *,
     months: int = 6,
 ) -> list[dict[str, Decimal | str]]:
     if await recompute_bank_balances(db):
-        await db.commit()
+        await db.flush()
 
     result = await db.execute(
         select(BankTransaction.date, BankTransaction.balance_after)
@@ -463,7 +484,7 @@ async def update_transaction(
         setattr(tx, field, value)
     await db.flush()
     await recompute_bank_balances(db)
-    await db.commit()
+    await db.flush()
     await db.refresh(tx)
     return tx
 
@@ -483,7 +504,7 @@ async def delete_manual_transaction(db: AsyncSession, tx: BankTransaction) -> No
     await db.delete(tx)
     await db.flush()
     await recompute_bank_balances(db)
-    await db.commit()
+    await db.flush()
 
 
 async def reconcile_transactions_bulk(
@@ -508,7 +529,7 @@ async def reconcile_transactions_bulk(
         tx.reconciled = True
         await accounting_engine.generate_entries_for_bank_transaction(db, tx)
 
-    await db.commit()
+    await db.flush()
     return len(txs)
 
 
@@ -536,7 +557,7 @@ async def create_client_payment_from_transaction(
 
     await _store_transaction_payment_links(db, tx=tx, payments=[payment])
     await db.flush()
-    await db.commit()
+    await db.flush()
     await db.refresh(tx)
     return tx
 
@@ -571,13 +592,13 @@ async def create_client_payments_from_transaction(
             payment_date=tx.date,
             reference=tx.description or None,
             notes=tx.description or None,
-            commit=False,
+            flush_and_refresh=False,
         )
         payments.append(payment)
 
     await _store_transaction_payment_links(db, tx=tx, payments=payments)
     await db.flush()
-    await db.commit()
+    await db.flush()
     await db.refresh(tx)
     return tx
 
@@ -606,7 +627,7 @@ async def create_supplier_payment_from_transaction(
 
     await _store_transaction_payment_links(db, tx=tx, payments=[payment])
     await db.flush()
-    await db.commit()
+    await db.flush()
     await db.refresh(tx)
     return tx
 
@@ -794,7 +815,7 @@ async def create_deposit(db: AsyncSession, payload: DepositCreate) -> Deposit:
         db.add(deposit)
         await db.flush()
 
-    await db.commit()
+    await db.flush()
     await db.refresh(deposit)
     return deposit
 
@@ -902,7 +923,7 @@ async def update_deposit(db: AsyncSession, deposit_id: int, payload: DepositUpda
                 raise ValueError("total_amount must be a positive amount")
             deposit.total_amount = payload.total_amount
 
-    await db.commit()
+    await db.flush()
     await db.refresh(deposit)
     return deposit
 
@@ -932,7 +953,7 @@ async def delete_deposit(db: AsyncSession, deposit_id: int) -> None:
     await db.execute(delete(deposit_payments).where(deposit_payments.c.deposit_id == deposit_id))
     await db.flush()
     await db.delete(deposit)
-    await db.commit()
+    await db.flush()
 
 
 async def get_transaction_payment_ids(db: AsyncSession, tx_id: int) -> list[int]:
@@ -1000,6 +1021,25 @@ async def list_deposits(
     query = query.limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
+
+
+async def count_deposits(
+    db: AsyncSession,
+    *,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    confirmed: bool | None = None,
+) -> int:
+    """Count deposits matching filters (no limit)."""
+    query = select(func.count()).select_from(Deposit)
+    if from_date is not None:
+        query = query.where(Deposit.date >= from_date)
+    if to_date is not None:
+        query = query.where(Deposit.date <= to_date)
+    if confirmed is not None:
+        query = query.where(Deposit.confirmed == confirmed)
+    result = await db.execute(query)
+    return result.scalar_one()
 
 
 async def get_deposit_payment_ids(db: AsyncSession, deposit_id: int) -> list[int]:
@@ -1083,6 +1123,6 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
 
     await generate_entries_for_deposit(db, deposit)
 
-    await db.commit()
+    await db.flush()
     await db.refresh(deposit)
     return deposit

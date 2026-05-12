@@ -40,9 +40,37 @@ Database migrations run automatically on startup. No manual action is needed.
 
 ---
 
-### Backups
+### Automatic backup (scheduled)
 
-#### From the admin UI (recommended)
+Automatic backups are configured under **Settings → Automatic backup** (admin account only).
+
+**Schedule modes:**
+
+| Mode | Description |
+|---|---|
+| **Daily (fixed time)** | Triggers a backup every day at the specified HH:MM (server local time). Recommended for most use cases. |
+| **Every N hours** | Repeats on a fixed interval. |
+| **Cron expression** | Advanced 5-field schedule (e.g. `0 2 * * *`). |
+
+**Content options:**
+- **Include uploaded attachments**: also sends `data/uploads/` to the destination.
+- **Include all previous backup files**: sends the full `data/backups/` directory. When disabled (default), only the latest `.db` snapshot file is transferred — significantly reducing transfer volume.
+
+**Real-time progress:** the panel displays a spinner and a progress percentage as soon as a backup starts, including scheduler-triggered ones (detected within 10 seconds if the settings page is already open).
+
+**Destinations:**
+
+| Type | Description |
+|---|---|
+| **Local** | Absolute path on the server hosting the application. |
+| **SMB (network)** | NAS/file server SMB share — provide host, share, username, password. |
+| **OneDrive** | Microsoft OneDrive account — click **Authorize OneDrive** and follow the device authentication flow. |
+
+Each destination can be enabled/disabled independently and tested without running a backup (**Test connection**).
+
+**Failure notification:** enable the option and configure SMTP (Settings → Email) to receive an email if a scheduled backup fails.
+
+### Backups (on-demand)
 
 1. Go to **Administration → System supervision → Backups**.
 2. Optionally add a label.

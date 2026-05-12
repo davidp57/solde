@@ -68,6 +68,12 @@ Settings are stored in the database and take effect immediately without restarti
 |---|---|
 | Invoice due date delay (days) | Days added to the invoice date to auto-compute the due date (0–365). |
 
+#### List display limit
+
+| Setting | Description |
+|---|---|
+| Default list display limit | Maximum number of items loaded per list view (invoices, payments, contacts, salaries, bank). `0` applies the API cap (5,000 items). |
+
 #### SMTP configuration
 
 | Setting | Description |
@@ -94,3 +100,9 @@ After the first login:
 6. **Create accounting rules** to automate journal generation.
 7. **Create user accounts** for other team members.
 8. **Import historical data** if needed (see [excel-import.en.md](./excel-import.en.md)).
+
+---
+
+### OneDrive note (backups)
+
+OneDrive authorization uses a **device code flow**, suitable for NAS/Docker deployments without an embedded browser. Once authorized, the destination remains reusable until tokens expire or are revoked.

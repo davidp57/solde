@@ -140,7 +140,7 @@ async def test_import_ofx_multi_account_returns_422(
         headers=auth_headers,
     )
     assert response.status_code == 422
-    detail = response.json()["detail"]
+    detail = response.json()["detail"]["detail"]
     assert "2 comptes" in detail
     assert "FR001" in detail
     assert "FR002" in detail

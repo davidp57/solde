@@ -47,6 +47,7 @@ class InvoiceStatus(StrEnum):
     OVERDUE = "overdue"
     DISPUTED = "disputed"
     IRRECOVERABLE = "irrecoverable"
+    ARCHIVED = "archived"
 
 
 def _normalize_invoice_line_text(value: str) -> str:
