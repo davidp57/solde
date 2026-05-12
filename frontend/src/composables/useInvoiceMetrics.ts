@@ -14,6 +14,7 @@ export function isOpenReceivableInvoice(invoice: Invoice): boolean {
   return (
     invoice.status !== 'draft' &&
     invoice.status !== 'irrecoverable' &&
+    invoice.status !== 'archived' &&
     remainingForInvoice(invoice) > 0
   )
 }
@@ -21,6 +22,7 @@ export function isOpenReceivableInvoice(invoice: Invoice): boolean {
 export function isOverdueInvoice(invoice: Invoice): boolean {
   return Boolean(
     invoice.status !== 'draft' &&
+      invoice.status !== 'archived' &&
       invoice.due_date &&
       remainingForInvoice(invoice) > 0 &&
       invoice.due_date < new Date().toISOString().slice(0, 10),

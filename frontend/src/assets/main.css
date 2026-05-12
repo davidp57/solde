@@ -253,12 +253,44 @@ a.app-stat-card {
 
 .app-stat-card__value {
   margin: 0;
-  font-size: clamp(1.4rem, 1vw + 1rem, 2rem);
+  font-size: clamp(1.2rem, 0.8vw + 0.95rem, 1.8rem);
   font-weight: 800;
   letter-spacing: -0.04em;
-  overflow-wrap: break-word;
-  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   min-width: 0;
+}
+
+.app-stat-card__breakdown {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--app-space-2);
+}
+
+.app-stat-card__breakdown-item {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-stat-card__breakdown-value {
+  font-size: clamp(1.2rem, 0.8vw + 0.95rem, 1.8rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+}
+
+.app-stat-card__breakdown-label {
+  margin-top: 0.1rem;
+  font-size: 0.76rem;
+  line-height: 1.25;
+  color: color-mix(in srgb, var(--p-text-muted-color) 88%, #9ca3af 12%);
 }
 
 .app-stat-card__caption {
@@ -629,6 +661,10 @@ html.dark-mode .app-chip {
 
   .app-stat-card__value {
     font-size: clamp(1rem, 5vw, 1.35rem);
+  }
+
+  .app-stat-card__breakdown {
+    grid-template-columns: 1fr;
   }
 
   .app-panel__header,
