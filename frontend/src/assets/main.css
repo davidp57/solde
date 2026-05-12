@@ -283,7 +283,7 @@ a.app-stat-card {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: #fff;
+  color: var(--p-text-color);
 }
 
 .app-stat-card__breakdown-label {

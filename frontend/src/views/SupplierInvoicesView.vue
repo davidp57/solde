@@ -382,6 +382,7 @@
               :src="`${editFileBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
               type="application/pdf"
               class="supplier-preview-dialog__embed"
+               :title="t('invoices.file')"
             />
             <img
               v-else
@@ -585,6 +586,7 @@
                 :src="`${previewBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
                 type="application/pdf"
                 class="supplier-preview-dialog__embed"
+                :title="t('invoices.file')"
               />
               <img
                 v-else
@@ -1048,10 +1050,9 @@ function statusSeverity(s: InvoiceStatus): string {
 async function loadInvoices() {
   loading.value = true
   try {
-    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_KEY)
     const filters: Record<string, unknown> = {
       invoice_type: 'fournisseur',
-      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
+      limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
     }
     if (fiscalYearStore.selectedFiscalYear) {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date

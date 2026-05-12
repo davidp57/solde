@@ -69,6 +69,7 @@ const limitStoreMock = {
   systemLimit: 500,
   init: vi.fn().mockResolvedValue(undefined),
   effectiveLimit: vi.fn().mockReturnValue(500),
+  requestLimit: vi.fn().mockReturnValue(500),
   setTotalCount: vi.fn(),
   isDisabled: vi.fn().mockReturnValue(false),
   hasMore: vi.fn().mockReturnValue(false),

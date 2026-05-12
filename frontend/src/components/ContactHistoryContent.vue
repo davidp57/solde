@@ -462,6 +462,7 @@
               :src="`${invoiceFileBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
               type="application/pdf"
               class="chd-supplier__embed"
+               :title="t('invoices.file')"
             />
             <img
               v-else

@@ -43,6 +43,7 @@ const limitStoreMock = {
   totalCounts: {} as Record<string, number>,
   init: vi.fn().mockResolvedValue(undefined),
   effectiveLimit: vi.fn().mockReturnValue(500),
+  requestLimit: vi.fn().mockReturnValue(500),
   setTotalCount: vi.fn((viewKey: string, total: number) => {
     limitStoreMock.totalCounts[viewKey] = total
   }),

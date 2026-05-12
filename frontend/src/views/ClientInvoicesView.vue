@@ -677,6 +677,7 @@
                 :src="`${historyPdfBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
                 type="application/pdf"
                 class="history-dialog__preview-embed"
+                 :title="t('invoices.email_preview')"
               />
             </div>
             <div v-else class="history-dialog__preview-empty">
@@ -870,17 +871,17 @@ const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 const { exportToExcel } = useTableExport()
 
-const exportColumns: ExportColumn[] = [
-  { field: 'number', header: 'N° facture' },
-  { field: 'date', header: 'Date' },
-  { field: 'contact_name', header: 'Client' },
-  { field: 'label_label', header: 'Libellé' },
-  { field: 'total_amount_value', header: 'Montant TTC' },
-  { field: 'status_label', header: 'Statut' },
-]
+const exportColumns = computed<ExportColumn[]>(() => [
+  { field: 'number', header: t('invoices.number') },
+  { field: 'date', header: t('invoices.date') },
+  { field: 'contact_name', header: t('invoices.contact') },
+  { field: 'label_label', header: t('invoices.label') },
+  { field: 'total_amount_value', header: t('invoices.total') },
+  { field: 'status_label', header: t('invoices.status') },
+])
 
 function doExportExcel(): void {
-  exportToExcel(displayedInvoices.value, exportColumns, 'client-invoices-export')
+  exportToExcel(displayedInvoices.value, exportColumns.value, 'client-invoices-export')
 }
 
 const invoices = ref<Invoice[]>([])
@@ -1145,10 +1146,9 @@ function statusSeverity(s: InvoiceStatus): string {
 async function loadInvoices() {
   loading.value = true
   try {
-    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_KEY)
     const filters: Record<string, unknown> = {
       invoice_type: 'client',
-      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
+      limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
     }
     // Skip fiscal-year date filter for cross-year queries (overdue, unpaid from dashboard)
     const skipDateFilter = unpaidOnly.value || statusFilter.value === 'overdue'

@@ -1053,13 +1053,12 @@ async function loadEmployees() {
 async function loadSalaries() {
   loading.value = true
   try {
-    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_KEY)
     const { items, total } = await listSalariesWithCountApi({
       employee_id: filterEmployee.value,
       month: filterMonth.value || undefined,
       from_month: salaryMonthRange.value.from_month,
       to_month: salaryMonthRange.value.to_month,
-      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
+      limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
     })
     limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
     salaries.value = items
