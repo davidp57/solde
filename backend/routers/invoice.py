@@ -392,6 +392,19 @@ async def get_invoice_pdf(
             "PDF generation is only available for client invoices",
         )
 
+    # Archived invoices can carry an imported source PDF; return it directly when present.
+    if invoice.status == InvoiceStatus.ARCHIVED and invoice.pdf_path:
+        # Resolve path: if relative, relative to project root; if absolute, use as-is
+        stored_pdf = Path(invoice.pdf_path)
+        pdf_path = stored_pdf if stored_pdf.is_absolute() else Path.cwd() / stored_pdf
+
+        if pdf_path.is_file():
+            return FileResponse(
+                path=str(pdf_path),
+                media_type="application/pdf",
+                filename=f"facture_{invoice.number}.pdf",
+            )
+
     from sqlalchemy import select  # noqa: PLC0415
 
     from backend.models.contact import Contact  # noqa: PLC0415
@@ -415,11 +428,11 @@ async def get_invoice_pdf(
             "PDF generation failed",
         ) from exc
 
-    pdf_path = pdf_service.save_invoice_pdf(invoice.number, pdf_bytes)
-    await invoice_service.set_pdf_path(db, invoice, pdf_path)
+    generated_pdf_path = pdf_service.save_invoice_pdf(invoice.number, pdf_bytes)
+    await invoice_service.set_pdf_path(db, invoice, generated_pdf_path)
 
     return FileResponse(
-        path=pdf_path,
+        path=generated_pdf_path,
         media_type="application/pdf",
         filename=f"facture_{invoice.number}.pdf",
     )

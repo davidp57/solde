@@ -7,7 +7,8 @@ For each .docx file (pattern: "facture YYYY-NNNN.docx"):
   - Skip the file if an invoice with that number already exists in the DB.
   - Find or create the client contact.
   - Create the invoice with status=ARCHIVED (no accounting entries).
-  - Copy the .docx file to data/uploads/invoices/ and store the path.
+    - Convert the .docx to PDF and store it in data/pdfs/.
+    - Attach the converted PDF through invoice.pdf_path.
 
 Usage:
     python scripts/import_word_invoices.py \\
@@ -22,13 +23,16 @@ import argparse
 import re
 import shutil
 import sqlite3
+import subprocess
 import sys
-import uuid
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
+
+from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
 
 # ---------------------------------------------------------------------------
 # Patterns
@@ -77,7 +81,7 @@ _STREET_START_RE = re.compile(
 
 # Salutation lines to skip (not a person's name)
 _SALUTATION_RE = re.compile(
-    r"^(m\.?\s*$|mme\.?\s*$|mr\.?\s*$|monsieur\b|madame\b|a\s+l.attention|objet\s*:|sujet\s*:|r[eé]f[eé]rence\s*:)",
+    r"^(m\.?\s*$|mme\.?\s*$|mr\.?\s*$|monsieur[\s,.:;-]*$|madame[\s,.:;-]*$|a\s+l.attention|objet\s*:|sujet\s*:|r[eé]f[eé]rence\s*:)",
     re.IGNORECASE,
 )
 
@@ -115,7 +119,8 @@ class ImportReport:
     created: list[str] = field(default_factory=list)
     skipped_exists: list[str] = field(default_factory=list)
     skipped_no_client: list[str] = field(default_factory=list)
-    file_attached: list[str] = field(default_factory=list)
+    skipped_already_processed: list[str] = field(default_factory=list)
+    pdf_attached: list[str] = field(default_factory=list)
     errors: list[tuple[str, str]] = field(default_factory=list)
     invoice_records: list[InvoiceRecord] = field(default_factory=list)
 
@@ -396,23 +401,54 @@ def _invoice_exists(conn: sqlite3.Connection, number: str) -> bool:
     return row is not None
 
 
-def _get_existing_file_path(conn: sqlite3.Connection, number: str) -> str | None:
-    """Return the current file_path of an existing invoice, or None if unset."""
+def _get_existing_pdf_path(conn: sqlite3.Connection, number: str) -> str | None:
+    """Return the current pdf_path of an existing invoice, or None if unset."""
     row = conn.execute(
-        "SELECT file_path FROM invoices WHERE number = ?", (number,)
+        "SELECT pdf_path FROM invoices WHERE number = ?", (number,)
     ).fetchone()
     if row is None:
         return None
-    return row["file_path"] or None
+    return row["pdf_path"] or None
 
 
-def _attach_file_to_invoice(
-    conn: sqlite3.Connection, number: str, file_path: str
+def _get_invoice_status(conn: sqlite3.Connection, number: str) -> str | None:
+    """Return the status of an existing invoice, or None if not found."""
+    row = conn.execute(
+        "SELECT status FROM invoices WHERE number = ?", (number,)
+    ).fetchone()
+    if row is None:
+        return None
+    return row["status"]
+
+
+def _is_already_processed(
+    conn: sqlite3.Connection, invoice_number: str, pdf_dir: Path
+) -> bool:
+    """
+    Check if an invoice has already been fully processed:
+    - Invoice exists in DB
+    - PDF file exists on disk (if pdf_path is set)
+    """
+    row = conn.execute(
+        "SELECT pdf_path FROM invoices WHERE number = ?", (invoice_number,)
+    ).fetchone()
+    if row is None:
+        return False
+    pdf_path = row["pdf_path"]
+    if not pdf_path:
+        return False
+    # Check if the PDF file actually exists
+    pdf_full_path = Path(pdf_path)
+    return pdf_full_path.exists()
+
+
+def _attach_pdf_to_invoice(
+    conn: sqlite3.Connection, number: str, pdf_path: str
 ) -> None:
-    """Update file_path for an existing invoice."""
+    """Update pdf_path for an existing invoice."""
     conn.execute(
-        "UPDATE invoices SET file_path = ?, updated_at = datetime('now') WHERE number = ?",
-        (file_path, number),
+        "UPDATE invoices SET pdf_path = ?, updated_at = datetime('now') WHERE number = ?",
+        (pdf_path, number),
     )
 
 
@@ -462,6 +498,60 @@ def _create_contact(
     return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
+def _mark_invoice_as_paid_if_total_positive(
+    amount: Decimal,
+) -> bool:
+    """Check if an invoice should be marked as paid (amount > 0).
+    
+    For archived invoices, paid_amount is already set to total_amount at creation,
+    so no separate payment record is needed. This function just validates the amount.
+    
+    Returns True if amount is valid (positive), False otherwise.
+    """
+    return amount > Decimal("0")
+
+
+def _cleanup_modern_invoice_pdfs(conn: sqlite3.Connection, pdf_dir: Path, dry_run: bool) -> int:
+    """
+    Remove PDFs and clear pdf_path for all non-archived invoices (modern invoices).
+    Returns count of PDFs removed.
+    
+    Modern invoices (created in Solde) may have attached PDFs, but these will be
+    regenerated on-demand. We clean them to ensure no orphans in data/pdfs/.
+    """
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT number, pdf_path FROM invoices WHERE status != 'archived' AND pdf_path IS NOT NULL"
+    )
+    
+    removed = 0
+    for row in cursor.fetchall():
+        number = row["number"]
+        pdf_path = row["pdf_path"]
+        
+        # Try to delete the PDF file
+        pdf_file = Path(pdf_path)
+        if pdf_file.exists():
+            try:
+                if not dry_run:
+                    pdf_file.unlink()
+                removed += 1
+            except Exception:  # noqa: BLE001
+                pass
+        
+        # Clear pdf_path in DB
+        if not dry_run:
+            conn.execute(
+                "UPDATE invoices SET pdf_path = NULL, updated_at = datetime('now') WHERE number = ?",
+                (number,),
+            )
+    
+    if not dry_run:
+        conn.commit()
+    
+    return removed
+
+
 def _get_next_invoice_seq(conn: sqlite3.Connection, year: int) -> int:
     """Return the next available client invoice sequence number for the given year."""
     prefix = f"{year}-"
@@ -486,9 +576,12 @@ def _create_invoice(
     conn: sqlite3.Connection,
     parsed: ParsedInvoice,
     contact_id: int,
-    file_path: str,
+    pdf_path: str,
 ) -> int:
-    """Insert the invoice and its lines. Returns the new invoice id."""
+    """Insert the invoice and its lines. Returns the new invoice id.
+    
+    For imported archived invoices, paid_amount is set to total_amount (no payment records needed).
+    """
     invoice_date = parsed.invoice_date or date.today()
     number = parsed.number
 
@@ -497,15 +590,16 @@ def _create_invoice(
         INSERT INTO invoices (
             number, type, contact_id, date, status, total_amount, paid_amount,
             has_explicit_breakdown, pdf_path, file_path, created_at, updated_at
-        ) VALUES (?, 'client', ?, ?, 'archived', ?, 0, ?, NULL, ?, datetime('now'), datetime('now'))
+        ) VALUES (?, 'client', ?, ?, 'archived', ?, ?, ?, ?, NULL, datetime('now'), datetime('now'))
         """,
         (
             number,
             contact_id,
             invoice_date.isoformat(),
             str(parsed.total_amount),
+            str(parsed.total_amount),  # Set paid_amount = total_amount for archives
             1 if len(parsed.lines) > 1 else 0,
-            file_path,
+            pdf_path,
         ),
     )
     invoice_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
@@ -523,14 +617,76 @@ def _create_invoice(
     return invoice_id
 
 
-def _copy_docx(src: Path, upload_dir: Path, dry_run: bool) -> str:
-    """Copy the .docx to the uploads directory. Returns the relative filename."""
-    safe_name = f"{uuid.uuid4().hex}.docx"
-    dest = upload_dir / safe_name
-    if not dry_run:
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dest)
-    return safe_name
+def _find_soffice_binary() -> str | None:
+    """Return the LibreOffice CLI binary path if available."""
+    return shutil.which("soffice") or shutil.which("libreoffice")
+
+
+def _convert_docx_to_pdf(
+    src: Path,
+    invoice_number: str,
+    pdf_dir: Path,
+    dry_run: bool,
+) -> str:
+    """Convert a DOCX invoice to PDF and return the stored PDF path (relative to project root).
+    
+    Skips generation if the PDF file already exists on disk.
+    """
+    safe_number = invoice_number.replace("/", "-").replace("\\", "-")
+    output_path = pdf_dir / f"facture_{safe_number}.pdf"
+
+    # Skip if PDF already exists on disk
+    if output_path.exists():
+        return str(output_path.relative_to(Path.cwd())).replace("\\", "/")
+
+    # If a sibling PDF already exists, prefer it.
+    sibling_pdf = src.with_suffix(".pdf")
+    if sibling_pdf.exists():
+        if not dry_run:
+            pdf_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(sibling_pdf, output_path)
+        # Return relative path with forward slashes for cross-platform compatibility
+        return str(output_path.relative_to(Path.cwd())).replace("\\", "/")
+
+    # In dry-run mode, do not require LibreOffice; only simulate the target path.
+    if dry_run:
+        return str(output_path.relative_to(Path.cwd())).replace("\\", "/")
+
+    soffice_bin = _find_soffice_binary()
+    if soffice_bin is None:
+        raise RuntimeError(
+            "LibreOffice CLI not found (soffice). Install LibreOffice or provide sibling .pdf files."
+        )
+
+    pdf_dir.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        cmd = [
+            soffice_bin,
+            "--headless",
+            "--convert-to",
+            "pdf:writer_pdf_Export",
+            "--outdir",
+            str(tmp_path),
+            str(src),
+        ]
+        proc = subprocess.run(cmd, check=False, capture_output=True, text=True)
+        if proc.returncode != 0:
+            stderr = (proc.stderr or "").strip()
+            stdout = (proc.stdout or "").strip()
+            raise RuntimeError(
+                f"DOCX->PDF conversion failed for {src.name}: {stderr or stdout or 'unknown error'}"
+            )
+
+        converted_pdf = tmp_path / f"{src.stem}.pdf"
+        if not converted_pdf.exists():
+            raise RuntimeError(
+                f"DOCX->PDF conversion did not produce expected file for {src.name}"
+            )
+        shutil.copy2(converted_pdf, output_path)
+
+    # Return relative path with forward slashes for cross-platform compatibility
+    return str(output_path.relative_to(Path.cwd())).replace("\\", "/")
 
 
 # ---------------------------------------------------------------------------
@@ -720,6 +876,123 @@ def _write_excel_report(report: ImportReport, out_path: Path, dry_run: bool) -> 
 
 
 # ---------------------------------------------------------------------------
+# Reconciliation
+# ---------------------------------------------------------------------------
+
+
+def reconcile_orphan_pdfs(db_path: Path, pdf_dir: Path, dry_run: bool) -> None:
+    """
+    Reconcile orphan PDFs in data/pdfs/ with invoices in DB.
+    For each PDF file found, match it to an invoice and update pdf_path if missing.
+    Also convert existing absolute paths to relative paths for backend compatibility.
+    """
+    conn = _db_connect(db_path)
+    
+    # Get ALL PDF files, not just facture_*.pdf pattern
+    all_pdf_files = sorted(pdf_dir.glob("*.pdf"))
+    if not all_pdf_files:
+        print("No PDF files found in data/pdfs/")
+        conn.close()
+        return
+    
+    print(f"Found {len(all_pdf_files)} PDF file(s) in {pdf_dir}")
+    
+    # Filter files that match the naming pattern
+    pdf_files = [f for f in all_pdf_files if re.match(r"^facture_\d{4}-\d{4}\.pdf$", f.name)]
+    print(f"  → {len(pdf_files)} match pattern 'facture_YYYY-NNNN.pdf'")
+    print(f"  → {len(all_pdf_files) - len(pdf_files)} have other names")
+    
+    attached = 0
+    already_attached = 0
+    orphan = 0
+    errors = 0
+    converted_paths = 0
+    
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total}"),
+        TimeRemainingColumn(),
+    ) as progress:
+        task_id = progress.add_task("[cyan]Reconciling PDFs...", total=len(pdf_files))
+        
+        for pdf_file in pdf_files:
+            # Extract invoice number from filename: facture_YYYY-NNNN.pdf
+            match = re.match(r"^facture_(\d{4}-\d{4})\.pdf$", pdf_file.name)
+            if not match:
+                progress.advance(task_id)
+                continue
+            
+            invoice_number = match.group(1)
+            pdf_path_abs = str(pdf_file)
+            # Use forward slashes for cross-platform compatibility
+            pdf_path_rel = str(pdf_file.relative_to(Path.cwd())).replace("\\", "/")
+            
+            # Check if invoice exists and current pdf_path
+            row = conn.execute(
+                "SELECT id, pdf_path FROM invoices WHERE number = ?", (invoice_number,)
+            ).fetchone()
+            
+            if row is None:
+                orphan += 1
+                progress.advance(task_id)
+                continue
+            
+            current_pdf_path = row["pdf_path"]
+            
+            if current_pdf_path:
+                # Invoice already has a pdf_path
+                already_attached += 1
+                
+                # Check if path is absolute and should be converted to relative
+                if Path(current_pdf_path).is_absolute() and not dry_run:
+                    try:
+                        relative_path = str(Path(current_pdf_path).relative_to(Path.cwd()))
+                        conn.execute(
+                            "UPDATE invoices SET pdf_path = ?, updated_at = datetime('now') WHERE number = ?",
+                            (relative_path, invoice_number),
+                        )
+                        conn.commit()
+                        converted_paths += 1
+                    except (ValueError, sqlite3.Error):
+                        pass  # Path conversion failed, keep as-is
+                
+                progress.advance(task_id)
+                continue
+            
+            # No pdf_path set: attach the PDF with relative path
+            if not dry_run:
+                try:
+                    conn.execute(
+                        "UPDATE invoices SET pdf_path = ?, updated_at = datetime('now') WHERE number = ?",
+                        (pdf_path_rel, invoice_number),
+                    )
+                    conn.commit()
+                    attached += 1
+                except sqlite3.Error as exc:
+                    errors += 1
+                    print(f"  ERROR attaching {invoice_number}: {exc}")
+            else:
+                attached += 1
+            
+            progress.advance(task_id)
+    
+    conn.close()
+    
+    # Summary
+    print(f"\n{'=' * 60}")
+    print(f"{'DRY-RUN ' if dry_run else ''}RECONCILIATION REPORT")
+    print(f"{'=' * 60}")
+    verb = "Would attach" if dry_run else "Attached"
+    print(f"  {verb:<22}: {attached} PDF(s)")
+    print(f"  Already attached        : {already_attached}")
+    if converted_paths > 0:
+        print(f"  Paths converted (abs→rel): {converted_paths}")
+    print(f"  Orphan (no invoice)     : {orphan}")
+    print(f"  Errors                  : {errors}")
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -728,7 +1001,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Import historical Word invoices into Solde (dry-run by default)."
     )
-    parser.add_argument("--source", required=True, help="Path to folder containing .docx files")
+    parser.add_argument("--source", help="Path to folder containing .docx files")
     parser.add_argument("--db", default="data/solde.db", help="Path to SQLite database")
     parser.add_argument("--commit", action="store_true",
                         help="Write changes to DB (default: dry-run)")
@@ -745,9 +1018,29 @@ def main() -> None:
         dest="no_report",
         help="Skip generating the Excel report",
     )
+    parser.add_argument(
+        "--reconcile",
+        action="store_true",
+        help="Reconcile orphan PDFs in data/pdfs/ with invoices in DB (ignores --source)",
+    )
     args = parser.parse_args()
 
     _require_docx()
+
+    # Handle reconciliation mode
+    if args.reconcile:
+        db_path = Path(args.db)
+        pdf_dir = Path("data/pdfs").resolve()
+        dry_run = not args.commit
+        if dry_run:
+            print("DRY-RUN mode — no changes will be made. Pass --commit to write to DB.\n")
+        reconcile_orphan_pdfs(db_path, pdf_dir, dry_run)
+        return
+
+    # Normal import mode
+    if not args.source:
+        print("ERROR: --source is required unless --reconcile is used", file=sys.stderr)
+        sys.exit(1)
 
     source = Path(args.source)
     if not source.is_dir():
@@ -755,7 +1048,7 @@ def main() -> None:
         sys.exit(1)
 
     db_path = Path(args.db)
-    upload_dir = Path("data/uploads/invoices").resolve()
+    pdf_dir = Path("data/pdfs").resolve()
     dry_run = not args.commit
 
     if dry_run:
@@ -767,81 +1060,162 @@ def main() -> None:
     docx_files = sorted(source.glob("*.docx"))
     print(f"Found {len(docx_files)} .docx file(s) in {source}\n")
 
-    for docx_file in docx_files:
-        if args.verbose:
-            print(f"Processing: {docx_file.name}")
+    # Cleanup: remove PDFs of modern (non-archived) invoices before import
+    print("Cleaning PDFs of modern invoices...", end=" ")
+    removed_count = _cleanup_modern_invoice_pdfs(conn, pdf_dir, dry_run)
+    print(f"({removed_count} PDF(s) removed)")
+    print()
 
-        parsed = parse_docx(docx_file)
-        if parsed is None:
-            if args.verbose:
-                print("  -> Skipped (name does not match pattern)")
-            continue
+    # Progress bar setup
+    progress_columns = [
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.completed}/{task.total}"),
+        TimeRemainingColumn(),
+    ]
 
-        # Skip if already in DB — unless no file is attached yet
-        if _invoice_exists(conn, parsed.number):
-            existing_fp = _get_existing_file_path(conn, parsed.number)
-            if existing_fp:
-                report.skipped_exists.append(parsed.number)
+    with Progress(*progress_columns) as progress:
+        task_id = progress.add_task("[cyan]Importing invoices...", total=len(docx_files))
+
+        for docx_file in docx_files:
+            progress.update(task_id, description=f"[cyan]Processing {docx_file.name}")
+
+            parsed = parse_docx(docx_file)
+            if parsed is None:
                 if args.verbose:
-                    print(f"  -> Skipped: invoice {parsed.number} already exists (with file)")
+                    print("  -> Skipped (name does not match pattern)")
+                progress.advance(task_id)
                 continue
-            # Invoice exists but has no file — attach it
-            file_path = _copy_docx(docx_file, upload_dir, dry_run)
+
+            # Check if file is already fully processed (invoice + PDF both exist on disk)
+            if _is_already_processed(conn, parsed.number, pdf_dir):
+                report.skipped_already_processed.append(parsed.number)
+                if args.verbose:
+                    print(f"  -> Skipped: invoice {parsed.number} already processed (invoice + PDF both exist)")
+                progress.advance(task_id)
+                continue
+
+            # Check if invoice already exists in DB
+            if _invoice_exists(conn, parsed.number):
+                status = _get_invoice_status(conn, parsed.number)
+                
+                # If it's a modern invoice (non-archived), skip entirely
+                if status != 'archived':
+                    report.skipped_exists.append(parsed.number)
+                    if args.verbose:
+                        print(f"  -> Skipped: invoice {parsed.number} exists as modern ({status}), not importing")
+                    progress.advance(task_id)
+                    continue
+                
+                # Archived invoice: check if it has a PDF already
+                existing_pdf = _get_existing_pdf_path(conn, parsed.number)
+                if existing_pdf:
+                    report.skipped_exists.append(parsed.number)
+                    if args.verbose:
+                        print(f"  -> Skipped: archived invoice {parsed.number} already has PDF")
+                    progress.advance(task_id)
+                    continue
+                
+                # Archived invoice without PDF: generate and attach it
+                try:
+                    pdf_path = _convert_docx_to_pdf(docx_file, parsed.number, pdf_dir, dry_run)
+                except Exception as exc:  # noqa: BLE001
+                    report.errors.append((parsed.number, str(exc)))
+                    if args.verbose:
+                        print(f"  -> ERROR converting PDF: {exc}")
+                    progress.advance(task_id)
+                    continue
+                if not dry_run:
+                    try:
+                        _attach_pdf_to_invoice(conn, parsed.number, pdf_path)
+                        conn.commit()
+                        report.pdf_attached.append(parsed.number)
+                    except sqlite3.Error as exc:
+                        conn.rollback()
+                        report.errors.append((parsed.number, str(exc)))
+                        if args.verbose:
+                            print(f"  -> ERROR attaching PDF: {exc}")
+                        progress.advance(task_id)
+                        continue
+                else:
+                    report.pdf_attached.append(parsed.number)
+                if args.verbose:
+                    action = "Would attach" if dry_run else "Attached"
+                    print(f"  -> {action} PDF to archived invoice {parsed.number}")
+                progress.advance(task_id)
+                continue
+
+            # Resolve or create contact
+            if parsed.client_name is None:
+                report.skipped_no_client.append(parsed.number)
+                if args.verbose:
+                    print("  -> Skipped: could not extract client name")
+                progress.advance(task_id)
+                continue
+
+            contact_id = _find_contact(conn, parsed.client_name)
+            created_contact = False
+            if contact_id is None:
+                if dry_run:
+                    contact_id = -1
+                else:
+                    contact_id = _create_contact(conn, parsed.client_name, parsed.client_address)
+                created_contact = True
+
+            if args.verbose:
+                if not created_contact:
+                    contact_info = f"contact #{contact_id}"
+                elif dry_run:
+                    contact_info = f"would create contact for '{parsed.client_name}'"
+                else:
+                    contact_info = f"new contact for '{parsed.client_name}'"
+                print(
+                    f"  -> Date: {parsed.invoice_date}  Client: {parsed.client_name}  "
+                    f"Total: {parsed.total_amount}€  Lines: {len(parsed.lines)}  "
+                    f"Contact: {contact_info}"
+                )
+
+            # Convert DOCX to PDF
+            try:
+                pdf_path = _convert_docx_to_pdf(docx_file, parsed.number, pdf_dir, dry_run)
+            except Exception as exc:  # noqa: BLE001
+                report.errors.append((parsed.number, str(exc)))
+                if args.verbose:
+                    print(f"  -> ERROR converting PDF: {exc}")
+                progress.advance(task_id)
+                continue
+
+            # Create invoice
             if not dry_run:
                 try:
-                    _attach_file_to_invoice(conn, parsed.number, file_path)
+                    # Invoice amount must be strictly positive
+                    if not _mark_invoice_as_paid_if_total_positive(parsed.total_amount):
+                        report.errors.append((parsed.number, "Invoice amount must be > 0"))
+                        progress.advance(task_id)
+                        continue
+                    
+                    invoice_id = _create_invoice(conn, parsed, contact_id, pdf_path)
+                    invoice_date = parsed.invoice_date or date.today()
+                    # For archived invoices, paid_amount is already set at creation.
+                    # No separate payment record is created.
                     conn.commit()
-                    report.file_attached.append(parsed.number)
-                except sqlite3.Error as exc:
+                    report.created.append(parsed.number)
+                    report.invoice_records.append(InvoiceRecord(
+                        number=parsed.number,
+                        client_name=parsed.client_name or "",
+                        contact_created=created_contact,
+                        year=invoice_date.year,
+                        amount=parsed.total_amount,
+                        invoice_date=parsed.invoice_date,
+                        filename=docx_file.name,
+                        nb_lines=len(parsed.lines),
+                    ))
+                except sqlite3.IntegrityError as exc:
                     conn.rollback()
                     report.errors.append((parsed.number, str(exc)))
                     if args.verbose:
-                        print(f"  -> ERROR attaching file: {exc}")
-                    continue
+                        print(f"  -> ERROR: {exc}")
             else:
-                report.file_attached.append(parsed.number)
-            if args.verbose:
-                action = "Would attach" if dry_run else "Attached"
-                print(f"  -> {action} file to existing invoice {parsed.number}")
-            continue
-
-        # Resolve or create contact
-        if parsed.client_name is None:
-            report.skipped_no_client.append(parsed.number)
-            if args.verbose:
-                print("  -> Skipped: could not extract client name")
-            continue
-
-        contact_id = _find_contact(conn, parsed.client_name)
-        created_contact = False
-        if contact_id is None:
-            if dry_run:
-                contact_id = -1
-            else:
-                contact_id = _create_contact(conn, parsed.client_name, parsed.client_address)
-            created_contact = True
-
-        if args.verbose:
-            if not created_contact:
-                contact_info = f"contact #{contact_id}"
-            elif dry_run:
-                contact_info = f"would create contact for '{parsed.client_name}'"
-            else:
-                contact_info = f"new contact for '{parsed.client_name}'"
-            print(
-                f"  -> Date: {parsed.invoice_date}  Client: {parsed.client_name}  "
-                f"Total: {parsed.total_amount}€  Lines: {len(parsed.lines)}  "
-                f"Contact: {contact_info}"
-            )
-
-        # Copy .docx
-        file_path = _copy_docx(docx_file, upload_dir, dry_run)
-
-        # Create invoice
-        if not dry_run:
-            try:
-                _create_invoice(conn, parsed, contact_id, file_path)
-                conn.commit()
                 report.created.append(parsed.number)
                 report.invoice_records.append(InvoiceRecord(
                     number=parsed.number,
@@ -853,23 +1227,8 @@ def main() -> None:
                     filename=docx_file.name,
                     nb_lines=len(parsed.lines),
                 ))
-            except sqlite3.IntegrityError as exc:
-                conn.rollback()
-                report.errors.append((parsed.number, str(exc)))
-                if args.verbose:
-                    print(f"  -> ERROR: {exc}")
-        else:
-            report.created.append(parsed.number)
-            report.invoice_records.append(InvoiceRecord(
-                number=parsed.number,
-                client_name=parsed.client_name or "",
-                contact_created=created_contact,
-                year=(parsed.invoice_date or date.today()).year,
-                amount=parsed.total_amount,
-                invoice_date=parsed.invoice_date,
-                filename=docx_file.name,
-                nb_lines=len(parsed.lines),
-            ))
+
+            progress.advance(task_id)
 
     conn.close()
 
@@ -880,17 +1239,22 @@ def main() -> None:
     verb_create = "Would create" if dry_run else "Created"
     verb_attach = "Would attach" if dry_run else "Attached"
     print(f"  {verb_create:<22}: {len(report.created)} invoice(s)")
-    print(f"  {verb_attach} file       : {len(report.file_attached)} invoice(s)")
+    print(f"  {verb_attach} PDF        : {len(report.pdf_attached)} invoice(s)")
+    print(f"  Skipped (already processed): {len(report.skipped_already_processed)}")
     print(f"  Skipped (already exists)  : {len(report.skipped_exists)}")
     print(f"  Skipped (no client name)  : {len(report.skipped_no_client)}")
     print(f"  Errors                    : {len(report.errors)}")
+    if report.skipped_no_client:
+        print("\nSkipped (no client name):")
+        for number in report.skipped_no_client:
+            print(f"  - {number}: client name could not be extracted")
     if report.errors:
         print("\nErrors:")
         for number, msg in report.errors:
             print(f"  - {number}: {msg}")
-    if dry_run and (report.created or report.file_attached):
-        total_dry = len(report.created) + len(report.file_attached)
-        print(f"\nRun with --commit to actually import/attach {total_dry} invoice(s).")
+    if dry_run and (report.created or report.pdf_attached):
+        total_dry = len(report.created) + len(report.pdf_attached)
+        print(f"\nRun with --commit to actually import/attach PDF for {total_dry} invoice(s).")
 
     if not args.no_report:
         _write_excel_report(report, Path(args.report), dry_run)

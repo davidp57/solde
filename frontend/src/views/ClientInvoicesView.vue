@@ -199,22 +199,12 @@
                 @click="openEditDialog(data)"
               />
               <Button
-                v-if="!(data.status === 'archived' && data.file_path)"
                 icon="pi pi-file-pdf"
                 size="small"
                 severity="secondary"
                 text
                 :title="t('invoices.generate_pdf')"
                 @click="openPdf(data)"
-              />
-              <Button
-                v-if="data.status === 'archived' && data.file_path"
-                icon="pi pi-download"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.download_file')"
-                @click="downloadFile(data)"
               />
               <Button
                 v-if="data.status === 'draft'"
@@ -385,7 +375,6 @@
                 @click="openEditDialog(data)"
               />
               <Button
-                v-if="!(data.status === 'archived' && data.file_path)"
                 icon="pi pi-file-pdf"
                 size="small"
                 severity="secondary"
@@ -393,16 +382,6 @@
                 :title="t('invoices.generate_pdf')"
                 :aria-label="t('invoices.generate_pdf')"
                 @click="openPdf(data)"
-              />
-              <Button
-                v-if="data.status === 'archived' && data.file_path"
-                icon="pi pi-download"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.download_file')"
-                :aria-label="t('invoices.download_file')"
-                @click="downloadFile(data)"
               />
               <Button
                 v-if="data.status !== 'archived'"
@@ -693,29 +672,9 @@
             <div v-if="historyPdfLoading" class="history-dialog__preview-loading">
               <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
             </div>
-            <div
-              v-else-if="historyInvoice?.status === 'archived' && historyInvoice?.file_path"
-            >
-              <div v-if="!historyDocxBlob" class="history-dialog__preview-loading">
-                <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
-              </div>
-              <div v-else class="history-dialog__preview-frame">
-                <DocxPreview :blob="historyDocxBlob" style="max-height: 520px" />
-              </div>
-              <div class="history-dialog__preview-dl">
-                <Button
-                  icon="pi pi-download"
-                  :label="t('invoices.download_file')"
-                  severity="secondary"
-                  outlined
-                  size="small"
-                  @click="historyInvoice && downloadFile(historyInvoice)"
-                />
-              </div>
-            </div>
             <div v-else-if="historyPdfBlobUrl" class="history-dialog__preview-frame">
               <embed
-                :src="historyPdfBlobUrl"
+                :src="`${historyPdfBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
                 type="application/pdf"
                 class="history-dialog__preview-embed"
               />
@@ -851,7 +810,6 @@ import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
   duplicateInvoiceApi,
-  downloadInvoiceFileApi,
   downloadInvoicePdfApi,
   bulkArchiveInvoicesApi,
   listInvoicesApi,
@@ -879,7 +837,6 @@ import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
-import DocxPreview from '../components/DocxPreview.vue'
 import {
   dateRangeFilter,
   inFilter,
@@ -971,7 +928,6 @@ const historyLoading = ref(false)
 const historyPayments = ref<Payment[]>([])
 const historyPdfBlobUrl = ref<string | null>(null)
 const historyPdfLoading = ref(false)
-const historyDocxBlob = ref<Blob | null>(null)
 const paymentDialogVisible = ref(false)
 const paymentInvoice = ref<Invoice | null>(null)
 const paymentSaving = ref(false)
@@ -1300,21 +1256,6 @@ function sendEmail(invoice: Invoice): void {
   emailDialogInvoiceId.value = invoice.id
 }
 
-async function downloadFile(invoice: Invoice): Promise<void> {
-  try {
-    const blob = await downloadInvoiceFileApi(invoice.id)
-    const ext = invoice.file_path?.split('.').pop() ?? 'docx'
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `facture-${invoice.number ?? invoice.id}.${ext}`
-    a.click()
-    URL.revokeObjectURL(url)
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
-  }
-}
-
 async function onEmailSent(): Promise<void> {
   emailDialogInvoiceId.value = null
   await refreshInvoicesData()
@@ -1394,18 +1335,6 @@ async function openHistory(invoice: Invoice) {
     URL.revokeObjectURL(historyPdfBlobUrl.value)
   }
   historyPdfBlobUrl.value = null
-  historyDocxBlob.value = null
-  // Archived invoices with a file attachment don't have a generated PDF
-  if (invoice.status === 'archived' && invoice.file_path) {
-    historyPdfLoading.value = false
-    await Promise.all([
-      loadHistoryPayments(invoice.id),
-      downloadInvoiceFileApi(invoice.id)
-        .then((blob) => { historyDocxBlob.value = blob })
-        .catch((e) => console.error('Failed to download docx for preview', e)),
-    ])
-    return
-  }
   historyPdfLoading.value = true
   await Promise.all([
     loadHistoryPayments(invoice.id),
@@ -1421,7 +1350,6 @@ function onHistoryHide() {
     URL.revokeObjectURL(historyPdfBlobUrl.value)
     historyPdfBlobUrl.value = null
   }
-  historyDocxBlob.value = null
 }
 
 async function goToPrevHistory(): Promise<void> {

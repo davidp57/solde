@@ -206,6 +206,7 @@ async def list_payments(
         select(Payment, inv.number, inv.type, cnt.nom, cnt.prenom)
         .join(inv, Payment.invoice_id == inv.id)
         .join(cnt, cnt.id == inv.contact_id, isouter=True)
+        .where(Payment.amount > 0)
     )
     if invoice_id is not None:
         query = query.where(Payment.invoice_id == invoice_id)
@@ -256,7 +257,12 @@ async def count_payments(
 ) -> int:
     """Count payments matching filters (no limit)."""
     inv = aliased(Invoice)
-    query = select(func.count()).select_from(Payment).join(inv, Payment.invoice_id == inv.id)
+    query = (
+        select(func.count())
+        .select_from(Payment)
+        .join(inv, Payment.invoice_id == inv.id)
+        .where(Payment.amount > 0)
+    )
     if invoice_id is not None:
         query = query.where(Payment.invoice_id == invoice_id)
     if invoice_type is not None:
