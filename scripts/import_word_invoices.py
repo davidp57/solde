@@ -32,7 +32,6 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
 
 # ---------------------------------------------------------------------------
 # Patterns
@@ -998,6 +997,8 @@ def reconcile_orphan_pdfs(db_path: Path, pdf_dir: Path, dry_run: bool) -> None:
 
 
 def main() -> None:
+    from rich.progress import Progress, BarColumn, TextColumn, TimeRemainingColumn
+
     parser = argparse.ArgumentParser(
         description="Import historical Word invoices into Solde (dry-run by default)."
     )
