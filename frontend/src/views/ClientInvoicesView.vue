@@ -83,7 +83,7 @@
           <div class="app-toolbar__meta-actions">
             <AppListState
               :displayed-count="displayedInvoices.length"
-              :total-count="invoices.length"
+              :total-count="serverTotalCount"
               :loading="loading"
               :search-text="globalFilter"
               :active-filters="activeFilterLabels"
@@ -148,7 +148,7 @@
 
       <AppListLimitBanner
         :view-key="LIMIT_VIEW_KEY"
-        :fetched-count="invoices.length"
+        :fetched-count="rawFetchedCount"
         :limit="limitStore.systemLimit"
         @reload="loadInvoices"
       />
@@ -928,6 +928,7 @@ function doExportExcel(): void {
 
 const invoices = ref<Invoice[]>([])
 const allClientInvoices = ref<Invoice[]>([])
+const rawFetchedCount = ref(0)
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
 const dialogVisible = ref(false)
@@ -1071,6 +1072,7 @@ const paymentRemaining = computed(() => {
 })
 
 const selectedFiscalYearLabel = computed(() => fiscalYearStore.selectedFiscalYear?.name ?? null)
+const serverTotalCount = computed(() => limitStore.totalCounts[LIMIT_VIEW_KEY] ?? invoices.value.length)
 
 const { receivableMetrics, portfolioMetrics } = useInvoiceMetrics(allClientInvoices, displayedInvoices)
 
@@ -1176,6 +1178,7 @@ async function loadInvoices() {
     }
     const { items: all, total } = await listInvoicesWithCountApi(filters)
     limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
+    rawFetchedCount.value = all.length
     if (unpaidOnly.value) {
       invoices.value = all.filter(
         (inv) =>
