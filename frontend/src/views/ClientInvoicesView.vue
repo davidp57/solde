@@ -1075,22 +1075,27 @@ const selectedFiscalYearLabel = computed(() => fiscalYearStore.selectedFiscalYea
 const serverTotalCount = computed(() => limitStore.totalCounts[LIMIT_VIEW_KEY] ?? invoices.value.length)
 const filteredCount = computed(() => displayedInvoices.value.length)
 const loadedCount = computed(() => invoices.value.length)
-const invoiceCountBreakdown = computed(() => [
-  {
-    value: filteredCount.value,
-    label: t('invoices.client.metrics.filtered_count_label'),
-  },
-  {
-    value: loadedCount.value,
-    label: t('invoices.client.metrics.loaded_count_label'),
-  },
-  {
-    value: serverTotalCount.value,
-    label: limitReached.value
-      ? t('invoices.client.metrics.server_available_label')
-      : t('invoices.client.metrics.server_loaded_label'),
-  },
-])
+const invoiceCountBreakdown = computed(() => {
+  const rows: Array<{ value: number; label: string }> = [
+    {
+      value: filteredCount.value,
+      label: t('invoices.client.metrics.filtered_count_label'),
+    },
+    {
+      value: loadedCount.value,
+      label: t('invoices.client.metrics.loaded_count_label'),
+    },
+  ]
+
+  if (limitReached.value) {
+    rows.push({
+      value: serverTotalCount.value,
+      label: t('invoices.client.metrics.server_available_label'),
+    })
+  }
+
+  return rows
+})
 const limitReached = computed(
   () =>
     limitStore.systemLimit > 0 &&

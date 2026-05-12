@@ -264,7 +264,7 @@ a.app-stat-card {
 
 .app-stat-card__breakdown {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: var(--app-space-2);
 }
 
@@ -663,9 +663,6 @@ html.dark-mode .app-chip {
     font-size: clamp(1rem, 5vw, 1.35rem);
   }
 
-  .app-stat-card__breakdown {
-    grid-template-columns: 1fr;
-  }
 
   .app-panel__header,
   .app-panel__body {
