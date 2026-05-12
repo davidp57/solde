@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient, { parseTotalCount } from './client'
 
 export type InvoiceType = 'client' | 'fournisseur'
 export type InvoiceLabel = 'cs' | 'a' | 'cs+a' | 'general'
@@ -96,6 +96,22 @@ export async function listInvoicesApi(filters: InvoiceFilters = {}): Promise<Inv
   if (filters.limit !== undefined) params.set('limit', String(filters.limit))
   const response = await apiClient.get<Invoice[]>(`/api/invoices/?${params}`)
   return response.data
+}
+
+export async function listInvoicesWithCountApi(
+  filters: InvoiceFilters = {},
+): Promise<{ items: Invoice[]; total: number }> {
+  const params = new URLSearchParams()
+  if (filters.invoice_type) params.set('invoice_type', filters.invoice_type)
+  if (filters.invoice_status) params.set('invoice_status', filters.invoice_status)
+  if (filters.contact_id !== undefined) params.set('contact_id', String(filters.contact_id))
+  if (filters.from_date) params.set('from_date', filters.from_date)
+  if (filters.to_date) params.set('to_date', filters.to_date)
+  if (filters.year !== undefined) params.set('year', String(filters.year))
+  if (filters.skip !== undefined) params.set('skip', String(filters.skip))
+  if (filters.limit !== undefined) params.set('limit', String(filters.limit))
+  const response = await apiClient.get<Invoice[]>(`/api/invoices/?${params}`)
+  return { items: response.data, total: parseTotalCount(response.headers as Record<string, string>) }
 }
 
 export async function getInvoiceApi(id: number): Promise<Invoice> {

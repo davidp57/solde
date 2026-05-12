@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
@@ -103,6 +103,7 @@ async def get_funds_chart(
 
 @router.get("/transactions", response_model=list[BankTransactionRead])
 async def list_transactions(
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     from_date: date | None = Query(default=None),
@@ -110,7 +111,7 @@ async def list_transactions(
     unreconciled_only: bool = Query(default=False),
     bank_account: BankAccountType | None = Query(default=None),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=1000, ge=1, le=1000),
+    limit: int = Query(default=1000, ge=1, le=5000),
 ) -> list[BankTransactionRead]:
     txs = await bank_service.list_transactions(
         db,
@@ -121,6 +122,14 @@ async def list_transactions(
         skip=skip,
         limit=limit,
     )
+    total = await bank_service.count_transactions(
+        db,
+        from_date=from_date,
+        to_date=to_date,
+        unreconciled_only=unreconciled_only,
+        bank_account=bank_account,
+    )
+    response.headers["X-Total-Count"] = str(total)
     return await _serialize_transactions(db, txs)
 
 

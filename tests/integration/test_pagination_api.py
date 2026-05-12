@@ -78,12 +78,12 @@ class TestLimitParamValidation:
     """Verify that limit > 1000 is rejected and limit = 1000 is accepted."""
 
     @pytest.mark.asyncio
-    async def test_bank_transactions_limit_above_1000_is_rejected(
+    async def test_bank_transactions_limit_above_5000_is_rejected(
         self,
         client: AsyncClient,
         auth_headers: dict,
     ) -> None:
-        response = await client.get("/api/bank/transactions?limit=1001", headers=auth_headers)
+        response = await client.get("/api/bank/transactions?limit=5001", headers=auth_headers)
         assert response.status_code == 422
 
     @pytest.mark.asyncio

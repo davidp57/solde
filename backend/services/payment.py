@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -241,6 +241,42 @@ async def list_payments(
         )
         for payment, inv_number, inv_type, nom, prenom in rows
     ]
+
+
+async def count_payments(
+    db: AsyncSession,
+    *,
+    invoice_id: int | None = None,
+    invoice_type: InvoiceType | None = None,
+    contact_id: int | None = None,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    undeposited_only: bool = False,
+    inconsistent_only: bool = False,
+) -> int:
+    """Count payments matching filters (no limit)."""
+    inv = aliased(Invoice)
+    query = select(func.count()).select_from(Payment).join(inv, Payment.invoice_id == inv.id)
+    if invoice_id is not None:
+        query = query.where(Payment.invoice_id == invoice_id)
+    if invoice_type is not None:
+        query = query.where(inv.type == invoice_type)
+    if contact_id is not None:
+        query = query.where(Payment.contact_id == contact_id)
+    if from_date is not None:
+        query = query.where(Payment.date >= from_date)
+    if to_date is not None:
+        query = query.where(Payment.date <= to_date)
+    if undeposited_only:
+        query = query.where(Payment.deposited == False).where(Payment.in_deposit == False)  # noqa: E712
+    if inconsistent_only:
+        query = (
+            query.where(Payment.method == PaymentMethod.CHEQUE)
+            .where(Payment.deposited == True)  # noqa: E712
+            .where(Payment.deposit_date.is_(None))
+        )
+    result = await db.execute(query)
+    return result.scalar_one()
 
 
 async def update_payment(db: AsyncSession, payment_id: int, payload: PaymentUpdate) -> PaymentRead:

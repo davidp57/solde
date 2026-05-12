@@ -83,9 +83,12 @@
         </div>
       </div>
 
-      <Message v-if="invoices.length >= 5000" severity="warn" :closable="false" class="mb-2">
-        {{ t('common.api_limit_warning') }}
-      </Message>
+      <AppListLimitBanner
+        :view-key="LIMIT_VIEW_KEY"
+        :fetched-count="invoices.length"
+        :limit="limitStore.systemLimit"
+        @reload="loadInvoices"
+      />
       <template v-if="isMobile">
         <AppMobileCardList :items="invoiceRows" :empty-message="t('invoices.supplier.empty')">
           <template #card="{ item: data }">
@@ -710,7 +713,6 @@ import Dialog from 'primevue/dialog'
 import FileUpload from 'primevue/fileupload'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
-import Message from 'primevue/message'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
@@ -729,6 +731,7 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
+import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 
@@ -737,7 +740,7 @@ import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
   downloadInvoiceFileApi,
-  listInvoicesApi,
+  listInvoicesWithCountApi,
   uploadInvoiceFileApi,
   type Invoice,
   type InvoiceStatus,
@@ -757,6 +760,7 @@ import {
 } from '../composables/activeFilterLabels'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { useListLimitStore } from '../stores/listLimit'
 import { formatContactDisplayName } from '../utils/contact'
 import { formatDisplayDate } from '@/utils/format'
 import { getErrorDetail } from '@/utils/errorUtils'
@@ -767,6 +771,8 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
+const limitStore = useListLimitStore()
+const LIMIT_VIEW_KEY = 'invoices-supplier'
 const { isMobile } = useBreakpoints()
 const { exportToExcel } = useTableExport()
 const exportColumns: ExportColumn[] = [
@@ -1042,13 +1048,19 @@ function statusSeverity(s: InvoiceStatus): string {
 async function loadInvoices() {
   loading.value = true
   try {
-    const filters: Record<string, unknown> = { invoice_type: 'fournisseur', limit: 5000 }
+    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_KEY)
+    const filters: Record<string, unknown> = {
+      invoice_type: 'fournisseur',
+      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
+    }
     if (fiscalYearStore.selectedFiscalYear) {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
       filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
     }
     if (statusFilter.value) filters.invoice_status = statusFilter.value
-    invoices.value = await listInvoicesApi(filters)
+    const { items, total } = await listInvoicesWithCountApi(filters)
+    limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
+    invoices.value = items
     openInvoiceFromQuery()
   } finally {
     loading.value = false
@@ -1256,7 +1268,7 @@ watch(
 )
 
 onMounted(async () => {
-  await fiscalYearStore.initialize()
+  await Promise.all([fiscalYearStore.initialize(), limitStore.init()])
   await Promise.all([loadInvoices(), loadContacts()])
 })
 </script>

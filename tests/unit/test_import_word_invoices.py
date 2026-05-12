@@ -1,8 +1,7 @@
 """Unit tests for scripts/import_word_invoices.py — date parsing helpers."""
 
-from datetime import date
-
 import sys
+from datetime import date
 from pathlib import Path
 
 # Make the scripts/ directory importable without installing as a package.

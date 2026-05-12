@@ -89,6 +89,36 @@ async def list_contacts(
     return list(result.scalars().all())
 
 
+async def count_contacts(
+    db: AsyncSession,
+    *,
+    type: ContactType | None = None,
+    search: str | None = None,
+    active_only: bool = True,
+) -> int:
+    """Count contacts matching filters (no limit)."""
+    query = select(func.count()).select_from(Contact)
+    if active_only:
+        query = query.where(Contact.is_active == True)  # noqa: E712
+    if type is not None:
+        query = query.where(Contact.type == type)
+    if search:
+        term = f"%{search}%"
+        query = query.where(
+            or_(
+                Contact.nom.ilike(term),
+                Contact.prenom.ilike(term),
+                Contact.email.ilike(term),
+                Contact.child_first_name.ilike(term),
+                Contact.child_last_name.ilike(term),
+                Contact.other_parent_first_name.ilike(term),
+                Contact.other_parent_last_name.ilike(term),
+            )
+        )
+    result = await db.execute(query)
+    return result.scalar_one()
+
+
 async def list_contacts_enriched(
     db: AsyncSession,
     *,

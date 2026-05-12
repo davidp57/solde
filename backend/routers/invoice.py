@@ -11,6 +11,7 @@ from fastapi import (
     BackgroundTasks,
     Depends,
     Query,
+    Response,
     UploadFile,
     status,
 )
@@ -88,6 +89,7 @@ async def preview_next_number(
 
 @router.get("/", response_model=list[InvoiceRead])
 async def list_invoices(
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     invoice_type: InvoiceType | None = Query(default=None),
@@ -100,7 +102,7 @@ async def list_invoices(
     limit: int = Query(default=1000, ge=1, le=5000),
 ) -> list[Invoice]:
     """List invoices with optional filters."""
-    return await invoice_service.list_invoices(
+    items = await invoice_service.list_invoices(
         db,
         invoice_type=invoice_type,
         status=invoice_status,
@@ -111,6 +113,17 @@ async def list_invoices(
         skip=skip,
         limit=limit,
     )
+    total = await invoice_service.count_invoices(
+        db,
+        invoice_type=invoice_type,
+        status=invoice_status,
+        contact_id=contact_id,
+        from_date=from_date,
+        to_date=to_date,
+        year=year,
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
 @router.post("/", response_model=InvoiceRead, status_code=status.HTTP_201_CREATED)

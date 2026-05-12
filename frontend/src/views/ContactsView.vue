@@ -80,9 +80,12 @@
         </div>
       </div>
 
-      <Message v-if="contacts.length >= 1000" severity="warn" :closable="false" class="mb-2">
-        {{ t('common.api_limit_warning') }}
-      </Message>
+      <AppListLimitBanner
+        :view-key="LIMIT_VIEW_KEY"
+        :fetched-count="contacts.length"
+        :limit="limitStore.systemLimit"
+        @reload="loadContacts"
+      />
       <AppTableSkeleton v-if="loading && !contacts.length" :rows="8" :cols="5" />
       <template v-else-if="isMobile">
         <AppMobileCardList :items="contactRows" :empty-message="t('contacts.empty')">
@@ -454,7 +457,7 @@ import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
-import { deleteContactApi, importContactEmailsApi, listContactsApi, type Contact } from '@/api/contacts'
+import { deleteContactApi, importContactEmailsApi, listContactsWithCountApi, type Contact } from '@/api/contacts'
 import type { ContactEmailImportResult, ContactEmailImportRow } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'
@@ -469,10 +472,14 @@ import {
 } from '../composables/activeFilterLabels'
 import { inFilter, textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
 import { formatDisplayDate } from '@/utils/format'
+import AppListLimitBanner from '@/components/ui/AppListLimitBanner.vue'
+import { useListLimitStore } from '@/stores/listLimit'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
+const limitStore = useListLimitStore()
+const LIMIT_VIEW_KEY = 'contacts'
 const toast = useToast()
 const { exportToExcel } = useTableExport()
 const exportColumns: ExportColumn[] = [
@@ -651,9 +658,13 @@ function resetAllFilters(): void {
 async function loadContacts(): Promise<void> {
   loading.value = true
   try {
-    contacts.value = await listContactsApi({
+    const effectiveLimit = limitStore.effectiveLimit(LIMIT_VIEW_KEY)
+    const { items, total } = await listContactsWithCountApi({
       search: search.value || undefined,
+      limit: effectiveLimit > 0 ? effectiveLimit : 5000,
     })
+    limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
+    contacts.value = items
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -793,7 +804,10 @@ async function doDelete(contact: Contact): Promise<void> {
   }
 }
 
-onMounted(loadContacts)
+onMounted(async () => {
+  await limitStore.init()
+  void loadContacts()
+})
 </script>
 
 <style scoped>

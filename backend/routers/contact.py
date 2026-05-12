@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
@@ -42,16 +42,17 @@ _AdminAccess = Annotated[
 
 @router.get("/", response_model=list[ContactRead])
 async def list_contacts(
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
     type: ContactType | None = Query(default=None),
     search: str | None = Query(default=None, max_length=100),
     active_only: bool = Query(default=True),
     skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=1000, ge=1, le=1000),
+    limit: int = Query(default=1000, ge=1, le=5000),
 ) -> list[ContactRead]:
     """List contacts with optional filters."""
-    return await contact_service.list_contacts_enriched(
+    items = await contact_service.list_contacts_enriched(
         db,
         type=type,
         search=search,
@@ -59,6 +60,14 @@ async def list_contacts(
         skip=skip,
         limit=limit,
     )
+    total = await contact_service.count_contacts(
+        db,
+        type=type,
+        search=search,
+        active_only=active_only,
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return items
 
 
 @router.post("/", response_model=ContactRead, status_code=status.HTTP_201_CREATED)
