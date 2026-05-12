@@ -9,8 +9,8 @@
     <span class="app-list-limit-banner__text">
       {{
         t('common.list_limit_active_warning', {
-          limit: n(props.limit, 'decimal'),
-          total: n(total, 'decimal'),
+          limit: props.limit,
+          total: total,
         })
       }}
     </span>
@@ -33,7 +33,7 @@
     <span class="app-list-limit-banner__text">
       {{
         t('common.list_limit_disabled_info', {
-          limit: n(props.limit, 'decimal'),
+          limit: props.limit,
         })
       }}
     </span>
@@ -68,7 +68,7 @@ const emit = defineEmits<{
   reload: []
 }>()
 
-const { t, n } = useI18n()
+const { t } = useI18n()
 const limitStore = useListLimitStore()
 
 const total = computed(() => limitStore.totalCounts[props.viewKey] ?? 0)
