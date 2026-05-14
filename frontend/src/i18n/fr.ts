@@ -537,6 +537,7 @@ export default {
     filter_status: 'Filtrer par statut',
     filter_year: 'Année',
     generate_pdf: 'Générer PDF',
+    open_pdf_new_tab: 'Ouvrir le PDF',
     send_email: 'Envoyer par e-mail',
     email_sent: 'Facture envoyée par e-mail.',
     email_dialog_title: 'Envoyer la facture par e-mail',

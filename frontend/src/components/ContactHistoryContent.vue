@@ -387,9 +387,9 @@
     </div>
     <Skeleton v-if="invoiceDetailLoading" height="220px" border-radius="8px" />
 
-    <!-- Supplier invoice: 2-column layout with file preview -->
-    <div v-else-if="invoiceDetail && invoiceDetail.type === 'fournisseur'" class="chd-supplier">
-      <div class="chd-supplier__meta">
+    <!-- Invoice detail: unified 2-column layout for client and supplier -->
+    <div v-else-if="invoiceDetail" class="chd-invoice">
+      <div class="chd-invoice__meta">
         <Tag
           :value="t(`invoices.statuses.${invoiceDetail.status}`)"
           :severity="statusSeverity(invoiceDetail.status)"
@@ -403,7 +403,7 @@
         >
       </div>
 
-      <div class="chd-supplier__summary">
+      <div class="chd-invoice__summary">
         <div class="history-dialog__metric">
           <div class="history-dialog__label">{{ t('invoices.total') }}</div>
           <div class="history-dialog__value">{{ fmt(invoiceDetail.total_amount) }} €</div>
@@ -421,140 +421,147 @@
         </div>
       </div>
 
-      <div class="chd-supplier__body">
-        <!-- Payments -->
-        <div class="chd-supplier__payments">
-          <h3 class="app-dialog-section__title">{{ t('invoices.history') }}</h3>
-          <AppTableSkeleton v-if="invoiceDetailPaymentsLoading" :rows="3" :cols="3" />
-          <div v-else-if="invoiceDetailPayments.length === 0" class="app-empty-state">
-            {{ t('invoices.no_payments') }}
-          </div>
-          <DataTable
-            v-else
-            :value="invoiceDetailPayments"
-            class="app-data-table"
-            size="small"
-          >
-            <Column field="date" :header="t('payments.date')" sortable>
-              <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
-            </Column>
-            <Column field="amount" :header="t('payments.amount')" class="app-money" sortable>
-              <template #body="{ data }">{{ fmt(data.amount) }} €</template>
-            </Column>
-            <Column field="method" :header="t('payments.method')" sortable>
-              <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
-            </Column>
-          </DataTable>
-        </div>
-
-        <!-- File preview -->
-        <div class="chd-supplier__file">
-          <h3 class="app-dialog-section__title">{{ t('invoices.file') }}</h3>
-          <div v-if="!invoiceDetail.file_path" class="app-empty-state">
-            {{ t('invoices.supplier.no_attachment') }}
-          </div>
-          <div v-else-if="invoiceFileLoading" class="chd-supplier__file-loading">
-            <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
-          </div>
-          <div v-else-if="invoiceFileBlobUrl" class="chd-supplier__file-frame">
-            <embed
-              v-if="invoiceFileBlobIsPdf"
-              :src="`${invoiceFileBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
-              type="application/pdf"
-              class="chd-supplier__embed"
-               :title="t('invoices.file')"
-            />
-            <img
+      <div class="chd-invoice__body">
+        <!-- Left column: invoice lines (client) or payment history (supplier) -->
+        <div class="chd-invoice__left">
+          <template v-if="invoiceDetail.type !== 'fournisseur'">
+            <DataTable
+              v-if="invoiceDetail.lines.length"
+              :value="invoiceDetail.lines"
+              size="small"
+              class="app-data-table"
+              striped-rows
+            >
+              <Column field="description" :header="t('invoices.line_description')" />
+              <Column
+                field="quantity"
+                :header="t('invoices.line_qty')"
+                style="width: 5rem"
+                class="app-money"
+              />
+              <Column
+                field="unit_price"
+                :header="t('invoices.line_price')"
+                style="width: 8rem"
+                class="app-money"
+              >
+                <template #body="{ data }">{{ fmt(data.unit_price) }} €</template>
+              </Column>
+              <Column
+                field="amount"
+                :header="t('invoices.total')"
+                style="width: 8rem"
+                class="app-money"
+              >
+                <template #body="{ data }">{{ fmt(data.amount) }} €</template>
+              </Column>
+            </DataTable>
+            <div class="chd-invoice__actions">
+              <Button
+                icon="pi pi-file-pdf"
+                :label="t('invoices.generate_pdf')"
+                severity="secondary"
+                outlined
+                :loading="downloadingPdf"
+                @click="downloadPdf(invoiceDetail)"
+              />
+              <Button
+                v-if="contactEmail"
+                icon="pi pi-send"
+                :label="t('invoices.send_email')"
+                @click="sendEmail(invoiceDetail)"
+              />
+            </div>
+          </template>
+          <template v-else>
+            <h3 class="app-dialog-section__title">{{ t('invoices.history') }}</h3>
+            <AppTableSkeleton v-if="invoiceDetailPaymentsLoading" :rows="3" :cols="3" />
+            <div v-else-if="invoiceDetailPayments.length === 0" class="app-empty-state">
+              {{ t('invoices.no_payments') }}
+            </div>
+            <DataTable
               v-else
-              :src="invoiceFileBlobUrl"
-              class="chd-supplier__img"
-              :alt="t('invoices.supplier.preview_file')"
-            />
-          </div>
-          <div v-else class="app-empty-state">{{ t('common.error.unknown') }}</div>
+              :value="invoiceDetailPayments"
+              class="app-data-table"
+              size="small"
+            >
+              <Column field="date" :header="t('payments.date')" sortable>
+                <template #body="{ data }">{{ formatDisplayDate(data.date) }}</template>
+              </Column>
+              <Column field="amount" :header="t('payments.amount')" class="app-money" sortable>
+                <template #body="{ data }">{{ fmt(data.amount) }} €</template>
+              </Column>
+              <Column field="method" :header="t('payments.method')" sortable>
+                <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
+              </Column>
+            </DataTable>
+          </template>
+        </div>
+
+        <!-- Right column: generated PDF preview (client) or uploaded file (supplier) -->
+        <div class="chd-invoice__right">
+          <template v-if="invoiceDetail.type !== 'fournisseur'">
+            <h3 class="app-dialog-section__title">{{ t('invoices.email_preview') }}</h3>
+            <div v-if="clientPdfLoading" class="chd-invoice__preview-loading">
+              <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
+            </div>
+            <div v-else-if="clientPdfBlobUrl" class="chd-invoice__preview-frame">
+              <Button
+                v-if="isMobile"
+                icon="pi pi-external-link"
+                :label="t('invoices.open_pdf_new_tab')"
+                severity="secondary"
+                outlined
+                @click="() => window.open(clientPdfBlobUrl!, '_blank', 'noopener,noreferrer')"
+              />
+              <embed
+                v-else
+                :src="`${clientPdfBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
+                type="application/pdf"
+                class="chd-invoice__preview-embed"
+                :title="t('invoices.email_preview')"
+              />
+            </div>
+            <div v-else class="app-empty-state">
+              <i class="pi pi-file-pdf" />
+              <span>{{ t('invoices.email_preview_unavailable') }}</span>
+            </div>
+          </template>
+          <template v-else>
+            <h3 class="app-dialog-section__title">{{ t('invoices.file') }}</h3>
+            <div v-if="!invoiceDetail.file_path" class="app-empty-state">
+              {{ t('invoices.supplier.no_attachment') }}
+            </div>
+            <div v-else-if="invoiceFileLoading" class="chd-invoice__preview-loading">
+              <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
+            </div>
+            <div v-else-if="invoiceFileBlobUrl" class="chd-invoice__preview-frame">
+              <Button
+                v-if="invoiceFileBlobIsPdf && isMobile"
+                icon="pi pi-external-link"
+                :label="t('invoices.open_pdf_new_tab')"
+                severity="secondary"
+                outlined
+                @click="() => window.open(invoiceFileBlobUrl!, '_blank', 'noopener,noreferrer')"
+              />
+              <embed
+                v-else-if="invoiceFileBlobIsPdf"
+                :src="`${invoiceFileBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
+                type="application/pdf"
+                class="chd-invoice__preview-embed"
+                :title="t('invoices.file')"
+              />
+              <img
+                v-else
+                :src="invoiceFileBlobUrl"
+                class="chd-invoice__preview-img"
+                :alt="t('invoices.supplier.preview_file')"
+              />
+            </div>
+            <div v-else class="app-empty-state">{{ t('common.error.unknown') }}</div>
+          </template>
         </div>
       </div>
-    </div>
-
-    <!-- Client invoice: existing layout -->
-    <div v-else-if="invoiceDetail" class="contact-history-dialog">
-      <div class="contact-history-dialog__meta">
-        <Tag
-          :value="t(`invoices.statuses.${invoiceDetail.status}`)"
-          :severity="statusSeverity(invoiceDetail.status)"
-        />
-        <span>{{ formatDisplayDate(invoiceDetail.date) }}</span>
-        <span v-if="invoiceDetail.due_date"
-          >{{ t('invoices.due_date') }} : {{ formatDisplayDate(invoiceDetail.due_date) }}</span
-        >
-      </div>
-      <div class="contact-history-dialog__body">
-        <div class="contact-history-dialog__main">
-          <section class="app-stat-grid contact-history-dialog__stats">
-        <AppStatCard
-          :label="t('invoices.total')"
-          :value="`${fmt(invoiceDetail.total_amount)} €`"
-        />
-        <AppStatCard
-          :label="t('invoices.paid')"
-          :value="`${fmt(invoiceDetail.paid_amount)} €`"
-          tone="success"
-        />
-        <AppStatCard
-          :label="t('invoices.remaining')"
-          :value="`${invoiceRemaining.toFixed(2)} €`"
-          :tone="invoiceRemaining > 0 ? 'danger' : 'default'"
-        />
-      </section>
-          <DataTable
-            v-if="invoiceDetail.lines.length"
-            :value="invoiceDetail.lines"
-            size="small"
-            class="app-data-table contact-history-dialog__lines"
-            striped-rows
-          >
-        <Column field="description" :header="t('invoices.line_description')" />
-        <Column
-          field="quantity"
-          :header="t('invoices.line_qty')"
-          style="width: 5rem"
-          class="app-money"
-        />
-        <Column
-          field="unit_price"
-          :header="t('invoices.line_price')"
-          style="width: 8rem"
-          class="app-money"
-        >
-          <template #body="{ data }">{{ fmt(data.unit_price) }} €</template>
-        </Column>
-        <Column
-          field="amount"
-          :header="t('invoices.total')"
-          style="width: 8rem"
-          class="app-money"
-        >
-          <template #body="{ data }">{{ fmt(data.amount) }} €</template>
-        </Column>
-          </DataTable>
-          <div class="contact-history-dialog__actions">
-            <Button
-              icon="pi pi-file-pdf"
-              :label="t('invoices.generate_pdf')"
-              severity="secondary"
-              outlined
-              :loading="downloadingPdf"
-              @click="downloadPdf(invoiceDetail)"
-            />
-            <Button
-              v-if="contactEmail && invoiceDetail.type === 'client'"
-              icon="pi pi-send"
-              :label="t('invoices.send_email')"
-              @click="sendEmail(invoiceDetail)"
-            />
-          </div>
-        </div><!-- end contact-history-dialog__main -->
-      </div><!-- end contact-history-dialog__body -->
     </div>
   </template>
 
@@ -681,6 +688,9 @@ const emailDialogInvoiceId = ref<number | null>(null)
 const invoiceFileBlobUrl = ref<string | null>(null)
 const invoiceFileBlobIsPdf = ref(false)
 const invoiceFileLoading = ref(false)
+const clientPdfBlobUrl = ref<string | null>(null)
+const clientPdfLoading = ref(false)
+const clientPdfRequestId = ref(0)
 const invoiceDetailPayments = ref<Payment[]>([])
 const invoiceDetailPaymentsLoading = ref(false)
 
@@ -788,6 +798,10 @@ async function loadInvoiceDetailData(id: number): Promise<void> {
     URL.revokeObjectURL(invoiceFileBlobUrl.value)
     invoiceFileBlobUrl.value = null
   }
+  if (clientPdfBlobUrl.value) {
+    URL.revokeObjectURL(clientPdfBlobUrl.value)
+    clientPdfBlobUrl.value = null
+  }
   invoiceDetailPayments.value = []
   try {
     const inv = await getInvoiceApi(id)
@@ -814,6 +828,19 @@ async function loadInvoiceDetailData(id: number): Promise<void> {
         )
       }
       await Promise.all(tasks)
+    } else {
+      // Client invoice: load generated PDF preview in the background
+      clientPdfLoading.value = true
+      const requestId = ++clientPdfRequestId.value
+      downloadInvoicePdfApi(inv.id)
+        .then((blob) => {
+          if (requestId !== clientPdfRequestId.value) return
+          clientPdfBlobUrl.value = URL.createObjectURL(blob)
+        })
+        .catch((e) => console.error('Failed to download invoice PDF', e))
+        .finally(() => {
+          if (requestId === clientPdfRequestId.value) clientPdfLoading.value = false
+        })
     }
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
@@ -824,9 +851,14 @@ async function loadInvoiceDetailData(id: number): Promise<void> {
 }
 
 function closeInvoiceDetail(): void {
+  clientPdfRequestId.value++
   if (invoiceFileBlobUrl.value) {
     URL.revokeObjectURL(invoiceFileBlobUrl.value)
     invoiceFileBlobUrl.value = null
+  }
+  if (clientPdfBlobUrl.value) {
+    URL.revokeObjectURL(clientPdfBlobUrl.value)
+    clientPdfBlobUrl.value = null
   }
   invoiceDetailVisible.value = false
   invoiceDetail.value = null
@@ -951,42 +983,6 @@ onMounted(loadHistory)
   color: var(--p-red-600);
 }
 
-.contact-history-dialog__meta {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  color: var(--p-text-muted-color);
-}
-
-.contact-history-dialog__stats {
-  margin-bottom: 1rem;
-}
-
-.contact-history-dialog__lines {
-  margin-bottom: 1rem;
-}
-
-.contact-history-dialog__actions {
-  display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-  padding-top: 0.5rem;
-}
-
-.contact-history-dialog__body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--app-space-4);
-}
-
-.contact-history-dialog__main {
-  display: flex;
-  flex-direction: column;
-}
-
 /* Inline detail navigation bar */
 .chd-back-bar {
   display: flex;
@@ -1018,14 +1014,14 @@ onMounted(loadHistory)
   text-align: center;
 }
 
-/* Supplier invoice preview layout */
-.chd-supplier {
+/* Invoice detail: unified 2-column layout */
+.chd-invoice {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
 }
 
-.chd-supplier__meta {
+.chd-invoice__meta {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -1034,7 +1030,7 @@ onMounted(loadHistory)
   color: var(--p-text-muted-color);
 }
 
-.chd-supplier__summary {
+.chd-invoice__summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--app-space-3);
@@ -1065,21 +1061,28 @@ onMounted(loadHistory)
 .history-dialog__value--success { color: var(--p-green-600); }
 .history-dialog__value--warn { color: var(--p-orange-500); }
 
-.chd-supplier__body {
+.chd-invoice__body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 460px;
   gap: var(--app-space-5);
   align-items: start;
 }
 
-.chd-supplier__payments,
-.chd-supplier__file {
+.chd-invoice__left,
+.chd-invoice__right {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
 }
 
-.chd-supplier__file-loading {
+.chd-invoice__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-top: var(--app-space-2);
+}
+
+.chd-invoice__preview-loading {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1087,27 +1090,35 @@ onMounted(loadHistory)
   color: var(--p-text-muted-color);
 }
 
-.chd-supplier__file-frame {
+.chd-invoice__preview-frame {
   border: 1px solid var(--app-surface-border);
   border-radius: var(--app-surface-radius-sm);
   overflow: hidden;
 }
 
-.chd-supplier__embed {
+.chd-invoice__preview-link {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--app-space-4);
+  text-decoration: none;
+}
+
+.chd-invoice__preview-embed {
   width: 100%;
   height: 520px;
   border: none;
   display: block;
 }
 
-.chd-supplier__img {
+.chd-invoice__preview-img {
   width: 100%;
   height: auto;
   display: block;
 }
 
 @media (max-width: 1000px) {
-  .chd-supplier__body {
+  .chd-invoice__body {
     grid-template-columns: 1fr;
   }
 }

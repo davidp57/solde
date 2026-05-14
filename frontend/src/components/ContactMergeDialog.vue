@@ -14,7 +14,7 @@
       <div class="app-field">
         <label class="app-field__label">{{ t('contacts.merge_source_label') }}</label>
         <div class="contact-merge__source-name">
-          <strong>{{ sourceContact?.nom }}<template v-if="sourceContact?.prenom"> {{ sourceContact.prenom }}</template></strong>
+          <strong>{{ sourceContactName }}</strong>
           <Tag
             v-if="sourceContact"
             :value="t(`contacts.types.${sourceContact.type}`)"
@@ -96,6 +96,11 @@ const toast = useToast()
 const selectedTarget = ref<number | null>(null)
 const loading = ref(false)
 const errorMessage = ref<string | null>(null)
+
+const sourceContactName = computed(() => {
+  if (!props.sourceContact) return ''
+  return [props.sourceContact.nom, props.sourceContact.prenom].filter(Boolean).join(' ')
+})
 
 const sameContactError = computed(
   () => selectedTarget.value !== null && selectedTarget.value === props.sourceContact?.id,
