@@ -384,7 +384,7 @@ class TestMergeContact:
         assert response.status_code == 422
 
     async def test_merge_requires_admin(
-        self, client: AsyncClient, auth_headers: dict, secretaire_auth_headers: dict
+        self, client: AsyncClient, auth_headers: dict, tresorier_auth_headers: dict
     ):
         source = await client.post(
             "/api/contacts/", json={"type": "client", "nom": "Source"}, headers=auth_headers
@@ -395,7 +395,7 @@ class TestMergeContact:
         response = await client.post(
             f"/api/contacts/{source.json()['id']}/merge",
             params={"target_id": target.json()["id"]},
-            headers=secretaire_auth_headers,
+            headers=tresorier_auth_headers,
         )
         assert response.status_code == 403
 
