@@ -383,7 +383,7 @@ class TestMergeContact:
         )
         assert response.status_code == 422
 
-    async def test_merge_requires_admin(
+    async def test_merge_forbidden_for_tresorier(
         self, client: AsyncClient, auth_headers: dict, tresorier_auth_headers: dict
     ):
         source = await client.post(
