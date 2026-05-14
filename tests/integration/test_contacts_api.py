@@ -399,6 +399,31 @@ class TestMergeContact:
         )
         assert response.status_code == 403
 
+    async def test_merge_allowed_for_secretaire(
+        self, client: AsyncClient, auth_headers: dict, secretaire_auth_headers: dict
+    ):
+        source = await client.post(
+            "/api/contacts/", json={"type": "client", "nom": "Source"}, headers=auth_headers
+        )
+        target = await client.post(
+            "/api/contacts/", json={"type": "client", "nom": "Cible"}, headers=auth_headers
+        )
+        source_id = source.json()["id"]
+        target_id = target.json()["id"]
+
+        response = await client.post(
+            f"/api/contacts/{source_id}/merge",
+            params={"target_id": target_id},
+            headers=secretaire_auth_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["target_id"] == target_id
+
+        # Source should be soft-deleted
+        get_source = await client.get(f"/api/contacts/{source_id}", headers=auth_headers)
+        assert get_source.json()["is_active"] is False
+
     async def test_merge_moves_additional_emails_with_deduplication(
         self, client: AsyncClient, auth_headers: dict
     ):
