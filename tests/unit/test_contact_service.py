@@ -27,7 +27,7 @@ class TestCreateContact:
         payload = ContactCreate(type=ContactType.CLIENT, nom="Dupont", prenom="Jean")
         contact = await create_contact(db_session, payload)
         assert contact.id is not None
-        assert contact.nom == "Dupont"
+        assert contact.nom == "DUPONT"
         assert contact.prenom == "Jean"
         assert contact.type == ContactType.CLIENT
         assert contact.is_active is True
@@ -54,7 +54,7 @@ class TestCreateContact:
     async def test_strips_nom_whitespace(self, db_session: AsyncSession):
         payload = ContactCreate(type=ContactType.CLIENT, nom="  Dupont  ")
         contact = await create_contact(db_session, payload)
-        assert contact.nom == "Dupont"
+        assert contact.nom == "DUPONT"
 
 
 class TestGetContact:
@@ -85,14 +85,14 @@ class TestListContacts:
         )
         clients = await list_contacts(db_session, type=ContactType.CLIENT)
         assert len(clients) == 1
-        assert clients[0].nom == "Client A"
+        assert clients[0].nom == "CLIENT A"
 
     async def test_search_by_nom(self, db_session: AsyncSession):
         await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Dupont"))
         await create_contact(db_session, ContactCreate(type=ContactType.CLIENT, nom="Martin"))
         results = await list_contacts(db_session, search="dup")
         assert len(results) == 1
-        assert results[0].nom == "Dupont"
+        assert results[0].nom == "DUPONT"
 
     async def test_search_by_email(self, db_session: AsyncSession):
         await create_contact(
@@ -131,7 +131,7 @@ class TestUpdateContact:
             db_session, ContactCreate(type=ContactType.CLIENT, nom="Ancien")
         )
         updated = await update_contact(db_session, contact, ContactUpdate(nom="Nouveau"))
-        assert updated.nom == "Nouveau"
+        assert updated.nom == "NOUVEAU"
         assert updated.type == ContactType.CLIENT  # unchanged
 
     async def test_update_email(self, db_session: AsyncSession):
