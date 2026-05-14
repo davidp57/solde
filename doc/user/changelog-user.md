@@ -4,22 +4,30 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
-## Version 1.7.2 *(à venir)*
+## Version 1.7.2 — 12 mai 2026
 
 ### Tous les utilisateurs
 
 #### Listes — limite d'affichage configurable
 - Par défaut, chaque grande liste (factures, paiements, contacts, salaires, transactions bancaires) n'affiche désormais que les **500 premiers éléments**.
 - Une **bannière d'avertissement** apparaît en haut de la liste quand des éléments sont masqués, avec un lien **« Désactiver la limite »** pour tout charger d'un clic.
-- Une fois la limite désactivée, une **notice discrète** indique que tous les éléments sont chargés, avec la possibilité de **réactiver la limite**.
+- Une fois la limite désactivée, une **notice discrète** indique qu'un chargement jusqu'à **5 000 éléments** est appliqué, avec la possibilité de **réactiver la limite**.
 - Ce réglage est **propre à chaque navigateur / onglet** : il s'efface à la fermeture de l'onglet.
+
+#### Contacts — fusion des doublons
+- Un dialogue de **fusion de contacts** permet de regrouper deux fiches en une seule quand un doublon est détecté.
+- Les informations utiles sont conservées sur la fiche finale et l'historique (factures/paiements) reste rattaché au contact conservé.
 
 ### Administrateur
 
 #### Paramètres — limite d'affichage
 - La **valeur de la limite** est configurable dans Paramètres > Association (champ *Limite d'affichage par défaut*).
-- Valeur **0** = pas de limite (toutes les listes chargent tout par défaut).
+- Valeur **0** = chargement jusqu'à **5 000 éléments** par requête.
 - La modification s'applique immédiatement pour tous les utilisateurs dès leur prochaine visite.
+
+#### Sauvegarde OneDrive
+- L'autorisation OneDrive repose désormais sur un **code d'appareil** (device code), mieux adaptée aux déploiements Docker/NAS sans navigateur intégré.
+- Le transfert vers OneDrive est géré directement via l'API Microsoft, avec un suivi d'état plus fiable dans l'interface.
 
 ---
 
@@ -27,7 +35,8 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Secrétaire
 
-#### Factures archivées
+#### Factures historiques (import Word) et archivées
+- Nouveau script d'import des factures historiques depuis des documents Word (`.docx`), avec reprise des factures déjà payées.
 - Les factures historiques importées depuis Word reprennent correctement le montant déjà réglé : le reste dû est affiché à **0 €** quand la facture était déjà payée.
 - Quand un PDF existe déjà pour une facture importée, il est réutilisé directement pour l'aperçu au lieu de repasser par le document Word.
 - L'aperçu PDF masque désormais le volet latéral des pages quand le navigateur autorise ce réglage.
@@ -51,7 +60,7 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Administrateur
 
-#### Paramètres — Sauvegarde automatique
+#### Paramètres — Sauvegarde automatique (nouvelle fonctionnalité)
 - Nouveau panneau **« Sauvegarde automatique »** dans les paramètres (visible uniquement par les administrateurs).
 - Il est possible d'**activer ou désactiver** les sauvegardes automatiques et de choisir leur fréquence :
   - **Quotidien (heure fixe)** : la sauvegarde se déclenche chaque jour à l'heure choisie (format HH:MM).

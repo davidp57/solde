@@ -75,6 +75,12 @@ Ces paramètres sont stockés en base de données et prennent effet immédiateme
 |---|---|
 | Délai d'échéance factures (jours) | Nombre de jours ajoutés à la date de facture pour calculer l'échéance automatiquement (0–365). |
 
+#### Limite d'affichage des listes
+
+| Paramètre | Description |
+|---|---|
+| Limite d'affichage par défaut | Nombre maximum d'éléments chargés par liste dans l'interface (factures, paiements, contacts, salaires, banque). `0` applique le plafond API (5 000 éléments). |
+
 #### Prix unitaires par défaut
 
 Ces prix sont pré-remplis automatiquement dans les formulaires de facture selon le type de ligne.
@@ -113,6 +119,12 @@ Après la première connexion, voici les étapes de configuration recommandées 
 6. **Créer les règles comptables** pour l'automatisation des écritures.
 7. **Créer les comptes utilisateurs** pour les autres membres de l'équipe.
 8. **Importer les données historiques** si nécessaire (voir [excel-import.fr.md](./excel-import.fr.md)).
+
+---
+
+### Note OneDrive (sauvegardes)
+
+L'autorisation OneDrive se fait par **flux appareil** (device code), adapté aux environnements NAS/Docker sans navigateur intégré. Une fois autorisée, la destination reste réutilisable tant que le jeton n'expire pas ou n'est pas révoqué.
 
 ---
 

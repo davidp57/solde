@@ -28,18 +28,7 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 ## Lots actifs
 
-### Lot FW — Import Word + Archivage + Export Excel (v1.7.2) — ~395 min Copilot + 15 min gestion
-
-| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
-| --- | --- | --- | --- | --- | --- | --- |
-| BIZ-195 | Statut ARCHIVED — modèle, transitions, service, router, migration | P1 | ~25 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
-| BIZ-196 | Script import_word_invoices.py (parsing + création contacts/factures) | P1 | ~80 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
-| BIZ-197 | Endpoint POST /invoices/bulk-archive + schémas + tests intégration | P1 | ~45 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
-| BIZ-190 | Frontend — types + i18n + badge + boutons UI factures archivées | P1 | ~35 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
-| BIZ-191 | Frontend — action bulk archive (bouton + confirmation + appel API) | P1 | ~30 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
-| TEC-192 | Composable useTableExport (SheetJS) + tests Vitest | P2 | ~30 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
-| BIZ-193 | Bouton export Excel sur toutes les vues DataTable | P2 | ~120 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
-| CHR-194 | Quality gate complet + CHANGELOG + docs + bump version | P2 | ~30 min | 2026-05-11 | 2026-05-11 | 2026-05-11 |
+Aucun lot actif en cours de livraison.
 
 ---
 
@@ -99,6 +88,7 @@ Corriger le processus de sauvegarde automatique pour inclure systématiquement l
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
+| FW | Import Word + Archivage + Export Excel | v1.7.2 | BIZ-190→197, TEC-192, CHR-194 | 2026-05-12 | ~395 min | ~2h50 |
 | BK | Backup automatique | v1.7 | BIZ-173→184, BIZ-187, BIZ-188, BIZ-189 | 2026-05-11 | ~4h40 | ~2h+ (partiel) |
 | TEC-185/BIZ-186 | Fix Chrome PDF + filigrane Payé | v1.6.3 | TEC-185, BIZ-186 | 2026-05-10 | ~40 min | — |
 | REV2 | Refactoring technique différé | v1.6.2 | TEC-170, TEC-171, TEC-173 | 2026-05-07 | ~55 min | — |
@@ -257,7 +247,7 @@ Purge des clés expirées toutes les 100 tentatives dans `rate_limiter.py`.
 
 </details>
 
-Tickets fermés hors lots récents : **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**, **TEC-156**.
+Tickets fermés hors lots récents : **BIZ-127**, **BIZ-128**, **BIZ-129**, **BIZ-130**, **BIZ-131**, **BIZ-132**, **TEC-156**, **BIZ-198**, **BIZ-199**, **BIZ-200**.
 
 > Lots et tickets plus anciens → [backlog-archive.md](backlog-archive.md)
 

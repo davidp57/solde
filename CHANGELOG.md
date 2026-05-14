@@ -11,6 +11,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.7.2] — 2026-05-12
+
 ### Sécurité
 - **TEC-160** — Prévention des doublons de numéros d'écriture comptable (index unique + retry)
 - **TEC-165** — Limitation de la longueur maximale des mots de passe à 128 caractères (protection DoS bcrypt)
@@ -29,11 +31,14 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **TEC-173** — Découpage de `bank.py` (781 lignes) en 3 sous-routeurs : `bank_transactions.py`, `bank_import.py`, `bank_deposits.py`
 
 ### Corrigé
-- **TEC-185** — Régression aperçu PDF Chrome : remplacement de `<embed>` / `<object>` par `<iframe>` dans tous les composants d'aperçu PDF (factures client, fournisseur, historique contact, dialogue email)
+- **TEC-185** — Régression aperçu PDF Chrome : standardisation des aperçus intégrés sur `<embed>` (abandon de `<object>`) avec paramètres viewer pour masquer le volet pages quand le moteur PDF du navigateur le permet
 - **TEC-185** — Aperçus PDF intégrés : demande explicite de masquage du volet latéral « Pages » par défaut quand le moteur PDF du navigateur le permet
 - **BIZ-189** — Sauvegarde automatique : le spinner de progression n'était pas visible lorsqu'un backup planifié se déclenchait pendant que la page de paramètres était déjà ouverte ; ajout d'une veille (10 s) qui détecte le démarrage et active le polling rapide (3 s)
+- **BIZ-198** — Limite d'affichage : alignement UX/documentation pour expliciter que la désactivation de la limite côté session charge jusqu'au plafond API (5 000 éléments)
 
 ### Ajouté
+- **BIZ-173→184 / BIZ-187 / BIZ-188 / BIZ-189 / BIZ-200** — **Feature majeure : Sauvegarde automatique** (planification intervalle/cron/quotidien HH:MM, destinations local/SMB/OneDrive, restauration/test de restauration, notifications d'échec, OneDrive device code + transfert Microsoft Graph, suivi d'exécution en temps réel)
+- **BIZ-196** — **Feature majeure : Import des factures historiques Word** (`scripts/import_word_invoices.py`) avec mode dry-run/commit, rattachement PDF existant, reprise correcte du montant déjà réglé et rapport final détaillé (erreurs + cas ignorés utiles)
 - **BIZ-198** — Limite d'affichage configurable par liste : paramètre global `Limite d'affichage par défaut` (défaut 500, modifiable dans Paramètres > Association), bannière d'avertissement quand des éléments sont masqués, bouton « Désactiver la limite » par session ; applicable aux 6 vues liste (factures client, fournisseur, paiements, contacts, salaires, banque) ; en-tête `X-Total-Count` sur tous les endpoints de liste
 - **BIZ-173→184** — Lot BK : Sauvegarde automatique — planification (intervalle ou cron), destinations de sauvegarde (local, SMB, OneDrive via rclone), test de connexion, restauration, test de restauration (intégrité SQLite + vérification des tables), e-mail de notification en cas d'échec
 - **BIZ-173→184** — Backend : migration Alembic (colonnes `backup_*` dans `app_settings`, table `backup_destination`), modèle `BackupDestination`, schémas Pydantic, services `backup_destination_service`, `backup_restore_service`, `backup_scheduler` (APScheduler), router 12 endpoints `/api/backup/…`
@@ -49,6 +54,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-190** — Frontend : type `archived` dans `InvoiceStatus`, badge gris, bouton télécharger le document sur les factures archivées ; masquage des boutons email / dupliquer / créance irrécouvrable pour les archivées
 - **BIZ-191** — Vue factures client : bouton « Archiver la sélection » dans la toolbar, visible dès qu'au moins une facture payée est affichée, avec confirmation et toast de résultat
 - **BIZ-193** — Bouton « Exporter Excel » sur toutes les vues DataTable : factures fournisseur, paiements, contacts, employés, salaires, caisse (entrées), banque (transactions), exercices, plan comptable, règles, journal, grand livre, balance, bilan, compte de résultat — exporte les lignes filtrées visibles au format `.xlsx`
+- **BIZ-199** — Contacts : fusion de doublons (dialog de fusion côté frontend + endpoint backend dédié + tests d'intégration)
+- **BIZ-200** — Sauvegarde OneDrive : authentification appareil (device code) et transfert direct via Microsoft Graph API, plus robuste en environnement Docker/headless
 
 ### Technique
 - **TEC-192** — Composable `useTableExport` (SheetJS) : `exportToExcel(rows, columns, filename)` avec 4 tests Vitest
