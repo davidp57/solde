@@ -119,7 +119,7 @@
                 @click="openHistoryDialog(data.id)"
               />
               <Button
-                v-if="authStore.isAdmin"
+                v-if="authStore.isAdmin || authStore.isGestionnaire"
                 icon="pi pi-arrow-right-arrow-left"
                 size="small"
                 severity="warn"
@@ -270,7 +270,7 @@
                 @click="openHistoryDialog(data.id)"
               />
               <Button
-                v-if="authStore.isAdmin"
+                v-if="authStore.isAdmin || authStore.isGestionnaire"
                 icon="pi pi-arrow-right-arrow-left"
                 size="small"
                 severity="warn"
