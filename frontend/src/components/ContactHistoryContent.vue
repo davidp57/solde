@@ -506,19 +506,14 @@
               <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
             </div>
             <div v-else-if="clientPdfBlobUrl" class="chd-invoice__preview-frame">
-              <a
+              <Button
                 v-if="isMobile"
-                :href="clientPdfBlobUrl"
-                target="_blank"
-                class="chd-invoice__preview-link"
-              >
-                <Button
-                  icon="pi pi-external-link"
-                  :label="t('invoices.open_pdf_new_tab')"
-                  severity="secondary"
-                  outlined
-                />
-              </a>
+                icon="pi pi-external-link"
+                :label="t('invoices.open_pdf_new_tab')"
+                severity="secondary"
+                outlined
+                @click="() => window.open(clientPdfBlobUrl!, '_blank', 'noopener,noreferrer')"
+              />
               <embed
                 v-else
                 :src="`${clientPdfBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
@@ -541,19 +536,14 @@
               <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
             </div>
             <div v-else-if="invoiceFileBlobUrl" class="chd-invoice__preview-frame">
-              <a
+              <Button
                 v-if="invoiceFileBlobIsPdf && isMobile"
-                :href="invoiceFileBlobUrl"
-                target="_blank"
-                class="chd-invoice__preview-link"
-              >
-                <Button
-                  icon="pi pi-external-link"
-                  :label="t('invoices.open_pdf_new_tab')"
-                  severity="secondary"
-                  outlined
-                />
-              </a>
+                icon="pi pi-external-link"
+                :label="t('invoices.open_pdf_new_tab')"
+                severity="secondary"
+                outlined
+                @click="() => window.open(invoiceFileBlobUrl!, '_blank', 'noopener,noreferrer')"
+              />
               <embed
                 v-else-if="invoiceFileBlobIsPdf"
                 :src="`${invoiceFileBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
@@ -700,6 +690,7 @@ const invoiceFileBlobIsPdf = ref(false)
 const invoiceFileLoading = ref(false)
 const clientPdfBlobUrl = ref<string | null>(null)
 const clientPdfLoading = ref(false)
+const clientPdfRequestId = ref(0)
 const invoiceDetailPayments = ref<Payment[]>([])
 const invoiceDetailPaymentsLoading = ref(false)
 
@@ -840,10 +831,16 @@ async function loadInvoiceDetailData(id: number): Promise<void> {
     } else {
       // Client invoice: load generated PDF preview in the background
       clientPdfLoading.value = true
+      const requestId = ++clientPdfRequestId.value
       downloadInvoicePdfApi(inv.id)
-        .then((blob) => { clientPdfBlobUrl.value = URL.createObjectURL(blob) })
+        .then((blob) => {
+          if (requestId !== clientPdfRequestId.value) return
+          clientPdfBlobUrl.value = URL.createObjectURL(blob)
+        })
         .catch((e) => console.error('Failed to download invoice PDF', e))
-        .finally(() => { clientPdfLoading.value = false })
+        .finally(() => {
+          if (requestId === clientPdfRequestId.value) clientPdfLoading.value = false
+        })
     }
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
@@ -854,6 +851,7 @@ async function loadInvoiceDetailData(id: number): Promise<void> {
 }
 
 function closeInvoiceDetail(): void {
+  clientPdfRequestId.value++
   if (invoiceFileBlobUrl.value) {
     URL.revokeObjectURL(invoiceFileBlobUrl.value)
     invoiceFileBlobUrl.value = null

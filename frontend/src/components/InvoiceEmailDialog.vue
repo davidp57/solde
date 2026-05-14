@@ -65,19 +65,14 @@
       <div class="invoice-email-dialog__preview">
         <p class="invoice-email-dialog__preview-label">{{ t('invoices.email_preview') }}</p>
         <Skeleton v-if="pdfLoading" class="invoice-email-dialog__embed" border-radius="4px" />
-        <a
+        <Button
           v-else-if="pdfBlobUrl && isMobile"
-          :href="pdfBlobUrl"
-          target="_blank"
-          class="invoice-email-dialog__preview-link"
-        >
-          <Button
-            icon="pi pi-external-link"
-            :label="t('invoices.open_pdf_new_tab')"
-            severity="secondary"
-            outlined
-          />
-        </a>
+          icon="pi pi-external-link"
+          :label="t('invoices.open_pdf_new_tab')"
+          severity="secondary"
+          outlined
+          @click="() => window.open(pdfBlobUrl!, '_blank', 'noopener,noreferrer')"
+        />
         <embed
           v-else-if="pdfBlobUrl"
           :src="`${pdfBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"

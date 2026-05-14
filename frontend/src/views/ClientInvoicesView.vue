@@ -673,19 +673,14 @@
               <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
             </div>
             <div v-else-if="historyPdfBlobUrl" class="history-dialog__preview-frame">
-              <a
+              <Button
                 v-if="isMobile"
-                :href="historyPdfBlobUrl"
-                target="_blank"
-                class="history-dialog__preview-link"
-              >
-                <Button
-                  icon="pi pi-external-link"
-                  :label="t('invoices.open_pdf_new_tab')"
-                  severity="secondary"
-                  outlined
-                />
-              </a>
+                icon="pi pi-external-link"
+                :label="t('invoices.open_pdf_new_tab')"
+                severity="secondary"
+                outlined
+                @click="() => window.open(historyPdfBlobUrl!, '_blank', 'noopener,noreferrer')"
+              />
               <embed
                 v-else
                 :src="`${historyPdfBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
