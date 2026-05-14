@@ -48,6 +48,7 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
+| BIZ-201 | Backup auto — inclure les fichiers du répertoire data/pdfs | P1 | ~20 min | 2026-05-14 |  | |
 
 ---
 
@@ -87,6 +88,10 @@ Exécuter la quality gate complète (ruff check + format, mypy, pytest, eslint, 
 ### BIZ-169 — Édition/suppression des opérations manuelles
 
 Permettre de modifier ou supprimer les opérations bancaires créées manuellement depuis BankView (opérations sans import source).
+
+### BIZ-201 — Backup auto — inclure les fichiers du répertoire data/pdfs
+
+Corriger le processus de sauvegarde automatique pour inclure systématiquement les fichiers présents dans `data/pdfs` (factures et documents PDF générés/stockés). Vérifier le comportement pour les différents types de destination (local, SMB, OneDrive) et pour les deux modes d'envoi (snapshot seul vs dossier complet), puis ajouter des tests de non-régression backend sur la présence de `data/pdfs` dans l'artefact de sauvegarde.
 
 ---
 
