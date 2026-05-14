@@ -36,7 +36,7 @@ _ReadAccess = Annotated[
 
 _AdminAccess = Annotated[
     User,
-    Depends(require_role(UserRole.ADMIN)),
+    Depends(require_role(UserRole.SECRETAIRE, UserRole.ADMIN)),
 ]
 
 
@@ -215,7 +215,7 @@ async def merge_contact(
 ) -> MergeContactResult:
     """Merge source contact into target. Reassigns all linked records and soft-deletes source.
 
-    Only ADMIN role is allowed. The source contact (contact_id) is soft-deleted;
+    ADMIN and SECRETAIRE roles are allowed. The source contact (contact_id) is soft-deleted;
     the target contact (target_id query param) is kept.
     """
     try:
