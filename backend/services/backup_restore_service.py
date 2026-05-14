@@ -45,7 +45,8 @@ def _do_test_restore(backup_path: Path) -> BackupRestoreTestResult:
         return BackupRestoreTestResult(
             ok=False,
             integrity_check="",
-            error=f"Impossible d'ouvrir le fichier : {exc}",
+            error_code="BACKUP_OPEN_FAILED",
+            error=f"Unable to open backup file: {exc}",
         )
 
     try:
@@ -72,7 +73,8 @@ def _do_test_restore(backup_path: Path) -> BackupRestoreTestResult:
         return BackupRestoreTestResult(
             ok=False,
             integrity_check="",
-            error=f"Erreur lors de la vérification : {exc}",
+            error_code="BACKUP_VALIDATION_FAILED",
+            error=f"Backup validation failed: {exc}",
         )
     finally:
         conn.close()
@@ -85,7 +87,8 @@ async def test_restore(backup_path: str) -> BackupRestoreTestResult:
         return BackupRestoreTestResult(
             ok=False,
             integrity_check="",
-            error="Fichier introuvable",
+            error_code="BACKUP_FILE_NOT_FOUND",
+            error="Backup file not found",
         )
     return await anyio.to_thread.run_sync(lambda: _do_test_restore(path))
 

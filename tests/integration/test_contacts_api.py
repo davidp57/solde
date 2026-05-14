@@ -372,3 +372,48 @@ class TestMergeContact:
             headers=secretaire_auth_headers,
         )
         assert response.status_code == 403
+
+    async def test_merge_moves_additional_emails_with_deduplication(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        source = await client.post(
+            "/api/contacts/",
+            json={
+                "type": "client",
+                "nom": "Source",
+                "email": "primary-source@example.com",
+                "emails": [
+                    {"email": "shared@example.com", "label": "Parent 1"},
+                    {"email": "unique-source@example.com", "label": "Parent 2"},
+                ],
+            },
+            headers=auth_headers,
+        )
+        target = await client.post(
+            "/api/contacts/",
+            json={
+                "type": "client",
+                "nom": "Target",
+                "email": "shared@example.com",
+                "emails": [{"email": "target-extra@example.com", "label": "Autre"}],
+            },
+            headers=auth_headers,
+        )
+
+        source_id = source.json()["id"]
+        target_id = target.json()["id"]
+
+        response = await client.post(
+            f"/api/contacts/{source_id}/merge",
+            params={"target_id": target_id},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+
+        get_target = await client.get(f"/api/contacts/{target_id}", headers=auth_headers)
+        assert get_target.status_code == 200
+        target_data = get_target.json()
+        merged_emails = {email["email"] for email in target_data["emails"]}
+        assert "target-extra@example.com" in merged_emails
+        assert "unique-source@example.com" in merged_emails
+        assert "shared@example.com" not in merged_emails

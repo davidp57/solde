@@ -131,6 +131,17 @@ Un onglet rapide permet aussi de basculer entre **Tous**, **Clients** et **Fourn
 3. Pour ajouter, modifier ou supprimer des adresses e-mail supplémentaires, utiliser la section **Adresses e-mail supplémentaires**.
 4. Cliquer sur **Enregistrer**.
 
+### Fusionner deux contacts
+
+La fusion permet de regrouper deux fiches en double en conservant un seul contact final.
+
+1. Ouvrir la fiche du contact principal à conserver.
+2. Cliquer sur **Fusionner**.
+3. Sélectionner le contact source à fusionner.
+4. Vérifier le récapitulatif et confirmer.
+
+Après fusion, les factures et paiements du contact source sont rattachés au contact conservé.
+
 ### Marquer un client comme indésirable
 
 Cette fonctionnalité s'applique aux contacts de type **Client** ou **Les deux**. Elle permet de bloquer la création de nouvelles factures pour un client en litige ou en défaut de paiement.
@@ -177,6 +188,7 @@ Statuts possibles :
 | **Partiellement payée** | Un ou plusieurs paiements reçus, solde restant dû. |
 | **En retard** | Échéance dépassée, non réglée. |
 | **Irrécouvrable** | Passée en perte (créance douteuse). |
+| **Archivée** | Facture payée gelée pour historique, non modifiable. |
 
 ---
 
@@ -261,6 +273,14 @@ Si le paramètre est correct et que l'aperçu ne fonctionne toujours pas, vérif
 3. Confirmer l'action.
 
 La facture est marquée irrécouvrable. Elle disparaît des listes de factures impayées et une écriture comptable de perte peut être générée selon la configuration des règles.
+
+### Archiver des factures payées
+
+Depuis la liste des factures client, le bouton **Archiver la sélection** permet d'archiver en lot les factures déjà payées affichées après filtrage.
+
+- Une facture **archivée** devient en lecture seule.
+- Le bouton de téléchargement du document d'origine reste disponible si un fichier est attaché.
+- L'archivage est irréversible depuis l'interface.
 
 ### Numérotation automatique
 
@@ -605,6 +625,11 @@ Les paramètres sont accessibles via le menu **Paramètres** dans la barre laté
 ### Association
 
 Permet de renseigner les informations de l'association (nom, adresse, SIRET, numéro RNA, e-mail de contact) qui apparaissent sur les documents PDF (factures, fiches de salaire).
+
+Le paramètre **Limite d'affichage par défaut** définit le nombre maximum d'éléments chargés par liste.
+
+- Valeur recommandée : `500`.
+- Valeur `0` : charge jusqu'au plafond API (5 000 éléments par requête).
 
 ### SMTP — Envoi d'e-mails
 
