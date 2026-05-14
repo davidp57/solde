@@ -457,8 +457,21 @@
             <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
           </div>
           <div v-else-if="invoiceFileBlobUrl" class="chd-supplier__file-frame">
+            <a
+              v-if="invoiceFileBlobIsPdf && isMobile"
+              :href="invoiceFileBlobUrl"
+              target="_blank"
+              class="chd-supplier__preview-link"
+            >
+              <Button
+                icon="pi pi-external-link"
+                :label="t('invoices.open_pdf_new_tab')"
+                severity="secondary"
+                outlined
+              />
+            </a>
             <embed
-              v-if="invoiceFileBlobIsPdf"
+              v-else-if="invoiceFileBlobIsPdf"
               :src="`${invoiceFileBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
               type="application/pdf"
               class="chd-supplier__embed"
@@ -1091,6 +1104,14 @@ onMounted(loadHistory)
   border: 1px solid var(--app-surface-border);
   border-radius: var(--app-surface-radius-sm);
   overflow: hidden;
+}
+
+.chd-supplier__preview-link {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--app-space-4);
+  text-decoration: none;
 }
 
 .chd-supplier__embed {

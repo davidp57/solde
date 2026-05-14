@@ -50,7 +50,7 @@ class ContactWriteBase(BaseModel):
     def nom_not_empty(cls, v: str) -> str:
         if not v.strip():
             raise ValueError("nom must not be empty")
-        return v.strip()
+        return v.strip().upper()
 
 
 class ContactCreate(ContactWriteBase):
@@ -85,7 +85,7 @@ class ContactUpdate(BaseModel):
     def nom_not_empty(cls, v: str | None) -> str | None:
         if v is not None and not v.strip():
             raise ValueError("nom must not be empty")
-        return v.strip() if v else v
+        return v.strip().upper() if v else v
 
 
 class ContactRead(BaseModel):

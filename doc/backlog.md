@@ -88,6 +88,7 @@ Corriger le processus de sauvegarde automatique pour inclure systématiquement l
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
+| UX2 | Corrections UX contacts & factures | v1.7.3 | BIZ-202, BIZ-203, BIZ-204, BIZ-205 | 2026-05-14 | ~110 min | — |
 | FW | Import Word + Archivage + Export Excel | v1.7.2 | BIZ-190→197, TEC-192, CHR-194 | 2026-05-12 | ~395 min | ~2h50 |
 | BK | Backup automatique | v1.7 | BIZ-173→184, BIZ-187, BIZ-188, BIZ-189 | 2026-05-11 | ~4h40 | ~2h+ (partiel) |
 | TEC-185/BIZ-186 | Fix Chrome PDF + filigrane Payé | v1.6.3 | TEC-185, BIZ-186 | 2026-05-10 | ~40 min | — |

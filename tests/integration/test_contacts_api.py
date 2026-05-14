@@ -39,7 +39,7 @@ class TestListContacts:
         response = await client.get("/api/contacts/?type=client", headers=auth_headers)
         data = response.json()
         assert len(data) == 1
-        assert data[0]["nom"] == "Client"
+        assert data[0]["nom"] == "CLIENT"
 
     async def test_search_by_name(self, client: AsyncClient, auth_headers: dict):
         await client.post(
@@ -96,7 +96,7 @@ class TestCreateContact:
         )
         assert response.status_code == 201
         data = response.json()
-        assert data["nom"] == "Dupont"
+        assert data["nom"] == "DUPONT"
         assert data["id"] is not None
         assert data["is_active"] is True
 
@@ -107,6 +107,32 @@ class TestCreateContact:
             headers=auth_headers,
         )
         assert response.status_code == 422
+
+    async def test_nom_normalized_to_uppercase(self, client: AsyncClient, auth_headers: dict):
+        response = await client.post(
+            "/api/contacts/",
+            json={"type": "client", "nom": "  dupont  "},
+            headers=auth_headers,
+        )
+        assert response.status_code == 201
+        assert response.json()["nom"] == "DUPONT"
+
+    async def test_nom_update_normalized_to_uppercase(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        created = await client.post(
+            "/api/contacts/",
+            json={"type": "client", "nom": "dupont"},
+            headers=auth_headers,
+        )
+        contact_id = created.json()["id"]
+        response = await client.put(
+            f"/api/contacts/{contact_id}",
+            json={"nom": "  martin  "},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["nom"] == "MARTIN"
 
     async def test_requires_auth(self, client: AsyncClient):
         response = await client.post("/api/contacts/", json={"type": "client", "nom": "Test"})
@@ -170,7 +196,7 @@ class TestUpdateContact:
             headers=auth_headers,
         )
         assert response.status_code == 200
-        assert response.json()["nom"] == "Nouveau"
+        assert response.json()["nom"] == "NOUVEAU"
         assert response.json()["type"] == "client"  # unchanged
 
     async def test_returns_404_for_unknown(self, client: AsyncClient, auth_headers: dict):

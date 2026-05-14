@@ -119,6 +119,7 @@
                 @click="openHistoryDialog(data.id)"
               />
               <Button
+                v-if="authStore.isAdmin"
                 icon="pi pi-arrow-right-arrow-left"
                 size="small"
                 severity="warn"
@@ -269,6 +270,7 @@
                 @click="openHistoryDialog(data.id)"
               />
               <Button
+                v-if="authStore.isAdmin"
                 icon="pi pi-arrow-right-arrow-left"
                 size="small"
                 severity="warn"
@@ -474,11 +476,13 @@ import { inFilter, textFilter, useDataTableFilters } from '../composables/useDat
 import { formatDisplayDate } from '@/utils/format'
 import AppListLimitBanner from '@/components/ui/AppListLimitBanner.vue'
 import { useListLimitStore } from '@/stores/listLimit'
+import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const confirm = useConfirm()
 const limitStore = useListLimitStore()
+const authStore = useAuthStore()
 const LIMIT_VIEW_KEY = 'contacts'
 const toast = useToast()
 const { exportToExcel } = useTableExport()
