@@ -673,7 +673,16 @@
               <i class="pi pi-spin pi-spinner" style="font-size: 2rem" />
             </div>
             <div v-else-if="historyPdfBlobUrl" class="history-dialog__preview-frame">
+              <Button
+                v-if="isMobile"
+                icon="pi pi-external-link"
+                :label="t('invoices.open_pdf_new_tab')"
+                severity="secondary"
+                outlined
+                @click="() => window.open(historyPdfBlobUrl!, '_blank', 'noopener,noreferrer')"
+              />
               <embed
+                v-else
                 :src="`${historyPdfBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
                 type="application/pdf"
                 class="history-dialog__preview-embed"
@@ -1584,6 +1593,14 @@ onMounted(async () => {
   border: 1px solid var(--app-surface-border);
   border-radius: var(--app-surface-radius-sm);
   overflow: hidden;
+}
+
+.history-dialog__preview-link {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--app-space-4);
+  text-decoration: none;
 }
 
 .history-dialog__preview-embed {

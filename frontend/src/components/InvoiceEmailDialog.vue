@@ -65,6 +65,14 @@
       <div class="invoice-email-dialog__preview">
         <p class="invoice-email-dialog__preview-label">{{ t('invoices.email_preview') }}</p>
         <Skeleton v-if="pdfLoading" class="invoice-email-dialog__embed" border-radius="4px" />
+        <Button
+          v-else-if="pdfBlobUrl && isMobile"
+          icon="pi pi-external-link"
+          :label="t('invoices.open_pdf_new_tab')"
+          severity="secondary"
+          outlined
+          @click="() => window.open(pdfBlobUrl!, '_blank', 'noopener,noreferrer')"
+        />
         <embed
           v-else-if="pdfBlobUrl"
           :src="`${pdfBlobUrl}#toolbar=0&navpanes=0&pagemode=none&view=FitH`"
@@ -113,6 +121,7 @@ import {
   getInvoiceEmailPreviewApi,
   sendInvoiceEmailApi,
 } from '@/api/invoices'
+import { useBreakpoints } from '@/composables/useBreakpoints'
 
 const props = defineProps<{ invoiceId: number | null }>()
 const emit = defineEmits<{
@@ -133,6 +142,7 @@ const pdfBlobUrl = ref<string | null>(null)
 
 const toast = useToast()
 const { t } = useI18n()
+const { isMobile } = useBreakpoints()
 
 watch(
   () => props.invoiceId,
@@ -267,6 +277,15 @@ function onHide(): void {
   border: 1px solid var(--p-content-border-color, #dee2e6);
   border-radius: 4px;
   display: block;
+}
+
+.invoice-email-dialog__preview-link {
+  flex: 1;
+  min-height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-decoration: none;
 }
 
 .invoice-email-dialog__preview-empty {

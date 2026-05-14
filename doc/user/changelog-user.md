@@ -4,6 +4,22 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.7.3 *(à venir)*
+
+### Tous les utilisateurs
+
+#### Contacts — corrections d'affichage
+- Le nom complet du contact s'affiche correctement (NOM Prénom) dans le dialogue de fusion, sans espace superflu.
+- L'aperçu d'une facture en PDF sur iPhone/iPad ouvre désormais le document dans un nouvel onglet au lieu d'afficher un espace vide.
+
+### Administrateur
+
+#### Contacts — droits d'accès et saisie
+- Le bouton « Fusionner » dans la liste des contacts n'est désormais visible que par les administrateurs, conformément aux droits de l'action.
+- Le nom d'un contact est automatiquement mis en **majuscules** et débarrassé des espaces superflus lors de la création ou de la modification.
+
+---
+
 ## Version 1.7.2 — 12 mai 2026
 
 ### Tous les utilisateurs

@@ -11,6 +11,13 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **BIZ-202** — Contacts : le bouton « Fusionner » est désormais masqué pour les utilisateurs non-administrateurs (seuls les admins peuvent fusionner des contacts)
+- **BIZ-203** — Dialogue de fusion contacts : affichage du nom complet (NOM Prénom) via une computed property — évite les espaces parasites liés aux données
+- **BIZ-204** — Contacts : le nom (`nom`) est désormais normalisé en majuscules et dépouillé des espaces à la création et à la modification
+- **BIZ-205** — Aperçu PDF sur iOS Safari : remplacement de l'`<embed>` non supporté par un bouton « Ouvrir le PDF » (nouvel onglet) sur mobile
+- **BIZ-205** — Historique contact : aperçu PDF ajouté pour les factures client (colonne droite, même layout que les factures fournisseur)
+
 ## [1.7.2] — 2026-05-12
 
 ### Sécurité
