@@ -37,7 +37,7 @@ Aucun lot actif en cours de livraison.
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
-| BIZ-201 | Backup auto — inclure les fichiers du répertoire data/pdfs | P1 | ~20 min | 2026-05-14 |  | |
+| ~~BIZ-201~~ | ~~Backup auto — inclure les fichiers du répertoire data/pdfs~~ | ~~P1~~ | ~~20 min~~ | ~~2026-05-14~~ | ~~2026-05-15~~ | ~~2026-05-15~~ |
 
 ---
 
