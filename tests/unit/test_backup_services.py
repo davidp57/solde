@@ -368,5 +368,3 @@ class TestBackupJobPdfsInclusion:
         assert expected_pdfs not in captured[0], (
             f"data/pdfs ne devrait pas être dans src_paths: {captured[0]}"
         )
-
-
