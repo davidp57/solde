@@ -3,11 +3,13 @@
 Tests:
 - backup_destination_service: write_rclone_config, test_destination_connection
 - backup_restore_service: _do_test_restore on valid/corrupted/empty SQLite files
+- backup_scheduler: src_paths construction (BIZ-201 — data/pdfs inclusion)
 """
 
 from __future__ import annotations
 
 import sqlite3
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -214,3 +216,150 @@ class TestTestRestore:
         _make_valid_db(db)
         result = await service_test_restore(str(db))
         assert result.ok is True
+
+
+# ---------------------------------------------------------------------------
+# backup_scheduler — src_paths construction (BIZ-201)
+# ---------------------------------------------------------------------------
+
+
+def _make_scheduler_patches(
+    fake_backup: Path,
+    dest: BackupDestination,
+    sync_side_effect,
+) -> list:
+    """Return a list of patch objects for _run_backup_job_inner dependencies."""
+    mock_db = MagicMock()
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.all.return_value = [dest]
+    mock_db.execute = AsyncMock(return_value=mock_result)
+    mock_db.commit = AsyncMock()
+
+    mock_session_ctx = MagicMock()
+    mock_session_ctx.__aenter__ = AsyncMock(return_value=mock_db)
+    mock_session_ctx.__aexit__ = AsyncMock(return_value=False)
+    get_session_mock = MagicMock(return_value=mock_session_ctx)
+
+    return [
+        patch("backend.services.backup_service.create_backup", AsyncMock(return_value=fake_backup)),
+        patch(
+            "backend.services.backup_restore_service.test_restore",
+            AsyncMock(return_value=MagicMock(ok=True)),
+        ),
+        patch("backend.database.get_session", get_session_mock),
+        patch("backend.services.backup_destination_service.refresh_onedrive_tokens", AsyncMock()),
+        patch("backend.services.backup_destination_service.write_rclone_config", MagicMock()),
+        patch(
+            "backend.services.backup_destination_service.sync_destination",
+            side_effect=sync_side_effect,
+        ),
+        patch("backend.services.backup_scheduler._update_run_status", AsyncMock()),
+    ]
+
+
+class TestBackupJobPdfsInclusion:
+    """BIZ-201: data/pdfs must always be included in the backup src_paths."""
+
+    @pytest.mark.asyncio
+    async def test_pdfs_included_snapshot_mode(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """data/pdfs is included in src_paths in snapshot (single-file) mode."""
+        (tmp_path / "data" / "pdfs").mkdir(parents=True)
+        monkeypatch.chdir(tmp_path)
+
+        fake_backup = tmp_path / "solde_backup_20260101_120000.db"
+        fake_backup.write_bytes(b"fake")
+        dest = _make_dest(name="local-dest", rclone_remote_name="local")
+        captured: list[list[str]] = []
+
+        async def _fake_sync(dest, src_paths, run_ts, on_progress=None):
+            captured.append(list(src_paths))
+
+        from backend.services import backup_scheduler as sched
+
+        patches = _make_scheduler_patches(fake_backup, dest, _fake_sync)
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            await sched._run_backup_job_inner(
+                db_path="data/solde.db",
+                backup_dir="data/backups",
+                include_uploads=False,
+                include_all_backups=False,
+                notify_on_failure=False,
+            )
+
+        expected_pdfs = str((tmp_path / "data" / "pdfs").resolve())
+        assert len(captured) == 1
+        assert expected_pdfs in captured[0], f"data/pdfs missing from src_paths: {captured[0]}"
+
+    @pytest.mark.asyncio
+    async def test_pdfs_included_full_backup_mode(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """data/pdfs is included in src_paths in full-backup (include_all_backups) mode."""
+        (tmp_path / "data" / "pdfs").mkdir(parents=True)
+        monkeypatch.chdir(tmp_path)
+
+        fake_backup = tmp_path / "solde_backup_20260101_120000.db"
+        fake_backup.write_bytes(b"fake")
+        dest = _make_dest(name="local-dest", rclone_remote_name="local")
+        captured: list[list[str]] = []
+
+        async def _fake_sync(dest, src_paths, run_ts, on_progress=None):
+            captured.append(list(src_paths))
+
+        from backend.services import backup_scheduler as sched
+
+        patches = _make_scheduler_patches(fake_backup, dest, _fake_sync)
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            await sched._run_backup_job_inner(
+                db_path="data/solde.db",
+                backup_dir="data/backups",
+                include_uploads=False,
+                include_all_backups=True,
+                notify_on_failure=False,
+            )
+
+        expected_pdfs = str((tmp_path / "data" / "pdfs").resolve())
+        assert len(captured) == 1
+        assert expected_pdfs in captured[0], f"data/pdfs missing from src_paths: {captured[0]}"
+
+    @pytest.mark.asyncio
+    async def test_pdfs_skipped_when_directory_absent(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """data/pdfs is NOT added to src_paths when the directory does not exist."""
+        # data/pdfs directory intentionally NOT created
+        monkeypatch.chdir(tmp_path)
+
+        fake_backup = tmp_path / "solde_backup_20260101_120000.db"
+        fake_backup.write_bytes(b"fake")
+        dest = _make_dest(name="local-dest", rclone_remote_name="local")
+        captured: list[list[str]] = []
+
+        async def _fake_sync(dest, src_paths, run_ts, on_progress=None):
+            captured.append(list(src_paths))
+
+        from backend.services import backup_scheduler as sched
+
+        patches = _make_scheduler_patches(fake_backup, dest, _fake_sync)
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            await sched._run_backup_job_inner(
+                db_path="data/solde.db",
+                backup_dir="data/backups",
+                include_uploads=False,
+                include_all_backups=False,
+                notify_on_failure=False,
+            )
+
+        expected_pdfs = str((tmp_path / "data" / "pdfs").resolve())
+        assert len(captured) == 1
+        assert expected_pdfs not in captured[0], (
+            f"data/pdfs should not be in src_paths: {captured[0]}"
+        )

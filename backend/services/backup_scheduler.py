@@ -239,6 +239,9 @@ async def _run_backup_job_inner(
             src_paths = [str(backup_file)]
         if include_uploads:
             src_paths.append(str(Path("data/uploads").resolve()))
+        pdfs_dir = Path("data/pdfs")
+        if pdfs_dir.exists():
+            src_paths.append(str(pdfs_dir.resolve()))
 
         dest_count = len(destinations)
         for i, dest in enumerate(destinations):

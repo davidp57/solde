@@ -12,6 +12,11 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Corrigé
+- **BIZ-201** — Backup automatique : le répertoire `data/pdfs` (factures et documents PDF) est désormais inclus systématiquement dans chaque sauvegarde envoyée vers les destinations distantes
+
+## [1.7.3] — 2026-05-14
+
+### Corrigé
 - **BIZ-202** — Contacts : le bouton « Fusionner » est désormais masqué pour les utilisateurs non-administrateurs (seuls les admins peuvent fusionner des contacts)
 - **BIZ-203** — Dialogue de fusion contacts : affichage du nom complet (NOM Prénom) via une computed property — évite les espaces parasites liés aux données
 - **BIZ-204** — Contacts : le nom (`nom`) est désormais normalisé en majuscules et dépouillé des espaces à la création et à la modification
