@@ -9,6 +9,7 @@ Tests:
 from __future__ import annotations
 
 import sqlite3
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -256,18 +257,6 @@ def _make_scheduler_patches(
     ]
 
 
-def _make_dest_obj(name: str = "local-dest") -> BackupDestination:
-    dest = BackupDestination()
-    dest.id = 1
-    dest.name = name
-    dest.type = "local"
-    dest.rclone_remote_name = "local"
-    dest.rclone_config = None
-    dest.target_path = "/backup"
-    dest.enabled = True
-    return dest
-
-
 class TestBackupJobPdfsInclusion:
     """BIZ-201: data/pdfs must always be included in the backup src_paths."""
 
@@ -281,7 +270,7 @@ class TestBackupJobPdfsInclusion:
 
         fake_backup = tmp_path / "solde_backup_20260101_120000.db"
         fake_backup.write_bytes(b"fake")
-        dest = _make_dest_obj()
+        dest = _make_dest(name="local-dest", rclone_remote_name="local")
         captured: list[list[str]] = []
 
         async def _fake_sync(dest, src_paths, run_ts, on_progress=None):
@@ -290,7 +279,9 @@ class TestBackupJobPdfsInclusion:
         from backend.services import backup_scheduler as sched
 
         patches = _make_scheduler_patches(fake_backup, dest, _fake_sync)
-        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6]:
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
             await sched._run_backup_job_inner(
                 db_path="data/solde.db",
                 backup_dir="data/backups",
@@ -301,7 +292,7 @@ class TestBackupJobPdfsInclusion:
 
         expected_pdfs = str((tmp_path / "data" / "pdfs").resolve())
         assert len(captured) == 1
-        assert expected_pdfs in captured[0], f"data/pdfs absent de src_paths: {captured[0]}"
+        assert expected_pdfs in captured[0], f"data/pdfs missing from src_paths: {captured[0]}"
 
     @pytest.mark.asyncio
     async def test_pdfs_included_full_backup_mode(
@@ -313,7 +304,7 @@ class TestBackupJobPdfsInclusion:
 
         fake_backup = tmp_path / "solde_backup_20260101_120000.db"
         fake_backup.write_bytes(b"fake")
-        dest = _make_dest_obj()
+        dest = _make_dest(name="local-dest", rclone_remote_name="local")
         captured: list[list[str]] = []
 
         async def _fake_sync(dest, src_paths, run_ts, on_progress=None):
@@ -322,7 +313,9 @@ class TestBackupJobPdfsInclusion:
         from backend.services import backup_scheduler as sched
 
         patches = _make_scheduler_patches(fake_backup, dest, _fake_sync)
-        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6]:
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
             await sched._run_backup_job_inner(
                 db_path="data/solde.db",
                 backup_dir="data/backups",
@@ -333,7 +326,7 @@ class TestBackupJobPdfsInclusion:
 
         expected_pdfs = str((tmp_path / "data" / "pdfs").resolve())
         assert len(captured) == 1
-        assert expected_pdfs in captured[0], f"data/pdfs absent de src_paths: {captured[0]}"
+        assert expected_pdfs in captured[0], f"data/pdfs missing from src_paths: {captured[0]}"
 
     @pytest.mark.asyncio
     async def test_pdfs_skipped_when_directory_absent(
@@ -345,7 +338,7 @@ class TestBackupJobPdfsInclusion:
 
         fake_backup = tmp_path / "solde_backup_20260101_120000.db"
         fake_backup.write_bytes(b"fake")
-        dest = _make_dest_obj()
+        dest = _make_dest(name="local-dest", rclone_remote_name="local")
         captured: list[list[str]] = []
 
         async def _fake_sync(dest, src_paths, run_ts, on_progress=None):
@@ -354,7 +347,9 @@ class TestBackupJobPdfsInclusion:
         from backend.services import backup_scheduler as sched
 
         patches = _make_scheduler_patches(fake_backup, dest, _fake_sync)
-        with patches[0], patches[1], patches[2], patches[3], patches[4], patches[5], patches[6]:
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
             await sched._run_backup_job_inner(
                 db_path="data/solde.db",
                 backup_dir="data/backups",
@@ -366,5 +361,5 @@ class TestBackupJobPdfsInclusion:
         expected_pdfs = str((tmp_path / "data" / "pdfs").resolve())
         assert len(captured) == 1
         assert expected_pdfs not in captured[0], (
-            f"data/pdfs ne devrait pas être dans src_paths: {captured[0]}"
+            f"data/pdfs should not be in src_paths: {captured[0]}"
         )
