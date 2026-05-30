@@ -99,9 +99,34 @@ describe('ClientInvoiceForm — normalizeDecimalInput', () => {
   })
 
   it('blocks submission and shows error when total is negative', async () => {
-    const wrapper = await mountAndGetPriceInput()
-    const priceInput = wrapper.find('.invoice-form__price')
+    // Use a date-picker stub that immediately emits a date so form.date is set,
+    // otherwise submit() returns early on the !form.date guard instead of the
+    // hasNegativeTotal guard we want to exercise here.
+    const stubsWithDate = {
+      ...stubs,
+      AppDatePicker: defineComponent({
+        props: ['modelValue'],
+        emits: ['update:modelValue'],
+        setup(_, { emit }) {
+          emit('update:modelValue', new Date(2026, 4, 30))
+          return () => h('div')
+        },
+      }),
+    }
+    const wrapper = mount(ClientInvoiceForm, {
+      props: { invoice: null, contacts: [{ id: 1, last_name: 'Test', first_name: '', blocked: false }] },
+      global: { stubs: stubsWithDate },
+    })
+    await nextTick()
+    await nextTick()
 
+    // Set contact_id via the contact Select stub
+    const contactSelect = wrapper.find('select')
+    await contactSelect.setValue('1')
+    await nextTick()
+
+    // Set a negative price
+    const priceInput = wrapper.find('.invoice-form__price')
     await priceInput.setValue('-100')
     await priceInput.trigger('input')
     await nextTick()
@@ -114,7 +139,7 @@ describe('ClientInvoiceForm — normalizeDecimalInput', () => {
     const saveBtn = wrapper.find('button[type="submit"]')
     expect(saveBtn.attributes('disabled')).toBeDefined()
 
-    // Submitting the form does not call the API
+    // Submitting the form does not call the API (hasNegativeTotal guard)
     vi.mocked(createInvoiceApi).mockClear()
     await wrapper.find('form').trigger('submit')
     await nextTick()

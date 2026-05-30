@@ -316,11 +316,13 @@ function normalizeDecimalInput(
   if (field === 'quantity') {
     line[field] = isNaN(parsed) ? 0 : Math.max(0, parsed)
   } else {
-    // For unit_price: only update the reactive value when we have a valid
-    // finite number. Leaving it unchanged for intermediate states (e.g. "-",
-    // "-0.", empty) prevents Vue from re-rendering the input and wiping what
-    // the user is currently typing.
-    if (!isNaN(parsed)) {
+    // For unit_price: only update the reactive value when the input is in a
+    // stable (non-intermediate) state. Intermediate states such as "-",
+    // "12.", or "-0." must not trigger a reactive update, otherwise Vue
+    // re-renders the input and erases what the user is typing.
+    // Number.isFinite also rejects Infinity / -Infinity.
+    const isIntermediate = normalized === '' || normalized === '-' || normalized.endsWith('.')
+    if (!isIntermediate && Number.isFinite(parsed)) {
       line[field] = parsed
     }
   }
