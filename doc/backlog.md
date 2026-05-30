@@ -37,7 +37,7 @@ Aucun lot actif en cours de livraison.
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
-| BIZ-202 | Ligne de remise (prix négatif) dans une facture client | P2 | ~20 min | 2026-05-30 | | |
+| BIZ-202 | Ligne de remise (prix négatif) dans une facture client | P2 | ~20 min | 2026-05-30 | 2026-05-30 | 2026-05-30 |
 | ~~BIZ-201~~ | ~~Backup auto — inclure les fichiers du répertoire data/pdfs~~ | ~~P1~~ | ~~20 min~~ | ~~2026-05-14~~ | ~~2026-05-15~~ | ~~2026-05-15~~ |
 
 ---
@@ -104,7 +104,7 @@ Corriger le processus de sauvegarde automatique pour inclure systématiquement l
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
-| UX2 | Corrections UX contacts & factures | v1.7.3 | BIZ-202, BIZ-203, BIZ-204, BIZ-205 | 2026-05-14 | ~110 min | — |
+| UX2 | Corrections UX contacts & factures | v1.7.3 | BIZ-203, BIZ-204, BIZ-205 | 2026-05-14 | ~110 min | — |
 | FW | Import Word + Archivage + Export Excel | v1.7.2 | BIZ-190→197, TEC-192, CHR-194 | 2026-05-12 | ~395 min | ~2h50 |
 | BK | Backup automatique | v1.7 | BIZ-173→184, BIZ-187, BIZ-188, BIZ-189 | 2026-05-11 | ~4h40 | ~2h+ (partiel) |
 | TEC-185/BIZ-186 | Fix Chrome PDF + filigrane Payé | v1.6.3 | TEC-185, BIZ-186 | 2026-05-10 | ~40 min | — |
