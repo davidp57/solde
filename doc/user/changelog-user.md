@@ -16,7 +16,7 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
-## Version 1.7.3 *(à venir)*
+## Version 1.7.3 — 14 mai 2026
 
 ### Tous les utilisateurs
 
