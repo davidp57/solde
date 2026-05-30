@@ -313,7 +313,17 @@ function normalizeDecimalInput(
     if (sel !== null) input.setSelectionRange(sel, sel)
   }
   const parsed = parseFloat(normalized)
-  line[field] = isNaN(parsed) ? 0 : Math.max(0, parsed)
+  if (field === 'quantity') {
+    line[field] = isNaN(parsed) ? 0 : Math.max(0, parsed)
+  } else {
+    // For unit_price: only update the reactive value when we have a valid
+    // finite number. Leaving it unchanged for intermediate states (e.g. "-",
+    // "-0.", empty) prevents Vue from re-rendering the input and wiping what
+    // the user is currently typing.
+    if (!isNaN(parsed)) {
+      line[field] = parsed
+    }
+  }
 }
 
 function addLine() {
@@ -401,6 +411,7 @@ function formatDate(d: Date): string {
 
 async function submit() {
   if (!form.contact_id || !form.date) return
+  if (hasNegativeTotal.value) return
   saving.value = true
   fieldErrors.value = {}
   try {
