@@ -11,13 +11,16 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.7.5] — 2026-05-30
+
 ### Corrigé
 - **BIZ-201** — Backup automatique : le répertoire `data/pdfs` (factures et documents PDF) est désormais inclus systématiquement dans chaque sauvegarde envoyée vers les destinations distantes
+- **BIZ-202** — Factures client : il est désormais possible de saisir un prix unitaire négatif sur une ligne (remise, trop-perçu). La soumission reste bloquée si le total de la facture est négatif
 
 ## [1.7.3] — 2026-05-14
 
 ### Corrigé
-- **BIZ-202** — Contacts : le bouton « Fusionner » est désormais masqué pour les utilisateurs non-administrateurs (seuls les admins peuvent fusionner des contacts)
+- Contacts : le bouton « Fusionner » est désormais masqué pour les utilisateurs non-administrateurs (seuls les admins peuvent fusionner des contacts)
 - **BIZ-203** — Dialogue de fusion contacts : affichage du nom complet (NOM Prénom) via une computed property — évite les espaces parasites liés aux données
 - **BIZ-204** — Contacts : le nom (`nom`) est désormais normalisé en majuscules et dépouillé des espaces à la création et à la modification
 - **BIZ-205** — Aperçu PDF sur iOS Safari : remplacement de l'`<embed>` non supporté par un bouton « Ouvrir le PDF » (nouvel onglet) sur mobile

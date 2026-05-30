@@ -37,7 +37,8 @@ Aucun lot actif en cours de livraison.
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
-| BIZ-201 | Backup auto — inclure les fichiers du répertoire data/pdfs | P1 | ~20 min | 2026-05-14 |  | |
+| BIZ-202 | Ligne de remise (prix négatif) dans une facture client | P2 | ~20 min | 2026-05-30 | 2026-05-30 | 2026-05-30 |
+| ~~BIZ-201~~ | ~~Backup auto — inclure les fichiers du répertoire data/pdfs~~ | ~~P1~~ | ~~20 min~~ | ~~2026-05-14~~ | ~~2026-05-15~~ | ~~2026-05-15~~ |
 
 ---
 
@@ -78,6 +79,21 @@ Exécuter la quality gate complète (ruff check + format, mypy, pytest, eslint, 
 
 Permettre de modifier ou supprimer les opérations bancaires créées manuellement depuis BankView (opérations sans import source).
 
+### BIZ-202 — Ligne de remise (prix négatif) dans une facture client
+
+**Problème :** il est impossible de saisir un prix négatif sur une ligne de facture client (ex. : remise, trop-perçu à déduire). Le composant d'édition transforme tout prix négatif en `0` dès la saisie, et le total ne reflète pas la ligne.
+
+**Cause :** dans `frontend/src/components/ClientInvoiceForm.vue`, la fonction `normalizeDecimalInput` applique `Math.max(0, parsed)` indifféremment aux champs `quantity` et `unit_price`, ce qui écrase toute valeur négative par zéro.
+
+**Correctif frontend :**
+- Dans `normalizeDecimalInput`, ne clamper à `≥ 0` que pour `quantity` ; laisser `unit_price` accepter les négatifs.
+- Conserver la garde `hasNegativeTotal` (le total de la facture ne peut pas être négatif) et améliorer le message d'erreur associé pour indiquer que c'est la ligne de remise qui rend le total négatif.
+
+**Backend :** aucun changement — `unit_price` n'a pas de contrainte non-négative dans `InvoiceLineBase`, et `validate_client_total` rejette déjà les totaux négatifs.
+
+**Tests :** ajouter un test Vitest vérifiant que `normalizeDecimalInput` accepte bien un prix négatif et que `computedTotal` / `hasNegativeTotal` se comportent correctement.
+
+
 ### BIZ-201 — Backup auto — inclure les fichiers du répertoire data/pdfs
 
 Corriger le processus de sauvegarde automatique pour inclure systématiquement les fichiers présents dans `data/pdfs` (factures et documents PDF générés/stockés). Vérifier le comportement pour les différents types de destination (local, SMB, OneDrive) et pour les deux modes d'envoi (snapshot seul vs dossier complet), puis ajouter des tests de non-régression backend sur la présence de `data/pdfs` dans l'artefact de sauvegarde.
@@ -88,7 +104,7 @@ Corriger le processus de sauvegarde automatique pour inclure systématiquement l
 
 | Lot | Nom | Version | Tickets | Terminé | Est. Copilot | Réel Copilot |
 | --- | --- | --- | --- | --- | --- | --- |
-| UX2 | Corrections UX contacts & factures | v1.7.3 | BIZ-202, BIZ-203, BIZ-204, BIZ-205 | 2026-05-14 | ~110 min | — |
+| UX2 | Corrections UX contacts & factures | v1.7.3 | BIZ-203, BIZ-204, BIZ-205 | 2026-05-14 | ~110 min | — |
 | FW | Import Word + Archivage + Export Excel | v1.7.2 | BIZ-190→197, TEC-192, CHR-194 | 2026-05-12 | ~395 min | ~2h50 |
 | BK | Backup automatique | v1.7 | BIZ-173→184, BIZ-187, BIZ-188, BIZ-189 | 2026-05-11 | ~4h40 | ~2h+ (partiel) |
 | TEC-185/BIZ-186 | Fix Chrome PDF + filigrane Payé | v1.6.3 | TEC-185, BIZ-186 | 2026-05-10 | ~40 min | — |
