@@ -13,6 +13,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ### Corrigé
 - **BIZ-201** — Backup automatique : le répertoire `data/pdfs` (factures et documents PDF) est désormais inclus systématiquement dans chaque sauvegarde envoyée vers les destinations distantes
+- **BIZ-202** — Factures client : il est désormais possible de saisir un prix unitaire négatif sur une ligne (remise, trop-perçu). La soumission reste bloquée si le total de la facture est négatif
 
 ## [1.7.3] — 2026-05-14
 
