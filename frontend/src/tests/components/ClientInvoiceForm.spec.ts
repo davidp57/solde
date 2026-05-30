@@ -68,6 +68,21 @@ describe('ClientInvoiceForm — normalizeDecimalInput', () => {
     expect(grandTotal.text()).toContain('-4.00')
   })
 
+  it("ne réinitialise pas le champ quand l'utilisateur tape uniquement '-'", async () => {
+    const wrapper = await mountAndGetPriceInput()
+    const priceInput = wrapper.find<HTMLInputElement>('.invoice-form__price')
+    expect(priceInput.exists()).toBe(true)
+
+    // Simulate typing just the minus sign (intermediate state)
+    await priceInput.setValue('-')
+    await priceInput.trigger('input')
+    await nextTick()
+
+    // The reactive value should NOT have been updated (still 0 or previous),
+    // and the DOM input value must still show "-" (not been overwritten with "0")
+    expect(priceInput.element.value).toBe('-')
+  })
+
   it('empêche une quantité négative', async () => {
     const wrapper = await mountAndGetPriceInput()
     const qtyInput = wrapper.find('.invoice-form__quantity')
