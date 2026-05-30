@@ -4,7 +4,19 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
-## Version 1.7.3 *(à venir)*
+## Version 1.7.5 — 30 mai 2026
+
+### Tous les utilisateurs
+
+#### Sauvegardes
+- Les fichiers PDF des factures (répertoire `data/pdfs`) sont désormais inclus dans chaque sauvegarde automatique envoyée vers les destinations distantes.
+
+#### Factures client — lignes de remise
+- Il est désormais possible de saisir un **prix unitaire négatif** sur une ligne de facture (par exemple pour une remise ou un trop-perçu à déduire). Un message d'erreur s'affiche si le total de la facture devient négatif, et la validation reste bloquée tant que ce total n'est pas positif.
+
+---
+
+## Version 1.7.3 — 14 mai 2026
 
 ### Tous les utilisateurs
 
