@@ -276,9 +276,10 @@ Reconciled transactions show a green “Rapproché” badge and disappear when f
 
 1. Retrieve salary slips for the month from the CEA platform (or equivalent).
 2. For each employee, create a salary slip under Salaires → Fiches de salaire → Nouvelle fiche.
-3. Verify the read-only **Net calculé** field matches the net amount on the bulletin. Any discrepancy indicates a data entry error.
-4. Save — accounting entries are generated automatically.
-5. Check the monthly summary (“Récapitulatif mensuel”) to verify totals (gross, net, contributions, total cost).
+3. Fill in the CEA section from the pay slip: employee contributions, employer contributions, withholding tax, and **Net à payer** (mandatory editable field — enter the exact net amount shown on the bulletin).
+4. Verify the read-only **Net calculé** field (`gross − employee_charges − tax`) matches the net on the bulletin. Any discrepancy indicates a data entry error. Note: **Net calculé** is a verification helper only; it does **not** auto-fill **Net à payer**.
+5. Save — accounting entries are generated automatically.
+6. Check the monthly summary ("Récapitulatif mensuel") to verify totals (gross, net, contributions, total cost).
 
 ### Employees
 
@@ -286,7 +287,13 @@ Manage employees under Salaires → Employés. Create an employee with name, opt
 
 ### Salary slips
 
-Create a salary slip under Salaires → Fiches de salaire. Select the employee, the period (month/year), enter gross salary, employer contributions, employee contributions (and withholding tax), net pay. For CDD employees, entering hours automatically computes the gross (hours × hourly rate). The "Copier la fiche précédente" button pre-fills contributions from the previous month to save time. Validating a salary slip generates accounting entries automatically; those entries are **dated to the last day of the month** of the pay period.
+Create a salary slip under Salaires → Fiches de salaire. Select the employee, the period (month/year), enter gross salary, employer contributions, employee contributions, withholding tax, and **net pay** (all sourced from the CEA bulletin). For CDD employees, entering hours automatically computes the gross (hours × hourly rate).
+
+Two distinct net fields exist in the form:
+- **Net à payer** (editable, mandatory): the net amount copied from the CEA bulletin. Used for accounting entries (debit account 421000 → credit account 512100).
+- **Net calculé** (read-only): auto-computed as `gross − employee_charges − tax`. Shown only as a verification cross-check; does **not** auto-fill Net à payer and is never saved.
+
+The "Copier la fiche précédente" button pre-fills contributions from the previous month to save time. Validating a salary slip generates accounting entries automatically; those entries are **dated to the last day of the month** of the pay period.
 
 ---
 
