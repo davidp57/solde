@@ -313,7 +313,11 @@ function normalizeDecimalInput(
     if (sel !== null) input.setSelectionRange(sel, sel)
   }
   const parsed = parseFloat(normalized)
-  line[field] = isNaN(parsed) ? 0 : Math.max(0, parsed)
+  if (field === 'quantity') {
+    line[field] = isNaN(parsed) ? 0 : Math.max(0, parsed)
+  } else {
+    line[field] = isNaN(parsed) ? 0 : parsed
+  }
 }
 
 function addLine() {
