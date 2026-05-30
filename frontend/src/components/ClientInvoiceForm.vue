@@ -411,6 +411,7 @@ function formatDate(d: Date): string {
 
 async function submit() {
   if (!form.contact_id || !form.date) return
+  if (hasNegativeTotal.value) return
   saving.value = true
   fieldErrors.value = {}
   try {

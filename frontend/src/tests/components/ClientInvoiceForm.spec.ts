@@ -34,12 +34,13 @@ vi.mock('../../utils/contact', () => ({
 }))
 
 const stubs = {
-  Button: defineComponent({ props: ['label', 'loading', 'disabled', 'severity', 'icon', 'size', 'text', 'outlined', 'type'], emits: ['click'], setup(_, { slots }) { return () => h('button', {}, slots.default?.()) } }),
+  Button: defineComponent({ props: ['label', 'loading', 'disabled', 'severity', 'icon', 'size', 'text', 'outlined', 'type'], emits: ['click'], setup(props, { slots }) { return () => h('button', { type: props.type, disabled: props.disabled }, slots.default?.()) } }),
   Select: defineComponent({ props: ['modelValue', 'options', 'optionLabel', 'optionValue', 'placeholder'], emits: ['update:modelValue'], setup(props, { emit }) { return () => h('select', { onChange: (e: Event) => emit('update:modelValue', (e.target as HTMLSelectElement).value) }) } }),
   InputText: defineComponent({ props: ['modelValue'], emits: ['update:modelValue'], setup(props, { emit }) { return () => h('input', { value: props.modelValue, onInput: (e: Event) => emit('update:modelValue', (e.target as HTMLInputElement).value) }) } }),
   AppDatePicker: defineComponent({ props: ['modelValue'], emits: ['update:modelValue'], setup() { return () => h('div') } }),
 }
 
+import { createInvoiceApi } from '../../api/invoices'
 import ClientInvoiceForm from '../../components/ClientInvoiceForm.vue'
 
 describe('ClientInvoiceForm — normalizeDecimalInput', () => {
@@ -54,7 +55,7 @@ describe('ClientInvoiceForm — normalizeDecimalInput', () => {
     return wrapper
   }
 
-  it('accepte un prix unitaire négatif (ligne de remise)', async () => {
+  it('accepts a negative unit price (discount line)', async () => {
     const wrapper = await mountAndGetPriceInput()
     const priceInput = wrapper.find('.invoice-form__price')
     expect(priceInput.exists()).toBe(true)
@@ -68,7 +69,7 @@ describe('ClientInvoiceForm — normalizeDecimalInput', () => {
     expect(grandTotal.text()).toContain('-4.00')
   })
 
-  it("ne réinitialise pas le champ quand l'utilisateur tape uniquement '-'", async () => {
+  it("does not reset the field when the user types only '-'", async () => {
     const wrapper = await mountAndGetPriceInput()
     const priceInput = wrapper.find<HTMLInputElement>('.invoice-form__price')
     expect(priceInput.exists()).toBe(true)
@@ -83,7 +84,7 @@ describe('ClientInvoiceForm — normalizeDecimalInput', () => {
     expect(priceInput.element.value).toBe('-')
   })
 
-  it('empêche une quantité négative', async () => {
+  it('prevents a negative quantity', async () => {
     const wrapper = await mountAndGetPriceInput()
     const qtyInput = wrapper.find('.invoice-form__quantity')
     expect(qtyInput.exists()).toBe(true)
@@ -97,7 +98,7 @@ describe('ClientInvoiceForm — normalizeDecimalInput', () => {
     expect(grandTotal.text()).toContain('0.00')
   })
 
-  it('désactive la soumission si le total est négatif', async () => {
+  it('blocks submission and shows error when total is negative', async () => {
     const wrapper = await mountAndGetPriceInput()
     const priceInput = wrapper.find('.invoice-form__price')
 
@@ -105,7 +106,18 @@ describe('ClientInvoiceForm — normalizeDecimalInput', () => {
     await priceInput.trigger('input')
     await nextTick()
 
+    // Error message is shown
     const error = wrapper.find('.invoice-form__error')
     expect(error.exists()).toBe(true)
+
+    // Save button is disabled
+    const saveBtn = wrapper.find('button[type="submit"]')
+    expect(saveBtn.attributes('disabled')).toBeDefined()
+
+    // Submitting the form does not call the API
+    vi.mocked(createInvoiceApi).mockClear()
+    await wrapper.find('form').trigger('submit')
+    await nextTick()
+    expect(createInvoiceApi).not.toHaveBeenCalled()
   })
 })
