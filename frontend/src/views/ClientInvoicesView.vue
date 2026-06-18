@@ -52,19 +52,14 @@
           </div>
         </div>
 
+        <InvoiceFilterSegments
+          :segments="statusSegments"
+          :model-value="activeSegment"
+          :aria-label="t('invoices.filter_status')"
+          @update:model-value="onSegmentChange"
+        />
+
         <div class="app-filter-grid">
-          <div class="app-field">
-            <label class="app-field__label">{{ t('invoices.filter_status') }}</label>
-            <Select
-              v-model="statusFilter"
-              :options="statusOptions"
-              option-label="label"
-              option-value="value"
-              :placeholder="t('common.all')"
-              show-clear
-              @change="loadInvoices"
-            />
-          </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
             <InputText v-model="globalFilterInput" :placeholder="t('common.filter_placeholder')" />
@@ -554,7 +549,6 @@ import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
-import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -584,6 +578,9 @@ import InvoiceFunnelHero from '../components/invoices/InvoiceFunnelHero.vue'
 import InvoiceRowActions, {
   type InvoiceRowPrimaryAction,
 } from '../components/invoices/InvoiceRowActions.vue'
+import InvoiceFilterSegments, {
+  type InvoiceFilterSegment,
+} from '../components/invoices/InvoiceFilterSegments.vue'
 import type { MenuItem } from 'primevue/menuitem'
 import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
@@ -614,6 +611,7 @@ import {
   useInvoiceMetrics,
   remainingForInvoice,
   isOverdueInvoice,
+  isOpenReceivableInvoice,
 } from '../composables/useInvoiceMetrics'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useListLimitStore } from '../stores/listLimit'
@@ -770,6 +768,77 @@ const funnelMetrics = computed(() => ({
   overdue: portfolioMetrics.value.overdueAmount,
   count: portfolioMetrics.value.visibleCount,
 }))
+
+// Quick-filter segments. Counts come from the full client-invoice snapshot:
+// fiscal-year-scoped for all/draft/paid, cross-year for overdue/unpaid (matching
+// the way loadInvoices fetches each segment).
+const fiscalYearScopedInvoices = computed(() => {
+  const fy = fiscalYearStore.selectedFiscalYear
+  if (!fy) return allClientInvoices.value
+  return allClientInvoices.value.filter((inv) => inv.date >= fy.start_date && inv.date <= fy.end_date)
+})
+
+const statusSegments = computed<InvoiceFilterSegment[]>(() => [
+  {
+    key: 'all',
+    label: t('invoices.segments.all'),
+    count: fiscalYearScopedInvoices.value.filter((inv) => inv.status !== 'irrecoverable').length,
+  },
+  {
+    key: 'overdue',
+    label: t('invoices.segments.overdue'),
+    count: allClientInvoices.value.filter(isOverdueInvoice).length,
+  },
+  {
+    key: 'unpaid',
+    label: t('invoices.segments.unpaid'),
+    count: allClientInvoices.value.filter(isOpenReceivableInvoice).length,
+  },
+  {
+    key: 'draft',
+    label: t('invoices.segments.draft'),
+    count: fiscalYearScopedInvoices.value.filter((inv) => inv.status === 'draft').length,
+  },
+  {
+    key: 'paid',
+    label: t('invoices.segments.paid'),
+    count: fiscalYearScopedInvoices.value.filter((inv) => inv.status === 'paid').length,
+  },
+])
+
+const activeSegment = computed(() => {
+  if (unpaidOnly.value) return 'unpaid'
+  if (statusFilter.value === 'overdue') return 'overdue'
+  if (statusFilter.value === 'draft') return 'draft'
+  if (statusFilter.value === 'paid') return 'paid'
+  if (statusFilter.value == null) return 'all'
+  return ''
+})
+
+function onSegmentChange(key: string): void {
+  switch (key) {
+    case 'overdue':
+      statusFilter.value = 'overdue'
+      unpaidOnly.value = false
+      break
+    case 'unpaid':
+      statusFilter.value = null
+      unpaidOnly.value = true
+      break
+    case 'draft':
+      statusFilter.value = 'draft'
+      unpaidOnly.value = false
+      break
+    case 'paid':
+      statusFilter.value = 'paid'
+      unpaidOnly.value = false
+      break
+    default:
+      statusFilter.value = null
+      unpaidOnly.value = false
+  }
+  void loadInvoices()
+}
 
 const paidInDisplayed = computed(() =>
   (displayedInvoices.value as Invoice[]).filter((inv) => inv.status === 'paid'),
