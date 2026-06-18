@@ -56,8 +56,17 @@ function toggle(event: Event): void {
   gap: var(--app-space-1);
 }
 
+/* Keep the primary action close to the status badge scale (compact). */
 .invoice-row-actions__primary {
   white-space: nowrap;
+  font-size: 0.78rem;
+  padding-block: 0.2rem;
+  padding-inline: 0.55rem;
+  gap: 0.3rem;
+}
+
+.invoice-row-actions__primary :deep(.p-button-icon) {
+  font-size: 0.78rem;
 }
 </style>
 
