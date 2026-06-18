@@ -1,4 +1,4 @@
-# dev.ps1 — Démarre le backend (FastAPI) et le frontend (Vite) dans la même session
+﻿# dev.ps1 — Démarre le backend (FastAPI) et le frontend (Vite) dans la même session
 # Usage : .\dev.ps1   |   Ctrl+C pour tout arrêter
 
 $ErrorActionPreference = "Stop"
