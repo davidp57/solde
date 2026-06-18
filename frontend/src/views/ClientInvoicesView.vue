@@ -10,68 +10,14 @@
       </template>
     </AppPageHeader>
 
-    <section class="app-stat-grid">
-      <AppStatCard
-        :label="t('invoices.client.metrics.visible_count')"
-        :value="filteredCount"
-        :breakdown="invoiceCountBreakdown"
-      />
-      <AppStatCard
-        :label="t('invoices.client.metrics.total_amount')"
-        :value="formatAmount(portfolioMetrics.totalAmount) + ' €'"
-        :caption="
-          t('invoices.client.metrics.average_amount', {
-            amount: formatAmount(portfolioMetrics.averageAmount),
-          })
-        "
-      />
-      <AppStatCard
-        :label="t('invoices.client.metrics.paid_amount')"
-        :value="formatAmount(portfolioMetrics.paidAmount) + ' €'"
-        :caption="
-          t('invoices.client.metrics.partial_count', { count: portfolioMetrics.partialCount })
-        "
-        tone="success"
-      />
-      <AppStatCard
-        :label="t('invoices.client.metrics.remaining_exercise_amount')"
-        :value="formatAmount(receivableMetrics.exerciseAmount) + ' €'"
-        :caption="
-          selectedFiscalYearLabel
-            ? t('invoices.client.metrics.exercise_count', {
-                count: receivableMetrics.exerciseCount,
-                fiscal_year: selectedFiscalYearLabel,
-              })
-            : t('invoices.client.metrics.exercise_count_all', {
-                count: receivableMetrics.exerciseCount,
-              })
-        "
-        :tone="receivableMetrics.exerciseCount > 0 ? 'warn' : 'success'"
-      />
-      <AppStatCard
-        :label="t('invoices.client.metrics.total_receivables_amount')"
-        :value="formatAmount(receivableMetrics.totalAmount) + ' €'"
-        :caption="
-          receivableMetrics.historicalCount > 0
-            ? t('invoices.client.metrics.historical_carryover', {
-                count: receivableMetrics.historicalCount,
-                amount: formatAmount(receivableMetrics.historicalAmount),
-              })
-            : t('invoices.client.metrics.total_receivables_count', {
-                count: receivableMetrics.totalCount,
-              })
-        "
-        :tone="receivableMetrics.totalCount > 0 ? 'warn' : 'success'"
-      />
-      <AppStatCard
-        :label="t('invoices.client.metrics.overdue_amount')"
-        :value="formatAmount(portfolioMetrics.overdueAmount) + ' €'"
-        :caption="
-          t('invoices.client.metrics.overdue_count', { count: portfolioMetrics.overdueCount })
-        "
-        :tone="portfolioMetrics.overdueCount > 0 ? 'danger' : 'warn'"
-      />
-    </section>
+    <InvoiceFunnelHero
+      type="client"
+      :total-invoiced="funnelMetrics.totalInvoiced"
+      :collected="funnelMetrics.collected"
+      :remaining="funnelMetrics.remaining"
+      :overdue="funnelMetrics.overdue"
+      :invoice-count="funnelMetrics.count"
+    />
 
     <AppPanel
       :title="t('invoices.client.portfolio_title')"
@@ -757,6 +703,7 @@ import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
 import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
 import InvoiceStatusBadge from '../components/invoices/InvoiceStatusBadge.vue'
 import InvoicePaymentDialog from '../components/invoices/InvoicePaymentDialog.vue'
+import InvoiceFunnelHero from '../components/invoices/InvoiceFunnelHero.vue'
 import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import { useBreakpoints } from '../composables/useBreakpoints'
@@ -770,7 +717,6 @@ import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
-import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import {
   dateRangeFilter,
@@ -932,39 +878,17 @@ const remaining = computed(() => {
   return remainingForInvoice(historyInvoice.value)
 })
 
-const selectedFiscalYearLabel = computed(() => fiscalYearStore.selectedFiscalYear?.name ?? null)
-const serverTotalCount = computed(() => limitStore.totalCounts[LIMIT_VIEW_KEY] ?? invoices.value.length)
-const filteredCount = computed(() => displayedInvoices.value.length)
 const loadedCount = computed(() => invoices.value.length)
-const invoiceCountBreakdown = computed(() => {
-  const rows: Array<{ value: number; label: string }> = [
-    {
-      value: filteredCount.value,
-      label: t('invoices.client.metrics.filtered_count_label'),
-    },
-    {
-      value: loadedCount.value,
-      label: t('invoices.client.metrics.loaded_count_label'),
-    },
-  ]
 
-  if (limitReached.value) {
-    rows.push({
-      value: serverTotalCount.value,
-      label: t('invoices.client.metrics.server_available_label'),
-    })
-  }
+const { portfolioMetrics } = useInvoiceMetrics(allClientInvoices, displayedInvoices)
 
-  return rows
-})
-const limitReached = computed(
-  () =>
-    limitStore.systemLimit > 0 &&
-    rawFetchedCount.value >= limitStore.systemLimit &&
-    serverTotalCount.value > rawFetchedCount.value,
-)
-
-const { receivableMetrics, portfolioMetrics } = useInvoiceMetrics(allClientInvoices, displayedInvoices)
+const funnelMetrics = computed(() => ({
+  totalInvoiced: portfolioMetrics.value.totalAmount,
+  collected: portfolioMetrics.value.paidAmount,
+  remaining: Math.max(0, portfolioMetrics.value.totalAmount - portfolioMetrics.value.paidAmount),
+  overdue: portfolioMetrics.value.overdueAmount,
+  count: portfolioMetrics.value.visibleCount,
+}))
 
 const paidInDisplayed = computed(() =>
   (displayedInvoices.value as Invoice[]).filter((inv) => inv.status === 'paid'),
