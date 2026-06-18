@@ -158,10 +158,7 @@
           <template #card="{ item: data }">
             <div class="app-mobile-card-row app-mobile-card-row--between">
               <span class="app-mobile-card-value" style="font-weight: 700">{{ data.number }}</span>
-              <Tag
-                :value="t(`invoices.statuses.${data.status}`)"
-                :severity="statusSeverity(data.status)"
-              />
+              <InvoiceStatusBadge :status="data.status" />
             </div>
             <div class="app-mobile-card-row">
               <span class="app-mobile-card-label">{{ t('invoices.contact') }} :</span>
@@ -325,10 +322,7 @@
           :show-add-button="false"
         >
           <template #body="{ data }">
-            <Tag
-              :value="t(`invoices.statuses.${data.status}`)"
-              :severity="statusSeverity(data.status)"
-            />
+            <InvoiceStatusBadge :status="data.status" />
           </template>
           <template #filter="{ filterModel, filterCallback }">
             <AppFilterMultiSelect
@@ -832,6 +826,7 @@ import {
 import { createPayment, listPayments, suggestChequeNumber, type Payment } from '../api/payments'
 import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
 import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
+import InvoiceStatusBadge from '../components/invoices/InvoiceStatusBadge.vue'
 import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import { useBreakpoints } from '../composables/useBreakpoints'
@@ -1136,20 +1131,6 @@ function isInvoiceEditable(invoice: Invoice): boolean {
   if (invoice.status === 'draft') return true
   if (invoice.status === 'sent' && parseFloat(invoice.paid_amount) === 0) return true
   return false
-}
-
-function statusSeverity(s: InvoiceStatus): string {
-  const map: Record<InvoiceStatus, string> = {
-    draft: 'secondary',
-    sent: 'info',
-    paid: 'success',
-    partial: 'warn',
-    overdue: 'danger',
-    disputed: 'danger',
-    irrecoverable: 'secondary',
-    archived: 'secondary',
-  }
-  return map[s] ?? 'secondary'
 }
 
 async function loadInvoices() {
