@@ -28,7 +28,29 @@ Facteur de marge actuel : **1,00** (0%) — inchangé (voir note CR2).
 
 ## Lots actifs
 
-Aucun lot actif en cours de livraison.
+### Lot RF — Refonte UI/UX (tableau de bord · factures · admin · mode sombre) — cible v1.8
+
+Source : `design_handoff_solde_refonte-v2/` (handoff Claude Design — remplace la v1, ajoute le volet **responsive**). Objectif : reprise de la **hiérarchie de l'information**, **mutualisation des composants dupliqués** et **adaptation mobile/tablette/desktop**, dans l'identité Solde (Manrope, emerald, surfaces slate). Hi-fi : reproduire la mise en page des maquettes, mais **mapper les couleurs sur les tokens du thème** (pas d'inline-styles).
+
+Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supprime le plus de duplication), puis le mode sombre (store + tokens), puis tableau de bord et écrans admin, enfin le responsive transverse. Découpage en 4–5 PR (Factures / Mode sombre / Tableau de bord / Admin / Responsive).
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-193 | Composant `InvoiceStatusBadge` mutualisé | P2 | ~15 min | 2026-06-18 | | |
+| TEC-194 | Composant `InvoiceWorkspace` paramétré par type | P1 | ~70 min | 2026-06-18 | | |
+| BIZ-206 | Migrer vues factures client/fournisseur → `InvoiceWorkspace` | P1 | ~45 min | 2026-06-18 | | |
+| TEC-195 | Store Pinia `theme` + bascule clair/sombre topbar | P2 | ~25 min | 2026-06-18 | | |
+| TEC-196 | Tokens de thème clair/sombre (preset Aura dark) + rayons sobres | P2 | ~45 min | 2026-06-18 | | |
+| TEC-197 | Composant `AppWorklist` mutualisé (« À traiter » / anomalies) | P2 | ~20 min | 2026-06-18 | | |
+| BIZ-207 | Refonte `DashboardView` — héro trésorerie, file à traiter, graphe unique | P1 | ~60 min | 2026-06-18 | | |
+| TEC-198 | Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents) | P3 | ~30 min | 2026-06-18 | | |
+| BIZ-208 | Refonte `UsersView` — matrice de rôles vivante + filtres | P2 | ~40 min | 2026-06-18 | | |
+| BIZ-209 | Refonte `SystemView` — bandeau d'état, anomalies, restauration isolée | P2 | ~50 min | 2026-06-18 | | |
+| TEC-199 | Shell de navigation adaptatif (3 breakpoints) — sidebar / rail tablette / onglets + drawer | P2 | ~50 min | 2026-06-18 | | |
+| TEC-200 | Responsive des écrans refondus — table→cartes, grilles KPI, FAB, cibles ≥44px | P2 | ~40 min | 2026-06-18 | | |
+| CHR-195 | Quality gate + CHANGELOG + docs + release v1.8 | P2 | ~30 min | 2026-06-18 | | |
+
+> Total estimé : **~520 min Copilot + 15 min gestion** (facteur de marge 1,00). Dépendances : TEC-193 précède TEC-194 ; TEC-194 précède BIZ-206 ; TEC-196 s'appuie sur TEC-195 ; TEC-197 précède BIZ-207 et BIZ-209 ; BIZ-207 bénéficie de TEC-198 (sinon dégradation gracieuse) ; TEC-200 vient **après** les écrans refondus (TEC-194, BIZ-207/208/209) et s'appuie sur le pattern mobile existant (`AppMobileCardList` + `useBreakpoints`, lot MOB). Le mode sombre étant piloté par tokens, les écrans livrés avant TEC-196 en héritent automatiquement.
 
 ---
 
@@ -43,6 +65,60 @@ Aucun lot actif en cours de livraison.
 ---
 
 ## Détails
+
+### Lot RF — Refonte UI/UX
+
+#### TEC-193 — Composant `InvoiceStatusBadge` mutualisé
+
+`statusSeverity` est redéclaré à l'identique dans `ClientInvoicesView.vue` et `SupplierInvoicesView.vue`. Créer `frontend/src/components/invoices/InvoiceStatusBadge.vue` : props `status` (+ `type` si la sémantique diffère client/fournisseur), rendu **pastille + texte** (jamais la couleur seule), mappage statut → sévérité centralisé. Réutiliser les clés i18n `invoices.statuses.*` existantes. Tests Vitest : chaque statut rend le bon libellé + la bonne classe.
+
+#### TEC-194 — Composant `InvoiceWorkspace` paramétré par type
+
+Créer `frontend/src/components/invoices/InvoiceWorkspace.vue` piloté par props : `type: 'client' | 'supplier'`, `columns: ColumnDef[]` (Libellé côté client / Référence + pièce jointe côté fournisseur), `primaryAction(row)` contextuelle selon statut (Encaisser / Relancer / Voir / Modifier / Traiter), `overflowActions[]` dans un menu `⋯` PrimeVue (Historique, PDF, Envoyer, Dupliquer, **destructif isolé** = abandon de créance ; côté fournisseur : Téléverser / Aperçu fichier), `kpi` (entonnoir). Layout : en-tête, bascule de type (segmented `Clients (n)` / `Fournisseurs (n)`), **héro entonnoir** (panneau 2 colonnes : reste à encaisser/payer + barre empilée Encaissé/À venir/En retard avec légende chiffrée), **toolbar** (segments rapides `Toutes`/`En retard`/`Impayées`/`Brouillons`/`Payées` avec compteurs + recherche, filtres avancés PrimeVue repliables), **table** (`overflow-x:auto`, `min-width:880px`, montants `tabular-nums` alignés droite), **pied de tableau** (N factures + total de la sélection). Mutualiser **le dialog de paiement** (aujourd'hui copié à l'identique). Aucun inline-style : tokens + classes utilitaires. Ne pas casser le mode mobile (`AppMobileCardList`).
+
+#### BIZ-206 — Migrer vues factures client/fournisseur → `InvoiceWorkspace`
+
+Réécrire `ClientInvoicesView.vue` et `SupplierInvoicesView.vue` comme de fines enveloppes passant leurs props à `InvoiceWorkspace`. Supprimer la duplication : KPI, toolbar, `DataTable`, `statusSeverity`, dialog de paiement. Paramétrer le store invoice par `type` (liste, segment actif, terme de recherche, total de sélection dérivé de `totalAmount`). Vérifier les query params de navigation existants (`unpaid`, `status=overdue`, etc.) toujours honorés. Tests Vitest des deux vues + non-régression des parcours.
+
+#### TEC-195 — Store Pinia `theme` + bascule clair/sombre topbar
+
+Créer `frontend/src/stores/theme.ts` : `mode: 'light' | 'dark'`, action `toggle()`, persistance `localStorage` clé `solde-theme`, respect de `prefers-color-scheme` au premier chargement. Appliquer/retirer la classe de thème sur `<html>` (l'app utilise déjà `html.dark-mode`). Ajouter l'icône lune/soleil (`pi-moon`/`pi-sun`) dans la topbar de `layouts/AppLayout.vue`. Tests : toggle, persistance, init depuis la préférence système.
+
+#### TEC-196 — Tokens de thème clair/sombre (preset Aura dark) + rayons sobres
+
+Définir les variables CSS clair **et** sombre dans `assets/main.css` (+ config preset Aura) à partir de la table Design Tokens du handoff : surfaces, bordures, textes, primaire emerald (`#10b981` clair / `#34d399` sombre), sémantiques succès/attention/danger/info avec fonds. Réduire les rayons : panneaux `16px`, cartes internes `12px`, boutons/champs `8–10px`, pills `999px` (depuis `22px`). Ombres clair/sombre du handoff. S'assurer que terminal de logs et montants `tabular-nums` restent lisibles en sombre. Comme tout passe par tokens, les écrans refondus héritent du mode sombre automatiquement.
+
+#### TEC-197 — Composant `AppWorklist` mutualisé (« À traiter » / anomalies)
+
+Créer un composant de **file d'actions** réutilisé par le tableau de bord (« À traiter ») et l'écran Système (« Données à corriger »). Chaque ligne : icône colorée 40px, libellé + sous-texte, montant/valeur à droite coloré par sévérité, chevron ; ligne cliquable → navigue vers la liste filtrée correspondante ; survol = bordure colorée + légère ombre. Props : tableau d'items `{ icon, label, sublabel, value, severity, to }` + compteur d'en-tête. Pas de hover « translateY » (réservé aux éléments interactifs, jamais aux chiffres de référence).
+
+#### BIZ-207 — Refonte `DashboardView` — héro trésorerie, file à traiter, graphe unique
+
+Restructurer `DashboardView.vue` (colonne, gap 24px) : 1) **en-tête** eyebrow + titre « Vue d'ensemble » + **sous-titre** (« Exercice … · à jour au … ») + actions à droite (Exporter secondaire, Nouvelle facture primaire) ; 2) **héro Trésorerie nette** pleine largeur 2 colonnes : grand chiffre + pill delta + **sparkline** (depuis `getResourcesChartApi`) à gauche, détail Banque courant/épargne/Caisse à droite ; 3) grille 1.5fr/1fr : **`AppWorklist` « À traiter »** (impayés, en retard, chèques à déposer, à rapprocher) + **Actions rapides** ; 4) **4 chiffres de référence non cliquables** (Résultat exercice, Recettes/Dépenses du mois, Adhérents) — pas de hover ; 5) **un seul graphe** Produits & charges (barres groupées). Supprimer le `Select` d'exercice local du graphe (effet de bord sur le store global) — l'exercice vit uniquement dans le sélecteur topbar. Couleur + signe sémantiques (vert = bonne nouvelle, rouge = dû). Dégradation gracieuse des éléments dépendant de TEC-198 si l'API ne fournit pas encore la donnée.
+
+#### TEC-198 — Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents)
+
+Compléter `GET /api/dashboard/` (`backend/services/dashboard_service.py` + schéma) pour alimenter la refonte : delta trésorerie nette vs mois précédent (sinon calculable côté front depuis `getResourcesChartApi`), compteur d'opérations bancaires **à rapprocher** (ligne « À traiter »), et nombre d'**adhérents** (chiffre de référence). Conditionnel : ne créer que les champs réellement manquants après vérification du service existant ; sinon fermer en notant que la donnée est déjà dérivable côté front. Tests d'intégration sur les nouveaux champs.
+
+#### BIZ-208 — Refonte `UsersView` — matrice de rôles vivante + filtres
+
+Restructurer `UsersView.vue` : en-tête + bouton primaire « Nouvel utilisateur » → 3 KPI (Comptes / Actifs / Admins, dérivés) → **matrice de rôles** (4 cartes Lecture seule / Secrétaire / Trésorier / Admin avec **compteur d'utilisateurs** par rôle + description des permissions) → **table** avec filtres rapides par rôle (Tous, Admins, Trésoriers, Inactifs, compteurs dérivés), colonnes Utilisateur / E-mail / Rôle / Statut / Créé le / Actions. Badge **« vous »** sur la ligne courante ; action « réinitialiser mot de passe » désactivée sur sa propre ligne. Composant **badge de rôle** mutualisé (pastille + texte) : Lecture seule `#94a3b8`, Secrétaire `#60a5fa`, Trésorier `#22c55e`, Admin `#f59e0b` → via tokens. Statut Actif/Inactif. Tests Vitest.
+
+#### BIZ-209 — Refonte `SystemView` — bandeau d'état, anomalies, restauration isolée
+
+Restructurer `SystemView.vue` (colonne, gap 22px) : 1) **bandeau d'état** pleine largeur (pastille « Opérationnel » + Version / Taille BDD / Démarré le) ; 2) **file d'anomalies** via `AppWorklist` (« Données à corriger : chèques sans date de dépôt » + compteur — remplace le panneau « paiements incohérents » anonyme) ; 3) **Sauvegardes & restauration** : table des sauvegardes + libellé/Télécharger, **restauration marquée destructive** (icône rouge + mention « écrase la base ») avec **`ConfirmDialog` en 2 étapes** (saisie de `RESTAURER` pour activer le bouton) ; 4) **journaux applicatifs** : terminal mono (fond très sombre même en clair), filtres INFO/WARN/ERROR colorés, `overflow-x:auto` ; 5) **journal d'audit** (Horodatage / Acteur / Action / Cible). Tests Vitest sur la confirmation 2 étapes.
+
+#### TEC-199 — Shell de navigation adaptatif (3 breakpoints)
+
+Étendre `layouts/AppLayout.vue` à 3 breakpoints : **desktop ≥ 1200px** sidebar pleine 240px + contenu `max-width` ~1320px centré ; **tablette 768–1199px** rail d'icônes 72px (libellés au survol/tap) ; **mobile < 768px** barre d'onglets basse (4 items principaux) + **drawer** pour le reste (panneau gauche 300px + overlay `rgba(15,23,42,.45)`, fermable). Topbar condensée sur mobile (burger + logo + sélecteur d'exercice + avatar, recherche en icône). S'appuyer sur le `useBreakpoints` existant (lot MOB) en ajoutant le palier tablette s'il manque. Cibles tactiles ≥ 44px. Le mode sombre s'applique à l'identique (mêmes tokens). Tests Vitest des bascules de breakpoint.
+
+#### TEC-200 — Responsive des écrans refondus
+
+Décliner les écrans refondus (InvoiceWorkspace, Dashboard, Users, System) sur mobile/tablette : **table → cartes empilées** (1 facture = 1 carte : N° + contact, date + montant, badge statut, action primaire pleine largeur + `⋯`) en réutilisant/alignant `AppMobileCardList` existant sur le design des maquettes (ne pas dupliquer le markup ; envisager `responsiveLayout="stack"` PrimeVue là où pertinent) ; **grilles KPI** 1–2 col. mobile / 2 col. tablette / 3–4 col. desktop ; **héros** empilés pleine largeur sur petit écran ; **segments de filtre** en scroll horizontal (`overflow-x:auto`, chips `flex:none`) ; **action primaire en FAB** ancré au pouce sur mobile ; boutons-icônes de ligne (édition, ⋯, clé) regroupés en **feuille d'action mobile** (items pleine largeur) plutôt qu'en cibles serrées. Vérifier la cohérence avec l'existant mobile (lot MOB/BIZ-164). Tests Vitest ciblés sur la bascule cartes et la feuille d'action.
+
+#### CHR-195 — Quality gate + CHANGELOG + docs + release v1.8
+
+Exécuter la quality gate complète (ruff check + format, mypy, pytest, eslint, vue-tsc, vitest) et corriger les résidus. Mettre à jour `CHANGELOG.md` (`[Non publié]`), `doc/user/changelog-user.md` (sections par rôle : nouveautés visuelles + mode sombre), `doc/dev/architecture.md` (système de thème / tokens), et les statuts du backlog. Documenter le mode sombre côté utilisateur. Bump version `MINOR` → v1.8 dans `pyproject.toml` et `frontend/package.json`.
 
 ### BIZ-195 — Statut ARCHIVED — modèle, transitions, service, router, migration
 
