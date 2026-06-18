@@ -596,6 +596,15 @@ export default {
       'cs+a': 'Cours + Adhésion',
       general: 'Général',
     },
+    funnel: {
+      remaining_client: 'Reste à encaisser',
+      remaining_supplier: 'Reste à payer',
+      summary: 'sur {total} facturés · {count} factures',
+      collected_client: 'Encaissé',
+      collected_supplier: 'Payé',
+      upcoming: 'À venir',
+      overdue: 'En retard',
+    },
   },
   payments: {
     title: 'Paiements',
