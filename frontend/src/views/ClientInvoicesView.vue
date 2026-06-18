@@ -10,6 +10,8 @@
       </template>
     </AppPageHeader>
 
+    <InvoiceTypeToggle type="client" />
+
     <InvoiceFunnelHero
       type="client"
       :total-invoiced="funnelMetrics.totalInvoiced"
@@ -250,6 +252,14 @@
         </Column>
         <template #empty>
           <div class="app-empty-state">{{ t('invoices.client.empty') }}</div>
+        </template>
+        <template #footer>
+          <div class="invoices-table-footer">
+            <span>{{ t('invoices.table_footer.count', { count: displayedInvoices.length }) }}</span>
+            <span class="invoices-table-footer__total">
+              {{ t('invoices.total') }} : {{ formatAmount(displayedTotal) }} €
+            </span>
+          </div>
         </template>
       </DataTable>
     </AppPanel>
@@ -581,6 +591,7 @@ import InvoiceRowActions, {
 import InvoiceFilterSegments, {
   type InvoiceFilterSegment,
 } from '../components/invoices/InvoiceFilterSegments.vue'
+import InvoiceTypeToggle from '../components/invoices/InvoiceTypeToggle.vue'
 import type { MenuItem } from 'primevue/menuitem'
 import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
@@ -768,6 +779,10 @@ const funnelMetrics = computed(() => ({
   overdue: portfolioMetrics.value.overdueAmount,
   count: portfolioMetrics.value.visibleCount,
 }))
+
+const displayedTotal = computed(() =>
+  displayedInvoices.value.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0),
+)
 
 // Quick-filter segments. Counts come from the full client-invoice snapshot:
 // fiscal-year-scoped for all/draft/paid, cross-year for overdue/unpaid (matching
@@ -1330,6 +1345,21 @@ onMounted(async () => {
 <style scoped>
 .invoices-table__actions-column {
   width: 16rem;
+}
+
+.invoices-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  font-size: 0.9rem;
+  color: var(--p-text-muted-color);
+}
+
+.invoices-table-footer__total {
+  font-weight: 800;
+  color: var(--p-text-color);
+  font-variant-numeric: tabular-nums;
 }
 
 .history-dialog {

@@ -618,6 +618,14 @@ export default {
       draft: 'Brouillons',
       paid: 'Payées',
     },
+    type_toggle: {
+      label: 'Type de factures',
+      client: 'Clients',
+      supplier: 'Fournisseurs',
+    },
+    table_footer: {
+      count: '{count} facture(s) affichée(s)',
+    },
   },
   payments: {
     title: 'Paiements',
