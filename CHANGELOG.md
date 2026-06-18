@@ -15,6 +15,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **TEC-193** (Lot RF) — Badge de statut de facture mutualisé : nouveau composant `InvoiceStatusBadge` + helper `invoiceStatusSeverity` ; suppression de la fonction `statusSeverity` dupliquée à l'identique dans `ClientInvoicesView`, `SupplierInvoicesView` et `ContactHistoryContent`
 - **TEC-194** (Lot RF) — Dialog d'encaissement de paiement mutualisé : nouveau composant `InvoicePaymentDialog` ; suppression du formulaire de paiement, de la suggestion de numéro de chèque et de la logique de soumission dupliqués entre `ClientInvoicesView` et `SupplierInvoicesView`
 - **TEC-194 / BIZ-206** (Lot RF) — Héro « entonnoir » de facturation mutualisé : nouveau composant `InvoiceFunnelHero` (reste à encaisser/payer + barre empilée Encaissé / À venir / En retard) ; remplace les grilles de KPI hétérogènes des factures client et fournisseur
+- **TEC-194 / BIZ-206** (Lot RF) — Actions de ligne factures : remplacement de la rangée de boutons-icônes (jusqu'à 9) par une **action principale contextuelle selon le statut** (Encaisser / Relancer / Voir / Modifier / Traiter) + un **menu de débordement `⋯`** regroupant le reste, avec les actions destructives (abandon de créance, suppression) isolées. Nouveau composant `InvoiceRowActions`, appliqué aux vues client et fournisseur (table + cartes mobiles)
 
 ## [1.7.5] — 2026-05-30
 

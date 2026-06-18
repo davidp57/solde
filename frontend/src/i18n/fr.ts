@@ -605,6 +605,12 @@ export default {
       upcoming: 'À venir',
       overdue: 'En retard',
     },
+    actions: {
+      relaunch: 'Relancer',
+      process: 'Traiter',
+      view: 'Voir',
+      more: 'Plus d’actions',
+    },
   },
   payments: {
     title: 'Paiements',

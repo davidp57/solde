@@ -102,48 +102,10 @@
               <i v-if="data.file_path" class="pi pi-paperclip supplier-card__attachment" />
             </div>
             <div class="app-mobile-card-actions">
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                v-if="data.file_path"
-                icon="pi pi-eye"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.supplier.preview_file')"
-                @click="openPreviewDialog(data)"
-              />
-              <Button
-                icon="pi pi-upload"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.upload_file')"
-                @click="openUploadDialog(data)"
-              />
-              <Button
-                v-if="canRecordPayment(data)"
-                icon="pi pi-wallet"
-                size="small"
-                severity="success"
-                text
-                :title="t('invoices.record_payment')"
-                @click="openPaymentDialog(data)"
-              />
-              <Button
-                v-if="data.status === 'draft'"
-                icon="pi pi-trash"
-                size="small"
-                severity="danger"
-                text
-                :title="t('common.delete')"
-                @click="confirmDelete(data)"
+              <InvoiceRowActions
+                :primary="supplierPrimaryAction(data)"
+                :menu-items="supplierMenuItems(data)"
+                :menu-aria-label="t('invoices.actions.more')"
               />
             </div>
           </template>
@@ -279,56 +241,11 @@
         </Column>
         <Column :header="t('common.actions')" class="supplier-invoices-table__actions">
           <template #body="{ data }">
-            <div class="app-inline-actions">
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.edit')"
-                :aria-label="t('invoices.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                v-if="data.file_path"
-                icon="pi pi-eye"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.supplier.preview_file')"
-                :aria-label="t('invoices.supplier.preview_file')"
-                @click="openPreviewDialog(data)"
-              />
-              <Button
-                icon="pi pi-upload"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.upload_file')"
-                :aria-label="t('invoices.upload_file')"
-                @click="openUploadDialog(data)"
-              />
-              <Button
-                v-if="canRecordPayment(data)"
-                icon="pi pi-wallet"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.record_payment')"
-                :aria-label="t('invoices.record_payment')"
-                @click="openPaymentDialog(data)"
-              />
-              <Button
-                v-if="data.status === 'draft'"
-                icon="pi pi-trash"
-                size="small"
-                severity="danger"
-                text
-                :title="t('common.delete')"
-                :aria-label="t('common.delete')"
-                @click="confirmDelete(data)"
-              />
-            </div>
+            <InvoiceRowActions
+              :primary="supplierPrimaryAction(data)"
+              :menu-items="supplierMenuItems(data)"
+              :menu-aria-label="t('invoices.actions.more')"
+            />
           </template>
         </Column>
         <template #empty>
@@ -659,6 +576,10 @@ import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
 import InvoiceStatusBadge from '../components/invoices/InvoiceStatusBadge.vue'
 import InvoicePaymentDialog from '../components/invoices/InvoicePaymentDialog.vue'
 import InvoiceFunnelHero from '../components/invoices/InvoiceFunnelHero.vue'
+import InvoiceRowActions, {
+  type InvoiceRowPrimaryAction,
+} from '../components/invoices/InvoiceRowActions.vue'
+import type { MenuItem } from 'primevue/menuitem'
 import { isOverdueInvoice, remainingForInvoice } from '../composables/useInvoiceMetrics'
 import {
   dateRangeFilter,
@@ -838,6 +759,64 @@ function canRecordPayment(invoice: Invoice | null): boolean {
 function openPaymentDialog(invoice: Invoice) {
   paymentInvoice.value = invoice
   paymentDialogVisible.value = true
+}
+
+// Contextual primary row action, chosen by status (handoff decision #3).
+function supplierPrimaryAction(invoice: Invoice): InvoiceRowPrimaryAction {
+  if (invoice.status === 'draft') {
+    return { key: 'edit', label: t('invoices.edit'), icon: 'pi pi-pencil', command: () => openEditDialog(invoice) }
+  }
+  if (canRecordPayment(invoice)) {
+    return {
+      key: 'pay',
+      label: t('invoices.record_payment'),
+      icon: 'pi pi-wallet',
+      severity: 'success',
+      command: () => openPaymentDialog(invoice),
+    }
+  }
+  if (invoice.file_path) {
+    return {
+      key: 'view',
+      label: t('invoices.actions.view'),
+      icon: 'pi pi-eye',
+      command: () => openPreviewDialog(invoice),
+    }
+  }
+  return { key: 'edit', label: t('invoices.edit'), icon: 'pi pi-pencil', command: () => openEditDialog(invoice) }
+}
+
+// Remaining actions live in the overflow menu; destructive ones are isolated.
+function supplierMenuItems(invoice: Invoice): MenuItem[] {
+  const primaryKey = supplierPrimaryAction(invoice).key
+  const normal: MenuItem[] = [
+    { key: 'edit', label: t('invoices.edit'), icon: 'pi pi-pencil', command: () => openEditDialog(invoice) },
+  ]
+  if (invoice.file_path) {
+    normal.push({ key: 'view', label: t('invoices.supplier.preview_file'), icon: 'pi pi-eye', command: () => openPreviewDialog(invoice) })
+  }
+  normal.push({ key: 'upload', label: t('invoices.upload_file'), icon: 'pi pi-upload', command: () => openUploadDialog(invoice) })
+  if (canRecordPayment(invoice)) {
+    normal.push({ key: 'pay', label: t('invoices.record_payment'), icon: 'pi pi-wallet', command: () => openPaymentDialog(invoice) })
+  }
+
+  const danger: MenuItem[] = []
+  if (invoice.status === 'draft') {
+    danger.push({
+      key: 'delete',
+      label: t('common.delete'),
+      icon: 'pi pi-trash',
+      class: 'invoice-row-actions-danger',
+      command: () => confirmDelete(invoice),
+    })
+  }
+
+  const items = normal.filter((item) => item.key !== primaryKey)
+  const dangerItems = danger.filter((item) => item.key !== primaryKey)
+  if (dangerItems.length) {
+    items.push({ separator: true }, ...dangerItems)
+  }
+  return items
 }
 
 async function onPaymentRecorded(invoiceId: number): Promise<void> {

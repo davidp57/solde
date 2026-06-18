@@ -297,6 +297,27 @@ const ColumnStub = defineComponent({
 // Helpers
 // ---------------------------------------------------------------------------
 
+// Renders the contextual primary action and every overflow item as a button
+// (title = label) so existing "find by title" interactions keep working.
+const InvoiceRowActionsStub = defineComponent({
+  props: ['primary', 'menuItems', 'menuAriaLabel'],
+  setup(props) {
+    return () =>
+      h('div', { class: 'invoice-row-actions-stub' }, [
+        h(
+          'button',
+          { title: props.primary.label, onClick: () => props.primary.command() },
+          props.primary.label,
+        ),
+        ...(props.menuItems ?? [])
+          .filter((item: { separator?: boolean }) => !item.separator)
+          .map((item: { label?: string; class?: string; command?: () => void }) =>
+            h('button', { title: item.label, class: item.class, onClick: () => item.command?.() }, item.label),
+          ),
+      ])
+  },
+})
+
 async function flushView() {
   await Promise.resolve()
   await Promise.resolve()
@@ -311,6 +332,7 @@ function mountView() {
         AppPageHeader: ContainerStub,
         AppPanel: ContainerStub,
         AppStatCard: AppStatCardStub,
+        InvoiceRowActions: InvoiceRowActionsStub,
         AppListState: ContainerStub,
         AppDateRangeFilter: ContainerStub,
         AppFilterMultiSelect: ContainerStub,
