@@ -10,24 +10,14 @@
       </template>
     </AppPageHeader>
 
-    <section class="app-stat-grid">
-      <AppStatCard
-        :label="t('invoices.supplier.metrics.visible_count')"
-        :value="displayedInvoices.length"
-        :caption="t('invoices.supplier.metrics.total_count', { count: invoices.length })"
-      />
-      <AppStatCard
-        :label="t('invoices.supplier.metrics.total_amount')"
-        :value="formatAmount(totalAmount) + ' €'"
-        :caption="t('invoices.supplier.metrics.files_attached', { count: attachedFilesCount })"
-      />
-      <AppStatCard
-        :label="t('invoices.supplier.metrics.overdue_count')"
-        :value="overdueCount"
-        :caption="t('invoices.supplier.metrics.pending_count', { count: pendingCount })"
-        tone="warn"
-      />
-    </section>
+    <InvoiceFunnelHero
+      type="supplier"
+      :total-invoiced="funnelMetrics.totalInvoiced"
+      :collected="funnelMetrics.collected"
+      :remaining="funnelMetrics.remaining"
+      :overdue="funnelMetrics.overdue"
+      :invoice-count="funnelMetrics.count"
+    />
 
     <AppPanel
       :title="t('invoices.supplier.workspace_title')"
@@ -649,7 +639,6 @@ import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
-import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
@@ -669,6 +658,8 @@ import { listPayments, type Payment } from '../api/payments'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
 import InvoiceStatusBadge from '../components/invoices/InvoiceStatusBadge.vue'
 import InvoicePaymentDialog from '../components/invoices/InvoicePaymentDialog.vue'
+import InvoiceFunnelHero from '../components/invoices/InvoiceFunnelHero.vue'
+import { isOverdueInvoice, remainingForInvoice } from '../composables/useInvoiceMetrics'
 import {
   dateRangeFilter,
   inFilter,
@@ -796,21 +787,21 @@ const {
   has_file: inFilter(),
 })
 
-const totalAmount = computed(() =>
-  displayedInvoices.value.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0),
-)
-const attachedFilesCount = computed(
-  () => displayedInvoices.value.filter((invoice) => Boolean(invoice.file_path)).length,
-)
-const overdueCount = computed(
-  () => displayedInvoices.value.filter((invoice) => invoice.status === 'overdue').length,
-)
-const pendingCount = computed(
-  () =>
-    displayedInvoices.value.filter(
-      (invoice) => invoice.status === 'sent' || invoice.status === 'partial',
-    ).length,
-)
+const funnelMetrics = computed(() => {
+  const visible = displayedInvoices.value
+  const totalInvoiced = visible.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0)
+  const collected = visible.reduce((sum, invoice) => sum + parseFloat(invoice.paid_amount), 0)
+  const overdue = visible
+    .filter(isOverdueInvoice)
+    .reduce((sum, invoice) => sum + remainingForInvoice(invoice), 0)
+  return {
+    totalInvoiced,
+    collected,
+    remaining: Math.max(0, totalInvoiced - collected),
+    overdue,
+    count: visible.length,
+  }
+})
 const activeFilterLabels = computed(() =>
   collectActiveFilterLabels(
     findSelectedFilterLabel(statusOptions, statusFilter.value),
