@@ -94,10 +94,7 @@
           <template #card="{ item: data }">
             <div class="app-mobile-card-row app-mobile-card-row--between">
               <span class="app-mobile-card-value" style="font-weight: 700">{{ data.number }}</span>
-              <Tag
-                :value="t(`invoices.statuses.${data.status}`)"
-                :severity="statusSeverity(data.status)"
-              />
+              <InvoiceStatusBadge :status="data.status" />
             </div>
             <div class="app-mobile-card-row">
               <span class="app-mobile-card-label">{{ t('invoices.contact') }} :</span>
@@ -255,10 +252,7 @@
           :show-add-button="false"
         >
           <template #body="{ data }">
-            <Tag
-              :value="t(`invoices.statuses.${data.status}`)"
-              :severity="statusSeverity(data.status)"
-            />
+            <InvoiceStatusBadge :status="data.status" />
           </template>
           <template #filter="{ filterModel }">
             <AppFilterMultiSelect
@@ -476,10 +470,7 @@
             </div>
           </div>
           <div class="app-inline-actions">
-            <Tag
-              :value="t(`invoices.statuses.${previewInvoice.status}`)"
-              :severity="statusSeverity(previewInvoice.status)"
-            />
+            <InvoiceStatusBadge :status="previewInvoice.status" />
             <Button
               icon="pi pi-download"
               size="small"
@@ -716,7 +707,6 @@ import FileUpload from 'primevue/fileupload'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
-import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -749,6 +739,7 @@ import {
 } from '../api/invoices'
 import { createPayment, listPayments, suggestChequeNumber, type Payment } from '../api/payments'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
+import InvoiceStatusBadge from '../components/invoices/InvoiceStatusBadge.vue'
 import {
   dateRangeFilter,
   inFilter,
@@ -1033,18 +1024,6 @@ function contactName(id: number): string {
   const c = contacts.value.find((c) => c.id === id)
   if (!c) return String(id)
   return formatContactDisplayName(c)
-}
-
-function statusSeverity(s: InvoiceStatus): string {
-  const map: Record<InvoiceStatus, string> = {
-    draft: 'secondary',
-    sent: 'info',
-    paid: 'success',
-    partial: 'warn',
-    overdue: 'danger',
-    disputed: 'danger',
-  }
-  return map[s] ?? 'secondary'
 }
 
 async function loadInvoices() {

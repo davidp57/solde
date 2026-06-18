@@ -11,6 +11,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Technique
+- **TEC-193** (Lot RF) — Badge de statut de facture mutualisé : nouveau composant `InvoiceStatusBadge` + helper `invoiceStatusSeverity` ; suppression de la fonction `statusSeverity` dupliquée à l'identique dans `ClientInvoicesView`, `SupplierInvoicesView` et `ContactHistoryContent`
+
 ## [1.7.5] — 2026-05-30
 
 ### Corrigé
