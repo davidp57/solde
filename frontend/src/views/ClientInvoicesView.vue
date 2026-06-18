@@ -1,93 +1,48 @@
 <template>
-  <AppPage>
-    <AppPageHeader
-      :eyebrow="t('ui.page.collection_eyebrow')"
-      :title="t('invoices.client.title')"
-      :subtitle="t('invoices.client.subtitle')"
-    >
-      <template #actions>
-        <Button :label="t('invoices.new')" icon="pi pi-plus" @click="openCreateDialog" />
-      </template>
-    </AppPageHeader>
-
-    <InvoiceTypeToggle type="client" />
-
-    <InvoiceFunnelHero
-      type="client"
-      :total-invoiced="funnelMetrics.totalInvoiced"
-      :collected="funnelMetrics.collected"
-      :remaining="funnelMetrics.remaining"
-      :overdue="funnelMetrics.overdue"
-      :invoice-count="funnelMetrics.count"
-    />
-
-    <AppPanel
-      :title="t('invoices.client.portfolio_title')"
-      :subtitle="t('invoices.client.portfolio_subtitle')"
-    >
-      <div class="app-toolbar">
-        <div class="app-toolbar__meta">
-          <p class="app-toolbar__hint">{{ t('invoices.client.filters_hint') }}</p>
-          <div class="app-toolbar__meta-actions">
-            <AppListState
-              :displayed-count="displayedInvoices.length"
-              :total-count="loadedCount"
-              :loading="loading"
-              :search-text="globalFilter"
-              :active-filters="activeFilterLabels"
-            />
-            <Button
-              v-if="hasActiveFilters"
-              icon="pi pi-filter-slash"
-              severity="secondary"
-              text
-              :title="t('common.reset_filters')"
-              @click="resetAllFilters"
-            />
-            <Button
-              icon="pi pi-file-excel"
-              severity="secondary"
-              text
-              :title="t('common.export_excel')"
-              @click="doExportExcel"
-            />
-          </div>
-        </div>
-
-        <InvoiceFilterSegments
-          :segments="statusSegments"
-          :model-value="activeSegment"
-          :aria-label="t('invoices.filter_status')"
-          @update:model-value="onSegmentChange"
+  <InvoiceWorkspace
+    type="client"
+    :title="t('invoices.client.title')"
+    :subtitle="t('invoices.client.subtitle')"
+    :panel-title="t('invoices.client.portfolio_title')"
+    :panel-subtitle="t('invoices.client.portfolio_subtitle')"
+    :filters-hint="t('invoices.client.filters_hint')"
+    :funnel="funnelMetrics"
+    :segments="statusSegments"
+    :active-segment="activeSegment"
+    v-model:search-value="globalFilterInput"
+    :displayed-count="displayedInvoices.length"
+    :total-count="loadedCount"
+    :loading="loading"
+    :active-filters="activeFilterLabels"
+    :has-active-filters="hasActiveFilters"
+    :segments-label="t('invoices.filter_status')"
+    @new="openCreateDialog"
+    @segment-change="onSegmentChange"
+    @reset-filters="resetAllFilters"
+    @export="doExportExcel"
+  >
+    <template #toolbar-extras>
+      <div class="app-field">
+        <Button
+          :label="showIrrecoverable ? t('invoices.hide_irrecoverable') : t('invoices.show_irrecoverable')"
+          :icon="showIrrecoverable ? 'pi pi-eye-slash' : 'pi pi-eye'"
+          severity="secondary"
+          outlined
+          size="small"
+          @click="showIrrecoverable = !showIrrecoverable; loadInvoices()"
         />
-
-        <div class="app-filter-grid">
-          <div class="app-field app-field--span-2">
-            <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="globalFilterInput" :placeholder="t('common.filter_placeholder')" />
-          </div>
-          <div class="app-field">
-            <Button
-              :label="showIrrecoverable ? t('invoices.hide_irrecoverable') : t('invoices.show_irrecoverable')"
-              :icon="showIrrecoverable ? 'pi pi-eye-slash' : 'pi pi-eye'"
-              severity="secondary"
-              outlined
-              size="small"
-              @click="showIrrecoverable = !showIrrecoverable; loadInvoices()"
-            />
-          </div>
-          <div v-if="paidInDisplayed.length > 0" class="app-field">
-            <Button
-              :label="t('invoices.bulk_archive')"
-              icon="pi pi-inbox"
-              severity="secondary"
-              outlined
-              size="small"
-              @click="confirmBulkArchive"
-            />
-          </div>
-        </div>
       </div>
+      <div v-if="paidInDisplayed.length > 0" class="app-field">
+        <Button
+          :label="t('invoices.bulk_archive')"
+          icon="pi pi-inbox"
+          severity="secondary"
+          outlined
+          size="small"
+          @click="confirmBulkArchive"
+        />
+      </div>
+    </template>
 
       <AppListLimitBanner
         :view-key="LIMIT_VIEW_KEY"
@@ -262,8 +217,8 @@
           </div>
         </template>
       </DataTable>
-    </AppPanel>
 
+    <template #dialogs>
     <Dialog
       :visible="dialogVisible"
       @update:visible="onCloseDialog"
@@ -549,7 +504,8 @@
       :contact-name="paymentInvoice ? contactName(paymentInvoice.contact_id) : undefined"
       @paid="onPaymentRecorded"
     />
-  </AppPage>
+    </template>
+  </InvoiceWorkspace>
 </template>
 
 <script setup lang="ts">
@@ -584,14 +540,11 @@ import ClientInvoiceForm from '../components/ClientInvoiceForm.vue'
 import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
 import InvoiceStatusBadge from '../components/invoices/InvoiceStatusBadge.vue'
 import InvoicePaymentDialog from '../components/invoices/InvoicePaymentDialog.vue'
-import InvoiceFunnelHero from '../components/invoices/InvoiceFunnelHero.vue'
+import InvoiceWorkspace from '../components/invoices/InvoiceWorkspace.vue'
 import InvoiceRowActions, {
   type InvoiceRowPrimaryAction,
 } from '../components/invoices/InvoiceRowActions.vue'
-import InvoiceFilterSegments, {
-  type InvoiceFilterSegment,
-} from '../components/invoices/InvoiceFilterSegments.vue'
-import InvoiceTypeToggle from '../components/invoices/InvoiceTypeToggle.vue'
+import type { InvoiceFilterSegment } from '../components/invoices/InvoiceFilterSegments.vue'
 import type { MenuItem } from 'primevue/menuitem'
 import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
@@ -601,11 +554,7 @@ import { useTableExport, type ExportColumn } from '../composables/useTableExport
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
-import AppListState from '../components/ui/AppListState.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
-import AppPage from '../components/ui/AppPage.vue'
-import AppPageHeader from '../components/ui/AppPageHeader.vue'
-import AppPanel from '../components/ui/AppPanel.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import {
   dateRangeFilter,
