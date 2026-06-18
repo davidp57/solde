@@ -74,11 +74,18 @@ const emit = defineEmits<{
   outline-offset: 2px;
 }
 
-/* Active = inverted fill (dark slate in light mode, light in dark mode). */
+/* Active = dark slate fill in light mode. */
 .invoice-segments__chip--active {
   background: var(--p-text-color);
   border-color: var(--p-text-color);
   color: var(--app-surface-bg);
+}
+
+/* In dark mode a light fill is too harsh — use a subtle emerald-tinted surface. */
+html.dark-mode .invoice-segments__chip--active {
+  background: color-mix(in srgb, var(--p-primary-500) 20%, var(--app-surface-bg));
+  border-color: var(--p-primary-500);
+  color: var(--p-text-color);
 }
 
 .invoice-segments__count {
@@ -98,5 +105,10 @@ const emit = defineEmits<{
 .invoice-segments__chip--active .invoice-segments__count {
   background: color-mix(in srgb, var(--app-surface-bg) 28%, transparent);
   color: var(--app-surface-bg);
+}
+
+html.dark-mode .invoice-segments__chip--active .invoice-segments__count {
+  background: color-mix(in srgb, var(--p-primary-500) 30%, transparent);
+  color: var(--p-text-color);
 }
 </style>
