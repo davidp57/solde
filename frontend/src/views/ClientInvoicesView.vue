@@ -115,48 +115,10 @@
               <span class="app-mobile-card-value" style="font-weight: 600">{{ formatAmount(data.total_amount) }} €</span>
             </div>
             <div class="app-mobile-card-actions">
-              <Button
-                icon="pi pi-eye"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.history')"
-                @click="openHistory(data)"
-              />
-              <Button
-                v-if="canRecordPayment(data)"
-                icon="pi pi-wallet"
-                size="small"
-                severity="success"
-                text
-                :title="t('invoices.record_payment')"
-                @click="openPaymentDialog(data)"
-              />
-              <Button
-                v-if="isInvoiceEditable(data)"
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                icon="pi pi-file-pdf"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.generate_pdf')"
-                @click="openPdf(data)"
-              />
-              <Button
-                v-if="data.status === 'draft'"
-                icon="pi pi-trash"
-                size="small"
-                severity="danger"
-                text
-                :title="t('common.delete')"
-                @click="confirmDelete(data)"
+              <InvoiceRowActions
+                :primary="clientPrimaryAction(data)"
+                :menu-items="clientMenuItems(data)"
+                :menu-aria-label="t('invoices.actions.more')"
               />
             </div>
           </template>
@@ -284,96 +246,11 @@
         </Column>
         <Column :header="t('common.actions')" class="invoices-table__actions-column">
           <template #body="{ data }">
-            <div class="app-inline-actions">
-              <Button
-                icon="pi pi-eye"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.history')"
-                :aria-label="t('invoices.history')"
-                @click="openHistory(data)"
-              />
-              <Button
-                v-if="canRecordPayment(data)"
-                icon="pi pi-wallet"
-                size="small"
-                severity="success"
-                text
-                :title="t('invoices.record_payment')"
-                :aria-label="t('invoices.record_payment')"
-                @click="openPaymentDialog(data)"
-              />
-              <Button
-                v-if="isInvoiceEditable(data)"
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.edit')"
-                :aria-label="t('invoices.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                icon="pi pi-file-pdf"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.generate_pdf')"
-                :aria-label="t('invoices.generate_pdf')"
-                @click="openPdf(data)"
-              />
-              <Button
-                v-if="data.status !== 'archived'"
-                icon="pi pi-send"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.send_email')"
-                :aria-label="t('invoices.send_email')"
-                @click="sendEmail(data)"
-              />
-              <Button
-                v-if="data.status !== 'archived'"
-                icon="pi pi-copy"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.duplicate')"
-                :aria-label="t('invoices.duplicate')"
-                @click="duplicate(data)"
-              />
-              <Button
-                v-if="data.status !== 'draft' && data.status !== 'paid' && data.status !== 'irrecoverable' && data.status !== 'archived' && parseFloat(data.total_amount) - parseFloat(data.paid_amount) > 0"
-                icon="pi pi-ban"
-                size="small"
-                severity="danger"
-                text
-                :title="t('invoices.write_off')"
-                :aria-label="t('invoices.write_off')"
-                @click="openWriteOffDialog(data)"
-              />
-              <Button
-                v-if="data.status === 'irrecoverable'"
-                icon="pi pi-refresh"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.restore_from_writeoff')"
-                :aria-label="t('invoices.restore_from_writeoff')"
-                @click="restoreFromWriteoff(data)"
-              />
-              <Button
-                v-if="data.status === 'draft'"
-                icon="pi pi-trash"
-                size="small"
-                severity="danger"
-                text
-                :title="t('common.delete')"
-                :aria-label="t('common.delete')"
-                @click="confirmDelete(data)"
-              />
-            </div>
+            <InvoiceRowActions
+              :primary="clientPrimaryAction(data)"
+              :menu-items="clientMenuItems(data)"
+              :menu-aria-label="t('invoices.actions.more')"
+            />
           </template>
         </Column>
         <template #empty>
@@ -704,6 +581,10 @@ import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
 import InvoiceStatusBadge from '../components/invoices/InvoiceStatusBadge.vue'
 import InvoicePaymentDialog from '../components/invoices/InvoicePaymentDialog.vue'
 import InvoiceFunnelHero from '../components/invoices/InvoiceFunnelHero.vue'
+import InvoiceRowActions, {
+  type InvoiceRowPrimaryAction,
+} from '../components/invoices/InvoiceRowActions.vue'
+import type { MenuItem } from 'primevue/menuitem'
 import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import { useBreakpoints } from '../composables/useBreakpoints'
@@ -950,6 +831,99 @@ function isInvoiceEditable(invoice: Invoice): boolean {
   if (invoice.status === 'draft') return true
   if (invoice.status === 'sent' && parseFloat(invoice.paid_amount) === 0) return true
   return false
+}
+
+// Contextual primary row action, chosen by status (handoff decision #3).
+function clientPrimaryAction(invoice: Invoice): InvoiceRowPrimaryAction {
+  if (invoice.status === 'draft') {
+    return { key: 'edit', label: t('invoices.edit'), icon: 'pi pi-pencil', command: () => openEditDialog(invoice) }
+  }
+  if (isOverdueInvoice(invoice)) {
+    return {
+      key: 'remind',
+      label: t('invoices.actions.relaunch'),
+      icon: 'pi pi-send',
+      severity: 'danger',
+      command: () => sendEmail(invoice),
+    }
+  }
+  if (invoice.status === 'paid') {
+    return { key: 'view', label: t('invoices.actions.view'), icon: 'pi pi-eye', command: () => openHistory(invoice) }
+  }
+  if (invoice.status === 'disputed') {
+    return {
+      key: 'process',
+      label: t('invoices.actions.process'),
+      icon: 'pi pi-exclamation-triangle',
+      command: () => openHistory(invoice),
+    }
+  }
+  if (canRecordPayment(invoice)) {
+    return {
+      key: 'pay',
+      label: t('invoices.record_payment'),
+      icon: 'pi pi-wallet',
+      severity: 'success',
+      command: () => openPaymentDialog(invoice),
+    }
+  }
+  return { key: 'view', label: t('invoices.actions.view'), icon: 'pi pi-eye', command: () => openHistory(invoice) }
+}
+
+// Remaining actions live in the overflow menu; destructive ones are isolated.
+function clientMenuItems(invoice: Invoice): MenuItem[] {
+  const primaryKey = clientPrimaryAction(invoice).key
+  const normal: MenuItem[] = [
+    { key: 'history', label: t('invoices.history'), icon: 'pi pi-eye', command: () => openHistory(invoice) },
+  ]
+  if (canRecordPayment(invoice)) {
+    normal.push({ key: 'pay', label: t('invoices.record_payment'), icon: 'pi pi-wallet', command: () => openPaymentDialog(invoice) })
+  }
+  if (isInvoiceEditable(invoice)) {
+    normal.push({ key: 'edit', label: t('invoices.edit'), icon: 'pi pi-pencil', command: () => openEditDialog(invoice) })
+  }
+  normal.push({ key: 'pdf', label: t('invoices.generate_pdf'), icon: 'pi pi-file-pdf', command: () => openPdf(invoice) })
+  if (invoice.status !== 'archived') {
+    normal.push({ key: 'send', label: t('invoices.send_email'), icon: 'pi pi-send', command: () => sendEmail(invoice) })
+    normal.push({ key: 'duplicate', label: t('invoices.duplicate'), icon: 'pi pi-copy', command: () => duplicate(invoice) })
+  }
+  if (invoice.status === 'irrecoverable') {
+    normal.push({ key: 'restore', label: t('invoices.restore_from_writeoff'), icon: 'pi pi-refresh', command: () => restoreFromWriteoff(invoice) })
+  }
+
+  const danger: MenuItem[] = []
+  const remaining = parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount)
+  if (
+    invoice.status !== 'draft' &&
+    invoice.status !== 'paid' &&
+    invoice.status !== 'irrecoverable' &&
+    invoice.status !== 'archived' &&
+    remaining > 0
+  ) {
+    danger.push({
+      key: 'writeoff',
+      label: t('invoices.write_off'),
+      icon: 'pi pi-ban',
+      class: 'invoice-row-actions-danger',
+      command: () => openWriteOffDialog(invoice),
+    })
+  }
+  if (invoice.status === 'draft') {
+    danger.push({
+      key: 'delete',
+      label: t('common.delete'),
+      icon: 'pi pi-trash',
+      class: 'invoice-row-actions-danger',
+      command: () => confirmDelete(invoice),
+    })
+  }
+
+  const items = normal.filter((item) => item.key !== primaryKey)
+  const dangerItems = danger.filter((item) => item.key !== primaryKey)
+  if (dangerItems.length) {
+    items.push({ separator: true }, ...dangerItems)
+  }
+  return items
 }
 
 async function loadInvoices() {
