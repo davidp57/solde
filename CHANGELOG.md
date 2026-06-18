@@ -20,6 +20,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **TEC-194 / BIZ-206** (Lot RF) — Factures : **bascule de type** Clients/Fournisseurs (`InvoiceTypeToggle`) en tête de page pour signaler l'espace partagé, et **pied de tableau** affichant le nombre de factures et le total affiché
 - **TEC-194 / BIZ-206** (Lot RF) — Patron mutualisé `InvoiceWorkspace` : composant unique regroupant l'en-tête, la bascule de type, l'entonnoir, la toolbar (segments + recherche + actions) et le panneau ; les vues factures client et fournisseur en deviennent de fines enveloppes (table et dialogs passés en slots)
 
+### Modifié
+- **TEC-196** (Lot RF) — Thème : rayons plus sobres (panneaux 22→16 px, cartes 16→12 px) pour un registre comptable plus sérieux, et palette du mode sombre alignée sur le handoff (panneaux navy slate `#13203a`/`#0e1a30`, bordure `#2a3a55`, fond app `#020617`, ombre renforcée)
+
 ## [1.7.5] — 2026-05-30
 
 ### Corrigé
