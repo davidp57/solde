@@ -333,6 +333,7 @@ function mountView() {
         AppPanel: ContainerStub,
         AppStatCard: AppStatCardStub,
         InvoiceRowActions: InvoiceRowActionsStub,
+        InvoiceTypeToggle: ContainerStub,
         AppListState: ContainerStub,
         AppDateRangeFilter: ContainerStub,
         AppFilterMultiSelect: ContainerStub,
