@@ -18,6 +18,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **TEC-194 / BIZ-206** (Lot RF) — Actions de ligne factures : remplacement de la rangée de boutons-icônes (jusqu'à 9) par une **action principale contextuelle selon le statut** (Encaisser / Relancer / Voir / Modifier / Traiter) + un **menu de débordement `⋯`** regroupant le reste, avec les actions destructives (abandon de créance, suppression) isolées. Nouveau composant `InvoiceRowActions`, appliqué aux vues client et fournisseur (table + cartes mobiles)
 - **TEC-194 / BIZ-206** (Lot RF) — Filtres factures : remplacement du menu déroulant de statut par des **segments rapides** avec compteurs (Toutes / En retard / Impayées / Brouillons / Payées). Nouveau composant `InvoiceFilterSegments` ; le filtrage fin par colonne reste disponible dans les en-têtes du tableau
 - **TEC-194 / BIZ-206** (Lot RF) — Factures : **bascule de type** Clients/Fournisseurs (`InvoiceTypeToggle`) en tête de page pour signaler l'espace partagé, et **pied de tableau** affichant le nombre de factures et le total affiché
+- **TEC-194 / BIZ-206** (Lot RF) — Patron mutualisé `InvoiceWorkspace` : composant unique regroupant l'en-tête, la bascule de type, l'entonnoir, la toolbar (segments + recherche + actions) et le panneau ; les vues factures client et fournisseur en deviennent de fines enveloppes (table et dialogs passés en slots)
 
 ## [1.7.5] — 2026-05-30
 

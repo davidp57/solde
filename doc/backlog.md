@@ -37,8 +37,8 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | TEC-193 | Composant `InvoiceStatusBadge` mutualisé | P2 | ~15 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
-| TEC-194 | Composant `InvoiceWorkspace` paramétré par type | P1 | ~70 min | 2026-06-18 | | |
-| BIZ-206 | Migrer vues factures client/fournisseur → `InvoiceWorkspace` | P1 | ~45 min | 2026-06-18 | | |
+| TEC-194 | Composant `InvoiceWorkspace` paramétré par type | P1 | ~70 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| BIZ-206 | Migrer vues factures client/fournisseur → `InvoiceWorkspace` | P1 | ~45 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | TEC-195 | Store Pinia `theme` + bascule clair/sombre topbar | P2 | ~25 min | 2026-06-18 | | |
 | TEC-196 | Tokens de thème clair/sombre (preset Aura dark) + rayons sobres | P2 | ~45 min | 2026-06-18 | | |
 | TEC-197 | Composant `AppWorklist` mutualisé (« À traiter » / anomalies) | P2 | ~20 min | 2026-06-18 | | |
