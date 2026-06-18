@@ -53,7 +53,7 @@ const emit = defineEmits<{
   padding: 0.4rem 0.85rem;
   border: 1px solid var(--app-surface-border);
   border-radius: 999px;
-  background: var(--p-surface-0, #fff);
+  background: var(--app-surface-bg);
   color: var(--p-text-color);
   font-size: 0.86rem;
   font-weight: 600;
@@ -74,10 +74,11 @@ const emit = defineEmits<{
   outline-offset: 2px;
 }
 
+/* Active = inverted fill (dark slate in light mode, light in dark mode). */
 .invoice-segments__chip--active {
-  background: var(--p-text-color, #0f172a);
-  border-color: var(--p-text-color, #0f172a);
-  color: var(--p-surface-0, #fff);
+  background: var(--p-text-color);
+  border-color: var(--p-text-color);
+  color: var(--app-surface-bg);
 }
 
 .invoice-segments__count {
@@ -95,7 +96,7 @@ const emit = defineEmits<{
 }
 
 .invoice-segments__chip--active .invoice-segments__count {
-  background: color-mix(in srgb, var(--p-surface-0, #fff) 28%, transparent);
-  color: var(--p-surface-0, #fff);
+  background: color-mix(in srgb, var(--app-surface-bg) 28%, transparent);
+  color: var(--app-surface-bg);
 }
 </style>
