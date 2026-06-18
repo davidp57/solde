@@ -39,8 +39,8 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 | TEC-193 | Composant `InvoiceStatusBadge` mutualisé | P2 | ~15 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | TEC-194 | Composant `InvoiceWorkspace` paramétré par type | P1 | ~70 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | BIZ-206 | Migrer vues factures client/fournisseur → `InvoiceWorkspace` | P1 | ~45 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
-| TEC-195 | Store Pinia `theme` + bascule clair/sombre topbar | P2 | ~25 min | 2026-06-18 | | |
-| TEC-196 | Tokens de thème clair/sombre (preset Aura dark) + rayons sobres | P2 | ~45 min | 2026-06-18 | | |
+| TEC-195 | Store Pinia `theme` + bascule clair/sombre topbar | P2 | ~25 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| TEC-196 | Tokens de thème clair/sombre (preset Aura dark) + rayons sobres | P2 | ~45 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | TEC-197 | Composant `AppWorklist` mutualisé (« À traiter » / anomalies) | P2 | ~20 min | 2026-06-18 | | |
 | BIZ-207 | Refonte `DashboardView` — héro trésorerie, file à traiter, graphe unique | P1 | ~60 min | 2026-06-18 | | |
 | TEC-198 | Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents) | P3 | ~30 min | 2026-06-18 | | |
@@ -84,6 +84,8 @@ Réécrire `ClientInvoicesView.vue` et `SupplierInvoicesView.vue` comme de fines
 #### TEC-195 — Store Pinia `theme` + bascule clair/sombre topbar
 
 Créer `frontend/src/stores/theme.ts` : `mode: 'light' | 'dark'`, action `toggle()`, persistance `localStorage` clé `solde-theme`, respect de `prefers-color-scheme` au premier chargement. Appliquer/retirer la classe de thème sur `<html>` (l'app utilise déjà `html.dark-mode`). Ajouter l'icône lune/soleil (`pi-moon`/`pi-sun`) dans la topbar de `layouts/AppLayout.vue`. Tests : toggle, persistance, init depuis la préférence système.
+
+> **Déjà couvert** (2026-06-18) : le mode sombre existait déjà via le composable `composables/useDarkMode.ts` (persistance `solde-dark-mode`, classe `html.dark-mode`, anti-FOUC dans `index.html`) + bascule lune/soleil dans `AppLayout`. Fonctionnellement équivalent au store Pinia demandé — non réécrit. Seul reliquat optionnel : respect de `prefers-color-scheme` au premier chargement (non implémenté).
 
 #### TEC-196 — Tokens de thème clair/sombre (preset Aura dark) + rayons sobres
 
