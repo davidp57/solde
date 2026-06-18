@@ -59,6 +59,7 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
+| BIZ-210 | Factures client — réintroduire un rappel créances exercice/historique (post-RF) | P3 | ~20 min | 2026-06-18 | | |
 | BIZ-202 | Ligne de remise (prix négatif) dans une facture client | P2 | ~20 min | 2026-05-30 | 2026-05-30 | 2026-05-30 |
 | ~~BIZ-201~~ | ~~Backup auto — inclure les fichiers du répertoire data/pdfs~~ | ~~P1~~ | ~~20 min~~ | ~~2026-05-14~~ | ~~2026-05-15~~ | ~~2026-05-15~~ |
 
@@ -169,6 +170,10 @@ Permettre de modifier ou supprimer les opérations bancaires créées manuelleme
 
 **Tests :** ajouter un test Vitest vérifiant que `normalizeDecimalInput` accepte bien un prix négatif et que `computedTotal` / `hasNegativeTotal` se comportent correctement.
 
+
+### BIZ-210 — Factures client : réintroduire un rappel créances exercice/historique (post-RF)
+
+Le Lot RF (BIZ-206) a remplacé les 6 KPI factures client par l'`InvoiceFunnelHero`, qui agrège le **jeu de factures affiché** (reste à encaisser, encaissé, à venir, en retard). Ce faisant, la distinction **créances de l'exercice** vs **créances totales + report historique** (anciennement issue de `useInvoiceMetrics.receivableMetrics`) n'est plus exposée — information utile au trésorier. À rediscuter en review de la PR Factures. Si retenu : réafficher un rappel discret (ex. sous l'entonnoir ou en sous-texte) du report historique des créances ouvertes hors exercice courant, sans réintroduire la grille de 6 KPI. `receivableMetrics` reste disponible dans le composable.
 
 ### BIZ-201 — Backup auto — inclure les fichiers du répertoire data/pdfs
 
