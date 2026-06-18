@@ -611,6 +611,13 @@ export default {
       view: 'Voir',
       more: 'Plus d’actions',
     },
+    segments: {
+      all: 'Toutes',
+      overdue: 'En retard',
+      unpaid: 'Impayées',
+      draft: 'Brouillons',
+      paid: 'Payées',
+    },
   },
   payments: {
     title: 'Paiements',

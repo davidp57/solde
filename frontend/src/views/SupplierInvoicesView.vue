@@ -53,19 +53,14 @@
           </div>
         </div>
 
+        <InvoiceFilterSegments
+          :segments="statusSegments"
+          :model-value="activeSegment"
+          :aria-label="t('invoices.status')"
+          @update:model-value="(key: string) => (activeSegment = key)"
+        />
+
         <div class="app-filter-grid">
-          <div class="app-field">
-            <label class="app-field__label">{{ t('invoices.status') }}</label>
-            <Select
-              v-model="statusFilter"
-              :options="statusOptions"
-              option-label="label"
-              option-value="value"
-              :placeholder="t('common.all')"
-              show-clear
-              @change="loadInvoices"
-            />
-          </div>
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
             <InputText v-model="globalFilter" :placeholder="t('common.filter_placeholder')" />
@@ -80,7 +75,7 @@
         @reload="loadInvoices"
       />
       <template v-if="isMobile">
-        <AppMobileCardList :items="invoiceRows" :empty-message="t('invoices.supplier.empty')">
+        <AppMobileCardList :items="segmentedRows" :empty-message="t('invoices.supplier.empty')">
           <template #card="{ item: data }">
             <div class="app-mobile-card-row app-mobile-card-row--between">
               <span class="app-mobile-card-value" style="font-weight: 700">{{ data.number }}</span>
@@ -114,7 +109,7 @@
       <DataTable
         v-else
         v-model:filters="tableFilters"
-        :value="invoiceRows"
+        :value="segmentedRows"
         :loading="loading"
         class="app-data-table supplier-invoices-table"
         filter-display="menu"
@@ -543,7 +538,6 @@ import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import FileUpload from 'primevue/fileupload'
 import InputText from 'primevue/inputtext'
-import Select from 'primevue/select'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, nextTick, ref, watch } from 'vue'
@@ -569,7 +563,6 @@ import {
   listInvoicesWithCountApi,
   uploadInvoiceFileApi,
   type Invoice,
-  type InvoiceStatus,
 } from '../api/invoices'
 import { listPayments, type Payment } from '../api/payments'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
@@ -579,8 +572,15 @@ import InvoiceFunnelHero from '../components/invoices/InvoiceFunnelHero.vue'
 import InvoiceRowActions, {
   type InvoiceRowPrimaryAction,
 } from '../components/invoices/InvoiceRowActions.vue'
+import InvoiceFilterSegments, {
+  type InvoiceFilterSegment,
+} from '../components/invoices/InvoiceFilterSegments.vue'
 import type { MenuItem } from 'primevue/menuitem'
-import { isOverdueInvoice, remainingForInvoice } from '../composables/useInvoiceMetrics'
+import {
+  isOverdueInvoice,
+  isOpenReceivableInvoice,
+  remainingForInvoice,
+} from '../composables/useInvoiceMetrics'
 import {
   dateRangeFilter,
   inFilter,
@@ -588,10 +588,7 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
-import {
-  collectActiveFilterLabels,
-  findSelectedFilterLabel,
-} from '../composables/activeFilterLabels'
+import { collectActiveFilterLabels } from '../composables/activeFilterLabels'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useListLimitStore } from '../stores/listLimit'
@@ -640,7 +637,6 @@ const uploadDialogVisible = ref(false)
 const uploadTargetId = ref<number | null>(null)
 const selectedFile = ref<File | null>(null)
 const uploading = ref(false)
-const statusFilter = ref<InvoiceStatus | null>(null)
 
 const editFileBlobUrl = ref<string | null>(null)
 const editFileIsPdf = ref(false)
@@ -689,6 +685,37 @@ const invoiceRows = computed(() =>
   })),
 )
 
+// Quick-filter segments — applied client-side over the loaded set; counts derived
+// from the same loaded set so they stay stable while switching segments.
+const activeSegment = ref('all')
+
+const segmentedRows = computed(() => {
+  const rows = invoiceRows.value
+  switch (activeSegment.value) {
+    case 'overdue':
+      return rows.filter(isOverdueInvoice)
+    case 'unpaid':
+      return rows.filter(isOpenReceivableInvoice)
+    case 'draft':
+      return rows.filter((row) => row.status === 'draft')
+    case 'paid':
+      return rows.filter((row) => row.status === 'paid')
+    default:
+      return rows
+  }
+})
+
+const statusSegments = computed<InvoiceFilterSegment[]>(() => {
+  const rows = invoiceRows.value
+  return [
+    { key: 'all', label: t('invoices.segments.all'), count: rows.length },
+    { key: 'overdue', label: t('invoices.segments.overdue'), count: rows.filter(isOverdueInvoice).length },
+    { key: 'unpaid', label: t('invoices.segments.unpaid'), count: rows.filter(isOpenReceivableInvoice).length },
+    { key: 'draft', label: t('invoices.segments.draft'), count: rows.filter((row) => row.status === 'draft').length },
+    { key: 'paid', label: t('invoices.segments.paid'), count: rows.filter((row) => row.status === 'paid').length },
+  ]
+})
+
 const {
   filters: tableFilters,
   globalFilter,
@@ -697,7 +724,7 @@ const {
   hasActiveFilters,
   resetFilters,
   syncDisplayedRows: syncDisplayedInvoices,
-} = useDataTableFilters(invoiceRows, {
+} = useDataTableFilters(segmentedRows, {
   global: textFilter(''),
   number: textFilter(),
   date: dateRangeFilter(),
@@ -723,9 +750,14 @@ const funnelMetrics = computed(() => {
     count: visible.length,
   }
 })
+const activeSegmentLabel = computed(() =>
+  activeSegment.value === 'all'
+    ? undefined
+    : statusSegments.value.find((segment) => segment.key === activeSegment.value)?.label,
+)
 const activeFilterLabels = computed(() =>
   collectActiveFilterLabels(
-    findSelectedFilterLabel(statusOptions, statusFilter.value),
+    activeSegmentLabel.value,
     activeColumnFilterCount.value > 0
       ? t('common.list.column_filters_chip', { count: activeColumnFilterCount.value })
       : undefined,
@@ -851,7 +883,6 @@ async function loadInvoices() {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
       filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
     }
-    if (statusFilter.value) filters.invoice_status = statusFilter.value
     const { items, total } = await listInvoicesWithCountApi(filters)
     limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
     invoices.value = items
