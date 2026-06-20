@@ -198,15 +198,21 @@ const chartData = ref<MonthlyChartRow[]>([])
 const resourcesChartData = ref<DashboardResourcesChartRow[]>([])
 const pendingDeposits = ref<Deposit[]>([])
 
+// API monetary fields can arrive as Decimal strings — coerce defensively.
+function toNum(value: unknown): number {
+  const n = typeof value === 'number' ? value : parseFloat(String(value ?? ''))
+  return Number.isFinite(n) ? n : 0
+}
+
 const netTreasury = computed(
   () =>
-    (kpis.value?.bank_balance ?? 0) +
-    (kpis.value?.bank_epargne_balance ?? 0) +
-    (kpis.value?.cash_balance ?? 0),
+    toNum(kpis.value?.bank_balance) +
+    toNum(kpis.value?.bank_epargne_balance) +
+    toNum(kpis.value?.cash_balance),
 )
 
 const sparkValues = computed(() =>
-  resourcesChartData.value.map((row) => row.net_resources).filter((v) => Number.isFinite(v)),
+  resourcesChartData.value.map((row) => Number(row.net_resources)).filter((v) => Number.isFinite(v)),
 )
 
 const treasuryDelta = computed<number | null>(() => {
@@ -297,11 +303,15 @@ const chartBars = computed(() => {
   }))
 })
 
-function formatAmount(v: number | null | undefined): string {
+function formatAmount(v: number | string | null | undefined): string {
   if (v == null) {
     return '—'
   }
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(v)
+  const n = typeof v === 'number' ? v : parseFloat(String(v))
+  if (!Number.isFinite(n)) {
+    return '—'
+  }
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n)
 }
 
 function formatCompactAmount(v: number): string {
