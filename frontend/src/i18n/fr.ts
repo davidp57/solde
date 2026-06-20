@@ -74,6 +74,14 @@ export default {
     title: 'Utilisateurs',
     subtitle:
       'Administration des comptes, des rôles et de l’activation sans intervention technique.',
+    you: 'vous',
+    role_count: '{count} compte(s)',
+    segments: {
+      all: 'Tous',
+      admins: 'Admins',
+      tresoriers: 'Trésoriers',
+      inactive: 'Inactifs',
+    },
     new: 'Nouvel utilisateur',
     edit: 'Gérer le compte',
     workspace_title: 'Comptes applicatifs',
