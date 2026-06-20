@@ -6,27 +6,42 @@
       :subtitle="t('system.subtitle')"
     />
 
-    <!-- System status -->
-    <AppPanel :title="t('system.info_title')">
-      <div v-if="systemInfo" class="system-info-grid">
-        <div class="system-info-item">
-          <span class="system-info-label">{{ t('system.version') }}</span>
-          <span class="system-info-value">{{ systemInfo.app_version }}</span>
+    <!-- System status banner -->
+    <AppPanel>
+      <div v-if="systemInfo" class="system-status">
+        <div class="system-status__state">
+          <span class="system-status__icon"><i class="pi pi-check-circle" /></span>
+          <div>
+            <p class="system-status__title">{{ t('system.status_ok') }}</p>
+            <p class="system-status__subtitle">{{ t('system.status_subtitle') }}</p>
+          </div>
         </div>
-        <div class="system-info-item">
-          <span class="system-info-label">{{ t('system.db_size') }}</span>
-          <span class="system-info-value">{{ formatBytes(systemInfo.db_size_bytes) }}</span>
-        </div>
-        <div class="system-info-item">
-          <span class="system-info-label">{{ t('system.started_at') }}</span>
-          <span class="system-info-value">{{ formatDatetime(systemInfo.started_at) }}</span>
-        </div>
-        <div class="system-info-item">
-          <span class="system-info-label">{{ t('system.status_label') }}</span>
-          <Tag :value="t('system.status_ok')" severity="success" icon="pi pi-check-circle" />
-        </div>
+        <dl class="system-status__facts">
+          <div class="system-status__fact">
+            <dt>{{ t('system.version') }}</dt>
+            <dd>{{ systemInfo.app_version }}</dd>
+          </div>
+          <div class="system-status__fact">
+            <dt>{{ t('system.db_size') }}</dt>
+            <dd>{{ formatBytes(systemInfo.db_size_bytes) }}</dd>
+          </div>
+          <div class="system-status__fact">
+            <dt>{{ t('system.started_at') }}</dt>
+            <dd>{{ formatDatetime(systemInfo.started_at) }}</dd>
+          </div>
+        </dl>
       </div>
       <Message v-if="systemInfoError" severity="error">{{ t('system.load_error') }}</Message>
+    </AppPanel>
+
+    <!-- Anomalies file -->
+    <AppPanel v-if="anomalyItems.length" dense>
+      <AppWorklist
+        :title="t('system.anomalies_title')"
+        :subtitle="t('system.anomalies_subtitle')"
+        :items="anomalyItems"
+        count-severity="warn"
+      />
     </AppPanel>
 
     <!-- Automated backup -->
@@ -107,6 +122,16 @@
           {{ t('system.restore_step1_msg') }}
         </Message>
         <p class="restore-filename">{{ restoreTarget?.filename }}</p>
+        <label class="restore-confirm-label" for="restore-confirm-input">
+          {{ t('system.restore_confirm_input_label') }}
+        </label>
+        <InputText
+          id="restore-confirm-input"
+          v-model="restoreConfirmText"
+          class="restore-confirm-input"
+          :placeholder="RESTORE_KEYWORD"
+          autocomplete="off"
+        />
       </div>
       <template #footer>
         <Button
@@ -118,6 +143,7 @@
         <Button
           :label="t('system.restore_confirm_btn')"
           severity="danger"
+          :disabled="restoreConfirmText.trim().toUpperCase() !== RESTORE_KEYWORD"
           @click="onRestoreStep1Confirm"
         />
       </template>
@@ -324,7 +350,6 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import MultiSelect from 'primevue/multiselect'
-import Tag from 'primevue/tag'
 import {
   type AuditLogEntry,
   type BackupFile,
@@ -344,6 +369,9 @@ import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import SettingsBackupPanel from '@/components/settings/SettingsBackupPanel.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
+import AppWorklist, { type WorklistItem } from '@/components/ui/AppWorklist.vue'
+
+const RESTORE_KEYWORD = 'RESTAURER'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -366,6 +394,7 @@ const restoreStep1Visible = ref(false)
 const restoreStep2Visible = ref(false)
 const restoring = ref(false)
 const restoreError = ref('')
+const restoreConfirmText = ref('')
 
 // --- Validate state ---
 const validatingFile = ref<string | null>(null)
@@ -389,6 +418,21 @@ const filteredLogs = computed(() => {
   return logs.value.filter(
     (l) => l.logger.toLowerCase().includes(q) || l.message.toLowerCase().includes(q),
   )
+})
+
+const anomalyItems = computed<WorklistItem[]>(() => {
+  const items: WorklistItem[] = []
+  if (inconsistentPayments.value.length > 0) {
+    items.push({
+      key: 'inconsistent-cheques',
+      icon: 'pi-exclamation-triangle',
+      label: t('system.anomaly_cheques'),
+      sublabel: t('system.anomaly_cheques_sub'),
+      value: inconsistentPayments.value.length,
+      severity: 'warn',
+    })
+  }
+  return items
 })
 
 // --- Methods ---
@@ -474,6 +518,7 @@ async function validateBackup(file: BackupFile): Promise<void> {
 function openRestoreDialog(file: BackupFile): void {
   restoreTarget.value = file
   restoreError.value = ''
+  restoreConfirmText.value = ''
   restoreStep1Visible.value = true
 }
 
@@ -590,27 +635,69 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.system-info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1rem;
+.system-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-5);
 }
 
-.system-info-item {
+.system-status__state {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+}
+
+.system-status__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  background: color-mix(in srgb, var(--p-green-500, #22c55e) 16%, transparent);
+  color: var(--p-green-600, #16a34a);
+}
+
+.system-status__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.system-status__subtitle {
+  margin: 0.1rem 0 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.88rem;
+}
+
+.system-status__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-6);
+  margin: 0;
+}
+
+.system-status__fact {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
-.system-info-label {
-  font-size: 0.75rem;
+.system-status__fact dt {
+  font-size: 0.72rem;
   color: var(--p-text-muted-color);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
-.system-info-value {
-  font-weight: 600;
+.system-status__fact dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .backup-actions {
