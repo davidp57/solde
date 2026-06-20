@@ -55,6 +55,9 @@ const stubs = {
   MultiSelect: true,
   AppDatePicker: true,
   RouterLink: true,
+  Tabs: true,
+  TabList: true,
+  Tab: true,
 }
 
 import SystemView from '../../views/SystemView.vue'

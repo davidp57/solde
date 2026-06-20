@@ -50,6 +50,9 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 | TEC-200 | Responsive des écrans refondus — table→cartes, grilles KPI, FAB, cibles ≥44px | P2 | ~40 min | 2026-06-18 | | |
 | TEC-201 | Généraliser les composants : `AppRowActions` + `AppFilterSegments` (extraits de `Invoice*`) | P2 | ~30 min | 2026-06-18 | | |
 | BIZ-211 | Rollout actions de ligne + segments aux autres écrans (contacts, paiements, banque, caisse, salariés, employés, écritures) | P2 | ~90 min | 2026-06-18 | | |
+| TEC-202 | Refonte Admin — `AppSettingRow` (motif ligne de réglage) | P2 | ~20 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
+| BIZ-212 | Refonte Supervision — 2 onglets (État & surveillance / Sauvegardes & restauration) | P2 | ~30 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
+| BIZ-213 | Refonte Paramètres — 4 onglets + lignes de réglage + barres d'enregistrement | P1 | ~80 min | 2026-06-20 | | |
 | CHR-195 | Quality gate + CHANGELOG + docs + release v1.8 | P2 | ~30 min | 2026-06-18 | | |
 
 > Total estimé : **~640 min Copilot + 15 min gestion** (facteur de marge 1,00). Dépendances : TEC-193 précède TEC-194 ; TEC-194 précède BIZ-206 ; TEC-196 s'appuie sur TEC-195 ; TEC-197 précède BIZ-207 et BIZ-209 ; BIZ-207 bénéficie de TEC-198 (sinon dégradation gracieuse) ; TEC-200 vient **après** les écrans refondus (TEC-194, BIZ-207/208/209) et s'appuie sur le pattern mobile existant (`AppMobileCardList` + `useBreakpoints`, lot MOB) ; **TEC-201 puis BIZ-211** (généralisation aux autres écrans) viennent **après** stabilisation des composants factures et peuvent être livrés post-v1.8. Le mode sombre étant piloté par tokens, les écrans livrés avant TEC-196 en héritent automatiquement.
@@ -134,6 +137,14 @@ Conserver des ré-exports/alias depuis les emplacements `invoices/` pour limiter
 #### BIZ-211 — Rollout actions de ligne + segments aux autres écrans
 
 Appliquer les patterns mutualisés (TEC-201) aux écrans listes restants pour une cohérence app-wide : remplacer les rangées de boutons-icônes par `AppRowActions` (action principale contextuelle + menu `⋯`, destructif isolé) et ajouter des **segments rapides** (`AppFilterSegments`) là où c'est pertinent. Écrans visés : **Contacts**, **Paiements**, **Banque** (transactions + dépôts), **Caisse**, **Salariés**, **Employés**, et tables de **comptabilité** (journal, grand-livre…). Au cas par cas : définir l'action principale par statut/contexte propre à chaque écran ; conserver les filtres colonne en « avancé ». Ne pas transposer les composants spécifiques facture (entonnoir, dialog paiement, badge statut, bascule de type). Découpage possible en plusieurs PR par écran. Tests Vitest par vue migrée.
+
+#### Refonte profonde Admin (handoff `design_handoff_solde_complet/`)
+
+Source : handoff Claude Design `design_handoff_solde_complet/details/02-admin-parametres-supervision.md`. Garder **2 écrans séparés**, réorganisés en onglets internes (PrimeVue `Tabs`/`TabList`/`Tab` en sélecteur + contenu en `v-show`).
+
+- **TEC-202** ✅ — `components/ui/AppSettingRow.vue` : motif ligne de réglage (libellé + description + warning + slot `#control`), responsive row→column. Fondation pour Paramètres.
+- **BIZ-212** ✅ — `SystemView` réorganisé en 2 onglets : **État & surveillance** (bandeau + anomalies + logs + audit) / **Sauvegardes & restauration** (backup auto + liste + restauration). Aucun bloc déplacé : `v-show` par panneau (préserve l'état des logs chargés). Éléments déjà faits conservés (bandeau, anomalies, restauration RESTAURER).
+- **BIZ-213** ⬜ — `SettingsView` : passer de 5 panneaux empilés à **4 onglets** (Organisation · Comptabilité · Communication · Zone dangereuse), re-répartir les `Settings*Panel`, convertir les champs en `AppSettingRow`, ajouter une **barre d'enregistrement collante par onglet** (point ambre/✓ vert, Annuler/Enregistrer désactivés si pas de changement), aperçu live du n° de facture, avertissement sur les chiffres de séquence. Le gros morceau (refactor des 6 panneaux + logique de save par onglet).
 
 #### CHR-195 — Quality gate + CHANGELOG + docs + release v1.8
 

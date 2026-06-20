@@ -26,6 +26,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-207** (Lot RF) — Refonte du tableau de bord : hiérarchisé par action requise — en-tête avec sous-titre (exercice + date de mise à jour), **héro Trésorerie nette** (montant + delta vs mois dernier + sparkline + détail banque/épargne/caisse), file **« À traiter »**, actions rapides, chiffres de référence non cliquables, et un **graphe unique** Produits & charges. Suppression du second graphique et du sélecteur d'exercice local (l'exercice vit dans le sélecteur de la barre du haut)
 - **BIZ-208** (Lot RF) — Refonte de l'écran Utilisateurs : matrice de rôles vivante (compteur de comptes par rôle + pastille de couleur), **filtres rapides par rôle** (Tous / Admins / Trésoriers / Inactifs) au-dessus du tableau, et badge **« vous »** sur sa propre ligne. La réinitialisation de mot de passe reste désactivée sur son propre compte
 - **BIZ-209** (Lot RF) — Refonte de l'écran Système : **bandeau d'état** en tête (Opérationnel + version / taille BDD / démarré le), **file d'anomalies** (`AppWorklist`) mettant en avant les données à corriger, et **restauration sécurisée** par saisie obligatoire de « RESTAURER » avant confirmation
+- **BIZ-212** (Lot RF) — Supervision système réorganisée en **2 onglets** : « État & surveillance » (état, anomalies, journaux, audit) et « Sauvegardes & restauration » (sauvegarde automatique, liste, restauration)
+- **TEC-202** (Lot RF) — Nouveau composant `AppSettingRow` (motif « ligne de réglage » : libellé + description + contrôle), socle de la refonte des écrans de configuration
 
 ## [1.7.5] — 2026-05-30
 
