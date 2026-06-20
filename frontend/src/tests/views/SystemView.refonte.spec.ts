@@ -77,10 +77,8 @@ describe('SystemView — refonte', () => {
     expect(wrapper.text()).toContain('system.status_ok')
     expect(wrapper.text()).toContain('1.7.5')
 
-    expect(wrapper.find('.app-worklist').exists()).toBe(true)
+    // Anomalies are surfaced as a single amber banner with a "Corriger" CTA.
+    expect(wrapper.find('.system-anomaly').exists()).toBe(true)
     expect(wrapper.text()).toContain('system.anomaly_cheques')
-    // One anomaly type listed, with 2 affected payments shown as its value.
-    expect(wrapper.find('.app-worklist__count').text()).toBe('1')
-    expect(wrapper.find('.app-worklist__value').text()).toBe('2')
   })
 })
