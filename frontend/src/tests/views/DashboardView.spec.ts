@@ -111,4 +111,30 @@ describe('DashboardView', () => {
     // a positive delta pill is shown (1000 -> 1600)
     expect(wrapper.find('.dashboard-hero__delta--up').exists()).toBe(true)
   })
+
+  it('handles Decimal string balances without producing NaN', async () => {
+    mockGetDashboard.mockResolvedValue({
+      bank_balance: '36480.10',
+      bank_epargne_balance: '4750.00',
+      cash_balance: '455.73',
+      unpaid_count: 0,
+      unpaid_total: '0',
+      overdue_count: 0,
+      overdue_total: '0',
+      undeposited_count: 0,
+      current_fy_name: '2025',
+      current_resultat: '0',
+      alerts: [],
+    })
+    mockGetMonthly.mockResolvedValue([])
+    mockGetResources.mockResolvedValue([])
+
+    const wrapper = mount(DashboardView, { global: { stubs } })
+    await flush()
+
+    const amount = wrapper.find('.dashboard-hero__amount').text()
+    expect(amount).not.toContain('NaN')
+    // 36480.10 + 4750.00 + 455.73 = 41685.83
+    expect(amount).toContain('685')
+  })
 })
