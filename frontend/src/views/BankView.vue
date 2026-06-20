@@ -198,59 +198,11 @@
                     />
                   </div>
                   <div class="app-mobile-card-actions">
-                    <Button
-                      v-if="canEditOrDelete(data)"
-                      icon="pi pi-pencil"
-                      size="small"
-                      severity="secondary"
-                      text
-                      :title="t('bank.edit_transaction')"
-                      @click="openEditTransactionDialog(data)"
-                    />
-                    <Button
-                      v-if="canEditOrDelete(data)"
-                      icon="pi pi-trash"
-                      size="small"
-                      severity="danger"
-                      text
-                      :title="t('bank.delete_transaction')"
-                      @click="deleteManualTx(data)"
-                    />
-                    <Button
-                      v-if="canLinkExistingSupplierPayment(data)"
-                      icon="pi pi-link"
-                      size="small"
-                      severity="secondary"
-                      text
-                      :title="t('bank.link_supplier_payment')"
-                      @click="openExistingSupplierPaymentDialog(data)"
-                    />
-                    <Button
-                      v-if="canCreateSupplierPayment(data)"
-                      icon="pi pi-arrow-up-right"
-                      size="small"
-                      severity="secondary"
-                      text
-                      :title="t('bank.create_supplier_payment')"
-                      @click="openSupplierPaymentDialog(data)"
-                    />
-                    <Button
-                      v-if="canLinkExistingClientPayment(data)"
-                      icon="pi pi-link"
-                      size="small"
-                      severity="secondary"
-                      text
-                      :title="t('bank.link_client_payment')"
-                      @click="openExistingClientPaymentDialog(data)"
-                    />
-                    <Button
-                      v-if="canCreateClientPayment(data)"
-                      icon="pi pi-wallet"
-                      size="small"
-                      severity="secondary"
-                      text
-                      :title="t('bank.create_client_payment')"
-                      @click="openClientPaymentDialog(data)"
+                    <AppRowActions
+                      v-if="txPrimaryAction(data)"
+                      :primary="txPrimaryAction(data)!"
+                      :menu-items="txMenuItems(data)"
+                      :menu-aria-label="t('common.actions')"
                     />
                     <Button
                       icon="pi pi-pencil"
@@ -472,59 +424,11 @@
               </Column>
               <Column :header="t('common.actions')" style="width: 7.25rem">
                 <template #body="{ data }">
-                  <Button
-                    v-if="canEditOrDelete(data)"
-                    icon="pi pi-pencil"
-                    size="small"
-                    severity="secondary"
-                    text
-                    :title="t('bank.edit_transaction')"
-                    @click="openEditTransactionDialog(data)"
-                  />
-                  <Button
-                    v-if="canEditOrDelete(data)"
-                    icon="pi pi-trash"
-                    size="small"
-                    severity="danger"
-                    text
-                    :title="t('bank.delete_transaction')"
-                    @click="deleteManualTx(data)"
-                  />
-                  <Button
-                    v-if="canLinkExistingSupplierPayment(data)"
-                    icon="pi pi-link"
-                    size="small"
-                    severity="secondary"
-                    text
-                    :title="t('bank.link_supplier_payment')"
-                    @click="openExistingSupplierPaymentDialog(data)"
-                  />
-                  <Button
-                    v-if="canCreateSupplierPayment(data)"
-                    icon="pi pi-arrow-up-right"
-                    size="small"
-                    severity="secondary"
-                    text
-                    :title="t('bank.create_supplier_payment')"
-                    @click="openSupplierPaymentDialog(data)"
-                  />
-                  <Button
-                    v-if="canLinkExistingClientPayment(data)"
-                    icon="pi pi-link"
-                    size="small"
-                    severity="secondary"
-                    text
-                    :title="t('bank.link_client_payment')"
-                    @click="openExistingClientPaymentDialog(data)"
-                  />
-                  <Button
-                    v-if="canCreateClientPayment(data)"
-                    icon="pi pi-wallet"
-                    size="small"
-                    severity="secondary"
-                    text
-                    :title="t('bank.create_client_payment')"
-                    @click="openClientPaymentDialog(data)"
+                  <AppRowActions
+                    v-if="txPrimaryAction(data)"
+                    :primary="txPrimaryAction(data)!"
+                    :menu-items="txMenuItems(data)"
+                    :menu-aria-label="t('common.actions')"
                   />
                 </template>
               </Column>
@@ -600,59 +504,11 @@
                     />
                   </div>
                   <div class="app-mobile-card-actions">
-                    <Button
-                      v-if="canEditOrDelete(data)"
-                      icon="pi pi-pencil"
-                      size="small"
-                      severity="secondary"
-                      text
-                      :title="t('bank.edit_transaction')"
-                      @click="openEditTransactionDialog(data)"
-                    />
-                    <Button
-                      v-if="canEditOrDelete(data)"
-                      icon="pi pi-trash"
-                      size="small"
-                      severity="danger"
-                      text
-                      :title="t('bank.delete_transaction')"
-                      @click="deleteManualTx(data)"
-                    />
-                    <Button
-                      v-if="canLinkExistingSupplierPayment(data)"
-                      icon="pi pi-link"
-                      size="small"
-                      severity="secondary"
-                      text
-                      :title="t('bank.link_supplier_payment')"
-                      @click="openExistingSupplierPaymentDialog(data)"
-                    />
-                    <Button
-                      v-if="canCreateSupplierPayment(data)"
-                      icon="pi pi-arrow-up-right"
-                      size="small"
-                      severity="secondary"
-                      text
-                      :title="t('bank.create_supplier_payment')"
-                      @click="openSupplierPaymentDialog(data)"
-                    />
-                    <Button
-                      v-if="canLinkExistingClientPayment(data)"
-                      icon="pi pi-link"
-                      size="small"
-                      severity="secondary"
-                      text
-                      :title="t('bank.link_client_payment')"
-                      @click="openExistingClientPaymentDialog(data)"
-                    />
-                    <Button
-                      v-if="canCreateClientPayment(data)"
-                      icon="pi pi-wallet"
-                      size="small"
-                      severity="secondary"
-                      text
-                      :title="t('bank.create_client_payment')"
-                      @click="openClientPaymentDialog(data)"
+                    <AppRowActions
+                      v-if="txPrimaryAction(data)"
+                      :primary="txPrimaryAction(data)!"
+                      :menu-items="txMenuItems(data)"
+                      :menu-aria-label="t('common.actions')"
                     />
                     <Button
                       icon="pi pi-pencil"
@@ -874,59 +730,11 @@
               </Column>
               <Column :header="t('common.actions')" style="width: 7.25rem">
                 <template #body="{ data }">
-                  <Button
-                    v-if="canEditOrDelete(data)"
-                    icon="pi pi-pencil"
-                    size="small"
-                    severity="secondary"
-                    text
-                    :title="t('bank.edit_transaction')"
-                    @click="openEditTransactionDialog(data)"
-                  />
-                  <Button
-                    v-if="canEditOrDelete(data)"
-                    icon="pi pi-trash"
-                    size="small"
-                    severity="danger"
-                    text
-                    :title="t('bank.delete_transaction')"
-                    @click="deleteManualTx(data)"
-                  />
-                  <Button
-                    v-if="canLinkExistingSupplierPayment(data)"
-                    icon="pi pi-link"
-                    size="small"
-                    severity="secondary"
-                    text
-                    :title="t('bank.link_supplier_payment')"
-                    @click="openExistingSupplierPaymentDialog(data)"
-                  />
-                  <Button
-                    v-if="canCreateSupplierPayment(data)"
-                    icon="pi pi-arrow-up-right"
-                    size="small"
-                    severity="secondary"
-                    text
-                    :title="t('bank.create_supplier_payment')"
-                    @click="openSupplierPaymentDialog(data)"
-                  />
-                  <Button
-                    v-if="canLinkExistingClientPayment(data)"
-                    icon="pi pi-link"
-                    size="small"
-                    severity="secondary"
-                    text
-                    :title="t('bank.link_client_payment')"
-                    @click="openExistingClientPaymentDialog(data)"
-                  />
-                  <Button
-                    v-if="canCreateClientPayment(data)"
-                    icon="pi pi-wallet"
-                    size="small"
-                    severity="secondary"
-                    text
-                    :title="t('bank.create_client_payment')"
-                    @click="openClientPaymentDialog(data)"
+                  <AppRowActions
+                    v-if="txPrimaryAction(data)"
+                    :primary="txPrimaryAction(data)!"
+                    :menu-items="txMenuItems(data)"
+                    :menu-aria-label="t('common.actions')"
                   />
                 </template>
               </Column>
@@ -1239,6 +1047,8 @@ import BankNewDepositDialog from '../components/bank/BankNewDepositDialog.vue'
 import BankPendingDepositsPanel from '../components/bank/BankPendingDepositsPanel.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
+import AppRowActions, { type RowAction } from '@/components/ui/AppRowActions.vue'
+import type { MenuItem } from 'primevue/menuitem'
 import {
   getBankBalance,
   getBankFundsChart,
@@ -1561,6 +1371,36 @@ function canCreateSupplierPayment(tx: BankTransaction): boolean {
 
 function canLinkExistingSupplierPayment(tx: BankTransaction): boolean {
   return canCreateSupplierPayment(tx)
+}
+
+// Contextual non-destructive actions available for a transaction, in priority order.
+function txAvailableActions(tx: BankTransaction): RowAction[] {
+  const acts: RowAction[] = []
+  if (canCreateClientPayment(tx))
+    acts.push({ key: 'create-client', label: t('bank.create_client_payment'), icon: 'pi pi-wallet', severity: 'secondary', command: () => openClientPaymentDialog(tx) })
+  if (canCreateSupplierPayment(tx))
+    acts.push({ key: 'create-supplier', label: t('bank.create_supplier_payment'), icon: 'pi pi-arrow-up-right', severity: 'secondary', command: () => openSupplierPaymentDialog(tx) })
+  if (canLinkExistingClientPayment(tx))
+    acts.push({ key: 'link-client', label: t('bank.link_client_payment'), icon: 'pi pi-link', severity: 'secondary', command: () => openExistingClientPaymentDialog(tx) })
+  if (canLinkExistingSupplierPayment(tx))
+    acts.push({ key: 'link-supplier', label: t('bank.link_supplier_payment'), icon: 'pi pi-link', severity: 'secondary', command: () => openExistingSupplierPaymentDialog(tx) })
+  if (canEditOrDelete(tx))
+    acts.push({ key: 'edit', label: t('bank.edit_transaction'), icon: 'pi pi-pencil', severity: 'secondary', command: () => openEditTransactionDialog(tx) })
+  return acts
+}
+
+function txPrimaryAction(tx: BankTransaction): RowAction | null {
+  return txAvailableActions(tx)[0] ?? null
+}
+
+function txMenuItems(tx: BankTransaction): MenuItem[] {
+  const [, ...rest] = txAvailableActions(tx)
+  const items: MenuItem[] = rest.map((a) => ({ label: a.label, icon: a.icon, command: a.command }))
+  if (canEditOrDelete(tx)) {
+    if (items.length) items.push({ separator: true })
+    items.push({ label: t('bank.delete_transaction'), icon: 'pi pi-trash', class: 'app-row-actions-danger', command: () => deleteManualTx(tx) })
+  }
+  return items
 }
 
 async function reconcile(tx: BankTransaction): Promise<void> {
