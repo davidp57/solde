@@ -3,102 +3,87 @@
     <!-- ── Planification ─────────────────────────────────────────────── -->
     <section class="backup-section">
       <h3 class="backup-section__title">{{ t('settings.backup_schedule_title') }}</h3>
-      <div class="app-form-grid">
-        <div class="settings-switch col-span-2">
-          <ToggleSwitch id="backup_enabled" v-model="schedule.enabled" @change="saveSchedule" />
-          <label for="backup_enabled" class="app-field__label">
-            {{ t('settings.backup_enabled') }}
-          </label>
-        </div>
 
-        <div class="app-field">
-          <label class="app-field__label">{{ t('settings.backup_schedule_type') }}</label>
+      <AppSettingRow :label="t('settings.backup_enabled')" html-for="backup_enabled">
+        <template #control>
+          <ToggleSwitch id="backup_enabled" v-model="schedule.enabled" @change="saveSchedule" />
+        </template>
+      </AppSettingRow>
+
+      <AppSettingRow :label="t('settings.backup_schedule_type')" html-for="backup_schedule_type">
+        <template #control>
           <Select
+            id="backup_schedule_type"
             v-model="schedule.schedule_type"
             :options="scheduleTypeOptions"
             option-label="label"
             option-value="value"
-            class="w-full"
             @change="saveSchedule"
           />
-        </div>
+        </template>
+      </AppSettingRow>
 
-        <div v-if="schedule.schedule_type === 'interval'" class="app-field">
-          <label for="backup_interval_hours" class="app-field__label">
-            {{ t('settings.backup_interval_hours') }}
-          </label>
+      <AppSettingRow
+        v-if="schedule.schedule_type === 'interval'"
+        :label="t('settings.backup_interval_hours')"
+        html-for="backup_interval_hours"
+      >
+        <template #control>
           <InputNumber
             id="backup_interval_hours"
             v-model="schedule.interval_hours"
             :min="1"
             :max="168"
             :use-grouping="false"
-            class="w-full"
             @blur="saveSchedule"
           />
-        </div>
+        </template>
+      </AppSettingRow>
 
-        <div v-else-if="schedule.schedule_type === 'daily'" class="app-field">
-          <label for="backup_daily_time" class="app-field__label">
-            {{ t('settings.backup_daily_time') }}
-          </label>
-          <InputText
-            id="backup_daily_time"
-            v-model="schedule.daily_time"
-            placeholder="02:00"
-            class="w-full"
-            @blur="saveSchedule"
-          />
-          <small class="app-field__help">{{ t('settings.backup_daily_time_help') }}</small>
-        </div>
+      <AppSettingRow
+        v-else-if="schedule.schedule_type === 'daily'"
+        :label="t('settings.backup_daily_time')"
+        :description="t('settings.backup_daily_time_help')"
+        html-for="backup_daily_time"
+      >
+        <template #control>
+          <InputText id="backup_daily_time" v-model="schedule.daily_time" placeholder="02:00" @blur="saveSchedule" />
+        </template>
+      </AppSettingRow>
 
-        <div v-else class="app-field">
-          <label for="backup_cron" class="app-field__label">
-            {{ t('settings.backup_cron_expression') }}
-          </label>
+      <AppSettingRow
+        v-else
+        :label="t('settings.backup_cron_expression')"
+        :description="t('settings.backup_cron_help')"
+        html-for="backup_cron"
+      >
+        <template #control>
           <InputText
             id="backup_cron"
             v-model="schedule.cron_expression"
             :placeholder="t('settings.backup_cron_placeholder')"
-            class="w-full"
             @blur="saveSchedule"
           />
-          <small class="app-field__help">{{ t('settings.backup_cron_help') }}</small>
-        </div>
+        </template>
+      </AppSettingRow>
 
-        <div class="settings-switch">
-          <ToggleSwitch
-            id="backup_include_uploads"
-            v-model="schedule.include_uploads"
-            @change="saveSchedule"
-          />
-          <label for="backup_include_uploads" class="app-field__label">
-            {{ t('settings.backup_include_uploads') }}
-          </label>
-        </div>
+      <AppSettingRow :label="t('settings.backup_include_uploads')" html-for="backup_include_uploads">
+        <template #control>
+          <ToggleSwitch id="backup_include_uploads" v-model="schedule.include_uploads" @change="saveSchedule" />
+        </template>
+      </AppSettingRow>
 
-        <div class="settings-switch">
-          <ToggleSwitch
-            id="backup_include_all_backups"
-            v-model="schedule.include_all_backups"
-            @change="saveSchedule"
-          />
-          <label for="backup_include_all_backups" class="app-field__label">
-            {{ t('settings.backup_include_all_backups') }}
-          </label>
-        </div>
+      <AppSettingRow :label="t('settings.backup_include_all_backups')" html-for="backup_include_all_backups">
+        <template #control>
+          <ToggleSwitch id="backup_include_all_backups" v-model="schedule.include_all_backups" @change="saveSchedule" />
+        </template>
+      </AppSettingRow>
 
-        <div class="settings-switch">
-          <ToggleSwitch
-            id="backup_notify_on_failure"
-            v-model="schedule.notify_on_failure"
-            @change="saveSchedule"
-          />
-          <label for="backup_notify_on_failure" class="app-field__label">
-            {{ t('settings.backup_notify_on_failure') }}
-          </label>
-        </div>
-      </div>
+      <AppSettingRow :label="t('settings.backup_notify_on_failure')" html-for="backup_notify_on_failure">
+        <template #control>
+          <ToggleSwitch id="backup_notify_on_failure" v-model="schedule.notify_on_failure" @change="saveSchedule" />
+        </template>
+      </AppSettingRow>
     </section>
 
     <!-- ── Statut dernier run ─────────────────────────────────────────── -->
@@ -408,6 +393,7 @@ import {
   type BackupRunStatus,
 } from '@/api/backup'
 import AppPanel from '@/components/ui/AppPanel.vue'
+import AppSettingRow from '@/components/ui/AppSettingRow.vue'
 
 const { t } = useI18n()
 const toast = useToast()
