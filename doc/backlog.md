@@ -41,8 +41,8 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 | BIZ-206 | Migrer vues factures client/fournisseur → `InvoiceWorkspace` | P1 | ~45 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | TEC-195 | Store Pinia `theme` + bascule clair/sombre topbar | P2 | ~25 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | TEC-196 | Tokens de thème clair/sombre (preset Aura dark) + rayons sobres | P2 | ~45 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
-| TEC-197 | Composant `AppWorklist` mutualisé (« À traiter » / anomalies) | P2 | ~20 min | 2026-06-18 | | |
-| BIZ-207 | Refonte `DashboardView` — héro trésorerie, file à traiter, graphe unique | P1 | ~60 min | 2026-06-18 | | |
+| TEC-197 | Composant `AppWorklist` mutualisé (« À traiter » / anomalies) | P2 | ~20 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| BIZ-207 | Refonte `DashboardView` — héro trésorerie, file à traiter, graphe unique | P1 | ~60 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | TEC-198 | Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents) | P3 | ~30 min | 2026-06-18 | | |
 | BIZ-208 | Refonte `UsersView` — matrice de rôles vivante + filtres | P2 | ~40 min | 2026-06-18 | | |
 | BIZ-209 | Refonte `SystemView` — bandeau d'état, anomalies, restauration isolée | P2 | ~50 min | 2026-06-18 | | |
@@ -98,6 +98,8 @@ Créer un composant de **file d'actions** réutilisé par le tableau de bord («
 #### BIZ-207 — Refonte `DashboardView` — héro trésorerie, file à traiter, graphe unique
 
 Restructurer `DashboardView.vue` (colonne, gap 24px) : 1) **en-tête** eyebrow + titre « Vue d'ensemble » + **sous-titre** (« Exercice … · à jour au … ») + actions à droite (Exporter secondaire, Nouvelle facture primaire) ; 2) **héro Trésorerie nette** pleine largeur 2 colonnes : grand chiffre + pill delta + **sparkline** (depuis `getResourcesChartApi`) à gauche, détail Banque courant/épargne/Caisse à droite ; 3) grille 1.5fr/1fr : **`AppWorklist` « À traiter »** (impayés, en retard, chèques à déposer, à rapprocher) + **Actions rapides** ; 4) **4 chiffres de référence non cliquables** (Résultat exercice, Recettes/Dépenses du mois, Adhérents) — pas de hover ; 5) **un seul graphe** Produits & charges (barres groupées). Supprimer le `Select` d'exercice local du graphe (effet de bord sur le store global) — l'exercice vit uniquement dans le sélecteur topbar. Couleur + signe sémantiques (vert = bonne nouvelle, rouge = dû). Dégradation gracieuse des éléments dépendant de TEC-198 si l'API ne fournit pas encore la donnée.
+
+> **BIZ-207 livré** (2026-06-18) avec dégradation gracieuse : le delta trésorerie et la sparkline sont dérivés côté front depuis `getResourcesChartApi` (net_resources). Les éléments **« opérations à rapprocher »** (file À traiter) et **« adhérents »** (chiffre de référence) sont **omis** faute de donnée API — ils restent à couvrir par TEC-198. Le 4ᵉ chiffre de référence affiche l'exercice en cours à la place des adhérents.
 
 #### TEC-198 — Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents)
 
