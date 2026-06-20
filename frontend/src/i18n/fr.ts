@@ -2038,6 +2038,8 @@ export default {
     status_label: 'Statut',
     status_ok: 'Opérationnel',
     status_subtitle: 'Tous les services répondent.',
+    tab_monitoring: 'État & surveillance',
+    tab_backups: 'Sauvegardes & restauration',
     anomalies_title: 'Données à corriger',
     anomalies_subtitle: 'Anomalies détectées nécessitant une intervention.',
     anomaly_cheques: 'Chèques sans date de dépôt',

@@ -6,8 +6,15 @@
       :subtitle="t('system.subtitle')"
     />
 
+    <Tabs v-model:value="activeSystemTab">
+      <TabList>
+        <Tab value="monitoring">{{ t('system.tab_monitoring') }}</Tab>
+        <Tab value="backups">{{ t('system.tab_backups') }}</Tab>
+      </TabList>
+    </Tabs>
+
     <!-- System status banner -->
-    <AppPanel>
+    <AppPanel v-show="activeSystemTab === 'monitoring'">
       <div v-if="systemInfo" class="system-status">
         <div class="system-status__state">
           <span class="system-status__icon"><i class="pi pi-check-circle" /></span>
@@ -35,7 +42,7 @@
     </AppPanel>
 
     <!-- Anomalies file -->
-    <AppPanel v-if="anomalyItems.length" dense>
+    <AppPanel v-show="activeSystemTab === 'monitoring' && anomalyItems.length > 0" dense>
       <AppWorklist
         :title="t('system.anomalies_title')"
         :subtitle="t('system.anomalies_subtitle')"
@@ -45,10 +52,14 @@
     </AppPanel>
 
     <!-- Automated backup -->
-    <SettingsBackupPanel />
+    <SettingsBackupPanel v-show="activeSystemTab === 'backups'" />
 
     <!-- Backups -->
-    <AppPanel :title="t('system.backup_title')" :subtitle="t('system.backup_subtitle')">
+    <AppPanel
+      v-show="activeSystemTab === 'backups'"
+      :title="t('system.backup_title')"
+      :subtitle="t('system.backup_subtitle')"
+    >
       <div class="backup-actions">
         <div class="backup-create-row">
           <InputText
@@ -210,7 +221,7 @@
     </Dialog>
 
     <!-- Application logs -->
-    <AppPanel :title="t('system.logs_title')">
+    <AppPanel v-show="activeSystemTab === 'monitoring'" :title="t('system.logs_title')">
       <div class="logs-load-bar">
         <Button
           :label="logsLoaded ? t('system.logs_reload_btn') : t('system.logs_load_btn')"
@@ -268,6 +279,7 @@
 
     <!-- Inconsistent cheque payments (admin) -->
     <AppPanel
+      v-show="activeSystemTab === 'monitoring'"
       :title="t('system.inconsistent_payments_title')"
       :subtitle="t('system.inconsistent_payments_subtitle')"
     >
@@ -308,7 +320,11 @@
     </AppPanel>
 
     <!-- Audit log -->
-    <AppPanel :title="t('system.audit_title')" :subtitle="t('system.audit_subtitle')">
+    <AppPanel
+      v-show="activeSystemTab === 'monitoring'"
+      :title="t('system.audit_title')"
+      :subtitle="t('system.audit_subtitle')"
+    >
       <p v-if="auditLogs.length === 0" class="empty-message">{{ t('system.audit_empty') }}</p>
       <DataTable v-else :value="auditLogs" size="small" striped-rows paginator :rows="50">
         <Column :header="t('system.col_timestamp')" style="white-space: nowrap">
@@ -350,6 +366,9 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import MultiSelect from 'primevue/multiselect'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
 import {
   type AuditLogEntry,
   type BackupFile,
@@ -377,6 +396,7 @@ const { t } = useI18n()
 const toast = useToast()
 
 // --- State ---
+const activeSystemTab = ref<'monitoring' | 'backups'>('monitoring')
 const systemInfo = ref<SystemInfo | null>(null)
 const systemInfoError = ref(false)
 const backupFiles = ref<BackupFile[]>([])
