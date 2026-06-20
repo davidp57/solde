@@ -13,91 +13,149 @@
       </TabList>
     </Tabs>
 
-    <!-- System status banner -->
-    <AppPanel v-show="activeSystemTab === 'monitoring'">
-      <div v-if="systemInfo" class="system-status">
-        <div class="system-status__state">
-          <span class="system-status__icon"><i class="pi pi-check-circle" /></span>
-          <div>
-            <p class="system-status__title">{{ t('system.status_ok') }}</p>
-            <p class="system-status__subtitle">{{ t('system.status_subtitle') }}</p>
+    <!-- ═══════════ Onglet : État & surveillance ═══════════ -->
+    <div v-show="activeSystemTab === 'monitoring'" class="system-tab">
+      <!-- Status banner -->
+      <AppPanel>
+        <div v-if="systemInfo" class="system-status">
+          <div class="system-status__state">
+            <span class="system-status__icon"><i class="pi pi-check-circle" /></span>
+            <div>
+              <p class="system-status__title">{{ t('system.status_ok') }}</p>
+              <p class="system-status__subtitle">{{ t('system.status_subtitle') }}</p>
+            </div>
           </div>
+          <dl class="system-status__facts">
+            <div class="system-status__fact">
+              <dt>{{ t('system.version') }}</dt>
+              <dd>{{ systemInfo.app_version }}</dd>
+            </div>
+            <div class="system-status__fact">
+              <dt>{{ t('system.db_size') }}</dt>
+              <dd>{{ formatBytes(systemInfo.db_size_bytes) }}</dd>
+            </div>
+            <div class="system-status__fact">
+              <dt>{{ t('system.started_at') }}</dt>
+              <dd>{{ formatDatetime(systemInfo.started_at) }}</dd>
+            </div>
+          </dl>
         </div>
-        <dl class="system-status__facts">
-          <div class="system-status__fact">
-            <dt>{{ t('system.version') }}</dt>
-            <dd>{{ systemInfo.app_version }}</dd>
-          </div>
-          <div class="system-status__fact">
-            <dt>{{ t('system.db_size') }}</dt>
-            <dd>{{ formatBytes(systemInfo.db_size_bytes) }}</dd>
-          </div>
-          <div class="system-status__fact">
-            <dt>{{ t('system.started_at') }}</dt>
-            <dd>{{ formatDatetime(systemInfo.started_at) }}</dd>
-          </div>
-        </dl>
-      </div>
-      <Message v-if="systemInfoError" severity="error">{{ t('system.load_error') }}</Message>
-    </AppPanel>
+        <Message v-if="systemInfoError" severity="error">{{ t('system.load_error') }}</Message>
+      </AppPanel>
 
-    <!-- Anomalies banner -->
-    <AppPanel
-      v-show="activeSystemTab === 'monitoring' && inconsistentPayments.length > 0"
-      class="system-anomaly"
-    >
-      <div class="system-anomaly__row">
-        <span class="system-anomaly__icon"><i class="pi pi-exclamation-triangle" /></span>
-        <div class="system-anomaly__copy">
-          <p class="system-anomaly__title">{{ t('system.anomaly_cheques') }}</p>
-          <p class="system-anomaly__sub">
-            {{ t('system.anomaly_cheques_sub', { count: inconsistentPayments.length }) }}
-          </p>
-        </div>
-        <Button
-          :label="t('system.anomaly_fix')"
-          icon="pi pi-arrow-right"
-          icon-pos="right"
-          severity="warn"
-          @click="fixDialogVisible = true"
-        />
-      </div>
-    </AppPanel>
-
-    <!-- Automated backup -->
-    <SettingsBackupPanel v-show="activeSystemTab === 'backups'" />
-
-    <!-- Backups -->
-    <AppPanel
-      v-show="activeSystemTab === 'backups'"
-      :title="t('system.backup_title')"
-      :subtitle="t('system.backup_subtitle')"
-    >
-      <div class="backup-actions">
-        <div class="backup-create-row">
-          <InputText
-            v-model="backupLabel"
-            :placeholder="t('system.backup_label_placeholder')"
-            class="backup-label-input"
-            :maxlength="100"
-          />
+      <!-- Anomalies banner -->
+      <AppPanel v-if="inconsistentPayments.length > 0" class="system-anomaly">
+        <div class="system-anomaly__row">
+          <span class="system-anomaly__icon"><i class="pi pi-exclamation-triangle" /></span>
+          <div class="system-anomaly__copy">
+            <p class="system-anomaly__title">{{ t('system.anomaly_cheques') }}</p>
+            <p class="system-anomaly__sub">
+              {{ t('system.anomaly_cheques_sub', { count: inconsistentPayments.length }) }}
+            </p>
+          </div>
           <Button
-            :label="t('system.backup_download')"
-            icon="pi pi-download"
-            severity="secondary"
-            outlined
-            :loading="backing"
-            @click="downloadBackup"
+            :label="t('system.anomaly_fix')"
+            icon="pi pi-arrow-right"
+            icon-pos="right"
+            severity="warn"
+            @click="fixDialogVisible = true"
           />
         </div>
-        <Message v-if="backupError" severity="error" :closable="true">
-          {{ backupError }}
-        </Message>
-      </div>
+      </AppPanel>
 
-      <div v-if="backupFiles.length > 0" class="backup-list">
-        <h3 class="backup-list-title">{{ t('system.backup_list_title') }}</h3>
-        <DataTable :value="backupFiles" size="small" striped-rows>
+      <!-- Application logs -->
+      <AppPanel :title="t('system.logs_title')">
+        <template #actions>
+          <div class="logs-chips">
+            <button
+              v-for="lvl in logLevelChips"
+              :key="lvl.value"
+              type="button"
+              :class="[
+                'logs-chip',
+                `logs-chip--${lvl.value.toLowerCase()}`,
+                { 'logs-chip--active': selectedLevels.includes(lvl.value) },
+              ]"
+              @click="toggleLevel(lvl.value)"
+            >
+              {{ lvl.label }}
+            </button>
+          </div>
+        </template>
+        <div ref="logsContainerRef" class="logs-container">
+          <p v-if="logsLoading" class="empty-message">{{ t('common.loading') }}</p>
+          <p v-else-if="logs.length === 0" class="empty-message">{{ t('system.logs_empty') }}</p>
+          <div
+            v-for="(entry, i) in logs"
+            v-else
+            :key="i"
+            :class="['log-line', `log-${entry.level.toLowerCase()}`]"
+          >
+            <span class="log-ts">{{ entry.timestamp }}</span>
+            <span :class="['log-level', `log-level--${entry.level.toLowerCase()}`]">{{ entry.level }}</span>
+            <span class="log-logger">{{ entry.logger }}</span>
+            <span class="log-msg">{{ entry.message }}</span>
+          </div>
+        </div>
+      </AppPanel>
+
+      <!-- Audit log -->
+      <AppPanel :title="t('system.audit_title')" :subtitle="t('system.audit_subtitle')">
+        <p v-if="auditLogs.length === 0" class="empty-message">{{ t('system.audit_empty') }}</p>
+        <DataTable v-else :value="auditLogs" size="small" striped-rows paginator :rows="50">
+          <Column :header="t('system.col_timestamp')" style="white-space: nowrap">
+            <template #body="{ data }">{{ formatDatetime(data.created_at) }}</template>
+          </Column>
+          <Column field="actor_username" :header="t('system.col_actor')" />
+          <Column :header="t('system.col_action')" style="min-width: 18rem">
+            <template #body="{ data }">{{ tAuditAction(data.action) }}</template>
+          </Column>
+          <Column :header="t('system.col_target')">
+            <template #body="{ data }">
+              <span v-if="data.target_type">{{ data.target_type }} #{{ data.target_id }}</span>
+              <span v-else>—</span>
+            </template>
+          </Column>
+          <Column :header="t('system.col_detail')" style="font-size: 0.6em">
+            <template #body="{ data }">
+              <code v-if="data.detail" class="audit-detail">{{ JSON.stringify(data.detail) }}</code>
+              <span v-else>—</span>
+            </template>
+          </Column>
+        </DataTable>
+      </AppPanel>
+    </div>
+
+    <!-- ═══════════ Onglet : Sauvegardes & restauration ═══════════ -->
+    <div v-show="activeSystemTab === 'backups'" class="system-tab">
+      <!-- Automated backup config -->
+      <SettingsBackupPanel />
+
+      <!-- Available backups -->
+      <AppPanel
+        :title="t('system.backups_available_title')"
+        :subtitle="t('system.backups_available_subtitle')"
+      >
+        <template #actions>
+          <div class="backup-create-row">
+            <InputText
+              v-model="backupLabel"
+              :placeholder="t('system.backup_label_placeholder')"
+              class="backup-label-input"
+              :maxlength="100"
+            />
+            <Button
+              :label="t('system.backup_download_now')"
+              icon="pi pi-download"
+              severity="secondary"
+              outlined
+              :loading="backing"
+              @click="downloadBackup"
+            />
+          </div>
+        </template>
+        <Message v-if="backupError" severity="error" :closable="true">{{ backupError }}</Message>
+        <DataTable v-if="backupFiles.length > 0" :value="backupFiles" size="small" striped-rows>
           <Column field="filename" :header="t('system.col_filename')" />
           <Column :header="t('system.col_label')">
             <template #body="{ data }">{{ data.label || '—' }}</template>
@@ -130,45 +188,46 @@
             </template>
           </Column>
         </DataTable>
-      </div>
-      <p v-else class="empty-message">{{ t('system.backup_empty') }}</p>
-    </AppPanel>
+        <p v-else class="empty-message">{{ t('system.backup_empty') }}</p>
+      </AppPanel>
 
-    <!-- Restore (inline, isolated destructive panel) -->
-    <AppPanel v-show="activeSystemTab === 'backups'" class="restore-panel">
-      <div class="restore-panel__header">
-        <span class="restore-panel__icon"><i class="pi pi-exclamation-triangle" /></span>
-        <div>
-          <p class="restore-panel__title">{{ t('system.restore_title') }}</p>
-          <p class="restore-panel__sub">{{ t('system.restore_subtitle') }}</p>
+      <!-- Restore (inline, isolated destructive panel) -->
+      <AppPanel class="restore-panel">
+        <div class="restore-panel__header">
+          <span class="restore-panel__icon"><i class="pi pi-exclamation-triangle" /></span>
+          <div>
+            <p class="restore-panel__title">{{ t('system.restore_title') }}</p>
+            <p class="restore-panel__sub">{{ t('system.restore_subtitle') }}</p>
+          </div>
         </div>
-      </div>
-      <p v-if="!restoreTarget" class="restore-panel__hint">{{ t('system.restore_select_hint') }}</p>
-      <template v-else>
-        <p class="restore-panel__instructions">
-          {{ t('system.restore_instructions') }}
-          <strong class="restore-panel__file">{{ restoreTarget.filename }}</strong>
-        </p>
-        <Message v-if="restoreError" severity="error" :closable="false">{{ restoreError }}</Message>
-        <div class="restore-panel__action">
-          <InputText
-            v-model="restoreConfirmText"
-            class="restore-panel__input"
-            :placeholder="RESTORE_KEYWORD"
-            autocomplete="off"
-          />
-          <Button
-            :label="t('system.restore_proceed_btn')"
-            icon="pi pi-history"
-            severity="danger"
-            :disabled="restoreConfirmText.trim().toUpperCase() !== RESTORE_KEYWORD || restoring"
-            :loading="restoring"
-            @click="executeRestore"
-          />
-        </div>
-      </template>
-    </AppPanel>
+        <p v-if="!restoreTarget" class="restore-panel__hint">{{ t('system.restore_select_hint') }}</p>
+        <template v-else>
+          <p class="restore-panel__instructions">
+            {{ t('system.restore_instructions') }}
+            <strong class="restore-panel__file">{{ restoreTarget.filename }}</strong>
+          </p>
+          <Message v-if="restoreError" severity="error" :closable="false">{{ restoreError }}</Message>
+          <div class="restore-panel__action">
+            <InputText
+              v-model="restoreConfirmText"
+              class="restore-panel__input"
+              :placeholder="RESTORE_KEYWORD"
+              autocomplete="off"
+            />
+            <Button
+              :label="t('system.restore_proceed_btn')"
+              icon="pi pi-history"
+              severity="danger"
+              :disabled="restoreConfirmText.trim().toUpperCase() !== RESTORE_KEYWORD || restoring"
+              :loading="restoring"
+              @click="executeRestore"
+            />
+          </div>
+        </template>
+      </AppPanel>
+    </div>
 
+    <!-- ═══════════ Dialogs (teleported, tab-independent) ═══════════ -->
     <!-- Backup validation result -->
     <Dialog
       v-model:visible="validateDialogVisible"
@@ -194,43 +253,7 @@
       </template>
     </Dialog>
 
-    <!-- Application logs -->
-    <AppPanel v-show="activeSystemTab === 'monitoring'" :title="t('system.logs_title')">
-      <template #actions>
-        <div class="logs-chips">
-          <button
-            v-for="lvl in logLevelChips"
-            :key="lvl.value"
-            type="button"
-            :class="[
-              'logs-chip',
-              `logs-chip--${lvl.value.toLowerCase()}`,
-              { 'logs-chip--active': selectedLevels.includes(lvl.value) },
-            ]"
-            @click="toggleLevel(lvl.value)"
-          >
-            {{ lvl.label }}
-          </button>
-        </div>
-      </template>
-      <div ref="logsContainerRef" class="logs-container">
-        <p v-if="logsLoading" class="empty-message">{{ t('common.loading') }}</p>
-        <p v-else-if="logs.length === 0" class="empty-message">{{ t('system.logs_empty') }}</p>
-        <div
-          v-for="(entry, i) in logs"
-          v-else
-          :key="i"
-          :class="['log-line', `log-${entry.level.toLowerCase()}`]"
-        >
-          <span class="log-ts">{{ entry.timestamp }}</span>
-          <span :class="['log-level', `log-level--${entry.level.toLowerCase()}`]">{{ entry.level }}</span>
-          <span class="log-logger">{{ entry.logger }}</span>
-          <span class="log-msg">{{ entry.message }}</span>
-        </div>
-      </div>
-    </AppPanel>
-
-    <!-- Inconsistent cheque payments (admin) — opened from the anomalies banner -->
+    <!-- Inconsistent cheque payments — opened from the anomalies banner -->
     <Dialog
       v-model:visible="fixDialogVisible"
       :header="t('system.inconsistent_payments_title')"
@@ -273,40 +296,6 @@
         </Column>
       </DataTable>
     </Dialog>
-
-    <!-- Audit log -->
-    <AppPanel
-      v-show="activeSystemTab === 'monitoring'"
-      :title="t('system.audit_title')"
-      :subtitle="t('system.audit_subtitle')"
-    >
-      <p v-if="auditLogs.length === 0" class="empty-message">{{ t('system.audit_empty') }}</p>
-      <DataTable v-else :value="auditLogs" size="small" striped-rows paginator :rows="50">
-        <Column :header="t('system.col_timestamp')" style="white-space: nowrap">
-          <template #body="{ data }">{{ formatDatetime(data.created_at) }}</template>
-        </Column>
-        <Column field="actor_username" :header="t('system.col_actor')" />
-        <Column :header="t('system.col_action')" style="min-width: 18rem">
-          <template #body="{ data }">
-            {{ tAuditAction(data.action) }}
-          </template>
-        </Column>
-        <Column :header="t('system.col_target')">
-          <template #body="{ data }">
-            <span v-if="data.target_type">{{ data.target_type }} #{{ data.target_id }}</span>
-            <span v-else>—</span>
-          </template>
-        </Column>
-        <Column :header="t('system.col_detail')" style="font-size: 0.6em">
-          <template #body="{ data }">
-            <code v-if="data.detail" class="audit-detail">{{
-              JSON.stringify(data.detail)
-            }}</code>
-            <span v-else>—</span>
-          </template>
-        </Column>
-      </DataTable>
-    </AppPanel>
   </AppPage>
 </template>
 
@@ -646,6 +635,12 @@ onMounted(async () => {
   margin: 0;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.system-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-5);
 }
 
 /* Anomalies banner */
