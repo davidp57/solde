@@ -28,6 +28,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **BIZ-209** (Lot RF) — Refonte de l'écran Système : **bandeau d'état** en tête (Opérationnel + version / taille BDD / démarré le), **file d'anomalies** (`AppWorklist`) mettant en avant les données à corriger, et **restauration sécurisée** par saisie obligatoire de « RESTAURER » avant confirmation
 - **BIZ-212** (Lot RF) — Supervision système réorganisée en **2 onglets** : « État & surveillance » (état, anomalies, journaux, audit) et « Sauvegardes & restauration » (sauvegarde automatique, liste, restauration)
 - **TEC-202** (Lot RF) — Nouveau composant `AppSettingRow` (motif « ligne de réglage » : libellé + description + contrôle), socle de la refonte des écrans de configuration
+- **BIZ-213** (Lot RF) — Refonte de l'écran Paramètres : passage de 5 panneaux empilés à **4 onglets** (Organisation · Comptabilité · Communication · Zone dangereuse), champs présentés en lignes de réglage (`AppSettingRow`), **barre d'enregistrement par onglet** (état modifié/à jour, Annuler/Enregistrer), et aperçu en direct du numéro de facture. Soldes d'ouverture, assistant IA et zone dangereuse intégrés dans leurs onglets respectifs
 
 ## [1.7.5] — 2026-05-30
 

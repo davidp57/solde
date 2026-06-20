@@ -965,6 +965,18 @@ export default {
     title: 'Paramètres',
     subtitle:
       "Un espace de configuration plus propre pour l'association, la messagerie et les operations sensibles.",
+    tab_organisation: 'Organisation',
+    tab_comptabilite: 'Comptabilité',
+    tab_communication: 'Communication',
+    tab_danger: 'Zone dangereuse',
+    unsaved: 'Modifications non enregistrées',
+    up_to_date: 'À jour',
+    section_identity: 'Identité',
+    section_numbering: 'Numérotation des pièces',
+    section_numbering_subtitle: 'Modèles de numéro pour factures et chèques.',
+    section_fiscal: 'Exercice & échéances',
+    section_fiscal_subtitle: "Début d'exercice et délai de paiement par défaut.",
+    asso_name_desc: 'Tel qu’il apparaît en tête de document.',
     section_asso: "Informations de l'association",
     section_asso_subtitle:
       'Identite administrative et informations qui structurent les documents emis.',
