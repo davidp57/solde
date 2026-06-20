@@ -49,7 +49,7 @@
           </div>
         </div>
 
-        <InvoiceFilterSegments
+        <AppFilterSegments
           :segments="segments"
           :model-value="activeSegment"
           :aria-label="segmentsLabel ?? t('invoices.filter_status')"
@@ -86,7 +86,7 @@ import AppPanel from '../ui/AppPanel.vue'
 import AppListState from '../ui/AppListState.vue'
 import InvoiceTypeToggle from './InvoiceTypeToggle.vue'
 import InvoiceFunnelHero from './InvoiceFunnelHero.vue'
-import InvoiceFilterSegments, { type InvoiceFilterSegment } from './InvoiceFilterSegments.vue'
+import AppFilterSegments, { type FilterSegment } from '@/components/ui/AppFilterSegments.vue'
 
 export interface InvoiceFunnelMetrics {
   totalInvoiced: number
@@ -105,7 +105,7 @@ withDefaults(
     panelSubtitle: string
     filtersHint: string
     funnel: InvoiceFunnelMetrics
-    segments: InvoiceFilterSegment[]
+    segments: FilterSegment[]
     activeSegment: string
     searchValue: string
     displayedCount: number

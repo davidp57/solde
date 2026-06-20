@@ -27,7 +27,7 @@ const stubs = {
   AppListState: SlotStub,
   InvoiceTypeToggle: true,
   InvoiceFunnelHero: true,
-  InvoiceFilterSegments: true,
+  AppFilterSegments: true,
   InputText: true,
   Button,
 }

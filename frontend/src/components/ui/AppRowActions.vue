@@ -1,12 +1,12 @@
 <template>
-  <div class="invoice-row-actions">
+  <div class="app-row-actions">
     <Button
       :label="primary.label"
       :icon="primary.icon"
       :severity="primary.severity"
       size="small"
       outlined
-      class="invoice-row-actions__primary"
+      class="app-row-actions__primary"
       @click="primary.command"
     />
     <Button
@@ -28,7 +28,7 @@ import Button from 'primevue/button'
 import Menu from 'primevue/menu'
 import type { MenuItem } from 'primevue/menuitem'
 
-export interface InvoiceRowPrimaryAction {
+export interface RowAction {
   key: string
   label: string
   icon: string
@@ -37,7 +37,7 @@ export interface InvoiceRowPrimaryAction {
 }
 
 defineProps<{
-  primary: InvoiceRowPrimaryAction
+  primary: RowAction
   menuItems: MenuItem[]
   menuAriaLabel?: string
 }>()
@@ -50,14 +50,14 @@ function toggle(event: Event): void {
 </script>
 
 <style scoped>
-.invoice-row-actions {
+.app-row-actions {
   display: inline-flex;
   align-items: center;
   gap: var(--app-space-1);
 }
 
 /* Keep the primary action close to the status badge scale (compact). */
-.invoice-row-actions__primary {
+.app-row-actions__primary {
   white-space: nowrap;
   font-size: 0.78rem;
   padding-block: 0.2rem;
@@ -65,7 +65,7 @@ function toggle(event: Event): void {
   gap: 0.3rem;
 }
 
-.invoice-row-actions__primary :deep(.p-button-icon) {
+.app-row-actions__primary :deep(.p-button-icon) {
   font-size: 0.78rem;
 }
 </style>
@@ -73,8 +73,8 @@ function toggle(event: Event): void {
 <!-- Destructive overflow items are visually separated (separator) and tinted red.
      The popup menu is teleported out of the scoped tree, so this rule is global. -->
 <style>
-.p-menu .invoice-row-actions-danger .p-menu-item-link,
-.p-menu .invoice-row-actions-danger .p-menuitem-link {
+.p-menu .app-row-actions-danger .p-menu-item-link,
+.p-menu .app-row-actions-danger .p-menuitem-link {
   color: var(--p-red-500, #dc2626);
 }
 </style>

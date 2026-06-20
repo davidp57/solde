@@ -25,12 +25,12 @@ const stubs = {
   }),
 }
 
-import InvoiceRowActions from '../../components/invoices/InvoiceRowActions.vue'
+import AppRowActions from '../../components/ui/AppRowActions.vue'
 
-describe('InvoiceRowActions', () => {
+describe('AppRowActions', () => {
   it('renders the primary action and triggers its command', async () => {
     const command = vi.fn()
-    const wrapper = mount(InvoiceRowActions, {
+    const wrapper = mount(AppRowActions, {
       props: {
         primary: { key: 'pay', label: 'Encaisser', icon: 'pi pi-wallet', command },
         menuItems: [],
@@ -45,19 +45,19 @@ describe('InvoiceRowActions', () => {
   })
 
   it('passes overflow items to the menu and tints the destructive one', () => {
-    const wrapper = mount(InvoiceRowActions, {
+    const wrapper = mount(AppRowActions, {
       props: {
         primary: { key: 'view', label: 'Voir', icon: 'pi pi-eye', command: () => {} },
         menuItems: [
           { label: 'PDF' },
           { separator: true },
-          { label: 'Supprimer', class: 'invoice-row-actions-danger' },
+          { label: 'Supprimer', class: 'app-row-actions-danger' },
         ],
       },
       global: { stubs },
     })
 
     expect(wrapper.text()).toContain('PDF')
-    expect(wrapper.find('.invoice-row-actions-danger').text()).toContain('Supprimer')
+    expect(wrapper.find('.app-row-actions-danger').text()).toContain('Supprimer')
   })
 })

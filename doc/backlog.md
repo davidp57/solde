@@ -48,7 +48,7 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 | BIZ-209 | Refonte `SystemView` — bandeau d'état, anomalies, restauration isolée | P2 | ~50 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | TEC-199 | Shell de navigation adaptatif (3 breakpoints) — sidebar / rail tablette / onglets + drawer | P2 | ~50 min | 2026-06-18 | | |
 | TEC-200 | Responsive des écrans refondus — table→cartes, grilles KPI, FAB, cibles ≥44px | P2 | ~40 min | 2026-06-18 | | |
-| TEC-201 | Généraliser les composants : `AppRowActions` + `AppFilterSegments` (extraits de `Invoice*`) | P2 | ~30 min | 2026-06-18 | | |
+| TEC-201 | Généraliser les composants : `AppRowActions` + `AppFilterSegments` (extraits de `Invoice*`) | P2 | ~30 min | 2026-06-18 | 2026-06-20 | 2026-06-20 |
 | BIZ-211 | Rollout actions de ligne + segments aux autres écrans (contacts, paiements, banque, caisse, salariés, employés, écritures) | P2 | ~90 min | 2026-06-18 | | |
 | TEC-202 | Refonte Admin — `AppSettingRow` (motif ligne de réglage) | P2 | ~20 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
 | BIZ-212 | Refonte Supervision — 2 onglets (État & surveillance / Sauvegardes & restauration) | P2 | ~30 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
