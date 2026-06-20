@@ -162,20 +162,10 @@
               <span class="app-mobile-card-value">{{ formatEntryAmount(data.total_credit) }}</span>
             </div>
             <div class="app-mobile-card-actions">
-              <Button
-                icon="pi pi-eye"
-                size="small"
-                severity="secondary"
-                text
-                @click="openDetailDialog(data)"
-              />
-              <Button
-                v-if="data.editable"
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                @click="openEditDialog(data)"
+              <AppRowActions
+                :primary="rowPrimaryAction(data)"
+                :menu-items="rowMenuItems(data)"
+                :menu-aria-label="t('common.actions')"
               />
             </div>
           </template>
@@ -370,25 +360,11 @@
         </Column>
         <Column :header="t('common.actions')" class="journal-table__actions-column">
           <template #body="{ data }">
-            <div class="app-inline-actions">
-              <Button
-                data-testid="journal-detail-button"
-                icon="pi pi-eye"
-                size="small"
-                severity="secondary"
-                text
-                @click="openDetailDialog(data)"
-              />
-              <Button
-                v-if="data.editable"
-                data-testid="journal-edit-button"
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                @click="openEditDialog(data)"
-              />
-            </div>
+            <AppRowActions
+              :primary="rowPrimaryAction(data)"
+              :menu-items="rowMenuItems(data)"
+              :menu-aria-label="t('common.actions')"
+            />
           </template>
         </Column>
         <template #empty>
@@ -678,6 +654,7 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
+import type { MenuItem } from 'primevue/menuitem'
 import { useToast } from 'primevue/usetoast'
 import {
   createManualEntryApi,
@@ -703,6 +680,7 @@ import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppAccountSelect from '../components/ui/AppAccountSelect.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
+import AppRowActions, { type RowAction } from '../components/ui/AppRowActions.vue'
 import {
   dateRangeFilter,
   inFilter,
@@ -983,6 +961,29 @@ function openEditDialog(group: AccountingEntryGroupRead) {
   }
   showDetailDialog.value = false
   showManualDialog.value = true
+}
+
+// Row actions: Detail is the primary; Edit moves to the ⋯ menu and only
+// appears for editable (manual) entries — non-editable rows show Detail alone.
+function rowPrimaryAction(group: AccountingEntryGroupRead): RowAction {
+  return {
+    key: 'detail',
+    label: t('accounting.journal.entry_details'),
+    icon: 'pi pi-eye',
+    severity: 'secondary',
+    command: () => openDetailDialog(group),
+  }
+}
+
+function rowMenuItems(group: AccountingEntryGroupRead): MenuItem[] {
+  if (!group.editable) return []
+  return [
+    {
+      label: t('accounting.journal.edit_manual_entry'),
+      icon: 'pi pi-pencil',
+      command: () => openEditDialog(group),
+    },
+  ]
 }
 
 async function load() {

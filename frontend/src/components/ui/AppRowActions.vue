@@ -9,16 +9,18 @@
       class="app-row-actions__primary"
       @click="primary.command"
     />
-    <Button
-      icon="pi pi-ellipsis-h"
-      size="small"
-      text
-      severity="secondary"
-      :aria-label="menuAriaLabel ?? primary.label"
-      aria-haspopup="true"
-      @click="toggle"
-    />
-    <Menu ref="menuRef" :model="menuItems" popup />
+    <template v-if="menuItems.length">
+      <Button
+        icon="pi pi-ellipsis-h"
+        size="small"
+        text
+        severity="secondary"
+        :aria-label="menuAriaLabel ?? primary.label"
+        aria-haspopup="true"
+        @click="toggle"
+      />
+      <Menu ref="menuRef" :model="menuItems" popup />
+    </template>
   </div>
 </template>
 
