@@ -45,7 +45,7 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 | BIZ-207 | Refonte `DashboardView` — héro trésorerie, file à traiter, graphe unique | P1 | ~60 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | TEC-198 | Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents) | P3 | ~30 min | 2026-06-18 | | |
 | BIZ-208 | Refonte `UsersView` — matrice de rôles vivante + filtres | P2 | ~40 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
-| BIZ-209 | Refonte `SystemView` — bandeau d'état, anomalies, restauration isolée | P2 | ~50 min | 2026-06-18 | | |
+| BIZ-209 | Refonte `SystemView` — bandeau d'état, anomalies, restauration isolée | P2 | ~50 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | TEC-199 | Shell de navigation adaptatif (3 breakpoints) — sidebar / rail tablette / onglets + drawer | P2 | ~50 min | 2026-06-18 | | |
 | TEC-200 | Responsive des écrans refondus — table→cartes, grilles KPI, FAB, cibles ≥44px | P2 | ~40 min | 2026-06-18 | | |
 | TEC-201 | Généraliser les composants : `AppRowActions` + `AppFilterSegments` (extraits de `Invoice*`) | P2 | ~30 min | 2026-06-18 | | |
