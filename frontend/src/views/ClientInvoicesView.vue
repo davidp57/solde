@@ -67,7 +67,7 @@
               <span class="app-mobile-card-value" style="font-weight: 600">{{ formatAmount(data.total_amount) }} €</span>
             </div>
             <div class="app-mobile-card-actions">
-              <InvoiceRowActions
+              <AppRowActions
                 :primary="clientPrimaryAction(data)"
                 :menu-items="clientMenuItems(data)"
                 :menu-aria-label="t('invoices.actions.more')"
@@ -198,7 +198,7 @@
         </Column>
         <Column :header="t('common.actions')" class="invoices-table__actions-column">
           <template #body="{ data }">
-            <InvoiceRowActions
+            <AppRowActions
               :primary="clientPrimaryAction(data)"
               :menu-items="clientMenuItems(data)"
               :menu-aria-label="t('invoices.actions.more')"
@@ -541,10 +541,8 @@ import InvoiceEmailDialog from '../components/InvoiceEmailDialog.vue'
 import InvoiceStatusBadge from '../components/invoices/InvoiceStatusBadge.vue'
 import InvoicePaymentDialog from '../components/invoices/InvoicePaymentDialog.vue'
 import InvoiceWorkspace from '../components/invoices/InvoiceWorkspace.vue'
-import InvoiceRowActions, {
-  type InvoiceRowPrimaryAction,
-} from '../components/invoices/InvoiceRowActions.vue'
-import type { InvoiceFilterSegment } from '../components/invoices/InvoiceFilterSegments.vue'
+import AppRowActions, { type RowAction } from '../components/ui/AppRowActions.vue'
+import type { FilterSegment } from '../components/ui/AppFilterSegments.vue'
 import type { MenuItem } from 'primevue/menuitem'
 import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
@@ -742,7 +740,7 @@ const fiscalYearScopedInvoices = computed(() => {
   return allClientInvoices.value.filter((inv) => inv.date >= fy.start_date && inv.date <= fy.end_date)
 })
 
-const statusSegments = computed<InvoiceFilterSegment[]>(() => [
+const statusSegments = computed<FilterSegment[]>(() => [
   {
     key: 'all',
     label: t('invoices.segments.all'),
@@ -867,7 +865,7 @@ function isInvoiceEditable(invoice: Invoice): boolean {
 }
 
 // Contextual primary row action, chosen by status (handoff decision #3).
-function clientPrimaryAction(invoice: Invoice): InvoiceRowPrimaryAction {
+function clientPrimaryAction(invoice: Invoice): RowAction {
   if (invoice.status === 'draft') {
     return { key: 'edit', label: t('invoices.edit'), icon: 'pi pi-pencil', command: () => openEditDialog(invoice) }
   }
@@ -937,7 +935,7 @@ function clientMenuItems(invoice: Invoice): MenuItem[] {
       key: 'writeoff',
       label: t('invoices.write_off'),
       icon: 'pi pi-ban',
-      class: 'invoice-row-actions-danger',
+      class: 'app-row-actions-danger',
       command: () => openWriteOffDialog(invoice),
     })
   }
@@ -946,7 +944,7 @@ function clientMenuItems(invoice: Invoice): MenuItem[] {
       key: 'delete',
       label: t('common.delete'),
       icon: 'pi pi-trash',
-      class: 'invoice-row-actions-danger',
+      class: 'app-row-actions-danger',
       command: () => confirmDelete(invoice),
     })
   }

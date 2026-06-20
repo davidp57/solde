@@ -52,7 +52,7 @@
               <i v-if="data.file_path" class="pi pi-paperclip supplier-card__attachment" />
             </div>
             <div class="app-mobile-card-actions">
-              <InvoiceRowActions
+              <AppRowActions
                 :primary="supplierPrimaryAction(data)"
                 :menu-items="supplierMenuItems(data)"
                 :menu-aria-label="t('invoices.actions.more')"
@@ -191,7 +191,7 @@
         </Column>
         <Column :header="t('common.actions')" class="supplier-invoices-table__actions">
           <template #body="{ data }">
-            <InvoiceRowActions
+            <AppRowActions
               :primary="supplierPrimaryAction(data)"
               :menu-items="supplierMenuItems(data)"
               :menu-aria-label="t('invoices.actions.more')"
@@ -529,10 +529,8 @@ import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
 import InvoiceStatusBadge from '../components/invoices/InvoiceStatusBadge.vue'
 import InvoicePaymentDialog from '../components/invoices/InvoicePaymentDialog.vue'
 import InvoiceWorkspace from '../components/invoices/InvoiceWorkspace.vue'
-import InvoiceRowActions, {
-  type InvoiceRowPrimaryAction,
-} from '../components/invoices/InvoiceRowActions.vue'
-import type { InvoiceFilterSegment } from '../components/invoices/InvoiceFilterSegments.vue'
+import AppRowActions, { type RowAction } from '../components/ui/AppRowActions.vue'
+import type { FilterSegment } from '../components/ui/AppFilterSegments.vue'
 import type { MenuItem } from 'primevue/menuitem'
 import {
   isOverdueInvoice,
@@ -663,7 +661,7 @@ const segmentedRows = computed(() => {
   }
 })
 
-const statusSegments = computed<InvoiceFilterSegment[]>(() => {
+const statusSegments = computed<FilterSegment[]>(() => {
   const rows = invoiceRows.value
   return [
     { key: 'all', label: t('invoices.segments.all'), count: rows.length },
@@ -756,7 +754,7 @@ function openPaymentDialog(invoice: Invoice) {
 }
 
 // Contextual primary row action, chosen by status (handoff decision #3).
-function supplierPrimaryAction(invoice: Invoice): InvoiceRowPrimaryAction {
+function supplierPrimaryAction(invoice: Invoice): RowAction {
   if (invoice.status === 'draft') {
     return { key: 'edit', label: t('invoices.edit'), icon: 'pi pi-pencil', command: () => openEditDialog(invoice) }
   }
@@ -800,7 +798,7 @@ function supplierMenuItems(invoice: Invoice): MenuItem[] {
       key: 'delete',
       label: t('common.delete'),
       icon: 'pi pi-trash',
-      class: 'invoice-row-actions-danger',
+      class: 'app-row-actions-danger',
       command: () => confirmDelete(invoice),
     })
   }

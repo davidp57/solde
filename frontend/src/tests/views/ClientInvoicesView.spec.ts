@@ -351,7 +351,7 @@ function mountView() {
         AppPageHeader: ContainerStub,
         AppPanel: ContainerStub,
         AppStatCard: AppStatCardStub,
-        InvoiceRowActions: InvoiceRowActionsStub,
+        AppRowActions: InvoiceRowActionsStub,
         InvoiceTypeToggle: ContainerStub,
         AppListState: ContainerStub,
         AppDateRangeFilter: ContainerStub,

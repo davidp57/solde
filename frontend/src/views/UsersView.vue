@@ -67,7 +67,7 @@
           />
         </div>
 
-        <InvoiceFilterSegments
+        <AppFilterSegments
           :segments="roleSegments"
           :model-value="activeRoleSegment"
           :aria-label="t('users.role')"
@@ -457,7 +457,7 @@ import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
-import InvoiceFilterSegments from '@/components/invoices/InvoiceFilterSegments.vue'
+import AppFilterSegments from '@/components/ui/AppFilterSegments.vue'
 import { createUserApi, listUsersApi, resetUserPasswordApi, updateUserApi } from '@/api/users'
 import type { UserPasswordResetRequest, UserRead, UserRole } from '@/api/types'
 import { PASSWORD_MIN_LENGTH } from '@/constants/auth'
