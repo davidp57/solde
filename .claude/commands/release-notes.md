@@ -6,7 +6,7 @@ STRICTLY execute the steps below **one at a time**, waiting for the developer's 
 
 **Communication language: French** (talk to the developer in French). **All produced release artifacts are in French.** Keep this command file and any code/identifiers in English.
 
-The authoritative process and conventions live in [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) — when in doubt, it wins. This command operationalises that process; it does not replace it.
+**Canonical vs operational.** The authoritative process and conventions live in [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) and [`CLAUDE.md`](../../CLAUDE.md): **git-flow rules, the release process & collection checklist, the documentation matrix, SemVer, and the quality-gate commands** are canonical there. This command adds **no new rules** — it only operationalises *the sequence* and *the writing of human release notes*. If any step here conflicts with those files, **they win**.
 
 ---
 
@@ -68,9 +68,7 @@ Apply, in order:
 ## Step 5 — Git operations (with confirmation gates)
 
 1. Ensure the current branch is **`release/x.y.z`**, created from an up-to-date `develop`. If not, create it (`git checkout develop && git pull --rebase && git checkout -b release/x.y.z`). Confirm with the developer before creating branches.
-2. **Run the full quality gate (mirrors CI) and require it green** before committing:
-   - Backend (repo root): `ruff check backend/ tests/` · `ruff format --check backend/ tests/` · `python -m mypy backend/` · `pytest tests/ -q`
-   - Frontend (`frontend/`): `npx eslint src/` · `npx vue-tsc --noEmit` · `npx vitest run`
+2. **Run the full quality gate and require it green** before committing. Use the single source of truth — the backend + frontend commands in `CLAUDE.md` (§ "Quality gate — run BEFORE every push") — rather than a copy here, so the two never drift.
 3. Commit the release artifacts: `chore(release): bump version to x.y.z` (with the repo's required commit trailer).
 4. Push the branch and **create the PR `release/x.y.z` → `main`** (`gh pr create`, description in English: summary, breaking changes, migration notes), then **report its URL**. **Do not merge the PR yourself** — merging to `main` is the developer's call.
 5. Give the developer the post-merge commands to run **after the PR is merged and validated**:
