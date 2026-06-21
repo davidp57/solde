@@ -489,7 +489,7 @@ function normalizeOptionalField(value: string): string | null {
 function paymentPrimaryAction(payment: Payment): RowAction {
   return {
     key: 'edit',
-    label: t('common.edit'),
+    label: t('payments.edit'),
     icon: 'pi pi-pencil',
     severity: 'secondary',
     command: () => openEditDialog(payment),
