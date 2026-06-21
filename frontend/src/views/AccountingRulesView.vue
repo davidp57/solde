@@ -76,23 +76,10 @@
               <span class="app-mobile-card-value">{{ data.priority }}</span>
             </div>
             <div class="app-mobile-card-actions">
-              <Button
-                :icon="data.is_active ? 'pi pi-eye-slash' : 'pi pi-eye'"
-                :severity="data.is_active ? 'secondary' : 'success'"
-                text
-                rounded
-                size="small"
-                :title="data.is_active ? t('accounting.rules.deactivate') : t('accounting.rules.activate')"
-                @click="toggleRule(data)"
-              />
-              <Button
-                v-if="canManageApplication"
-                icon="pi pi-pencil"
-                text
-                rounded
-                size="small"
-                :title="t('accounting.rules.edit')"
-                @click="openEdit(data)"
+              <AppRowActions
+                :primary="rulePrimaryAction(data)"
+                :menu-items="ruleMenuItems(data)"
+                :menu-aria-label="t('common.actions')"
               />
             </div>
           </template>
@@ -198,35 +185,10 @@
         </Column>
         <Column :header="t('common.actions')" style="width:9rem">
           <template #body="{ data }">
-            <Button
-              :icon="data.is_active ? 'pi pi-eye-slash' : 'pi pi-eye'"
-              :severity="data.is_active ? 'secondary' : 'success'"
-              text
-              rounded
-              size="small"
-              :title="
-                data.is_active ? t('accounting.rules.deactivate') : t('accounting.rules.activate')
-              "
-              @click="toggleRule(data)"
-            />
-            <Button
-              v-if="canManageApplication"
-              icon="pi pi-pencil"
-              text
-              rounded
-              size="small"
-              :title="t('accounting.rules.edit')"
-              @click="openEdit(data)"
-            />
-            <Button
-              v-if="canManageApplication"
-              icon="pi pi-trash"
-              severity="danger"
-              text
-              rounded
-              size="small"
-              :title="t('common.delete')"
-              @click="confirmDelete(data)"
+            <AppRowActions
+              :primary="rulePrimaryAction(data)"
+              :menu-items="ruleMenuItems(data)"
+              :menu-aria-label="t('common.actions')"
             />
           </template>
         </Column>
@@ -259,7 +221,9 @@ import AccountingRuleDialog from '../components/accounting/AccountingRuleDialog.
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
 import AppListState from '../components/ui/AppListState.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
+import AppRowActions, { type RowAction } from '../components/ui/AppRowActions.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
+import type { MenuItem } from 'primevue/menuitem'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
@@ -357,6 +321,45 @@ function openCreate(): void {
 function openEdit(rule: AccountingRuleRead): void {
   editingRule.value = rule
   dialogVisible.value = true
+}
+
+// Row actions. Toggling activation is always allowed; editing and deleting
+// require the management permission. When the user cannot manage rules, the
+// toggle becomes the primary and there is no overflow menu.
+function ruleToggleAction(rule: AccountingRuleRead): RowAction {
+  return {
+    key: 'toggle',
+    label: rule.is_active ? t('accounting.rules.deactivate') : t('accounting.rules.activate'),
+    icon: rule.is_active ? 'pi pi-eye-slash' : 'pi pi-eye',
+    severity: rule.is_active ? 'secondary' : 'success',
+    command: () => void toggleRule(rule),
+  }
+}
+
+function rulePrimaryAction(rule: AccountingRuleRead): RowAction {
+  if (!canManageApplication.value) return ruleToggleAction(rule)
+  return {
+    key: 'edit',
+    label: t('accounting.rules.edit'),
+    icon: 'pi pi-pencil',
+    severity: 'secondary',
+    command: () => openEdit(rule),
+  }
+}
+
+function ruleMenuItems(rule: AccountingRuleRead): MenuItem[] {
+  if (!canManageApplication.value) return []
+  const toggle = ruleToggleAction(rule)
+  return [
+    { label: toggle.label, icon: toggle.icon, command: toggle.command },
+    { separator: true },
+    {
+      label: t('common.delete'),
+      icon: 'pi pi-trash',
+      class: 'app-row-actions-danger',
+      command: () => confirmDelete(rule),
+    },
+  ]
 }
 
 function handleSaved(saved: AccountingRuleRead): void {

@@ -116,27 +116,10 @@
                     <span class="app-mobile-card-value">{{ formatAmount(data.balance_after) }} €</span>
                   </div>
                   <div class="app-mobile-card-actions">
-                    <Button
-                      icon="pi pi-eye"
-                      size="small"
-                      severity="secondary"
-                      text
-                      @click="openDetailDialog(data)"
-                    />
-                    <Button
-                      icon="pi pi-pencil"
-                      size="small"
-                      severity="secondary"
-                      text
-                      @click="openEditDialog(data)"
-                    />
-                    <Button
-                      v-if="data.source === 'manual' && !data.payment_id"
-                      icon="pi pi-trash"
-                      size="small"
-                      severity="danger"
-                      text
-                      @click="confirmDeleteEntry(data)"
+                    <AppRowActions
+                      :primary="entryPrimaryAction(data)"
+                      :menu-items="entryMenuItems(data)"
+                      :menu-aria-label="t('common.actions')"
                     />
                   </div>
                 </template>
@@ -279,33 +262,11 @@
               </Column>
               <Column :header="t('common.actions')" class="cash-journal__actions">
                 <template #body="{ data }">
-                  <div class="app-inline-actions">
-                    <Button
-                      data-testid="cash-detail-button"
-                      icon="pi pi-eye"
-                      size="small"
-                      severity="secondary"
-                      text
-                      @click="openDetailDialog(data)"
-                    />
-                    <Button
-                      data-testid="cash-edit-button"
-                      icon="pi pi-pencil"
-                      size="small"
-                      severity="secondary"
-                      text
-                      @click="openEditDialog(data)"
-                    />
-                    <Button
-                      v-if="data.source === 'manual' && !data.payment_id"
-                      data-testid="cash-delete-button"
-                      icon="pi pi-trash"
-                      size="small"
-                      severity="danger"
-                      text
-                      @click="confirmDeleteEntry(data)"
-                    />
-                  </div>
+                  <AppRowActions
+                    :primary="entryPrimaryAction(data)"
+                    :menu-items="entryMenuItems(data)"
+                    :menu-aria-label="t('common.actions')"
+                  />
                 </template>
               </Column>
               <template #empty>
@@ -747,6 +708,7 @@ import TabPanels from 'primevue/tabpanels'
 import Tabs from 'primevue/tabs'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
+import type { MenuItem } from 'primevue/menuitem'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -762,6 +724,7 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
+import AppRowActions, { type RowAction } from '../components/ui/AppRowActions.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import BankNewDepositDialog from '../components/bank/BankNewDepositDialog.vue'
 import { useFiscalYearStore } from '../stores/fiscalYear'
@@ -1126,6 +1089,42 @@ async function doDeleteEntry(entry: CashEntry) {
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   }
+}
+
+function entryPrimaryAction(entry: CashEntry): RowAction {
+  return {
+    key: 'detail',
+    label: t('cash.entry_details'),
+    icon: 'pi pi-eye',
+    severity: 'secondary',
+    command: () => {
+      void openDetailDialog(entry)
+    },
+  }
+}
+
+function entryMenuItems(entry: CashEntry): MenuItem[] {
+  const items: MenuItem[] = [
+    {
+      label: t('cash.edit_entry'),
+      icon: 'pi pi-pencil',
+      command: () => openEditDialog(entry),
+    },
+  ]
+  if (entry.source === 'manual' && !entry.payment_id) {
+    items.push(
+      { separator: true },
+      {
+        label: t('common.delete'),
+        icon: 'pi pi-trash',
+        class: 'app-row-actions-danger',
+        command: () => {
+          void confirmDeleteEntry(entry)
+        },
+      },
+    )
+  }
+  return items
 }
 
 async function loadAll() {

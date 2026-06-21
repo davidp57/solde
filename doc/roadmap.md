@@ -28,6 +28,7 @@
 | **1.6.2** | Lot REV2 — standardize API errors, remove service commits, split bank router (TEC-170, TEC-171, TEC-173) | ✅ Merged 2026-05-07 |
 | **1.6.3** | TEC-185 (Chrome PDF fix), BIZ-186 (paid watermark on PDF) | ✅ Released 2026-05-10 |
 | **1.7** | Lot BK — automated backup (BIZ-173–184) | 🔧 In progress (PR #85) |
+| **1.8** | Lot RF — UI/UX redesign (dashboard, invoices, admin) + dark mode + responsive | 🔧 Release prepared (release/1.8.0 → main) |
 
 Test suite: **1090 backend + 148 frontend Vitest — 0 failures.**
 
@@ -339,6 +340,29 @@ Corriger la résolution des ancres et liens relatifs dans le rendu Markdown du m
 
 ### BIZ-163 — Index des activités dans le manuel (« en tant que… »)
 Ajouter une section d'index dans le manuel utilisateur listant les cas d'usage par rôle (secrétaire, trésorier, administrateur) sous la forme « En tant que X, je veux… » avec des liens vers les sections correspondantes.
+
+---
+
+## v1.8 — Lot RF — UI/UX redesign + dark mode ⬜ Planned
+
+Source: `design_handoff_solde_refonte-v2/` (Claude Design handoff, supersedes v1, adds the responsive track). Not a cosmetic theme — a rework of **information hierarchy**, **consolidation of duplicated components**, and **mobile/tablet/desktop adaptation**, within the Solde identity (Manrope, emerald, slate surfaces). Delivery order advised by the designer: shared `InvoiceWorkspace` first (removes the most duplication), then dark mode (theme store + tokens), then dashboard and admin screens, finally the cross-cutting responsive layer. See backlog Lot RF for the full ticket breakdown.
+
+### Invoices — shared workspace (TEC-193, TEC-194, BIZ-206)
+`ClientInvoicesView` and `SupplierInvoicesView` currently duplicate KPIs, toolbar, `DataTable`, the `statusSeverity` helper, and the payment dialog. New `InvoiceWorkspace.vue` (props: type, columns, contextual primary action + overflow `⋯` menu, funnel KPI) backs both screens, with a shared `InvoiceStatusBadge`, quick-filter segments, advanced filters collapsed, and a table footer with selection total.
+
+### Dark mode (TEC-195, TEC-196)
+Pinia `theme` store (light/dark, `localStorage` `solde-theme`, respects `prefers-color-scheme`) with a sun/moon toggle in the topbar. Light + dark CSS tokens (Aura dark preset), tighter radii (panels 16px, cards 12px). Token-driven, so redesigned screens inherit dark mode automatically.
+
+### Dashboard (BIZ-207, TEC-198)
+Hierarchy by required action instead of 9 equal KPI cards: page header with subtitle + actions, **net treasury hero** (figure + delta pill + sparkline + bank/cash breakdown), shared `AppWorklist` "À traiter", quick actions, four calm non-clickable reference figures, and a single products/charges chart. Single fiscal-year context (topbar selector only). Optional backend enrichment (TEC-198) for treasury delta, reconciliation count, and member count.
+
+### Administration — Users & System (BIZ-208, BIZ-209)
+Users: live role matrix (per-role user counts), quick role filters, "vous" badge, shared role badge. System: status banner on top, anomalies as a worklist, isolated destructive **restore** (two-step `RESTAURER` confirmation), colored INFO/WARN/ERROR log terminal, audit log.
+
+### Responsive — mobile / tablet / desktop (TEC-199, TEC-200)
+Three breakpoints: desktop (≥1200px, full 240px sidebar, ~1320px centered content), tablet (768–1199px, 72px icon rail, 2-column grids), mobile (<768px, bottom tab bar + drawer, stacked table cards, KPI grids in 1–2 columns, primary action as a thumb-anchored FAB). Touch targets ≥44px; cramped row icon-buttons become a mobile action sheet. Builds on the existing mobile pattern (`AppMobileCardList` + `useBreakpoints`, lot MOB) rather than duplicating it; dark mode applies identically (same tokens).
+
+*Shared:* `AppWorklist` component (TEC-197) reused by dashboard and System. *Release:* CHR-195 (quality gate, docs, dark-mode user doc, version bump).
 
 ---
 

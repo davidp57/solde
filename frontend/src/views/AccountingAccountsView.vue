@@ -83,12 +83,10 @@
               <span class="app-mobile-card-value">{{ data.label }}</span>
             </div>
             <div class="app-mobile-card-actions">
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                @click="openEditDialog(data)"
+              <AppRowActions
+                :primary="accountPrimaryAction(data)"
+                :menu-items="[]"
+                :menu-aria-label="t('common.actions')"
               />
             </div>
           </template>
@@ -194,12 +192,10 @@
         </Column>
         <Column :header="t('common.actions')" style="width: 6rem">
           <template #body="{ data }">
-            <Button
-              icon="pi pi-pencil"
-              size="small"
-              severity="secondary"
-              text
-              @click="openEditDialog(data)"
+            <AppRowActions
+              :primary="accountPrimaryAction(data)"
+              :menu-items="[]"
+              :menu-aria-label="t('common.actions')"
             />
           </template>
         </Column>
@@ -237,6 +233,7 @@ import { useI18n } from 'vue-i18n'
 import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
 import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
+import AppRowActions, { type RowAction } from '@/components/ui/AppRowActions.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
@@ -390,6 +387,16 @@ function openCreateDialog(): void {
 function openEditDialog(account: AccountingAccount): void {
   editingAccount.value = account
   dialogVisible.value = true
+}
+
+function accountPrimaryAction(account: AccountingAccount): RowAction {
+  return {
+    key: 'edit',
+    label: t('accounting.accounts.edit'),
+    icon: 'pi pi-pencil',
+    severity: 'secondary',
+    command: () => openEditDialog(account),
+  }
 }
 
 function onSaved(): void {
