@@ -36,21 +36,26 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-193 | Composant `InvoiceStatusBadge` mutualisé | P2 | ~15 min | 2026-06-18 | | |
-| TEC-194 | Composant `InvoiceWorkspace` paramétré par type | P1 | ~70 min | 2026-06-18 | | |
-| BIZ-206 | Migrer vues factures client/fournisseur → `InvoiceWorkspace` | P1 | ~45 min | 2026-06-18 | | |
-| TEC-195 | Store Pinia `theme` + bascule clair/sombre topbar | P2 | ~25 min | 2026-06-18 | | |
-| TEC-196 | Tokens de thème clair/sombre (preset Aura dark) + rayons sobres | P2 | ~45 min | 2026-06-18 | | |
-| TEC-197 | Composant `AppWorklist` mutualisé (« À traiter » / anomalies) | P2 | ~20 min | 2026-06-18 | | |
-| BIZ-207 | Refonte `DashboardView` — héro trésorerie, file à traiter, graphe unique | P1 | ~60 min | 2026-06-18 | | |
-| TEC-198 | Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents) | P3 | ~30 min | 2026-06-18 | | |
-| BIZ-208 | Refonte `UsersView` — matrice de rôles vivante + filtres | P2 | ~40 min | 2026-06-18 | | |
-| BIZ-209 | Refonte `SystemView` — bandeau d'état, anomalies, restauration isolée | P2 | ~50 min | 2026-06-18 | | |
-| TEC-199 | Shell de navigation adaptatif (3 breakpoints) — sidebar / rail tablette / onglets + drawer | P2 | ~50 min | 2026-06-18 | | |
-| TEC-200 | Responsive des écrans refondus — table→cartes, grilles KPI, FAB, cibles ≥44px | P2 | ~40 min | 2026-06-18 | | |
+| TEC-193 | Composant `InvoiceStatusBadge` mutualisé | P2 | ~15 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| TEC-194 | Composant `InvoiceWorkspace` paramétré par type | P1 | ~70 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| BIZ-206 | Migrer vues factures client/fournisseur → `InvoiceWorkspace` | P1 | ~45 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| TEC-195 | Store Pinia `theme` + bascule clair/sombre topbar | P2 | ~25 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| TEC-196 | Tokens de thème clair/sombre (preset Aura dark) + rayons sobres | P2 | ~45 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| TEC-197 | Composant `AppWorklist` mutualisé (« À traiter » / anomalies) | P2 | ~20 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| BIZ-207 | Refonte `DashboardView` — héro trésorerie, file à traiter, graphe unique | P1 | ~60 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| TEC-198 | Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents) | P3 | ~30 min | 2026-06-18 | 2026-06-21 | 2026-06-21 |
+| BIZ-208 | Refonte `UsersView` — matrice de rôles vivante + filtres | P2 | ~40 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| BIZ-209 | Refonte `SystemView` — bandeau d'état, anomalies, restauration isolée | P2 | ~50 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
+| TEC-199 | Shell de navigation adaptatif (3 breakpoints) — sidebar / rail tablette / onglets + drawer | P2 | ~50 min | 2026-06-18 | 2026-06-21 | 2026-06-21 |
+| TEC-200 | Responsive des écrans refondus — table→cartes, grilles KPI, FAB, cibles ≥44px | P2 | ~40 min | 2026-06-18 | 2026-06-21 | 2026-06-21 |
+| TEC-201 | Généraliser les composants : `AppRowActions` + `AppFilterSegments` (extraits de `Invoice*`) | P2 | ~30 min | 2026-06-18 | 2026-06-20 | 2026-06-20 |
+| BIZ-211 | Rollout actions de ligne + segments aux autres écrans (contacts, paiements, banque, caisse, salariés, employés, écritures) | P2 | ~90 min | 2026-06-18 | 2026-06-20 | 2026-06-20 |
+| TEC-202 | Refonte Admin — `AppSettingRow` (motif ligne de réglage) | P2 | ~20 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
+| BIZ-212 | Refonte Supervision — 2 onglets (État & surveillance / Sauvegardes & restauration) | P2 | ~30 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
+| BIZ-213 | Refonte Paramètres — 4 onglets + lignes de réglage + barres d'enregistrement | P1 | ~80 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
 | CHR-195 | Quality gate + CHANGELOG + docs + release v1.8 | P2 | ~30 min | 2026-06-18 | | |
 
-> Total estimé : **~520 min Copilot + 15 min gestion** (facteur de marge 1,00). Dépendances : TEC-193 précède TEC-194 ; TEC-194 précède BIZ-206 ; TEC-196 s'appuie sur TEC-195 ; TEC-197 précède BIZ-207 et BIZ-209 ; BIZ-207 bénéficie de TEC-198 (sinon dégradation gracieuse) ; TEC-200 vient **après** les écrans refondus (TEC-194, BIZ-207/208/209) et s'appuie sur le pattern mobile existant (`AppMobileCardList` + `useBreakpoints`, lot MOB). Le mode sombre étant piloté par tokens, les écrans livrés avant TEC-196 en héritent automatiquement.
+> Total estimé : **~640 min Copilot + 15 min gestion** (facteur de marge 1,00). Dépendances : TEC-193 précède TEC-194 ; TEC-194 précède BIZ-206 ; TEC-196 s'appuie sur TEC-195 ; TEC-197 précède BIZ-207 et BIZ-209 ; BIZ-207 bénéficie de TEC-198 (sinon dégradation gracieuse) ; TEC-200 vient **après** les écrans refondus (TEC-194, BIZ-207/208/209) et s'appuie sur le pattern mobile existant (`AppMobileCardList` + `useBreakpoints`, lot MOB) ; **TEC-201 puis BIZ-211** (généralisation aux autres écrans) viennent **après** stabilisation des composants factures et peuvent être livrés post-v1.8. Le mode sombre étant piloté par tokens, les écrans livrés avant TEC-196 en héritent automatiquement.
 
 ---
 
@@ -59,6 +64,7 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
+| BIZ-210 | Factures client — réintroduire un rappel créances exercice/historique (post-RF) | P3 | ~20 min | 2026-06-18 | | |
 | BIZ-202 | Ligne de remise (prix négatif) dans une facture client | P2 | ~20 min | 2026-05-30 | 2026-05-30 | 2026-05-30 |
 | ~~BIZ-201~~ | ~~Backup auto — inclure les fichiers du répertoire data/pdfs~~ | ~~P1~~ | ~~20 min~~ | ~~2026-05-14~~ | ~~2026-05-15~~ | ~~2026-05-15~~ |
 
@@ -84,6 +90,8 @@ Réécrire `ClientInvoicesView.vue` et `SupplierInvoicesView.vue` comme de fines
 
 Créer `frontend/src/stores/theme.ts` : `mode: 'light' | 'dark'`, action `toggle()`, persistance `localStorage` clé `solde-theme`, respect de `prefers-color-scheme` au premier chargement. Appliquer/retirer la classe de thème sur `<html>` (l'app utilise déjà `html.dark-mode`). Ajouter l'icône lune/soleil (`pi-moon`/`pi-sun`) dans la topbar de `layouts/AppLayout.vue`. Tests : toggle, persistance, init depuis la préférence système.
 
+> **Déjà couvert** (2026-06-18) : le mode sombre existait déjà via le composable `composables/useDarkMode.ts` (persistance `solde-dark-mode`, classe `html.dark-mode`, anti-FOUC dans `index.html`) + bascule lune/soleil dans `AppLayout`. Fonctionnellement équivalent au store Pinia demandé — non réécrit. Seul reliquat optionnel : respect de `prefers-color-scheme` au premier chargement (non implémenté).
+
 #### TEC-196 — Tokens de thème clair/sombre (preset Aura dark) + rayons sobres
 
 Définir les variables CSS clair **et** sombre dans `assets/main.css` (+ config preset Aura) à partir de la table Design Tokens du handoff : surfaces, bordures, textes, primaire emerald (`#10b981` clair / `#34d399` sombre), sémantiques succès/attention/danger/info avec fonds. Réduire les rayons : panneaux `16px`, cartes internes `12px`, boutons/champs `8–10px`, pills `999px` (depuis `22px`). Ombres clair/sombre du handoff. S'assurer que terminal de logs et montants `tabular-nums` restent lisibles en sombre. Comme tout passe par tokens, les écrans refondus héritent du mode sombre automatiquement.
@@ -96,9 +104,13 @@ Créer un composant de **file d'actions** réutilisé par le tableau de bord («
 
 Restructurer `DashboardView.vue` (colonne, gap 24px) : 1) **en-tête** eyebrow + titre « Vue d'ensemble » + **sous-titre** (« Exercice … · à jour au … ») + actions à droite (Exporter secondaire, Nouvelle facture primaire) ; 2) **héro Trésorerie nette** pleine largeur 2 colonnes : grand chiffre + pill delta + **sparkline** (depuis `getResourcesChartApi`) à gauche, détail Banque courant/épargne/Caisse à droite ; 3) grille 1.5fr/1fr : **`AppWorklist` « À traiter »** (impayés, en retard, chèques à déposer, à rapprocher) + **Actions rapides** ; 4) **4 chiffres de référence non cliquables** (Résultat exercice, Recettes/Dépenses du mois, Adhérents) — pas de hover ; 5) **un seul graphe** Produits & charges (barres groupées). Supprimer le `Select` d'exercice local du graphe (effet de bord sur le store global) — l'exercice vit uniquement dans le sélecteur topbar. Couleur + signe sémantiques (vert = bonne nouvelle, rouge = dû). Dégradation gracieuse des éléments dépendant de TEC-198 si l'API ne fournit pas encore la donnée.
 
+> **BIZ-207 livré** (2026-06-18) avec dégradation gracieuse : le delta trésorerie et la sparkline sont dérivés côté front depuis `getResourcesChartApi` (net_resources). Les éléments **« opérations à rapprocher »** (file À traiter) et **« adhérents »** (chiffre de référence) sont **omis** faute de donnée API — ils restent à couvrir par TEC-198. Le 4ᵉ chiffre de référence affiche l'exercice en cours à la place des adhérents.
+
 #### TEC-198 — Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents)
 
 Compléter `GET /api/dashboard/` (`backend/services/dashboard_service.py` + schéma) pour alimenter la refonte : delta trésorerie nette vs mois précédent (sinon calculable côté front depuis `getResourcesChartApi`), compteur d'opérations bancaires **à rapprocher** (ligne « À traiter »), et nombre d'**adhérents** (chiffre de référence). Conditionnel : ne créer que les champs réellement manquants après vérification du service existant ; sinon fermer en notant que la donnée est déjà dérivable côté front. Tests d'intégration sur les nouveaux champs.
+
+**Résolution (2026-06-21)** : seul `to_reconcile_count` a été ajouté à l'API (transactions bancaires `reconciled == False`, même définition que la vue Banque) + ligne « À rapprocher » dans la file « À traiter » du dashboard, avec lien profond `?reconcile=1` qui présélectionne le filtre non-rapprochées. Le **delta de trésorerie** était déjà dérivé côté front (`getResourcesChartApi`) — laissé tel quel. Les **adhérents** n'ont **aucune source de données** dans le modèle (pas d'entité membre/adhérent ; « adhésion » n'est qu'un type de ligne de facture) → non implémenté, la carte de référence « Adhérents » de la maquette est sans objet en l'état.
 
 #### BIZ-208 — Refonte `UsersView` — matrice de rôles vivante + filtres
 
@@ -115,6 +127,26 @@ Restructurer `SystemView.vue` (colonne, gap 22px) : 1) **bandeau d'état** plein
 #### TEC-200 — Responsive des écrans refondus
 
 Décliner les écrans refondus (InvoiceWorkspace, Dashboard, Users, System) sur mobile/tablette : **table → cartes empilées** (1 facture = 1 carte : N° + contact, date + montant, badge statut, action primaire pleine largeur + `⋯`) en réutilisant/alignant `AppMobileCardList` existant sur le design des maquettes (ne pas dupliquer le markup ; envisager `responsiveLayout="stack"` PrimeVue là où pertinent) ; **grilles KPI** 1–2 col. mobile / 2 col. tablette / 3–4 col. desktop ; **héros** empilés pleine largeur sur petit écran ; **segments de filtre** en scroll horizontal (`overflow-x:auto`, chips `flex:none`) ; **action primaire en FAB** ancré au pouce sur mobile ; boutons-icônes de ligne (édition, ⋯, clé) regroupés en **feuille d'action mobile** (items pleine largeur) plutôt qu'en cibles serrées. Vérifier la cohérence avec l'existant mobile (lot MOB/BIZ-164). Tests Vitest ciblés sur la bascule cartes et la feuille d'action.
+
+#### TEC-201 — Généraliser les composants : `AppRowActions` + `AppFilterSegments`
+
+Promouvoir les briques nées sur les factures en composants génériques réutilisables app-wide, sans casser les vues factures :
+- `InvoiceFilterSegments` → `AppFilterSegments` (déplacer en `components/ui/`, déjà 100 % générique ; déjà réutilisé tel quel dans `UsersView`). Mettre à jour les imports (factures + users).
+- `InvoiceRowActions` → `AppRowActions` (déplacer en `components/ui/`, le type `InvoiceRowPrimaryAction` → `RowAction`). Pattern action principale + menu `⋯` (destructif isolé) indépendant du domaine.
+- Optionnel : extraire le chrome de liste de `InvoiceWorkspace` en `AppListWorkspace` (header + toolbar + segments + panneau via slots), si le gain est net.
+Conserver des ré-exports/alias depuis les emplacements `invoices/` pour limiter le diff, ou mettre à jour tous les imports. Tests unitaires conservés/déplacés.
+
+#### BIZ-211 — Rollout actions de ligne + segments aux autres écrans
+
+Appliquer les patterns mutualisés (TEC-201) aux écrans listes restants pour une cohérence app-wide : remplacer les rangées de boutons-icônes par `AppRowActions` (action principale contextuelle + menu `⋯`, destructif isolé) et ajouter des **segments rapides** (`AppFilterSegments`) là où c'est pertinent. Écrans visés : **Contacts**, **Paiements**, **Banque** (transactions + dépôts), **Caisse**, **Salariés**, **Employés**, et tables de **comptabilité** (journal, grand-livre…). Au cas par cas : définir l'action principale par statut/contexte propre à chaque écran ; conserver les filtres colonne en « avancé ». Ne pas transposer les composants spécifiques facture (entonnoir, dialog paiement, badge statut, bascule de type). Découpage possible en plusieurs PR par écran. Tests Vitest par vue migrée.
+
+#### Refonte profonde Admin (handoff `design_handoff_solde_complet/`)
+
+Source : handoff Claude Design `design_handoff_solde_complet/details/02-admin-parametres-supervision.md`. Garder **2 écrans séparés**, réorganisés en onglets internes (PrimeVue `Tabs`/`TabList`/`Tab` en sélecteur + contenu en `v-show`).
+
+- **TEC-202** ✅ — `components/ui/AppSettingRow.vue` : motif ligne de réglage (libellé + description + warning + slot `#control`), responsive row→column. Fondation pour Paramètres.
+- **BIZ-212** ✅ — `SystemView` réorganisé en 2 onglets : **État & surveillance** (bandeau + anomalies + logs + audit) / **Sauvegardes & restauration** (backup auto + liste + restauration). Aucun bloc déplacé : `v-show` par panneau (préserve l'état des logs chargés). Éléments déjà faits conservés (bandeau, anomalies, restauration RESTAURER).
+- **BIZ-213** ✅ — `SettingsView` : passer de 5 panneaux empilés à **4 onglets** (Organisation · Comptabilité · Communication · Zone dangereuse), re-répartir les `Settings*Panel`, convertir les champs en `AppSettingRow`, ajouter une **barre d'enregistrement collante par onglet** (point ambre/✓ vert, Annuler/Enregistrer désactivés si pas de changement), aperçu live du n° de facture, avertissement sur les chiffres de séquence. Le gros morceau (refactor des 6 panneaux + logique de save par onglet).
 
 #### CHR-195 — Quality gate + CHANGELOG + docs + release v1.8
 
@@ -169,6 +201,10 @@ Permettre de modifier ou supprimer les opérations bancaires créées manuelleme
 
 **Tests :** ajouter un test Vitest vérifiant que `normalizeDecimalInput` accepte bien un prix négatif et que `computedTotal` / `hasNegativeTotal` se comportent correctement.
 
+
+### BIZ-210 — Factures client : réintroduire un rappel créances exercice/historique (post-RF)
+
+Le Lot RF (BIZ-206) a remplacé les 6 KPI factures client par l'`InvoiceFunnelHero`, qui agrège le **jeu de factures affiché** (reste à encaisser, encaissé, à venir, en retard). Ce faisant, la distinction **créances de l'exercice** vs **créances totales + report historique** (anciennement issue de `useInvoiceMetrics.receivableMetrics`) n'est plus exposée — information utile au trésorier. À rediscuter en review de la PR Factures. Si retenu : réafficher un rappel discret (ex. sous l'entonnoir ou en sous-texte) du report historique des créances ouvertes hors exercice courant, sans réintroduire la grille de 6 KPI. `receivableMetrics` reste disponible dans le composable.
 
 ### BIZ-201 — Backup auto — inclure les fichiers du répertoire data/pdfs
 

@@ -6,59 +6,156 @@
       :subtitle="t('system.subtitle')"
     />
 
-    <!-- System status -->
-    <AppPanel :title="t('system.info_title')">
-      <div v-if="systemInfo" class="system-info-grid">
-        <div class="system-info-item">
-          <span class="system-info-label">{{ t('system.version') }}</span>
-          <span class="system-info-value">{{ systemInfo.app_version }}</span>
-        </div>
-        <div class="system-info-item">
-          <span class="system-info-label">{{ t('system.db_size') }}</span>
-          <span class="system-info-value">{{ formatBytes(systemInfo.db_size_bytes) }}</span>
-        </div>
-        <div class="system-info-item">
-          <span class="system-info-label">{{ t('system.started_at') }}</span>
-          <span class="system-info-value">{{ formatDatetime(systemInfo.started_at) }}</span>
-        </div>
-        <div class="system-info-item">
-          <span class="system-info-label">{{ t('system.status_label') }}</span>
-          <Tag :value="t('system.status_ok')" severity="success" icon="pi pi-check-circle" />
-        </div>
-      </div>
-      <Message v-if="systemInfoError" severity="error">{{ t('system.load_error') }}</Message>
-    </AppPanel>
+    <Tabs v-model:value="activeSystemTab">
+      <TabList>
+        <Tab value="monitoring">{{ t('system.tab_monitoring') }}</Tab>
+        <Tab value="backups">{{ t('system.tab_backups') }}</Tab>
+      </TabList>
+    </Tabs>
 
-    <!-- Automated backup -->
-    <SettingsBackupPanel />
+    <!-- ═══════════ Onglet : État & surveillance ═══════════ -->
+    <div v-show="activeSystemTab === 'monitoring'" class="system-tab">
+      <!-- Status banner -->
+      <AppPanel>
+        <div v-if="systemInfo" class="system-status">
+          <div class="system-status__state">
+            <span class="system-status__icon"><i class="pi pi-check-circle" /></span>
+            <div>
+              <p class="system-status__title">{{ t('system.status_ok') }}</p>
+              <p class="system-status__subtitle">{{ t('system.status_subtitle') }}</p>
+            </div>
+          </div>
+          <dl class="system-status__facts">
+            <div class="system-status__fact">
+              <dt>{{ t('system.version') }}</dt>
+              <dd>{{ systemInfo.app_version }}</dd>
+            </div>
+            <div class="system-status__fact">
+              <dt>{{ t('system.db_size') }}</dt>
+              <dd>{{ formatBytes(systemInfo.db_size_bytes) }}</dd>
+            </div>
+            <div class="system-status__fact">
+              <dt>{{ t('system.started_at') }}</dt>
+              <dd>{{ formatDatetime(systemInfo.started_at) }}</dd>
+            </div>
+          </dl>
+        </div>
+        <Message v-if="systemInfoError" severity="error">{{ t('system.load_error') }}</Message>
+      </AppPanel>
 
-    <!-- Backups -->
-    <AppPanel :title="t('system.backup_title')" :subtitle="t('system.backup_subtitle')">
-      <div class="backup-actions">
-        <div class="backup-create-row">
-          <InputText
-            v-model="backupLabel"
-            :placeholder="t('system.backup_label_placeholder')"
-            class="backup-label-input"
-            :maxlength="100"
-          />
+      <!-- Anomalies banner -->
+      <AppPanel v-if="inconsistentPayments.length > 0" class="system-anomaly">
+        <div class="system-anomaly__row">
+          <span class="system-anomaly__icon"><i class="pi pi-exclamation-triangle" /></span>
+          <div class="system-anomaly__copy">
+            <p class="system-anomaly__title">{{ t('system.anomaly_cheques') }}</p>
+            <p class="system-anomaly__sub">
+              {{ t('system.anomaly_cheques_sub', { count: inconsistentPayments.length }) }}
+            </p>
+          </div>
           <Button
-            :label="t('system.backup_download')"
-            icon="pi pi-download"
-            severity="secondary"
-            outlined
-            :loading="backing"
-            @click="downloadBackup"
+            :label="t('system.anomaly_fix')"
+            icon="pi pi-arrow-right"
+            icon-pos="right"
+            severity="warn"
+            @click="fixDialogVisible = true"
           />
         </div>
-        <Message v-if="backupError" severity="error" :closable="true">
-          {{ backupError }}
-        </Message>
-      </div>
+      </AppPanel>
 
-      <div v-if="backupFiles.length > 0" class="backup-list">
-        <h3 class="backup-list-title">{{ t('system.backup_list_title') }}</h3>
-        <DataTable :value="backupFiles" size="small" striped-rows>
+      <!-- Application logs -->
+      <AppPanel :title="t('system.logs_title')">
+        <template #actions>
+          <div class="logs-chips">
+            <button
+              v-for="lvl in logLevelChips"
+              :key="lvl.value"
+              type="button"
+              :class="[
+                'logs-chip',
+                `logs-chip--${lvl.value.toLowerCase()}`,
+                { 'logs-chip--active': selectedLevels.includes(lvl.value) },
+              ]"
+              @click="toggleLevel(lvl.value)"
+            >
+              {{ lvl.label }}
+            </button>
+          </div>
+        </template>
+        <div ref="logsContainerRef" class="logs-container">
+          <p v-if="logsLoading" class="empty-message">{{ t('common.loading') }}</p>
+          <p v-else-if="logs.length === 0" class="empty-message">{{ t('system.logs_empty') }}</p>
+          <div
+            v-for="(entry, i) in logs"
+            v-else
+            :key="i"
+            :class="['log-line', `log-${entry.level.toLowerCase()}`]"
+          >
+            <span class="log-ts">{{ entry.timestamp }}</span>
+            <span :class="['log-level', `log-level--${entry.level.toLowerCase()}`]">{{ entry.level }}</span>
+            <span class="log-logger">{{ entry.logger }}</span>
+            <span class="log-msg">{{ entry.message }}</span>
+          </div>
+        </div>
+      </AppPanel>
+
+      <!-- Audit log -->
+      <AppPanel :title="t('system.audit_title')" :subtitle="t('system.audit_subtitle')">
+        <p v-if="auditLogs.length === 0" class="empty-message">{{ t('system.audit_empty') }}</p>
+        <DataTable v-else :value="auditLogs" size="small" striped-rows paginator :rows="50">
+          <Column :header="t('system.col_timestamp')" style="white-space: nowrap">
+            <template #body="{ data }">{{ formatDatetime(data.created_at) }}</template>
+          </Column>
+          <Column field="actor_username" :header="t('system.col_actor')" />
+          <Column :header="t('system.col_action')" style="min-width: 18rem">
+            <template #body="{ data }">{{ tAuditAction(data.action) }}</template>
+          </Column>
+          <Column :header="t('system.col_target')">
+            <template #body="{ data }">
+              <span v-if="data.target_type">{{ data.target_type }} #{{ data.target_id }}</span>
+              <span v-else>—</span>
+            </template>
+          </Column>
+          <Column :header="t('system.col_detail')" style="font-size: 0.6em">
+            <template #body="{ data }">
+              <code v-if="data.detail" class="audit-detail">{{ JSON.stringify(data.detail) }}</code>
+              <span v-else>—</span>
+            </template>
+          </Column>
+        </DataTable>
+      </AppPanel>
+    </div>
+
+    <!-- ═══════════ Onglet : Sauvegardes & restauration ═══════════ -->
+    <div v-show="activeSystemTab === 'backups'" class="system-tab">
+      <!-- Automated backup config -->
+      <SettingsBackupPanel />
+
+      <!-- Available backups -->
+      <AppPanel
+        :title="t('system.backups_available_title')"
+        :subtitle="t('system.backups_available_subtitle')"
+      >
+        <template #actions>
+          <div class="backup-create-row">
+            <InputText
+              v-model="backupLabel"
+              :placeholder="t('system.backup_label_placeholder')"
+              class="backup-label-input"
+              :maxlength="100"
+            />
+            <Button
+              :label="t('system.backup_download_now')"
+              icon="pi pi-download"
+              severity="secondary"
+              outlined
+              :loading="backing"
+              @click="downloadBackup"
+            />
+          </div>
+        </template>
+        <Message v-if="backupError" severity="error" :closable="true">{{ backupError }}</Message>
+        <DataTable v-if="backupFiles.length > 0" :value="backupFiles" size="small" striped-rows>
           <Column field="filename" :header="t('system.col_filename')" />
           <Column :header="t('system.col_label')">
             <template #body="{ data }">{{ data.label || '—' }}</template>
@@ -86,78 +183,51 @@
                 severity="danger"
                 text
                 :title="t('system.restore_btn')"
-                @click="openRestoreDialog(data)"
+                @click="selectRestoreTarget(data)"
               />
             </template>
           </Column>
         </DataTable>
-      </div>
-      <p v-else class="empty-message">{{ t('system.backup_empty') }}</p>
-    </AppPanel>
+        <p v-else class="empty-message">{{ t('system.backup_empty') }}</p>
+      </AppPanel>
 
-    <!-- Restore step 1: type RESTAURER -->
-    <Dialog
-      v-model:visible="restoreStep1Visible"
-      :header="t('system.restore_step1_title')"
-      modal
-      :style="{ width: '32rem' }"
-    >
-      <div class="restore-dialog-body">
-        <Message severity="warn" :closable="false">
-          {{ t('system.restore_step1_msg') }}
-        </Message>
-        <p class="restore-filename">{{ restoreTarget?.filename }}</p>
-      </div>
-      <template #footer>
-        <Button
-          :label="t('common.cancel')"
-          severity="secondary"
-          outlined
-          @click="restoreStep1Visible = false"
-        />
-        <Button
-          :label="t('system.restore_confirm_btn')"
-          severity="danger"
-          @click="onRestoreStep1Confirm"
-        />
-      </template>
-    </Dialog>
+      <!-- Restore (inline, isolated destructive panel) -->
+      <AppPanel class="restore-panel">
+        <div class="restore-panel__header">
+          <span class="restore-panel__icon"><i class="pi pi-exclamation-triangle" /></span>
+          <div>
+            <p class="restore-panel__title">{{ t('system.restore_title') }}</p>
+            <p class="restore-panel__sub">{{ t('system.restore_subtitle') }}</p>
+          </div>
+        </div>
+        <p v-if="!restoreTarget" class="restore-panel__hint">{{ t('system.restore_select_hint') }}</p>
+        <template v-else>
+          <p class="restore-panel__instructions">
+            {{ t('system.restore_instructions') }}
+            <strong class="restore-panel__file">{{ restoreTarget.filename }}</strong>
+          </p>
+          <Message v-if="restoreError" severity="error" :closable="false">{{ restoreError }}</Message>
+          <div class="restore-panel__action">
+            <InputText
+              v-model="restoreConfirmText"
+              class="restore-panel__input"
+              :placeholder="RESTORE_KEYWORD"
+              autocomplete="off"
+            />
+            <Button
+              :label="t('system.restore_proceed_btn')"
+              icon="pi pi-history"
+              severity="danger"
+              :disabled="restoreConfirmText.trim().toUpperCase() !== RESTORE_KEYWORD || restoring"
+              :loading="restoring"
+              @click="executeRestore"
+            />
+          </div>
+        </template>
+      </AppPanel>
+    </div>
 
-    <!-- Restore step 2: final confirm -->
-    <Dialog
-      v-model:visible="restoreStep2Visible"
-      :header="t('system.restore_step2_title')"
-      modal
-      :style="{ width: '32rem' }"
-    >
-      <div class="restore-dialog-body">
-        <p>{{ t('system.restore_step2_msg') }}</p>
-        <ul class="restore-file-details">
-          <li><strong>{{ t('system.col_filename') }}</strong> : {{ restoreTarget?.filename }}</li>
-          <li><strong>{{ t('system.col_label') }}</strong> : {{ restoreTarget?.label || '—' }}</li>
-          <li><strong>{{ t('system.col_size') }}</strong> : {{ restoreTarget ? formatBytes(restoreTarget.size_bytes) : '' }}</li>
-          <li><strong>{{ t('system.col_date') }}</strong> : {{ restoreTarget ? formatDatetime(restoreTarget.created_at) : '' }}</li>
-        </ul>
-        <Message v-if="restoreError" severity="error" :closable="false">{{ restoreError }}</Message>
-        <Message v-if="restoring" severity="info" :closable="false">{{ t('system.restore_in_progress') }}</Message>
-      </div>
-      <template #footer>
-        <Button
-          :label="t('common.cancel')"
-          severity="secondary"
-          outlined
-          :disabled="restoring"
-          @click="restoreStep2Visible = false"
-        />
-        <Button
-          :label="t('system.restore_proceed_btn')"
-          severity="danger"
-          :loading="restoring"
-          @click="executeRestore"
-        />
-      </template>
-    </Dialog>
-
+    <!-- ═══════════ Dialogs (teleported, tab-independent) ═══════════ -->
     <!-- Backup validation result -->
     <Dialog
       v-model:visible="validateDialogVisible"
@@ -183,68 +253,14 @@
       </template>
     </Dialog>
 
-    <!-- Application logs -->
-    <AppPanel :title="t('system.logs_title')">
-      <div class="logs-load-bar">
-        <Button
-          :label="logsLoaded ? t('system.logs_reload_btn') : t('system.logs_load_btn')"
-          :icon="logsLoaded ? 'pi pi-refresh' : 'pi pi-download'"
-          severity="secondary"
-          outlined
-          :loading="logsLoading"
-          @click="loadLogs"
-        />
-        <span v-if="logsLoaded" class="logs-count">
-          {{ t('system.logs_count', { n: logs.length }) }}
-        </span>
-      </div>
-
-      <template v-if="logsLoaded">
-        <div class="logs-toolbar">
-          <MultiSelect
-            v-model="selectedLevels"
-            :options="levelOptions"
-            :placeholder="t('system.logs_filter_level')"
-            class="logs-level-filter"
-            display="chip"
-          />
-          <InputText
-            v-model="logSearch"
-            :placeholder="t('system.logs_filter_search')"
-            class="logs-search"
-          />
-          <Button
-            :label="t('system.logs_scroll_bottom')"
-            icon="pi pi-arrow-down"
-            severity="secondary"
-            outlined
-            size="small"
-            @click="scrollLogsBottom"
-          />
-        </div>
-        <div ref="logsContainerRef" class="logs-container">
-          <p v-if="filteredLogs.length === 0" class="empty-message">
-            {{ t('system.logs_empty') }}
-          </p>
-          <div
-            v-for="(entry, i) in filteredLogs"
-            :key="i"
-            :class="['log-line', `log-${entry.level.toLowerCase()}`]"
-          >
-            <span class="log-ts">{{ entry.timestamp }}</span>
-            <span :class="['log-level', `log-level--${entry.level.toLowerCase()}`]">{{ entry.level }}</span>
-            <span class="log-logger">{{ entry.logger }}</span>
-            <span class="log-msg">{{ entry.message }}</span>
-          </div>
-        </div>
-      </template>
-    </AppPanel>
-
-    <!-- Inconsistent cheque payments (admin) -->
-    <AppPanel
-      :title="t('system.inconsistent_payments_title')"
-      :subtitle="t('system.inconsistent_payments_subtitle')"
+    <!-- Inconsistent cheque payments — opened from the anomalies banner -->
+    <Dialog
+      v-model:visible="fixDialogVisible"
+      :header="t('system.inconsistent_payments_title')"
+      modal
+      :style="{ width: 'min(56rem, 96vw)' }"
     >
+      <p class="restore-panel__instructions">{{ t('system.inconsistent_payments_subtitle') }}</p>
       <p v-if="inconsistentPayments.length === 0" class="empty-message">
         {{ t('system.inconsistent_payments_empty') }}
       </p>
@@ -279,42 +295,12 @@
           </template>
         </Column>
       </DataTable>
-    </AppPanel>
-
-    <!-- Audit log -->
-    <AppPanel :title="t('system.audit_title')" :subtitle="t('system.audit_subtitle')">
-      <p v-if="auditLogs.length === 0" class="empty-message">{{ t('system.audit_empty') }}</p>
-      <DataTable v-else :value="auditLogs" size="small" striped-rows paginator :rows="50">
-        <Column :header="t('system.col_timestamp')" style="white-space: nowrap">
-          <template #body="{ data }">{{ formatDatetime(data.created_at) }}</template>
-        </Column>
-        <Column field="actor_username" :header="t('system.col_actor')" />
-        <Column :header="t('system.col_action')" style="min-width: 18rem">
-          <template #body="{ data }">
-            {{ tAuditAction(data.action) }}
-          </template>
-        </Column>
-        <Column :header="t('system.col_target')">
-          <template #body="{ data }">
-            <span v-if="data.target_type">{{ data.target_type }} #{{ data.target_id }}</span>
-            <span v-else>—</span>
-          </template>
-        </Column>
-        <Column :header="t('system.col_detail')" style="font-size: 0.6em">
-          <template #body="{ data }">
-            <code v-if="data.detail" class="audit-detail">{{
-              JSON.stringify(data.detail)
-            }}</code>
-            <span v-else>—</span>
-          </template>
-        </Column>
-      </DataTable>
-    </AppPanel>
+    </Dialog>
   </AppPage>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from 'primevue/usetoast'
 import Button from 'primevue/button'
@@ -323,8 +309,9 @@ import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
-import MultiSelect from 'primevue/multiselect'
-import Tag from 'primevue/tag'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
 import {
   type AuditLogEntry,
   type BackupFile,
@@ -345,10 +332,19 @@ import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import SettingsBackupPanel from '@/components/settings/SettingsBackupPanel.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 
+const RESTORE_KEYWORD = 'RESTAURER'
+
+const logLevelChips = [
+  { label: 'INFO', value: 'INFO' },
+  { label: 'WARN', value: 'WARNING' },
+  { label: 'ERROR', value: 'ERROR' },
+]
+
 const { t } = useI18n()
 const toast = useToast()
 
 // --- State ---
+const activeSystemTab = ref<'monitoring' | 'backups'>('monitoring')
 const systemInfo = ref<SystemInfo | null>(null)
 const systemInfoError = ref(false)
 const backupFiles = ref<BackupFile[]>([])
@@ -362,34 +358,31 @@ const inconsistentPayments = ref<InconsistentRow[]>([])
 
 // --- Restore state ---
 const restoreTarget = ref<BackupFile | null>(null)
-const restoreStep1Visible = ref(false)
-const restoreStep2Visible = ref(false)
 const restoring = ref(false)
 const restoreError = ref('')
+const restoreConfirmText = ref('')
+
+// --- Fix anomalies dialog ---
+const fixDialogVisible = ref(false)
 
 // --- Validate state ---
 const validatingFile = ref<string | null>(null)
 const validateResult = ref<BackupRestoreTestResult | null>(null)
 const validateDialogVisible = ref(false)
 const logs = ref<LogEntry[]>([])
-const logsLoaded = ref(false)
 const logsLoading = ref(false)
 const auditLogs = ref<AuditLogEntry[]>([])
-const logSearch = ref('')
 const selectedLevels = ref<string[]>([])
 const logsContainerRef = ref<HTMLElement | null>(null)
 
-const levelOptions = ['DEBUG', 'INFO', 'WARNING', 'ERROR']
-
-// --- Computed ---
-const filteredLogs = computed(() => {
-  // Level filtering is done server-side; only text search remains client-side
-  if (!logSearch.value.trim()) return logs.value
-  const q = logSearch.value.trim().toLowerCase()
-  return logs.value.filter(
-    (l) => l.logger.toLowerCase().includes(q) || l.message.toLowerCase().includes(q),
-  )
-})
+function toggleLevel(level: string): void {
+  const idx = selectedLevels.value.indexOf(level)
+  if (idx === -1) {
+    selectedLevels.value = [...selectedLevels.value, level]
+  } else {
+    selectedLevels.value = selectedLevels.value.filter((l) => l !== level)
+  }
+}
 
 // --- Methods ---
 function formatAmount(value: string | number): string {
@@ -419,12 +412,6 @@ function tAuditAction(action: string): string {
   const key = `system.action.${action}`
   const result = t(key)
   return result === key ? action : result
-}
-
-function scrollLogsBottom(): void {
-  if (logsContainerRef.value) {
-    logsContainerRef.value.scrollTop = logsContainerRef.value.scrollHeight
-  }
 }
 
 async function downloadBackup(): Promise<void> {
@@ -471,15 +458,10 @@ async function validateBackup(file: BackupFile): Promise<void> {
   }
 }
 
-function openRestoreDialog(file: BackupFile): void {
+function selectRestoreTarget(file: BackupFile): void {
   restoreTarget.value = file
   restoreError.value = ''
-  restoreStep1Visible.value = true
-}
-
-function onRestoreStep1Confirm(): void {
-  restoreStep1Visible.value = false
-  restoreStep2Visible.value = true
+  restoreConfirmText.value = ''
 }
 
 async function executeRestore(): Promise<void> {
@@ -560,16 +542,15 @@ async function loadLogs(): Promise<void> {
   logsLoading.value = true
   try {
     logs.value = await getLogsApi(selectedLevels.value.length > 0 ? selectedLevels.value : undefined)
-    logsLoaded.value = true
   } catch {
-    // silently ignore — user can retry
+    // silently ignore — user can retry by toggling a level chip
   } finally {
     logsLoading.value = false
   }
 }
 
 watch(selectedLevels, () => {
-  if (logsLoaded.value) loadLogs()
+  void loadLogs()
 })
 
 // --- Init ---
@@ -585,32 +566,222 @@ onMounted(async () => {
       .then((d) => (auditLogs.value = d))
       .catch((e) => console.error('Failed to load audit logs', e)),
     loadInconsistentPayments(),
+    loadLogs(),
   ])
 })
 </script>
 
 <style scoped>
-.system-info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1rem;
+.system-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-5);
 }
 
-.system-info-item {
+.system-status__state {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+}
+
+.system-status__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  background: color-mix(in srgb, var(--p-green-500, #22c55e) 16%, transparent);
+  color: var(--p-green-600, #16a34a);
+}
+
+.system-status__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.system-status__subtitle {
+  margin: 0.1rem 0 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.88rem;
+}
+
+.system-status__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-6);
+  margin: 0;
+}
+
+.system-status__fact {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.2rem;
 }
 
-.system-info-label {
-  font-size: 0.75rem;
+.system-status__fact dt {
+  font-size: 0.72rem;
   color: var(--p-text-muted-color);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
-.system-info-value {
-  font-weight: 600;
+.system-status__fact dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.system-tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-5);
+}
+
+/* Anomalies banner */
+.system-anomaly {
+  border-color: color-mix(in srgb, var(--p-amber-500, #f59e0b) 45%, var(--app-surface-border));
+  background: color-mix(in srgb, var(--p-amber-500, #f59e0b) 10%, var(--app-surface-bg));
+}
+
+.system-anomaly__row {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-4);
+}
+
+.system-anomaly__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--app-surface-radius-sm);
+  background: color-mix(in srgb, var(--p-amber-500, #f59e0b) 20%, transparent);
+  color: var(--p-amber-600, #b45309);
+  font-size: 1.1rem;
+}
+
+.system-anomaly__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.system-anomaly__title {
+  margin: 0;
+  font-weight: 800;
+}
+
+.system-anomaly__sub {
+  margin: 0.1rem 0 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.88rem;
+}
+
+/* Log level chips */
+.logs-chips {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.logs-chip {
+  border: 1px solid var(--app-surface-border);
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  background: transparent;
+  color: var(--p-text-muted-color);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.logs-chip--active.logs-chip--info {
+  background: color-mix(in srgb, var(--p-blue-500, #3b82f6) 18%, transparent);
+  border-color: var(--p-blue-500, #3b82f6);
+  color: var(--p-blue-500, #60a5fa);
+}
+
+.logs-chip--active.logs-chip--warning {
+  background: color-mix(in srgb, var(--p-amber-500, #f59e0b) 20%, transparent);
+  border-color: var(--p-amber-500, #f59e0b);
+  color: var(--p-amber-600, #f59e0b);
+}
+
+.logs-chip--active.logs-chip--error {
+  background: color-mix(in srgb, var(--p-red-500, #ef4444) 18%, transparent);
+  border-color: var(--p-red-500, #ef4444);
+  color: var(--p-red-500, #f87171);
+}
+
+/* Inline restore panel (isolated destructive) */
+.restore-panel {
+  border-color: color-mix(in srgb, var(--p-red-500, #ef4444) 35%, var(--app-surface-border));
+  background: color-mix(in srgb, var(--p-red-500, #ef4444) 8%, var(--app-surface-bg));
+}
+
+.restore-panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--app-space-3);
+  margin-bottom: var(--app-space-3);
+}
+
+.restore-panel__icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--app-surface-radius-sm);
+  background: color-mix(in srgb, var(--p-red-500, #ef4444) 16%, transparent);
+  color: var(--p-red-500, #dc2626);
+  font-size: 1.1rem;
+}
+
+.restore-panel__title {
+  margin: 0;
+  font-weight: 800;
+  color: var(--p-red-500, #dc2626);
+}
+
+.restore-panel__sub {
+  margin: 0.1rem 0 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.88rem;
+}
+
+.restore-panel__hint {
+  margin: 0;
+  color: var(--p-text-muted-color);
+  font-style: italic;
+}
+
+.restore-panel__instructions {
+  margin: 0 0 var(--app-space-3);
+}
+
+.restore-panel__file {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.restore-panel__action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  align-items: center;
+}
+
+.restore-panel__input {
+  max-width: 16rem;
 }
 
 .backup-actions {

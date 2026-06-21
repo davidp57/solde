@@ -73,6 +73,7 @@ async def test_dashboard_returns_kpis(client: AsyncClient, auth_headers: dict) -
     assert "overdue_count" in data
     assert "overdue_total" in data
     assert "undeposited_count" in data
+    assert "to_reconcile_count" in data
     assert "current_fy_name" in data
     assert "current_resultat" in data
     assert "alerts" in data
@@ -88,6 +89,50 @@ async def test_dashboard_empty_db(client: AsyncClient, auth_headers: dict) -> No
     assert data["unpaid_count"] == 0
     assert data["overdue_count"] == 0
     assert data["undeposited_count"] == 0
+    assert data["to_reconcile_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_dashboard_counts_unreconciled_bank_transactions(
+    client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+) -> None:
+    """`to_reconcile_count` counts only the bank transactions left unreconciled."""
+    db_session.add_all(
+        [
+            BankTransaction(
+                date=date(2026, 1, 5),
+                amount=Decimal("120.00"),
+                description="À rapprocher 1",
+                balance_after=Decimal("120.00"),
+                reconciled=False,
+                source="manual",
+                detected_category="other_credit",
+            ),
+            BankTransaction(
+                date=date(2026, 1, 6),
+                amount=Decimal("-40.00"),
+                description="À rapprocher 2",
+                balance_after=Decimal("80.00"),
+                reconciled=False,
+                source="manual",
+                detected_category="other_debit",
+            ),
+            BankTransaction(
+                date=date(2026, 1, 7),
+                amount=Decimal("60.00"),
+                description="Déjà rapprochée",
+                balance_after=Decimal("140.00"),
+                reconciled=True,
+                source="manual",
+                detected_category="other_credit",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/dashboard/", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["to_reconcile_count"] == 2
 
 
 @pytest.mark.asyncio

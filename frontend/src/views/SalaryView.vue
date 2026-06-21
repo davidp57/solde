@@ -102,21 +102,10 @@
               <span class="app-mobile-card-value">{{ data.hours }}</span>
             </div>
             <div class="app-mobile-card-actions">
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('salary.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                icon="pi pi-trash"
-                size="small"
-                severity="danger"
-                text
-                :title="t('common.delete')"
-                @click="confirmDelete(data)"
+              <AppRowActions
+                :primary="salaryPrimaryAction(data)"
+                :menu-items="salaryMenuItems(data)"
+                :menu-aria-label="t('common.actions')"
               />
             </div>
           </template>
@@ -241,26 +230,11 @@
         </Column>
         <Column :header="t('common.actions')" style="width: 8rem">
           <template #body="{ data }">
-            <div class="salary-actions">
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('salary.edit')"
-                :aria-label="t('salary.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                icon="pi pi-trash"
-                size="small"
-                severity="danger"
-                text
-                :title="t('common.delete')"
-                :aria-label="t('common.delete')"
-                @click="confirmDelete(data)"
-              />
-            </div>
+            <AppRowActions
+              :primary="salaryPrimaryAction(data)"
+              :menu-items="salaryMenuItems(data)"
+              :menu-aria-label="t('common.actions')"
+            />
           </template>
         </Column>
         <template #empty
@@ -708,6 +682,8 @@ import Textarea from 'primevue/textarea'
 import Toast from 'primevue/toast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import AppRowActions, { type RowAction } from '@/components/ui/AppRowActions.vue'
+import type { MenuItem } from 'primevue/menuitem'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
 import AppListState from '../components/ui/AppListState.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
@@ -1195,6 +1171,27 @@ function confirmDelete(salary: SalaryRead) {
   })
 }
 
+function salaryPrimaryAction(salary: SalaryRead): RowAction {
+  return {
+    key: 'edit',
+    label: t('salary.edit'),
+    icon: 'pi pi-pencil',
+    severity: 'secondary',
+    command: () => openEditDialog(salary),
+  }
+}
+
+function salaryMenuItems(salary: SalaryRead): MenuItem[] {
+  return [
+    {
+      label: t('common.delete'),
+      icon: 'pi pi-trash',
+      class: 'app-row-actions-danger',
+      command: () => confirmDelete(salary),
+    },
+  ]
+}
+
 watch(
   () => fiscalYearStore.selectedFiscalYearId,
   (newId, oldId) => {
@@ -1213,13 +1210,3 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-.salary-actions {
-  display: flex;
-  gap: var(--app-space-1);
-}
-
-.salary-actions :deep(.p-button) {
-  flex: 0 0 auto;
-}
-</style>

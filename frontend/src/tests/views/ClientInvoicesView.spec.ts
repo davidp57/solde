@@ -316,6 +316,27 @@ const ColumnStub = defineComponent({
   },
 })
 
+// Renders the contextual primary action and every overflow item as a button
+// (title = label) so existing "find by title" interactions keep working.
+const InvoiceRowActionsStub = defineComponent({
+  props: ['primary', 'menuItems', 'menuAriaLabel'],
+  setup(props) {
+    return () =>
+      h('div', { class: 'invoice-row-actions-stub' }, [
+        h(
+          'button',
+          { title: props.primary.label, onClick: () => props.primary.command() },
+          props.primary.label,
+        ),
+        ...(props.menuItems ?? [])
+          .filter((item: { separator?: boolean }) => !item.separator)
+          .map((item: { label?: string; class?: string; command?: () => void }) =>
+            h('button', { title: item.label, class: item.class, onClick: () => item.command?.() }, item.label),
+          ),
+      ])
+  },
+})
+
 async function flushView() {
   await Promise.resolve()
   await Promise.resolve()
@@ -330,6 +351,8 @@ function mountView() {
         AppPageHeader: ContainerStub,
         AppPanel: ContainerStub,
         AppStatCard: AppStatCardStub,
+        AppRowActions: InvoiceRowActionsStub,
+        InvoiceTypeToggle: ContainerStub,
         AppListState: ContainerStub,
         AppDateRangeFilter: ContainerStub,
         AppFilterMultiSelect: ContainerStub,
@@ -418,25 +441,22 @@ describe('ClientInvoicesView', () => {
     })
   })
 
-  it('shows separate exercise and total receivable metrics', async () => {
+  it('renders the receivable funnel hero with the remaining-to-collect amount', async () => {
     const wrapper = mountView()
     await flushView()
 
-    expect(wrapper.text()).toContain('invoices.client.metrics.remaining_exercise_amount')
-    expect(wrapper.text()).toContain('100.00 €')
-    expect(wrapper.text()).toContain('invoices.client.metrics.exercise_count')
-    expect(wrapper.text()).toContain('invoices.client.metrics.total_receivables_amount')
-    expect(wrapper.text()).toContain('180.00 €')
-    expect(wrapper.text()).toContain('invoices.client.metrics.historical_carryover')
+    // Displayed set = invoiceFixture only (total 120, paid 20) → remaining 100.
+    expect(wrapper.text()).toContain('invoices.funnel.remaining_client')
+    expect(wrapper.find('.invoice-funnel__amount').text()).toContain('100')
   })
 
-  it('computes overdue metrics from due date and remaining amount, not only status', async () => {
+  it('reflects overdue amount in the funnel (due date + remaining, not only status)', async () => {
     const wrapper = mountView()
     await flushView()
 
-    expect(wrapper.text()).toContain('invoices.client.metrics.overdue_amount')
-    expect(wrapper.text()).toContain('180.00 €')
-    expect(wrapper.text()).toContain('invoices.client.metrics.overdue_count')
+    // invoiceFixture is past its due date with a remaining balance → overdue segment present.
+    expect(wrapper.find('.invoice-funnel__segment--overdue').exists()).toBe(true)
+    expect(wrapper.text()).toContain('invoices.funnel.overdue')
   })
 
   it('passes raw API fetched count to limit banner before local irrecoverable filtering', async () => {

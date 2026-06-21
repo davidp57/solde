@@ -42,6 +42,13 @@
           />
         </div>
 
+        <AppFilterSegments
+          :segments="statusSegments"
+          :model-value="activeSegment"
+          :aria-label="t('employees.filter_status')"
+          @update:model-value="(key: string) => (activeSegment = key as typeof activeSegment.value)"
+        />
+
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('employees.search_placeholder') }}</label>
@@ -50,10 +57,6 @@
               :placeholder="t('employees.search_placeholder')"
               @input="debouncedLoad"
             />
-          </div>
-          <div class="app-field">
-            <label class="app-field__label">{{ t('employees.show_inactive') }}</label>
-            <ToggleSwitch v-model="showInactive" @change="loadEmployees" />
           </div>
         </div>
       </div>
@@ -78,31 +81,10 @@
               <span class="app-mobile-card-value">{{ data.telephone }}</span>
             </div>
             <div class="app-mobile-card-actions">
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('employees.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                v-if="data.is_active"
-                icon="pi pi-ban"
-                size="small"
-                severity="warn"
-                text
-                :title="t('employees.confirm_deactivate', { nom: data.nom })"
-                @click="confirmToggleActive(data)"
-              />
-              <Button
-                v-else
-                icon="pi pi-check-circle"
-                size="small"
-                severity="success"
-                text
-                :title="t('employees.confirm_reactivate', { nom: data.nom })"
-                @click="confirmToggleActive(data)"
+              <AppRowActions
+                :primary="employeePrimaryAction(data)"
+                :menu-items="employeeMenuItems(data)"
+                :menu-aria-label="t('common.actions')"
               />
             </div>
           </template>
@@ -181,34 +163,10 @@
         <Column :header="t('common.actions')" class="contacts-table__actions">
           <template #body="{ data }">
             <div class="app-inline-actions">
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('employees.edit')"
-                :aria-label="t('employees.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                v-if="data.is_active"
-                icon="pi pi-ban"
-                size="small"
-                severity="warn"
-                text
-                :title="t('employees.confirm_deactivate', { nom: data.nom })"
-                :aria-label="t('employees.confirm_deactivate', { nom: data.nom })"
-                @click="confirmToggleActive(data)"
-              />
-              <Button
-                v-else
-                icon="pi pi-check-circle"
-                size="small"
-                severity="success"
-                text
-                :title="t('employees.confirm_reactivate', { nom: data.nom })"
-                :aria-label="t('employees.confirm_reactivate', { nom: data.nom })"
-                @click="confirmToggleActive(data)"
+              <AppRowActions
+                :primary="employeePrimaryAction(data)"
+                :menu-items="employeeMenuItems(data)"
+                :menu-aria-label="t('common.actions')"
               />
             </div>
           </template>
@@ -412,7 +370,10 @@ import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
 import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
+import AppRowActions, { type RowAction } from '@/components/ui/AppRowActions.vue'
+import AppFilterSegments, { type FilterSegment } from '@/components/ui/AppFilterSegments.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
+import type { MenuItem } from 'primevue/menuitem'
 import { textFilter, useDataTableFilters } from '../composables/useDataTableFilters'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
@@ -441,11 +402,22 @@ const contractTypeOptions = computed(() => [
 const employees = ref<Contact[]>([])
 const loading = ref(false)
 const search = ref('')
-const showInactive = ref(false)
+const activeSegment = ref<'active' | 'inactive' | 'all'>('active')
 
 const activeCount = computed(() => employees.value.filter((e) => e.is_active).length)
+const inactiveCount = computed(() => employees.value.length - activeCount.value)
 
-const employeeRows = computed(() => employees.value)
+const statusSegments = computed<FilterSegment[]>(() => [
+  { key: 'active', label: t('employees.segment_active'), count: activeCount.value },
+  { key: 'inactive', label: t('employees.segment_inactive'), count: inactiveCount.value },
+  { key: 'all', label: t('employees.segment_all'), count: employees.value.length },
+])
+
+const employeeRows = computed(() => {
+  if (activeSegment.value === 'active') return employees.value.filter((e) => e.is_active)
+  if (activeSegment.value === 'inactive') return employees.value.filter((e) => !e.is_active)
+  return employees.value
+})
 const {
   filters: tableFilters,
   displayedRows: displayedEmployees,
@@ -460,11 +432,14 @@ const {
   telephone: textFilter(),
 })
 
-const hasAnyFilters = computed(() => hasActiveFilters.value || Boolean(search.value))
+const hasAnyFilters = computed(
+  () => hasActiveFilters.value || Boolean(search.value) || activeSegment.value !== 'active',
+)
 
 function resetAllFilters(): void {
   resetFilters()
   search.value = ''
+  activeSegment.value = 'active'
   void loadEmployees()
 }
 
@@ -478,10 +453,12 @@ function debouncedLoad(): void {
 async function loadEmployees(): Promise<void> {
   loading.value = true
   try {
+    // Always fetch the full set so the status segments can show accurate counts;
+    // the active/inactive split is applied client-side via `employeeRows`.
     employees.value = await listContactsApi({
       type: 'employe',
       search: search.value || undefined,
-      active_only: !showInactive.value,
+      active_only: false,
     })
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
@@ -567,6 +544,33 @@ function openEditDialog(employee: Contact): void {
   errorMessage.value = ''
   dialogVisible.value = true
   void nextTick(captureFormSnapshot)
+}
+
+// Row actions: Edit is the primary; activate/deactivate lives in the ⋯ menu.
+function employeePrimaryAction(employee: Contact): RowAction {
+  return {
+    key: 'edit',
+    label: t('employees.edit'),
+    icon: 'pi pi-pencil',
+    severity: 'secondary',
+    command: () => openEditDialog(employee),
+  }
+}
+
+function employeeMenuItems(employee: Contact): MenuItem[] {
+  return [
+    employee.is_active
+      ? {
+          label: t('employees.deactivate'),
+          icon: 'pi pi-ban',
+          command: () => confirmToggleActive(employee),
+        }
+      : {
+          label: t('employees.reactivate'),
+          icon: 'pi pi-check-circle',
+          command: () => confirmToggleActive(employee),
+        },
+  ]
 }
 
 async function submit(): Promise<void> {

@@ -69,10 +69,7 @@
         <template #card="{ item: data }">
           <div class="app-mobile-card-row app-mobile-card-row--between">
             <span class="app-mobile-card-value" style="font-weight:700">{{ data.number }}</span>
-            <Tag
-              :value="t(`invoices.statuses.${data.status}`)"
-              :severity="statusSeverity(data.status)"
-            />
+            <InvoiceStatusBadge :status="data.status" />
           </div>
           <div class="app-mobile-card-row app-mobile-card-row--between">
             <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
@@ -149,10 +146,7 @@
           :show-add-button="false"
         >
           <template #body="{ data }">
-            <Tag
-              :value="t(`invoices.statuses.${data.status}`)"
-              :severity="statusSeverity(data.status)"
-            />
+            <InvoiceStatusBadge :status="data.status" />
           </template>
           <template #filter="{ filterModel, filterCallback }">
             <AppFilterMultiSelect
@@ -390,10 +384,7 @@
     <!-- Invoice detail: unified 2-column layout for client and supplier -->
     <div v-else-if="invoiceDetail" class="chd-invoice">
       <div class="chd-invoice__meta">
-        <Tag
-          :value="t(`invoices.statuses.${invoiceDetail.status}`)"
-          :severity="statusSeverity(invoiceDetail.status)"
-        />
+        <InvoiceStatusBadge :status="invoiceDetail.status" />
         <span>{{ formatDisplayDate(invoiceDetail.date) }}</span>
         <span v-if="invoiceDetail.due_date"
           >{{ t('invoices.due_date') }} : {{ formatDisplayDate(invoiceDetail.due_date) }}</span
@@ -649,6 +640,7 @@ import AppPanel from './ui/AppPanel.vue'
 import AppStatCard from './ui/AppStatCard.vue'
 import AppMobileCardList from './ui/AppMobileCardList.vue'
 import AppTableSkeleton from './ui/AppTableSkeleton.vue'
+import InvoiceStatusBadge from './invoices/InvoiceStatusBadge.vue'
 import { getContactHistoryApi, markCreanceDouteuse } from '../api/accounting'
 import type { ContactHistory, ContactInvoiceSummary, ContactPaymentSummary } from '../api/accounting'
 import { downloadInvoicePdfApi, downloadInvoiceFileApi, getInvoiceApi } from '../api/invoices'
@@ -759,18 +751,6 @@ const {
 
 function fmt(val: string | number): string {
   return Number(val).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-function statusSeverity(status: string): string {
-  const map: Record<string, string> = {
-    draft: 'secondary',
-    sent: 'info',
-    paid: 'success',
-    partial: 'warn',
-    overdue: 'danger',
-    disputed: 'danger',
-  }
-  return map[status] ?? 'secondary'
 }
 
 function contactFullName(contact: ContactHistory['contact']): string {

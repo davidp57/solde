@@ -127,6 +127,28 @@ const ButtonStub = defineComponent({
   },
 })
 
+// Renders the contextual primary action (and any overflow items) as plain
+// buttons so existing click interactions keep working through the shared
+// AppRowActions component.
+const AppRowActionsStub = defineComponent({
+  props: ['primary', 'menuItems'],
+  setup(props) {
+    return () =>
+      h('div', { class: 'app-row-actions-stub' }, [
+        h(
+          'button',
+          { 'data-testid': 'row-primary', onClick: () => props.primary.command() },
+          props.primary.label,
+        ),
+        ...(props.menuItems ?? [])
+          .filter((item: { separator?: boolean }) => !item.separator)
+          .map((item: { label?: string; class?: string; command?: () => void }) =>
+            h('button', { title: item.label, class: item.class, onClick: () => item.command?.() }, item.label),
+          ),
+      ])
+  },
+})
+
 const InputTextStub = defineComponent({
   props: {
     modelValue: { type: [String, Number], default: '' },
@@ -276,6 +298,7 @@ function mountView() {
         AppPageHeader: ContainerStub,
         AppPanel: ContainerStub,
         AppStatCard: ContainerStub,
+        AppRowActions: AppRowActionsStub,
         Button: ButtonStub,
         Column: ColumnStub,
         ConfirmDialog: true,
@@ -354,7 +377,7 @@ describe('PaymentsView', () => {
     const wrapper = mountView()
     await flushView()
 
-    await wrapper.get('[data-testid="payment-edit-button"]').trigger('click')
+    await wrapper.get('[data-testid="row-primary"]').trigger('click')
     await wrapper.get('[data-testid="payment-reference-input"]').setValue('REF-2025-002')
     await wrapper.get('[data-testid="payment-save-button"]').trigger('click')
     await flushView()
@@ -373,7 +396,7 @@ describe('PaymentsView', () => {
     const wrapper = mountView()
     await flushView()
 
-    await wrapper.get('[data-testid="payment-edit-button"]').trigger('click')
+    await wrapper.get('[data-testid="row-primary"]').trigger('click')
     await flushView()
 
     expect(wrapper.get('input[type="date"]').element).toHaveProperty('disabled', true)
