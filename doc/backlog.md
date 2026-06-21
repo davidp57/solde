@@ -78,6 +78,7 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
+| BIZ-215 | Dashboard « À rapprocher » : compteur faux (212 affichés vs 2 réels) | P2 | ~20 min | 2026-06-21 | | |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
 | BIZ-210 | Factures client — réintroduire un rappel créances exercice/historique (post-RF) | P3 | ~20 min | 2026-06-18 | | |
 | BIZ-202 | Ligne de remise (prix négatif) dans une facture client | P2 | ~20 min | 2026-05-30 | 2026-05-30 | 2026-05-30 |
@@ -192,6 +193,18 @@ Nouveau `formatCurrency` dans `utils/format.ts` (EUR fr-FR, coercition des Decim
 #### BIZ-214 — Dédoublonnage Relancer / Envoyer
 
 `ClientInvoicesView` : pour une facture en retard, « Relancer » (action principale) et « Envoyer email » (menu) appelaient la même fonction. L'entrée de menu « Envoyer » est désormais omise quand « Relancer » est l'action principale.
+
+### BIZ-215 — Dashboard « À rapprocher » : compteur faux
+
+**Symptôme** : la file « À traiter » du tableau de bord affiche **212** opérations « À rapprocher », alors que l'écran Banque (relevé compte courant, filtre non-rapprochées) n'en montre que **2** réellement à traiter.
+
+**Cause probable** : `to_reconcile_count` (introduit en TEC-198, `backend/services/dashboard_service.py`) compte **toutes** les `BankTransaction` avec `reconciled == False`, sans aucune exclusion. Ce total englobe vraisemblablement des transactions qui ne sont **pas** actionnables pour l'utilisateur : catégorie phantom `no_entry`, source `system_opening`, transactions déjà liées à un paiement (`payment_id` non nul ou présentes dans `bank_transaction_payments`), et/ou tout l'historique importé. La vue Banque a une définition plus stricte de « à rapprocher » (cf. `_require_unreconciled_transaction` dans `backend/services/bank_service.py` : `reconciled OR payment_id IS NOT NULL OR lien dans bank_transaction_payments`).
+
+**À faire** :
+1. Déterminer la **définition métier exacte** de « à rapprocher » telle que vue par l'utilisateur (probablement : `reconciled == False` **ET** `payment_id IS NULL` **ET** pas de lien **ET** catégorie ≠ `no_entry` **ET** source ≠ `system_opening` — à confirmer avec ce que liste réellement l'écran Banque, et vérifier le périmètre par compte courant/épargne).
+2. Aligner `to_reconcile_count` sur cette définition (idéalement factoriser une fonction/clause partagée entre `dashboard_service` et `bank_service` pour éviter toute divergence future).
+3. Vérifier que le lien profond `?reconcile=1` du dashboard mène bien au même ensemble.
+4. Test d'intégration : fixtures couvrant `no_entry`, `system_opening`, déjà-lié → s'assurer que le compteur correspond à ce que l'utilisateur voit.
 
 ### BIZ-195 — Statut ARCHIVED — modèle, transitions, service, router, migration
 
