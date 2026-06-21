@@ -110,38 +110,10 @@
               <span class="app-mobile-card-value">{{ data.last_invoice_ref }} &mdash; {{ formatDisplayDate(data.last_invoice_date) }}</span>
             </div>
             <div class="app-mobile-card-actions">
-              <Button
-                icon="pi pi-history"
-                size="small"
-                severity="info"
-                text
-                :title="t('contact_history.title')"
-                @click="openHistoryDialog(data.id)"
-              />
-              <Button
-                v-if="authStore.isAdmin || authStore.isGestionnaire"
-                icon="pi pi-arrow-right-arrow-left"
-                size="small"
-                severity="warn"
-                text
-                :title="t('contacts.merge')"
-                @click="openMergeDialog(data)"
-              />
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('contacts.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                icon="pi pi-trash"
-                size="small"
-                severity="danger"
-                text
-                :title="t('common.delete')"
-                @click="confirmDelete(data)"
+              <AppRowActions
+                :primary="contactPrimaryAction(data)"
+                :menu-items="contactMenuItems(data)"
+                :menu-aria-label="t('common.actions')"
               />
             </div>
           </template>
@@ -260,42 +232,10 @@
         <Column :header="t('common.actions')" class="contacts-table__actions">
           <template #body="{ data }">
             <div class="app-inline-actions">
-              <Button
-                icon="pi pi-history"
-                size="small"
-                severity="info"
-                text
-                :title="t('contact_history.title')"
-                :aria-label="t('contact_history.title')"
-                @click="openHistoryDialog(data.id)"
-              />
-              <Button
-                v-if="authStore.isAdmin || authStore.isGestionnaire"
-                icon="pi pi-arrow-right-arrow-left"
-                size="small"
-                severity="warn"
-                text
-                :title="t('contacts.merge')"
-                :aria-label="t('contacts.merge')"
-                @click="openMergeDialog(data)"
-              />
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('contacts.edit')"
-                :aria-label="t('contacts.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                icon="pi pi-trash"
-                size="small"
-                severity="danger"
-                text
-                :title="t('common.delete')"
-                :aria-label="t('common.delete')"
-                @click="confirmDelete(data)"
+              <AppRowActions
+                :primary="contactPrimaryAction(data)"
+                :menu-items="contactMenuItems(data)"
+                :menu-aria-label="t('common.actions')"
               />
             </div>
           </template>
@@ -458,7 +398,9 @@ import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
+import AppRowActions, { type RowAction } from '@/components/ui/AppRowActions.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
+import type { MenuItem } from 'primevue/menuitem'
 import { deleteContactApi, importContactEmailsApi, listContactsWithCountApi, type Contact } from '@/api/contacts'
 import type { ContactEmailImportResult, ContactEmailImportRow } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
@@ -531,6 +473,45 @@ function focusFormInput(): void {
 function openHistoryDialog(id: number): void {
   selectedContactId.value = id
   historyDialogVisible.value = true
+}
+
+// Row actions: Edit is the contextual primary; the rest live in the ⋯ menu,
+// with the destructive delete isolated below a separator.
+function contactPrimaryAction(contact: Contact): RowAction {
+  return {
+    key: 'edit',
+    label: t('contacts.edit'),
+    icon: 'pi pi-pencil',
+    severity: 'secondary',
+    command: () => openEditDialog(contact),
+  }
+}
+
+function contactMenuItems(contact: Contact): MenuItem[] {
+  const items: MenuItem[] = [
+    {
+      label: t('contact_history.title'),
+      icon: 'pi pi-history',
+      command: () => openHistoryDialog(contact.id),
+    },
+  ]
+  if (authStore.isAdmin || authStore.isGestionnaire) {
+    items.push({
+      label: t('contacts.merge'),
+      icon: 'pi pi-arrow-right-arrow-left',
+      command: () => openMergeDialog(contact),
+    })
+  }
+  items.push(
+    { separator: true },
+    {
+      label: t('common.delete'),
+      icon: 'pi pi-trash',
+      class: 'app-row-actions-danger',
+      command: () => confirmDelete(contact),
+    },
+  )
+  return items
 }
 
 const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => Boolean(contactFormRef.value?.isDirty))

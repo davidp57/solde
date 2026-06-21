@@ -1,87 +1,27 @@
 <template>
-  <AppPage width="wide">
-    <AppPageHeader
-      :eyebrow="t('ui.page.collection_eyebrow')"
-      :title="t('invoices.supplier.title')"
-      :subtitle="t('invoices.supplier.subtitle')"
-    >
-      <template #actions>
-        <Button :label="t('invoices.new')" icon="pi pi-plus" @click="openCreateDialog" />
-      </template>
-    </AppPageHeader>
-
-    <section class="app-stat-grid">
-      <AppStatCard
-        :label="t('invoices.supplier.metrics.visible_count')"
-        :value="displayedInvoices.length"
-        :caption="t('invoices.supplier.metrics.total_count', { count: invoices.length })"
-      />
-      <AppStatCard
-        :label="t('invoices.supplier.metrics.total_amount')"
-        :value="formatAmount(totalAmount) + ' €'"
-        :caption="t('invoices.supplier.metrics.files_attached', { count: attachedFilesCount })"
-      />
-      <AppStatCard
-        :label="t('invoices.supplier.metrics.overdue_count')"
-        :value="overdueCount"
-        :caption="t('invoices.supplier.metrics.pending_count', { count: pendingCount })"
-        tone="warn"
-      />
-    </section>
-
-    <AppPanel
-      :title="t('invoices.supplier.workspace_title')"
-      :subtitle="t('invoices.supplier.workspace_subtitle')"
-    >
-      <div class="app-toolbar">
-        <div class="app-toolbar__meta">
-          <p class="app-toolbar__hint">{{ t('invoices.supplier.filters_hint') }}</p>
-          <div class="app-toolbar__meta-actions">
-            <AppListState
-              :displayed-count="displayedInvoices.length"
-              :total-count="invoices.length"
-              :loading="loading"
-              :search-text="globalFilter"
-              :active-filters="activeFilterLabels"
-            />
-            <Button
-              v-if="hasActiveFilters"
-              icon="pi pi-filter-slash"
-              severity="secondary"
-              text
-              :title="t('common.reset_filters')"
-              @click="resetFilters"
-            />
-            <Button
-              :label="t('common.export_excel')"
-              icon="pi pi-file-excel"
-              severity="secondary"
-              outlined
-              size="small"
-              @click="doExportExcel"
-            />
-          </div>
-        </div>
-
-        <div class="app-filter-grid">
-          <div class="app-field">
-            <label class="app-field__label">{{ t('invoices.status') }}</label>
-            <Select
-              v-model="statusFilter"
-              :options="statusOptions"
-              option-label="label"
-              option-value="value"
-              :placeholder="t('common.all')"
-              show-clear
-              @change="loadInvoices"
-            />
-          </div>
-          <div class="app-field app-field--span-2">
-            <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
-            <InputText v-model="globalFilter" :placeholder="t('common.filter_placeholder')" />
-          </div>
-        </div>
-      </div>
+  <InvoiceWorkspace
+    type="supplier"
+    wide
+    :title="t('invoices.supplier.title')"
+    :subtitle="t('invoices.supplier.subtitle')"
+    :panel-title="t('invoices.supplier.workspace_title')"
+    :panel-subtitle="t('invoices.supplier.workspace_subtitle')"
+    :filters-hint="t('invoices.supplier.filters_hint')"
+    :funnel="funnelMetrics"
+    :segments="statusSegments"
+    :active-segment="activeSegment"
+    v-model:search-value="globalFilter"
+    :displayed-count="displayedInvoices.length"
+    :total-count="invoices.length"
+    :loading="loading"
+    :active-filters="activeFilterLabels"
+    :has-active-filters="hasActiveFilters"
+    :segments-label="t('invoices.status')"
+    @new="openCreateDialog"
+    @segment-change="(key) => (activeSegment = key)"
+    @reset-filters="resetFilters"
+    @export="doExportExcel"
+  >
 
       <AppListLimitBanner
         :view-key="LIMIT_VIEW_KEY"
@@ -90,14 +30,11 @@
         @reload="loadInvoices"
       />
       <template v-if="isMobile">
-        <AppMobileCardList :items="invoiceRows" :empty-message="t('invoices.supplier.empty')">
+        <AppMobileCardList :items="segmentedRows" :empty-message="t('invoices.supplier.empty')">
           <template #card="{ item: data }">
             <div class="app-mobile-card-row app-mobile-card-row--between">
               <span class="app-mobile-card-value" style="font-weight: 700">{{ data.number }}</span>
-              <Tag
-                :value="t(`invoices.statuses.${data.status}`)"
-                :severity="statusSeverity(data.status)"
-              />
+              <InvoiceStatusBadge :status="data.status" />
             </div>
             <div class="app-mobile-card-row">
               <span class="app-mobile-card-label">{{ t('invoices.contact') }} :</span>
@@ -115,48 +52,10 @@
               <i v-if="data.file_path" class="pi pi-paperclip supplier-card__attachment" />
             </div>
             <div class="app-mobile-card-actions">
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                v-if="data.file_path"
-                icon="pi pi-eye"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.supplier.preview_file')"
-                @click="openPreviewDialog(data)"
-              />
-              <Button
-                icon="pi pi-upload"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.upload_file')"
-                @click="openUploadDialog(data)"
-              />
-              <Button
-                v-if="canRecordPayment(data)"
-                icon="pi pi-wallet"
-                size="small"
-                severity="success"
-                text
-                :title="t('invoices.record_payment')"
-                @click="openPaymentDialog(data)"
-              />
-              <Button
-                v-if="data.status === 'draft'"
-                icon="pi pi-trash"
-                size="small"
-                severity="danger"
-                text
-                :title="t('common.delete')"
-                @click="confirmDelete(data)"
+              <AppRowActions
+                :primary="supplierPrimaryAction(data)"
+                :menu-items="supplierMenuItems(data)"
+                :menu-aria-label="t('invoices.actions.more')"
               />
             </div>
           </template>
@@ -165,7 +64,7 @@
       <DataTable
         v-else
         v-model:filters="tableFilters"
-        :value="invoiceRows"
+        :value="segmentedRows"
         :loading="loading"
         class="app-data-table supplier-invoices-table"
         filter-display="menu"
@@ -255,10 +154,7 @@
           :show-add-button="false"
         >
           <template #body="{ data }">
-            <Tag
-              :value="t(`invoices.statuses.${data.status}`)"
-              :severity="statusSeverity(data.status)"
-            />
+            <InvoiceStatusBadge :status="data.status" />
           </template>
           <template #filter="{ filterModel }">
             <AppFilterMultiSelect
@@ -295,64 +191,27 @@
         </Column>
         <Column :header="t('common.actions')" class="supplier-invoices-table__actions">
           <template #body="{ data }">
-            <div class="app-inline-actions">
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.edit')"
-                :aria-label="t('invoices.edit')"
-                @click="openEditDialog(data)"
-              />
-              <Button
-                v-if="data.file_path"
-                icon="pi pi-eye"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.supplier.preview_file')"
-                :aria-label="t('invoices.supplier.preview_file')"
-                @click="openPreviewDialog(data)"
-              />
-              <Button
-                icon="pi pi-upload"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.upload_file')"
-                :aria-label="t('invoices.upload_file')"
-                @click="openUploadDialog(data)"
-              />
-              <Button
-                v-if="canRecordPayment(data)"
-                icon="pi pi-wallet"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('invoices.record_payment')"
-                :aria-label="t('invoices.record_payment')"
-                @click="openPaymentDialog(data)"
-              />
-              <Button
-                v-if="data.status === 'draft'"
-                icon="pi pi-trash"
-                size="small"
-                severity="danger"
-                text
-                :title="t('common.delete')"
-                :aria-label="t('common.delete')"
-                @click="confirmDelete(data)"
-              />
-            </div>
+            <AppRowActions
+              :primary="supplierPrimaryAction(data)"
+              :menu-items="supplierMenuItems(data)"
+              :menu-aria-label="t('invoices.actions.more')"
+            />
           </template>
         </Column>
         <template #empty>
           <div class="app-empty-state">{{ t('invoices.supplier.empty') }}</div>
         </template>
+        <template #footer>
+          <div class="invoices-table-footer">
+            <span>{{ t('invoices.table_footer.count', { count: displayedInvoices.length }) }}</span>
+            <span class="invoices-table-footer__total">
+              {{ t('invoices.total') }} : {{ formatAmount(displayedTotal) }} €
+            </span>
+          </div>
+        </template>
       </DataTable>
-    </AppPanel>
 
+    <template #dialogs>
     <Dialog
       :visible="dialogVisible"
       @update:visible="onCloseDialog"
@@ -476,10 +335,7 @@
             </div>
           </div>
           <div class="app-inline-actions">
-            <Tag
-              :value="t(`invoices.statuses.${previewInvoice.status}`)"
-              :severity="statusSeverity(previewInvoice.status)"
-            />
+            <InvoiceStatusBadge :status="previewInvoice.status" />
             <Button
               icon="pi pi-download"
               size="small"
@@ -626,84 +482,16 @@
 
       </div>
     </Dialog>
-    <Dialog
+    <InvoicePaymentDialog
       v-model:visible="paymentDialogVisible"
-      :header="paymentInvoice ? t('invoices.record_payment') : ''"
-      modal
-      class="app-dialog app-dialog--medium"
-    >
-      <form class="app-dialog-form" @submit.prevent="submitPayment">
-        <section v-if="paymentInvoice" class="app-dialog-intro">
-          <p class="app-dialog-intro__eyebrow">{{ paymentInvoice.number }}</p>
-          <p class="app-dialog-intro__text">
-            {{ contactName(paymentInvoice.contact_id) }}
-          </p>
-          <p class="app-dialog-intro__text">
-            {{ t('invoices.total') }} : <strong>{{ paymentInvoice.total_amount }} €</strong>
-          </p>
-        </section>
-        <section class="app-dialog-section">
-          <div class="history-dialog__summary">
-            <div class="history-dialog__metric">
-              <div class="history-dialog__label">{{ t('invoices.remaining') }}</div>
-              <div class="history-dialog__value history-dialog__value--warn">
-                {{ paymentRemaining.toFixed(2) }} €
-              </div>
-            </div>
-          </div>
-          <div class="app-form-grid">
-            <div class="app-field">
-              <label class="app-field__label">{{ t('payments.date') }}</label>
-              <AppDatePicker v-model="paymentForm.date" />
-            </div>
-            <div class="app-field">
-              <label class="app-field__label">{{ t('payments.amount') }}</label>
-              <InputNumber
-                v-model="paymentForm.amount"
-                mode="decimal"
-                :min="0.01"
-                :min-fraction-digits="2"
-                :max-fraction-digits="2"
-              />
-            </div>
-            <div class="app-field">
-              <label class="app-field__label">{{ t('payments.method') }}</label>
-              <Select
-                v-model="paymentForm.method"
-                :options="paymentMethodOptions"
-                option-label="label"
-                option-value="value"
-              />
-            </div>
-            <div v-if="paymentForm.method === 'cheque'" class="app-field">
-              <label class="app-field__label">{{ t('payments.cheque_number') }}</label>
-              <InputText v-model="paymentForm.cheque_number" />
-            </div>
-            <div class="app-field">
-              <label class="app-field__label">{{ t('payments.reference') }}</label>
-              <InputText v-model="paymentForm.reference" />
-            </div>
-            <div class="app-field app-field--span-2">
-              <label class="app-field__label">{{ t('payments.notes') }}</label>
-              <Textarea v-model="paymentForm.notes" rows="3" />
-            </div>
-          </div>
-        </section>
-        <div class="app-form-actions">
-          <Button
-            :label="t('common.cancel')"
-            severity="secondary"
-            text
-            type="button"
-            @click="paymentDialogVisible = false"
-          />
-          <Button type="submit" :label="t('common.save')" :loading="paymentSaving" />
-        </div>
-      </form>
-    </Dialog>
+      :invoice="paymentInvoice"
+      :contact-name="paymentInvoice ? contactName(paymentInvoice.contact_id) : undefined"
+      @paid="onPaymentRecorded"
+    />
 
     <ConfirmDialog />
-  </AppPage>
+    </template>
+  </InvoiceWorkspace>
 </template>
 
 <script setup lang="ts">
@@ -713,11 +501,7 @@ import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import FileUpload from 'primevue/fileupload'
-import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
-import Select from 'primevue/select'
-import Tag from 'primevue/tag'
-import Textarea from 'primevue/textarea'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, nextTick, ref, watch } from 'vue'
@@ -725,19 +509,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppDateRangeFilter from '../components/ui/AppDateRangeFilter.vue'
 import AppFilterMultiSelect from '../components/ui/AppFilterMultiSelect.vue'
-import AppListState from '../components/ui/AppListState.vue'
 import AppNumberRangeFilter from '../components/ui/AppNumberRangeFilter.vue'
-import AppPage from '../components/ui/AppPage.vue'
-import AppPageHeader from '../components/ui/AppPageHeader.vue'
-import AppPanel from '../components/ui/AppPanel.vue'
-import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 
-import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
@@ -745,10 +523,20 @@ import {
   listInvoicesWithCountApi,
   uploadInvoiceFileApi,
   type Invoice,
-  type InvoiceStatus,
 } from '../api/invoices'
-import { createPayment, listPayments, suggestChequeNumber, type Payment } from '../api/payments'
+import { listPayments, type Payment } from '../api/payments'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
+import InvoiceStatusBadge from '../components/invoices/InvoiceStatusBadge.vue'
+import InvoicePaymentDialog from '../components/invoices/InvoicePaymentDialog.vue'
+import InvoiceWorkspace from '../components/invoices/InvoiceWorkspace.vue'
+import AppRowActions, { type RowAction } from '../components/ui/AppRowActions.vue'
+import type { FilterSegment } from '../components/ui/AppFilterSegments.vue'
+import type { MenuItem } from 'primevue/menuitem'
+import {
+  isOverdueInvoice,
+  isOpenReceivableInvoice,
+  remainingForInvoice,
+} from '../composables/useInvoiceMetrics'
 import {
   dateRangeFilter,
   inFilter,
@@ -756,10 +544,7 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
-import {
-  collectActiveFilterLabels,
-  findSelectedFilterLabel,
-} from '../composables/activeFilterLabels'
+import { collectActiveFilterLabels } from '../composables/activeFilterLabels'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useListLimitStore } from '../stores/listLimit'
@@ -808,7 +593,6 @@ const uploadDialogVisible = ref(false)
 const uploadTargetId = ref<number | null>(null)
 const selectedFile = ref<File | null>(null)
 const uploading = ref(false)
-const statusFilter = ref<InvoiceStatus | null>(null)
 
 const editFileBlobUrl = ref<string | null>(null)
 const editFileIsPdf = ref(false)
@@ -857,6 +641,37 @@ const invoiceRows = computed(() =>
   })),
 )
 
+// Quick-filter segments — applied client-side over the loaded set; counts derived
+// from the same loaded set so they stay stable while switching segments.
+const activeSegment = ref('all')
+
+const segmentedRows = computed(() => {
+  const rows = invoiceRows.value
+  switch (activeSegment.value) {
+    case 'overdue':
+      return rows.filter(isOverdueInvoice)
+    case 'unpaid':
+      return rows.filter(isOpenReceivableInvoice)
+    case 'draft':
+      return rows.filter((row) => row.status === 'draft')
+    case 'paid':
+      return rows.filter((row) => row.status === 'paid')
+    default:
+      return rows
+  }
+})
+
+const statusSegments = computed<FilterSegment[]>(() => {
+  const rows = invoiceRows.value
+  return [
+    { key: 'all', label: t('invoices.segments.all'), count: rows.length },
+    { key: 'overdue', label: t('invoices.segments.overdue'), count: rows.filter(isOverdueInvoice).length },
+    { key: 'unpaid', label: t('invoices.segments.unpaid'), count: rows.filter(isOpenReceivableInvoice).length },
+    { key: 'draft', label: t('invoices.segments.draft'), count: rows.filter((row) => row.status === 'draft').length },
+    { key: 'paid', label: t('invoices.segments.paid'), count: rows.filter((row) => row.status === 'paid').length },
+  ]
+})
+
 const {
   filters: tableFilters,
   globalFilter,
@@ -865,7 +680,7 @@ const {
   hasActiveFilters,
   resetFilters,
   syncDisplayedRows: syncDisplayedInvoices,
-} = useDataTableFilters(invoiceRows, {
+} = useDataTableFilters(segmentedRows, {
   global: textFilter(''),
   number: textFilter(),
   date: dateRangeFilter(),
@@ -876,24 +691,33 @@ const {
   has_file: inFilter(),
 })
 
-const totalAmount = computed(() =>
+const funnelMetrics = computed(() => {
+  const visible = displayedInvoices.value
+  const totalInvoiced = visible.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0)
+  const collected = visible.reduce((sum, invoice) => sum + parseFloat(invoice.paid_amount), 0)
+  const overdue = visible
+    .filter(isOverdueInvoice)
+    .reduce((sum, invoice) => sum + remainingForInvoice(invoice), 0)
+  return {
+    totalInvoiced,
+    collected,
+    remaining: Math.max(0, totalInvoiced - collected),
+    overdue,
+    count: visible.length,
+  }
+})
+
+const displayedTotal = computed(() =>
   displayedInvoices.value.reduce((sum, invoice) => sum + parseFloat(invoice.total_amount), 0),
 )
-const attachedFilesCount = computed(
-  () => displayedInvoices.value.filter((invoice) => Boolean(invoice.file_path)).length,
-)
-const overdueCount = computed(
-  () => displayedInvoices.value.filter((invoice) => invoice.status === 'overdue').length,
-)
-const pendingCount = computed(
-  () =>
-    displayedInvoices.value.filter(
-      (invoice) => invoice.status === 'sent' || invoice.status === 'partial',
-    ).length,
+const activeSegmentLabel = computed(() =>
+  activeSegment.value === 'all'
+    ? undefined
+    : statusSegments.value.find((segment) => segment.key === activeSegment.value)?.label,
 )
 const activeFilterLabels = computed(() =>
   collectActiveFilterLabels(
-    findSelectedFilterLabel(statusOptions, statusFilter.value),
+    activeSegmentLabel.value,
     activeColumnFilterCount.value > 0
       ? t('common.list.column_filters_chip', { count: activeColumnFilterCount.value })
       : undefined,
@@ -914,44 +738,9 @@ const fileFilterOptions = [
   { label: t('common.no'), value: false },
 ]
 
-const paymentMethodOptions = [
-  { label: t('payments.methods.especes'), value: 'especes' },
-  { label: t('payments.methods.cheque'), value: 'cheque' },
-]
-
 // Payment dialog state
 const paymentDialogVisible = ref(false)
 const paymentInvoice = ref<Invoice | null>(null)
-const paymentSaving = ref(false)
-const paymentForm = ref({
-  date: new Date() as Date,
-  amount: 0,
-  method: 'cheque' as 'especes' | 'cheque',
-  cheque_number: '',
-  reference: '',
-  notes: '',
-})
-
-watch(
-  () => paymentForm.value.method,
-  (method) => {
-    // Guard: only fire when dialog is already open (i.e. user toggled method inside the dialog).
-    // When openPaymentDialog resets the form, the dialog is not yet visible so this watch is skipped;
-    // the direct suggestChequeNumber() call in openPaymentDialog handles the initial suggestion.
-    if (paymentDialogVisible.value && method === 'cheque' && !paymentForm.value.cheque_number) {
-      void suggestChequeNumber().then((n) => {
-        if (paymentForm.value.method === 'cheque' && !paymentForm.value.cheque_number) {
-          paymentForm.value.cheque_number = n
-        }
-      })
-    }
-  },
-)
-
-const paymentRemaining = computed(() => {
-  if (!paymentInvoice.value) return 0
-  return parseFloat(paymentInvoice.value.total_amount) - parseFloat(paymentInvoice.value.paid_amount)
-})
 
 function canRecordPayment(invoice: Invoice | null): boolean {
   if (!invoice) return false
@@ -961,67 +750,75 @@ function canRecordPayment(invoice: Invoice | null): boolean {
 
 function openPaymentDialog(invoice: Invoice) {
   paymentInvoice.value = invoice
-  paymentForm.value = {
-    date: new Date(),
-    amount: parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount),
-    method: 'cheque',
-    cheque_number: '',
-    reference: '',
-    notes: '',
-  }
   paymentDialogVisible.value = true
-  void suggestChequeNumber().then((n) => {
-    if (paymentForm.value.method === 'cheque' && !paymentForm.value.cheque_number) {
-      paymentForm.value.cheque_number = n
-    }
-  })
 }
 
-async function submitPayment() {
-  if (!paymentInvoice.value) return
-
-  const amount = Number(paymentForm.value.amount)
-  if (!(amount > 0)) {
-    toast.add({ severity: 'warn', summary: t('payments.errors.amount_positive'), life: 3500 })
-    return
+// Contextual primary row action, chosen by status (handoff decision #3).
+function supplierPrimaryAction(invoice: Invoice): RowAction {
+  if (invoice.status === 'draft') {
+    return { key: 'edit', label: t('invoices.edit'), icon: 'pi pi-pencil', command: () => openEditDialog(invoice) }
   }
-  if (amount - paymentRemaining.value > 0.001) {
-    toast.add({ severity: 'warn', summary: t('payments.errors.amount_exceeds_remaining'), life: 3500 })
-    return
-  }
-  if (paymentForm.value.method === 'cheque' && paymentForm.value.cheque_number.trim().length === 0) {
-    toast.add({ severity: 'warn', summary: t('payments.errors.cheque_number_required'), life: 3500 })
-    return
-  }
-
-  paymentSaving.value = true
-  try {
-    const dateVal = paymentForm.value.date
-    const isoDate = typeof dateVal === 'string' ? dateVal : dateVal.toISOString().slice(0, 10)
-    await createPayment({
-      invoice_id: paymentInvoice.value.id,
-      contact_id: paymentInvoice.value.contact_id,
-      amount: amount.toFixed(2),
-      date: isoDate,
-      method: paymentForm.value.method,
-      cheque_number: paymentForm.value.method === 'cheque' ? (paymentForm.value.cheque_number.trim() || null) : null,
-      reference: paymentForm.value.reference.trim() || null,
-      notes: paymentForm.value.notes.trim() || null,
-    })
-    toast.add({ severity: 'success', summary: t('payments.created'), life: 3000 })
-    paymentDialogVisible.value = false
-    await loadInvoices()
-    // Refresh preview payments if preview is open for the same invoice
-    if (previewInvoice.value?.id === paymentInvoice.value.id) {
-      previewPayments.value = await listPayments({ invoice_id: paymentInvoice.value.id })
-      // Re-fetch invoice to update paid_amount / status
-      const updated = invoices.value.find((inv) => inv.id === paymentInvoice.value!.id)
-      if (updated) previewInvoice.value = updated
+  if (canRecordPayment(invoice)) {
+    return {
+      key: 'pay',
+      label: t('invoices.record_payment'),
+      icon: 'pi pi-wallet',
+      severity: 'success',
+      command: () => openPaymentDialog(invoice),
     }
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
-  } finally {
-    paymentSaving.value = false
+  }
+  if (invoice.file_path) {
+    return {
+      key: 'view',
+      label: t('invoices.actions.view'),
+      icon: 'pi pi-eye',
+      command: () => openPreviewDialog(invoice),
+    }
+  }
+  return { key: 'edit', label: t('invoices.edit'), icon: 'pi pi-pencil', command: () => openEditDialog(invoice) }
+}
+
+// Remaining actions live in the overflow menu; destructive ones are isolated.
+function supplierMenuItems(invoice: Invoice): MenuItem[] {
+  const primaryKey = supplierPrimaryAction(invoice).key
+  const normal: MenuItem[] = [
+    { key: 'edit', label: t('invoices.edit'), icon: 'pi pi-pencil', command: () => openEditDialog(invoice) },
+  ]
+  if (invoice.file_path) {
+    normal.push({ key: 'view', label: t('invoices.supplier.preview_file'), icon: 'pi pi-eye', command: () => openPreviewDialog(invoice) })
+  }
+  normal.push({ key: 'upload', label: t('invoices.upload_file'), icon: 'pi pi-upload', command: () => openUploadDialog(invoice) })
+  if (canRecordPayment(invoice)) {
+    normal.push({ key: 'pay', label: t('invoices.record_payment'), icon: 'pi pi-wallet', command: () => openPaymentDialog(invoice) })
+  }
+
+  const danger: MenuItem[] = []
+  if (invoice.status === 'draft') {
+    danger.push({
+      key: 'delete',
+      label: t('common.delete'),
+      icon: 'pi pi-trash',
+      class: 'app-row-actions-danger',
+      command: () => confirmDelete(invoice),
+    })
+  }
+
+  const items = normal.filter((item) => item.key !== primaryKey)
+  const dangerItems = danger.filter((item) => item.key !== primaryKey)
+  if (dangerItems.length) {
+    items.push({ separator: true }, ...dangerItems)
+  }
+  return items
+}
+
+async function onPaymentRecorded(invoiceId: number): Promise<void> {
+  await loadInvoices()
+  // Refresh preview payments if preview is open for the same invoice
+  if (previewInvoice.value?.id === invoiceId) {
+    previewPayments.value = await listPayments({ invoice_id: invoiceId })
+    // Re-fetch invoice to update paid_amount / status
+    const updated = invoices.value.find((inv) => inv.id === invoiceId)
+    if (updated) previewInvoice.value = updated
   }
 }
 
@@ -1035,18 +832,6 @@ function contactName(id: number): string {
   return formatContactDisplayName(c)
 }
 
-function statusSeverity(s: InvoiceStatus): string {
-  const map: Record<InvoiceStatus, string> = {
-    draft: 'secondary',
-    sent: 'info',
-    paid: 'success',
-    partial: 'warn',
-    overdue: 'danger',
-    disputed: 'danger',
-  }
-  return map[s] ?? 'secondary'
-}
-
 async function loadInvoices() {
   loading.value = true
   try {
@@ -1058,7 +843,6 @@ async function loadInvoices() {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
       filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
     }
-    if (statusFilter.value) filters.invoice_status = statusFilter.value
     const { items, total } = await listInvoicesWithCountApi(filters)
     limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
     invoices.value = items
@@ -1278,6 +1062,21 @@ onMounted(async () => {
 .supplier-invoices-table__actions {
   width: 13rem;
   min-width: 13rem;
+}
+
+.invoices-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+  font-size: 0.9rem;
+  color: var(--p-text-muted-color);
+}
+
+.invoices-table-footer__total {
+  font-weight: 800;
+  color: var(--p-text-color);
+  font-variant-numeric: tabular-nums;
 }
 
 :deep(.supplier-invoices-table .supplier-invoices-table__actions) {

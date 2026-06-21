@@ -94,6 +94,14 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
     )
     undeposited_count = undeposited_result.scalar_one_or_none() or 0
 
+    # --- Bank transactions still to reconcile (same definition as the bank view) ---
+    to_reconcile_result = await db.execute(
+        select(func.count(BankTransaction.id)).where(
+            BankTransaction.reconciled == False  # noqa: E712
+        )
+    )
+    to_reconcile_count: int = to_reconcile_result.scalar_one_or_none() or 0
+
     # --- Current fiscal year result ---
     from backend.services.accounting_entry_service import (
         _compute_resultat,
@@ -136,6 +144,7 @@ async def get_dashboard(db: AsyncSession) -> dict[str, object]:
         "overdue_count": overdue_count,
         "overdue_total": overdue_total,
         "undeposited_count": undeposited_count,
+        "to_reconcile_count": to_reconcile_count,
         "current_fy_name": current_fy_name,
         "current_resultat": current_resultat,
         "alerts": alerts,
