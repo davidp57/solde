@@ -72,7 +72,7 @@ Apply, in order:
    - Backend (repo root): `ruff check backend/ tests/` · `ruff format --check backend/ tests/` · `python -m mypy backend/` · `pytest tests/ -q`
    - Frontend (`frontend/`): `npx eslint src/` · `npx vue-tsc --noEmit` · `npx vitest run`
 3. Commit the release artifacts: `chore(release): bump version to x.y.z` (with the repo's required commit trailer).
-4. Push the branch and **open a PR `release/x.y.z` → `main`**. Provide the **PR title and description as copyable markdown blocks** (description in English: summary, breaking changes, migration notes) so the developer can paste them into GitHub. **Do not merge the PR yourself.**
+4. Push the branch and **create the PR `release/x.y.z` → `main`** (`gh pr create`, description in English: summary, breaking changes, migration notes), then **report its URL**. **Do not merge the PR yourself** — merging to `main` is the developer's call.
 5. Give the developer the post-merge commands to run **after the PR is merged and validated**:
 
    ```bash
@@ -97,4 +97,4 @@ Apply, in order:
 - [ ] Ruptures & migrations documented (Alembic, `.env`, data, RAM budget) if any.
 - [ ] Full quality gate green (backend + frontend).
 - [ ] `doc/backlog.md` / `doc/roadmap.md` updated.
-- [ ] PR `release/x.y.z → main` opened with copyable title/description; merge + tag left to the developer.
+- [ ] PR `release/x.y.z → main` created (URL reported); merge + tag left to the developer.
