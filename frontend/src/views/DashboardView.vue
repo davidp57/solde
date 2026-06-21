@@ -184,6 +184,7 @@ import type { DashboardKPIs, DashboardResourcesChartRow, MonthlyChartRow } from 
 import { listDeposits } from '../api/bank'
 import type { Deposit } from '../api/bank'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { formatCurrency } from '../utils/format'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -315,14 +316,7 @@ const chartBars = computed(() => {
 })
 
 function formatAmount(v: number | string | null | undefined): string {
-  if (v == null) {
-    return '—'
-  }
-  const n = typeof v === 'number' ? v : parseFloat(String(v))
-  if (!Number.isFinite(n)) {
-    return '—'
-  }
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n)
+  return formatCurrency(v)
 }
 
 function formatCompactAmount(v: number): string {

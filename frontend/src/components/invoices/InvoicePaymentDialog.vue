@@ -11,7 +11,7 @@
         <p class="app-dialog-intro__eyebrow">{{ invoice.number }}</p>
         <p v-if="introSubtitle" class="app-dialog-intro__text">{{ introSubtitle }}</p>
         <p class="app-dialog-intro__text">
-          {{ t('invoices.total') }} : <strong>{{ invoice.total_amount }} €</strong>
+          {{ t('invoices.total') }} : <strong>{{ formatCurrency(invoice.total_amount) }}</strong>
           <template v-if="invoice.due_date">
             &nbsp;·&nbsp; {{ t('invoices.due_date') }} : {{ formatDisplayDate(invoice.due_date) }}
           </template>
@@ -21,7 +21,7 @@
         <div class="invoice-payment-dialog__summary">
           <div class="invoice-payment-dialog__metric">
             <div class="invoice-payment-dialog__label">{{ t('invoices.remaining') }}</div>
-            <div class="invoice-payment-dialog__value">{{ paymentRemaining.toFixed(2) }} €</div>
+            <div class="invoice-payment-dialog__value">{{ formatCurrency(paymentRemaining) }}</div>
           </div>
         </div>
         <div class="app-form-grid">
@@ -90,7 +90,7 @@ import AppDatePicker from '../ui/AppDatePicker.vue'
 import { createPayment, suggestChequeNumber } from '../../api/payments'
 import type { Invoice } from '../../api/invoices'
 import { remainingForInvoice } from '../../composables/useInvoiceMetrics'
-import { formatDisplayDate } from '@/utils/format'
+import { formatCurrency, formatDisplayDate } from '@/utils/format'
 
 const props = defineProps<{
   visible: boolean

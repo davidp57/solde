@@ -1,11 +1,10 @@
 <template>
-  <div class="app-filter-segments" role="tablist" :aria-label="ariaLabel">
+  <div class="app-filter-segments" role="group" :aria-label="ariaLabel">
     <button
       v-for="segment in segments"
       :key="segment.key"
       type="button"
-      role="tab"
-      :aria-selected="segment.key === modelValue"
+      :aria-pressed="segment.key === modelValue"
       :class="[
         'app-filter-segments__chip',
         { 'app-filter-segments__chip--active': segment.key === modelValue },

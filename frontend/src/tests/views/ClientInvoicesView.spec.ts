@@ -447,7 +447,8 @@ describe('ClientInvoicesView', () => {
 
     // Displayed set = invoiceFixture only (total 120, paid 20) → remaining 100.
     expect(wrapper.text()).toContain('invoices.funnel.remaining_client')
-    expect(wrapper.find('.invoice-funnel__amount').text()).toContain('100')
+    // Full formatted amount locks the prop passed to the funnel (remaining = 120 - 20).
+    expect(wrapper.find('.invoice-funnel__amount').text()).toContain('100,00')
   })
 
   it('reflects overdue amount in the funnel (due date + remaining, not only status)', async () => {

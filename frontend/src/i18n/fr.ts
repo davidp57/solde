@@ -28,6 +28,7 @@ export default {
     session_extend: 'Prolonger la session',
   },
   nav: {
+    open_menu: 'Ouvrir le menu',
     section_home: 'Accueil',
     section_management: 'Gestion',
     section_accounting: 'Comptabilité',

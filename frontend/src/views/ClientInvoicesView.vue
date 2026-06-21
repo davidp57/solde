@@ -915,7 +915,11 @@ function clientMenuItems(invoice: Invoice): MenuItem[] {
   }
   normal.push({ key: 'pdf', label: t('invoices.generate_pdf'), icon: 'pi pi-file-pdf', command: () => openPdf(invoice) })
   if (invoice.status !== 'archived') {
-    normal.push({ key: 'send', label: t('invoices.send_email'), icon: 'pi pi-send', command: () => sendEmail(invoice) })
+    // Overdue invoices already expose "Relancer" (= send email) as the primary
+    // action, so skip the redundant "Envoyer" menu entry in that case.
+    if (!isOverdueInvoice(invoice)) {
+      normal.push({ key: 'send', label: t('invoices.send_email'), icon: 'pi pi-send', command: () => sendEmail(invoice) })
+    }
     normal.push({ key: 'duplicate', label: t('invoices.duplicate'), icon: 'pi pi-copy', command: () => duplicate(invoice) })
   }
   if (invoice.status === 'irrecoverable') {

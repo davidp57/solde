@@ -53,6 +53,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppPanel from '../ui/AppPanel.vue'
+import { formatCurrency } from '../../utils/format'
 
 const props = defineProps<{
   type: 'client' | 'supplier'
@@ -80,13 +81,8 @@ const collectedLabel = computed(() =>
 // "Upcoming" is the open balance that is not yet overdue.
 const upcoming = computed(() => Math.max(0, props.remaining - props.overdue))
 
-const currencyFormatter = new Intl.NumberFormat('fr-FR', {
-  style: 'currency',
-  currency: 'EUR',
-})
-
 function formatAmount(value: number): string {
-  return currencyFormatter.format(value)
+  return formatCurrency(value)
 }
 
 function pct(value: number): number {
