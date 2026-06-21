@@ -4,6 +4,36 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.8.0 — 21 juin 2026
+
+Refonte complète de l'interface de Solde : plus claire, organisée par action à mener, avec un mode sombre et un affichage adapté au mobile et à la tablette.
+
+### Tous les utilisateurs
+
+- Nouvelle interface plus lisible, mettant en avant ce qui demande votre attention.
+- **Mode sombre** activable d'un clic (icône lune/soleil), mémorisé.
+- Application confortable sur **mobile et tablette** (navigation adaptée, tableaux affichés en cartes).
+- Sur les listes, une **action principale claire** par ligne et un menu « ⋯ » pour le reste ; les actions sensibles (suppression…) sont mises à part.
+
+### Secrétaire
+
+- Factures clients et fournisseurs réunies dans un **même espace**, avec une bascule entre les deux.
+- Vue « entonnoir » indiquant ce qu'il **reste à encaisser / à payer**.
+- **Filtres rapides** par statut (Toutes, En retard, Impayées, Brouillons, Payées) avec compteurs.
+
+### Trésorier
+
+- **Tableau de bord** repensé : trésorerie nette mise en avant, évolution, et une file **« À traiter »** (impayés, retards, chèques à déposer, opérations à rapprocher) qui mène directement à l'écran filtré.
+- Nouveau repère **« À rapprocher »** ouvrant la banque déjà filtrée sur les opérations non rapprochées.
+
+### Administrateur
+
+- **Paramètres** réorganisés en 4 onglets, avec enregistrement par section.
+- **Supervision** en 2 onglets (état & surveillance / sauvegardes & restauration) ; la restauration de base est mieux sécurisée.
+- **Utilisateurs** : vue des rôles avec compteurs, filtres rapides, et repère « vous » sur votre ligne.
+
+---
+
 ## Version 1.7.5 — 30 mai 2026
 
 ### Tous les utilisateurs

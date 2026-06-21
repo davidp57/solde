@@ -28,7 +28,7 @@
 | **1.6.2** | Lot REV2 — standardize API errors, remove service commits, split bank router (TEC-170, TEC-171, TEC-173) | ✅ Merged 2026-05-07 |
 | **1.6.3** | TEC-185 (Chrome PDF fix), BIZ-186 (paid watermark on PDF) | ✅ Released 2026-05-10 |
 | **1.7** | Lot BK — automated backup (BIZ-173–184) | 🔧 In progress (PR #85) |
-| **1.8** | Lot RF — UI/UX redesign (dashboard, invoices, admin) + dark mode + responsive | ⬜ Planned |
+| **1.8** | Lot RF — UI/UX redesign (dashboard, invoices, admin) + dark mode + responsive | 🔧 Release prepared (release/1.8.0 → main) |
 
 Test suite: **1090 backend + 148 frontend Vitest — 0 failures.**
 

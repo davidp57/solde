@@ -53,9 +53,24 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 | TEC-202 | Refonte Admin — `AppSettingRow` (motif ligne de réglage) | P2 | ~20 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
 | BIZ-212 | Refonte Supervision — 2 onglets (État & surveillance / Sauvegardes & restauration) | P2 | ~30 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
 | BIZ-213 | Refonte Paramètres — 4 onglets + lignes de réglage + barres d'enregistrement | P1 | ~80 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
-| CHR-195 | Quality gate + CHANGELOG + docs + release v1.8 | P2 | ~30 min | 2026-06-18 | | |
+| CHR-195 | Quality gate + CHANGELOG + docs + release v1.8 | P2 | ~30 min | 2026-06-18 | 2026-06-21 | 2026-06-21 |
 
 > Total estimé : **~640 min Copilot + 15 min gestion** (facteur de marge 1,00). Dépendances : TEC-193 précède TEC-194 ; TEC-194 précède BIZ-206 ; TEC-196 s'appuie sur TEC-195 ; TEC-197 précède BIZ-207 et BIZ-209 ; BIZ-207 bénéficie de TEC-198 (sinon dégradation gracieuse) ; TEC-200 vient **après** les écrans refondus (TEC-194, BIZ-207/208/209) et s'appuie sur le pattern mobile existant (`AppMobileCardList` + `useBreakpoints`, lot MOB) ; **TEC-201 puis BIZ-211** (généralisation aux autres écrans) viennent **après** stabilisation des composants factures et peuvent être livrés post-v1.8. Le mode sombre étant piloté par tokens, les écrans livrés avant TEC-196 en héritent automatiquement.
+
+---
+
+### Lot RR — Corrections post-revue de la release v1.8
+
+Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcery, PR trop volumineuse pour l'outil). Aucun blocker ; corrections de qualité, accessibilité et couverture de tests, appliquées sur `release/1.8.0`.
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-203 | Shell mobile : masquer la barre d'onglets basse si < 2 items, aria-label burger dédié, hauteurs topbar/bottom-nav en CSS vars | P2 | ~15 min | 2026-06-21 | 2026-06-21 | 2026-06-21 |
+| TEC-204 | a11y filtres/bascule : `AppFilterSegments` en `role="group"` + `aria-pressed` ; `InvoiceTypeToggle` en liens de navigation (`aria-current`) | P2 | ~10 min | 2026-06-21 | 2026-06-21 | 2026-06-21 |
+| TEC-205 | Util `formatCurrency` mutualisé (`utils/format.ts`) + formatage du total dans `InvoicePaymentDialog` + dédup des `Intl.NumberFormat` | P2 | ~15 min | 2026-06-21 | 2026-06-21 | 2026-06-21 |
+| TEC-206 | Corriger le chevauchement de breakpoint `main.css` (`max-width: 768px` → `767px`) | P3 | ~5 min | 2026-06-21 | 2026-06-21 | 2026-06-21 |
+| TEC-207 | Couverture de tests : item « À rapprocher » du dashboard + assertion du montant de l'entonnoir | P2 | ~10 min | 2026-06-21 | 2026-06-21 | 2026-06-21 |
+| BIZ-214 | Factures : dédoublonner « Envoyer email » quand « Relancer » est déjà l'action principale (facture en retard) | P3 | ~5 min | 2026-06-21 | 2026-06-21 | 2026-06-21 |
 
 ---
 
@@ -151,6 +166,32 @@ Source : handoff Claude Design `design_handoff_solde_complet/details/02-admin-pa
 #### CHR-195 — Quality gate + CHANGELOG + docs + release v1.8
 
 Exécuter la quality gate complète (ruff check + format, mypy, pytest, eslint, vue-tsc, vitest) et corriger les résidus. Mettre à jour `CHANGELOG.md` (`[Non publié]`), `doc/user/changelog-user.md` (sections par rôle : nouveautés visuelles + mode sombre), `doc/dev/architecture.md` (système de thème / tokens), et les statuts du backlog. Documenter le mode sombre côté utilisateur. Bump version `MINOR` → v1.8 dans `pyproject.toml` et `frontend/package.json`.
+
+### Lot RR — Corrections post-revue de la release v1.8
+
+#### TEC-203 — Shell mobile : barre d'onglets basse, aria-label burger, CSS vars
+
+`AppLayout.vue` : masquer la barre d'onglets basse (`v-if="bottomNavItems.length > 1"`) — un utilisateur lecture seule n'avait qu'un seul onglet pleine largeur. aria-label du burger passé à une clé dédiée `nav.open_menu` (au lieu de `nav.dashboard`, trompeur). Hauteurs topbar/bottom-nav extraites en CSS vars `--app-topbar-height`/`--app-bottom-nav-height` (fin du `53px`/`64px` codés en dur) + hauteur de topbar rendue déterministe.
+
+#### TEC-204 — Accessibilité des filtres et de la bascule
+
+`AppFilterSegments` : `role="tablist"`/`role="tab"`/`aria-selected` (qui imposaient une navigation clavier par flèches non implémentée) remplacés par `role="group"` + `aria-pressed` (sémantique correcte pour des boutons-filtres). `InvoiceTypeToggle` : ce sont des liens de navigation → `role="tab"`/`aria-selected` remplacés par `aria-current="page"` sur le lien actif.
+
+#### TEC-205 — Util `formatCurrency` mutualisé
+
+Nouveau `formatCurrency` dans `utils/format.ts` (EUR fr-FR, coercition des Decimal-strings, `—` si vide/non numérique). Corrige l'affichage du total dans `InvoicePaymentDialog` (qui montrait la chaîne brute `1234.50 €`). Déduplique les `new Intl.NumberFormat(...)` recopiés dans `DashboardView`, `SalaryView`, `BankPendingDepositsPanel`, `InvoiceFunnelHero`.
+
+#### TEC-206 — Chevauchement de breakpoint CSS
+
+`main.css` : `@media (max-width: 768px)` corrigé en `767px` pour ne plus chevaucher le rail tablette à exactement 768 px.
+
+#### TEC-207 — Couverture de tests
+
+`DashboardView.spec` : couverture de l'item « À rapprocher » (mock `to_reconcile_count` + assertion) — la fonctionnalité phare n'était testée que côté backend. `ClientInvoicesView.spec` : assertion du montant de l'entonnoir renforcée (montant formaté complet au lieu d'une sous-chaîne faible).
+
+#### BIZ-214 — Dédoublonnage Relancer / Envoyer
+
+`ClientInvoicesView` : pour une facture en retard, « Relancer » (action principale) et « Envoyer email » (menu) appelaient la même fonction. L'entrée de menu « Envoyer » est désormais omise quand « Relancer » est l'action principale.
 
 ### BIZ-195 — Statut ARCHIVED — modèle, transitions, service, router, migration
 

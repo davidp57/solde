@@ -96,14 +96,20 @@ export function useNavigation() {
   const bottomNavItems = computed<NavItem[]>(() => {
     const byRoute = new Map(allItems.value.map((item) => [item.to, item]))
     const picked: NavItem[] = []
+    const seen = new Set<string>()
+    const add = (item: NavItem): void => {
+      if (seen.has(item.to)) return
+      seen.add(item.to)
+      picked.push(item)
+    }
     for (const route of BOTTOM_NAV_PRIORITY) {
       const item = byRoute.get(route)
-      if (item) picked.push(item)
+      if (item) add(item)
       if (picked.length === 4) return picked
     }
     for (const item of allItems.value) {
       if (item.to === '/aide') continue
-      if (!picked.includes(item)) picked.push(item)
+      add(item)
       if (picked.length === 4) break
     }
     return picked
