@@ -717,7 +717,7 @@ import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import AppListLimitBanner from '../components/ui/AppListLimitBanner.vue'
 import { useListLimitStore } from '../stores/listLimit'
-import { formatDisplayMonth } from '../utils/format'
+import { formatCurrency, formatDisplayMonth } from '../utils/format'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
@@ -1005,9 +1005,7 @@ watch(
 )
 
 function formatAmount(v: number | string | null | undefined): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-    toSalaryNumber(v),
-  )
+  return formatCurrency(toSalaryNumber(v))
 }
 
 async function loadEmployees() {

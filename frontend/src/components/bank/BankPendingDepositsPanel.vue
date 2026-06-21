@@ -63,7 +63,7 @@ import Tag from 'primevue/tag'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import BankDepositActionsDialog from './BankDepositActionsDialog.vue'
 import type { Deposit } from '@/api/bank'
-import { formatDisplayDate } from '@/utils/format'
+import { formatCurrency, formatDisplayDate } from '@/utils/format'
 
 defineProps<{ deposits: Deposit[] }>()
 const emit = defineEmits<{ refresh: [] }>()
@@ -79,9 +79,7 @@ function openActions(deposit: Deposit): void {
 }
 
 function formatAmount(value: string | number): string {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(
-    parseFloat(String(value)),
-  )
+  return formatCurrency(value)
 }
 
 function especeLines(deposit: Deposit): string[] {

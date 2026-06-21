@@ -435,7 +435,7 @@ html.dark-mode .app-chip {
   color: var(--p-orange-600);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .app-toolbar__meta-actions {
     justify-content: flex-start;
     margin-left: 0;

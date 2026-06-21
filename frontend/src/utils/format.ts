@@ -135,6 +135,18 @@ export function formatDisplayMonth(value: string | Date | null | undefined): str
   }).format(parsed)
 }
 
+/**
+ * Format a monetary value as EUR in French locale (e.g. "1 234,50 €").
+ * API monetary fields arrive as Decimal strings, so strings are coerced.
+ * Returns "—" for null/empty/non-numeric input.
+ */
+export function formatCurrency(value: string | number | null | undefined): string {
+  if (value == null || value === '') return '—'
+  const amount = typeof value === 'number' ? value : Number.parseFloat(value)
+  if (!Number.isFinite(amount)) return '—'
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount)
+}
+
 export function formatAccountingAmount(value: string | number | null | undefined): string {
   if (value == null || value === '') return ''
 
