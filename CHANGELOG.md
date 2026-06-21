@@ -11,6 +11,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **BIZ-211** (Lot RF) — Clé i18n manquante `payments.edit` sur l'action « Modifier » des paiements (le bouton affichait `common.edit` brut). Ajout de la clé générique `common.edit`, et correction de trois clés i18n absentes décelées lors d'une vérification complète : `common.error.title` (toast d'erreur de l'envoi d'e-mail de facture), `accounting.rules.empty` et `accounting.fiscalYear.empty` (messages de liste vide en vue mobile)
+
 ### Technique
 - **TEC-193** (Lot RF) — Badge de statut de facture mutualisé : nouveau composant `InvoiceStatusBadge` + helper `invoiceStatusSeverity` ; suppression de la fonction `statusSeverity` dupliquée à l'identique dans `ClientInvoicesView`, `SupplierInvoicesView` et `ContactHistoryContent`
 - **TEC-194** (Lot RF) — Dialog d'encaissement de paiement mutualisé : nouveau composant `InvoicePaymentDialog` ; suppression du formulaire de paiement, de la suggestion de numéro de chèque et de la logique de soumission dupliqués entre `ClientInvoicesView` et `SupplierInvoicesView`

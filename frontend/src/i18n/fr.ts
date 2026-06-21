@@ -213,6 +213,7 @@ export default {
     unsaved_changes: 'Modifications non sauvegardées',
     unsaved_changes_confirm: 'Des modifications non sauvegardées seront perdues. Continuer quand même ?',
     delete: 'Supprimer',
+    edit: 'Modifier',
     yes: 'Oui',
     no: 'Non',
     date_filter_placeholder: 'JJ/MM/AAAA',
@@ -243,6 +244,7 @@ export default {
       },
     },
     error: {
+      title: 'Erreur',
       unknown: 'Une erreur est survenue.',
       forbidden: 'Accès refusé.',
       notFound: 'Ressource introuvable.',
@@ -1351,6 +1353,7 @@ export default {
     },
     rules: {
       title: 'Règles comptables',
+      empty: 'Aucune règle comptable ne correspond aux filtres actuels.',
       trigger_type: 'Déclencheur',
       name: 'Nom',
       active: 'Actif',
@@ -1445,6 +1448,7 @@ export default {
     },
     fiscalYear: {
       title: 'Exercices comptables',
+      empty: 'Aucun exercice comptable défini.',
       new: 'Nouvel exercice',
       form_intro:
         'Créez un exercice avec une période nette pour simplifier la clôture, les exports et les reports.',
