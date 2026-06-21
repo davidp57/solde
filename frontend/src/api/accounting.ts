@@ -593,6 +593,7 @@ export interface DashboardKPIs {
   overdue_count: number
   overdue_total: number
   undeposited_count: number
+  to_reconcile_count: number
   current_fy_name: string | null
   current_resultat: number | null
   alerts: DashboardAlert[]

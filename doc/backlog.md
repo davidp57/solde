@@ -43,7 +43,7 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 | TEC-196 | Tokens de thème clair/sombre (preset Aura dark) + rayons sobres | P2 | ~45 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | TEC-197 | Composant `AppWorklist` mutualisé (« À traiter » / anomalies) | P2 | ~20 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | BIZ-207 | Refonte `DashboardView` — héro trésorerie, file à traiter, graphe unique | P1 | ~60 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
-| TEC-198 | Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents) | P3 | ~30 min | 2026-06-18 | | |
+| TEC-198 | Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents) | P3 | ~30 min | 2026-06-18 | 2026-06-21 | 2026-06-21 |
 | BIZ-208 | Refonte `UsersView` — matrice de rôles vivante + filtres | P2 | ~40 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | BIZ-209 | Refonte `SystemView` — bandeau d'état, anomalies, restauration isolée | P2 | ~50 min | 2026-06-18 | 2026-06-18 | 2026-06-18 |
 | TEC-199 | Shell de navigation adaptatif (3 breakpoints) — sidebar / rail tablette / onglets + drawer | P2 | ~50 min | 2026-06-18 | 2026-06-21 | 2026-06-21 |
@@ -109,6 +109,8 @@ Restructurer `DashboardView.vue` (colonne, gap 24px) : 1) **en-tête** eyebrow +
 #### TEC-198 — Enrichissement API dashboard (delta trésorerie, rapprochement, adhérents)
 
 Compléter `GET /api/dashboard/` (`backend/services/dashboard_service.py` + schéma) pour alimenter la refonte : delta trésorerie nette vs mois précédent (sinon calculable côté front depuis `getResourcesChartApi`), compteur d'opérations bancaires **à rapprocher** (ligne « À traiter »), et nombre d'**adhérents** (chiffre de référence). Conditionnel : ne créer que les champs réellement manquants après vérification du service existant ; sinon fermer en notant que la donnée est déjà dérivable côté front. Tests d'intégration sur les nouveaux champs.
+
+**Résolution (2026-06-21)** : seul `to_reconcile_count` a été ajouté à l'API (transactions bancaires `reconciled == False`, même définition que la vue Banque) + ligne « À rapprocher » dans la file « À traiter » du dashboard, avec lien profond `?reconcile=1` qui présélectionne le filtre non-rapprochées. Le **delta de trésorerie** était déjà dérivé côté front (`getResourcesChartApi`) — laissé tel quel. Les **adhérents** n'ont **aucune source de données** dans le modèle (pas d'entité membre/adhérent ; « adhésion » n'est qu'un type de ligne de facture) → non implémenté, la carte de référence « Adhérents » de la maquette est sans objet en l'état.
 
 #### BIZ-208 — Refonte `UsersView` — matrice de rôles vivante + filtres
 
