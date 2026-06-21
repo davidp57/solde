@@ -102,6 +102,31 @@ Write the failing test first. Targets: business-logic services **≥ 90%**, API 
 
 `main` (prod) ← `develop` (integration) ← `feature/*` / `fix/*`. Hotfixes from `main`. **Releases only on `release/x.y.z` branches.** Never commit directly to `main`/`develop` (except acceptance-testing *recette* fixes, which go straight to `develop`). Conventional Commits in English (`type(scope): description`). Multi-PC project: `git pull --rebase` before starting, and on any rejected push.
 
+## Default action workflow (standing authorization)
+
+For every non-trivial change, unless told otherwise, proceed end-to-end without waiting for intermediate go-aheads:
+
+0. **Sync first (mandatory)** — before reading the backlog or starting any work, `git fetch` then bring the branch up to date (`git pull --ff-only` on `develop`, or rebase the working branch onto latest `origin/develop`). Never reason about "what's left to do" from a stale checkout.
+1. **Analyse** scope and impacted files. If the request is exploratory (question/analysis, no code change), stop here.
+2. **Branch** from `develop` (`feature/<id>` or `fix/<id>`). One branch + one PR per lot, not per ticket, unless asked.
+3. **Implement** with tests (TDD) and the doc/CHANGELOG/backlog updates from the per-change checklist.
+4. **Quality gate green** (backend + frontend, mirrors CI) before pushing.
+5. **If the user must test manually**, stop and wait for explicit approval ("c'est bon" / "go") before continuing; otherwise proceed.
+6. **Commit + push** (Conventional Commits in English, with the required `Co-Authored-By` trailer).
+7. **Open the PR** targeting `develop` and report its URL.
+
+This grants standing authorization to **commit, push, and open PRs** without asking each time. It does **not** authorize **merging**, force-push, or pushing tags — those stay with the user (merges to `main` are always manual; `release/x.y.z` branches target `main`).
+
+## Working rules (surgical mode)
+
+- **Surgical changes**: never modify adjacent code, comments, or formatting unrelated to the request; do not refactor working code unless that *is* the task.
+- **Minimalism**: produce the minimum needed to solve the request; no speculative features or abstractions.
+- **Zero assumptions**: if an instruction is ambiguous or contradictory, stop and ask before coding.
+
+## Backlog hygiene
+
+Keep `doc/backlog.md` reflecting real status. Archive tickets closed for more than **7 days** into `doc/backlog-archive.md` (create it if missing) so the active backlog stays readable.
+
 ## Per-change checklist
 
 After each change: update/add tests → full quality gate green → update `CHANGELOG.md` (`[Non publié]`) → if user-visible, update `doc/user/changelog-user.md` → update `doc/backlog.md` if a ticket advances → bump patch version in `pyproject.toml` **and** `frontend/package.json`.
