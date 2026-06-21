@@ -726,4 +726,19 @@ html.dark-mode .app-chip {
     flex-wrap: wrap;
     margin-top: 0.25rem;
   }
+
+  /* Row actions inside a mobile card: the contextual primary fills the width,
+     the ⋯ overflow stays compact on the right (matches the responsive mockup),
+     and touch targets stay ≥ 40px tall. */
+  .app-mobile-card-actions .app-row-actions {
+    width: 100%;
+  }
+
+  .app-mobile-card-actions .app-row-actions__primary {
+    flex: 1;
+  }
+
+  .app-mobile-card-actions .app-row-actions .p-button {
+    min-height: 40px;
+  }
 }
