@@ -263,6 +263,25 @@ const DataTableStub = defineComponent({
     '<div><div class="data-table__header"><slot /></div><DataTableRowStub v-for="row in value" :key="row.id" :row="row"><slot /></DataTableRowStub></div>',
 })
 
+const AppRowActionsStub = defineComponent({
+  props: ['primary', 'menuItems'],
+  setup(props) {
+    return () =>
+      h('div', { class: 'app-row-actions-stub' }, [
+        h(
+          'button',
+          { 'data-testid': 'row-primary', onClick: () => props.primary.command() },
+          props.primary.label,
+        ),
+        ...(props.menuItems ?? [])
+          .filter((i: { separator?: boolean }) => !i.separator)
+          .map((i: { label?: string; class?: string; command?: () => void }) =>
+            h('button', { title: i.label, class: i.class, onClick: () => i.command?.() }, i.label),
+          ),
+      ])
+  },
+})
+
 const ColumnStub = defineComponent({
   props: {
     field: { type: String, default: '' },
@@ -313,6 +332,7 @@ function mountView() {
         Textarea: TextareaStub,
         TrendLineChart: ContainerStub,
         ConfirmDialog: ContainerStub,
+        AppRowActions: AppRowActionsStub,
       },
     },
   })
@@ -379,7 +399,7 @@ describe('CashView', () => {
     const wrapper = mountView()
     await flushView()
 
-    await wrapper.get('[data-testid="cash-detail-button"]').trigger('click')
+    await wrapper.get('[data-testid="row-primary"]').trigger('click')
     await flushView()
 
     expect(wrapper.text()).toContain('cash.entry_details')
@@ -402,7 +422,7 @@ describe('CashView', () => {
     const wrapper = mountView()
     await flushView()
 
-    await wrapper.get('[data-testid="cash-edit-button"]').trigger('click')
+    await wrapper.get('[title="cash.edit_entry"]').trigger('click')
     await wrapper.get('[data-testid="cash-reference-input"]').setValue('CAISSE-2025-002')
     await wrapper.get('[data-testid="cash-save-button"]').trigger('click')
     await flushView()

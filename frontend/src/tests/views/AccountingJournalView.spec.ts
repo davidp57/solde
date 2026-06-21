@@ -126,6 +126,25 @@ const TagStub = defineComponent({
   template: '<span data-testid="journal-source-tag" :data-severity="severity">{{ value }}</span>',
 })
 
+const AppRowActionsStub = defineComponent({
+  props: ['primary', 'menuItems'],
+  setup(props) {
+    return () =>
+      h('div', { class: 'app-row-actions-stub' }, [
+        h(
+          'button',
+          { 'data-testid': 'row-primary', onClick: () => props.primary.command() },
+          props.primary.label,
+        ),
+        ...(props.menuItems ?? [])
+          .filter((i: { separator?: boolean }) => !i.separator)
+          .map((i: { label?: string; class?: string; command?: () => void }) =>
+            h('button', { title: i.label, class: i.class, onClick: () => i.command?.() }, i.label),
+          ),
+      ])
+  },
+})
+
 const CurrentRowKey = Symbol('current-journal-row')
 
 const DataTableRowStub = defineComponent({
@@ -180,6 +199,7 @@ function mountView() {
         InputText: InputTextStub,
         Select: SelectStub,
         Tag: TagStub,
+        AppRowActions: AppRowActionsStub,
         AppAccountSelect: { template: '<div />' },
         AppTableSkeleton: { template: '<div />' },
       },

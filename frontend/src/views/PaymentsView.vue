@@ -98,13 +98,10 @@
               <i v-else class="pi pi-times text-red-400" />
             </div>
             <div class="app-mobile-card-actions">
-              <Button
-                icon="pi pi-pencil"
-                size="small"
-                severity="secondary"
-                text
-                :title="t('common.edit')"
-                @click="openEditDialog(data)"
+              <AppRowActions
+                :primary="paymentPrimaryAction(data)"
+                :menu-items="[]"
+                :menu-aria-label="t('common.actions')"
               />
             </div>
           </template>
@@ -249,13 +246,10 @@
         </Column>
         <Column :header="t('common.actions')" class="payments-table__actions">
           <template #body="{ data }">
-            <Button
-              data-testid="payment-edit-button"
-              icon="pi pi-pencil"
-              size="small"
-              severity="secondary"
-              text
-              @click="openEditDialog(data)"
+            <AppRowActions
+              :primary="paymentPrimaryAction(data)"
+              :menu-items="[]"
+              :menu-aria-label="t('common.actions')"
             />
           </template>
         </Column>
@@ -354,6 +348,7 @@ import AppNumberRangeFilter from '@/components/ui/AppNumberRangeFilter.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
+import AppRowActions, { type RowAction } from '@/components/ui/AppRowActions.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
 import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
@@ -489,6 +484,16 @@ function formatAmount(value: string | number): string {
 function normalizeOptionalField(value: string): string | null {
   const trimmedValue = value.trim()
   return trimmedValue.length > 0 ? trimmedValue : null
+}
+
+function paymentPrimaryAction(payment: Payment): RowAction {
+  return {
+    key: 'edit',
+    label: t('payments.edit'),
+    icon: 'pi pi-pencil',
+    severity: 'secondary',
+    command: () => openEditDialog(payment),
+  }
 }
 
 function openEditDialog(payment: Payment) {

@@ -1,6 +1,6 @@
 <template>
   <div class="app-layout">
-    <!-- Mobile topbar -->
+    <!-- Topbar (mobile + tablet; condensed) -->
     <div class="topbar">
       <Button
         icon="pi pi-bars"
@@ -42,7 +42,7 @@
       </div>
     </div>
 
-    <!-- Mobile sidebar drawer -->
+    <!-- Mobile sidebar drawer (full navigation) -->
     <Drawer v-model:visible="sidebarVisible" position="left" class="app-drawer">
       <template #header>
         <span class="drawer-title">{{ t('app.name') }}</span>
@@ -50,9 +50,9 @@
       <NavMenu @navigate="sidebarVisible = false" />
     </Drawer>
 
-    <!-- Desktop layout -->
+    <!-- Layout body: sidebar / rail + main -->
     <div class="layout-body">
-      <!-- Desktop sidebar -->
+      <!-- Desktop sidebar (≥1200px) -->
       <aside class="sidebar">
         <NavMenu />
         <div class="sidebar-footer">
@@ -78,11 +78,48 @@
         <span class="sidebar-version">v{{ appVersion }}</span>
       </aside>
 
+      <!-- Tablet icon rail (768–1199px) -->
+      <aside class="rail">
+        <NavMenu variant="rail" />
+        <div class="rail-footer">
+          <Button
+            :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
+            text
+            rounded
+            :aria-label="isDark ? t('auth.light_mode') : t('auth.dark_mode')"
+            @click="toggleDark"
+          />
+          <Button
+            icon="pi pi-sign-out"
+            text
+            rounded
+            :aria-label="t('auth.logout')"
+            @click="handleLogout"
+          />
+        </div>
+      </aside>
+
       <!-- Main content -->
       <main class="main-content">
-        <RouterView />
+        <div class="main-inner">
+          <RouterView />
+        </div>
       </main>
     </div>
+
+    <!-- Mobile bottom tab bar (4 primary destinations; drawer covers the rest) -->
+    <nav class="bottom-nav" :aria-label="t('nav.section_home')">
+      <RouterLink
+        v-for="item in bottomNavItems"
+        :key="item.to"
+        :to="item.to"
+        class="bottom-nav__item"
+        active-class="bottom-nav__item--active"
+      >
+        <i :class="['pi', item.icon]" />
+        <span class="bottom-nav__label">{{ item.label }}</span>
+      </RouterLink>
+    </nav>
 
     <!-- Chat sidebar (floating, authenticated pages only) -->
     <ChatSidebar />
@@ -113,11 +150,13 @@ import { useChatStore } from '../stores/chat'
 import NavMenu from '../components/NavMenu.vue'
 import ChatSidebar from '../components/chat/ChatSidebar.vue'
 import { useDarkMode } from '../composables/useDarkMode'
+import { useNavigation } from '../composables/useNavigation'
 const { t } = useI18n()
 const router = useRouter()
 const auth = useAuthStore()
 const fiscalYearStore = useFiscalYearStore()
 const { isDark, toggle: toggleDark } = useDarkMode()
+const { bottomNavItems } = useNavigation()
 
 const sidebarVisible = ref(false)
 const appVersion = __APP_VERSION__
@@ -138,6 +177,7 @@ const selectedFiscalYearOptionId = computed<number | null>({
 const panelBg = computed(() => (isDark.value ? 'var(--p-surface-900)' : 'var(--p-surface-0)'))
 const mainBg = computed(() => (isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-50)'))
 const borderColor = computed(() => (isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)'))
+const hoverBg = computed(() => (isDark.value ? 'var(--p-surface-800)' : 'var(--p-surface-100)'))
 
 async function handleLogout(): Promise<void> {
   auth.logout({ preventDevAutoLogin: true })
@@ -161,7 +201,7 @@ onMounted(() => {
   min-height: 100vh;
 }
 
-/* Topbar (always visible on mobile, desktop fine too) */
+/* Topbar */
 .topbar {
   display: flex;
   align-items: center;
@@ -219,23 +259,31 @@ onMounted(() => {
   font-size: 1.1rem;
 }
 
-/* Layout body: sidebar + main */
+/* Layout body: sidebar/rail + main */
 .layout-body {
   display: flex;
   flex: 1;
   min-height: calc(100vh - 53px);
 }
 
-/* Desktop sidebar */
-.sidebar {
+/* Desktop sidebar + tablet rail share the chrome look but differ in width. */
+.sidebar,
+.rail {
   display: none;
   flex-direction: column;
-  width: 240px;
   flex-shrink: 0;
   background: v-bind(panelBg);
   border-right: 1px solid v-bind(borderColor);
   height: calc(100vh - 53px);
   overflow: hidden;
+}
+
+.sidebar {
+  width: 240px;
+}
+
+.rail {
+  width: 72px;
 }
 
 .sidebar-footer {
@@ -245,6 +293,17 @@ onMounted(() => {
   padding: 0.75rem 1rem;
   border-top: 1px solid v-bind(borderColor);
   gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.rail-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-top: 1px solid v-bind(borderColor);
+  gap: 0.25rem;
   flex-shrink: 0;
 }
 
@@ -295,7 +354,60 @@ onMounted(() => {
   min-width: 0;
 }
 
-/* Desktop breakpoint */
+.main-inner {
+  min-width: 0;
+}
+
+/* Mobile bottom tab bar */
+.bottom-nav {
+  display: flex;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: v-bind(panelBg);
+  border-top: 1px solid v-bind(borderColor);
+  padding: 0.25rem 0.25rem calc(0.25rem + env(safe-area-inset-bottom, 0px));
+}
+
+.bottom-nav__item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-height: 52px;
+  padding: 0.25rem;
+  text-decoration: none;
+  color: var(--p-text-muted-color);
+  border-radius: 0.5rem;
+}
+
+.bottom-nav__item .pi {
+  font-size: 1.2rem;
+}
+
+.bottom-nav__label {
+  font-size: 0.66rem;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bottom-nav__item--active {
+  color: var(--p-primary-color);
+}
+
+/* Keep content clear of the fixed bottom bar on mobile. */
+.main-content {
+  padding-bottom: calc(var(--app-page-padding) + 64px);
+}
+
+/* Tablet: show the icon rail, hide the burger + bottom bar. */
 @media (min-width: 768px) {
   .topbar-menu-btn {
     display: none;
@@ -305,10 +417,36 @@ onMounted(() => {
     display: inline;
   }
 
+  .rail {
+    display: flex;
+    position: sticky;
+    top: 53px;
+  }
+
+  .bottom-nav {
+    display: none;
+  }
+
+  .main-content {
+    padding-bottom: var(--app-page-padding);
+  }
+}
+
+/* Desktop: full sidebar instead of the rail, centered content. */
+@media (min-width: 1200px) {
+  .rail {
+    display: none;
+  }
+
   .sidebar {
     display: flex;
     position: sticky;
     top: 53px;
+  }
+
+  .main-inner {
+    max-width: 1320px;
+    margin: 0 auto;
   }
 }
 
@@ -322,12 +460,18 @@ onMounted(() => {
   }
 }
 
-/* Chat FAB */
+/* Chat FAB — lifted above the bottom bar on mobile. */
 .chat-fab {
   position: fixed;
-  bottom: 1.5rem;
+  bottom: calc(1.5rem + 64px);
   right: 1.5rem;
   z-index: 999;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+@media (min-width: 768px) {
+  .chat-fab {
+    bottom: 1.5rem;
+  }
 }
 </style>

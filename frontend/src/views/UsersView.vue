@@ -34,10 +34,15 @@
       <div class="users-role-grid">
         <article v-for="role in roleCards" :key="role.value" class="users-role-card">
           <header class="users-role-card__header">
-            <strong>{{ role.title }}</strong>
-            <span>{{ role.subtitle }}</span>
+            <div class="users-role-card__title">
+              <span class="users-role-card__dot" :class="`users-role-card__dot--${role.value}`" />
+              <strong>{{ role.title }}</strong>
+            </div>
+            <span class="users-role-card__count">{{
+              t('users.role_count', { count: userCountByRole(role.value) })
+            }}</span>
           </header>
-          <p>{{ role.description }}</p>
+          <p class="users-role-card__desc">{{ role.description }}</p>
         </article>
       </div>
     </AppPanel>
@@ -62,6 +67,13 @@
           />
         </div>
 
+        <AppFilterSegments
+          :segments="roleSegments"
+          :model-value="activeRoleSegment"
+          :aria-label="t('users.role')"
+          @update:model-value="(key: string) => (activeRoleSegment = key as typeof activeRoleSegment)"
+        />
+
         <div class="app-filter-grid">
           <div class="app-field app-field--span-2">
             <label class="app-field__label">{{ t('common.filter_placeholder') }}</label>
@@ -71,10 +83,18 @@
       </div>
 
       <template v-if="isMobile">
-        <AppMobileCardList :items="userRows" :empty-message="t('users.empty')">
+        <AppMobileCardList :items="segmentedUserRows" :empty-message="t('users.empty')">
           <template #card="{ item: data }">
             <div class="app-mobile-card-row app-mobile-card-row--between">
-              <span class="app-mobile-card-value" style="font-weight:700">{{ data.username }}</span>
+              <span class="app-mobile-card-value" style="font-weight:700">
+                {{ data.username }}
+                <Tag
+                  v-if="data.id === auth.user?.id"
+                  :value="t('users.you')"
+                  severity="contrast"
+                  class="users-you-badge"
+                />
+              </span>
               <Tag :value="roleLabel(data.role)" :severity="roleSeverity(data.role)" />
             </div>
             <div class="app-mobile-card-row">
@@ -109,7 +129,7 @@
       <DataTable
         v-else
         v-model:filters="tableFilters"
-        :value="userRows"
+        :value="segmentedUserRows"
         :loading="loading"
         class="app-data-table"
         filter-display="menu"
@@ -131,6 +151,17 @@
           :show-filter-match-modes="false"
           :show-add-button="false"
         >
+          <template #body="{ data }">
+            <span class="users-username">
+              {{ data.username }}
+              <Tag
+                v-if="data.id === auth.user?.id"
+                :value="t('users.you')"
+                severity="contrast"
+                class="users-you-badge"
+              />
+            </span>
+          </template>
           <template #filter="{ filterModel }">
             <InputText v-model="filterModel.value" :placeholder="t('users.username')" />
           </template>
@@ -426,6 +457,7 @@ import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 import AppStatCard from '@/components/ui/AppStatCard.vue'
+import AppFilterSegments from '@/components/ui/AppFilterSegments.vue'
 import { createUserApi, listUsersApi, resetUserPasswordApi, updateUserApi } from '@/api/users'
 import type { UserPasswordResetRequest, UserRead, UserRole } from '@/api/types'
 import { PASSWORD_MIN_LENGTH } from '@/constants/auth'
@@ -490,6 +522,23 @@ const yesNoOptions = [
   { label: t('common.yes'), value: true },
   { label: t('common.no'), value: false },
 ]
+
+// Quick role filter segments above the table (client-side over the loaded set).
+const activeRoleSegment = ref<'all' | 'admin' | 'tresorier' | 'inactive'>('all')
+
+const segmentedUserRows = computed(() => {
+  switch (activeRoleSegment.value) {
+    case 'admin':
+      return userRows.value.filter((u) => u.role === 'admin')
+    case 'tresorier':
+      return userRows.value.filter((u) => u.role === 'tresorier')
+    case 'inactive':
+      return userRows.value.filter((u) => !u.is_active)
+    default:
+      return userRows.value
+  }
+})
+
 const {
   filters: tableFilters,
   globalFilter,
@@ -497,7 +546,7 @@ const {
   syncDisplayedRows: syncDisplayedUsers,
   resetFilters,
   hasActiveFilters,
-} = useDataTableFilters(userRows, {
+} = useDataTableFilters(segmentedUserRows, {
   global: textFilter(''),
   username: textFilter(),
   email: textFilter(),
@@ -598,7 +647,22 @@ const allRoleOptions = computed(() => [
   ...roleDefinitions.value.map((role) => ({ value: role.value, label: role.title })),
 ])
 
-const roleCards = computed(() => roleDefinitions.value)
+const roleCards = computed(() => allRoleDefinitions.value)
+
+function userCountByRole(role: UserRole): number {
+  return users.value.filter((user) => user.role === role).length
+}
+
+const roleSegments = computed(() => [
+  { key: 'all', label: t('users.segments.all'), count: users.value.length },
+  { key: 'admin', label: t('users.segments.admins'), count: users.value.filter((u) => u.role === 'admin').length },
+  {
+    key: 'tresorier',
+    label: t('users.segments.tresoriers'),
+    count: users.value.filter((u) => u.role === 'tresorier').length,
+  },
+  { key: 'inactive', label: t('users.segments.inactive'), count: users.value.filter((u) => !u.is_active).length },
+])
 
 function checkPasswordComplexity(p: string): string | null {
   if (p.length === 0) return null
@@ -833,14 +897,68 @@ onMounted(loadUsers)
 
 .users-role-card__header {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   margin-bottom: 0.75rem;
 }
 
-.users-role-card__header span {
+.users-role-card__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.users-role-card__dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  flex: none;
+}
+
+.users-role-card__dot--readonly {
+  background: #94a3b8;
+}
+
+.users-role-card__dot--secretaire {
+  background: #60a5fa;
+}
+
+.users-role-card__dot--tresorier {
+  background: #22c55e;
+}
+
+.users-role-card__dot--admin {
+  background: #f59e0b;
+}
+
+.users-role-card__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-border) 55%, transparent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.users-role-card__desc {
   color: var(--p-text-muted-color);
-  font-size: 0.85rem;
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.users-username {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.users-you-badge {
+  font-size: 0.68rem;
 }
 
 .users-actions {
