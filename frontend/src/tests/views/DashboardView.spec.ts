@@ -90,6 +90,7 @@ describe('DashboardView', () => {
       overdue_count: 0,
       overdue_total: 0,
       undeposited_count: 0,
+      to_reconcile_count: 3,
       current_fy_name: '2025',
       current_resultat: 300,
       alerts: [],
@@ -108,6 +109,8 @@ describe('DashboardView', () => {
     expect(wrapper.find('.dashboard-hero__amount').text()).toContain('600')
     // worklist surfaces the unpaid invoices item
     expect(wrapper.text()).toContain('dashboard.unpaid_invoices')
+    // worklist surfaces the bank reconciliation backlog (to_reconcile_count > 0)
+    expect(wrapper.text()).toContain('dashboard.to_reconcile')
     // a positive delta pill is shown (1000 -> 1600)
     expect(wrapper.find('.dashboard-hero__delta--up').exists()).toBe(true)
   })
@@ -122,6 +125,7 @@ describe('DashboardView', () => {
       overdue_count: 0,
       overdue_total: '0',
       undeposited_count: 0,
+      to_reconcile_count: 0,
       current_fy_name: '2025',
       current_resultat: '0',
       alerts: [],

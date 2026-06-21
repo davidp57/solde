@@ -1,9 +1,8 @@
 <template>
-  <div class="invoice-type-toggle" role="tablist" :aria-label="t('invoices.type_toggle.label')">
+  <div class="invoice-type-toggle" role="group" :aria-label="t('invoices.type_toggle.label')">
     <RouterLink
       :to="{ name: 'invoices-client' }"
-      role="tab"
-      :aria-selected="type === 'client'"
+      :aria-current="type === 'client' ? 'page' : undefined"
       :class="['invoice-type-toggle__tab', { 'invoice-type-toggle__tab--active': type === 'client' }]"
     >
       <i class="pi pi-users" aria-hidden="true" />
@@ -11,8 +10,7 @@
     </RouterLink>
     <RouterLink
       :to="{ name: 'invoices-supplier' }"
-      role="tab"
-      :aria-selected="type === 'supplier'"
+      :aria-current="type === 'supplier' ? 'page' : undefined"
       :class="['invoice-type-toggle__tab', { 'invoice-type-toggle__tab--active': type === 'supplier' }]"
     >
       <i class="pi pi-building-columns" aria-hidden="true" />

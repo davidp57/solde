@@ -22,7 +22,7 @@ describe('AppFilterSegments', () => {
 
     const active = wrapper.find('.app-filter-segments__chip--active')
     expect(active.text()).toContain('En retard')
-    expect(active.attributes('aria-selected')).toBe('true')
+    expect(active.attributes('aria-pressed')).toBe('true')
   })
 
   it('emits update:modelValue with the segment key on click', async () => {

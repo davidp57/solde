@@ -6,7 +6,7 @@
         icon="pi pi-bars"
         text
         class="topbar-menu-btn"
-        :aria-label="t('nav.dashboard')"
+        :aria-label="t('nav.open_menu')"
         @click="sidebarVisible = true"
       />
       <span class="topbar-title">{{ t('app.name') }}</span>
@@ -107,8 +107,10 @@
       </main>
     </div>
 
-    <!-- Mobile bottom tab bar (4 primary destinations; drawer covers the rest) -->
-    <nav class="bottom-nav" :aria-label="t('nav.section_home')">
+    <!-- Mobile bottom tab bar (primary destinations; drawer covers the rest).
+         Hidden when there is only one reachable item (e.g. a readonly user) — a
+         lone full-width tab adds no value. -->
+    <nav v-if="bottomNavItems.length > 1" class="bottom-nav" :aria-label="t('nav.open_menu')">
       <RouterLink
         v-for="item in bottomNavItems"
         :key="item.to"
@@ -196,6 +198,9 @@ onMounted(() => {
 
 <style scoped>
 .app-layout {
+  /* Single source for the chrome dimensions the sticky panes depend on. */
+  --app-topbar-height: 53px;
+  --app-bottom-nav-height: 60px;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
@@ -205,6 +210,8 @@ onMounted(() => {
 .topbar {
   display: flex;
   align-items: center;
+  height: var(--app-topbar-height);
+  box-sizing: border-box;
   padding: 0.5rem 1rem;
   background: v-bind(panelBg);
   border-bottom: 1px solid v-bind(borderColor);
@@ -263,7 +270,7 @@ onMounted(() => {
 .layout-body {
   display: flex;
   flex: 1;
-  min-height: calc(100vh - 53px);
+  min-height: calc(100vh - var(--app-topbar-height));
 }
 
 /* Desktop sidebar + tablet rail share the chrome look but differ in width. */
@@ -274,7 +281,7 @@ onMounted(() => {
   flex-shrink: 0;
   background: v-bind(panelBg);
   border-right: 1px solid v-bind(borderColor);
-  height: calc(100vh - 53px);
+  height: calc(100vh - var(--app-topbar-height));
   overflow: hidden;
 }
 
@@ -350,7 +357,7 @@ onMounted(() => {
   padding: var(--app-page-padding);
   overflow-y: auto;
   background: v-bind(mainBg);
-  min-height: calc(100vh - 53px);
+  min-height: calc(100vh - var(--app-topbar-height));
   min-width: 0;
 }
 
@@ -404,7 +411,7 @@ onMounted(() => {
 
 /* Keep content clear of the fixed bottom bar on mobile. */
 .main-content {
-  padding-bottom: calc(var(--app-page-padding) + 64px);
+  padding-bottom: calc(var(--app-page-padding) + var(--app-bottom-nav-height));
 }
 
 /* Tablet: show the icon rail, hide the burger + bottom bar. */
@@ -420,7 +427,7 @@ onMounted(() => {
   .rail {
     display: flex;
     position: sticky;
-    top: 53px;
+    top: var(--app-topbar-height);
   }
 
   .bottom-nav {
@@ -441,7 +448,7 @@ onMounted(() => {
   .sidebar {
     display: flex;
     position: sticky;
-    top: 53px;
+    top: var(--app-topbar-height);
   }
 
   .main-inner {
@@ -463,7 +470,7 @@ onMounted(() => {
 /* Chat FAB — lifted above the bottom bar on mobile. */
 .chat-fab {
   position: fixed;
-  bottom: calc(1.5rem + 64px);
+  bottom: calc(1.5rem + var(--app-bottom-nav-height));
   right: 1.5rem;
   z-index: 999;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
