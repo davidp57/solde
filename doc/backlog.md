@@ -53,7 +53,7 @@ Ordre de livraison conseillé par le designer : `InvoiceWorkspace` d'abord (supp
 | TEC-202 | Refonte Admin — `AppSettingRow` (motif ligne de réglage) | P2 | ~20 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
 | BIZ-212 | Refonte Supervision — 2 onglets (État & surveillance / Sauvegardes & restauration) | P2 | ~30 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
 | BIZ-213 | Refonte Paramètres — 4 onglets + lignes de réglage + barres d'enregistrement | P1 | ~80 min | 2026-06-20 | 2026-06-20 | 2026-06-20 |
-| CHR-195 | Quality gate + CHANGELOG + docs + release v1.8 | P2 | ~30 min | 2026-06-18 | | |
+| CHR-195 | Quality gate + CHANGELOG + docs + release v1.8 | P2 | ~30 min | 2026-06-18 | 2026-06-21 | 2026-06-21 |
 
 > Total estimé : **~640 min Copilot + 15 min gestion** (facteur de marge 1,00). Dépendances : TEC-193 précède TEC-194 ; TEC-194 précède BIZ-206 ; TEC-196 s'appuie sur TEC-195 ; TEC-197 précède BIZ-207 et BIZ-209 ; BIZ-207 bénéficie de TEC-198 (sinon dégradation gracieuse) ; TEC-200 vient **après** les écrans refondus (TEC-194, BIZ-207/208/209) et s'appuie sur le pattern mobile existant (`AppMobileCardList` + `useBreakpoints`, lot MOB) ; **TEC-201 puis BIZ-211** (généralisation aux autres écrans) viennent **après** stabilisation des composants factures et peuvent être livrés post-v1.8. Le mode sombre étant piloté par tokens, les écrans livrés avant TEC-196 en héritent automatiquement.
 
