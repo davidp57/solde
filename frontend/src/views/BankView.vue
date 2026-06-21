@@ -1027,6 +1027,7 @@ import Tabs from 'primevue/tabs'
 import Tag from 'primevue/tag'
 import ToggleButton from 'primevue/togglebutton'
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppDatePicker from '../components/ui/AppDatePicker.vue'
 import TrendLineChart, { type TrendLineChartSeries } from '../components/charts/TrendLineChart.vue'
@@ -1111,6 +1112,7 @@ const pendingDeposits = ref<Deposit[]>([])
 const undepositedPayments = ref<Payment[]>([])
 const loadingTx = ref(false)
 const loadingDeposits = ref(false)
+const route = useRoute()
 const activeTab = ref('transactions_courant')
 const unreconciledOnly = ref(false)
 
@@ -1608,6 +1610,11 @@ watch(
 )
 
 onMounted(async () => {
+  // Deep link from the dashboard worklist ("À rapprocher") preselects the
+  // unreconciled-only filter so the user lands on exactly what needs action.
+  if (route.query.reconcile === '1') {
+    unreconciledOnly.value = true
+  }
   await Promise.all([fiscalYearStore.initialize(), limitStore.init()])
   await loadAll()
 })

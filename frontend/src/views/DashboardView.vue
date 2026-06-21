@@ -291,6 +291,17 @@ const worklistItems = computed<WorklistItem[]>(() => {
       to: { name: 'payments', query: { undeposited: '1' } },
     })
   }
+  if (k.to_reconcile_count > 0) {
+    items.push({
+      key: 'to_reconcile',
+      icon: 'pi-building-columns',
+      label: t('dashboard.to_reconcile'),
+      sublabel: t('dashboard.worklist_reconcile_sub', { count: k.to_reconcile_count }),
+      value: k.to_reconcile_count,
+      severity: 'warn',
+      to: { name: 'bank', query: { reconcile: '1' } },
+    })
+  }
   return items
 })
 
