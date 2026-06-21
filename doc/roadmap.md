@@ -28,7 +28,7 @@
 | **1.6.2** | Lot REV2 — standardize API errors, remove service commits, split bank router (TEC-170, TEC-171, TEC-173) | ✅ Merged 2026-05-07 |
 | **1.6.3** | TEC-185 (Chrome PDF fix), BIZ-186 (paid watermark on PDF) | ✅ Released 2026-05-10 |
 | **1.7** | Lot BK — automated backup (BIZ-173–184) | 🔧 In progress (PR #85) |
-| **1.8** | Lot RF — UI/UX redesign (dashboard, invoices, admin) + dark mode + responsive | 🔧 Release prepared (release/1.8.0 → main) |
+| **1.8** | Lot RF — UI/UX redesign (dashboard, invoices, admin) + dark mode + responsive | ✅ Released 2026-06-21 |
 
 Test suite: **1090 backend + 148 frontend Vitest — 0 failures.**
 
@@ -343,7 +343,7 @@ Ajouter une section d'index dans le manuel utilisateur listant les cas d'usage p
 
 ---
 
-## v1.8 — Lot RF — UI/UX redesign + dark mode ⬜ Planned
+## v1.8 — Lot RF — UI/UX redesign + dark mode ✅ Released 2026-06-21
 
 Source: `design_handoff_solde_refonte-v2/` (Claude Design handoff, supersedes v1, adds the responsive track). Not a cosmetic theme — a rework of **information hierarchy**, **consolidation of duplicated components**, and **mobile/tablet/desktop adaptation**, within the Solde identity (Manrope, emerald, slate surfaces). Delivery order advised by the designer: shared `InvoiceWorkspace` first (removes the most duplication), then dark mode (theme store + tokens), then dashboard and admin screens, finally the cross-cutting responsive layer. See backlog Lot RF for the full ticket breakdown.
 
