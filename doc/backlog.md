@@ -74,6 +74,20 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 
 ---
 
+### Lot BK2 — Optimisation de l'espace des backups (OneDrive)
+
+**Problème prod** : OneDrive (destination des backups) sature. À chaque run, `backup_scheduler.py` (l. 233-244) crée un dossier distant **horodaté** et y ré-envoie **tout `data/pdfs`**, sans **aucune purge distante** → une copie complète des PDFs s'accumule à chaque backup. Les PDFs sont en `data/pdfs/facture_<numéro>.pdf` (immuables, un par facture) et **majoritairement régénérables** (WeasyPrint), sauf les factures **archivées** (pièce légale) et les imports `data/uploads/` (.docx).
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-208 | Rétention distante des backups — purger les dossiers horodatés au-delà de 5 (OneDrive/SMB) | P1 | ~40 min | 2026-06-22 | | |
+| TEC-209 | Miroir PDF/uploads incrémental — dossier distant stable, « upload si absent » (fin de la duplication) | P1 | ~70 min | 2026-06-22 | | |
+| BIZ-216 | N'inclure que les PDFs non régénérables (factures archivées + uploads) ; régénérer le reste | P2 | ~50 min | 2026-06-22 | | |
+
+> Ordre conseillé : **TEC-208** d'abord (quick win, plafonne la croissance sur la structure actuelle), puis **TEC-209** (corrige la racine), puis **BIZ-216** (s'appuie sur le miroir de TEC-209). Rétention cible : **5** backups distants, aligné sur la rotation locale (`backup_service._rotate_backups`).
+
+---
+
 ### Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -87,6 +101,46 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 ---
 
 ## Détails
+
+### Lot BK2 — Optimisation de l'espace des backups (OneDrive)
+
+#### TEC-208 — Rétention distante des backups (purge, garder 5)
+
+**But** : plafonner l'espace en supprimant les anciens dossiers de backup horodatés côté distant, comme la rotation locale (`backup_service._rotate_backups`, garde 5 `.db`).
+
+**Approche** :
+- OneDrive (Graph API, `backup_destination_service.py`) : lister les enfants de `solde/backups/` (`GET /drives/{drive_id}/root:/solde/backups:/children`), trier par nom (timestamp ISO `%Y-%m-%dT%H-%M-%S` → tri lexicographique = chronologique), supprimer (`DELETE /items/{id}`) tous les dossiers au-delà des **5** plus récents.
+- SMB/local (rclone) : équivalent via `rclone lsf` + suppression des plus anciens.
+- Ajouter `prune_remote_backups(dest, keep=5)` et l'appeler depuis `backup_scheduler._run_backup_job_inner` après chaque `sync_destination` réussi.
+
+**Notes** : indépendant, à livrer en premier (quick win sur la structure actuelle). Après TEC-209, la rétention ne portera plus que sur les snapshots de base (petits) — reste utile. Garde-fou : ne jamais supprimer le dossier du run courant.
+
+**Tests** : mocker la liste/suppression Graph ; vérifier qu'on conserve exactement 5 et qu'on supprime le reste, et qu'avec ≤ 5 on ne supprime rien.
+
+#### TEC-209 — Miroir PDF/uploads incrémental (fin de la duplication)
+
+**But** : ne plus dupliquer les PDFs à chaque run. Les envoyer une seule fois vers un dossier distant **stable**, en mode incrémental.
+
+**Approche** :
+- Retirer `data/pdfs` (et `data/uploads`) des `src_paths` du snapshot horodaté (`backup_scheduler.py` l. 240-244).
+- Nouvelle fonction `mirror_dir_incremental(dest, local_dir, remote_dir)` dans `backup_destination_service.py` : lister le distant (`solde/pdfs/`, `solde/uploads/`), n'uploader que les fichiers **absents** (les PDFs sont immuables, nom `facture_<num>.pdf` stable → comparaison par nom suffit ; comparer aussi la taille par sécurité). Pas de suppression distante (append-only).
+- Appeler le miroir depuis le job, en plus du snapshot de base horodaté.
+
+**Restauration** : adapter `backup_restore_service` / `fetch_remote_backup` pour récupérer les PDFs depuis le dossier miroir (et non depuis le snapshot). **Documenter** le nouveau format de restauration.
+
+**Dépendance** : précède BIZ-216. **Risque** : bien couvrir la restauration (les PDFs ne sont plus dans le snapshot). 
+
+**Tests** : diff liste distante vs locale → seuls les nouveaux fichiers sont envoyés ; un 2ᵉ run sans nouveau PDF n'envoie rien.
+
+#### BIZ-216 — N'inclure que les PDFs non régénérables
+
+**But** : réduire encore le volume en ne sauvegardant que ce qui n'est **pas** régénérable : PDFs de factures **archivées** (`status=ARCHIVED`, valeur légale) + `data/uploads/` (.docx importés). Les PDFs de factures non archivées sont régénérables via `pdf_service.generate_invoice_pdf` (cf. `invoice.py:607`, régénération si `pdf_path` absent).
+
+**Approche** : au moment du miroir (TEC-209), filtrer `data/pdfs` selon le statut de la facture liée (ne garder que les archivées). Réglage **« Sauvegarder uniquement les PDFs non régénérables »** dans Paramètres › Sauvegardes (**off par défaut** par prudence).
+
+**Dépendance** : TEC-209 (applique le filtre au miroir). **Risque** : si un PDF non archivé n'est pas sauvegardé et que la régénération diverge (template modifié), différence visuelle — acceptable car sans valeur légale ; à documenter côté utilisateur.
+
+**Tests** : avec le réglage activé, seuls les PDFs de factures archivées + uploads sont inclus ; les non-archivés sont exclus.
 
 ### Lot RF — Refonte UI/UX
 
