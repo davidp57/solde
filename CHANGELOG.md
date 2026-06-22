@@ -11,6 +11,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **BIZ-215** — Tableau de bord, file « À traiter » : le compteur **« À rapprocher »** était faux (212 affichés alors que seules 2 transactions sont réellement à rapprocher). Il comptait toutes les transactions bancaires non rapprochées **tous exercices confondus**, gonflé par l'historique importé ; il est désormais **scopé à l'exercice courant**, comme l'écran Banque
+
 ## [1.8.0] — 2026-06-21
 
 ### Corrigé

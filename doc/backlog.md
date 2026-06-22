@@ -78,6 +78,7 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
+| BIZ-215 | Dashboard « À rapprocher » : compteur faux (212 affichés vs 2 réels) | P2 | ~20 min | 2026-06-21 | 2026-06-22 | 2026-06-22 |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
 | BIZ-210 | Factures client — réintroduire un rappel créances exercice/historique (post-RF) | P3 | ~20 min | 2026-06-18 | | |
 | BIZ-202 | Ligne de remise (prix négatif) dans une facture client | P2 | ~20 min | 2026-05-30 | 2026-05-30 | 2026-05-30 |
@@ -192,6 +193,14 @@ Nouveau `formatCurrency` dans `utils/format.ts` (EUR fr-FR, coercition des Decim
 #### BIZ-214 — Dédoublonnage Relancer / Envoyer
 
 `ClientInvoicesView` : pour une facture en retard, « Relancer » (action principale) et « Envoyer email » (menu) appelaient la même fonction. L'entrée de menu « Envoyer » est désormais omise quand « Relancer » est l'action principale.
+
+### BIZ-215 — Dashboard « À rapprocher » : compteur faux
+
+**Symptôme** : la file « À traiter » du tableau de bord affiche **212** opérations « À rapprocher », alors que l'écran Banque (relevé compte courant, filtre non-rapprochées) n'en montre que **2** réellement à traiter.
+
+**Cause réelle** : `to_reconcile_count` (introduit en TEC-198, `backend/services/dashboard_service.py`) comptait **toutes** les `BankTransaction` avec `reconciled == False`, **tous exercices confondus**. Or la vue Banque (`loadTransactions`) filtre par l'**exercice fiscal sélectionné** (`from_date`/`to_date`). Comme une transaction est `reconciled=False` par défaut tant qu'elle n'est pas appariée manuellement à un paiement, tout l'historique bancaire importé (exercices antérieurs, ex. compte épargne) gonflait le total : **212 tous exercices** vs **2 sur l'exercice courant**.
+
+**Correctif livré (2026-06-22)** : le compteur est désormais scopé à l'**exercice courant** (`get_current_fiscal_year`) — `reconciled == False` ET `date` dans `[start_date, end_date]` — pour s'aligner sur ce que montre l'écran Banque. Pas d'exclusion par catégorie (toutes les transactions doivent être rapprochées, confirmé). Si aucun exercice courant n'existe, repli sur le total (comme la vue Banque sans exercice sélectionné). Test d'intégration de régression ajouté (transaction hors-exercice exclue).
 
 ### BIZ-195 — Statut ARCHIVED — modèle, transitions, service, router, migration
 
