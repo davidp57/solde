@@ -78,6 +78,8 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 
 **Problème prod** : OneDrive (destination des backups) sature. À chaque run, `backup_scheduler.py` (l. 233-244) crée un dossier distant **horodaté** et y ré-envoie **tout `data/pdfs`**, sans **aucune purge distante** → une copie complète des PDFs s'accumule à chaque backup. Les PDFs sont en `data/pdfs/facture_<numéro>.pdf` (immuables, un par facture) et **majoritairement régénérables** (WeasyPrint), sauf les factures **archivées** (pièce légale) et les imports `data/uploads/` (.docx).
 
+**Mesuré sur la prod (`C:\Users\David\OneDrive\backups`, 2026-06-22)** : **32** backups horodatés quotidiens (11 mai → 13 juin), jamais purgés ; **3,94 Go** au total dont **3,42 Go (87 %) de PDFs** (21 340 fichiers) ; ~253 Mo par backup récent dont 240 Mo de PDFs (1 608 fichiers). Gains estimés : **TEC-208** (garder 5) → ~1,25 Go ; **TEC-209** (miroir PDF unique) → ~0,3 Go et ne croît plus que des nouveaux PDFs ; **BIZ-216** réduit encore le miroir.
+
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | TEC-208 | Rétention distante des backups — purger les dossiers horodatés au-delà de 5 (OneDrive/SMB) | P1 | ~40 min | 2026-06-22 | | |
