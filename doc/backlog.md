@@ -90,6 +90,21 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 
 ---
 
+### Lot ML — Mailing aux adhérents actifs
+
+Envoyer un email à tous les **adhérents (clients) actifs**. **Actif** = a eu une **facture client émise** OU un **paiement reçu** dans les **X derniers mois** (X par défaut **6**, réglable dans l'assistant). Parcours en 3 étapes : (1) choix du nombre de mois → liste des contacts concernés ; (2) sélection (tous cochés par défaut, déselectionnables) + validation ; (3) rédaction (sujet + corps) → envoi.
+
+**Décisions** : réutilise l'infra SMTP existante (`email_service`) ; **envoi individuel** (un email par destinataire, pas de BCC global — confidentialité + personnalisation) ; périmètre = contacts `type ∈ {client, les_deux}`, `is_active`, avec au moins une adresse email ; accès **Secrétaire+** (espace Gestion).
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-210 | Backend — endpoint « clients actifs » (mois paramétrable) + envoi groupé | P2 | ~50 min | 2026-06-23 | | |
+| BIZ-217 | Frontend — assistant d'envoi en 3 étapes (période → sélection → rédaction) | P2 | ~70 min | 2026-06-23 | | |
+
+> Dépendance : BIZ-217 dépend de TEC-210.
+
+---
+
 ### Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -142,6 +157,31 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 **Dépendance** : TEC-209 (applique le filtre au miroir). **Risque** : si un PDF non archivé n'est pas sauvegardé et que la régénération diverge (template modifié), différence visuelle — acceptable car sans valeur légale ; à documenter côté utilisateur.
 
 **Tests** : avec le réglage activé, seuls les PDFs de factures archivées + uploads sont inclus ; les non-archivés sont exclus.
+
+### Lot ML — Mailing aux adhérents actifs
+
+#### TEC-210 — Backend : clients actifs + envoi groupé
+
+**Endpoint « clients actifs »** : `GET /api/contacts/active-clients?months=6` (Secrétaire+). Retourne les contacts `type ∈ {client, les_deux}`, `is_active`, ayant **au moins une adresse email** (primaire ou dans `contact.emails`), et pour lesquels il existe **une facture client** OU **un paiement** de date ≥ (aujourd'hui − X mois). Champs : `id`, `nom`, `prenom`, `email`, date de dernière activité. Valider `months ≥ 1` (défaut 6). Implémenter via `EXISTS` (facture client `type=CLIENT` ; paiement par `Payment.contact_id` + `Payment.date`) pour éviter tout N+1.
+
+**Endpoint d'envoi groupé** : `POST /api/contacts/mailing` (Secrétaire+), payload `{ contact_ids: int[], subject, body }`. Pour chaque contact, résoudre ses adresses (primaire + `contact.emails`) et envoyer **un email individuel** (pas de BCC global). **Réutiliser une seule connexion SMTP** pour toute la campagne : ajouter à `email_service` une variante d'envoi en lot (ouvrir la session SMTP une fois et boucler) plutôt que `send_plain_email` qui rouvre une connexion par message. Personnalisation optionnelle `{prenom}` / `{nom}` dans sujet et corps. Journaliser via `record_audit`. Retour : récapitulatif `{ sent: int, failed: [{contact_id, error}] }`. Erreur explicite si SMTP non configuré (réutiliser `SmtpNotConfiguredError`/équivalent).
+
+**Notes perf/RAM** : envoi séquentiel sur une connexion ; pour de très longues listes, envisager une exécution en tâche de fond pour ne pas bloquer la requête (l'association a peu de contacts → synchrone acceptable au départ, à documenter).
+
+**Tests** : requête actifs (cutoff X mois, types client/les_deux, `is_active`, email requis, facture **OU** paiement) ; envoi (mock SMTP : succès, échecs partiels, personnalisation, SMTP non configuré → erreur).
+
+#### BIZ-217 — Frontend : assistant d'envoi en 3 étapes
+
+**Point d'entrée** : bouton « Email aux adhérents » dans l'en-tête de `ContactsView` (visible Secrétaire+).
+
+**Assistant** (dialog) en 3 étapes :
+1. **Période** : `InputNumber` « mois » (défaut 6, min 1) → appelle `GET /api/contacts/active-clients` et passe à l'étape 2.
+2. **Sélection** : table avec cases à cocher, **tous cochés par défaut**, colonnes nom + email ; déselection possible ; compteur « N sélectionnés » ; bouton Valider désactivé si 0.
+3. **Rédaction** : sujet + corps (`Textarea`) ; aide indiquant les placeholders `{prenom}`/`{nom}` si supportés ; bouton Envoyer → `POST /api/contacts/mailing` → toast récapitulatif (N envoyés, N échecs) + affichage des échecs éventuels.
+
+**Contraintes** : toutes les chaînes via i18n (`fr.ts`), aucun texte en dur ; respecter le design (composants `App*`, dialog plein écran sur mobile). 
+
+**Dépendance** : TEC-210. **Tests Vitest** : navigation entre étapes, sélection par défaut (tout coché), garde « 0 sélectionné », appel d'envoi avec les bons `contact_ids`.
 
 ### Lot RF — Refonte UI/UX
 
