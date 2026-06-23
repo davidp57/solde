@@ -363,3 +363,84 @@ class TestBackupJobPdfsInclusion:
         assert expected_pdfs not in captured[0], (
             f"data/pdfs should not be in src_paths: {captured[0]}"
         )
+
+
+# ---------------------------------------------------------------------------
+# prune_remote_backups (TEC-208 — remote retention)
+# ---------------------------------------------------------------------------
+
+
+def _onedrive_config() -> str:
+    import json
+
+    return json.dumps({"drive_id": "d1", "token": json.dumps({"access_token": "tok"})})
+
+
+class TestPruneRemoteBackups:
+    @pytest.mark.asyncio
+    async def test_onedrive_keeps_recent_and_ignores_mirror(self) -> None:
+        dest = _make_dest(
+            dest_type="onedrive", target_path="backups", rclone_config=_onedrive_config()
+        )
+        snaps = [f"2026-06-{d:02d}T02-00-00" for d in range(1, 8)]  # 7 snapshots
+        children = [{"id": n, "name": n, "folder": {}} for n in snaps]
+        children += [
+            {"id": "pdfs", "name": "pdfs", "folder": {}},  # stable mirror — never pruned
+            {"id": "f1", "name": "readme.txt"},  # a file — ignored
+        ]
+        deleted: list[str] = []
+
+        def _del(client: object, token: str, drive: str, item_id: str) -> None:
+            deleted.append(item_id)
+
+        with (
+            patch.object(bds, "_graph_list_children", AsyncMock(return_value=children)),
+            patch.object(bds, "_graph_delete_item", AsyncMock(side_effect=_del)),
+        ):
+            n = await bds.prune_remote_backups(dest, keep=5)
+
+        assert n == 2
+        assert deleted == ["2026-06-01T02-00-00", "2026-06-02T02-00-00"]
+
+    @pytest.mark.asyncio
+    async def test_onedrive_noop_when_at_or_below_keep(self) -> None:
+        dest = _make_dest(
+            dest_type="onedrive", target_path="backups", rclone_config=_onedrive_config()
+        )
+        children = [
+            {"id": f"s{d}", "name": f"2026-06-0{d}T02-00-00", "folder": {}} for d in range(1, 4)
+        ]
+        del_mock = AsyncMock()
+        with (
+            patch.object(bds, "_graph_list_children", AsyncMock(return_value=children)),
+            patch.object(bds, "_graph_delete_item", del_mock),
+        ):
+            n = await bds.prune_remote_backups(dest, keep=5)
+
+        assert n == 0
+        del_mock.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rclone_prunes_oldest_and_ignores_mirror(self) -> None:
+        dest = _make_dest(dest_type="smb", rclone_remote_name="smb", target_path="backups")
+        calls: list[list[str]] = []
+
+        def _run(cmd: list[str]) -> str:
+            calls.append(cmd)
+            if cmd[1] == "lsf":
+                return "".join(f"2026-06-0{d}T02-00-00/\n" for d in range(1, 8)) + "pdfs/\n"
+            return ""
+
+        with patch.object(bds, "_run_rclone", AsyncMock(side_effect=_run)):
+            n = await bds.prune_remote_backups(dest, keep=5)
+
+        assert n == 2
+        purges = [c for c in calls if c[1] == "purge"]
+        assert len(purges) == 2
+        assert all("pdfs" not in c[2] for c in purges)
+
+    @pytest.mark.asyncio
+    async def test_keep_must_be_positive(self) -> None:
+        dest = _make_dest(dest_type="smb")
+        with pytest.raises(ValueError):
+            await bds.prune_remote_backups(dest, keep=0)

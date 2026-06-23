@@ -395,6 +395,102 @@ async def fetch_remote_backup(
     await _run_rclone(cmd)
 
 
+# ---------------------------------------------------------------------------
+# Remote retention — prune old timestamped snapshot folders (TEC-208)
+# ---------------------------------------------------------------------------
+
+# Matches a backup snapshot folder name, e.g. "2026-06-13T02-00-04".
+_BACKUP_TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$")
+
+
+async def _graph_list_children(
+    client: httpx.AsyncClient, access_token: str, drive_id: str, base: str
+) -> list[dict[str, object]]:
+    """List the immediate children (files + folders) of a OneDrive folder.
+
+    ``base`` is the drive-relative path of the parent folder (empty = drive root).
+    Returns the raw Graph item dicts (each has ``id``, ``name`` and, for folders,
+    a ``folder`` facet). Returns ``[]`` if the folder does not exist yet.
+    """
+    auth = {"Authorization": f"Bearer {access_token}"}
+    if base:
+        encoded = urllib.parse.quote(base)
+        url: str | None = f"{_GRAPH_BASE}/drives/{drive_id}/root:/{encoded}:/children"
+    else:
+        url = f"{_GRAPH_BASE}/drives/{drive_id}/root/children"
+    items: list[dict[str, object]] = []
+    while url:
+        resp = await client.get(url, headers=auth, timeout=30)
+        if resp.status_code == 404:
+            return []
+        resp.raise_for_status()
+        data = resp.json()
+        items.extend(data.get("value", []))
+        url = data.get("@odata.nextLink")
+    return items
+
+
+async def _graph_delete_item(
+    client: httpx.AsyncClient, access_token: str, drive_id: str, item_id: str
+) -> None:
+    """Delete a OneDrive item (folder or file) by its id."""
+    auth = {"Authorization": f"Bearer {access_token}"}
+    resp = await client.delete(
+        f"{_GRAPH_BASE}/drives/{drive_id}/items/{item_id}", headers=auth, timeout=30
+    )
+    if resp.status_code not in (200, 204, 404):
+        resp.raise_for_status()
+
+
+async def prune_remote_backups(dest: BackupDestination, keep: int = 5) -> int:
+    """Delete timestamped backup **snapshot** folders beyond the ``keep`` most recent.
+
+    Targets only folders whose name matches the run-timestamp pattern
+    (``YYYY-MM-DDTHH-MM-SS``) directly under the destination's ``target_path``.
+    Stable mirror folders (e.g. ``pdfs/``, ``uploads/``, introduced by TEC-209)
+    never match the pattern and are therefore never pruned.
+
+    Returns the number of snapshot folders deleted. Raises on a hard failure;
+    the caller treats pruning as best-effort.
+    """
+    if keep < 1:
+        raise ValueError("keep must be >= 1")
+    base = (dest.target_path or "").rstrip("/")
+
+    if dest.type == "onedrive":
+        config = json.loads(dest.rclone_config or "{}")
+        drive_id = config.get("drive_id", "")
+        access_token = _graph_access_token(dest)
+        async with httpx.AsyncClient() as client:
+            children = await _graph_list_children(client, access_token, drive_id, base)
+            snapshots = sorted(
+                (
+                    (str(c.get("name", "")), str(c.get("id", "")))
+                    for c in children
+                    if c.get("folder") is not None and _BACKUP_TS_RE.match(str(c.get("name", "")))
+                ),
+                key=lambda nm: nm[0],
+            )
+            to_delete = snapshots[:-keep] if len(snapshots) > keep else []
+            for name, item_id in to_delete:
+                await _graph_delete_item(client, access_token, drive_id, item_id)
+                logger.info("Pruned remote snapshot %s (dest %s)", name, dest.id)
+            return len(to_delete)
+
+    # rclone-based destinations (SMB, local, …)
+    conf = str(_RCLONE_CONF_PATH.resolve())
+    remote_base = f"{dest.rclone_remote_name}:{base}" if base else f"{dest.rclone_remote_name}:"
+    out = await _run_rclone(["rclone", "lsf", "--dirs-only", remote_base, "--config", conf])
+    names = sorted(
+        n.rstrip("/") for n in out.splitlines() if _BACKUP_TS_RE.match(n.strip().rstrip("/"))
+    )
+    to_delete_names = names[:-keep] if len(names) > keep else []
+    for name in to_delete_names:
+        await _run_rclone(["rclone", "purge", f"{remote_base}/{name}", "--config", conf])
+        logger.info("Pruned remote snapshot %s (dest %s)", name, dest.id)
+    return len(to_delete_names)
+
+
 _RCLONE_TS_RE = re.compile(r"^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} (?:ERROR : |WARNING: )?")
 
 
