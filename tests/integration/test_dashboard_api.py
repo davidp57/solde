@@ -136,6 +136,50 @@ async def test_dashboard_counts_unreconciled_bank_transactions(
 
 
 @pytest.mark.asyncio
+async def test_dashboard_to_reconcile_is_scoped_to_current_fiscal_year(
+    client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+) -> None:
+    """`to_reconcile_count` ignores never-reconciled history outside the current FY.
+
+    Regression for BIZ-215: the bank view filters by the selected fiscal year, so
+    the dashboard count must do the same — otherwise old imported statements
+    (all unreconciled by default) inflate the number.
+    """
+    today = date.today()
+    await _create_fy(db_session, "Courant", date(today.year, 1, 1), date(today.year, 12, 31))
+
+    db_session.add_all(
+        [
+            # Inside the current fiscal year → counted.
+            BankTransaction(
+                date=today,
+                amount=Decimal("120.00"),
+                description="À rapprocher (exercice courant)",
+                balance_after=Decimal("120.00"),
+                reconciled=False,
+                source="manual",
+                detected_category="other_credit",
+            ),
+            # Two years ago → outside the current fiscal year → ignored.
+            BankTransaction(
+                date=date(today.year - 2, 6, 15),
+                amount=Decimal("90.00"),
+                description="Historique importé non rapproché",
+                balance_after=Decimal("90.00"),
+                reconciled=False,
+                source="manual",
+                detected_category="other_credit",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/dashboard/", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json()["to_reconcile_count"] == 1
+
+
+@pytest.mark.asyncio
 async def test_dashboard_uses_open_fiscal_year_covering_today(
     client: AsyncClient, auth_headers: dict, db_session: AsyncSession
 ) -> None:
