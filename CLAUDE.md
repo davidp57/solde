@@ -127,7 +127,7 @@ This grants standing authorization to **commit, push, and open PRs** without ask
 
 Keep `doc/backlog.md` reflecting real status. Archive tickets closed for more than **7 days** into `doc/backlog-archive.md` (create it if missing) so the active backlog stays readable.
 
-**Backlog commits go straight to `develop`** — creating, editing, or archiving tickets/lots in `doc/backlog.md` (and `doc/backlog-archive.md`) does **not** need a branch or PR. This exception covers backlog-only changes; any commit that also touches code, other docs, or `doc/roadmap.md` follows the normal feature/fix branch + PR flow.
+**Backlog commits go straight to `develop`** — a commit whose diff touches **only** `doc/backlog.md` and/or `doc/backlog-archive.md` (creating, editing, or archiving tickets/lots) needs **no branch or PR**. The moment a commit touches **any** other file (code, tests, other docs, `doc/roadmap.md`, formatting elsewhere, …), the exception no longer applies and it follows the normal feature/fix branch + PR flow.
 
 ## Per-change checklist
 
