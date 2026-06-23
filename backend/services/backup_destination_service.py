@@ -491,6 +491,79 @@ async def prune_remote_backups(dest: BackupDestination, keep: int = 5) -> int:
     return len(to_delete_names)
 
 
+# ---------------------------------------------------------------------------
+# Incremental mirror — stable folders for immutable assets (TEC-209)
+# ---------------------------------------------------------------------------
+
+
+async def _graph_list_files(
+    client: httpx.AsyncClient, access_token: str, drive_id: str, base: str
+) -> dict[str, int]:
+    """Recursively map ``relpath -> size`` for every file under ``base``.
+
+    Used to diff a OneDrive mirror folder against the local directory so only
+    missing/changed files are uploaded. Empty dict if the folder is absent.
+    """
+    files: dict[str, int] = {}
+
+    async def _walk(folder_path: str, rel_prefix: str) -> None:
+        for child in await _graph_list_children(client, access_token, drive_id, folder_path):
+            name = str(child.get("name", ""))
+            rel = f"{rel_prefix}{name}"
+            if child.get("folder") is not None:
+                await _walk(f"{folder_path}/{name}", f"{rel}/")
+            else:
+                size = child.get("size", 0)
+                files[rel] = size if isinstance(size, int) else 0
+
+    await _walk(base, "")
+    return files
+
+
+async def mirror_dir_incremental(
+    dest: BackupDestination, local_dir: str, remote_subdir: str
+) -> int:
+    """Mirror ``local_dir`` to a **stable** remote folder, uploading only new files.
+
+    Unlike the timestamped snapshot, the mirror lives at a fixed remote path
+    (``<target_path>/<remote_subdir>``) and is **append-only** (never pruned),
+    so immutable assets (PDFs, uploads) are stored once instead of being
+    re-uploaded on every backup. Returns the number of files uploaded
+    (0 for rclone, which performs its own incremental copy).
+    """
+    local = Path(local_dir)
+    if not local.is_dir():
+        return 0
+    base = (dest.target_path or "").rstrip("/")
+    remote_base = f"{base}/{remote_subdir}".strip("/")
+
+    if dest.type == "onedrive":
+        config = json.loads(dest.rclone_config or "{}")
+        drive_id = config.get("drive_id", "")
+        access_token = _graph_access_token(dest)
+        uploaded = 0
+        async with httpx.AsyncClient() as client:
+            remote_files = await _graph_list_files(client, access_token, drive_id, remote_base)
+            for local_file in sorted(p for p in local.rglob("*") if p.is_file()):
+                rel = local_file.relative_to(local).as_posix()
+                if remote_files.get(rel) == local_file.stat().st_size:
+                    continue  # already present with the same size — skip
+                await _graph_upload_file(
+                    client, access_token, drive_id, f"{remote_base}/{rel}", local_file
+                )
+                uploaded += 1
+        if uploaded:
+            logger.info("Mirrored %d file(s) to %s (dest %s)", uploaded, remote_subdir, dest.id)
+        return uploaded
+
+    # rclone destinations: `rclone copy` to a stable folder is already incremental
+    # (skips files identical by size/modtime).
+    conf = str(_RCLONE_CONF_PATH.resolve())
+    remote = f"{dest.rclone_remote_name}:{remote_base}"
+    await _run_rclone(["rclone", "copy", str(local.resolve()), remote, "--config", conf])
+    return 0
+
+
 _RCLONE_TS_RE = re.compile(r"^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2} (?:ERROR : |WARNING: )?")
 
 

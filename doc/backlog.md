@@ -83,7 +83,7 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | TEC-208 | Rétention distante des backups — purger les dossiers horodatés au-delà de 5 (OneDrive/SMB) | P1 | ~40 min | 2026-06-22 | 2026-06-23 | 2026-06-23 |
-| TEC-209 | Miroir PDF/uploads incrémental — dossier distant stable, « upload si absent » (fin de la duplication) | P1 | ~70 min | 2026-06-22 | | |
+| TEC-209 | Miroir PDF/uploads incrémental — dossier distant stable, « upload si absent » (fin de la duplication) | P1 | ~70 min | 2026-06-22 | 2026-06-23 | 2026-06-23 |
 | BIZ-216 | N'inclure que les PDFs non régénérables (factures archivées + uploads) ; régénérer le reste | P2 | ~50 min | 2026-06-22 | | |
 
 > Ordre conseillé : **TEC-208** d'abord (quick win, plafonne la croissance sur la structure actuelle), puis **TEC-209** (corrige la racine), puis **BIZ-216** (s'appuie sur le miroir de TEC-209). Rétention cible : **5** backups distants, aligné sur la rotation locale (`backup_service._rotate_backups`).
