@@ -284,6 +284,24 @@ export default {
     changelog_error: 'Impossible de charger les nouveautés.',
   },
   contacts: {
+    mailing: {
+      button: 'Email aux adhérents',
+      title: 'Email aux adhérents actifs',
+      step1_intro:
+        'Choisissez la période : un adhérent est « actif » s’il a eu une facture ou un paiement sur les derniers mois.',
+      months_label: 'Activité sur les derniers mois',
+      load_recipients: 'Voir les destinataires',
+      step2_intro: '{count} adhérent(s) actif(s). Décochez ceux à exclure.',
+      selected_count: '{count} sélectionné(s)',
+      no_recipients: 'Aucun adhérent actif sur cette période.',
+      step3_intro: 'Rédigez le message envoyé aux {count} destinataire(s) sélectionné(s).',
+      subject: 'Objet',
+      body: 'Message',
+      placeholders_help: 'Vous pouvez utiliser {prenom} et {nom} dans l’objet et le message.',
+      send: 'Envoyer',
+      sent_summary: '{sent} email(s) envoyé(s), {failed} échec(s).',
+      send_error: 'Échec de l’envoi des emails.',
+    },
     title: 'Contacts',
     subtitle:
       "Un carnet d'adresses clarifie pour retrouver rapidement les bons interlocuteurs et leurs informations utiles.",

@@ -99,7 +99,7 @@ Envoyer un email à tous les **adhérents (clients) actifs**. **Actif** = a eu u
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
 | TEC-210 | Backend — endpoint « clients actifs » (mois paramétrable) + envoi groupé | P2 | ~50 min | 2026-06-23 | 2026-06-23 | 2026-06-23 |
-| BIZ-217 | Frontend — assistant d'envoi en 3 étapes (période → sélection → rédaction) | P2 | ~70 min | 2026-06-23 | | |
+| BIZ-217 | Frontend — assistant d'envoi en 3 étapes (période → sélection → rédaction) | P2 | ~70 min | 2026-06-23 | 2026-06-23 | 2026-06-23 |
 
 > Dépendance : BIZ-217 dépend de TEC-210.
 
