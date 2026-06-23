@@ -6,6 +6,7 @@
       :subtitle="t('contacts.subtitle')"
     >
       <template #actions>
+        <Button :label="t('contacts.mailing.button')" icon="pi pi-send" severity="secondary" outlined @click="mailingDialogVisible = true" />
         <Button :label="t('contacts.import_emails')" icon="pi pi-envelope" severity="secondary" outlined @click="importDialogVisible = true" />
         <Button :label="t('contacts.new')" icon="pi pi-plus" @click="openCreateDialog" />
       </template>
@@ -370,6 +371,7 @@
       :contacts="contacts"
       @merged="onMerged"
     />
+    <MemberMailingDialog v-model:visible="mailingDialogVisible" />
     <ConfirmDialog />
   </AppPage>
 </template>
@@ -407,6 +409,7 @@ import type { ContactType } from '@/api/types'
 import ContactForm from '@/components/ContactForm.vue'
 import ContactHistoryDialog from '@/components/ContactHistoryDialog.vue'
 import ContactMergeDialog from '@/components/ContactMergeDialog.vue'
+import MemberMailingDialog from '@/components/contacts/MemberMailingDialog.vue'
 import { useKeyboardShortcuts } from '@/composables/useKeyboardShortcuts'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import { useBreakpoints } from '@/composables/useBreakpoints'
@@ -453,6 +456,7 @@ const selectedContactId = ref<number | null>(null)
 
 const mergeDialogVisible = ref(false)
 const mergeSourceContact = ref<Contact | null>(null)
+const mailingDialogVisible = ref(false)
 
 function openMergeDialog(contact: Contact): void {
   mergeSourceContact.value = contact

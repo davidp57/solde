@@ -172,3 +172,39 @@ export async function mergeContactApi(sourceId: number, targetId: number): Promi
   )
   return response.data
 }
+
+// --- Member mailing (Lot ML) ---
+
+export interface ActiveClient {
+  id: number
+  nom: string
+  prenom: string | null
+  email: string | null
+  last_activity: string | null
+}
+
+export interface MemberMailingFailure {
+  contact_id: number
+  error: string
+}
+
+export interface MemberMailingResult {
+  sent: number
+  failed: MemberMailingFailure[]
+}
+
+export async function listActiveClientsApi(months: number): Promise<ActiveClient[]> {
+  const response = await apiClient.get<ActiveClient[]>(
+    `/api/contacts/active-clients?months=${months}`,
+  )
+  return response.data
+}
+
+export async function sendMemberMailingApi(payload: {
+  contact_ids: number[]
+  subject: string
+  body: string
+}): Promise<MemberMailingResult> {
+  const response = await apiClient.post<MemberMailingResult>('/api/contacts/mailing', payload)
+  return response.data
+}
