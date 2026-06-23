@@ -100,7 +100,7 @@ Write the failing test first. Targets: business-logic services **≥ 90%**, API 
 
 ## Git flow (summary — see copilot-instructions.md for the full rules)
 
-`main` (prod) ← `develop` (integration) ← `feature/*` / `fix/*`. Hotfixes from `main`. **Releases only on `release/x.y.z` branches.** Never commit directly to `main`/`develop` (except acceptance-testing *recette* fixes, which go straight to `develop`). Conventional Commits in English (`type(scope): description`). Multi-PC project: `git pull --rebase` before starting, and on any rejected push.
+`main` (prod) ← `develop` (integration) ← `feature/*` / `fix/*`. Hotfixes from `main`. **Releases only on `release/x.y.z` branches.** Never commit directly to `main`/`develop` (except acceptance-testing *recette* fixes and **backlog edits** — see Backlog hygiene — which go straight to `develop`). Conventional Commits in English (`type(scope): description`). Multi-PC project: `git pull --rebase` before starting, and on any rejected push.
 
 ## Default action workflow (standing authorization)
 
@@ -126,6 +126,8 @@ This grants standing authorization to **commit, push, and open PRs** without ask
 ## Backlog hygiene
 
 Keep `doc/backlog.md` reflecting real status. Archive tickets closed for more than **7 days** into `doc/backlog-archive.md` (create it if missing) so the active backlog stays readable.
+
+**Backlog commits go straight to `develop`** — creating, editing, or archiving tickets/lots in `doc/backlog.md` (and `doc/backlog-archive.md`) does **not** need a branch or PR. This exception covers backlog-only changes; any commit that also touches code, other docs, or `doc/roadmap.md` follows the normal feature/fix branch + PR flow.
 
 ## Per-change checklist
 
