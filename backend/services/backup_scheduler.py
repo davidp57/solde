@@ -24,6 +24,10 @@ logger = logging.getLogger(__name__)
 
 _JOB_ID = "backup_job"
 
+# Remote retention: number of most-recent timestamped snapshots kept per
+# destination (aligned with the local rotation in backup_service).
+_REMOTE_BACKUP_RETENTION = 5
+
 # Module-level scheduler instance shared across requests
 _scheduler: AsyncIOScheduler | None = None
 
@@ -173,6 +177,7 @@ async def _run_backup_job_inner(
     """Execute one backup cycle (called by the scheduler)."""
     from backend.database import get_session
     from backend.services.backup_destination_service import (
+        prune_remote_backups,
         refresh_onedrive_tokens,
         sync_destination,
         write_rclone_config,
@@ -262,6 +267,14 @@ async def _run_backup_job_inner(
                     dest, src_paths, run_ts, on_progress=_make_progress_cb(dest_start, dest_end)
                 )
                 logger.info("Synced to destination %s (%s)", dest.name, dest.type)
+                # Remote retention: prune old timestamped snapshots (keep N most
+                # recent). Best-effort — never fail the backup over pruning.
+                try:
+                    pruned = await prune_remote_backups(dest, keep=_REMOTE_BACKUP_RETENTION)
+                    if pruned:
+                        logger.info("Pruned %d old snapshot(s) on %s", pruned, dest.name)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("Remote prune failed for %s: %s", dest.name, exc)
             except Exception as exc:
                 overall_success = False
                 msg = f"{dest.name}: {exc}"
