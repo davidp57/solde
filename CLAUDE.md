@@ -100,7 +100,7 @@ Write the failing test first. Targets: business-logic services **≥ 90%**, API 
 
 ## Git flow (summary — see copilot-instructions.md for the full rules)
 
-`main` (prod) ← `develop` (integration) ← `feature/*` / `fix/*`. Hotfixes from `main`. **Releases only on `release/x.y.z` branches.** Never commit directly to `main`/`develop` (except acceptance-testing *recette* fixes and **backlog edits** — see Backlog hygiene — which go straight to `develop`). Conventional Commits in English (`type(scope): description`). Multi-PC project: `git pull --rebase` before starting, and on any rejected push.
+`main` (prod) ← `develop` (integration) ← `feature/*` / `fix/*`. Hotfixes from `main`. **Releases only on `release/x.y.z` branches.** Never commit directly to `main`/`develop` (except acceptance-testing *recette* fixes and **documentation-only edits** — see Documentation hygiene — which go straight to `develop`). Conventional Commits in English (`type(scope): description`). Multi-PC project: `git pull --rebase` before starting, and on any rejected push.
 
 ## Default action workflow (standing authorization)
 
@@ -123,11 +123,11 @@ This grants standing authorization to **commit, push, and open PRs** without ask
 - **Minimalism**: produce the minimum needed to solve the request; no speculative features or abstractions.
 - **Zero assumptions**: if an instruction is ambiguous or contradictory, stop and ask before coding.
 
-## Backlog hygiene
+## Documentation hygiene
 
 Keep `doc/backlog.md` reflecting real status. Archive tickets closed for more than **7 days** into `doc/backlog-archive.md` (create it if missing) so the active backlog stays readable.
 
-**Backlog commits go straight to `develop`** — a commit whose diff touches **only** `doc/backlog.md` and/or `doc/backlog-archive.md` (creating, editing, or archiving tickets/lots) needs **no branch or PR**. The moment a commit touches **any** other file (code, tests, other docs, `doc/roadmap.md`, formatting elsewhere, …), the exception no longer applies and it follows the normal feature/fix branch + PR flow.
+**Documentation-only commits go straight to `develop`** — a commit whose diff touches **only** documentation (Markdown / `doc/**`, plus root docs like `CHANGELOG.md`, `README.md`, `CLAUDE.md`) needs **no branch or PR**: backlog, roadmap, plan, dev/user docs, release notes, changelog. As soon as a commit also touches **code, tests, config, or any non-documentation file**, the exception no longer applies and it follows the normal feature/fix branch + PR flow. Releases keep their dedicated `release/x.y.z` flow regardless.
 
 ## Per-change checklist
 
