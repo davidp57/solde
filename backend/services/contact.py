@@ -1,5 +1,6 @@
 """Contact service — CRUD and search."""
 
+import calendar
 import unicodedata
 from datetime import date
 from decimal import Decimal
@@ -9,11 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.models.app_settings import AppSettings
 from backend.models.cash import CashRegister
 from backend.models.contact import Contact, ContactType
 from backend.models.contact_email import ContactEmail
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
-from backend.models.invoice import Invoice, InvoiceStatus
+from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment
 from backend.models.salary import Salary
 from backend.schemas.contact import (
@@ -500,3 +502,163 @@ async def merge_contacts(
         cash_entries_reassigned=cash_reassigned,
         salaries_reassigned=salaries_reassigned,
     )
+
+
+# ---------------------------------------------------------------------------
+# Member mailing (Lot ML)
+# ---------------------------------------------------------------------------
+
+_MEMBER_TYPES = (ContactType.CLIENT, ContactType.LES_DEUX)
+
+
+def _months_ago(reference: date, months: int) -> date:
+    """Return the date `months` calendar months before `reference` (clamped day)."""
+    total = reference.month - 1 - months
+    year = reference.year + total // 12
+    month = total % 12 + 1
+    day = min(reference.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def _resolve_addresses(contact: Contact) -> list[str]:
+    """Ordered, de-duplicated email addresses of a contact (primary first)."""
+    addresses: list[str] = []
+    if contact.email:
+        addresses.append(contact.email)
+    for extra in contact.emails:
+        if extra.email and extra.email not in addresses:
+            addresses.append(extra.email)
+    return addresses
+
+
+def _apply_placeholders(text: str, contact: Contact) -> str:
+    return text.replace("{prenom}", contact.prenom or "").replace("{nom}", contact.nom or "")
+
+
+async def list_active_clients(db: AsyncSession, months: int) -> list[dict[str, object]]:
+    """List client members active within the last `months`.
+
+    "Active" = at least one client invoice issued OR one payment received since
+    the cutoff. Only contacts of type client/les_deux that are active and have at
+    least one email address are returned. ``last_activity`` is
+    ``max(last client invoice date, last payment date)`` (non-null by construction).
+    """
+    if months < 1:
+        raise ValueError("months must be >= 1")
+    cutoff = _months_ago(date.today(), months)
+
+    last_invoice = (
+        select(func.max(Invoice.date))
+        .where(Invoice.contact_id == Contact.id, Invoice.type == InvoiceType.CLIENT)
+        .correlate(Contact)
+        .scalar_subquery()
+    )
+    last_payment = (
+        select(func.max(Payment.date))
+        .where(Payment.contact_id == Contact.id)
+        .correlate(Contact)
+        .scalar_subquery()
+    )
+    has_recent_invoice = (
+        select(Invoice.id)
+        .where(
+            Invoice.contact_id == Contact.id,
+            Invoice.type == InvoiceType.CLIENT,
+            Invoice.date >= cutoff,
+        )
+        .correlate(Contact)
+        .exists()
+    )
+    has_recent_payment = (
+        select(Payment.id)
+        .where(Payment.contact_id == Contact.id, Payment.date >= cutoff)
+        .correlate(Contact)
+        .exists()
+    )
+    has_email = or_(
+        and_(Contact.email.is_not(None), Contact.email != ""),
+        Contact.emails.any(),
+    )
+
+    query = (
+        select(Contact, last_invoice.label("last_inv"), last_payment.label("last_pay"))
+        .options(selectinload(Contact.emails))
+        .where(
+            Contact.type.in_(_MEMBER_TYPES),
+            Contact.is_active == True,  # noqa: E712
+            has_email,
+            or_(has_recent_invoice, has_recent_payment),
+        )
+        .order_by(Contact.nom, Contact.prenom)
+    )
+    result = await db.execute(query)
+    clients: list[dict[str, object]] = []
+    for contact, last_inv, last_pay in result.all():
+        activity = max((d for d in (last_inv, last_pay) if d is not None), default=None)
+        addresses = _resolve_addresses(contact)
+        clients.append(
+            {
+                "id": contact.id,
+                "nom": contact.nom,
+                "prenom": contact.prenom,
+                "email": addresses[0] if addresses else None,
+                "last_activity": activity,
+            }
+        )
+    return clients
+
+
+async def send_member_mailing(
+    db: AsyncSession,
+    *,
+    contact_ids: list[int],
+    subject: str,
+    body: str,
+    settings: AppSettings,
+) -> dict[str, object]:
+    """Send an individual email to each selected contact over one SMTP connection.
+
+    ``To`` = primary address, secondary addresses in ``Cc``. ``{prenom}``/``{nom}``
+    placeholders are substituted. Returns ``{"sent": int, "failed": [...]}``.
+    Raises email_service.EmailConfigError / EmailSendError on configuration or
+    connection failure.
+    """
+    from backend.services import email_service  # noqa: PLC0415
+
+    result = await db.execute(
+        select(Contact).options(selectinload(Contact.emails)).where(Contact.id.in_(contact_ids))
+    )
+    contacts = list(result.scalars().all())
+
+    messages: list[email_service.BulkEmailMessage] = []
+    failed: list[dict[str, object]] = []
+    for contact in contacts:
+        addresses = _resolve_addresses(contact)
+        if not addresses:
+            failed.append({"contact_id": contact.id, "error": "Aucune adresse email"})
+            continue
+        messages.append(
+            {
+                "to": addresses[0],
+                "cc": addresses[1:],
+                "subject": _apply_placeholders(subject, contact),
+                "body": _apply_placeholders(body, contact),
+                "ref": contact.id,
+            }
+        )
+
+    send_failures: list[email_service.BulkEmailFailure] = []
+    if messages:
+        send_failures = email_service.send_bulk_emails(
+            host=settings.smtp_host or "",
+            port=settings.smtp_port,
+            user=settings.smtp_user,
+            password=settings.smtp_password,
+            use_tls=settings.smtp_use_tls,
+            from_email=settings.smtp_from_email or settings.smtp_user or "",
+            messages=messages,
+        )
+    for failure in send_failures:
+        failed.append({"contact_id": failure["ref"], "error": failure["error"]})
+
+    return {"sent": len(messages) - len(send_failures), "failed": failed}

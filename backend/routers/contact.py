@@ -11,12 +11,15 @@ from backend.models.contact import ContactType
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.contact import (
+    ActiveClientRead,
     ContactCreate,
     ContactEmailImportResult,
     ContactEmailImportRow,
     ContactHistory,
     ContactRead,
     ContactUpdate,
+    MemberMailingRequest,
+    MemberMailingResult,
     MergeContactResult,
 )
 from backend.services import contact as contact_service
@@ -97,6 +100,59 @@ async def import_contact_emails(
 ) -> ContactEmailImportResult:
     """Bulk-import email addresses into existing contacts matched by name."""
     return await contact_service.import_emails_from_rows(db, payload)
+
+
+@router.get("/active-clients", response_model=list[ActiveClientRead])
+async def list_active_clients(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _WriteAccess,
+    months: int = Query(default=6, ge=1, le=120),
+) -> list[ActiveClientRead]:
+    """List client members active within the last ``months`` (invoice or payment)."""
+    rows = await contact_service.list_active_clients(db, months)
+    return [ActiveClientRead.model_validate(row) for row in rows]
+
+
+@router.post("/mailing", response_model=MemberMailingResult)
+async def send_member_mailing(
+    payload: MemberMailingRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> MemberMailingResult:
+    """Send an email to the selected active client members (one message each)."""
+    from backend.services import email_service  # noqa: PLC0415
+    from backend.services import settings as settings_service  # noqa: PLC0415
+
+    app_settings = await settings_service.get_settings(db)
+    try:
+        result = await contact_service.send_member_mailing(
+            db,
+            contact_ids=payload.contact_ids,
+            subject=payload.subject,
+            body=payload.body,
+            settings=app_settings,
+        )
+    except email_service.EmailConfigError as exc:
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "SMTP_NOT_CONFIGURED",
+            "La configuration SMTP est incomplète.",
+        ) from exc
+    except email_service.EmailSendError as exc:
+        raise api_error(
+            status.HTTP_502_BAD_GATEWAY,
+            "EMAIL_SEND_FAILED",
+            "Échec de l'envoi des emails.",
+        ) from exc
+
+    response = MemberMailingResult.model_validate(result)
+    await record_audit(
+        db,
+        action=AuditAction.MEMBER_MAILING_SENT,
+        actor=current_user,
+        detail={"sent": response.sent, "failed": len(response.failed)},
+    )
+    return response
 
 
 @router.get("/{contact_id}", response_model=ContactRead)

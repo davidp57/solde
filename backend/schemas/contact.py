@@ -183,3 +183,29 @@ class ContactEmailImportResult(BaseModel):
     updated_indices: list[int] = []
     not_found_indices: list[int] = []
     already_has_email_indices: list[int] = []
+
+
+class ActiveClientRead(BaseModel):
+    """A client member considered active for a mailing campaign."""
+
+    id: int
+    nom: str
+    prenom: str | None = None
+    email: str | None = None
+    last_activity: date_value | None = None
+
+
+class MemberMailingRequest(BaseModel):
+    contact_ids: list[int] = Field(min_length=1)
+    subject: str = Field(min_length=1, max_length=300)
+    body: str = Field(min_length=1)
+
+
+class MemberMailingFailure(BaseModel):
+    contact_id: int
+    error: str
+
+
+class MemberMailingResult(BaseModel):
+    sent: int
+    failed: list[MemberMailingFailure]
