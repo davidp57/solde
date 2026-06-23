@@ -3,7 +3,7 @@
 Tests:
 - backup_destination_service: write_rclone_config, test_destination_connection
 - backup_restore_service: _do_test_restore on valid/corrupted/empty SQLite files
-- backup_scheduler: src_paths construction (BIZ-201 — data/pdfs inclusion)
+- backup_scheduler: asset mirroring (TEC-209) + remote retention (TEC-208)
 """
 
 from __future__ import annotations
@@ -219,7 +219,7 @@ class TestTestRestore:
 
 
 # ---------------------------------------------------------------------------
-# backup_scheduler — src_paths construction (BIZ-201)
+# backup_scheduler — asset mirror + snapshot (TEC-209)
 # ---------------------------------------------------------------------------
 
 
@@ -253,18 +253,27 @@ def _make_scheduler_patches(
             "backend.services.backup_destination_service.sync_destination",
             side_effect=sync_side_effect,
         ),
+        patch(
+            "backend.services.backup_destination_service.prune_remote_backups",
+            AsyncMock(return_value=0),
+        ),
         patch("backend.services.backup_scheduler._update_run_status", AsyncMock()),
     ]
 
 
-class TestBackupJobPdfsInclusion:
-    """BIZ-201: data/pdfs must always be included in the backup src_paths."""
+class TestBackupJobAssetMirror:
+    """TEC-209: PDFs/uploads are mirrored to stable folders, not bundled into the
+    timestamped snapshot."""
+
+    @staticmethod
+    def _mirror_subdirs(mirror_mock: AsyncMock) -> list[str]:
+        return [call.args[2] for call in mirror_mock.call_args_list]
 
     @pytest.mark.asyncio
-    async def test_pdfs_included_snapshot_mode(
+    async def test_pdfs_mirrored_not_in_snapshot(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """data/pdfs is included in src_paths in snapshot (single-file) mode."""
+        """data/pdfs is excluded from the snapshot and mirrored to the stable folder."""
         (tmp_path / "data" / "pdfs").mkdir(parents=True)
         monkeypatch.chdir(tmp_path)
 
@@ -276,12 +285,19 @@ class TestBackupJobPdfsInclusion:
         async def _fake_sync(dest, src_paths, run_ts, on_progress=None):
             captured.append(list(src_paths))
 
+        mirror_mock = AsyncMock(return_value=1)
         from backend.services import backup_scheduler as sched
 
         patches = _make_scheduler_patches(fake_backup, dest, _fake_sync)
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
+            stack.enter_context(
+                patch(
+                    "backend.services.backup_destination_service.mirror_dir_incremental",
+                    mirror_mock,
+                )
+            )
             await sched._run_backup_job_inner(
                 db_path="data/solde.db",
                 backup_dir="data/backups",
@@ -292,13 +308,15 @@ class TestBackupJobPdfsInclusion:
 
         expected_pdfs = str((tmp_path / "data" / "pdfs").resolve())
         assert len(captured) == 1
-        assert expected_pdfs in captured[0], f"data/pdfs missing from src_paths: {captured[0]}"
+        assert expected_pdfs not in captured[0]  # no longer bundled in the snapshot
+        mirrored = [call.args for call in mirror_mock.call_args_list]
+        assert any(args[1] == expected_pdfs and args[2] == "pdfs" for args in mirrored)
 
     @pytest.mark.asyncio
-    async def test_pdfs_included_full_backup_mode(
+    async def test_pdfs_mirrored_in_full_backup_mode(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """data/pdfs is included in src_paths in full-backup (include_all_backups) mode."""
+        """PDFs are still mirrored (not snapshotted) in include_all_backups mode."""
         (tmp_path / "data" / "pdfs").mkdir(parents=True)
         monkeypatch.chdir(tmp_path)
 
@@ -310,12 +328,19 @@ class TestBackupJobPdfsInclusion:
         async def _fake_sync(dest, src_paths, run_ts, on_progress=None):
             captured.append(list(src_paths))
 
+        mirror_mock = AsyncMock(return_value=1)
         from backend.services import backup_scheduler as sched
 
         patches = _make_scheduler_patches(fake_backup, dest, _fake_sync)
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
+            stack.enter_context(
+                patch(
+                    "backend.services.backup_destination_service.mirror_dir_incremental",
+                    mirror_mock,
+                )
+            )
             await sched._run_backup_job_inner(
                 db_path="data/solde.db",
                 backup_dir="data/backups",
@@ -325,15 +350,52 @@ class TestBackupJobPdfsInclusion:
             )
 
         expected_pdfs = str((tmp_path / "data" / "pdfs").resolve())
-        assert len(captured) == 1
-        assert expected_pdfs in captured[0], f"data/pdfs missing from src_paths: {captured[0]}"
+        assert expected_pdfs not in captured[0]
+        assert "pdfs" in self._mirror_subdirs(mirror_mock)
 
     @pytest.mark.asyncio
-    async def test_pdfs_skipped_when_directory_absent(
+    async def test_pdfs_not_mirrored_when_absent(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """data/pdfs is NOT added to src_paths when the directory does not exist."""
-        # data/pdfs directory intentionally NOT created
+        """No mirror call for pdfs when data/pdfs does not exist."""
+        monkeypatch.chdir(tmp_path)  # data/pdfs intentionally not created
+
+        fake_backup = tmp_path / "solde_backup_20260101_120000.db"
+        fake_backup.write_bytes(b"fake")
+        dest = _make_dest(name="local-dest", rclone_remote_name="local")
+
+        async def _fake_sync(dest, src_paths, run_ts, on_progress=None):
+            pass
+
+        mirror_mock = AsyncMock(return_value=0)
+        from backend.services import backup_scheduler as sched
+
+        patches = _make_scheduler_patches(fake_backup, dest, _fake_sync)
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            stack.enter_context(
+                patch(
+                    "backend.services.backup_destination_service.mirror_dir_incremental",
+                    mirror_mock,
+                )
+            )
+            await sched._run_backup_job_inner(
+                db_path="data/solde.db",
+                backup_dir="data/backups",
+                include_uploads=False,
+                include_all_backups=False,
+                notify_on_failure=False,
+            )
+
+        assert "pdfs" not in self._mirror_subdirs(mirror_mock)
+
+    @pytest.mark.asyncio
+    async def test_uploads_mirrored_when_included(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """data/uploads is mirrored (not snapshotted) when include_uploads is True."""
+        (tmp_path / "data" / "uploads").mkdir(parents=True)
         monkeypatch.chdir(tmp_path)
 
         fake_backup = tmp_path / "solde_backup_20260101_120000.db"
@@ -344,25 +406,31 @@ class TestBackupJobPdfsInclusion:
         async def _fake_sync(dest, src_paths, run_ts, on_progress=None):
             captured.append(list(src_paths))
 
+        mirror_mock = AsyncMock(return_value=0)
         from backend.services import backup_scheduler as sched
 
         patches = _make_scheduler_patches(fake_backup, dest, _fake_sync)
         with ExitStack() as stack:
             for p in patches:
                 stack.enter_context(p)
+            stack.enter_context(
+                patch(
+                    "backend.services.backup_destination_service.mirror_dir_incremental",
+                    mirror_mock,
+                )
+            )
             await sched._run_backup_job_inner(
                 db_path="data/solde.db",
                 backup_dir="data/backups",
-                include_uploads=False,
+                include_uploads=True,
                 include_all_backups=False,
                 notify_on_failure=False,
             )
 
-        expected_pdfs = str((tmp_path / "data" / "pdfs").resolve())
-        assert len(captured) == 1
-        assert expected_pdfs not in captured[0], (
-            f"data/pdfs should not be in src_paths: {captured[0]}"
-        )
+        expected_uploads = str((tmp_path / "data" / "uploads").resolve())
+        assert expected_uploads not in captured[0]
+        mirrored = [call.args for call in mirror_mock.call_args_list]
+        assert any(args[1] == expected_uploads and args[2] == "uploads" for args in mirrored)
 
 
 # ---------------------------------------------------------------------------
