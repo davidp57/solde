@@ -82,11 +82,11 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
-| TEC-208 | Rétention distante des backups — purger les dossiers horodatés au-delà de 5 (OneDrive/SMB) | P1 | ~40 min | 2026-06-22 | | |
-| TEC-209 | Miroir PDF/uploads incrémental — dossier distant stable, « upload si absent » (fin de la duplication) | P1 | ~70 min | 2026-06-22 | | |
-| BIZ-216 | N'inclure que les PDFs non régénérables (factures archivées + uploads) ; régénérer le reste | P2 | ~50 min | 2026-06-22 | | |
+| TEC-208 | Rétention distante des backups — purger les dossiers horodatés au-delà de 5 (OneDrive/SMB) | P1 | ~40 min | 2026-06-22 | 2026-06-23 | 2026-06-23 |
+| TEC-209 | Miroir PDF/uploads incrémental — dossier distant stable, « upload si absent » (fin de la duplication) | P1 | ~70 min | 2026-06-22 | 2026-06-23 | 2026-06-23 |
+| BIZ-216 | N'inclure que les PDFs non régénérables (factures archivées + uploads) ; régénérer le reste | P2 | ~50 min | 2026-06-22 | | reporté |
 
-> Ordre conseillé : **TEC-208** d'abord (quick win, plafonne la croissance sur la structure actuelle), puis **TEC-209** (corrige la racine), puis **BIZ-216** (s'appuie sur le miroir de TEC-209). Rétention cible : **5** backups distants, aligné sur la rotation locale (`backup_service._rotate_backups`).
+> Ordre : **TEC-208** + **TEC-209** livrés ensemble (PR BK2) — ils règlent la saturation OneDrive (fin de la duplication + purge des snapshots, rétention **5**). **BIZ-216 est reporté** dans un lot séparé : il nécessite en plus un garde-fou de **régénération à la demande quand le fichier PDF est absent** (sinon des factures non archivées exclues du backup auraient un `pdf_path` renseigné mais un fichier manquant après restauration). À traiter proprement avec ce prérequis.
 
 ---
 
@@ -154,9 +154,11 @@ Envoyer un email à tous les **adhérents (clients) actifs**. **Actif** = a eu u
 
 **Approche** : au moment du miroir (TEC-209), filtrer `data/pdfs` selon le statut de la facture liée (ne garder que les archivées). Réglage **« Sauvegarder uniquement les PDFs non régénérables »** dans Paramètres › Sauvegardes (**off par défaut** par prudence).
 
-**Dépendance** : TEC-209 (applique le filtre au miroir). **Risque** : si un PDF non archivé n'est pas sauvegardé et que la régénération diverge (template modifié), différence visuelle — acceptable car sans valeur légale ; à documenter côté utilisateur.
+**Prérequis bloquant (sécurité de restauration)** : aujourd'hui, la régénération à la demande ne se déclenche que si `invoice.pdf_path` est **vide**. Si on exclut du backup le PDF d'une facture non archivée (dont `pdf_path` est renseigné), une restauration de désastre laisserait la base avec un `pdf_path` pointant vers un **fichier absent** → consultation cassée. BIZ-216 doit donc **d'abord** ajouter un garde-fou « **régénérer le PDF si le fichier référencé est manquant** » (à la consultation / au téléchargement), indépendamment de `pdf_path`. Sans ce garde-fou, ne pas activer le filtre.
 
-**Tests** : avec le réglage activé, seuls les PDFs de factures archivées + uploads sont inclus ; les non-archivés sont exclus.
+**Dépendance** : TEC-209 (applique le filtre au miroir) + le garde-fou ci-dessus. **Statut** : **reporté** hors de la PR BK2 (208+209), à faire dans son propre lot. **Risque** : si un PDF non archivé régénéré diverge (template modifié), différence visuelle — acceptable car sans valeur légale ; à documenter côté utilisateur.
+
+**Tests** : régénération déclenchée quand le fichier manque même si `pdf_path` est défini ; avec le réglage activé, seuls les PDFs de factures archivées + uploads sont inclus dans le miroir ; les non-archivés sont exclus.
 
 ### Lot ML — Mailing aux adhérents actifs
 
