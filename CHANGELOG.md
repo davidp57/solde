@@ -11,6 +11,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.8.1] — 2026-06-23
+
 ### Ajouté
 - **TEC-210 / BIZ-217** (Lot ML) — **Envoi d'un email aux adhérents (clients) actifs**. Depuis l'écran Contacts, un assistant en 3 étapes : (1) choix de la période (« actif » = facture client OU paiement sur les N derniers mois, défaut 6) ; (2) liste des adhérents concernés, tous présélectionnés et désélectionnables ; (3) rédaction (objet + message, placeholders `{prenom}`/`{nom}`) et envoi. Côté serveur : un email individuel par destinataire sur **une seule connexion SMTP** (adresses secondaires en `Cc`), récapitulatif envoyés/échecs, journalisé. Accès Secrétaire+.
 

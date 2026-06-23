@@ -4,6 +4,24 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.8.1 — 23 juin 2026
+
+Nouveauté d'envoi d'emails aux adhérents, sauvegardes plus économes, et correction du tableau de bord.
+
+### Secrétaire
+
+- **Email aux adhérents** : depuis l'écran Contacts, un assistant permet d'écrire à tous les adhérents actifs (ceux ayant eu une facture ou un paiement récents). On choisit la période, on ajuste la liste des destinataires (tous cochés par défaut), puis on rédige le message — avec les variables `{prenom}` et `{nom}`. Un récapitulatif indique les envois réussis et les échecs.
+
+### Trésorier
+
+- **Tableau de bord** : le compteur « À rapprocher » de la file « À traiter » affiche désormais le bon nombre (limité à l'exercice courant), au lieu d'un total gonflé par l'historique.
+
+### Administrateur
+
+- **Sauvegardes** : l'espace occupé sur la destination (OneDrive) ne grossit plus sans fin — les anciennes sauvegardes sont automatiquement purgées (5 conservées) et les PDFs ne sont plus dupliqués à chaque sauvegarde. *(Au premier backup après mise à jour, la destination se réorganise automatiquement.)*
+
+---
+
 ## Version 1.8.0 — 21 juin 2026
 
 Refonte complète de l'interface de Solde : plus claire, organisée par action à mener, avec un mode sombre et un affichage adapté au mobile et à la tablette.
