@@ -74,10 +74,42 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 
 ---
 
+### Lot BK2 — Optimisation de l'espace des backups (OneDrive)
+
+**Problème prod** : OneDrive (destination des backups) sature. À chaque run, le job de backup (`backup_scheduler`, assemblage des sources puis synchronisation des destinations) crée un dossier distant **horodaté** et y ré-envoie **tout `data/pdfs`**, sans **aucune purge distante** → une copie complète des PDFs s'accumule à chaque backup. Les PDFs sont en `data/pdfs/facture_<numéro>.pdf` (immuables, un par facture) et **majoritairement régénérables** (WeasyPrint), sauf les factures **archivées** (pièce légale) et les imports `data/uploads/` (.docx).
+
+**Mesuré sur la prod (`C:\Users\David\OneDrive\backups`, 2026-06-22)** : **32** backups horodatés quotidiens (11 mai → 13 juin), jamais purgés ; **3,94 Go** au total dont **3,42 Go (87 %) de PDFs** (21 340 fichiers) ; ~253 Mo par backup récent dont 240 Mo de PDFs (1 608 fichiers). Gains estimés : **TEC-208** (garder 5) → ~1,25 Go ; **TEC-209** (miroir PDF unique) → ~0,3 Go et ne croît plus que des nouveaux PDFs ; **BIZ-216** réduit encore le miroir.
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-208 | Rétention distante des backups — purger les dossiers horodatés au-delà de 5 (OneDrive/SMB) | P1 | ~40 min | 2026-06-22 | 2026-06-23 | 2026-06-23 |
+| TEC-209 | Miroir PDF/uploads incrémental — dossier distant stable, « upload si absent » (fin de la duplication) | P1 | ~70 min | 2026-06-22 | 2026-06-23 | 2026-06-23 |
+| BIZ-216 | N'inclure que les PDFs non régénérables (factures archivées + uploads) ; régénérer le reste | P2 | ~50 min | 2026-06-22 | | reporté |
+
+> Ordre : **TEC-208** + **TEC-209** livrés ensemble (PR BK2) — ils règlent la saturation OneDrive (fin de la duplication + purge des snapshots, rétention **5**). **BIZ-216 est reporté** dans un lot séparé : il nécessite en plus un garde-fou de **régénération à la demande quand le fichier PDF est absent** (sinon des factures non archivées exclues du backup auraient un `pdf_path` renseigné mais un fichier manquant après restauration). À traiter proprement avec ce prérequis.
+
+---
+
+### Lot ML — Mailing aux adhérents actifs
+
+Envoyer un email à tous les **adhérents (clients) actifs**. **Actif** = a eu une **facture client émise** OU un **paiement reçu** dans les **X derniers mois** (X par défaut **6**, réglable dans l'assistant). Parcours en 3 étapes : (1) choix du nombre de mois → liste des contacts concernés ; (2) sélection (tous cochés par défaut, désélectionnables) + validation ; (3) rédaction (sujet + corps) → envoi.
+
+**Décisions** : réutilise l'infra SMTP existante (`email_service`) ; **envoi individuel** (un email par destinataire, pas de BCC global — confidentialité + personnalisation) ; périmètre = contacts `type ∈ {client, les_deux}`, `is_active`, avec au moins une adresse email ; accès **Secrétaire+** (espace Gestion).
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-210 | Backend — endpoint « clients actifs » (mois paramétrable) + envoi groupé | P2 | ~50 min | 2026-06-23 | 2026-06-23 | 2026-06-23 |
+| BIZ-217 | Frontend — assistant d'envoi en 3 étapes (période → sélection → rédaction) | P2 | ~70 min | 2026-06-23 | 2026-06-23 | 2026-06-23 |
+
+> Dépendance : BIZ-217 dépend de TEC-210.
+
+---
+
 ### Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
 | --- | --- | --- | --- | --- | --- | --- |
+| BIZ-215 | Dashboard « À rapprocher » : compteur faux (212 affichés vs 2 réels) | P2 | ~20 min | 2026-06-21 | 2026-06-22 | 2026-06-22 |
 | BIZ-169 | Édition/suppression des opérations manuelles | P2 | ~25 min | 2026-05-04 | 2026-05-04 | |
 | BIZ-210 | Factures client — réintroduire un rappel créances exercice/historique (post-RF) | P3 | ~20 min | 2026-06-18 | | |
 | BIZ-202 | Ligne de remise (prix négatif) dans une facture client | P2 | ~20 min | 2026-05-30 | 2026-05-30 | 2026-05-30 |
@@ -86,6 +118,72 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 ---
 
 ## Détails
+
+### Lot BK2 — Optimisation de l'espace des backups (OneDrive)
+
+> **Portée de la rétention (à garder en tête pour TEC-208 et TEC-209)** : la purge ne vise **que les snapshots horodatés** `solde/backups/<timestamp>/`. Les **dossiers miroirs stables** introduits par TEC-209 (`solde/pdfs/`, `solde/uploads/`) sont **append-only** et ne sont **jamais** purgés — c'est précisément ce qui supprime la duplication sans perdre de PDF.
+
+#### TEC-208 — Rétention distante des backups (purge, garder 5)
+
+**But** : plafonner l'espace en supprimant les anciens **snapshots horodatés** côté distant, comme la rotation locale (`backup_service` garde 5 `.db`).
+
+**Approche** : étendre le service de destinations existant (`backup_destination_service`, qui sait déjà parler à chaque type de destination — OneDrive et SMB/local) avec une opération de purge `prune_remote_backups(dest, keep=5)` : pour une destination, énumérer les **dossiers de snapshot** sous `solde/backups/`, les trier par horodatage (le nom ISO `%Y-%m-%dT%H-%M-%S` se trie lexicographiquement) et supprimer ceux au-delà des **5** plus récents. L'invoquer depuis le job de backup après chaque synchronisation réussie. *(Les modalités exactes — Graph pour OneDrive, rclone pour le reste — restent un détail d'implémentation du service.)*
+
+**Notes** : indépendant, à livrer en premier (quick win sur la structure actuelle). Après TEC-209 les snapshots ne contiendront plus que la base (petits), mais la purge reste utile. Garde-fou : ne jamais supprimer le snapshot du run courant. Ne touche pas aux dossiers miroirs (cf. encadré ci-dessus).
+
+**Tests** : en mockant la couche destination, vérifier qu'on conserve exactement 5 snapshots et qu'on supprime le reste ; qu'avec ≤ 5 on ne supprime rien ; que les dossiers miroirs ne sont jamais ciblés.
+
+#### TEC-209 — Miroir PDF/uploads incrémental (fin de la duplication)
+
+**But** : ne plus dupliquer les PDFs à chaque run. Les envoyer une seule fois vers un dossier distant **stable**, en mode incrémental.
+
+**Approche** :
+- Dans le job de backup, **retirer `data/pdfs` et `data/uploads`** de l'assemblage des sources du snapshot horodaté : le snapshot ne contient plus que la base (+ métadonnées).
+- Ajouter au service de destinations une synchro incrémentale `mirror_dir_incremental(dest, local_dir, remote_dir)` vers un dossier distant **stable** (`solde/pdfs/`, `solde/uploads/`) : n'envoyer que les fichiers **absents** côté distant (les PDFs sont immuables, nom `facture_<num>.pdf` stable → comparaison par nom, et par taille en garde-fou). **Append-only**, jamais purgé.
+- Appeler le miroir depuis le job, en plus du snapshot de base horodaté.
+
+**Restauration** : adapter le service de restauration pour récupérer les PDFs/uploads depuis les **dossiers miroirs** (et non depuis le snapshot). **Documenter** le nouveau format de restauration.
+
+**Dépendance** : précède BIZ-216. **Risque** : bien couvrir la restauration (les PDFs ne sont plus dans le snapshot).
+
+**Tests** : diff distant vs local → seuls les nouveaux fichiers sont envoyés ; un 2ᵉ run sans nouveau PDF n'envoie rien.
+
+#### BIZ-216 — N'inclure que les PDFs non régénérables
+
+**But** : réduire encore le volume en ne sauvegardant que ce qui n'est **pas** régénérable : PDFs de factures **archivées** (`status=ARCHIVED`, valeur légale) + `data/uploads/` (.docx importés). Les PDFs de factures non archivées sont régénérables à la demande (le flux d'archivage régénère déjà le PDF d'une facture quand il est absent, via `pdf_service`).
+
+**Approche** : au moment du miroir (TEC-209), filtrer `data/pdfs` selon le statut de la facture liée (ne garder que les archivées). Réglage **« Sauvegarder uniquement les PDFs non régénérables »** dans Paramètres › Sauvegardes (**off par défaut** par prudence).
+
+**Prérequis bloquant (sécurité de restauration)** : aujourd'hui, la régénération à la demande ne se déclenche que si `invoice.pdf_path` est **vide**. Si on exclut du backup le PDF d'une facture non archivée (dont `pdf_path` est renseigné), une restauration de désastre laisserait la base avec un `pdf_path` pointant vers un **fichier absent** → consultation cassée. BIZ-216 doit donc **d'abord** ajouter un garde-fou « **régénérer le PDF si le fichier référencé est manquant** » (à la consultation / au téléchargement), indépendamment de `pdf_path`. Sans ce garde-fou, ne pas activer le filtre.
+
+**Dépendance** : TEC-209 (applique le filtre au miroir) + le garde-fou ci-dessus. **Statut** : **reporté** hors de la PR BK2 (208+209), à faire dans son propre lot. **Risque** : si un PDF non archivé régénéré diverge (template modifié), différence visuelle — acceptable car sans valeur légale ; à documenter côté utilisateur.
+
+**Tests** : régénération déclenchée quand le fichier manque même si `pdf_path` est défini ; avec le réglage activé, seuls les PDFs de factures archivées + uploads sont inclus dans le miroir ; les non-archivés sont exclus.
+
+### Lot ML — Mailing aux adhérents actifs
+
+#### TEC-210 — Backend : clients actifs + envoi groupé
+
+**Endpoint « clients actifs »** : `GET /api/contacts/active-clients?months=6` (Secrétaire+). Retourne les contacts `type ∈ {client, les_deux}`, `is_active`, ayant **au moins une adresse email** (primaire ou dans `contact.emails`), et pour lesquels il existe **une facture client** OU **un paiement** de date ≥ (aujourd'hui − X mois). Champs : `id`, `nom`, `prenom`, `email`, **date de dernière activité** = `max(dernière date de facture client, dernière date de paiement)` — **non nulle par construction** (l'actif exige au moins l'un des deux), donc utilisable par le front pour trier/afficher. Valider `months ≥ 1` (défaut 6). Implémenter via `EXISTS` (facture client `type=CLIENT` ; paiement par `Payment.contact_id` + `Payment.date`) pour éviter tout N+1.
+
+**Endpoint d'envoi groupé** : `POST /api/contacts/mailing` (Secrétaire+), payload `{ contact_ids: int[], subject, body }`. Pour chaque contact, envoyer **un email** adressé à son **email primaire** (`To`), avec les éventuelles adresses secondaires (`contact.emails`) en **`Cc`** — le membre le reçoit ainsi sur toutes ses adresses en un seul message, sans jamais exposer les autres destinataires (pas de BCC global). Si le contact n'a pas d'email primaire, utiliser la première adresse secondaire comme `To`. **Réutiliser une seule connexion SMTP** pour toute la campagne : ajouter à `email_service` une variante d'envoi en lot (ouvrir la session SMTP une fois et boucler) plutôt que `send_plain_email` qui rouvre une connexion par message. Personnalisation optionnelle `{prenom}` / `{nom}` dans sujet et corps. Journaliser via `record_audit`. Retour : récapitulatif `{ sent: int, failed: [{contact_id, error}] }`. Erreur explicite si SMTP non configuré (réutiliser `SmtpNotConfiguredError`/équivalent).
+
+**Notes perf/RAM** : envoi séquentiel sur une connexion ; pour de très longues listes, envisager une exécution en tâche de fond pour ne pas bloquer la requête (l'association a peu de contacts → synchrone acceptable au départ, à documenter).
+
+**Tests** : requête actifs (cutoff X mois, types client/les_deux, `is_active`, email requis, facture **OU** paiement) ; envoi (mock SMTP : succès, échecs partiels, personnalisation, SMTP non configuré → erreur).
+
+#### BIZ-217 — Frontend : assistant d'envoi en 3 étapes
+
+**Point d'entrée** : bouton « Email aux adhérents » dans l'en-tête de `ContactsView` (visible Secrétaire+).
+
+**Assistant** (dialog) en 3 étapes :
+1. **Période** : `InputNumber` « mois » (défaut 6, min 1) → appelle `GET /api/contacts/active-clients` et passe à l'étape 2.
+2. **Sélection** : table avec cases à cocher, **tous cochés par défaut**, colonnes nom + email ; désélection possible ; compteur « N sélectionnés » ; bouton Valider désactivé si 0.
+3. **Rédaction** : sujet + corps (`Textarea`) ; aide indiquant les placeholders `{prenom}`/`{nom}` si supportés ; bouton Envoyer → `POST /api/contacts/mailing` → toast récapitulatif (N envoyés, N échecs) + affichage des échecs éventuels.
+
+**Contraintes** : toutes les chaînes via i18n (`fr.ts`), aucun texte en dur ; respecter le design (composants `App*`, dialog plein écran sur mobile). 
+
+**Dépendance** : TEC-210. **Tests Vitest** : navigation entre étapes, sélection par défaut (tout coché), garde « 0 sélectionné », appel d'envoi avec les bons `contact_ids`.
 
 ### Lot RF — Refonte UI/UX
 
@@ -192,6 +290,14 @@ Nouveau `formatCurrency` dans `utils/format.ts` (EUR fr-FR, coercition des Decim
 #### BIZ-214 — Dédoublonnage Relancer / Envoyer
 
 `ClientInvoicesView` : pour une facture en retard, « Relancer » (action principale) et « Envoyer email » (menu) appelaient la même fonction. L'entrée de menu « Envoyer » est désormais omise quand « Relancer » est l'action principale.
+
+### BIZ-215 — Dashboard « À rapprocher » : compteur faux
+
+**Symptôme** : la file « À traiter » du tableau de bord affiche **212** opérations « À rapprocher », alors que l'écran Banque (relevé compte courant, filtre non-rapprochées) n'en montre que **2** réellement à traiter.
+
+**Cause réelle** : `to_reconcile_count` (introduit en TEC-198, `backend/services/dashboard_service.py`) comptait **toutes** les `BankTransaction` avec `reconciled == False`, **tous exercices confondus**. Or la vue Banque (`loadTransactions`) filtre par l'**exercice fiscal sélectionné** (`from_date`/`to_date`). Comme une transaction est `reconciled=False` par défaut tant qu'elle n'est pas appariée manuellement à un paiement, tout l'historique bancaire importé (exercices antérieurs, ex. compte épargne) gonflait le total : **212 tous exercices** vs **2 sur l'exercice courant**.
+
+**Correctif livré (2026-06-22)** : le compteur est désormais scopé à l'**exercice courant** (`get_current_fiscal_year`) — `reconciled == False` ET `date` dans `[start_date, end_date]` — pour s'aligner sur ce que montre l'écran Banque. Pas d'exclusion par catégorie (toutes les transactions doivent être rapprochées, confirmé). Si aucun exercice courant n'existe, repli sur le total (comme la vue Banque sans exercice sélectionné). Test d'intégration de régression ajouté (transaction hors-exercice exclue).
 
 ### BIZ-195 — Statut ARCHIVED — modèle, transitions, service, router, migration
 

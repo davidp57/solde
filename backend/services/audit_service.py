@@ -68,6 +68,7 @@ class AuditAction(StrEnum):
     CONTACT_DELETED = "contact.delete"
     CONTACT_CREANCE_DOUTEUSE = "contact.creance_douteuse"
     CONTACT_MERGED = "contact.merge"
+    MEMBER_MAILING_SENT = "contact.mailing.send"
     # Excel import
     IMPORT_EXECUTED = "import.run.execute"
     IMPORT_UNDONE = "import.run.undo"
