@@ -74,6 +74,22 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 
 ---
 
+### Lot BK2 — Optimisation de l'espace des backups (OneDrive)
+
+**Problème prod** : OneDrive (destination des backups) sature. À chaque run, le job de backup (`backup_scheduler`, assemblage des sources puis synchronisation des destinations) crée un dossier distant **horodaté** et y ré-envoie **tout `data/pdfs`**, sans **aucune purge distante** → une copie complète des PDFs s'accumule à chaque backup. Les PDFs sont en `data/pdfs/facture_<numéro>.pdf` (immuables, un par facture) et **majoritairement régénérables** (WeasyPrint), sauf les factures **archivées** (pièce légale) et les imports `data/uploads/` (.docx).
+
+**Mesuré sur la prod (`C:\Users\David\OneDrive\backups`, 2026-06-22)** : **32** backups horodatés quotidiens (11 mai → 13 juin), jamais purgés ; **3,94 Go** au total dont **3,42 Go (87 %) de PDFs** (21 340 fichiers) ; ~253 Mo par backup récent dont 240 Mo de PDFs (1 608 fichiers). Gains estimés : **TEC-208** (garder 5) → ~1,25 Go ; **TEC-209** (miroir PDF unique) → ~0,3 Go et ne croît plus que des nouveaux PDFs ; **BIZ-216** réduit encore le miroir.
+
+| ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
+| --- | --- | --- | --- | --- | --- | --- |
+| TEC-208 | Rétention distante des backups — purger les dossiers horodatés au-delà de 5 (OneDrive/SMB) | P1 | ~40 min | 2026-06-22 | | |
+| TEC-209 | Miroir PDF/uploads incrémental — dossier distant stable, « upload si absent » (fin de la duplication) | P1 | ~70 min | 2026-06-22 | | |
+| BIZ-216 | N'inclure que les PDFs non régénérables (factures archivées + uploads) ; régénérer le reste | P2 | ~50 min | 2026-06-22 | | |
+
+> Ordre conseillé : **TEC-208** d'abord (quick win, plafonne la croissance sur la structure actuelle), puis **TEC-209** (corrige la racine), puis **BIZ-216** (s'appuie sur le miroir de TEC-209). Rétention cible : **5** backups distants, aligné sur la rotation locale (`backup_service._rotate_backups`).
+
+---
+
 ### Hors lots
 
 | ID | Titre | Prio | Est. | Créé | Démarré | Terminé |
@@ -87,6 +103,45 @@ Constats de la revue détaillée de la PR #96 (réalisée à la place de Sourcer
 ---
 
 ## Détails
+
+### Lot BK2 — Optimisation de l'espace des backups (OneDrive)
+
+> **Portée de la rétention (à garder en tête pour TEC-208 et TEC-209)** : la purge ne vise **que les snapshots horodatés** `solde/backups/<timestamp>/`. Les **dossiers miroirs stables** introduits par TEC-209 (`solde/pdfs/`, `solde/uploads/`) sont **append-only** et ne sont **jamais** purgés — c'est précisément ce qui supprime la duplication sans perdre de PDF.
+
+#### TEC-208 — Rétention distante des backups (purge, garder 5)
+
+**But** : plafonner l'espace en supprimant les anciens **snapshots horodatés** côté distant, comme la rotation locale (`backup_service` garde 5 `.db`).
+
+**Approche** : étendre le service de destinations existant (`backup_destination_service`, qui sait déjà parler à chaque type de destination — OneDrive et SMB/local) avec une opération de purge `prune_remote_backups(dest, keep=5)` : pour une destination, énumérer les **dossiers de snapshot** sous `solde/backups/`, les trier par horodatage (le nom ISO `%Y-%m-%dT%H-%M-%S` se trie lexicographiquement) et supprimer ceux au-delà des **5** plus récents. L'invoquer depuis le job de backup après chaque synchronisation réussie. *(Les modalités exactes — Graph pour OneDrive, rclone pour le reste — restent un détail d'implémentation du service.)*
+
+**Notes** : indépendant, à livrer en premier (quick win sur la structure actuelle). Après TEC-209 les snapshots ne contiendront plus que la base (petits), mais la purge reste utile. Garde-fou : ne jamais supprimer le snapshot du run courant. Ne touche pas aux dossiers miroirs (cf. encadré ci-dessus).
+
+**Tests** : en mockant la couche destination, vérifier qu'on conserve exactement 5 snapshots et qu'on supprime le reste ; qu'avec ≤ 5 on ne supprime rien ; que les dossiers miroirs ne sont jamais ciblés.
+
+#### TEC-209 — Miroir PDF/uploads incrémental (fin de la duplication)
+
+**But** : ne plus dupliquer les PDFs à chaque run. Les envoyer une seule fois vers un dossier distant **stable**, en mode incrémental.
+
+**Approche** :
+- Dans le job de backup, **retirer `data/pdfs` et `data/uploads`** de l'assemblage des sources du snapshot horodaté : le snapshot ne contient plus que la base (+ métadonnées).
+- Ajouter au service de destinations une synchro incrémentale `mirror_dir_incremental(dest, local_dir, remote_dir)` vers un dossier distant **stable** (`solde/pdfs/`, `solde/uploads/`) : n'envoyer que les fichiers **absents** côté distant (les PDFs sont immuables, nom `facture_<num>.pdf` stable → comparaison par nom, et par taille en garde-fou). **Append-only**, jamais purgé.
+- Appeler le miroir depuis le job, en plus du snapshot de base horodaté.
+
+**Restauration** : adapter le service de restauration pour récupérer les PDFs/uploads depuis les **dossiers miroirs** (et non depuis le snapshot). **Documenter** le nouveau format de restauration.
+
+**Dépendance** : précède BIZ-216. **Risque** : bien couvrir la restauration (les PDFs ne sont plus dans le snapshot).
+
+**Tests** : diff distant vs local → seuls les nouveaux fichiers sont envoyés ; un 2ᵉ run sans nouveau PDF n'envoie rien.
+
+#### BIZ-216 — N'inclure que les PDFs non régénérables
+
+**But** : réduire encore le volume en ne sauvegardant que ce qui n'est **pas** régénérable : PDFs de factures **archivées** (`status=ARCHIVED`, valeur légale) + `data/uploads/` (.docx importés). Les PDFs de factures non archivées sont régénérables à la demande (le flux d'archivage régénère déjà le PDF d'une facture quand il est absent, via `pdf_service`).
+
+**Approche** : au moment du miroir (TEC-209), filtrer `data/pdfs` selon le statut de la facture liée (ne garder que les archivées). Réglage **« Sauvegarder uniquement les PDFs non régénérables »** dans Paramètres › Sauvegardes (**off par défaut** par prudence).
+
+**Dépendance** : TEC-209 (applique le filtre au miroir). **Risque** : si un PDF non archivé n'est pas sauvegardé et que la régénération diverge (template modifié), différence visuelle — acceptable car sans valeur légale ; à documenter côté utilisateur.
+
+**Tests** : avec le réglage activé, seuls les PDFs de factures archivées + uploads sont inclus ; les non-archivés sont exclus.
 
 ### Lot RF — Refonte UI/UX
 
