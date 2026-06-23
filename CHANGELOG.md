@@ -11,6 +11,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **TEC-210** (Lot ML) — API d'envoi groupé d'emails aux **adhérents (clients) actifs** : `GET /api/contacts/active-clients?months=N` (clients/les_deux actifs, avec email, ayant une facture client OU un paiement dans les N derniers mois ; défaut 6) et `POST /api/contacts/mailing` (un email individuel par contact sur **une seule connexion SMTP**, adresses secondaires en `Cc`, placeholders `{prenom}`/`{nom}`, récap envoyés/échecs, journalisé). Accès Secrétaire+. *(Interface : BIZ-217.)*
+
 ### Technique
 - **TEC-209** (Lot BK2) — Miroir incrémental des PDFs/pièces jointes : `data/pdfs` (et `data/uploads` si activé) ne sont plus rebundlés dans chaque snapshot horodaté mais synchronisés vers un **dossier distant stable** en mode « envoyer si absent » (OneDrive via Graph : diff par nom + taille ; rclone : `copy` incrémental natif). Fin de la duplication des PDFs à chaque backup. La restauration (base seule) est inchangée ; les PDFs vivent dans le dossier miroir pour la reprise
 - **TEC-208** (Lot BK2) — Rétention distante des backups : après chaque synchronisation réussie, les **snapshots horodatés** au-delà des **5 plus récents** sont purgés sur chaque destination (OneDrive via Graph, autres via rclone). Plafonne l'espace occupé sur OneDrive (croissance jusque-là illimitée). Purge best-effort (n'échoue jamais le backup) ; ne touche qu'aux dossiers `YYYY-MM-DDTHH-MM-SS`, jamais aux futurs dossiers miroirs

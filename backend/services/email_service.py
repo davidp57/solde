@@ -5,6 +5,7 @@ import ssl
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import TypedDict
 
 
 class EmailConfigError(Exception):
@@ -182,3 +183,69 @@ def send_plain_email(
                 server.send_message(msg)
     except (smtplib.SMTPException, OSError) as exc:
         raise EmailSendError(f"Failed to send plain email: {exc}") from exc
+
+
+class BulkEmailMessage(TypedDict):
+    to: str
+    cc: list[str]
+    subject: str
+    body: str
+    ref: int
+
+
+class BulkEmailFailure(TypedDict):
+    ref: int
+    error: str
+
+
+def send_bulk_emails(
+    *,
+    host: str,
+    port: int,
+    user: str | None,
+    password: str | None,
+    use_tls: bool,
+    from_email: str,
+    messages: list[BulkEmailMessage],
+) -> list[BulkEmailFailure]:
+    """Send many plain-text emails over a **single** SMTP connection.
+
+    Each message is sent to ``to`` with ``cc`` in copy. ``ref`` is echoed back
+    on failure so the caller can map it to a contact.
+
+    Returns the list of per-message failures. Raises EmailConfigError if the
+    host is missing, EmailSendError if the connection (or login) itself fails.
+    """
+    if not host:
+        raise EmailConfigError("SMTP host is not configured")
+
+    failures: list[BulkEmailFailure] = []
+    try:
+        if use_tls:
+            ctx = ssl.create_default_context()
+            server = smtplib.SMTP(host, port, timeout=30)
+            server.ehlo()
+            server.starttls(context=ctx)
+        else:
+            server = smtplib.SMTP(host, port, timeout=30)
+        with server:
+            if user and password:
+                server.login(user, password)
+            for message in messages:
+                to_email = message["to"]
+                cc_list = list(message["cc"])
+                msg = MIMEMultipart()
+                msg["From"] = from_email
+                msg["To"] = to_email
+                if cc_list:
+                    msg["Cc"] = ", ".join(cc_list)
+                msg["Subject"] = message["subject"]
+                msg.attach(MIMEText(message["body"], "plain", "utf-8"))
+                try:
+                    server.send_message(msg, to_addrs=[to_email, *cc_list])
+                except smtplib.SMTPException as exc:
+                    failures.append({"ref": message["ref"], "error": str(exc)})
+    except (smtplib.SMTPException, OSError) as exc:
+        raise EmailSendError(f"SMTP connection failed: {exc}") from exc
+
+    return failures
