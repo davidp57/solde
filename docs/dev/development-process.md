@@ -25,7 +25,7 @@ The backend reads the version at runtime via `importlib.metadata.version("solde"
 
 ### 1. Pick a ticket
 
-Consult `doc/backlog.md`. Pick a ticket from the active lots or the "Hors lots" section. Mark it as started (add a `Démarré` date).
+Consult the per-lot backlog under [`.backlog/`](../../.backlog/README.md) (index: `.backlog/README.md`). Pick a ticket from an active lot's `tickets/`. Mark it as started (set its `Status:` to 🔄 in-progress).
 
 ### 2. Branch
 
@@ -67,7 +67,7 @@ All checks must be green. Fix everything before pushing.
 ### 5. Update documentation
 
 - `CHANGELOG.md` — add entries under `[Non publié]`
-- `doc/backlog.md` — mark ticket as completed, add `Terminé` date
+- `.backlog/<LOT-ID>/` — set the ticket's `Status:` to ✅ done; update `.backlog/README.md`
 - Bump `version` in `pyproject.toml` and `frontend/package.json` (patch increment)
 
 ### 6. Push and open PR
@@ -82,12 +82,17 @@ Open a PR against `develop`. Title and description in English, following Convent
 
 ## Backlog management
 
-`doc/backlog.md` is the single source of truth for all tracked work items.
+The per-lot [`.backlog/`](../../.backlog/README.md) directory is the source of truth for
+**scope + status** of all tracked work items (sequencing lives in [roadmap.md](./roadmap.md)).
+Active lots are directories `.backlog/<LOT-ID>/` (`PRD.md` + `tickets/NN-slug.md`); completed
+lots are compacted into `.backlog/archive/<LOT-ID>.md`. See
+[`../agents/issue-tracker.md`](../agents/issue-tracker.md) for the full convention.
 
-- Add new tickets immediately when a task is identified.
-- Use prefixes: `BIZ-NNN` (business feature), `TEC-NNN` (technical), `CHR-NNN` (chore).
-- Group related tickets into named lots with a target version.
-- Move completed tickets to the "Lots terminés" section with a completion date.
+- Add new tickets immediately when a task is identified (new lot dir, or a ticket in an active lot).
+- Use prefixes: `BIZ-NNN` (business feature), `TEC-NNN` (technical), `CHR-NNN` (chore). The `NN-`
+  file prefix is only for dependency ordering inside a lot.
+- Group related tickets into a named lot with a target version; add a row to `.backlog/README.md`.
+- A lot closed > 3 days is compacted into `.backlog/archive/<LOT-ID>.md`.
 
 ---
 

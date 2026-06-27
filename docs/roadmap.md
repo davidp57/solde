@@ -3,6 +3,9 @@
 
 > Last updated: 2026-05-11 — active branch `develop` — current version: 1.7.0 (PR open)
 
+> This roadmap is the source of truth for **sequencing** (what ships in which version).
+> For per-lot **scope + status**, see the backlog: [`.backlog/README.md`](../.backlog/README.md).
+
 ---
 
 ## Version overview
@@ -346,7 +349,7 @@ Ajouter une section d'index dans le manuel utilisateur listant les cas d'usage p
 
 ## v1.8 — Lot RF — UI/UX redesign + dark mode ✅ Released 2026-06-21
 
-Source: `design_handoff_solde_refonte-v2/` (Claude Design handoff, supersedes v1, adds the responsive track). Not a cosmetic theme — a rework of **information hierarchy**, **consolidation of duplicated components**, and **mobile/tablet/desktop adaptation**, within the Solde identity (Manrope, emerald, slate surfaces). Delivery order advised by the designer: shared `InvoiceWorkspace` first (removes the most duplication), then dark mode (theme store + tokens), then dashboard and admin screens, finally the cross-cutting responsive layer. See backlog Lot RF for the full ticket breakdown.
+Source: `design_handoff_solde_refonte-v2/` (Claude Design handoff, supersedes v1, adds the responsive track). Not a cosmetic theme — a rework of **information hierarchy**, **consolidation of duplicated components**, and **mobile/tablet/desktop adaptation**, within the Solde identity (Manrope, emerald, slate surfaces). Delivery order advised by the designer: shared `InvoiceWorkspace` first (removes the most duplication), then dark mode (theme store + tokens), then dashboard and admin screens, finally the cross-cutting responsive layer. See [`.backlog/archive/RF.md`](../.backlog/archive/RF.md) for the full ticket breakdown.
 
 ### Invoices — shared workspace (TEC-193, TEC-194, BIZ-206)
 `ClientInvoicesView` and `SupplierInvoicesView` currently duplicate KPIs, toolbar, `DataTable`, the `statusSeverity` helper, and the payment dialog. New `InvoiceWorkspace.vue` (props: type, columns, contextual primary action + overflow `⋯` menu, funnel KPI) backs both screens, with a shared `InvoiceStatusBadge`, quick-filter segments, advanced filters collapsed, and a table footer with selection total.

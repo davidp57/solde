@@ -47,7 +47,7 @@ RUN mkdir -p backend && touch backend/__init__.py \
 # Copy backend source
 COPY backend/ ./backend/
 COPY alembic.ini ./
-COPY doc/ ./doc/
+COPY docs/ ./docs/
 
 
 # Copy built Vue.js frontend from stage 1
