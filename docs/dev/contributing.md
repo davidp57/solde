@@ -166,7 +166,7 @@ cd frontend && npx eslint src/ --fix   # JS/TS auto-fix
 3. PR title follows the same Conventional Commits format.
 4. PR description in **English**: summary of changes, breaking changes if any, migration notes if any.
 5. Update `CHANGELOG.md` under `[Non publié]` with the relevant entries.
-6. Update `doc/backlog.md` to mark the ticket as completed.
+6. Update the lot's ticket under `.backlog/<LOT-ID>/` (set `Status:` to ✅ done) and `.backlog/README.md`.
 7. Bump the patch version in `pyproject.toml` and `frontend/package.json`.
 
 ---
@@ -207,7 +207,7 @@ cd frontend && npx eslint src/ --fix   # JS/TS auto-fix
 - [ ] Add or update i18n keys in `frontend/src/i18n/fr.ts`
 - [ ] Run the full quality gate
 - [ ] Update `CHANGELOG.md`
-- [ ] Update `doc/backlog.md`
+- [ ] Update `.backlog/` (ticket status + `.backlog/README.md`)
 - [ ] Bump patch version
 
 ---
