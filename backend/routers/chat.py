@@ -37,8 +37,8 @@ _AnyUserRequired = Annotated[
 _AdminRequired = Annotated[User, Depends(require_role(UserRole.ADMIN))]
 
 _SETTINGS_ID = 1
-_MANUEL_PATH = Path(__file__).resolve().parents[2] / "doc" / "user" / "manuel.md"
-_CHANGELOG_USER_PATH = Path(__file__).resolve().parents[2] / "doc" / "user" / "changelog-user.md"
+_MANUEL_PATH = Path(__file__).resolve().parents[2] / "docs" / "user" / "manuel.md"
+_CHANGELOG_USER_PATH = Path(__file__).resolve().parents[2] / "docs" / "user" / "changelog-user.md"
 
 
 @router.get("/chat/config", response_model=ChatConfig)
