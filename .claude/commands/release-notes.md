@@ -18,8 +18,8 @@ STRICTLY execute the steps below **one at a time**, waiting for the developer's 
 - Tags: `vX.Y.Z` (e.g. `v1.8.0`), pushed by the developer **manually after the PR is merged to `main`**. (No tag-triggered CI release is assumed — if one is later added, document it here.)
 - **Two version files must stay in sync**: `pyproject.toml` (backend) and `frontend/package.json` (frontend).
 - Human-facing documents (both **French**):
-  - `doc/releases/vX.Y.Z.md` — release notes for this version (theme/feature-oriented).
-  - `doc/user/changelog-user.md` — user-visible changes, structured **by role**.
+  - `docs/releases/vX.Y.Z.md` — release notes for this version (theme/feature-oriented).
+  - `docs/user/changelog-user.md` — user-visible changes, structured **by role**.
 - `CHANGELOG.md` — Keep a Changelog format, French (`[Non publié]` → `[x.y.z] — YYYY-MM-DD`).
 - Application roles (use their French display names in user docs): **Lecture seule, Secrétaire, Trésorier, Administrateur**.
 - Commit/PR trailers: follow repo convention (Conventional Commits in English; keep the project's required `Co-Authored-By` trailer on commits and the PR-body footer).
@@ -29,7 +29,7 @@ STRICTLY execute the steps below **one at a time**, waiting for the developer's 
 ## Step 1 — Source change analysis
 
 1. Read the `[Non publié]` section of `CHANGELOG.md` to extract the raw list of changes.
-2. Cross-check completeness against `git log <last vX.Y.Z tag>..HEAD --oneline` and `doc/backlog.md` (tickets marked done since the last release). Surface anything in git/backlog that is missing from the changelog.
+2. Cross-check completeness against `git log <last vX.Y.Z tag>..HEAD --oneline` and `.backlog/README.md` (tickets marked done since the last release). Surface anything in git/backlog that is missing from the changelog.
 3. Propose a version number following **SemVer** (MAJOR breaking / MINOR new features / PATCH fixes) with a one-line rationale.
 4. **Ask the developer to confirm the version number before any change.** Wait.
 
@@ -44,14 +44,14 @@ Ask these questions **one by one**, waiting for each answer:
 
 1. **Filter out internal noise**: refactors, test moves/additions, CI/lint plumbing, version bumps, doc-only changes — keep only what impacts users (or, for the technical appendix, what a maintainer needs).
 2. Produce **two artifacts**, grouped by theme/feature (not a flat ticket dump):
-   - **`doc/releases/vX.Y.Z.md`** — structure:
+   - **`docs/releases/vX.Y.Z.md`** — structure:
      - `# Release vX.Y.Z — <date FR>`
      - `## Résumé` (2–4 sentences: the theme from Step 2)
      - one `##`/`###` section per theme/feature (plain language, the *why* and the *what changed* for the user)
      - `## ⚠️ Ruptures & migrations` (only if any, from Step 2 — be explicit and actionable)
      - `## Versions` table (Backend `pyproject.toml` / Frontend `package.json`)
      - optional `## Périmètre technique` — condensed, for maintainers (key files/areas), not a commit list
-   - **`doc/user/changelog-user.md`** — prepend a new chapter:
+   - **`docs/user/changelog-user.md`** — prepend a new chapter:
      - `## Version x.y.z — <date FR>`
      - sub-sections by role: `### Tous les utilisateurs`, then `### Secrétaire`, `### Trésorier`, `### Administrateur` (only the roles that have changes)
      - plain French, no ticket IDs, no file paths — what the person sees and can now do
@@ -60,10 +60,10 @@ Ask these questions **one by one**, waiting for each answer:
 ## Step 4 — Administrative closure (after validation)
 
 Apply, in order:
-1. Write the validated content into `doc/releases/vX.Y.Z.md` and `doc/user/changelog-user.md`.
+1. Write the validated content into `docs/releases/vX.Y.Z.md` and `docs/user/changelog-user.md`.
 2. **CHANGELOG**: replace the `[Non publié]` heading with `[x.y.z] — YYYY-MM-DD` (today), and add a fresh empty `## [Non publié]` scaffold above it.
 3. **Bump both version files** to `x.y.z`: `pyproject.toml` **and** `frontend/package.json`.
-4. Update `doc/backlog.md` (mark the release ticket done, dates) and `doc/roadmap.md` (move the lot to completed) if applicable.
+4. Update `.backlog/README.md` (mark the release ticket done, dates) and `docs/roadmap.md` (move the lot to completed) if applicable.
 
 ## Step 5 — Git operations (with confirmation gates)
 
@@ -89,10 +89,10 @@ Apply, in order:
 
 - [ ] Version confirmed and identical in `pyproject.toml` and `frontend/package.json`.
 - [ ] `CHANGELOG.md` `[Non publié]` frozen to `[x.y.z] — date`, fresh empty `[Non publié]` added.
-- [ ] `doc/releases/vX.Y.Z.md` written (human, theme-oriented, FR).
-- [ ] `doc/user/changelog-user.md` chapter added (by role, FR) for every user-visible change.
+- [ ] `docs/releases/vX.Y.Z.md` written (human, theme-oriented, FR).
+- [ ] `docs/user/changelog-user.md` chapter added (by role, FR) for every user-visible change.
 - [ ] `README.md` (FR + EN) updated if user-facing behaviour or setup changed.
 - [ ] Ruptures & migrations documented (Alembic, `.env`, data, RAM budget) if any.
 - [ ] Full quality gate green (backend + frontend).
-- [ ] `doc/backlog.md` / `doc/roadmap.md` updated.
+- [ ] `.backlog/README.md` / `docs/roadmap.md` updated.
 - [ ] PR `release/x.y.z → main` created (URL reported); merge + tag left to the developer.

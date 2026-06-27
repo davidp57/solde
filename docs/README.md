@@ -15,8 +15,10 @@ Bienvenue dans la documentation de Solde.
 
 ### Documents transversaux
 
-- [Backlog](./backlog.md) — Suivi des tickets et lots en cours
-- [Roadmap](./roadmap.md) — Plan de livraison par version
+- [Backlog](../.backlog/README.md) — Suivi des tickets et lots (scope + statut), par lot
+- [Roadmap](./roadmap.md) — Plan de livraison par version (séquencement)
+- [Config skills agent](./agents/) — Issue tracker, triage, domaine
+- [ADR](./adr/) — Décisions d'architecture
 
 ---
 
@@ -31,5 +33,7 @@ Bienvenue dans la documentation de Solde.
 
 ### Cross-cutting documents
 
-- [Backlog](./backlog.md) — Tickets and work items
-- [Roadmap](./roadmap.md) — Delivery plan by version
+- [Backlog](../.backlog/README.md) — Tickets and work items (scope + status), per lot
+- [Roadmap](./roadmap.md) — Delivery plan by version (sequencing)
+- [Agent-skill config](./agents/) — Issue tracker, triage, domain
+- [ADR](./adr/) — Architecture decision records

@@ -11,6 +11,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Technique
+- **Restructuration du backlog** — passage du backlog monolithique `doc/backlog.md` (+ archive) à une structure **par lot** sous `.backlog/` : un dossier `PRD.md` + `tickets/NN-slug.md` par lot actif, archives compactes par lot, index `.backlog/README.md`. Câblage (sans fork) des skills d'ingénierie `/to-prd` · `/to-issues` · `/triage` via `docs/agents/*`. Vocabulaire de statut unique (⬜ 🔄 🧑 ✅ 🚫). Décision actée dans `docs/adr/0001-backlog-restructure.md`
+- **Renommage `doc/` → `docs/`** — alignement sur la convention usuelle. Chemins runtime mis à jour (manuel/changelog servis par le chatbot), `Dockerfile`, `README.md` et docs de process. `CHANGELOG.md` conservé tel quel (ledger historique)
+
 ## [1.8.1] — 2026-06-23
 
 ### Ajouté

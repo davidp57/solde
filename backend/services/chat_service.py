@@ -22,12 +22,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _SETTINGS_ID = 1
-_DOC_ROOT = Path(__file__).resolve().parents[2] / "doc"
+_DOC_ROOT = Path(__file__).resolve().parents[2] / "docs"
 
 
 @lru_cache(maxsize=1)
 def _load_system_prompt() -> str:
-    """Load and cache the system prompt from doc/llm/reference.md + doc/user/manuel.md."""
+    """Load and cache the system prompt from docs/llm/reference.md + docs/user/manuel.md."""
     parts: list[str] = []
     for path in (_DOC_ROOT / "llm" / "reference.md", _DOC_ROOT / "user" / "manuel.md"):
         if path.exists():
