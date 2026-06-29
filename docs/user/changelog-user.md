@@ -4,7 +4,7 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
-## Version 1.8.2 — à venir
+## Version 1.9.0 — 29 juin 2026
 
 ### Tous les utilisateurs
 

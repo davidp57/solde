@@ -33,8 +33,9 @@
 | **1.7** | Lot BK — automated backup (BIZ-173–184) | 🔧 In progress (PR #85) |
 | **1.8** | Lot RF — UI/UX redesign (dashboard, invoices, admin) + dark mode + responsive | ✅ Released 2026-06-21 |
 | **1.8.1** | Lot BK2 (backup retention + incremental mirror) · Lot ML (member mailing) · dashboard "to reconcile" fix | ✅ Released 2026-06-23 |
+| **1.9.0** | Lot RELANCES (invoice reminders) · Lot TABLE-FIT (table horizontal scroll) · Lot EDIT-OPS (manual bank ops guard) · Lot BK3 (non-regenerable PDF backups) | 🔧 Release PR (→ main) |
 
-Test suite: **1090 backend + 148 frontend Vitest — 0 failures.**
+Test suite: **1163 backend + 197 frontend Vitest — 0 failures.**
 
 ---
 
