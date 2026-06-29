@@ -1,6 +1,6 @@
 # Lot BK3 — Backups : ne sauvegarder que les PDFs non régénérables
 
-Status: ⬜ ready
+Status: 🔄 in-progress
 Branch: fix/bk3-nonregenerable-pdf-backups → PR → develop
 
 ## Problem Statement
@@ -61,3 +61,10 @@ Deux livrables séquentiels :
 
 Issu de BIZ-216, reporté hors de la PR BK2 (TEC-208/209) faute du garde-fou ci-dessus.
 Voir l'archive [`../archive/BK2.md`](../archive/BK2.md).
+
+**Constat à l'implémentation (2026-06-29) :** le garde-fou TEC-211 était **déjà couvert**
+par l'existant — `GET /{id}/pdf` régénère toujours pour les factures non archivées et
+régénère en repli quand le PDF figé d'une archivée est absent. TEC-211 s'est donc réduit à
+**verrouiller cet invariant par un test** (pas de changement de comportement, pas
+d'optimisation « servir le fichier si présent » qui aurait exigé d'invalider le PDF à
+l'édition). BIZ-216 (filtre du miroir + réglage) est le livrable principal du lot.

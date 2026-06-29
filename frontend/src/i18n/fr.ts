@@ -1191,6 +1191,9 @@ export default {
     backup_daily_time_help: 'Heure locale au format 24h, ex : 02:00',
     backup_include_uploads: 'Inclure les pièces jointes (uploads)',
     backup_include_all_backups: "Inclure tous les fichiers de sauvegarde précédents (sinon, dernier snapshot uniquement)",
+    backup_pdfs_only_archived: 'Sauvegarder uniquement les PDFs non régénérables',
+    backup_pdfs_only_archived_desc:
+      "Ne conserve dans le miroir distant que les PDFs des factures archivées (valeur légale) et les pièces importées. Les PDFs des factures non archivées sont régénérés à la demande. Attention : un PDF régénéré peut différer visuellement si le modèle a changé (sans valeur légale).",
     backup_notify_on_failure: "M'alerter par e-mail en cas d'échec",
     backup_status_title: 'Statut',
     backup_last_run: 'Dernier run :',

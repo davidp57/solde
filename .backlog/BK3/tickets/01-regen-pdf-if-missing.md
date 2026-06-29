@@ -1,6 +1,6 @@
 # TEC-211 — Garde-fou : régénérer le PDF d'une facture si le fichier est manquant
 
-Status: ⬜ ready
+Status: 🔄 in-progress
 Type: feat
 Files: `backend/services/pdf_service.py`, `backend/services/invoice.py`, `backend/routers/invoice.py`, `tests/unit/`, `tests/integration/`
 
