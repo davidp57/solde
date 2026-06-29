@@ -1,7 +1,7 @@
 <template>
   <Dialog
     v-model:visible="visible"
-    :header="t('invoices.email_dialog_title')"
+    :header="props.kind === 'reminder' ? t('invoices.reminder_dialog_title') : t('invoices.email_dialog_title')"
     modal
     class="app-dialog app-dialog--large"
     :style="{ width: 'min(95vw, 1180px)' }"
@@ -117,13 +117,14 @@ import InputText from 'primevue/inputtext'
 import Skeleton from 'primevue/skeleton'
 import Textarea from 'primevue/textarea'
 import {
+  type EmailKind,
   downloadInvoicePdfApi,
   getInvoiceEmailPreviewApi,
   sendInvoiceEmailApi,
 } from '@/api/invoices'
 import { useBreakpoints } from '@/composables/useBreakpoints'
 
-const props = defineProps<{ invoiceId: number | null }>()
+const props = defineProps<{ invoiceId: number | null; kind?: EmailKind }>()
 const emit = defineEmits<{
   sent: []
   close: []
@@ -157,7 +158,7 @@ watch(
     revokePdfUrl()
 
     try {
-      const preview = await getInvoiceEmailPreviewApi(id)
+      const preview = await getInvoiceEmailPreviewApi(id, props.kind ?? 'initial')
       subject.value = preview.subject
       body.value = preview.body
       recipients.value = preview.recipients
@@ -196,6 +197,7 @@ async function send(): Promise<void> {
       subject: subject.value,
       body: body.value,
       recipients: selectedRecipients.value,
+      kind: props.kind ?? 'initial',
     })
     toast.add({ severity: 'success', summary: t('invoices.email_sent'), life: 3000 })
     visible.value = false

@@ -83,6 +83,100 @@ class _SafeFormatMap(dict):  # type: ignore[type-arg]
         return f"{{{key}}}"
 
 
+# --- Reminder (dunning) emails -------------------------------------------------
+# Distinct from the initial invoice send. Two variants are selected from the
+# reminder history: "first" (never reminded) and "next" (already reminded).
+
+_DEFAULT_REMINDER_FIRST_SUBJECT = "Rappel — facture {invoice_ref} en attente de règlement"
+_DEFAULT_REMINDER_FIRST_BODY = (
+    "Bonjour,\n\n"
+    "Sauf erreur de notre part, la facture {invoice_ref} d'un montant de {montant_du} € "
+    "(échéance du {echeance}) demeure impayée à ce jour.\n\n"
+    "Nous vous remercions de bien vouloir procéder à son règlement.\n\n"
+    "Cordialement,\n{association_name}"
+)
+_DEFAULT_REMINDER_NEXT_SUBJECT = "Nouvelle relance — facture {invoice_ref} impayée"
+_DEFAULT_REMINDER_NEXT_BODY = (
+    "Bonjour,\n\n"
+    "Malgré notre précédent rappel (dernière relance le {derniere_relance}), la facture "
+    "{invoice_ref} d'un montant de {montant_du} € (échéance du {echeance}) reste impayée.\n\n"
+    "Nous vous remercions de régulariser votre situation dans les meilleurs délais.\n\n"
+    "Cordialement,\n{association_name}"
+)
+
+
+def _reminder_format(
+    template: str,
+    *,
+    invoice_number: str,
+    description: str | None,
+    association_name: str,
+    amount_due: str,
+    due_date: str,
+    last_reminder: str,
+    reminder_count: int,
+) -> str:
+    invoice_ref = f"{invoice_number} — {description}" if description else invoice_number
+    return template.format_map(
+        _SafeFormatMap(
+            invoice_number=invoice_number,
+            description=description or "",
+            association_name=association_name,
+            invoice_ref=invoice_ref,
+            montant_du=amount_due,
+            echeance=due_date,
+            derniere_relance=last_reminder,
+            nombre_de_relances=reminder_count,
+        )
+    )
+
+
+def compose_reminder(
+    *,
+    reminder_count: int,
+    invoice_number: str,
+    description: str | None,
+    association_name: str,
+    amount_due: str,
+    due_date: str,
+    last_reminder: str,
+    first_subject_template: str | None = None,
+    first_body_template: str | None = None,
+    next_subject_template: str | None = None,
+    next_body_template: str | None = None,
+) -> tuple[str, str]:
+    """Compose a reminder ``(subject, body)`` for an overdue invoice.
+
+    ``reminder_count`` is the number of reminders already sent (0 → first
+    reminder, ≥1 → follow-up). The matching configured template is used, or a
+    built-in default when it is ``None``/empty. Reminder variables
+    (``{montant_du}``, ``{echeance}``, ``{derniere_relance}``,
+    ``{nombre_de_relances}``) and the invoice variables of the initial email are
+    available; unknown keys are left as-is.
+    """
+    is_first = reminder_count == 0
+    if is_first:
+        subject_tpl = first_subject_template or _DEFAULT_REMINDER_FIRST_SUBJECT
+        body_tpl = first_body_template or _DEFAULT_REMINDER_FIRST_BODY
+    else:
+        subject_tpl = next_subject_template or _DEFAULT_REMINDER_NEXT_SUBJECT
+        body_tpl = next_body_template or _DEFAULT_REMINDER_NEXT_BODY
+
+    def _fmt(template: str) -> str:
+        return _reminder_format(
+            template,
+            invoice_number=invoice_number,
+            description=description,
+            association_name=association_name,
+            amount_due=amount_due,
+            due_date=due_date,
+            last_reminder=last_reminder,
+            reminder_count=reminder_count,
+        )
+
+    return _fmt(subject_tpl), _fmt(body_tpl)
+
+
 def send_invoice_email(
     *,
     smtp_host: str,

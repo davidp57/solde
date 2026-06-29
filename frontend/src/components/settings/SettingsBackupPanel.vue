@@ -79,6 +79,16 @@
         </template>
       </AppSettingRow>
 
+      <AppSettingRow
+        :label="t('settings.backup_pdfs_only_archived')"
+        :description="t('settings.backup_pdfs_only_archived_desc')"
+        html-for="backup_pdfs_only_archived"
+      >
+        <template #control>
+          <ToggleSwitch id="backup_pdfs_only_archived" v-model="schedule.pdfs_only_archived" @change="saveSchedule" />
+        </template>
+      </AppSettingRow>
+
       <AppSettingRow :label="t('settings.backup_notify_on_failure')" html-for="backup_notify_on_failure">
         <template #control>
           <ToggleSwitch id="backup_notify_on_failure" v-model="schedule.notify_on_failure" @change="saveSchedule" />
@@ -544,6 +554,7 @@ const schedule = reactive<BackupSchedule>({
   daily_time: '02:00',
   include_uploads: true,
   include_all_backups: false,
+  pdfs_only_archived: false,
   notify_on_failure: false,
 })
 

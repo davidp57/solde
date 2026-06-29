@@ -20,12 +20,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
 from backend.errors import api_error, conflict, not_found, unprocessable
+from backend.models.app_settings import AppSettings
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.invoice import (
     BulkArchiveRequest,
     BulkArchiveResult,
+    EmailKind,
     InvoiceCreate,
     InvoiceEmailPreview,
     InvoiceEmailSendRequest,
@@ -47,6 +49,39 @@ from backend.services.invoice import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
+
+
+def _compose_reminder_email(invoice: Invoice, app_settings: AppSettings) -> tuple[str, str]:
+    """Build the ``(subject, body)`` of a reminder email for *invoice*.
+
+    Selects the first vs follow-up template from the reminder history and
+    resolves the dunning variables (amounts/dates formatted FR).
+    """
+    from backend.services import email_service  # noqa: PLC0415
+
+    reminder_dates = invoice.reminder_dates or []
+    last_reminder = ""
+    if reminder_dates:
+        last_iso = max(reminder_dates)
+        try:
+            last_reminder = date.fromisoformat(last_iso).strftime("%d/%m/%Y")
+        except ValueError:
+            last_reminder = last_iso
+    amount_due = invoice.total_amount - invoice.paid_amount
+    return email_service.compose_reminder(
+        reminder_count=len(reminder_dates),
+        invoice_number=invoice.number,
+        description=invoice.description,
+        association_name=app_settings.association_name,
+        amount_due=f"{amount_due:.2f}".replace(".", ","),
+        due_date=invoice.due_date.strftime("%d/%m/%Y") if invoice.due_date else "",
+        last_reminder=last_reminder,
+        first_subject_template=app_settings.reminder_first_subject_template,
+        first_body_template=app_settings.reminder_first_body_template,
+        next_subject_template=app_settings.reminder_next_subject_template,
+        next_body_template=app_settings.reminder_next_body_template,
+    )
+
 
 _WriteAccess = Annotated[
     User,
@@ -443,8 +478,13 @@ async def get_invoice_email_preview(
     invoice_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _ReadAccess,
+    kind: Annotated[EmailKind, Query()] = "initial",
 ) -> InvoiceEmailPreview:
-    """Return the pre-composed email subject, body and recipient for an invoice."""
+    """Return the pre-composed email subject, body and recipient for an invoice.
+
+    ``kind="reminder"`` pre-fills a dunning email (first or follow-up template);
+    ``kind="initial"`` (default) pre-fills the initial invoice email.
+    """
     from sqlalchemy import select  # noqa: PLC0415
 
     from backend.models.contact import Contact  # noqa: PLC0415
@@ -477,21 +517,23 @@ async def get_invoice_email_preview(
     if not recipients:
         raise unprocessable("CONTACT_NO_EMAIL", "Contact has no email address")
 
-    return InvoiceEmailPreview(
-        recipients=recipients,
-        subject=email_service.compose_subject(
+    if kind == "reminder":
+        subject, body = _compose_reminder_email(invoice, app_settings)
+    else:
+        subject = email_service.compose_subject(
             invoice.number,
             invoice.description,
             app_settings.association_name,
             template=app_settings.email_subject_template,
-        ),
-        body=email_service.compose_body(
+        )
+        body = email_service.compose_body(
             invoice.number,
             invoice.description,
             app_settings.association_name,
             template=app_settings.email_body_template,
-        ),
-    )
+        )
+
+    return InvoiceEmailPreview(recipients=recipients, subject=subject, body=body)
 
 
 @router.post("/{invoice_id}/send-email", status_code=status.HTTP_204_NO_CONTENT)
@@ -584,10 +626,12 @@ async def send_invoice_email(
             status.HTTP_502_BAD_GATEWAY, "EMAIL_DELIVERY_FAILED", f"Email delivery failed: {exc}"
         ) from exc
 
-    # Auto-transition draft → sent
-    from backend.models.invoice import InvoiceStatus  # noqa: PLC0415
-
-    if invoice.status == InvoiceStatus.DRAFT:
+    if payload.kind == "reminder":
+        # Record the reminder in the invoice history (success only).
+        invoice_service.record_reminder_sent(invoice, date.today())
+        await db.flush()
+    elif invoice.status == InvoiceStatus.DRAFT:
+        # Auto-transition draft → sent on the initial send.
         await invoice_service.update_invoice_status(db, invoice, InvoiceStatus.SENT)
     await record_audit(
         db,
@@ -595,7 +639,12 @@ async def send_invoice_email(
         actor=current_user,
         target_id=invoice_id,
         target_type="invoice",
-        detail={"number": invoice.number, "recipient": contact.email, "subject": payload.subject},
+        detail={
+            "number": invoice.number,
+            "recipient": contact.email,
+            "subject": payload.subject,
+            "kind": payload.kind,
+        },
     )
 
 

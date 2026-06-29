@@ -41,6 +41,15 @@ class BlockedContactError(Exception):
     """Raised when trying to create an invoice for a blocked contact."""
 
 
+def record_reminder_sent(invoice: Invoice, sent_on: date) -> None:
+    """Append a reminder date (ISO ``YYYY-MM-DD``) to the dunning history.
+
+    The list is reassigned so SQLAlchemy detects the change (the JSON column is
+    not a mutable-tracked type). The caller is responsible for committing.
+    """
+    invoice.reminder_dates = [*invoice.reminder_dates, sent_on.isoformat()]
+
+
 # Initial status per invoice type.
 # Using an explicit mapping so any new InvoiceType is caught at creation time.
 _INITIAL_STATUS: dict[InvoiceType, InvoiceStatus] = {

@@ -63,6 +63,13 @@ class AppSettings(Base):
     email_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
     email_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
 
+    # Reminder (dunning) email templates — distinct from the initial send.
+    # "first" = never reminded, "next" = follow-up. Null = built-in defaults.
+    reminder_first_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    reminder_first_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
+    reminder_next_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    reminder_next_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
+
     # Payment instructions on invoices
     payment_iban: Mapped[str | None] = mapped_column(String(34), nullable=True)
     payment_bic: Mapped[str | None] = mapped_column(String(11), nullable=True)
@@ -90,6 +97,9 @@ class AppSettings(Base):
     backup_daily_time: Mapped[str | None] = mapped_column(String(5), nullable=True, default="02:00")
     backup_include_uploads: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     backup_include_all_backups: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # BIZ-216: when True, the remote PDF mirror keeps only non-regenerable PDFs
+    # (archived invoices); regenerable ones are rebuilt on demand (TEC-211).
+    backup_pdfs_only_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     backup_notify_on_failure: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     backup_last_run_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     backup_last_run_status: Mapped[str | None] = mapped_column(String(20), nullable=True)

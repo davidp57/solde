@@ -196,6 +196,21 @@
             />
           </template>
         </Column>
+        <Column
+          v-if="activeSegment === 'overdue'"
+          :header="t('invoices.last_reminder')"
+          class="invoices-table__reminder-column"
+        >
+          <template #body="{ data }">
+            <span
+              v-if="data.reminder_dates && data.reminder_dates.length"
+              :title="t('invoices.reminder_count', { count: data.reminder_dates.length })"
+            >
+              {{ formatDisplayDate(data.reminder_dates[data.reminder_dates.length - 1]) }}
+            </span>
+            <span v-else>—</span>
+          </template>
+        </Column>
         <Column :header="t('common.actions')" class="invoices-table__actions-column">
           <template #body="{ data }">
             <AppRowActions
@@ -243,6 +258,7 @@
     <!-- Email send dialog -->
     <InvoiceEmailDialog
       :invoice-id="emailDialogInvoiceId"
+      :kind="emailDialogKind"
       @sent="onEmailSent"
       @close="emailDialogInvoiceId = null"
     />
@@ -532,6 +548,7 @@ import {
   listInvoicesWithCountApi,
   writeOffInvoiceApi,
   restoreFromWriteoffApi,
+  type EmailKind,
   type Invoice,
   type InvoiceStatus,
 } from '../api/invoices'
@@ -624,6 +641,7 @@ const showIrrecoverable = ref(false)
 
 // Email dialog
 const emailDialogInvoiceId = ref<number | null>(null)
+const emailDialogKind = ref<EmailKind>('initial')
 
 // Write-off dialog
 const writeOffDialogVisible = ref(false)
@@ -778,6 +796,9 @@ const activeSegment = computed(() => {
 })
 
 function onSegmentChange(key: string): void {
+  // Reset the irrecoverable toggle when switching segments so each segment
+  // starts from its default (overdue without irrecoverables, all without them).
+  showIrrecoverable.value = false
   switch (key) {
     case 'overdue':
       statusFilter.value = 'overdue'
@@ -875,7 +896,7 @@ function clientPrimaryAction(invoice: Invoice): RowAction {
       label: t('invoices.actions.relaunch'),
       icon: 'pi pi-send',
       severity: 'danger',
-      command: () => sendEmail(invoice),
+      command: () => sendEmail(invoice, 'reminder'),
     }
   }
   if (invoice.status === 'paid') {
@@ -990,7 +1011,10 @@ async function loadInvoices() {
           parseFloat(inv.total_amount) - parseFloat(inv.paid_amount) > 0,
       )
     } else if (statusFilter.value === 'overdue') {
-      invoices.value = all.filter(isOverdueInvoice)
+      // Exclusive toggle: overdue (no irrecoverables) ⇄ all irrecoverables only.
+      invoices.value = showIrrecoverable.value
+        ? all.filter((inv) => inv.status === 'irrecoverable')
+        : all.filter(isOverdueInvoice)
     } else if (!showIrrecoverable.value && !statusFilter.value) {
       invoices.value = all.filter((inv) => inv.status !== 'irrecoverable')
     } else {
@@ -1070,7 +1094,8 @@ async function openPdf(invoice: Invoice) {
   }
 }
 
-function sendEmail(invoice: Invoice): void {
+function sendEmail(invoice: Invoice, kind: EmailKind = 'initial'): void {
+  emailDialogKind.value = kind
   emailDialogInvoiceId.value = invoice.id
 }
 
