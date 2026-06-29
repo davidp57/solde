@@ -12,6 +12,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Technique
+- **BIZ-218** (Lot RELANCES) — Socle de l'**historique des relances** : colonne `reminder_dates` (JSON, défaut `[]`) sur les factures + migration Alembic, exposition dans l'API de lecture des factures, et fonction service d'ajout d'une date de relance. Câblage à l'envoi (type `reminder`) et UI à suivre dans les tickets suivants du lot.
 - **Restructuration du backlog** — passage du backlog monolithique `doc/backlog.md` (+ archive) à une structure **par lot** sous `.backlog/` : un dossier `PRD.md` + `tickets/NN-slug.md` par lot actif, archives compactes par lot, index `.backlog/README.md`. Câblage (sans fork) des skills d'ingénierie `/to-prd` · `/to-issues` · `/triage` via `docs/agents/*`. Vocabulaire de statut unique (⬜ 🔄 🧑 ✅ 🚫). Décision actée dans `docs/adr/0001-backlog-restructure.md`
 - **Renommage `doc/` → `docs/`** — alignement sur la convention usuelle. Chemins runtime mis à jour (manuel/changelog servis par le chatbot), `Dockerfile`, `README.md` et docs de process. `CHANGELOG.md` conservé tel quel (ledger historique)
 

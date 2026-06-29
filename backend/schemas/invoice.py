@@ -131,6 +131,7 @@ class InvoiceRead(InvoiceBase):
     hours: Decimal | None = None
     pdf_path: str | None = None
     file_path: str | None = None
+    reminder_dates: list[str] = []
     lines: list[InvoiceLineRead] = []
     created_at: datetime.datetime
     updated_at: datetime.datetime

@@ -7,7 +7,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, String, Text, false, func
+from sqlalchemy import JSON, Boolean, Date, DateTime, ForeignKey, String, Text, false, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database import Base
@@ -136,6 +136,11 @@ class Invoice(Base):
     )
     pdf_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     file_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Dunning history: ISO dates (YYYY-MM-DD) of reminders sent, oldest first.
+    # Defaults to an empty list, never NULL. Not meant to be sorted/filtered in SQL.
+    reminder_dates: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False, default=list, server_default=text("'[]'")
+    )
     # Hours worked — optional, used for freelance/contractor invoices to compute hourly cost
     hours: Mapped[_Decimal | None] = mapped_column(DecimalType(8, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

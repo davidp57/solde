@@ -497,3 +497,21 @@ class TestBulkArchive:
         r = await client.get(f"/api/invoices/{paid['id']}", headers=auth_headers)
         assert r.status_code == 200
         assert r.json()["status"] == "archived"
+
+
+class TestReminderDatesExposed:
+    async def test_new_invoice_exposes_empty_reminder_dates(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        cid = await _create_contact(client, auth_headers)
+        created = await _create_invoice(client, auth_headers, cid)
+        assert created["reminder_dates"] == []
+
+    async def test_get_invoice_exposes_reminder_dates(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        cid = await _create_contact(client, auth_headers)
+        created = await _create_invoice(client, auth_headers, cid)
+        r = await client.get(f"/api/invoices/{created['id']}", headers=auth_headers)
+        assert r.status_code == 200
+        assert r.json()["reminder_dates"] == []
