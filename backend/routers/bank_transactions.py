@@ -182,6 +182,20 @@ async def update_transaction(
             "BANK_TRANSACTION_NOT_MANUAL",
             "date, amount and bank_account can only be updated on manual transactions",
         )
+    # A reconciled transaction is locked accounting-wise: editing the fields that
+    # drive its generated entries (date, amount, account, category) would leave the
+    # journal stale. Mirror the delete guard — it must be unreconciled first.
+    accounting_fields = {
+        k
+        for k in ("date", "amount", "bank_account", "detected_category")
+        if k in payload.model_fields_set
+    }
+    if accounting_fields and tx.reconciled:
+        raise unprocessable(
+            "BANK_TRANSACTION_RECONCILED_LOCKED",
+            "A reconciled transaction's date, amount, account or category cannot be "
+            "edited; unreconcile it first",
+        )
     updated = await bank_service.update_transaction(db, tx, payload)
     await record_audit(
         db,
