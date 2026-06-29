@@ -55,6 +55,12 @@ class AppSettingsRead(BaseModel):
     email_subject_template: str | None
     email_body_template: str | None
 
+    # Reminder (dunning) email templates (null = use built-in defaults)
+    reminder_first_subject_template: str | None
+    reminder_first_body_template: str | None
+    reminder_next_subject_template: str | None
+    reminder_next_body_template: str | None
+
     # Payment instructions on invoices
     payment_iban: str | None
     payment_bic: str | None
@@ -129,6 +135,12 @@ class AppSettingsUpdate(BaseModel):
     # Email templates (null = use built-in defaults; empty string clears the template)
     email_subject_template: str | None = None
     email_body_template: str | None = None
+
+    # Reminder (dunning) email templates (null = built-in defaults; "" clears)
+    reminder_first_subject_template: str | None = None
+    reminder_first_body_template: str | None = None
+    reminder_next_subject_template: str | None = None
+    reminder_next_body_template: str | None = None
 
     # Payment instructions on invoices
     payment_iban: str | None = None
