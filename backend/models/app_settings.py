@@ -63,6 +63,13 @@ class AppSettings(Base):
     email_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
     email_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
 
+    # Reminder (dunning) email templates — distinct from the initial send.
+    # "first" = never reminded, "next" = follow-up. Null = built-in defaults.
+    reminder_first_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    reminder_first_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
+    reminder_next_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    reminder_next_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
+
     # Payment instructions on invoices
     payment_iban: Mapped[str | None] = mapped_column(String(34), nullable=True)
     payment_bic: Mapped[str | None] = mapped_column(String(11), nullable=True)
