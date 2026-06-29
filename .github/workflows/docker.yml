@@ -41,7 +41,11 @@ jobs:
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64
+          # Target Synology NAS is x86_64 — building arm64 under QEMU emulation
+          # roughly tripled build time for no benefit. If an arm64 host is ever
+          # needed, add it back via a native runner (ubuntu-24.04-arm) matrix
+          # rather than QEMU.
+          platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
