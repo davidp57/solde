@@ -1626,12 +1626,17 @@ onMounted(async () => {
   color: var(--p-text-muted-color);
 }
 
+/* Modest floors only: the table is width:100% (see main.css), so these text
+   columns absorb spare width on wide screens and stay readable; the small
+   min-width keeps them from collapsing to a vertical sliver on narrow ones,
+   where the table-level horizontal scroll takes over. */
 :deep(.bank-table__description) {
-  min-width: 20rem;
+  min-width: 11rem;
 }
 
 :deep(.bank-table__reference) {
-  min-width: 12rem;
+  min-width: 7rem;
+  overflow-wrap: anywhere;
 }
 
 :deep(.bank-table__amount) {

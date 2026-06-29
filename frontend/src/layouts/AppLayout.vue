@@ -451,8 +451,11 @@ onMounted(() => {
     top: var(--app-topbar-height);
   }
 
+  /* Allow wide pages (.app-page--wide) to reach their 1640px cap. Each
+     .app-page sets its own width (1320 normal / 1640 wide) and centers itself,
+     so this only needs to stop being the bottleneck — not clamp to 1320. */
   .main-inner {
-    max-width: 1320px;
+    max-width: var(--app-page-wide-max-width);
     margin: 0 auto;
   }
 }
