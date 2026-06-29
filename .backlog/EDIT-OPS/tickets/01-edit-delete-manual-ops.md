@@ -1,6 +1,6 @@
 # BIZ-169 — Édition/suppression des opérations bancaires manuelles
 
-Status: 🔄 in-progress
+Status: ✅ done
 Type: feat
 Files: `backend/routers/bank.py`, `backend/services/bank_service.py`, `frontend/src/views/BankView.vue`, `frontend/src/i18n/fr.ts`, `tests/`
 

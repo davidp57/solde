@@ -1,6 +1,6 @@
 # Lot EDIT-OPS — Édition/suppression des opérations bancaires manuelles
 
-Status: 🔄 in-progress
+Status: ✅ done
 Branch: feat/edit-manual-bank-ops → PR → develop
 
 ## Problem Statement
