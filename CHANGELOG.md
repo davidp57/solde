@@ -11,6 +11,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.9.0] — 2026-06-29
+
 ### Corrigé
 - **TEC-212** (Lot TABLE-FIT) — **Scroll horizontal des tableaux supprimé sur grand écran**. Le conteneur de contenu (`.main-inner`) plafonnait toutes les pages à 1320 px, ce qui **neutralisait le mode « large » (1640 px)** des écrans denses (Banque, comptabilité…) : la table débordait son panneau (scroll horizontal) tout en laissant de l'espace inutilisé sur les côtés. `.main-inner` suit désormais la largeur « large », les tableaux s'étirent à leur conteneur (`width: 100%`) et les colonnes texte de la Banque (libellé/référence) ne sont plus compressées. Vérifié sur 16 écrans à tableau : aucun débordement.
 
