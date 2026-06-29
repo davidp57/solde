@@ -1,6 +1,6 @@
 # Lot EDIT-OPS — Édition/suppression des opérations bancaires manuelles
 
-Status: ⬜ ready
+Status: 🔄 in-progress
 Branch: feat/edit-manual-bank-ops → PR → develop
 
 ## Problem Statement
@@ -43,3 +43,12 @@ les garde-fous comptables habituels (une opération rapprochée / ayant génér�
 ## Further Notes
 
 Ancien ticket hors-lot BIZ-169 (créé 2026-05-04). Repris ici à `⬜ ready`.
+
+**Constat à l'implémentation (2026-06-29) :** la feature était **déjà implémentée** par
+les lots banque (UI `BankView` : actions Modifier/Supprimer sur les lignes manuelles non
+rapprochées via `canEditOrDelete` ; endpoints `PUT`/`DELETE /bank/transactions/{id}` avec
+refus sur opération importée, et refus de suppression sur opération rapprochée). Ce lot
+s'est donc réduit à une **consolidation** : (1) durcir le `PUT` pour refuser l'édition des
+champs comptablement sensibles (date, montant, compte, catégorie) d'une opération
+rapprochée — cohérent avec le `DELETE` — et (2) ajouter la couverture de tests des
+garde-fous, jusque-là absente.
