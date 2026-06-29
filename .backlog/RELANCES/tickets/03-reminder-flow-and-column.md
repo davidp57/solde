@@ -1,6 +1,6 @@
 # BIZ-220 — Flux d'envoi de relance (« Relancer ») + colonne « dernière relance »
 
-Status: 🔄 in-progress
+Status: ✅ done
 Type: feat
 Files: `backend/routers/invoice.py`, `backend/services/invoice.py`, `frontend/src/views/ClientInvoicesView.vue` (+ `InvoiceWorkspace.vue`), `frontend/src/api/`, `frontend/src/i18n/fr.ts`, `tests/integration/`, `frontend/src/tests/`
 
