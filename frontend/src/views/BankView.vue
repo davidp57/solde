@@ -1626,12 +1626,20 @@ onMounted(async () => {
   color: var(--p-text-muted-color);
 }
 
+/* Modest floors only: the table is width:100% (see main.css), so these text
+   columns absorb spare width on wide screens and stay readable; the small
+   min-width keeps them from collapsing to a vertical sliver on narrow ones,
+   where the table-level horizontal scroll takes over. */
 :deep(.bank-table__description) {
-  min-width: 20rem;
+  min-width: 11rem;
 }
 
 :deep(.bank-table__reference) {
-  min-width: 12rem;
+  min-width: 7rem;
+  /* break-word over anywhere: only wrap long tokens (refs/IBANs) when they
+     overflow, preserving legibility/copyability. PrimeVue's native horizontal
+     scroll covers the rare too-narrow case. */
+  overflow-wrap: break-word;
 }
 
 :deep(.bank-table__amount) {
