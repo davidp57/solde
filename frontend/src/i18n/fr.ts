@@ -1076,6 +1076,18 @@ export default {
       'Bonjour,\n\nVeuillez trouver ci-joint votre facture {invoice_ref}.\n\nCordialement,\n{association_name}',
     email_template_vars_help:
       'Variables disponibles : {v1}, {v2}, {v3}, {v4}',
+    section_reminder_templates: 'Modèles de relance',
+    section_reminder_templates_subtitle:
+      "Personnalisez les e-mails de relance des factures impayées, distincts de l'envoi initial. Le premier rappel et les relances suivantes ont chacun leur message. Laissez vide pour utiliser les messages automatiques.",
+    reminder_first_subject_template: '1ʳᵉ relance — Sujet (modèle)',
+    reminder_first_subject_template_placeholder:
+      'Rappel — facture {invoice_ref} en attente de règlement',
+    reminder_first_body_template: '1ʳᵉ relance — Corps (modèle)',
+    reminder_next_subject_template: 'Relance suivante — Sujet (modèle)',
+    reminder_next_subject_template_placeholder: 'Nouvelle relance — facture {invoice_ref} impayée',
+    reminder_next_body_template: 'Relance suivante — Corps (modèle)',
+    reminder_template_vars_help:
+      'Variables disponibles : {v1}, {v2}, {v3}, {v4}, {v5}, {v6}',
     saved: 'Paramètres enregistrés avec succès.',
     save_error: "Échec de l'enregistrement des paramètres.",
     section_payment: 'Modalités de règlement sur facture',
