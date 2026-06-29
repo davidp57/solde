@@ -6,6 +6,10 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ## Version 1.8.2 — à venir
 
+### Tous les utilisateurs
+
+- **Tableaux mieux affichés sur grand écran** : les écrans riches en colonnes (Banque, comptabilité…) utilisent désormais toute la largeur disponible. Fini la barre de défilement horizontale et les libellés écrasés sur les grands écrans.
+
 ### Secrétaire
 
 - **Relances des factures impayées** : depuis la liste des factures en retard, le bouton « Relancer » envoie un e-mail de rappel au texte dédié (distinct du premier envoi de la facture), modifiable avant l'envoi. Chaque relance est datée et la date de la dernière apparaît dans une nouvelle colonne « Dernière relance ». Deux modèles personnalisables (premier rappel et relances suivantes) sont disponibles dans **Paramètres › Communication**.
