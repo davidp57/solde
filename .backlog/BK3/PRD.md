@@ -1,6 +1,6 @@
 # Lot BK3 — Backups : ne sauvegarder que les PDFs non régénérables
 
-Status: 🔄 in-progress
+Status: ✅ done
 Branch: fix/bk3-nonregenerable-pdf-backups → PR → develop
 
 ## Problem Statement
