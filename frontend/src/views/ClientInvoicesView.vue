@@ -196,6 +196,21 @@
             />
           </template>
         </Column>
+        <Column
+          v-if="activeSegment === 'overdue'"
+          :header="t('invoices.last_reminder')"
+          class="invoices-table__reminder-column"
+        >
+          <template #body="{ data }">
+            <span
+              v-if="data.reminder_dates && data.reminder_dates.length"
+              :title="t('invoices.reminder_count', { count: data.reminder_dates.length })"
+            >
+              {{ formatDisplayDate(data.reminder_dates[data.reminder_dates.length - 1]) }}
+            </span>
+            <span v-else>—</span>
+          </template>
+        </Column>
         <Column :header="t('common.actions')" class="invoices-table__actions-column">
           <template #body="{ data }">
             <AppRowActions
@@ -243,6 +258,7 @@
     <!-- Email send dialog -->
     <InvoiceEmailDialog
       :invoice-id="emailDialogInvoiceId"
+      :kind="emailDialogKind"
       @sent="onEmailSent"
       @close="emailDialogInvoiceId = null"
     />
@@ -532,6 +548,7 @@ import {
   listInvoicesWithCountApi,
   writeOffInvoiceApi,
   restoreFromWriteoffApi,
+  type EmailKind,
   type Invoice,
   type InvoiceStatus,
 } from '../api/invoices'
@@ -624,6 +641,7 @@ const showIrrecoverable = ref(false)
 
 // Email dialog
 const emailDialogInvoiceId = ref<number | null>(null)
+const emailDialogKind = ref<EmailKind>('initial')
 
 // Write-off dialog
 const writeOffDialogVisible = ref(false)
@@ -875,7 +893,7 @@ function clientPrimaryAction(invoice: Invoice): RowAction {
       label: t('invoices.actions.relaunch'),
       icon: 'pi pi-send',
       severity: 'danger',
-      command: () => sendEmail(invoice),
+      command: () => sendEmail(invoice, 'reminder'),
     }
   }
   if (invoice.status === 'paid') {
@@ -1070,7 +1088,8 @@ async function openPdf(invoice: Invoice) {
   }
 }
 
-function sendEmail(invoice: Invoice): void {
+function sendEmail(invoice: Invoice, kind: EmailKind = 'initial'): void {
+  emailDialogKind.value = kind
   emailDialogInvoiceId.value = invoice.id
 }
 

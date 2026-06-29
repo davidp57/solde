@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from backend.models.invoice import InvoiceLabel, InvoiceLineType, InvoiceStatus, InvoiceType
+
+EmailKind = Literal["initial", "reminder"]
 
 
 class InvoiceLineBase(BaseModel):
@@ -162,3 +165,6 @@ class InvoiceEmailSendRequest(BaseModel):
     subject: str
     body: str
     recipients: list[str]
+    # "initial" = first send (draft → sent); "reminder" = dunning (appends a
+    # reminder date to the invoice history on success).
+    kind: EmailKind = "initial"
