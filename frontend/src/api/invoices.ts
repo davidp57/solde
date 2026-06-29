@@ -45,6 +45,7 @@ export interface Invoice {
   status: InvoiceStatus
   pdf_path: string | null
   file_path: string | null
+  reminder_dates: string[]
   created_at: string
   updated_at: string
   lines: InvoiceLine[]
@@ -159,14 +160,21 @@ export interface InvoiceEmailPreview {
   body: string
 }
 
-export async function getInvoiceEmailPreviewApi(id: number): Promise<InvoiceEmailPreview> {
-  const response = await apiClient.get<InvoiceEmailPreview>(`/api/invoices/${id}/email-preview`)
+export type EmailKind = 'initial' | 'reminder'
+
+export async function getInvoiceEmailPreviewApi(
+  id: number,
+  kind: EmailKind = 'initial',
+): Promise<InvoiceEmailPreview> {
+  const response = await apiClient.get<InvoiceEmailPreview>(`/api/invoices/${id}/email-preview`, {
+    params: { kind },
+  })
   return response.data
 }
 
 export async function sendInvoiceEmailApi(
   id: number,
-  payload: { subject: string; body: string; recipients: string[] },
+  payload: { subject: string; body: string; recipients: string[]; kind?: EmailKind },
 ): Promise<void> {
   await apiClient.post(`/api/invoices/${id}/send-email`, payload)
 }

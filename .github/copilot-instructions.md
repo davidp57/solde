@@ -17,7 +17,7 @@
 
 ## Project context
 
-Solde (⚖️) is a web application for managing the accounting of a French loi 1901 non-profit (soutien scolaire). See `doc/plan.md` for the full architecture plan and `doc/roadmap.md` for the implementation roadmap.
+Solde (⚖️) is a web application for managing the accounting of a French loi 1901 non-profit (soutien scolaire). See `docs/plan.md` for the full architecture plan and `docs/roadmap.md` for the implementation roadmap.
 
 **Stack**: FastAPI + SQLite + Vue.js 3 + PrimeVue + Docker (single container, Synology NAS target, ≤ 384 MB RAM)
 
@@ -133,7 +133,7 @@ This avoids non-fast-forward push rejections. If a push is rejected, always use 
 
 During a recette phase, fixes are committed directly to `develop` without a feature branch. Apply the following rules:
 
-- Keep `doc/recette.md` up to date: every fix or micro-feature = one numbered ticket `REC-NNN` with title, type (`fix`/`feat`/`chore`), files changed, and commit hash.
+- Keep `docs/recette.md` up to date: every fix or micro-feature = one numbered ticket `REC-NNN` with title, type (`fix`/`feat`/`chore`), files changed, and commit hash.
 - Update `CHANGELOG.md` (`[Non publié]` section) for every user-visible correction.
 - Still run the full quality gate before every push.
 
@@ -146,22 +146,22 @@ Keep the following documents up to date with every significant change:
 | Document | Language | Location | Trigger |
 |---|---|---|---|
 | `README.md` | **FR + EN** | root | Every release |
-| User documentation | **FR + EN** | `doc/user/` | Feature added or modified |
-| Installation / how-to guides | **FR + EN** | `doc/user/` or root | Installation, deployment, or getting-started steps changed |
-| Developer documentation | **EN** | `doc/dev/` | Architecture or API changed |
-| Legacy technical documentation | **Migrating to EN** | `doc/` | Translate progressively until fully aligned |
+| User documentation | **FR + EN** | `docs/user/` | Feature added or modified |
+| Installation / how-to guides | **FR + EN** | `docs/user/` or root | Installation, deployment, or getting-started steps changed |
+| Developer documentation | **EN** | `docs/dev/` | Architecture or API changed |
+| Legacy technical documentation | **Migrating to EN** | `docs/` | Translate progressively until fully aligned |
 | `CHANGELOG.md` | **FR** | root | Every PR merged into `develop` |
-| `doc/user/changelog-user.md` | **FR** | `doc/user/` | Every user-visible feature or fix |
-| Release notes | **FR** | `doc/releases/` | Every release |
-| `doc/backlog.md` | **FR** | `doc/` | Ticket created, progressed, or completed |
-| `doc/roadmap.md` | **EN (in progress)** | `doc/` | Lot completed, planned, or reprioritised |
-| `doc/plan.md` | **EN (in progress)** | `doc/` | Architecture decisions updated |
+| `docs/user/changelog-user.md` | **FR** | `docs/user/` | Every user-visible feature or fix |
+| Release notes | **FR** | `docs/releases/` | Every release |
+| Backlog (per-lot) | **FR** | `.backlog/` | Ticket created, progressed, or completed |
+| `docs/roadmap.md` | **EN (in progress)** | `docs/` | Lot completed, planned, or reprioritised |
+| `docs/plan.md` | **EN (in progress)** | `docs/` | Architecture decisions updated |
 
 `CHANGELOG.md` follows the **Keep a Changelog** format (sections Unreleased → version).
 
-### Writing rules for `doc/user/changelog-user.md`
+### Writing rules for `docs/user/changelog-user.md`
 
-`doc/user/changelog-user.md` is the **end-user changelog** (written in French). It must be kept in sync with `CHANGELOG.md` for every version, whether deployed or not.
+`docs/user/changelog-user.md` is the **end-user changelog** (written in French). It must be kept in sync with `CHANGELOG.md` for every version, whether deployed or not.
 
 **Structure:**
 - One **chapter per version** (heading `## Version X.Y.Z — date` or `## Version X.Y *(à venir)*`).
@@ -181,7 +181,7 @@ Keep the following documents up to date with every significant change:
 
 ### Development cycle
 
-1. **Analyse and create tickets** — add work items to `doc/backlog.md` (format: `BIZ-NNN` / `TEC-NNN` / `CHR-NNN` depending on category — see backlog legend, priorities P1–P3, dates, estimates, explicit status). Estimates represent **Copilot's own implementation time** (how long the AI agent takes to complete the work), not the user's time.
+1. **Analyse and create tickets** — work items live in the per-lot `.backlog/` directory (see **Backlog management** below). A new lot is a directory `.backlog/<LOT-ID>/` with a `PRD.md` and one `tickets/NN-slug.md` per ticket; a loose ticket joins an existing active lot's `tickets/`. Ticket IDs keep the `BIZ-NNN` / `TEC-NNN` / `CHR-NNN` taxonomy (category — see legend), with priorities P1–P3, dates, estimates, and an explicit `Status:`. Estimates represent **Copilot's own implementation time** (how long the AI agent takes to complete the work), not the user's time.
 
    **Estimation formula:**
    - Per ticket: estimate the raw implementation time, then **multiply by 1.15** (15% margin) and round to the nearest 5 minutes.
@@ -191,45 +191,44 @@ Keep the following documents up to date with every significant change:
    - **At the start of each ticket**: record the start time (`HH:MM`) in `/memories/session/timing.md`. Record the end time when the ticket is done. This start/end log is the source of truth for actual Copilot time per ticket.
    - After completing each ticket, record the actual time in the backlog ticket row or detail section as `Réel: ~X min`.
    - After each PR is merged, note the actual user time spent on review + merge. Record it on the lot row: `PR réelle: ~X min`.
-   - At the end of a lot, report actuals ticket by ticket in `doc/backlog.md` (in the `<details>` table) and in the Calibration table.
+   - At the end of a lot, report actuals ticket by ticket in the lot's tickets/PRD, and in the Calibration table.
    - After each completed lot, compare estimated vs actual totals. If the ratio differs from 1.15 by more than 20%, adjust the margin factor for future estimates and **explicitly inform the user** with a short message (in French, as per the language rules): e.g. "Note : le Lot CR a pris X min Copilot pour Y min estimés (ratio Z). J'ajuste le facteur de marge à 1.XX pour les prochains lots."
-   - Keep a running calibration note in `doc/backlog.md` under a `## Calibration estimations` section (create it if absent), updated after every completed lot.
-2. **Feed the roadmap when relevant** — if a ticket represents a new feature, major initiative, innovative idea, or strategic shift, also add it to `doc/roadmap.md` under "Not yet planned".
+   - Keep a running calibration note in `.backlog/README.md` under a `## Calibration estimations` section (create it if absent), updated after every completed lot.
+2. **Feed the roadmap when relevant** — if a ticket represents a new feature, major initiative, innovative idea, or strategic shift, also add it to `docs/roadmap.md` under "Not yet planned".
 3. **Group tickets into lots** — related backlog items are bundled into named lots (e.g. *Lot A — Import Excel*, *Lot F — Tests*). Each lot is identified in the backlog.
 4. **Assign a target version** — agree on a version (`MAJOR.MINOR`, no patch level) per lot. **Every versioned lot must appear in the roadmap**: functional lots get a subsection with detail, technical lots get a one-line summary.
 5. **Implement each lot in git-flow** — one feature branch per lot (or per PR if it makes sense to split), with a PR into `develop`.
 6. **Update CHANGELOG continuously** — every merged PR adds its entries under the `[Non publié]` section.
-7. **Release** — create release notes (`doc/releases/vX.Y.Z.md`), stamp the version and date in `CHANGELOG.md`, bump version numbers.
+7. **Release** — create release notes (`docs/releases/vX.Y.Z.md`), stamp the version and date in `CHANGELOG.md`, bump version numbers.
 
 ### Keeping docs in sync
 
-- `doc/backlog.md` and `doc/roadmap.md` must be **kept up to date at all times**: coherent content, correct dates, accurate statuses and priorities, proper lot grouping, zero markdown formatting errors.
-- `CHANGELOG.md` reflects **shipped work**; `doc/backlog.md` reflects **planned and in-progress work** — no item should live in both as active.
-- `doc/roadmap.md` contains **every versioned lot** from the backlog. Functional lots are detailed (one subsection per feature); technical lots are kept to a one-line summary.
-- `doc/user/changelog-user.md` must stay in sync with `CHANGELOG.md` for every version: every user-visible change in `CHANGELOG.md` must have a corresponding entry in `changelog-user.md`, written in plain French for non-technical users.
+- `.backlog/` and `docs/roadmap.md` must be **kept up to date at all times**: coherent content, correct dates, accurate statuses and priorities, proper lot grouping, zero markdown formatting errors. `.backlog/` is the source of truth for **scope + status**; `docs/roadmap.md` for **sequencing**.
+- `CHANGELOG.md` reflects **shipped work**; `.backlog/` reflects **planned and in-progress work** — no item should live in both as active.
+- `docs/roadmap.md` contains **every versioned lot** from the backlog. Functional lots are detailed (one subsection per feature); technical lots are kept to a one-line summary.
+- `docs/user/changelog-user.md` must stay in sync with `CHANGELOG.md` for every version: every user-visible change in `CHANGELOG.md` must have a corresponding entry in `changelog-user.md`, written in plain French for non-technical users.
 
 ### Backlog management
 
-`doc/backlog.md` is the shared project backlog and the **single source of truth** for all tracked work items.
+The backlog is the per-lot **`.backlog/` directory** and the **single source of truth** for **scope + status** of all tracked work items (sequencing lives in `docs/roadmap.md`). The Matt Pocock skills (`/to-prd`, `/to-issues`, `/triage`) write to it — see [`docs/agents/issue-tracker.md`](../docs/agents/issue-tracker.md) and the `## Agent skills` section of `CLAUDE.md`.
 
-**Structure**: the backlog follows a table-first format inspired by batch-driven backlogs:
-- **Active lots** — one table per lot with columns `ID | Titre | Prio | Est. | Créé | Démarré | Terminé`.
-- **Hors lots** — a single table for open items not yet assigned to a lot.
-- **Détails** — a brief (3–5 lines) description per open ticket.
-- **Lots terminés** — a summary table of completed lots, with full details in a collapsible `<details>` section.
-- **Légende** — priority and status definitions.
+**Structure**:
+- **Active lots** — one directory `.backlog/<LOT-ID>/` with `PRD.md` (Problem/Solution/User Stories/…) and `tickets/NN-slug.md` (one rich ticket per file, numbered from `01` in dependency order).
+- **Index** — `.backlog/README.md`: a recap table (ID, title, status) of every lot, maintained by hand by the agent at lot creation/closure. No generator script.
+- **Archive** — a lot closed > 3 days moves from `.backlog/<LOT-ID>/` to a compact `.backlog/archive/<LOT-ID>.md` (tickets recompacted into a single table).
+- **Status** — a single `Status:` line per file (⬜ ready · 🔄 in-progress · 🧑 waiting-human · ✅ done · 🚫 wontfix). See [`docs/agents/triage-labels.md`](../docs/agents/triage-labels.md).
 
 **Rules**:
-- When the user mentions a point to track, record it in `doc/backlog.md` immediately.
-- New tickets go in the "Hors lots" table or directly in an active lot table.
-- Track each item with an explicit status and keep that status updated as work progresses.
-- When a ticket is completed, move it from the active section to "Lots terminés" / closed details.
-- Prefer updating `doc/backlog.md` rather than leaving actionable follow-up items only in the chat conversation.
+- When the user mentions a point to track, record it in `.backlog/` immediately (new lot dir, or a ticket in an existing active lot).
+- Ticket IDs keep the `BIZ/TEC/CHR-NNN` taxonomy; the `NN-` file prefix is only for dependency ordering inside the lot.
+- New artifacts are created at `Status: ⬜ ready`. Track each item's status and keep it updated as work progresses; add a row to `.backlog/README.md` when creating a lot.
+- When a lot is closed for > 3 days, compact it into `.backlog/archive/<LOT-ID>.md` and update the index.
+- Prefer updating `.backlog/` rather than leaving actionable follow-up items only in the chat conversation.
 - Always maintain: correct lot grouping, priority ordering (P1 first), consistent formatting, and accurate completion dates.
 
 ### Roadmap management
 
-`doc/roadmap.md` tracks the high-level delivery plan.
+`docs/roadmap.md` tracks the high-level delivery plan.
 
 - Every lot with an agreed target version appears with its planned `MAJOR.MINOR` version.
 - Functional lots get a detailed subsection; technical lots get a one-line summary.
@@ -243,8 +242,8 @@ After every change (feature, fix, refactor):
 2. Run the full quality gate (see **Quality control** section above) — all green
 3. Verify zero errors in VS Code
 4. Update `CHANGELOG.md` (`[Non publié]` section)
-5. If the change is visible to end users, add or update the corresponding entry in `doc/user/changelog-user.md` (under the current version's chapter, grouped by role then domain)
-6. Update `doc/backlog.md` if the change closes or advances a ticket
+5. If the change is visible to end users, add or update the corresponding entry in `docs/user/changelog-user.md` (under the current version's chapter, grouped by role then domain)
+6. Update `.backlog/` (the lot's ticket status / PRD, and the `.backlog/README.md` index) if the change closes or advances a ticket
 7. **Increment the patch version** in `pyproject.toml` and `frontend/package.json` (e.g. `0.7.12` → `0.7.13`)
 
 ---
@@ -265,8 +264,8 @@ When asked to create a release, follow these steps **in order**:
    - Update `pyproject.toml` (backend version)
    - Update `package.json` (frontend version)
    - Move CHANGELOG `Unreleased` section to the new version with today's date
-   - Stamp the version and date on the corresponding chapter in `doc/user/changelog-user.md` (replace `*(à venir)*` with the release date)
-   - Create French release notes in `doc/releases/vX.Y.Z.md`
+   - Stamp the version and date on the corresponding chapter in `docs/user/changelog-user.md` (replace `*(à venir)*` with the release date)
+   - Create French release notes in `docs/releases/vX.Y.Z.md`
    - Commit: `chore(release): bump version to X.Y.Z`
 6. **Determine the PR target**:
    - From a `feature/*` or `fix/*` branch → PR into `develop`
@@ -282,11 +281,11 @@ Before validating release documentation, check all items below:
 
 1. `git log <last_release_tag_or_main>..HEAD --oneline` reviewed and grouped by ticket (`BIZ/TEC/CHR`).
 2. Every major `BIZ` feature appears in `CHANGELOG.md` under the correct section.
-3. Every user-visible change in `CHANGELOG.md` has a plain-French entry in `doc/user/changelog-user.md`.
+3. Every user-visible change in `CHANGELOG.md` has a plain-French entry in `docs/user/changelog-user.md`.
 4. Critical release themes are explicitly covered: backups, imports/migrations, invoice/payment status lifecycle, auth/roles/security, exports/reporting.
-5. `doc/user/`, `doc/admin/`, and `doc/dev/` are updated for impacted workflows.
-6. `doc/backlog.md` statuses/lots are aligned with delivered tickets.
-7. Release notes file `doc/releases/vX.Y.Z.md` exists and matches changelog scope.
+5. `docs/user/`, `docs/admin/`, and `docs/dev/` are updated for impacted workflows.
+6. `.backlog/` statuses/lots are aligned with delivered tickets.
+7. Release notes file `docs/releases/vX.Y.Z.md` exists and matches changelog scope.
 8. Final consistency pass: no major feature present in code/commits but missing from release docs.
 
 ---

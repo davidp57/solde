@@ -80,7 +80,7 @@ One router file + one service area per business domain (invoice, payment, bank, 
 ### Roles & areas
 Technical roles: `readonly`, `secretaire` (Manager), `tresorier` (Accountant), `admin`. Authorization enforced at the router level via FastAPI dependencies. Areas: **Management** (secretaire+), **Accounting** (tresorier+), **Administration** (admin only).
 
-### Domain gotchas (read [`doc/dev/architecture.md`](doc/dev/architecture.md) before touching these)
+### Domain gotchas (read [`docs/dev/architecture.md`](docs/dev/architecture.md) before touching these)
 - **`Decimal` for all money** — never `float`.
 - **Bank category `no_entry`** is a *phantom* category, intentionally exempt from accounting-rule processing, enforced at engine level, by `TriggerType` having no such value, and by `NON_TRIGGERABLE_CATEGORIES` in `backend/models/accounting_rule.py`. Never add it to `_BANK_CATEGORY_TRIGGER`.
 - **AccountingEntry `group_key`**: `group_key` col → else `"{source_type}:{source_id}"` → else `"entry:{id}"`. Used for journal clustering, import-state diff, dedup.
@@ -100,7 +100,7 @@ Write the failing test first. Targets: business-logic services **≥ 90%**, API 
 
 ## Git flow (summary — see copilot-instructions.md for the full rules)
 
-`main` (prod) ← `develop` (integration) ← `feature/*` / `fix/*`. Hotfixes from `main`. **Releases only on `release/x.y.z` branches.** Never commit directly to `main`/`develop` (except acceptance-testing *recette* fixes and **backlog edits** — see Backlog hygiene — which go straight to `develop`). Conventional Commits in English (`type(scope): description`). Multi-PC project: `git pull --rebase` before starting, and on any rejected push.
+`main` (prod) ← `develop` (integration) ← `feature/*` / `fix/*`. Hotfixes from `main`. **Releases only on `release/x.y.z` branches.** Never commit directly to `main`/`develop` (except acceptance-testing *recette* fixes and **documentation-only edits** — see Documentation hygiene — which go straight to `develop`). Conventional Commits in English (`type(scope): description`). Multi-PC project: `git pull --rebase` before starting, and on any rejected push.
 
 ## Default action workflow (standing authorization)
 
@@ -109,7 +109,7 @@ For every non-trivial change, unless told otherwise, proceed end-to-end without 
 0. **Sync first (mandatory)** — before reading the backlog or starting any work, `git fetch` then bring the branch up to date (`git pull --ff-only` on `develop`, or rebase the working branch onto latest `origin/develop`). Never reason about "what's left to do" from a stale checkout.
 1. **Analyse** scope and impacted files. If the request is exploratory (question/analysis, no code change), stop here.
 2. **Branch** from `develop` (`feature/<id>` or `fix/<id>`). One branch + one PR per lot, not per ticket, unless asked.
-3. **Implement** with tests (TDD) and the doc/CHANGELOG/backlog updates from the per-change checklist.
+3. **Implement** with tests (TDD) and the docs/CHANGELOG/backlog updates from the per-change checklist.
 4. **Quality gate green** (backend + frontend, mirrors CI) before pushing.
 5. **If the user must test manually**, stop and wait for explicit approval ("c'est bon" / "go") before continuing; otherwise proceed.
 6. **Commit + push** (Conventional Commits in English, with the required `Co-Authored-By` trailer).
@@ -123,12 +123,22 @@ This grants standing authorization to **commit, push, and open PRs** without ask
 - **Minimalism**: produce the minimum needed to solve the request; no speculative features or abstractions.
 - **Zero assumptions**: if an instruction is ambiguous or contradictory, stop and ask before coding.
 
-## Backlog hygiene
+## Documentation hygiene
 
-Keep `doc/backlog.md` reflecting real status. Archive tickets closed for more than **7 days** into `doc/backlog-archive.md` (create it if missing) so the active backlog stays readable.
+Keep the backlog reflecting real status. The backlog is a **per-lot `.backlog/` directory** (see Agent skills below): active lots are directories `.backlog/<LOT-ID>/` (`PRD.md` + `tickets/NN-slug.md`); completed lots are compacted into `.backlog/archive/<LOT-ID>.md` once closed > 3 days. The lot index is `.backlog/README.md`. `docs/roadmap.md` remains the source of truth for **sequencing**; `.backlog/` is the source of truth for **scope + status**. One branch + one PR per lot.
 
-**Backlog commits go straight to `develop`** — a commit whose diff touches **only** `doc/backlog.md` and/or `doc/backlog-archive.md` (creating, editing, or archiving tickets/lots) needs **no branch or PR**. The moment a commit touches **any** other file (code, tests, other docs, `doc/roadmap.md`, formatting elsewhere, …), the exception no longer applies and it follows the normal feature/fix branch + PR flow.
+**Documentation-only commits go straight to `develop`** — a commit whose diff touches **only** documentation (Markdown / `docs/**` / `.backlog/**`, plus root docs like `CHANGELOG.md`, `README.md`, `CLAUDE.md`) needs **no branch or PR**: backlog, roadmap, plan, dev/user docs, release notes, changelog. As soon as a commit also touches **code, tests, config, or any non-documentation file**, the exception no longer applies and it follows the normal feature/fix branch + PR flow. Releases keep their dedicated `release/x.y.z` flow regardless.
+
+## Agent skills
+
+The Matt Pocock engineering skills (`/to-prd`, `/to-issues`, `/triage`) are configured per repo (no fork). They read three config files:
+
+- **Issue tracker** — lots/PRDs/tickets live under `.backlog/<LOT-ID>/` (active) and `.backlog/archive/<LOT-ID>.md` (completed). `/to-prd` writes `PRD.md` + adds a row to `.backlog/README.md`; `/to-issues` writes `tickets/NN-slug.md`. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
+- **Triage labels** — single `Status:` vocabulary (⬜ ready · 🔄 in-progress · 🧑 waiting-human · ✅ done · 🚫 wontfix), mapped to Matt's triage roles. Artifacts are created at ⬜ ready. See [`docs/agents/triage-labels.md`](docs/agents/triage-labels.md).
+- **Domain docs** — single-context repo; glossary and prior decisions. See [`docs/agents/domain.md`](docs/agents/domain.md).
+
+Ticket IDs keep the project taxonomy (`BIZ-NNN` / `TEC-NNN` / `CHR-NNN`); the `NN-` file prefix is only for dependency ordering inside a lot.
 
 ## Per-change checklist
 
-After each change: update/add tests → full quality gate green → update `CHANGELOG.md` (`[Non publié]`) → if user-visible, update `doc/user/changelog-user.md` → update `doc/backlog.md` if a ticket advances → bump patch version in `pyproject.toml` **and** `frontend/package.json`.
+After each change: update/add tests → full quality gate green → update `CHANGELOG.md` (`[Non publié]`) → if user-visible, update `docs/user/changelog-user.md` → update the lot's `.backlog/<LOT-ID>/` (ticket status, PRD) if a ticket advances → bump patch version in `pyproject.toml` **and** `frontend/package.json`.

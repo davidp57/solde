@@ -512,3 +512,87 @@ class TestPruneRemoteBackups:
         dest = _make_dest(dest_type="smb")
         with pytest.raises(ValueError):
             await bds.prune_remote_backups(dest, keep=0)
+
+
+# ---------------------------------------------------------------------------
+# BIZ-216 — mirror only non-regenerable PDFs (archived invoices)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_archived_pdf_relpaths_only_archived(db_session) -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    from backend.models.contact import Contact, ContactType
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+
+    contact = Contact(type=ContactType.CLIENT, nom="X")
+    db_session.add(contact)
+    await db_session.flush()
+
+    def _inv(number: str, status: InvoiceStatus, pdf_path: str | None) -> Invoice:
+        return Invoice(
+            number=number,
+            type=InvoiceType.CLIENT,
+            contact_id=contact.id,
+            date=date(2025, 1, 1),
+            total_amount=Decimal("10"),
+            paid_amount=Decimal("0"),
+            status=status,
+            pdf_path=pdf_path,
+        )
+
+    db_session.add_all(
+        [
+            _inv("A-1", InvoiceStatus.ARCHIVED, "data/pdfs/facture_A-1.pdf"),
+            _inv("S-1", InvoiceStatus.SENT, "data/pdfs/facture_S-1.pdf"),
+            _inv("A-2", InvoiceStatus.ARCHIVED, None),
+        ]
+    )
+    await db_session.commit()
+
+    result = await bds.archived_pdf_relpaths(db_session)
+    assert result == {"facture_A-1.pdf"}
+
+
+@pytest.mark.asyncio
+async def test_mirror_rclone_filters_via_files_from(tmp_path: Path) -> None:
+    pdfs = tmp_path / "pdfs"
+    pdfs.mkdir()
+    (pdfs / "facture_A.pdf").write_bytes(b"A")
+    (pdfs / "facture_B.pdf").write_bytes(b"B")
+    dest = _make_dest(dest_type="local", rclone_remote_name="local")
+
+    captured: dict[str, object] = {}
+
+    async def _fake_rclone(cmd: list[str]) -> None:
+        captured["cmd"] = cmd
+        idx = cmd.index("--files-from")
+        captured["list"] = Path(cmd[idx + 1]).read_text(encoding="utf-8")
+
+    with patch.object(bds, "_run_rclone", side_effect=_fake_rclone):
+        await bds.mirror_dir_incremental(
+            dest, str(pdfs), "pdfs", allowed_relpaths={"facture_A.pdf"}
+        )
+
+    assert "--files-from" in captured["cmd"]  # type: ignore[operator]
+    assert captured["list"] == "facture_A.pdf"
+
+
+@pytest.mark.asyncio
+async def test_mirror_rclone_no_filter_without_allowlist(tmp_path: Path) -> None:
+    pdfs = tmp_path / "pdfs"
+    pdfs.mkdir()
+    (pdfs / "facture_A.pdf").write_bytes(b"A")
+    dest = _make_dest(dest_type="local", rclone_remote_name="local")
+
+    captured: dict[str, object] = {}
+
+    async def _fake_rclone(cmd: list[str]) -> None:
+        captured["cmd"] = cmd
+
+    with patch.object(bds, "_run_rclone", side_effect=_fake_rclone):
+        await bds.mirror_dir_incremental(dest, str(pdfs), "pdfs")
+
+    assert "--files-from" not in captured["cmd"]  # type: ignore[operator]
