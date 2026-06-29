@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
-from backend.models.bank import BankTransaction
+from backend.models.bank import BankTransaction, BankTransactionSource
 from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
 from backend.models.contact import Contact, ContactType
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
@@ -1410,3 +1410,108 @@ async def test_delete_confirmed_deposit_is_rejected(
         headers=auth_headers,
     )
     assert del_resp.status_code == 422
+
+
+class TestEditDeleteManualTransactions:
+    """BIZ-169 — edit/delete manual bank operations + accounting guards."""
+
+    async def _create_manual(
+        self, client: AsyncClient, headers: dict, amount: str = "50.00"
+    ) -> int:
+        r = await client.post(
+            "/api/bank/transactions",
+            json={"date": "2024-06-01", "amount": amount, "description": "Manuelle"},
+            headers=headers,
+        )
+        assert r.status_code == 201
+        return r.json()["id"]
+
+    async def _create_imported(self, db_session: AsyncSession) -> int:
+        tx = BankTransaction(
+            date=date(2024, 6, 1),
+            amount=Decimal("12.00"),
+            description="OFX import",
+            source=BankTransactionSource.IMPORT_OFX,
+        )
+        db_session.add(tx)
+        await db_session.commit()
+        await db_session.refresh(tx)
+        return tx.id
+
+    async def _reconcile(self, client: AsyncClient, headers: dict, tx_id: int) -> None:
+        r = await client.post(
+            "/api/bank/transactions/reconcile-bulk",
+            json={"ids": [tx_id]},
+            headers=headers,
+        )
+        assert r.status_code == 200
+
+    async def test_edit_manual_transaction(self, client: AsyncClient, auth_headers: dict):
+        tx_id = await self._create_manual(client, auth_headers)
+        r = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"date": "2024-07-15", "amount": "99.00", "description": "Corrigée"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        body = r.json()
+        assert body["amount"] == "99.00"
+        assert body["description"] == "Corrigée"
+
+    async def test_delete_manual_transaction(self, client: AsyncClient, auth_headers: dict):
+        tx_id = await self._create_manual(client, auth_headers)
+        r = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+        assert r.status_code == 204
+        listing = await client.get("/api/bank/transactions", headers=auth_headers)
+        assert all(t["id"] != tx_id for t in listing.json())
+
+    async def test_delete_imported_transaction_refused(
+        self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+    ):
+        tx_id = await self._create_imported(db_session)
+        r = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+        assert r.status_code == 422
+
+    async def test_delete_reconciled_transaction_refused(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        tx_id = await self._create_manual(client, auth_headers)
+        await self._reconcile(client, auth_headers, tx_id)
+        r = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+        assert r.status_code == 422
+
+    async def test_edit_imported_amount_refused(
+        self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+    ):
+        tx_id = await self._create_imported(db_session)
+        r = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"amount": "5.00"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 422
+
+    async def test_edit_reconciled_accounting_field_refused(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        tx_id = await self._create_manual(client, auth_headers)
+        await self._reconcile(client, auth_headers, tx_id)
+        r = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"amount": "77.00"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 422
+
+    async def test_edit_reconciled_cosmetic_field_allowed(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        tx_id = await self._create_manual(client, auth_headers)
+        await self._reconcile(client, auth_headers, tx_id)
+        r = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"description": "Note ajoutée après rapprochement"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        assert r.json()["description"] == "Note ajoutée après rapprochement"
