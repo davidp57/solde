@@ -1,6 +1,6 @@
 # BIZ-219 — Templates de relance dédiés (1ère / suivante) + moteur de composition
 
-Status: ⬜ ready
+Status: 🔄 in-progress
 Type: feat
 Files: `backend/models/app_settings.py`, `backend/schemas/settings.py`, `backend/services/email_service.py`, `backend/routers/settings.py`, `frontend/src/views/` (Paramètres), `frontend/src/i18n/fr.ts`, `tests/unit/`, `tests/integration/`
 

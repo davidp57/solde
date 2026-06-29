@@ -189,6 +189,29 @@
         </AppSettingRow>
       </AppPanel>
 
+      <AppPanel :title="t('settings.section_reminder_templates')" :subtitle="t('settings.section_reminder_templates_subtitle')">
+        <AppSettingRow :label="t('settings.reminder_first_subject_template')" :description="reminderVarsHelp" html-for="reminder_first_subject_template">
+          <template #control>
+            <InputText id="reminder_first_subject_template" v-model="form.reminder_first_subject_template" :placeholder="t('settings.reminder_first_subject_template_placeholder')" />
+          </template>
+        </AppSettingRow>
+        <AppSettingRow :label="t('settings.reminder_first_body_template')" :description="reminderVarsHelp" html-for="reminder_first_body_template">
+          <template #control>
+            <Textarea id="reminder_first_body_template" v-model="form.reminder_first_body_template" rows="6" auto-resize />
+          </template>
+        </AppSettingRow>
+        <AppSettingRow :label="t('settings.reminder_next_subject_template')" :description="reminderVarsHelp" html-for="reminder_next_subject_template">
+          <template #control>
+            <InputText id="reminder_next_subject_template" v-model="form.reminder_next_subject_template" :placeholder="t('settings.reminder_next_subject_template_placeholder')" />
+          </template>
+        </AppSettingRow>
+        <AppSettingRow :label="t('settings.reminder_next_body_template')" :description="reminderVarsHelp" html-for="reminder_next_body_template">
+          <template #control>
+            <Textarea id="reminder_next_body_template" v-model="form.reminder_next_body_template" rows="6" auto-resize />
+          </template>
+        </AppSettingRow>
+      </AppPanel>
+
       <SettingsSaveBar :dirty="comDirty" :loading="savingCom" @save="saveCom" @cancel="revert" />
 
       <!-- AI assistant (self-managed) -->
@@ -262,6 +285,10 @@ interface SettingsForm {
   smtp_bcc: string | null
   email_subject_template: string | null
   email_body_template: string | null
+  reminder_first_subject_template: string | null
+  reminder_first_body_template: string | null
+  reminder_next_subject_template: string | null
+  reminder_next_body_template: string | null
 }
 
 function defaultForm(): SettingsForm {
@@ -293,6 +320,10 @@ function defaultForm(): SettingsForm {
     smtp_bcc: null,
     email_subject_template: null,
     email_body_template: null,
+    reminder_first_subject_template: null,
+    reminder_first_body_template: null,
+    reminder_next_subject_template: null,
+    reminder_next_body_template: null,
   }
 }
 
@@ -335,6 +366,10 @@ const COM_FIELDS = [
   'smtp_bcc',
   'email_subject_template',
   'email_body_template',
+  'reminder_first_subject_template',
+  'reminder_first_body_template',
+  'reminder_next_subject_template',
+  'reminder_next_body_template',
 ] as const
 
 function snapshot(): Omit<SettingsForm, 'smtp_password'> {
@@ -359,6 +394,17 @@ const emailVarsHelp = computed(() =>
     v2: '{description}',
     v3: '{association_name}',
     v4: '{invoice_ref}',
+  }),
+)
+
+const reminderVarsHelp = computed(() =>
+  t('settings.reminder_template_vars_help', {
+    v1: '{invoice_ref}',
+    v2: '{montant_du}',
+    v3: '{echeance}',
+    v4: '{derniere_relance}',
+    v5: '{nombre_de_relances}',
+    v6: '{association_name}',
   }),
 )
 
@@ -406,6 +452,10 @@ async function load(): Promise<void> {
       smtp_bcc: data.smtp_bcc,
       email_subject_template: data.email_subject_template,
       email_body_template: data.email_body_template,
+      reminder_first_subject_template: data.reminder_first_subject_template,
+      reminder_first_body_template: data.reminder_first_body_template,
+      reminder_next_subject_template: data.reminder_next_subject_template,
+      reminder_next_body_template: data.reminder_next_body_template,
     })
     baseline = snapshot()
   } catch {
@@ -472,6 +522,10 @@ async function saveCom(): Promise<void> {
     smtp_bcc: form.smtp_bcc,
     email_subject_template: form.email_subject_template?.trim() || null,
     email_body_template: form.email_body_template?.trim() || null,
+    reminder_first_subject_template: form.reminder_first_subject_template?.trim() || null,
+    reminder_first_body_template: form.reminder_first_body_template?.trim() || null,
+    reminder_next_subject_template: form.reminder_next_subject_template?.trim() || null,
+    reminder_next_body_template: form.reminder_next_body_template?.trim() || null,
   }
   if (form.smtp_password) {
     payload.smtp_password = form.smtp_password
