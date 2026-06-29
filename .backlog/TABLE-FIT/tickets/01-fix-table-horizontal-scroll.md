@@ -1,6 +1,6 @@
 # TEC-212 — Supprimer le scroll horizontal des tableaux sur grand écran
 
-Status: 🔄 in-progress
+Status: ✅ done
 Type: fix
 Files: `frontend/src/views/BankView.vue`, `frontend/src/assets/main.css`, autres vues à `DataTable` (audit), `frontend/src/tests/`
 

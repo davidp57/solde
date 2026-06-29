@@ -1,6 +1,6 @@
 # Lot TABLE-FIT — Supprimer le scroll horizontal des tableaux sur grand écran
 
-Status: 🔄 in-progress
+Status: ✅ done
 Branch: fix/table-horizontal-scroll → PR → develop
 
 ## Problem Statement

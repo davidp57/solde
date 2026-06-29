@@ -1,6 +1,6 @@
 # Lot RELANCES — Relances des factures impayées (historique, templates dédiés, filtrage irrécouvrables)
 
-Status: 🔄 in-progress
+Status: ✅ done
 Branch: feat/invoice-reminders → PR → develop
 
 ## Problem Statement
