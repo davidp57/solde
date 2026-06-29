@@ -4,6 +4,15 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.8.2 — à venir
+
+### Secrétaire
+
+- **Relances des factures impayées** : depuis la liste des factures en retard, le bouton « Relancer » envoie un e-mail de rappel au texte dédié (distinct du premier envoi de la facture), modifiable avant l'envoi. Chaque relance est datée et la date de la dernière apparaît dans une nouvelle colonne « Dernière relance ». Deux modèles personnalisables (premier rappel et relances suivantes) sont disponibles dans **Paramètres › Communication**.
+- **Vue « En retard » plus juste** : les créances passées en « irrécouvrable » ne polluent plus la liste ni le montant « Restant en retard ». Un bouton permet de basculer pour consulter, à la place, l'ensemble des factures irrécouvrables.
+
+---
+
 ## Version 1.8.1 — 23 juin 2026
 
 Nouveauté d'envoi d'emails aux adhérents, sauvegardes plus économes, et correction du tableau de bord.

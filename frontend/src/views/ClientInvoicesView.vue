@@ -796,6 +796,9 @@ const activeSegment = computed(() => {
 })
 
 function onSegmentChange(key: string): void {
+  // Reset the irrecoverable toggle when switching segments so each segment
+  // starts from its default (overdue without irrecoverables, all without them).
+  showIrrecoverable.value = false
   switch (key) {
     case 'overdue':
       statusFilter.value = 'overdue'
@@ -1008,7 +1011,10 @@ async function loadInvoices() {
           parseFloat(inv.total_amount) - parseFloat(inv.paid_amount) > 0,
       )
     } else if (statusFilter.value === 'overdue') {
-      invoices.value = all.filter(isOverdueInvoice)
+      // Exclusive toggle: overdue (no irrecoverables) ⇄ all irrecoverables only.
+      invoices.value = showIrrecoverable.value
+        ? all.filter((inv) => inv.status === 'irrecoverable')
+        : all.filter(isOverdueInvoice)
     } else if (!showIrrecoverable.value && !statusFilter.value) {
       invoices.value = all.filter((inv) => inv.status !== 'irrecoverable')
     } else {

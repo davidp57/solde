@@ -1,6 +1,6 @@
 # BIZ-221 — Exclure les irrécouvrables de « en retard » + bascule de segment
 
-Status: ⬜ ready
+Status: 🔄 in-progress
 Type: feat
 Files: `frontend/src/composables/useInvoiceMetrics.ts`, `frontend/src/views/ClientInvoicesView.vue`, `frontend/src/i18n/fr.ts`, `frontend/src/tests/`
 
