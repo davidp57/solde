@@ -1,6 +1,6 @@
 # Lot CREANCES-RAPPEL — Rappel créances exercice/historique sur les factures client (post-RF)
 
-Status: 🧑 waiting-human
+Status: 🚫 wontfix
 Branch: feat/receivables-reminder → PR → develop
 
 ## Problem Statement
@@ -38,5 +38,9 @@ grille de 6 KPI. `receivableMetrics` reste disponible dans le composable.
 
 ## Further Notes
 
-Ancien ticket hors-lot BIZ-210 (P3, créé 2026-06-18). **En attente d'arbitrage humain**
-(`🧑 waiting-human`) : à rediscuter en revue de la PR Factures avant implémentation.
+Ancien ticket hors-lot BIZ-210 (P3, créé 2026-06-18).
+
+**Décision (2026-06-29) : `🚫 wontfix`.** David tranche qu'on s'en passe : l'entonnoir
+(`InvoiceFunnelHero`) suffit, on ne réintroduit pas de rappel du report historique des
+créances. La donnée reste disponible dans `useInvoiceMetrics.receivableMetrics` si le
+besoin réapparaît plus tard.

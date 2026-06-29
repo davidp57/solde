@@ -1,6 +1,6 @@
 # BIZ-210 — Rappel discret des créances hors exercice courant
 
-Status: 🧑 waiting-human
+Status: 🚫 wontfix
 Type: feat
 Files: `frontend/src/components/invoices/` (zone `InvoiceFunnelHero`), `frontend/src/composables/useInvoiceMetrics.ts`, `frontend/src/i18n/fr.ts`, `tests/`
 
