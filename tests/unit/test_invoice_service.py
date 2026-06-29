@@ -24,6 +24,7 @@ from backend.services.invoice import (
     duplicate_invoice,
     get_invoice,
     list_invoices,
+    record_reminder_sent,
     update_invoice,
     update_invoice_status,
 )
@@ -706,3 +707,24 @@ class TestArchiveInvoice:
         invoice.pdf_path = "data/pdfs/facture_test.pdf"  # type: ignore[union-attr]
         archived = await archive_invoice(db_session, invoice)  # type: ignore[arg-type]
         assert archived.status == InvoiceStatus.ARCHIVED
+
+
+class TestReminderHistory:
+    async def test_new_invoice_has_empty_reminder_history(self, db_session: AsyncSession):
+        invoice = await _make_invoice(db_session)
+        assert invoice.reminder_dates == []  # type: ignore[union-attr]
+
+    async def test_record_reminder_appends_date(self, db_session: AsyncSession):
+        invoice = await _make_invoice(db_session)
+        record_reminder_sent(invoice, date(2026, 6, 29))  # type: ignore[arg-type]
+        await db_session.commit()
+        await db_session.refresh(invoice)  # type: ignore[arg-type]
+        assert invoice.reminder_dates == ["2026-06-29"]  # type: ignore[union-attr]
+
+    async def test_record_reminder_appends_in_chronological_order(self, db_session: AsyncSession):
+        invoice = await _make_invoice(db_session)
+        record_reminder_sent(invoice, date(2026, 6, 1))  # type: ignore[arg-type]
+        record_reminder_sent(invoice, date(2026, 6, 15))  # type: ignore[arg-type]
+        await db_session.commit()
+        await db_session.refresh(invoice)  # type: ignore[arg-type]
+        assert invoice.reminder_dates == ["2026-06-01", "2026-06-15"]  # type: ignore[union-attr]

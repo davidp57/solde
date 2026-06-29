@@ -1,6 +1,6 @@
 # BIZ-218 — Historique des relances : colonne `reminder_dates` + append à l'envoi
 
-Status: ⬜ ready
+Status: 🔄 in-progress
 Type: feat
 Files: `backend/models/invoice.py`, `backend/alembic/versions/`, `backend/schemas/invoice.py`, `backend/services/invoice.py`, `backend/routers/invoice.py`, `tests/unit/`, `tests/integration/`
 

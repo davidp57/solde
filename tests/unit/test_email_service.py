@@ -10,6 +10,7 @@ import pytest
 from backend.services.email_service import (
     EmailSendError,
     compose_body,
+    compose_reminder,
     compose_subject,
     send_invoice_email,
 )
@@ -340,3 +341,62 @@ def test_send_invoice_email_override_subject_and_body() -> None:
     assert sent_messages[0]["Subject"] == "Sujet personnalisé"
     body_text = sent_messages[0].get_payload(0).get_payload(decode=True).decode()
     assert "Corps personnalisé" in body_text
+
+
+# ---------------------------------------------------------------------------
+# Reminder composition (BIZ-219)
+# ---------------------------------------------------------------------------
+
+_REMINDER_VARS: dict = {
+    "invoice_number": "2025-042",
+    "description": "Cours de soutien",
+    "association_name": "Association Test",
+    "amount_due": "120,00",
+    "due_date": "01/06/2026",
+    "last_reminder": "15/06/2026",
+}
+
+
+def test_compose_reminder_first_uses_first_default() -> None:
+    subject, body = compose_reminder(reminder_count=0, **{**_REMINDER_VARS, "last_reminder": ""})
+    assert "Rappel" in subject
+    assert "2025-042 — Cours de soutien" in subject
+    assert "120,00" in body
+    assert "01/06/2026" in body
+    assert "Association Test" in body
+
+
+def test_compose_reminder_next_uses_next_default_with_last_reminder() -> None:
+    subject, body = compose_reminder(reminder_count=2, **_REMINDER_VARS)
+    assert "Nouvelle relance" in subject
+    assert "15/06/2026" in body  # {derniere_relance}
+
+
+def test_compose_reminder_uses_custom_templates() -> None:
+    subject, body = compose_reminder(
+        reminder_count=0,
+        first_subject_template="Relance {invoice_number}",
+        first_body_template="Vous devez {montant_du} € — relances: {nombre_de_relances}",
+        **_REMINDER_VARS,
+    )
+    assert subject == "Relance 2025-042"
+    assert body == "Vous devez 120,00 € — relances: 0"
+
+
+def test_compose_reminder_selects_next_template_when_already_reminded() -> None:
+    subject, _ = compose_reminder(
+        reminder_count=1,
+        first_subject_template="FIRST",
+        next_subject_template="NEXT {derniere_relance}",
+        **_REMINDER_VARS,
+    )
+    assert subject == "NEXT 15/06/2026"
+
+
+def test_compose_reminder_leaves_unknown_placeholders_intact() -> None:
+    _, body = compose_reminder(
+        reminder_count=0,
+        first_body_template="Bonjour {prenom}, montant {montant_du}",
+        **_REMINDER_VARS,
+    )
+    assert body == "Bonjour {prenom}, montant 120,00"

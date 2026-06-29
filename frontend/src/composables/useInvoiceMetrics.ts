@@ -23,6 +23,9 @@ export function isOverdueInvoice(invoice: Invoice): boolean {
   return Boolean(
     invoice.status !== 'draft' &&
       invoice.status !== 'archived' &&
+      // An irrecoverable invoice has been written off: it is no longer "overdue"
+      // (excluded from both the list and the overdue metrics).
+      invoice.status !== 'irrecoverable' &&
       invoice.due_date &&
       remainingForInvoice(invoice) > 0 &&
       invoice.due_date < new Date().toISOString().slice(0, 10),

@@ -678,3 +678,27 @@ class TestGetAuditLogs:
         response = await client.get("/api/settings/audit-logs", headers=auth_headers)
         assert response.status_code == 200
         assert isinstance(response.json(), list)
+
+
+class TestReminderTemplates:
+    async def test_defaults_are_null(self, client: AsyncClient, auth_headers: dict):
+        response = await client.get("/api/settings/", headers=auth_headers)
+        data = response.json()
+        assert data["reminder_first_subject_template"] is None
+        assert data["reminder_first_body_template"] is None
+        assert data["reminder_next_subject_template"] is None
+        assert data["reminder_next_body_template"] is None
+
+    async def test_update_and_persist(self, client: AsyncClient, auth_headers: dict):
+        payload = {
+            "reminder_first_subject_template": "Rappel {invoice_number}",
+            "reminder_first_body_template": "Montant dû : {montant_du} €",
+            "reminder_next_subject_template": "Relance {invoice_number}",
+            "reminder_next_body_template": "Dernière relance le {derniere_relance}",
+        }
+        put = await client.put("/api/settings/", json=payload, headers=auth_headers)
+        assert put.status_code == 200
+        response = await client.get("/api/settings/", headers=auth_headers)
+        data = response.json()
+        for key, value in payload.items():
+            assert data[key] == value

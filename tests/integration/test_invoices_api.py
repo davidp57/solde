@@ -2,12 +2,14 @@
 
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 from httpx import AsyncClient
 from sqlalchemy import select
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.services.accounting_engine import seed_default_rules
+from backend.services.email_service import EmailSendError
 
 
 async def _create_contact(client: AsyncClient, headers: dict, nom: str = "Dupont") -> int:
@@ -497,3 +499,101 @@ class TestBulkArchive:
         r = await client.get(f"/api/invoices/{paid['id']}", headers=auth_headers)
         assert r.status_code == 200
         assert r.json()["status"] == "archived"
+
+
+class TestReminderDatesExposed:
+    async def test_new_invoice_exposes_empty_reminder_dates(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        cid = await _create_contact(client, auth_headers)
+        created = await _create_invoice(client, auth_headers, cid)
+        assert created["reminder_dates"] == []
+
+    async def test_get_invoice_exposes_reminder_dates(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        cid = await _create_contact(client, auth_headers)
+        created = await _create_invoice(client, auth_headers, cid)
+        r = await client.get(f"/api/invoices/{created['id']}", headers=auth_headers)
+        assert r.status_code == 200
+        assert r.json()["reminder_dates"] == []
+
+
+class TestReminderSendFlow:
+    _PDF_PATCH = "backend.services.pdf_service.generate_invoice_pdf"
+    _SEND_PATCH = "backend.services.email_service.send_invoice_email"
+
+    async def _setup_sendable_invoice(self, client: AsyncClient, headers: dict) -> dict:
+        await client.put(
+            "/api/settings/",
+            json={
+                "smtp_host": "smtp.test",
+                "smtp_user": "user",
+                "smtp_password": "secret",
+                "smtp_from_email": "factures@test.com",
+            },
+            headers=headers,
+        )
+        r = await client.post(
+            "/api/contacts/",
+            json={"type": "client", "nom": "Client Mail", "email": "client@test.com"},
+            headers=headers,
+        )
+        assert r.status_code == 201
+        cid = r.json()["id"]
+        return await _create_invoice(client, headers, cid)
+
+    async def _send(self, client: AsyncClient, headers: dict, invoice_id: int, kind: str):
+        return await client.post(
+            f"/api/invoices/{invoice_id}/send-email",
+            json={
+                "subject": "Sujet",
+                "body": "Corps",
+                "recipients": ["client@test.com"],
+                "kind": kind,
+            },
+            headers=headers,
+        )
+
+    async def test_preview_reminder_uses_reminder_template(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        invoice = await self._setup_sendable_invoice(client, auth_headers)
+        r = await client.get(
+            f"/api/invoices/{invoice['id']}/email-preview",
+            params={"kind": "reminder"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        assert "Rappel" in r.json()["subject"]
+
+    async def test_send_reminder_appends_date(self, client: AsyncClient, auth_headers: dict):
+        invoice = await self._setup_sendable_invoice(client, auth_headers)
+        with patch(self._PDF_PATCH, return_value=b"%PDF"), patch(self._SEND_PATCH):
+            r = await self._send(client, auth_headers, invoice["id"], "reminder")
+        assert r.status_code == 204
+        got = await client.get(f"/api/invoices/{invoice['id']}", headers=auth_headers)
+        assert len(got.json()["reminder_dates"]) == 1
+        assert got.json()["reminder_dates"][0] == date.today().isoformat()
+
+    async def test_send_initial_does_not_append(self, client: AsyncClient, auth_headers: dict):
+        invoice = await self._setup_sendable_invoice(client, auth_headers)
+        with patch(self._PDF_PATCH, return_value=b"%PDF"), patch(self._SEND_PATCH):
+            r = await self._send(client, auth_headers, invoice["id"], "initial")
+        assert r.status_code == 204
+        got = await client.get(f"/api/invoices/{invoice['id']}", headers=auth_headers)
+        assert got.json()["reminder_dates"] == []
+        assert got.json()["status"] == "sent"
+
+    async def test_send_reminder_failure_does_not_append(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        invoice = await self._setup_sendable_invoice(client, auth_headers)
+        with (
+            patch(self._PDF_PATCH, return_value=b"%PDF"),
+            patch(self._SEND_PATCH, side_effect=EmailSendError("boom")),
+        ):
+            r = await self._send(client, auth_headers, invoice["id"], "reminder")
+        assert r.status_code == 502
+        got = await client.get(f"/api/invoices/{invoice['id']}", headers=auth_headers)
+        assert got.json()["reminder_dates"] == []

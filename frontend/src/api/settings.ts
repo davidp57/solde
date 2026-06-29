@@ -24,6 +24,10 @@ export interface AppSettings {
   chat_enabled: boolean
   email_subject_template: string | null
   email_body_template: string | null
+  reminder_first_subject_template: string | null
+  reminder_first_body_template: string | null
+  reminder_next_subject_template: string | null
+  reminder_next_body_template: string | null
   payment_iban: string | null
   payment_bic: string | null
   payment_check_payee: string | null
@@ -57,6 +61,10 @@ export interface AppSettingsUpdate {
   chat_model?: string | null
   email_subject_template?: string | null
   email_body_template?: string | null
+  reminder_first_subject_template?: string | null
+  reminder_first_body_template?: string | null
+  reminder_next_subject_template?: string | null
+  reminder_next_body_template?: string | null
   payment_iban?: string | null
   payment_bic?: string | null
   payment_check_payee?: string | null
