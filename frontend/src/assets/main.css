@@ -471,6 +471,14 @@ html.dark-mode .app-chip {
   vertical-align: middle;
 }
 
+/* Stretch the table to fill its container so spare width is distributed to the
+   flexible (text) columns instead of leaving empty space on the side. When the
+   table genuinely can't fit (narrow screens), PrimeVue's own
+   .p-datatable-table-container already scrolls it horizontally. */
+.app-data-table table {
+  width: 100%;
+}
+
 .app-dialog {
   width: min(calc(100vw - 2rem), 720px);
 }

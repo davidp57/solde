@@ -26,7 +26,7 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [EDIT-OPS](EDIT-OPS/PRD.md) — édition/suppression des opérations bancaires manuelles (BIZ-169) | ⬜ |
 | [CREANCES-RAPPEL](CREANCES-RAPPEL/PRD.md) — rappel créances exercice/historique sur factures client (BIZ-210) | 🧑 |
 | [RELANCES](RELANCES/PRD.md) — relances factures impayées : historique daté, templates dédiés, filtrage irrécouvrables (BIZ-218→221) | 🔄 |
-| [TABLE-FIT](TABLE-FIT/PRD.md) — supprimer le scroll horizontal des tableaux sur grand écran (TEC-212) | ⬜ |
+| [TABLE-FIT](TABLE-FIT/PRD.md) — supprimer le scroll horizontal des tableaux sur grand écran (TEC-212) | ✅ |
 
 ## Lots archivés
 

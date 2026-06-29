@@ -11,6 +11,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **TEC-212** (Lot TABLE-FIT) — **Scroll horizontal des tableaux supprimé sur grand écran**. Le conteneur de contenu (`.main-inner`) plafonnait toutes les pages à 1320 px, ce qui **neutralisait le mode « large » (1640 px)** des écrans denses (Banque, comptabilité…) : la table débordait son panneau (scroll horizontal) tout en laissant de l'espace inutilisé sur les côtés. `.main-inner` suit désormais la largeur « large », les tableaux s'étirent à leur conteneur (`width: 100%`) et les colonnes texte de la Banque (libellé/référence) ne sont plus compressées. Vérifié sur 16 écrans à tableau : aucun débordement.
+
 ### Technique
 - **BIZ-218** (Lot RELANCES) — Socle de l'**historique des relances** : colonne `reminder_dates` (JSON, défaut `[]`) sur les factures + migration Alembic, exposition dans l'API de lecture des factures, et fonction service d'ajout d'une date de relance. Câblage à l'envoi (type `reminder`) et UI à suivre dans les tickets suivants du lot.
 - **BIZ-219** (Lot RELANCES) — **Modèles d'e-mail de relance** distincts de l'envoi initial : deux jeux sujet + corps (1ʳᵉ relance / relance suivante) configurables dans Paramètres › Communication, avec moteur de composition `compose_reminder()` (sélection 1ʳᵉ/suivante selon le nombre de relances, variables `{montant_du}`, `{echeance}`, `{derniere_relance}`, `{nombre_de_relances}` + variables facture, messages FR par défaut). 4 champs `app_settings` + migration. Câblage au flux d'envoi (« Relancer ») à suivre.
