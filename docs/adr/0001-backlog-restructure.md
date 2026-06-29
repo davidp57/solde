@@ -25,7 +25,7 @@ where architectural decisions are recorded going forward.
 1. **Rename `doc/` → `docs/`.** All documentation moves under `docs/`. Live references
    were updated: backend runtime paths (`backend/routers/chat.py`,
    `backend/services/chat_service.py`), `Dockerfile` (`COPY docs/ ./docs/`), `README.md`,
-   `CLAUDE.md`, `.github/copilot-instructions.md`, `.claude/commands/release-notes.md`,
+   `CLAUDE.md`, `.github/copilot-instructions.md`, `.claude/commands/release.md`,
    and internal dev-doc links. `CHANGELOG.md` is an append-only historical ledger and was
    left untouched (its past entries describe the state at the time).
 
