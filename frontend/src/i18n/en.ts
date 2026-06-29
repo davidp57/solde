@@ -175,6 +175,9 @@ export default {
     backup_daily_time_help: 'Local time in 24-hour format, e.g. 02:00',
     backup_include_uploads: 'Include uploaded attachments',
     backup_include_all_backups: 'Include all previous backup files (otherwise, latest snapshot only)',
+    backup_pdfs_only_archived: 'Back up only non-regenerable PDFs',
+    backup_pdfs_only_archived_desc:
+      'Keep only the PDFs of archived invoices (legal value) and imported attachments in the remote mirror. PDFs of non-archived invoices are regenerated on demand. Note: a regenerated PDF may look different if the template has changed (no legal value).',
     backup_notify_on_failure: 'Notify me by email on failure',
     backup_status_title: 'Status',
     backup_last_run: 'Last run:',

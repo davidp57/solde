@@ -41,6 +41,7 @@ export interface BackupSchedule {
   daily_time: string | null
   include_uploads: boolean
   include_all_backups: boolean
+  pdfs_only_archived: boolean
   notify_on_failure: boolean
 }
 
@@ -52,6 +53,7 @@ export interface BackupScheduleUpdate {
   daily_time?: string | null
   include_uploads?: boolean
   include_all_backups?: boolean
+  pdfs_only_archived?: boolean
   notify_on_failure?: boolean
 }
 

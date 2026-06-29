@@ -245,6 +245,8 @@ async def update_schedule(
         s.backup_include_uploads = payload.include_uploads
     if payload.include_all_backups is not None:
         s.backup_include_all_backups = payload.include_all_backups
+    if payload.pdfs_only_archived is not None:
+        s.backup_pdfs_only_archived = payload.pdfs_only_archived
     if payload.notify_on_failure is not None:
         s.backup_notify_on_failure = payload.notify_on_failure
 
@@ -284,6 +286,7 @@ async def trigger_backup(
     s = result.scalar_one_or_none()
     include_uploads = s.backup_include_uploads if s else True
     include_all_backups = s.backup_include_all_backups if s else False
+    pdfs_only_archived = s.backup_pdfs_only_archived if s else False
     notify_on_failure = s.backup_notify_on_failure if s else False
 
     background_tasks.add_task(
@@ -292,6 +295,7 @@ async def trigger_backup(
         backup_dir=backup_dir,
         include_uploads=include_uploads,
         include_all_backups=include_all_backups,
+        pdfs_only_archived=pdfs_only_archived,
         notify_on_failure=notify_on_failure,
     )
     return {"status": "started"}

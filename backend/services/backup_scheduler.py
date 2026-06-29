@@ -99,6 +99,7 @@ def reload_scheduler(settings: AppSettings) -> None:
     backup_dir = str(Path("data/backups").resolve())
     include_uploads = settings.backup_include_uploads
     include_all_backups = settings.backup_include_all_backups
+    pdfs_only_archived = settings.backup_pdfs_only_archived
     notify_on_failure = settings.backup_notify_on_failure
 
     trigger: IntervalTrigger | CronTrigger
@@ -126,6 +127,7 @@ def reload_scheduler(settings: AppSettings) -> None:
             "backup_dir": backup_dir,
             "include_uploads": include_uploads,
             "include_all_backups": include_all_backups,
+            "pdfs_only_archived": pdfs_only_archived,
             "notify_on_failure": notify_on_failure,
         },
         replace_existing=True,
@@ -150,6 +152,7 @@ async def run_backup_job(
     include_uploads: bool,
     notify_on_failure: bool,
     include_all_backups: bool = False,
+    pdfs_only_archived: bool = False,
 ) -> None:
     """Execute one backup cycle (called by the scheduler)."""
     global _backup_running
@@ -161,6 +164,7 @@ async def run_backup_job(
             backup_dir=backup_dir,
             include_uploads=include_uploads,
             include_all_backups=include_all_backups,
+            pdfs_only_archived=pdfs_only_archived,
             notify_on_failure=notify_on_failure,
         )
     finally:
@@ -173,10 +177,12 @@ async def _run_backup_job_inner(
     include_uploads: bool,
     notify_on_failure: bool,
     include_all_backups: bool = False,
+    pdfs_only_archived: bool = False,
 ) -> None:
     """Execute one backup cycle (called by the scheduler)."""
     from backend.database import get_session
     from backend.services.backup_destination_service import (
+        archived_pdf_relpaths,
         mirror_dir_incremental,
         prune_remote_backups,
         refresh_onedrive_tokens,
@@ -269,7 +275,12 @@ async def _run_backup_job_inner(
                 # uploaded once, never duplicated across snapshots.
                 pdfs_dir = Path("data/pdfs")
                 if pdfs_dir.exists():
-                    await mirror_dir_incremental(dest, str(pdfs_dir.resolve()), "pdfs")
+                    # BIZ-216: optionally mirror only non-regenerable PDFs
+                    # (archived invoices); the rest is rebuilt on demand (TEC-211).
+                    allowed = await archived_pdf_relpaths(db) if pdfs_only_archived else None
+                    await mirror_dir_incremental(
+                        dest, str(pdfs_dir.resolve()), "pdfs", allowed_relpaths=allowed
+                    )
                 if include_uploads:
                     uploads_dir = Path("data/uploads")
                     if uploads_dir.exists():

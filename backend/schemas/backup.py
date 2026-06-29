@@ -69,6 +69,7 @@ class BackupScheduleRead(BaseModel):
     daily_time: str | None
     include_uploads: bool
     include_all_backups: bool
+    pdfs_only_archived: bool
     notify_on_failure: bool
 
     model_config = {"from_attributes": True}
@@ -83,6 +84,7 @@ class BackupScheduleRead(BaseModel):
             daily_time=s.backup_daily_time,
             include_uploads=s.backup_include_uploads,
             include_all_backups=s.backup_include_all_backups,
+            pdfs_only_archived=s.backup_pdfs_only_archived,
             notify_on_failure=s.backup_notify_on_failure,
         )
 
@@ -95,6 +97,7 @@ class BackupScheduleUpdate(BaseModel):
     daily_time: str | None = None
     include_uploads: bool | None = None
     include_all_backups: bool | None = None
+    pdfs_only_archived: bool | None = None
     notify_on_failure: bool | None = None
 
 

@@ -97,6 +97,9 @@ class AppSettings(Base):
     backup_daily_time: Mapped[str | None] = mapped_column(String(5), nullable=True, default="02:00")
     backup_include_uploads: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     backup_include_all_backups: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # BIZ-216: when True, the remote PDF mirror keeps only non-regenerable PDFs
+    # (archived invoices); regenerable ones are rebuilt on demand (TEC-211).
+    backup_pdfs_only_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     backup_notify_on_failure: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     backup_last_run_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     backup_last_run_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
