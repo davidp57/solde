@@ -1,6 +1,6 @@
 # BIZ-216 — Miroir backup : n'inclure que les PDFs non régénérables
 
-Status: ⬜ ready
+Status: 🔄 in-progress
 Type: feat
 Files: `backend/services/backup_destination_service.py` (miroir TEC-209), `backend/models/`, `backend/services/settings.py`, `frontend/src/views/` (Paramètres › Sauvegardes), `frontend/src/i18n/fr.ts`, `tests/`
 

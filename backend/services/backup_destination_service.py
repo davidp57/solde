@@ -23,6 +23,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.backup_destination import BackupDestination
 from backend.schemas.backup import BackupConnectionTestResult
@@ -520,8 +521,30 @@ async def _graph_list_files(
     return files
 
 
+async def archived_pdf_relpaths(db: AsyncSession) -> set[str]:
+    """Filenames (relative to ``data/pdfs``) of non-regenerable invoice PDFs.
+
+    Only archived invoices carry legal-value, non-regenerable PDFs (BIZ-216);
+    every other PDF is rebuilt on demand (TEC-211), so it need not be mirrored.
+    """
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from backend.models.invoice import Invoice, InvoiceStatus  # noqa: PLC0415
+
+    result = await db.execute(
+        select(Invoice.pdf_path).where(
+            Invoice.status == InvoiceStatus.ARCHIVED,
+            Invoice.pdf_path.is_not(None),
+        )
+    )
+    return {Path(p).name for p in result.scalars().all() if p}
+
+
 async def mirror_dir_incremental(
-    dest: BackupDestination, local_dir: str, remote_subdir: str
+    dest: BackupDestination,
+    local_dir: str,
+    remote_subdir: str,
+    allowed_relpaths: set[str] | None = None,
 ) -> int:
     """Mirror ``local_dir`` to a **stable** remote folder, uploading only new files.
 
@@ -530,6 +553,10 @@ async def mirror_dir_incremental(
     so immutable assets (PDFs, uploads) are stored once instead of being
     re-uploaded on every backup. Returns the number of files uploaded
     (0 for rclone, which performs its own incremental copy).
+
+    When *allowed_relpaths* is given, only files whose path relative to
+    *local_dir* is in the set are mirrored (BIZ-216 PDF filtering); ``None``
+    (default) mirrors everything.
     """
     local = Path(local_dir)
     if not local.is_dir():
@@ -546,6 +573,8 @@ async def mirror_dir_incremental(
             remote_files = await _graph_list_files(client, access_token, drive_id, remote_base)
             for local_file in sorted(p for p in local.rglob("*") if p.is_file()):
                 rel = local_file.relative_to(local).as_posix()
+                if allowed_relpaths is not None and rel not in allowed_relpaths:
+                    continue  # filtered out (BIZ-216)
                 if remote_files.get(rel) == local_file.stat().st_size:
                     continue  # already present with the same size — skip
                 await _graph_upload_file(
@@ -560,6 +589,30 @@ async def mirror_dir_incremental(
     # (skips files identical by size/modtime).
     conf = str(_RCLONE_CONF_PATH.resolve())
     remote = f"{dest.rclone_remote_name}:{remote_base}"
+    if allowed_relpaths is not None:
+        # Restrict the copy to the allowed files via a temporary --files-from list.
+        import tempfile  # noqa: PLC0415
+
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as fh:
+            fh.write("\n".join(sorted(allowed_relpaths)))
+            files_from = fh.name
+        try:
+            await _run_rclone(
+                [
+                    "rclone",
+                    "copy",
+                    str(local.resolve()),
+                    remote,
+                    "--files-from",
+                    files_from,
+                    "--config",
+                    conf,
+                ]
+            )
+        finally:
+            Path(files_from).unlink(missing_ok=True)
+        return 0
+
     await _run_rclone(["rclone", "copy", str(local.resolve()), remote, "--config", conf])
     return 0
 

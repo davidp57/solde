@@ -8,6 +8,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.models.invoice import Invoice
 from backend.services.accounting_engine import seed_default_rules
 from backend.services.email_service import EmailSendError
 
@@ -597,3 +598,41 @@ class TestReminderSendFlow:
         assert r.status_code == 502
         got = await client.get(f"/api/invoices/{invoice['id']}", headers=auth_headers)
         assert got.json()["reminder_dates"] == []
+
+
+class TestPdfRegenerationGuard:
+    """TEC-211 — a PDF whose referenced file is missing is regenerated on access.
+
+    This is the invariant BK3 relies on: once non-archived (regenerable) PDFs are
+    excluded from backups, they are absent after a disaster restore, and the
+    consultation endpoint must rebuild them on the fly.
+    """
+
+    async def test_get_pdf_regenerates_when_referenced_file_is_missing(
+        self, client: AsyncClient, auth_headers: dict, db_session, tmp_path
+    ):
+        cid = await _create_contact(client, auth_headers)
+        created = await _create_invoice(client, auth_headers, cid)
+
+        # Point pdf_path to a non-existent file (simulates a backup-excluded PDF).
+        invoice = await db_session.get(Invoice, created["id"])
+        invoice.pdf_path = "data/pdfs/facture_missing_for_test.pdf"
+        await db_session.commit()
+
+        regenerated = tmp_path / "regen.pdf"
+        regenerated.write_bytes(b"%PDF-regenerated")
+        with (
+            patch(
+                "backend.services.pdf_service.generate_invoice_pdf",
+                return_value=b"%PDF-regenerated",
+            ) as mock_gen,
+            patch(
+                "backend.services.pdf_service.save_invoice_pdf",
+                return_value=str(regenerated),
+            ) as mock_save,
+        ):
+            r = await client.get(f"/api/invoices/{created['id']}/pdf", headers=auth_headers)
+
+        assert r.status_code == 200
+        mock_gen.assert_called_once()
+        mock_save.assert_called_once()

@@ -163,6 +163,24 @@ class TestBackupSchedule:
         r = await client.get("/api/backup/schedule", headers=secretaire_auth_headers)
         assert r.status_code == 403
 
+    async def test_pdfs_only_archived_defaults_false(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        r = await client.get("/api/backup/schedule", headers=auth_headers)
+        assert r.json()["pdfs_only_archived"] is False
+
+    async def test_update_pdfs_only_archived(self, client: AsyncClient, auth_headers: dict) -> None:
+        with patch("backend.services.backup_scheduler.reload_scheduler", new=AsyncMock()):
+            r = await client.put(
+                "/api/backup/schedule",
+                json={"pdfs_only_archived": True},
+                headers=auth_headers,
+            )
+        assert r.status_code == 200
+        assert r.json()["pdfs_only_archived"] is True
+        g = await client.get("/api/backup/schedule", headers=auth_headers)
+        assert g.json()["pdfs_only_archived"] is True
+
 
 # ---------------------------------------------------------------------------
 # Run now + Status
