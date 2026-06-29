@@ -4,6 +4,14 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.8.2 — à venir
+
+### Tous les utilisateurs
+
+- **Tableaux mieux affichés sur grand écran** : les écrans riches en colonnes (Banque, comptabilité…) utilisent désormais toute la largeur disponible. Fini la barre de défilement horizontale et les libellés écrasés sur les grands écrans.
+
+---
+
 ## Version 1.8.1 — 23 juin 2026
 
 Nouveauté d'envoi d'emails aux adhérents, sauvegardes plus économes, et correction du tableau de bord.

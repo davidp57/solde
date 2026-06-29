@@ -11,6 +11,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **TEC-212** (Lot TABLE-FIT) — **Scroll horizontal des tableaux supprimé sur grand écran**. Le conteneur de contenu (`.main-inner`) plafonnait toutes les pages à 1320 px, ce qui **neutralisait le mode « large » (1640 px)** des écrans denses (Banque, comptabilité…) : la table débordait son panneau (scroll horizontal) tout en laissant de l'espace inutilisé sur les côtés. `.main-inner` suit désormais la largeur « large », les tableaux s'étirent à leur conteneur (`width: 100%`) et les colonnes texte de la Banque (libellé/référence) ne sont plus compressées. Vérifié sur 16 écrans à tableau : aucun débordement.
+
 ### Technique
 - **Restructuration du backlog** — passage du backlog monolithique `doc/backlog.md` (+ archive) à une structure **par lot** sous `.backlog/` : un dossier `PRD.md` + `tickets/NN-slug.md` par lot actif, archives compactes par lot, index `.backlog/README.md`. Câblage (sans fork) des skills d'ingénierie `/to-prd` · `/to-issues` · `/triage` via `docs/agents/*`. Vocabulaire de statut unique (⬜ 🔄 🧑 ✅ 🚫). Décision actée dans `docs/adr/0001-backlog-restructure.md`
 - **Renommage `doc/` → `docs/`** — alignement sur la convention usuelle. Chemins runtime mis à jour (manuel/changelog servis par le chatbot), `Dockerfile`, `README.md` et docs de process. `CHANGELOG.md` conservé tel quel (ledger historique)
