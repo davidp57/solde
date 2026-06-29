@@ -1636,7 +1636,10 @@ onMounted(async () => {
 
 :deep(.bank-table__reference) {
   min-width: 7rem;
-  overflow-wrap: anywhere;
+  /* break-word over anywhere: only wrap long tokens (refs/IBANs) when they
+     overflow, preserving legibility/copyability. PrimeVue's native horizontal
+     scroll covers the rare too-narrow case. */
+  overflow-wrap: break-word;
 }
 
 :deep(.bank-table__amount) {
