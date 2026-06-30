@@ -141,4 +141,52 @@ describe('DashboardView', () => {
     // 36480.10 + 4750.00 + 455.73 = 41685.83
     expect(amount).toContain('685')
   })
+
+  it('shows the current calendar month figures, not the last (empty) fiscal month', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 5, 15)) // 15 June 2026
+    try {
+      mockGetDashboard.mockResolvedValue({
+        bank_balance: 0,
+        bank_epargne_balance: 0,
+        cash_balance: 0,
+        unpaid_count: 0,
+        unpaid_total: 0,
+        overdue_count: 0,
+        overdue_total: 0,
+        undeposited_count: 0,
+        to_reconcile_count: 0,
+        current_fy_name: '2025',
+        current_resultat: 0,
+        alerts: [],
+      })
+      // Fiscal year Aug→Jul: the last row (July) is still empty; June is the current month.
+      mockGetMonthly.mockResolvedValue([
+        { month: '2026-05', charges: 100, produits: 100 },
+        { month: '2026-06', charges: 2300, produits: 546 },
+        { month: '2026-07', charges: 0, produits: 0 },
+      ])
+      mockGetResources.mockResolvedValue([])
+
+      const wrapper = mount(DashboardView, { global: { stubs } })
+      await flush()
+
+      const cards = wrapper.findAll('.stat').map((c) => c.text())
+      const income = cards.find((t) => t.startsWith('dashboard.month_income:'))
+      const expense = cards.find((t) => t.startsWith('dashboard.month_expense:'))
+      // Parse the formatted amount, handling the FR locale (thin spaces as thousands
+      // separators, comma as decimal) so we can assert the exact value, not a substring.
+      const amountOf = (text: string | undefined): number =>
+        Number(
+          (text ?? '')
+            .replace(/^[^:]*:/, '')
+            .replace(/[\s €]/g, '')
+            .replace(',', '.'),
+        )
+      expect(amountOf(income)).toBe(546) // June produits, not July's 0
+      expect(amountOf(expense)).toBe(2300) // June charges, not July's 0
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
