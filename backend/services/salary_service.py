@@ -193,6 +193,9 @@ async def find_incomplete_salaries(db: AsyncSession) -> list[Salary]:
         select(AccountingEntry.source_id)
         .where(AccountingEntry.source_type == EntrySourceType.SALARY)
         .where(AccountingEntry.account_number.in_(payment_accounts))
+        # Exclude NULL source_id (imported salary payments): a NULL inside the
+        # NOT IN subquery would make the whole comparison unknown and return [].
+        .where(AccountingEntry.source_id.is_not(None))
     )
     query = (
         select(Salary)

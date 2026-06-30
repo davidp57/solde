@@ -16,6 +16,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
   - **A (BIZ-222)** — Le champ « Net à payer » se **remplit automatiquement** depuis le net calculé (brut − cotisations − impôt) en saisie, tout en restant éditable ; l'enregistrement est **refusé si le net est ≤ 0**.
   - **B (TEC-213)** — `update_salary` **régénère les écritures comptables** du salaire quand un montant change (brut, cotisations, impôt, net) ; un changement sans incidence comptable (notes) ne régénère rien. Refus (409) si l'exercice concerné est **clôturé**.
   - **C (TEC-214)** — Garde-fou moteur : **avertissement journalisé** lorsqu'un salaire est constaté sans paiement (net ≤ 0), et fonction `find_incomplete_salaries` pour détecter les salaires constatés mais non payés.
+  - **C (TEC-214, correctif)** — `find_incomplete_salaries` renvoyait une **liste vide** sur la base réelle : les paiements de salaires **importés** ont un `source_id` à `NULL`, et un `NULL` dans la sous-requête `NOT IN` rendait toute la comparaison indéterminée (piège SQL classique). La sous-requête exclut désormais les `NULL`. Détecté en passant le détecteur sur la base de production (un seul salaire incomplet confirmé : le cas WOLFF mai déjà corrigé).
 
 ## [1.9.0] — 2026-06-29
 

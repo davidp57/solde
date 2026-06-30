@@ -492,6 +492,22 @@ async def test_find_incomplete_salaries(db_session: AsyncSession) -> None:
         .where(AccountingEntry.source_id == incomplete.id)
         .where(AccountingEntry.account_number == "512100")
     )
+    # An imported legacy salary payment carries no source_id (NULL). A NULL inside
+    # the NOT IN subquery must not blind the whole query (regression guard).
+    from datetime import date
+
+    db_session.add(
+        AccountingEntry(
+            entry_number="LEGACY-PAY",
+            date=date(2024, 12, 31),
+            account_number="512100",
+            label="Imported salary payment",
+            debit=Decimal("0.00"),
+            credit=Decimal("1000.00"),
+            source_type=EntrySourceType.SALARY,
+            source_id=None,
+        )
+    )
     await db_session.flush()
 
     found_ids = {s.id for s in await find_incomplete_salaries(db_session)}
