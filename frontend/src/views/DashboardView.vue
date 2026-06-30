@@ -241,9 +241,17 @@ const sparklineAreaPath = computed(() =>
   sparklinePath.value ? `${sparklinePath.value} L 100 32 L 0 32 Z` : '',
 )
 
-const lastMonth = computed(
-  () => chartData.value.at(-1) ?? { month: '', charges: 0, produits: 0 },
-)
+// "Recettes/Dépenses du mois" = the current calendar month. chartData spans the whole
+// fiscal year, so its last row is the year's final month (often still in the future and
+// empty). Target the current month explicitly, falling back to the last row when the
+// displayed fiscal year doesn't contain it (e.g. a past year is selected).
+const lastMonth = computed(() => {
+  const rows = chartData.value
+  if (rows.length === 0) return { month: '', charges: 0, produits: 0 }
+  const now = new Date()
+  const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  return rows.find((row) => row.month === currentKey) ?? rows.at(-1)!
+})
 
 const overviewSubtitle = computed(() => {
   const fy = kpis.value?.current_fy_name ?? fiscalYearStore.selectedFiscalYear?.name ?? '—'
