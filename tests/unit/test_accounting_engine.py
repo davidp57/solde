@@ -697,6 +697,45 @@ class TestGenerateEntriesForSalary:
         )
 
     @pytest.mark.asyncio
+    async def test_salary_without_payment_logs_warning(
+        self, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A constated salary with net_pay <= 0 must log a warning (TEC-214)."""
+        from backend.services import accounting_engine
+
+        warnings: list[tuple[object, ...]] = []
+        monkeypatch.setattr(
+            accounting_engine.logger,
+            "warning",
+            lambda *args, **kwargs: warnings.append(args),
+        )
+
+        employee = await _make_employee(db_session)
+        salary = Salary(
+            employee_id=employee.id,
+            month="2024-03",
+            hours=Decimal("0.00"),
+            gross=Decimal("100.00"),
+            employee_charges=Decimal("0.00"),
+            employer_charges=Decimal("0.00"),
+            tax=Decimal("0.00"),
+            net_pay=Decimal("0.00"),  # constated but unpayable
+        )
+        db_session.add(salary)
+        await db_session.commit()
+        await db_session.refresh(salary)
+
+        await _create_fiscal_year(
+            db_session, name="2024", start=date(2024, 1, 1), end=date(2024, 12, 31)
+        )
+        await _seed_one_rule(db_session, TriggerType.SALARY_GROSS, "641000", "421000")
+        await _seed_one_rule(db_session, TriggerType.SALARY_PAYMENT, "421000", "512100")
+
+        await generate_entries_for_salary(db_session, salary)
+
+        assert any("without payment" in str(args[0]) for args in warnings)
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         ("month", "expected_date"),
         [
