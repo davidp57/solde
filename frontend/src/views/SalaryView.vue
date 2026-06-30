@@ -1012,7 +1012,10 @@ watch(
   () => [form.value.gross, form.value.employee_charges, form.value.tax] as const,
   () => {
     if (editing.value !== null) return
-    form.value.net_pay = Math.round(netPayComputed.value * 100) / 100
+    const computedNet = netPayComputed.value
+    // Guard against NaN (a cleared/non-numeric amount field) — it would slip past
+    // the `> 0` check in save() since `NaN > 0` is false.
+    form.value.net_pay = Number.isFinite(computedNet) ? Math.round(computedNet * 100) / 100 : 0
   },
 )
 
@@ -1101,7 +1104,7 @@ async function save() {
     toast.add({ severity: 'warn', summary: t('salary.validation_month_required'), life: 3000 })
     return
   }
-  if (form.value.net_pay <= 0) {
+  if (!(form.value.net_pay > 0)) {
     toast.add({ severity: 'warn', summary: t('salary.validation_net_required'), life: 3000 })
     return
   }

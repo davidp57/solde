@@ -321,6 +321,19 @@ describe('SalaryView', () => {
     expect(vm.form.net_pay).toBe(157.5)
   })
 
+  it('keeps net pay finite when an amount field is non-numeric (BIZ-222)', async () => {
+    const wrapper = mountView()
+    await flushView()
+    const vm = wrapper.vm as unknown as {
+      form: { gross: number; net_pay: number }
+    }
+
+    vm.form.gross = Number.NaN // a cleared InputNumber
+    await nextTick()
+
+    expect(vm.form.net_pay).toBe(0)
+  })
+
   it('blocks save when net pay is zero, and proceeds when positive (BIZ-222)', async () => {
     const wrapper = mountView()
     await flushView()
