@@ -17,6 +17,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
   - **B (TEC-213)** — `update_salary` **régénère les écritures comptables** du salaire quand un montant change (brut, cotisations, impôt, net) ; un changement sans incidence comptable (notes) ne régénère rien. Refus (409) si l'exercice concerné est **clôturé**.
   - **C (TEC-214)** — Garde-fou moteur : **avertissement journalisé** lorsqu'un salaire est constaté sans paiement (net ≤ 0), et fonction `find_incomplete_salaries` pour détecter les salaires constatés mais non payés.
   - **C (TEC-214, correctif)** — `find_incomplete_salaries` renvoyait une **liste vide** sur la base réelle : les paiements de salaires **importés** ont un `source_id` à `NULL`, et un `NULL` dans la sous-requête `NOT IN` rendait toute la comparaison indéterminée (piège SQL classique). La sous-requête exclut désormais les `NULL`. Détecté en passant le détecteur sur la base de production (un seul salaire incomplet confirmé : le cas WOLFF mai déjà corrigé).
+- **TEC-215** — **Tableau de bord : tuiles « Recettes/Dépenses du mois » corrigées**. Elles affichaient le **dernier mois de l'exercice** (souvent encore vide car dans le futur) au lieu du **mois calendaire en cours**, d'où des montants à 0 € alors que le graphique montrait bien une activité. La tuile cible désormais le mois courant (repli sur le dernier mois de l'exercice si celui consulté ne contient pas le mois en cours).
 
 ## [1.9.0] — 2026-06-29
 
