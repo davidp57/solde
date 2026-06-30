@@ -90,12 +90,13 @@ vi.mock('../../api/contacts', () => ({
 }))
 
 import SalaryView from '../../views/SalaryView.vue'
-import { getSalarySummaryApi, listSalariesWithCountApi } from '../../api/accounting'
+import { createSalaryApi, getSalarySummaryApi, listSalariesWithCountApi } from '../../api/accounting'
 import { listContactsApi } from '../../api/contacts'
 
 const mockListSalariesWithCountApi = vi.mocked(listSalariesWithCountApi)
 const mockGetSalarySummaryApi = vi.mocked(getSalarySummaryApi)
 const mockListContactsApi = vi.mocked(listContactsApi)
+const mockCreateSalaryApi = vi.mocked(createSalaryApi)
 
 const ContainerStub = defineComponent({
   template: '<div><slot /></div>',
@@ -303,5 +304,40 @@ describe('SalaryView', () => {
 
     const options = wrapper.findAll('option').map((option) => option.text())
     expect(options).toContain('Alice Martin')
+  })
+
+  it('auto-fills net pay from gross minus charges in create mode (BIZ-222)', async () => {
+    const wrapper = mountView()
+    await flushView()
+    const vm = wrapper.vm as unknown as {
+      form: { gross: number; employee_charges: number; tax: number; net_pay: number }
+    }
+
+    vm.form.gross = 199.99
+    vm.form.employee_charges = 42.49
+    vm.form.tax = 0
+    await nextTick()
+
+    expect(vm.form.net_pay).toBe(157.5)
+  })
+
+  it('blocks save when net pay is zero, and proceeds when positive (BIZ-222)', async () => {
+    const wrapper = mountView()
+    await flushView()
+    mockCreateSalaryApi.mockResolvedValue(undefined as never)
+    const vm = wrapper.vm as unknown as {
+      form: { employee_id: number | null; month: string; net_pay: number }
+      save: () => Promise<void>
+    }
+
+    vm.form.employee_id = 1
+    vm.form.month = '2026-05'
+    vm.form.net_pay = 0
+    await vm.save()
+    expect(mockCreateSalaryApi).not.toHaveBeenCalled()
+
+    vm.form.net_pay = 157.5
+    await vm.save()
+    expect(mockCreateSalaryApi).toHaveBeenCalledTimes(1)
   })
 })

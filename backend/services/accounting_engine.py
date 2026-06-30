@@ -14,7 +14,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -320,6 +320,24 @@ async def _apply_double_entry(
 
     await db.flush()
     return created
+
+
+async def delete_entries_for_source(
+    db: AsyncSession,
+    source_type: EntrySourceType,
+    source_id: int,
+) -> None:
+    """Delete all accounting entries linked to a given source.
+
+    ``source_id`` is a generic pointer (no FK cascade), so entries must be
+    removed explicitly — e.g. before regenerating a salary's entries on edit.
+    """
+    await db.execute(
+        delete(AccountingEntry)
+        .where(AccountingEntry.source_type == source_type)
+        .where(AccountingEntry.source_id == source_id)
+    )
+    await db.flush()
 
 
 async def _get_rule(db: AsyncSession, trigger: TriggerType) -> AccountingRule | None:
@@ -664,6 +682,15 @@ async def generate_entries_for_salary(
             group_key=group_key,
         )
         all_entries.extend(entries)
+    elif salary.gross > 0 and salary.net_pay <= 0:
+        # Constated (gross/charges generated) but no payment line — structurally
+        # incomplete salary (the WOLFF-May case). Surface it instead of failing silently.
+        logger.warning(
+            "Salary %s (%s) constated without payment line: net_pay=%s",
+            salary.id,
+            salary.month,
+            salary.net_pay,
+        )
 
     await db.flush()
     return all_entries
