@@ -4,6 +4,14 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.9.1 — à paraître
+
+### Secrétaire · Trésorier
+
+- **Saisie des salaires plus sûre** : le « Net à payer » se remplit automatiquement à partir du brut et des cotisations, tout en restant modifiable, et une paie ne peut plus être enregistrée avec un net à zéro. Si vous corrigez le montant d'un salaire déjà saisi, ses écritures comptables — y compris le paiement en banque — sont **mises à jour automatiquement**, ce qui évite qu'un règlement manque dans le compte banque.
+
+---
+
 ## Version 1.9.0 — 29 juin 2026
 
 ### Tous les utilisateurs

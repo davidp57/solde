@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
-from backend.errors import not_found
+from backend.errors import conflict, not_found
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.salary import (
@@ -156,7 +156,10 @@ async def update_salary(
     salary = await salary_service.get_salary(db, salary_id)
     if salary is None:
         raise not_found("Salary")
-    updated = await salary_service.update_salary(db, salary, payload)
+    try:
+        updated = await salary_service.update_salary(db, salary, payload)
+    except salary_service.SalaryError as exc:
+        raise conflict("salary_fiscal_year_closed", str(exc)) from exc
     await record_audit(
         db,
         action=AuditAction.SALARY_UPDATED,
