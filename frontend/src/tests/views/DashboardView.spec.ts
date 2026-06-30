@@ -174,8 +174,17 @@ describe('DashboardView', () => {
       const cards = wrapper.findAll('.stat').map((c) => c.text())
       const income = cards.find((t) => t.startsWith('dashboard.month_income:'))
       const expense = cards.find((t) => t.startsWith('dashboard.month_expense:'))
-      expect(income).toContain('546') // June produits, not July's 0
-      expect(expense).toContain('300') // June charges 2 300, not July's 0
+      // Parse the formatted amount, handling the FR locale (thin spaces as thousands
+      // separators, comma as decimal) so we can assert the exact value, not a substring.
+      const amountOf = (text: string | undefined): number =>
+        Number(
+          (text ?? '')
+            .replace(/^[^:]*:/, '')
+            .replace(/[\s €]/g, '')
+            .replace(',', '.'),
+        )
+      expect(amountOf(income)).toBe(546) // June produits, not July's 0
+      expect(amountOf(expense)).toBe(2300) // June charges, not July's 0
     } finally {
       vi.useRealTimers()
     }
