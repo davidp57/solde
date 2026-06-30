@@ -11,6 +11,12 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **BIZ-222 / TEC-213/214** (Lot SALARY-FIX) — **Fiabilisation des écritures comptables des salaires**. Un salaire pouvait être enregistré avec un **net à 0** (champ « Net à payer » manuel, par défaut 0, découplé du « Net calculé » affiché), ce qui **sautait silencieusement l'écriture de paiement banque** (421000 D / 512100 C) ; corriger le net ensuite ne régénérait rien (`update_salary` ne touchait pas la comptabilité), laissant un trou permanent (cas réel : paie WOLFF mai 2026, banque faussée de 157,50 €).
+  - **A (BIZ-222)** — Le champ « Net à payer » se **remplit automatiquement** depuis le net calculé (brut − cotisations − impôt) en saisie, tout en restant éditable ; l'enregistrement est **refusé si le net est ≤ 0**.
+  - **B (TEC-213)** — `update_salary` **régénère les écritures comptables** du salaire quand un montant change (brut, cotisations, impôt, net) ; un changement sans incidence comptable (notes) ne régénère rien. Refus (409) si l'exercice concerné est **clôturé**.
+  - **C (TEC-214)** — Garde-fou moteur : **avertissement journalisé** lorsqu'un salaire est constaté sans paiement (net ≤ 0), et fonction `find_incomplete_salaries` pour détecter les salaires constatés mais non payés.
+
 ## [1.9.0] — 2026-06-29
 
 ### Corrigé

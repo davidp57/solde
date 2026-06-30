@@ -1004,6 +1004,18 @@ watch(
   },
 )
 
+// Auto-fill "Net à payer" from the computed net in create mode, so a salary can't
+// be saved at net 0 by inadvertence (BIZ-222). The field stays editable: a manual
+// value holds until a component (gross/charges/tax) changes again. In edit mode the
+// stored value is kept untouched.
+watch(
+  () => [form.value.gross, form.value.employee_charges, form.value.tax] as const,
+  () => {
+    if (editing.value !== null) return
+    form.value.net_pay = Math.round(netPayComputed.value * 100) / 100
+  },
+)
+
 function formatAmount(v: number | string | null | undefined): string {
   return formatCurrency(toSalaryNumber(v))
 }
@@ -1087,6 +1099,10 @@ async function save() {
   }
   if (!form.value.month) {
     toast.add({ severity: 'warn', summary: t('salary.validation_month_required'), life: 3000 })
+    return
+  }
+  if (form.value.net_pay <= 0) {
+    toast.add({ severity: 'warn', summary: t('salary.validation_net_required'), life: 3000 })
     return
   }
   saving.value = true
@@ -1206,5 +1222,8 @@ onMounted(async () => {
   workforceToMonth.value = salaryMonthRange.value.to_month ?? ''
   await Promise.all([loadEmployees(), loadSalaries(), loadSummary(), loadWorkforce()])
 })
+
+// Exposed for unit tests (net auto-fill + save validation — BIZ-222).
+defineExpose({ form, save, netPayComputed, editing })
 </script>
 
