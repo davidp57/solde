@@ -16,6 +16,75 @@ async def _make_employee(db: AsyncSession, nom: str = "Dupont", prenom: str = "J
     return c
 
 
+async def _seed_salary_rules(db: AsyncSession) -> None:
+    """Seed the four salary accounting rules used by entry generation."""
+    from backend.models.accounting_rule import (
+        AccountingRule,
+        AccountingRuleEntry,
+        EntrySide,
+        TriggerType,
+    )
+
+    specs = [
+        (TriggerType.SALARY_GROSS, "641000", "421000"),
+        (TriggerType.SALARY_EMPLOYEE_CHARGES, "421000", "431100"),
+        (TriggerType.SALARY_EMPLOYER_CHARGES, "645100", "431100"),
+        (TriggerType.SALARY_PAYMENT, "421000", "512100"),
+    ]
+    for trigger, debit, credit in specs:
+        rule = AccountingRule(
+            name=f"r-{trigger}", trigger_type=trigger, is_active=True, priority=10
+        )
+        db.add(rule)
+        await db.flush()
+        db.add(
+            AccountingRuleEntry(
+                rule_id=rule.id,
+                account_number=debit,
+                side=EntrySide.DEBIT,
+                description_template="{{label}}",
+            )
+        )
+        db.add(
+            AccountingRuleEntry(
+                rule_id=rule.id,
+                account_number=credit,
+                side=EntrySide.CREDIT,
+                description_template="{{label}}",
+            )
+        )
+    await db.flush()
+
+
+async def _make_fiscal_year(db: AsyncSession, year: int, *, closed: bool = False):
+    from datetime import date
+
+    from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
+
+    fy = FiscalYear(
+        name=f"FY-{year}",
+        start_date=date(year, 1, 1),
+        end_date=date(year, 12, 31),
+        status=FiscalYearStatus.CLOSED if closed else FiscalYearStatus.OPEN,
+    )
+    db.add(fy)
+    await db.flush()
+    return fy
+
+
+async def _salary_entries(db: AsyncSession, salary_id: int) -> list:
+    from sqlalchemy import select
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+
+    result = await db.execute(
+        select(AccountingEntry)
+        .where(AccountingEntry.source_type == EntrySourceType.SALARY)
+        .where(AccountingEntry.source_id == salary_id)
+    )
+    return list(result.scalars())
+
+
 @pytest.mark.asyncio
 async def test_create_salary_minimal(db_session: AsyncSession) -> None:
     """Creating a salary with minimal data persists correctly."""
@@ -269,6 +338,181 @@ async def test_update_salary(db_session: AsyncSession) -> None:
     assert updated.gross == Decimal("2000.00")
     assert updated.net_pay == Decimal("1700.00")
     assert updated.hours == Decimal("100.00")  # unchanged
+
+
+@pytest.mark.asyncio
+async def test_update_salary_regenerates_entries_when_amount_changes(
+    db_session: AsyncSession,
+) -> None:
+    """Editing a salary amount regenerates its accounting entries (TEC-213).
+
+    Reproduces the WOLFF May case: created at net_pay=0 (payment entry skipped),
+    then corrected to a positive net — the payment pair must now exist.
+    """
+    from backend.schemas.salary import SalaryUpdate
+    from backend.services.salary_service import create_salary, update_salary
+
+    await _seed_salary_rules(db_session)
+    await _make_fiscal_year(db_session, 2025)
+    employee = await _make_employee(db_session, "Wolff", "Philippe")
+
+    salary = await create_salary(
+        db_session,
+        SalaryCreate(
+            employee_id=employee.id,
+            month="2025-03",
+            gross=Decimal("199.99"),
+            employee_charges=Decimal("42.49"),
+            employer_charges=Decimal("80.16"),
+            tax=Decimal("0.00"),
+            net_pay=Decimal("0.00"),  # net left at 0 — payment entry skipped
+        ),
+    )
+    entries = await _salary_entries(db_session, salary.id)
+    assert not any(e.account_number == "512100" for e in entries)  # no payment yet
+
+    await update_salary(db_session, salary, SalaryUpdate(net_pay=Decimal("157.50")))
+
+    entries = await _salary_entries(db_session, salary.id)
+    payment = [e for e in entries if e.account_number == "512100"]
+    assert len(payment) == 1
+    assert payment[0].credit == Decimal("157.50")
+    # entries stay grouped under the salary
+    assert {e.group_key for e in entries} == {f"salary:{salary.id}"}
+
+
+@pytest.mark.asyncio
+async def test_update_salary_notes_only_keeps_entries(db_session: AsyncSession) -> None:
+    """Editing only non-amount fields must not regenerate accounting entries (TEC-213)."""
+    from backend.schemas.salary import SalaryUpdate
+    from backend.services.salary_service import create_salary, update_salary
+
+    await _seed_salary_rules(db_session)
+    await _make_fiscal_year(db_session, 2025)
+    employee = await _make_employee(db_session, "Lay", "Myriam")
+
+    salary = await create_salary(
+        db_session,
+        SalaryCreate(
+            employee_id=employee.id,
+            month="2025-03",
+            gross=Decimal("1700.00"),
+            employee_charges=Decimal("376.39"),
+            employer_charges=Decimal("402.93"),
+            tax=Decimal("0.00"),
+            net_pay=Decimal("1323.61"),
+        ),
+    )
+    before = {e.id for e in await _salary_entries(db_session, salary.id)}
+    assert before  # entries exist
+
+    await update_salary(db_session, salary, SalaryUpdate(notes="commentaire"))
+
+    after = {e.id for e in await _salary_entries(db_session, salary.id)}
+    assert after == before  # identical entry ids — nothing regenerated
+
+
+@pytest.mark.asyncio
+async def test_update_salary_refused_on_closed_fiscal_year(db_session: AsyncSession) -> None:
+    """Regeneration is refused when the entry's fiscal year is closed (TEC-213)."""
+    from backend.schemas.salary import SalaryUpdate
+    from backend.services.salary_service import SalaryError, create_salary, update_salary
+
+    await _seed_salary_rules(db_session)
+    fy = await _make_fiscal_year(db_session, 2025)
+    employee = await _make_employee(db_session, "Wolff", "Philippe")
+
+    salary = await create_salary(
+        db_session,
+        SalaryCreate(
+            employee_id=employee.id,
+            month="2025-03",
+            gross=Decimal("199.99"),
+            employee_charges=Decimal("42.49"),
+            employer_charges=Decimal("80.16"),
+            tax=Decimal("0.00"),
+            net_pay=Decimal("0.00"),
+        ),
+    )
+    before = {e.id for e in await _salary_entries(db_session, salary.id)}
+
+    # Close the fiscal year, then attempt an amount edit.
+    from backend.models.fiscal_year import FiscalYearStatus
+
+    fy.status = FiscalYearStatus.CLOSED
+    await db_session.flush()
+
+    with pytest.raises(SalaryError):
+        await update_salary(db_session, salary, SalaryUpdate(net_pay=Decimal("157.50")))
+
+    after = {e.id for e in await _salary_entries(db_session, salary.id)}
+    assert after == before  # entries untouched on refusal
+
+
+@pytest.mark.asyncio
+async def test_find_incomplete_salaries(db_session: AsyncSession) -> None:
+    """find_incomplete_salaries flags constated-but-unpaid salaries (TEC-214)."""
+    from sqlalchemy import delete
+
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+    from backend.services.salary_service import create_salary, find_incomplete_salaries
+
+    await _seed_salary_rules(db_session)
+    await _make_fiscal_year(db_session, 2025)
+    employee = await _make_employee(db_session, "Wolff", "Philippe")
+
+    complete = await create_salary(
+        db_session,
+        SalaryCreate(
+            employee_id=employee.id,
+            month="2025-04",
+            gross=Decimal("199.99"),
+            employee_charges=Decimal("42.49"),
+            employer_charges=Decimal("80.16"),
+            tax=Decimal("0.00"),
+            net_pay=Decimal("157.50"),
+        ),
+    )
+    incomplete = await create_salary(
+        db_session,
+        SalaryCreate(
+            employee_id=employee.id,
+            month="2025-05",
+            gross=Decimal("199.99"),
+            employee_charges=Decimal("42.49"),
+            employer_charges=Decimal("80.16"),
+            tax=Decimal("0.00"),
+            net_pay=Decimal("157.50"),
+        ),
+    )
+    # Simulate the WOLFF-May state: payment line missing on the incomplete salary.
+    await db_session.execute(
+        delete(AccountingEntry)
+        .where(AccountingEntry.source_type == EntrySourceType.SALARY)
+        .where(AccountingEntry.source_id == incomplete.id)
+        .where(AccountingEntry.account_number == "512100")
+    )
+    # An imported legacy salary payment carries no source_id (NULL). A NULL inside
+    # the NOT IN subquery must not blind the whole query (regression guard).
+    from datetime import date
+
+    db_session.add(
+        AccountingEntry(
+            entry_number="LEGACY-PAY",
+            date=date(2024, 12, 31),
+            account_number="512100",
+            label="Imported salary payment",
+            debit=Decimal("0.00"),
+            credit=Decimal("1000.00"),
+            source_type=EntrySourceType.SALARY,
+            source_id=None,
+        )
+    )
+    await db_session.flush()
+
+    found_ids = {s.id for s in await find_incomplete_salaries(db_session)}
+    assert incomplete.id in found_ids
+    assert complete.id not in found_ids
 
 
 @pytest.mark.asyncio

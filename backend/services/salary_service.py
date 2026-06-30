@@ -103,11 +103,56 @@ async def create_salary(db: AsyncSession, payload: SalaryCreate) -> Salary:
     return result.scalar_one()
 
 
+# Fields whose change requires regenerating the salary's accounting entries.
+_ACCOUNTING_FIELDS = ("gross", "employee_charges", "employer_charges", "tax", "net_pay")
+
+
+async def _ensure_salary_entries_editable(db: AsyncSession, salary: Salary) -> None:
+    """Refuse regeneration when the salary's entries fall in a closed fiscal year."""
+    import calendar  # noqa: PLC0415
+    from datetime import date  # noqa: PLC0415
+
+    from backend.models.fiscal_year import FiscalYearStatus  # noqa: PLC0415
+    from backend.services.fiscal_year_service import find_fiscal_year_for_date  # noqa: PLC0415
+
+    year_str, month_str = salary.month.split("-")
+    last_day = calendar.monthrange(int(year_str), int(month_str))[1]
+    entry_date = date(int(year_str), int(month_str), last_day)
+    fiscal_year = await find_fiscal_year_for_date(db, entry_date)
+    if fiscal_year is not None and fiscal_year.status == FiscalYearStatus.CLOSED:
+        raise SalaryError(
+            f"Cannot regenerate salary entries: fiscal year '{fiscal_year.name}' is closed"
+        )
+
+
 async def update_salary(db: AsyncSession, salary: Salary, payload: SalaryUpdate) -> Salary:
-    for field, value in payload.model_dump(exclude_unset=True, exclude_none=False).items():
+    changes = payload.model_dump(exclude_unset=True, exclude_none=False)
+    accounting_changed = any(
+        changes.get(field) is not None and changes[field] != getattr(salary, field)
+        for field in _ACCOUNTING_FIELDS
+    )
+
+    # Guard before mutating anything: a refusal must leave the salary untouched.
+    if accounting_changed:
+        await _ensure_salary_entries_editable(db, salary)
+
+    for field, value in changes.items():
         if value is not None:
             setattr(salary, field, value)
     await db.flush()
+
+    # Keep accounting entries in sync with the salary's amounts (TEC-213).
+    if accounting_changed:
+        from backend.models.accounting_entry import EntrySourceType  # noqa: PLC0415
+        from backend.services.accounting_engine import (  # noqa: PLC0415
+            delete_entries_for_source,
+            generate_entries_for_salary,
+        )
+
+        await delete_entries_for_source(db, EntrySourceType.SALARY, salary.id)
+        await generate_entries_for_salary(db, salary)
+        await db.flush()
+
     # Same as create_salary: reload with selectinload to avoid expired relationship access.
     result = await db.execute(
         select(Salary).options(selectinload(Salary.employee)).where(Salary.id == salary.id)
@@ -118,6 +163,50 @@ async def update_salary(db: AsyncSession, salary: Salary, payload: SalaryUpdate)
 async def delete_salary(db: AsyncSession, salary: Salary) -> None:
     await db.delete(salary)
     await db.flush()
+
+
+async def find_incomplete_salaries(db: AsyncSession) -> list[Salary]:
+    """Return salaries constated but never paid (TEC-214).
+
+    A salary is incomplete when it has accounting entries but none on the
+    salary-payment account(s), while ``net_pay > 0`` — the WOLFF-May signature.
+    The payment account is read from the active SALARY_PAYMENT rule so it stays
+    consistent with the engine's configuration.
+    """
+    from backend.models.accounting_entry import AccountingEntry, EntrySourceType  # noqa: PLC0415
+    from backend.models.accounting_rule import EntrySide, TriggerType  # noqa: PLC0415
+    from backend.services.accounting_engine import _get_rule  # noqa: PLC0415
+
+    rule = await _get_rule(db, TriggerType.SALARY_PAYMENT)
+    if rule is None:
+        return []
+    payment_accounts = [e.account_number for e in rule.entries if e.side == EntrySide.CREDIT]
+    if not payment_accounts:
+        return []
+
+    salaries_with_entries = (
+        select(AccountingEntry.source_id)
+        .where(AccountingEntry.source_type == EntrySourceType.SALARY)
+        .where(AccountingEntry.source_id.is_not(None))
+    )
+    salaries_with_payment = (
+        select(AccountingEntry.source_id)
+        .where(AccountingEntry.source_type == EntrySourceType.SALARY)
+        .where(AccountingEntry.account_number.in_(payment_accounts))
+        # Exclude NULL source_id (imported salary payments): a NULL inside the
+        # NOT IN subquery would make the whole comparison unknown and return [].
+        .where(AccountingEntry.source_id.is_not(None))
+    )
+    query = (
+        select(Salary)
+        .options(selectinload(Salary.employee))
+        .where(Salary.net_pay > 0)
+        .where(Salary.id.in_(salaries_with_entries))
+        .where(Salary.id.not_in(salaries_with_payment))
+        .order_by(Salary.month, Salary.employee_id)
+    )
+    result = await db.execute(query)
+    return list(result.scalars())
 
 
 async def get_monthly_summary(

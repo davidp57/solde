@@ -4,6 +4,22 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.9.1 — 30 juin 2026
+
+### Tous les utilisateurs
+
+- **Tableau de bord : « Recettes/Dépenses du mois » justes** — ces deux indicateurs pouvaient afficher 0 € (ils montraient le dernier mois de l'exercice, souvent encore à venir, au lieu du mois en cours). Ils reflètent désormais bien le mois courant.
+
+### Secrétaire
+
+- **Saisie des salaires plus sûre** — le « Net à payer » se remplit automatiquement à partir du brut et des cotisations, tout en restant modifiable, et une paie ne peut plus être enregistrée avec un net à zéro.
+
+### Trésorier
+
+- **Correction d'un salaire répercutée en comptabilité** — modifier le montant d'un salaire déjà saisi met à jour automatiquement ses écritures, y compris le paiement en banque, ce qui évite qu'un règlement manque dans le compte banque.
+
+---
+
 ## Version 1.9.0 — 29 juin 2026
 
 ### Tous les utilisateurs
