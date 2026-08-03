@@ -13,7 +13,12 @@ from backend.models.cash import CashEntrySource, CashMovementType
 from backend.models.contact import Contact
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
-from backend.schemas.payment import PaymentCreate, PaymentRead, PaymentUpdate
+from backend.schemas.payment import (
+    PaymentCancelPreview,
+    PaymentCreate,
+    PaymentRead,
+    PaymentUpdate,
+)
 
 
 class InvoiceNotFoundError(LookupError):
@@ -22,6 +27,23 @@ class InvoiceNotFoundError(LookupError):
 
 class PaymentDeleteError(ValueError):
     """Raised when a payment deletion is not allowed in the standard workflow."""
+
+
+class PaymentCancelError(PaymentDeleteError):
+    """Raised when a payment cannot be cancelled, carrying a machine-readable code."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+#: Refusal codes for :func:`cancel_payment`, mapped to their API message.
+CANCEL_REFUSAL_MESSAGES: dict[str, str] = {
+    "PAYMENT_SUPPLIER": "only client payments can be cancelled",
+    "PAYMENT_DEPOSITED": "payment has already been cashed in and cannot be cancelled",
+    "PAYMENT_RECONCILED": "payment is linked to a bank transaction and cannot be cancelled",
+    "FISCAL_YEAR_CLOSED": "payment belongs to a closed fiscal year and cannot be cancelled",
+}
 
 
 def _build_payment_read(
@@ -302,9 +324,159 @@ async def update_payment(db: AsyncSession, payment_id: int, payload: PaymentUpda
     return await _to_payment_read(db, payment)
 
 
-async def delete_payment(db: AsyncSession, payment_id: int) -> None:
-    """Block payment deletion until a dedicated reversal workflow exists."""
-    raise PaymentDeleteError("payments cannot be deleted after creation")
+async def _find_cancel_refusal(db: AsyncSession, payment: Payment) -> str | None:
+    """Return the refusal code blocking cancellation, or None if it is allowed.
+
+    Cancellation stays open as long as the money has not reached the bank account:
+    ``deposited`` is already True at creation time for cash and for bank-reconciled
+    transfers, so those are excluded without naming any payment method.
+    """
+    from backend.models.fiscal_year import FiscalYearStatus  # noqa: PLC0415
+    from backend.services.fiscal_year_service import find_fiscal_year_for_date  # noqa: PLC0415
+
+    invoice = await _get_invoice(db, payment.invoice_id)
+    if invoice is None:
+        raise InvoiceNotFoundError("Invoice not found")
+    if invoice.type != InvoiceType.CLIENT:
+        return "PAYMENT_SUPPLIER"
+    if payment.deposited:
+        return "PAYMENT_DEPOSITED"
+    if await _has_bank_link(db, payment.id):
+        return "PAYMENT_RECONCILED"
+    fiscal_year = await find_fiscal_year_for_date(db, payment.date)
+    if fiscal_year is not None and fiscal_year.status == FiscalYearStatus.CLOSED:
+        return "FISCAL_YEAR_CLOSED"
+    return None
+
+
+async def _has_bank_link(db: AsyncSession, payment_id: int) -> bool:
+    """Report whether a payment is tied to a bank transaction (new or legacy link)."""
+    from backend.models.bank import BankTransaction, bank_transaction_payments  # noqa: PLC0415
+
+    linked = await db.execute(
+        select(func.count())
+        .select_from(bank_transaction_payments)
+        .where(bank_transaction_payments.c.payment_id == payment_id)
+    )
+    if linked.scalar_one():
+        return True
+    legacy = await db.execute(
+        select(func.count())
+        .select_from(BankTransaction)
+        .where(BankTransaction.payment_id == payment_id)
+    )
+    return bool(legacy.scalar_one())
+
+
+async def _build_cancel_preview(
+    db: AsyncSession,
+    payment: Payment,
+    refusal: str | None,
+) -> PaymentCancelPreview:
+    """Describe the outcome of cancelling *payment*, including its deposit slip."""
+    from backend.services import bank_service  # noqa: PLC0415
+
+    preview = PaymentCancelPreview(
+        payment_id=payment.id,
+        can_cancel=refusal is None,
+        reason_code=refusal,
+        amount=payment.amount,
+        date=payment.date,
+    )
+    if refusal is not None or not payment.in_deposit:
+        return preview
+
+    deposit_id = await bank_service.get_deposit_id_for_payment(db, payment.id)
+    if deposit_id is None:
+        return preview
+    deposit = await bank_service.get_deposit(db, deposit_id)
+    if deposit is None:
+        return preview
+
+    remaining = [
+        pid
+        for pid in await bank_service.get_deposit_payment_ids(db, deposit_id)
+        if pid != payment.id
+    ]
+    return preview.model_copy(
+        update={
+            "deposit_id": deposit_id,
+            "deposit_date": deposit.date,
+            "deposit_total_before": deposit.total_amount,
+            "deposit_total_after": deposit.total_amount - payment.amount,
+            "deposit_will_be_deleted": not remaining,
+        }
+    )
+
+
+async def preview_payment_cancellation(db: AsyncSession, payment_id: int) -> PaymentCancelPreview:
+    """Return whether a payment can be cancelled and what cancelling it would touch."""
+    payment = await _get_payment_orm(db, payment_id)
+    if payment is None:
+        raise LookupError("Payment not found")
+    refusal = await _find_cancel_refusal(db, payment)
+    return await _build_cancel_preview(db, payment, refusal)
+
+
+async def _detach_from_deposit(db: AsyncSession, payment: Payment) -> None:
+    """Remove a payment from its (necessarily unconfirmed) deposit slip.
+
+    ``update_deposit`` refuses an empty selection, so a slip left with no payment
+    is cancelled instead — both helpers already free the payments they release.
+    """
+    from backend.schemas.bank import DepositUpdate  # noqa: PLC0415
+    from backend.services import bank_service  # noqa: PLC0415
+
+    if not payment.in_deposit:
+        return
+    deposit_id = await bank_service.get_deposit_id_for_payment(db, payment.id)
+    if deposit_id is None:
+        # Flag set without an association row — nothing to unlink, just clear it.
+        payment.in_deposit = False
+        payment.deposit_date = None
+        return
+    remaining = [
+        pid
+        for pid in await bank_service.get_deposit_payment_ids(db, deposit_id)
+        if pid != payment.id
+    ]
+    if remaining:
+        await bank_service.update_deposit(db, deposit_id, DepositUpdate(payment_ids=remaining))
+    else:
+        await bank_service.delete_deposit(db, deposit_id)
+
+
+async def cancel_payment(db: AsyncSession, payment_id: int) -> PaymentCancelPreview:
+    """Cancel a client payment that has not been cashed in yet.
+
+    Detaches it from its deposit slip, drops the accounting entries it generated,
+    deletes it and refreshes the invoice status. Returns what was done, for audit.
+    """
+    from backend.models.accounting_entry import EntrySourceType  # noqa: PLC0415
+    from backend.services.accounting_engine import delete_entries_for_source  # noqa: PLC0415
+
+    payment = await _get_payment_orm(db, payment_id)
+    if payment is None:
+        raise LookupError("Payment not found")
+    refusal = await _find_cancel_refusal(db, payment)
+    if refusal is not None:
+        raise PaymentCancelError(refusal, CANCEL_REFUSAL_MESSAGES[refusal])
+
+    outcome = await _build_cancel_preview(db, payment, None)
+    invoice_id = payment.invoice_id
+
+    await _detach_from_deposit(db, payment)
+    await delete_entries_for_source(db, EntrySourceType.PAYMENT, payment_id)
+    await db.delete(payment)
+    await db.flush()
+    await _refresh_invoice_status(db, invoice_id)
+    await db.flush()
+    return outcome
+
+
+async def delete_payment(db: AsyncSession, payment_id: int) -> PaymentCancelPreview:
+    """Alias kept for the existing DELETE route — see :func:`cancel_payment`."""
+    return await cancel_payment(db, payment_id)
 
 
 async def _get_invoice_type(db: AsyncSession, invoice_id: int) -> InvoiceType | None:

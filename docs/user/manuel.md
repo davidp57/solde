@@ -311,9 +311,23 @@ Le format de numérotation est configurable par l'administrateur (ex. `2026-001`
 
 > **Astuce** : si une facture reste affichée comme impayée après l'enregistrement d'un paiement, vérifier que la facture est bien sélectionnée dans la section **Factures liées** du paiement.
 
-### Supprimer un paiement
+### Annuler un règlement saisi par erreur
 
-Un paiement peut être supprimé tant qu'il n'est pas associé à une remise en banque validée. La suppression met à jour le statut des factures liées.
+Un règlement enregistré ne se modifie plus (montant, date et mode sont figés) : en cas d'erreur de saisie, on **annule** le règlement puis on ressaisit le ou les bons.
+
+**Qui** : cette opération est réservée à l'**administrateur**.
+
+**Jusqu'à quand** : tant que l'argent n'est **pas arrivé sur le compte bancaire**. Concrètement, un chèque reçu d'un client reste annulable tant que sa remise n'a pas été confirmée. Un règlement en espèces (déjà en caisse), un virement reçu, un règlement déjà rapproché avec une opération bancaire ou appartenant à un exercice clôturé ne peuvent plus être annulés — dans ces cas, il faut passer par une écriture comptable de correction.
+
+**Comment** :
+
+1. Aller dans **Paiements** et retrouver la ligne concernée.
+2. Ouvrir le menu **⋯** de la ligne, puis **Annuler ce règlement**.
+3. Une fenêtre récapitule ce qui va se passer : le montant supprimé et, si le chèque figure déjà dans un bordereau de remise, l'effet sur ce bordereau — son total est recalculé, ou le bordereau est supprimé s'il ne contenait que ce chèque. Si l'annulation est impossible, la fenêtre en indique la raison.
+4. Confirmer. Le règlement et ses écritures comptables sont supprimés, et la facture repasse en attente de règlement.
+5. Ressaisir le ou les règlements corrects, puis reconstituer la remise en banque si nécessaire.
+
+> **Exemple** : une famille règle une facture avec deux chèques, saisis par erreur comme un seul règlement. Tant que la remise n'est pas confirmée, l'administrateur annule le règlement unique, puis deux règlements sont saisis, un par chèque.
 
 ### Remises en banque
 
