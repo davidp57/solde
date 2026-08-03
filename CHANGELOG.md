@@ -11,6 +11,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+## [1.10.0] — 2026-08-03
+
 ### Ajouté
 - **BIZ-223 / BIZ-224** (Lot PAY-CANCEL) — **Annulation d'un règlement non encore encaissé**, réservée à l'**administrateur**. Un règlement était jusqu'ici immuable après création (`delete_payment` refusait systématiquement, montant/date/mode figés par la politique BL-030) : une saisie erronée — par exemple deux chèques réglant une même facture enregistrés comme un seul règlement — n'avait aucune correction possible.
   - **Règle d'éligibilité** : facture **client**, règlement **non encaissé** (`deposited = false`), **aucun** lien avec une opération bancaire, exercice **non clôturé**. Les espèces et les virements issus du rapprochement sont exclus mécaniquement (déjà `deposited` à la création).
