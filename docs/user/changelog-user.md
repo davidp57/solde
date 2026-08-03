@@ -4,6 +4,15 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.11.0 — à paraître
+
+### Trésorier
+
+- **Passer d'un exercice au suivant sans perdre les soldes** — une fois un exercice clôturé, sa ligne propose **« Ouvrir le prochain exercice »**. Cette action crée le nouvel exercice **et reporte les soldes** de banque, caisse, créances clients et dettes fournisseurs. Le nom et les dates sont pré-remplis dans la continuité du précédent.
+- **Attention au bouton « Nouvel exercice »** — il crée une période vide, **sans reprise des soldes**. Pour un changement d'exercice, passez toujours par « Ouvrir le prochain exercice ». Le manuel décrit la procédure complète de fin d'exercice.
+- **Voir ce qui cloche avant de clôturer** — la fenêtre de clôture affiche maintenant les vérifications : balance déséquilibrée, écritures sans exercice associé. Elles ne bloquent pas la clôture, mais ce qu'elles signalent sera figé.
+- **Plus de chevauchement possible** — créer un exercice dont les dates empiètent sur un exercice existant est désormais refusé, avec le nom de l'exercice en conflit.
+
 ## Version 1.10.0 — 3 août 2026
 
 ### Administrateur
