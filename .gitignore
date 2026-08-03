@@ -67,3 +67,12 @@ data/
 # Playwright
 frontend/test-results/
 frontend/playwright-report/
+# Local runtime database (never commit — contains real data)
+solde.db
+solde.db-shm
+solde.db-wal
+
+# Local tooling / design exports
+.claude/settings.local.json
+.claude/launch.json
+design_handoff_solde_*/
