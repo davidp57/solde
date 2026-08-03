@@ -1,6 +1,6 @@
 # BIZ-224 — Bouton d'annulation de règlement dans l'écran Paiements
 
-Status: ⬜ ready
+Status: ✅ done
 Type: feature
 Files: `frontend/src/views/PaymentsView.vue`, `frontend/src/api/payments.ts`,
 `frontend/src/i18n/fr.ts`, `frontend/src/tests/views/PaymentsView.spec.ts`,

@@ -355,11 +355,118 @@ async def test_delete_payment(
     payment_id = create_resp.json()["id"]
 
     del_resp = await client.delete(f"/api/payments/{payment_id}", headers=auth_headers)
+    assert del_resp.status_code == 204
+
+    get_resp = await client.get(f"/api/payments/{payment_id}", headers=auth_headers)
+    assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_cancel_payment_refused_when_deposited(
+    client: AsyncClient, db_session: AsyncSession, admin_user: User, auth_headers: dict
+) -> None:
+    """A cashed-in payment is refused with its machine-readable reason code."""
+    contact_id, invoice_id = await _setup_contact_invoice(db_session)
+    create_resp = await client.post(
+        "/api/payments/",
+        json={
+            "invoice_id": invoice_id,
+            "contact_id": contact_id,
+            "amount": "60.00",
+            "date": "2024-03-01",
+            "method": "especes",
+        },
+        headers=auth_headers,
+    )
+    payment_id = create_resp.json()["id"]
+
+    del_resp = await client.delete(f"/api/payments/{payment_id}", headers=auth_headers)
+
     assert del_resp.status_code == 409
-    assert del_resp.json()["detail"]["detail"] == "payments cannot be deleted after creation"
+    assert del_resp.json()["detail"]["code"] == "PAYMENT_DEPOSITED"
+    get_resp = await client.get(f"/api/payments/{payment_id}", headers=auth_headers)
+    assert get_resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_cancel_payment_forbidden_for_non_admin(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    admin_user: User,
+    auth_headers: dict,
+    secretaire_auth_headers: dict,
+    tresorier_auth_headers: dict,
+) -> None:
+    """Cancelling is an admin-only operation."""
+    contact_id, invoice_id = await _setup_contact_invoice(db_session)
+    create_resp = await client.post(
+        "/api/payments/",
+        json={
+            "invoice_id": invoice_id,
+            "contact_id": contact_id,
+            "amount": "60.00",
+            "date": "2024-03-01",
+            "method": "cheque",
+        },
+        headers=auth_headers,
+    )
+    payment_id = create_resp.json()["id"]
+
+    for headers in (secretaire_auth_headers, tresorier_auth_headers):
+        assert (
+            await client.delete(f"/api/payments/{payment_id}", headers=headers)
+        ).status_code == 403
+        assert (
+            await client.get(f"/api/payments/{payment_id}/cancel-preview", headers=headers)
+        ).status_code == 403
 
     get_resp = await client.get(f"/api/payments/{payment_id}", headers=auth_headers)
     assert get_resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_cancel_preview_reports_eligibility(
+    client: AsyncClient, db_session: AsyncSession, admin_user: User, auth_headers: dict
+) -> None:
+    """The preview endpoint answers for both an eligible and an ineligible payment."""
+    contact_id, invoice_id = await _setup_contact_invoice(db_session)
+    cheque_id = (
+        await client.post(
+            "/api/payments/",
+            json={
+                "invoice_id": invoice_id,
+                "contact_id": contact_id,
+                "amount": "60.00",
+                "date": "2024-03-01",
+                "method": "cheque",
+            },
+            headers=auth_headers,
+        )
+    ).json()["id"]
+    cash_id = (
+        await client.post(
+            "/api/payments/",
+            json={
+                "invoice_id": invoice_id,
+                "contact_id": contact_id,
+                "amount": "10.00",
+                "date": "2024-03-01",
+                "method": "especes",
+            },
+            headers=auth_headers,
+        )
+    ).json()["id"]
+
+    ok = await client.get(f"/api/payments/{cheque_id}/cancel-preview", headers=auth_headers)
+    assert ok.status_code == 200
+    assert ok.json()["can_cancel"] is True
+    assert ok.json()["reason_code"] is None
+    assert ok.json()["deposit_id"] is None
+
+    ko = await client.get(f"/api/payments/{cash_id}/cancel-preview", headers=auth_headers)
+    assert ko.status_code == 200
+    assert ko.json()["can_cancel"] is False
+    assert ko.json()["reason_code"] == "PAYMENT_DEPOSITED"
 
 
 @pytest.mark.asyncio

@@ -11,6 +11,13 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **BIZ-223 / BIZ-224** (Lot PAY-CANCEL) — **Annulation d'un règlement non encore encaissé**, réservée à l'**administrateur**. Un règlement était jusqu'ici immuable après création (`delete_payment` refusait systématiquement, montant/date/mode figés par la politique BL-030) : une saisie erronée — par exemple deux chèques réglant une même facture enregistrés comme un seul règlement — n'avait aucune correction possible.
+  - **Règle d'éligibilité** : facture **client**, règlement **non encaissé** (`deposited = false`), **aucun** lien avec une opération bancaire, exercice **non clôturé**. Les espèces et les virements issus du rapprochement sont exclus mécaniquement (déjà `deposited` à la création).
+  - **Effets** : détachement du bordereau de remise non confirmé (total recalculé, ou bordereau supprimé s'il ne restait que ce règlement), suppression des écritures comptables `source_type=payment`, suppression du règlement, recalcul du statut de la facture, journalisation dans l'audit.
+  - **API** : `DELETE /api/payments/{id}` passe en **admin uniquement** et renvoie un `409` porteur d'un code explicite (`PAYMENT_SUPPLIER`, `PAYMENT_DEPOSITED`, `PAYMENT_RECONCILED`, `FISCAL_YEAR_CLOSED`) au lieu d'un refus générique ; nouvel endpoint `GET /api/payments/{id}/cancel-preview` décrivant l'éligibilité et l'impact sur le bordereau.
+  - **Interface** : action « Annuler ce règlement » dans le menu de ligne de l'écran Paiements (visible pour les seuls administrateurs), avec une confirmation qui annonce le montant supprimé et l'effet exact sur le bordereau de remise.
+
 ## [1.9.1] — 2026-06-30
 
 ### Corrigé

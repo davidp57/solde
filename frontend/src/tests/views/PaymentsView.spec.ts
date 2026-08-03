@@ -27,6 +27,14 @@ vi.mock('../../api/payments', () => ({
   listPaymentsWithCount: vi.fn(),
   updatePayment: vi.fn(),
   deletePayment: vi.fn(),
+  cancelPayment: vi.fn(),
+  getPaymentCancelPreview: vi.fn(),
+}))
+
+const authStoreMock = { isAdmin: true }
+
+vi.mock('../../stores/auth', () => ({
+  useAuthStore: () => authStoreMock,
 }))
 
 const fiscalYearStoreMock: {
@@ -80,10 +88,30 @@ vi.mock('vue-router', () => ({
 }))
 
 import PaymentsView from '../../views/PaymentsView.vue'
-import { listPaymentsWithCount, updatePayment } from '../../api/payments'
+import {
+  cancelPayment,
+  getPaymentCancelPreview,
+  listPaymentsWithCount,
+  updatePayment,
+} from '../../api/payments'
 
 const mockListPaymentsWithCount = vi.mocked(listPaymentsWithCount)
 const mockUpdatePayment = vi.mocked(updatePayment)
+const mockCancelPayment = vi.mocked(cancelPayment)
+const mockCancelPreview = vi.mocked(getPaymentCancelPreview)
+
+const cancelPreviewFixture = {
+  payment_id: 1,
+  can_cancel: true,
+  reason_code: null,
+  amount: '60.00',
+  date: '2025-02-01',
+  deposit_id: null,
+  deposit_date: null,
+  deposit_total_before: null,
+  deposit_total_after: null,
+  deposit_will_be_deleted: false,
+}
 
 const paymentFixture = {
   id: 1,
@@ -310,6 +338,7 @@ function mountView() {
         ToggleButton: ToggleButtonStub,
         AppTableSkeleton: { template: '<div />' },
         AppListLimitBanner: ContainerStub,
+        Message: ContainerStub,
       },
     },
   })
@@ -321,6 +350,9 @@ describe('PaymentsView', () => {
     fiscalYearStoreMock.initialize.mockResolvedValue(undefined)
     mockListPaymentsWithCount.mockResolvedValue({ items: [paymentFixture], total: 1 })
     mockUpdatePayment.mockResolvedValue({ ...paymentFixture, reference: 'REF-2025-002' })
+    mockCancelPreview.mockResolvedValue({ ...cancelPreviewFixture })
+    mockCancelPayment.mockResolvedValue(undefined)
+    authStoreMock.isAdmin = true
   })
 
   it('displays the payment reference in the table', async () => {
@@ -402,5 +434,68 @@ describe('PaymentsView', () => {
     expect(wrapper.get('input[type="date"]').element).toHaveProperty('disabled', true)
     expect(wrapper.get('input[type="number"]').element).toHaveProperty('disabled', true)
     expect(wrapper.get('select').element).toHaveProperty('disabled', true)
+  })
+
+  it('hides the cancel action from non-admin users', async () => {
+    authStoreMock.isAdmin = false
+
+    const wrapper = mountView()
+    await flushView()
+
+    expect(wrapper.find('[title="payments.cancel_action"]').exists()).toBe(false)
+  })
+
+  it('cancels a payment after showing the confirmation dialog', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    await wrapper.get('[title="payments.cancel_action"]').trigger('click')
+    await flushView()
+
+    expect(mockCancelPreview).toHaveBeenCalledWith(1)
+    expect(wrapper.text()).toContain('payments.cancel_intro')
+
+    await wrapper.get('[data-testid="payment-cancel-confirm"]').trigger('click')
+    await flushView()
+
+    expect(mockCancelPayment).toHaveBeenCalledWith(1)
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ severity: 'success', summary: 'payments.cancelled' }),
+    )
+  })
+
+  it('announces the deposit slip impact in the confirmation dialog', async () => {
+    mockCancelPreview.mockResolvedValue({
+      ...cancelPreviewFixture,
+      deposit_id: 7,
+      deposit_date: '2025-02-02',
+      deposit_total_before: '200.00',
+      deposit_total_after: '140.00',
+    })
+
+    const wrapper = mountView()
+    await flushView()
+
+    await wrapper.get('[title="payments.cancel_action"]').trigger('click')
+    await flushView()
+
+    expect(wrapper.text()).toContain('payments.cancel_deposit_kept')
+  })
+
+  it('refuses cancellation with its reason and no confirm button', async () => {
+    mockCancelPreview.mockResolvedValue({
+      ...cancelPreviewFixture,
+      can_cancel: false,
+      reason_code: 'PAYMENT_DEPOSITED',
+    })
+
+    const wrapper = mountView()
+    await flushView()
+
+    await wrapper.get('[title="payments.cancel_action"]').trigger('click')
+    await flushView()
+
+    expect(wrapper.text()).toContain('payments.cancel_refused.PAYMENT_DEPOSITED')
+    expect(wrapper.find('[data-testid="payment-cancel-confirm"]').exists()).toBe(false)
   })
 })
