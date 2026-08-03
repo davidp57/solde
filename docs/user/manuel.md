@@ -452,6 +452,12 @@ Une remise en banque regroupe plusieurs paiements remis ensemble à la banque (l
 4. Saisir la date de remise et le montant total.
 5. Enregistrer.
 
+**Confirmer la remise** (quand le bordereau part à la banque) crédite immédiatement le compte : une opération est ajoutée au journal bancaire, sans attendre le relevé.
+
+Quand vous importerez ensuite le relevé, la banque apportera ce même mouvement avec sa propre référence. L'application le **reconnaît et complète l'opération existante** au lieu d'en créer une seconde — le message de fin d'import indique combien de remises ont été rapprochées de cette façon. Vous n'avez donc rien à supprimer.
+
+> Dans un cas ambigu — deux remises du même montant à quelques jours d'intervalle — l'application ne choisit pas à votre place : les deux lignes sont importées, à vous de supprimer celle qui fait double emploi.
+
 ---
 
 ## 9. Salaires et employés

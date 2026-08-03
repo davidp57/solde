@@ -994,6 +994,8 @@ export default {
     import_file_required: 'Sélectionnez un fichier de relevé avant l’import.',
     import_success: '{n} opération(s) importée(s).',
     import_success_with_skipped: '{n} opération(s) importée(s), {s} ignorée(s) (déjà présente(s)).',
+    import_merged_suffix:
+      ' {m} remise(s) déjà enregistrée(s) dans Solde ont été rapprochées du relevé.',
     import_error: 'Erreur d\'import',
     metrics: {
       current_balance_caption: 'Toutes périodes confondues',

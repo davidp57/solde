@@ -67,6 +67,7 @@ async def _import_rows(
     """Persist parsed rows, skipping duplicates by reference. Returns created + skipped count."""
     created: list[BankTransactionRead] = []
     skipped = 0
+    merged = 0
 
     # For non-Excel imports, compute a per-account cut-off date based on the latest
     # Excel-imported transaction. Rows on or before that date are already covered.
@@ -100,12 +101,18 @@ async def _import_rows(
             source=source,
             bank_account=bank_account,
         )
+        # A deposit slip confirmed in Solde already credited the account; fold the
+        # statement row into it instead of creating a duplicate.
+        absorbed = await bank_service.absorb_pending_deposit_transaction(db, tx_payload)
+        if absorbed is not None:
+            merged += 1
+            continue
         tx = await bank_service.add_transaction(db, tx_payload)
         if tx is None:
             skipped += 1
         else:
             created.append(await _serialize_transaction(db, tx))
-    return BankImportResult(created=created, skipped=skipped)
+    return BankImportResult(created=created, skipped=skipped, merged=merged)
 
 
 # ---------------------------------------------------------------------------

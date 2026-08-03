@@ -2,6 +2,7 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.bank import BankAccountType, BankTransaction, BankTransactionSource
@@ -228,3 +229,63 @@ async def test_ofx_import_respects_excel_cutoff(
     assert data["skipped"] == 1  # 2025-04-15 blocked by cut-off
     assert len(data["created"]) == 1  # only 2025-04-20 imported
     assert data["created"][0]["description"] == "NEW TX"
+
+
+_OFX_DEPOSIT = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<OFX>
+  <BANKMSGSRSV1>
+    <STMTTRNRS>
+      <STMTRS>
+        <BANKTRANLIST>
+          <STMTTRN>
+            <DTPOSTED>20260711</DTPOSTED>
+            <TRNAMT>226.00</TRNAMT>
+            <NAME>REM CHQ REF05001A05</NAME>
+            <FITID>LF9UM92LLO</FITID>
+          </STMTTRN>
+        </BANKTRANLIST>
+      </STMTRS>
+    </STMTTRNRS>
+  </BANKMSGSRSV1>
+</OFX>"""
+
+
+@pytest.mark.asyncio
+async def test_import_ofx_merges_a_confirmed_deposit(
+    client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+) -> None:
+    """The statement row folds into the transaction created when the slip was confirmed."""
+    from datetime import date
+    from decimal import Decimal
+
+    from backend.models.bank import BankTransactionCategory
+    from backend.services import bank_service
+
+    provisional = await bank_service.create_bank_transaction_record(
+        db_session,
+        date=date(2026, 7, 11),
+        amount=Decimal("226.00"),
+        reference="DEP-CHQ-6",
+        description="Remise de chèques (bordereau #6)",
+        source=BankTransactionSource.MANUAL,
+    )
+    provisional.detected_category = BankTransactionCategory.CHEQUE_DEPOSIT
+    await db_session.commit()
+
+    response = await client.post(
+        "/api/bank/transactions/import-ofx",
+        json={"content": _OFX_DEPOSIT},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["merged"] == 1
+    assert data["created"] == []
+
+    result = await db_session.execute(select(BankTransaction))
+    rows = list(result.scalars().all())
+    assert len(rows) == 1, "the deposit must not be duplicated"
+    assert rows[0].reference == "LF9UM92LLO"
+    assert rows[0].source == BankTransactionSource.IMPORT_OFX

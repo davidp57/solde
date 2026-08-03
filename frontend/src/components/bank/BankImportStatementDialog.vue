@@ -141,10 +141,14 @@ async function submit(): Promise<void> {
     fileName.value = ''
     fileContent.value = ''
     defaultBankAccount.value = 'courant'
-    const summary =
+    const base =
       result.skipped > 0
         ? t('bank.import_success_with_skipped', { n: result.created.length, s: result.skipped })
         : t('bank.import_success', { n: result.created.length })
+    // Deposits already recorded in Solde are folded into the statement rather
+    // than imported a second time — say so, the counts would look off otherwise.
+    const summary =
+      result.merged > 0 ? base + t('bank.import_merged_suffix', { m: result.merged }) : base
     toast.add({
       severity: 'success',
       summary,

@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import logging
 from calendar import monthrange
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Protocol
 
@@ -35,6 +36,8 @@ from backend.schemas.bank import (
 )
 from backend.services import payment as payment_service
 from backend.services.bank_import import detect_transaction_category
+
+logger = logging.getLogger(__name__)
 
 
 class _Reconcilable(Protocol):
@@ -276,6 +279,77 @@ async def get_excel_cutoffs(db: AsyncSession) -> dict[BankAccountType, date]:
         .group_by(BankTransaction.bank_account)
     )
     return {row[0]: row[1] for row in result.all()}
+
+
+#: Categories of a bank line that mirrors a deposit slip confirmed in Solde.
+_DEPOSIT_CATEGORIES = (
+    BankTransactionCategory.CHEQUE_DEPOSIT,
+    BankTransactionCategory.CASH_DEPOSIT,
+)
+
+#: How far the statement date may sit from the provisional transaction's date.
+_DEPOSIT_MERGE_WINDOW_DAYS = 3
+
+
+async def absorb_pending_deposit_transaction(
+    db: AsyncSession, payload: BankTransactionCreate
+) -> BankTransaction | None:
+    """Fold a statement row into the provisional transaction created at deposit confirmation.
+
+    Confirming a deposit slip credits the account right away with a ``manual``
+    transaction; the statement later brings the very same movement with the
+    bank's own reference. Nothing links the two — the import only deduplicates
+    on ``reference`` — so both used to be kept and the balance counted twice.
+
+    Returns the updated transaction when exactly one provisional candidate
+    matches, else None (the caller then inserts the row normally). Ambiguity is
+    never resolved by guessing: several candidates means no merge.
+    """
+    if payload.source in (BankTransactionSource.MANUAL, BankTransactionSource.SYSTEM_OPENING):
+        return None
+
+    category = detect_transaction_category(
+        amount=payload.amount,
+        description=payload.description,
+        reference=payload.reference,
+    )
+    if category not in _DEPOSIT_CATEGORIES:
+        return None
+
+    window = timedelta(days=_DEPOSIT_MERGE_WINDOW_DAYS)
+    result = await db.execute(
+        select(BankTransaction).where(
+            BankTransaction.source == BankTransactionSource.MANUAL,
+            BankTransaction.reconciled == False,  # noqa: E712
+            BankTransaction.bank_account == payload.bank_account,
+            BankTransaction.amount == payload.amount,
+            BankTransaction.detected_category.in_(_DEPOSIT_CATEGORIES),
+            BankTransaction.date >= payload.date - window,
+            BankTransaction.date <= payload.date + window,
+        )
+    )
+    candidates = list(result.scalars().all())
+    if len(candidates) != 1:
+        if len(candidates) > 1:
+            logger.info(
+                "Deposit merge skipped: %d provisional candidates for %s on %s",
+                len(candidates),
+                payload.amount,
+                payload.date,
+            )
+        return None
+
+    tx = candidates[0]
+    # Keep Solde's description — it names the deposit slip — but take the bank's
+    # date, reference and source so the row becomes the statement's own.
+    tx.date = payload.date
+    tx.reference = payload.reference
+    tx.source = payload.source
+    await db.flush()
+    await recompute_bank_balances(db)
+    await db.flush()
+    await db.refresh(tx)
+    return tx
 
 
 async def add_transaction(

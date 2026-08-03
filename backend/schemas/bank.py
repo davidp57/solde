@@ -46,6 +46,8 @@ class BankTransactionRead(BaseModel):
 class BankImportResult(BaseModel):
     created: list[BankTransactionRead]
     skipped: int
+    #: Statement rows folded into a provisional deposit transaction created by Solde.
+    merged: int = 0
 
 
 class BankTransactionUpdate(BaseModel):

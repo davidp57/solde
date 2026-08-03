@@ -12,6 +12,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **BIZ-227** (Lot DEPOSIT-MERGE) — **Une remise n'apparaît plus deux fois**. Confirmer un bordereau créait une opération bancaire pour créditer le compte tout de suite ; l'import du relevé apportait ensuite le même mouvement avec la référence de la banque. Rien ne les rapprochait (la déduplication ne porte que sur `reference`), donc le solde comptait chaque remise deux fois jusqu'à un nettoyage manuel. À l'import, une ligne reconnue comme remise est désormais **absorbée** par l'opération provisoire correspondante — même compte, même montant, catégorie remise, non rapprochée, à ± 3 jours. La ligne conserve la description de Solde (qui nomme le bordereau) et prend la date, la référence et la source du relevé. En cas d'ambiguïté (plusieurs candidates), **aucune fusion** : la ligne est importée normalement et le cas est journalisé. Le résultat d'import distingue les opérations créées des remises rapprochées, et l'annonce en fin d'import.
 - **BIZ-226** (Lot FY-ROLLOVER) — **Bascule d'exercice utilisable depuis l'interface**. Le moteur était complet côté serveur, mais aucun écran n'appelait `open-next` (création de l'exercice suivant **avec reports à nouveau**) ni `pre-close-checks` — les fonctions front correspondantes existaient pourtant, en code mort. L'utilisateur n'avait donc que « Nouvel exercice », qui crée une période **sans reprise des soldes** : banque, caisse, créances et dettes repartaient à zéro.
   - La fenêtre de clôture affiche désormais les **vérifications avant clôture** (balance déséquilibrée, écritures sans exercice) ; elles informent sans bloquer.
   - Une action **« Ouvrir le prochain exercice »** apparaît sur un exercice clôturé sans successeur, avec nom et dates pré-remplis dans la continuité (lendemain de la fin, douze mois), et génère les reports à nouveau.
@@ -21,6 +22,8 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **TEC-217** (Lot FY-ROLLOVER) — Deux exercices comptables ne peuvent plus **se chevaucher** : la création (et l'ouverture du suivant) est refusée en `422 FISCAL_YEAR_OVERLAP` en nommant l'exercice en conflit. Des périodes recouvrantes rendaient l'exercice d'une écriture dépendant de l'ordre de tri de `find_fiscal_year_for_date`.
 - **FY-ROLLOVER** — Les dates du nouvel exercice sont calculées sur les composantes locales et non via `toISOString()`, qui décalait la frontière d'exercice d'un jour à l'est de Greenwich.
 - **TEC-218** — **Soldes bancaires périmés à l'écran après suppression d'une opération**. Supprimer une opération manuelle ne retirait que la ligne du tableau côté navigateur, alors que le serveur recalcule le `balance_after` de **toutes** les opérations suivantes (`recompute_bank_balances`). Les lignes postérieures gardaient donc leur ancien solde à l'écran, gonflé du montant supprimé — donnant l'impression d'une comptabilité fausse juste après un nettoyage pourtant correct (cas réel : deux remises supprimées, soldes affichés 526 € trop hauts alors que la base était juste). La liste est désormais rechargée depuis le serveur après suppression.
+
+||||||| constructed fake ancestor
 
 ## [1.10.0] — 2026-08-03
 
