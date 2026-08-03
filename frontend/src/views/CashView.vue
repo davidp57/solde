@@ -76,6 +76,16 @@
               @click="doExportExcel"
             />
           </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('cash.show_all_history') }}</label>
+            <ToggleButton
+              v-model="showAllHistory"
+              data-testid="cash-show-all-history"
+              :on-label="t('cash.show_all_history')"
+              :off-label="t('cash.show_all_history')"
+              @change="loadAll"
+            />
+          </div>
         </div>
       </div>
 
@@ -573,6 +583,7 @@
             <div class="app-field">
               <label class="app-field__label">{{ t('cash.entry_date') }}</label>
               <AppDatePicker v-model="entryForm.date" />
+              <AppFiscalYearDateWarning :date="entryForm.date" />
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('cash.entry_type') }}</label>
@@ -641,6 +652,7 @@
           <div class="app-field">
             <label class="app-field__label">{{ t('cash.count_date') }}</label>
             <AppDatePicker v-model="countForm.date" />
+            <AppFiscalYearDateWarning :date="countForm.date" />
           </div>
           <div class="cash-denominations-grid">
             <template v-for="denom in denominations" :key="denom.field">
@@ -721,6 +733,7 @@ import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import AppDatePicker from '../components/ui/AppDatePicker.vue'
+import AppFiscalYearDateWarning from '../components/ui/AppFiscalYearDateWarning.vue'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
@@ -732,6 +745,7 @@ import TabPanels from 'primevue/tabpanels'
 import Tabs from 'primevue/tabs'
 import Tag from 'primevue/tag'
 import Textarea from 'primevue/textarea'
+import ToggleButton from 'primevue/togglebutton'
 import type { MenuItem } from 'primevue/menuitem'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
@@ -809,6 +823,9 @@ const loadingCounts = ref(false)
 const activeTab = ref('journal')
 const entryDialogVisible = ref(false)
 const countDialogVisible = ref(false)
+// Lifts the fiscal-year date filter — entries dated outside every year are
+// otherwise invisible, which is exactly when you go looking for them.
+const showAllHistory = ref(false)
 const detailDialogVisible = ref(false)
 const depositFromCountVisible = ref(false)
 const depositFromCountData = ref<CashCountPrefill | null>(null)
@@ -1179,10 +1196,12 @@ async function loadAll() {
   loadingEntries.value = true
   loadingCounts.value = true
   try {
-    const dateRange = {
-      from_date: fiscalYearStore.selectedFiscalYear?.start_date,
-      to_date: fiscalYearStore.selectedFiscalYear?.end_date,
-    }
+    const dateRange = showAllHistory.value
+      ? {}
+      : {
+          from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+          to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+        }
     const [b, e, c, chart] = await Promise.all([
       getCashBalance(),
       listCashEntries(dateRange),

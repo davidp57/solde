@@ -29,6 +29,15 @@ vi.mock('primevue/usetoast', () => ({
 }))
 
 const fiscalYearStoreMock = reactive({
+  fiscalYears: [
+    {
+      id: 2,
+      name: 'Exercice 2025',
+      start_date: '2025-01-01',
+      end_date: '2025-12-31',
+      status: 'open',
+    },
+  ],
   selectedFiscalYearId: 2 as number | undefined,
   selectedFiscalYear: {
     id: 2,
@@ -307,6 +316,23 @@ async function flushView() {
   await nextTick()
 }
 
+const ToggleButtonStub = defineComponent({
+  props: { modelValue: { type: Boolean, default: false } },
+  emits: ['update:modelValue', 'change'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h('input', {
+        'data-testid': attrs['data-testid'],
+        type: 'checkbox',
+        checked: props.modelValue,
+        onChange: (event: Event) => {
+          emit('update:modelValue', (event.target as HTMLInputElement).checked)
+          emit('change')
+        },
+      })
+  },
+})
+
 const AppPageHeaderStub = defineComponent({
   template: '<div><slot /><slot name="actions" /></div>',
 })
@@ -334,6 +360,7 @@ function mountView() {
         Tabs: TabsStub,
         Tag: TagStub,
         Textarea: TextareaStub,
+        ToggleButton: ToggleButtonStub,
         TrendLineChart: ContainerStub,
         ConfirmDialog: ContainerStub,
         AppRowActions: AppRowActionsStub,
@@ -447,6 +474,36 @@ describe('CashView', () => {
     expect(live.text()).toContain('245.50')
     // Book balance is 145.00, so the till shows 100.50 too much.
     expect(live.text()).toContain('+100.50')
+  })
+
+  it('reloads without the fiscal-year date filter when showing all history', async () => {
+    const wrapper = mountView()
+    await flushView()
+    mockListCashCounts.mockClear()
+    mockListCashEntries.mockClear()
+
+    await wrapper.get('[data-testid="cash-show-all-history"]').setValue(true)
+    await flushView()
+
+    expect(mockListCashEntries).toHaveBeenCalledWith({})
+    expect(mockListCashCounts).toHaveBeenCalledWith({})
+  })
+
+  it('warns when the count date falls outside every fiscal year', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    await wrapper.get('button[data-testid="cash-new-count"]').trigger('click')
+    await flushView()
+    // The mocked store declares 2025 only.
+    await wrapper.get('input[type="date"]').setValue('2025-06-15')
+    await flushView()
+    expect(wrapper.find('[data-testid="fiscal-year-date-warning"]').exists()).toBe(false)
+
+    await wrapper.get('input[type="date"]').setValue('2026-08-03')
+    await flushView()
+
+    expect(wrapper.find('[data-testid="fiscal-year-date-warning"]').exists()).toBe(true)
   })
 
   it('renders the system opening indicator when a cash entry is flagged', async () => {
