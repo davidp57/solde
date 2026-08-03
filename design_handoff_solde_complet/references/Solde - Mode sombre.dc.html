@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/primeicons/primeicons.css">
+<style>
+  body { margin: 0; background: #020617; }
+  *, *::before, *::after { box-sizing: border-box; }
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#020617;padding:48px;font-family:Manrope,'Segoe UI Variable','Segoe UI',sans-serif;color:#e2e8f0;-webkit-font-smoothing:antialiased">
+  <div style="max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:36px">
+
+    <!-- ===== INTRO ===== -->
+    <header style="display:flex;flex-direction:column;gap:14px">
+      <p style="margin:0;color:#34d399;font-size:.78rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase">Mode sombre · Solde ⚖️</p>
+      <h1 style="margin:0;font-size:2.6rem;font-weight:800;line-height:1.04;letter-spacing:-.04em;color:#f8fafc;max-width:22ch">Solde en mode sombre</h1>
+      <p style="margin:0;max-width:76ch;color:#94a3b8;font-size:1.05rem;line-height:1.6">Tokens Aura sombres (<code style="background:#0e1a31;padding:1px 6px;border-radius:6px;font-size:.9em;color:#cbd5e1">surface-950</code> fond, 900/800 panneaux, primaire <strong style="color:#34d399">#34d399</strong>, sémantiques désaturés) appliqués à toute l'app. Les <strong style="color:#e2e8f0">deux écrans d'administration</strong> — Utilisateurs &amp; Système — sont traités en pleine fidélité&nbsp;; le reste de l'app suit la même recette (vignettes en bas).</p>
+    </header>
+
+    <!-- ===== PALETTE TOKENS ===== -->
+    <section style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;box-shadow:0 20px 44px rgba(2,6,23,.45);padding:24px 26px;display:flex;flex-direction:column;gap:18px">
+      <p style="margin:0;color:#34d399;font-size:.72rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Palette sombre</p>
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;gap:6px">
+            <span style="width:46px;height:46px;border-radius:10px;background:#020617;border:1px solid #2a3a55"></span>
+            <span style="width:46px;height:46px;border-radius:10px;background:#0f172a;border:1px solid #2a3a55"></span>
+            <span style="width:46px;height:46px;border-radius:10px;background:#1e293b;border:1px solid #2a3a55"></span>
+            <span style="width:46px;height:46px;border-radius:10px;background:#334155;border:1px solid #2a3a55"></span>
+          </div>
+          <span style="font-size:.74rem;color:#64748b">Surfaces · slate 950→700</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;gap:6px">
+            <span style="width:46px;height:46px;border-radius:10px;background:#10b981"></span>
+            <span style="width:46px;height:46px;border-radius:10px;background:#34d399"></span>
+            <span style="width:46px;height:46px;border-radius:10px;background:#6ee7b7"></span>
+          </div>
+          <span style="font-size:.74rem;color:#64748b">Primaire · emerald (clair en sombre)</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          <div style="display:flex;gap:6px">
+            <span style="width:46px;height:46px;border-radius:10px;background:#4ade80"></span>
+            <span style="width:46px;height:46px;border-radius:10px;background:#fcd34d"></span>
+            <span style="width:46px;height:46px;border-radius:10px;background:#f87171"></span>
+            <span style="width:46px;height:46px;border-radius:10px;background:#60a5fa"></span>
+          </div>
+          <span style="font-size:.74rem;color:#64748b">Sémantiques · ok / attente / danger / info</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================== -->
+    <!-- =============== FRAME 1 : UTILISATEURS =============== -->
+    <!-- ===================================================== -->
+    <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
+      <span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;background:#34d399;color:#04231a;font-weight:800;font-size:1rem">1</span>
+      <h2 style="margin:0;font-size:1.6rem;font-weight:800;letter-spacing:-.03em;color:#f8fafc">Administration · Utilisateurs</h2>
+    </div>
+
+    <div style="border-radius:14px;overflow:hidden;border:1px solid #1f2c44;box-shadow:0 40px 80px -20px rgba(2,6,23,.7)">
+      <div style="display:flex;align-items:center;gap:14px;padding:11px 16px;background:#0b1424">
+        <div style="display:flex;gap:7px">
+          <span style="width:11px;height:11px;border-radius:999px;background:#475569"></span>
+          <span style="width:11px;height:11px;border-radius:999px;background:#475569"></span>
+          <span style="width:11px;height:11px;border-radius:999px;background:#475569"></span>
+        </div>
+        <div style="flex:1;max-width:340px;background:#060c18;border:1px solid #1f2c44;border-radius:8px;padding:5px 12px;color:#64748b;font-size:.8rem">solde.asso&nbsp;/&nbsp;utilisateurs</div>
+      </div>
+
+      <div data-screen-label="Utilisateurs (sombre)" style="background:#020617">
+        <!-- topbar -->
+        <div style="display:flex;align-items:center;gap:18px;padding:11px 22px;background:#0f172a;border-bottom:1px solid #1f2c44">
+          <span style="display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.12rem;letter-spacing:-.02em;color:#f8fafc">⚖️ Solde</span>
+          <button style="display:inline-flex;align-items:center;gap:9px;padding:7px 14px;border:1px solid rgba(52,211,153,.4);background:rgba(52,211,153,.12);border-radius:999px;color:#6ee7b7;font-weight:700;font-size:.86rem;cursor:pointer;white-space:nowrap"><i class="pi pi-calendar" style="font-size:.82rem"></i>Exercice 2024<i class="pi pi-angle-down" style="font-size:.78rem;opacity:.7"></i></button>
+          <div style="flex:1;display:flex;align-items:center;gap:9px;max-width:300px;background:#0b1424;border:1px solid #1f2c44;border-radius:10px;padding:8px 12px;color:#64748b;font-size:.85rem"><i class="pi pi-search" style="font-size:.82rem"></i>Rechercher…</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+            <span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;color:#fcd34d;background:rgba(245,158,11,.12)"><i class="pi pi-sun"></i></span>
+            <span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;color:#94a3b8" style-hover="background:#1e293b"><i class="pi pi-bell"></i></span>
+            <span style="display:flex;align-items:center;gap:9px;padding:5px 8px 5px 5px;border-radius:999px" style-hover="background:#1e293b">
+              <span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;background:#34d399;color:#04231a;font-weight:700;font-size:.8rem">MD</span>
+              <span style="font-size:.85rem;font-weight:600;color:#cbd5e1">M. Dubois</span>
+            </span>
+          </div>
+        </div>
+
+        <div style="display:flex;min-height:880px">
+          <!-- sidebar (Administration › Utilisateurs active) -->
+          <aside style="width:240px;flex-shrink:0;background:#0f172a;border-right:1px solid #1f2c44;display:flex;flex-direction:column;padding:14px 0">
+            <div style="display:flex;flex-direction:column;gap:16px;flex:1;overflow:hidden">
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <p style="margin:0;padding:0 18px 4px;font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b">Accueil</p>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-home" style="font-size:1rem;color:#64748b"></i>Tableau de bord</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <p style="margin:0;padding:0 18px 4px;font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b">Gestion</p>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-file" style="font-size:1rem;color:#64748b"></i>Factures clients</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-building-columns" style="font-size:1rem;color:#64748b"></i>Banque</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-wallet" style="font-size:1rem;color:#64748b"></i>Caisse</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <p style="margin:0;padding:0 18px 4px;font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b">Comptabilité</p>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-chart-bar" style="font-size:1rem;color:#64748b"></i>Balance</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-chart-pie" style="font-size:1rem;color:#64748b"></i>Résultat</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <p style="margin:0;padding:0 18px 4px;font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b">Administration</p>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;background:rgba(52,211,153,.12);color:#34d399;font-weight:600;font-size:.9rem"><i class="pi pi-users" style="font-size:1rem"></i>Utilisateurs</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-cog" style="font-size:1rem;color:#64748b"></i>Paramètres</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-server" style="font-size:1rem;color:#64748b"></i>Système</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-comment" style="font-size:1rem;color:#64748b"></i>Commentaires</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid #1f2c44;margin-top:8px">
+              <div style="flex:1;display:flex;flex-direction:column;min-width:0"><span style="font-size:.85rem;font-weight:600;color:#cbd5e1">M. Dubois</span><span style="font-size:.72rem;color:#64748b">Administrateur</span></div>
+              <span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:999px;color:#64748b" style-hover="background:#1e293b"><i class="pi pi-sign-out"></i></span>
+            </div>
+            <span style="font-size:.7rem;color:#475569;padding:6px 16px 2px">v2.4.0</span>
+          </aside>
+
+          <!-- main -->
+          <main style="flex:1;min-width:0;background:#020617;padding:26px;position:relative">
+            <div style="display:flex;flex-direction:column;gap:24px">
+              <!-- header -->
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                <div style="display:flex;flex-direction:column;gap:7px;min-width:0">
+                  <p style="margin:0;color:#34d399;font-size:.76rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Administration</p>
+                  <h2 style="margin:0;font-size:2rem;font-weight:800;line-height:1.05;letter-spacing:-.04em;color:#f8fafc">Utilisateurs</h2>
+                  <p style="margin:0;color:#94a3b8;font-size:.96rem">Comptes et rôles d'accès de l'association</p>
+                </div>
+                <button style="display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border:none;background:#10b981;border-radius:10px;color:#04231a;font-weight:800;font-size:.88rem;cursor:pointer;box-shadow:0 6px 16px -4px rgba(16,185,129,.6)" style-hover="background:#34d399"><i class="pi pi-plus" style="font-size:.82rem"></i>Nouvel utilisateur</button>
+              </div>
+
+              <!-- KPIs -->
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+                <div style="padding:18px 20px;border-radius:14px;background:#0e1a31;border:1px solid #25344e;display:flex;flex-direction:column;gap:7px">
+                  <p style="margin:0;color:#94a3b8;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase">Comptes</p>
+                  <span style="font-size:1.6rem;font-weight:800;letter-spacing:-.03em;color:#f8fafc;font-variant-numeric:tabular-nums">8</span>
+                </div>
+                <div style="padding:18px 20px;border-radius:14px;background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.28);display:flex;flex-direction:column;gap:7px">
+                  <p style="margin:0;color:#94a3b8;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase">Actifs</p>
+                  <span style="font-size:1.6rem;font-weight:800;letter-spacing:-.03em;color:#4ade80;font-variant-numeric:tabular-nums">7</span>
+                </div>
+                <div style="padding:18px 20px;border-radius:14px;background:rgba(245,158,11,.10);border:1px solid rgba(245,158,11,.28);display:flex;flex-direction:column;gap:7px">
+                  <p style="margin:0;color:#94a3b8;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase">Administrateurs</p>
+                  <span style="font-size:1.6rem;font-weight:800;letter-spacing:-.03em;color:#fcd34d;font-variant-numeric:tabular-nums">2</span>
+                </div>
+              </div>
+
+              <!-- role matrix (with live counts) -->
+              <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;box-shadow:0 20px 44px rgba(2,6,23,.45);overflow:hidden">
+                <div style="padding:18px 22px 0;display:flex;flex-direction:column;gap:3px">
+                  <h3 style="margin:0;font-size:1.05rem;font-weight:700;color:#f1f5f9">Rôles &amp; permissions</h3>
+                  <p style="margin:0;color:#94a3b8;font-size:.88rem">Qui peut faire quoi — avec le nombre de comptes par rôle</p>
+                </div>
+                <div style="padding:16px 22px 22px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+                  <div style="background:#0c1730;border:1px solid #233149;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:center;justify-content:space-between"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(148,163,184,.14);color:#cbd5e1;font-size:.74rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#94a3b8"></span>Lecture seule</span><span style="font-weight:800;color:#f1f5f9;font-variant-numeric:tabular-nums">1</span></div>
+                    <p style="margin:0;color:#94a3b8;font-size:.83rem;line-height:1.5">Consultation seule. Aucune écriture ni saisie.</p>
+                  </div>
+                  <div style="background:#0c1730;border:1px solid #233149;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:center;justify-content:space-between"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(96,165,250,.16);color:#93c5fd;font-size:.74rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#60a5fa"></span>Secrétaire</span><span style="font-weight:800;color:#f1f5f9;font-variant-numeric:tabular-nums">3</span></div>
+                    <p style="margin:0;color:#94a3b8;font-size:.83rem;line-height:1.5">Contacts, factures, caisse. Pas de comptabilité.</p>
+                  </div>
+                  <div style="background:#0c1730;border:1px solid #233149;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:center;justify-content:space-between"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(34,197,94,.14);color:#4ade80;font-size:.74rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#22c55e"></span>Trésorier</span><span style="font-weight:800;color:#f1f5f9;font-variant-numeric:tabular-nums">2</span></div>
+                    <p style="margin:0;color:#94a3b8;font-size:.83rem;line-height:1.5">Gestion complète + écritures et bilan.</p>
+                  </div>
+                  <div style="background:#0c1730;border:1px solid #233149;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;align-items:center;justify-content:space-between"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(245,158,11,.14);color:#fcd34d;font-size:.74rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#f59e0b"></span>Admin</span><span style="font-weight:800;color:#f1f5f9;font-variant-numeric:tabular-nums">2</span></div>
+                    <p style="margin:0;color:#94a3b8;font-size:.83rem;line-height:1.5">Tout, plus utilisateurs, système et sauvegardes.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- users table -->
+              <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;box-shadow:0 20px 44px rgba(2,6,23,.45);overflow:hidden">
+                <div style="padding:18px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border-bottom:1px solid #1f2c44">
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;background:#e2e8f0;color:#0f172a;font-weight:700;font-size:.83rem">Tous <span style="opacity:.5">8</span></span>
+                    <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;background:#0b1424;border:1px solid #25344e;color:#fcd34d;font-weight:700;font-size:.83rem;cursor:pointer">Admins <span style="opacity:.7">2</span></span>
+                    <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;background:#0b1424;border:1px solid #25344e;color:#4ade80;font-weight:700;font-size:.83rem;cursor:pointer">Trésoriers <span style="opacity:.7">2</span></span>
+                    <span style="display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border-radius:999px;background:#0b1424;border:1px solid #25344e;color:#cbd5e1;font-weight:700;font-size:.83rem;cursor:pointer">Inactifs <span style="color:#64748b">1</span></span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px;background:#0b1424;border:1px solid #25344e;border-radius:10px;padding:8px 12px;color:#64748b;font-size:.85rem;min-width:200px"><i class="pi pi-search" style="font-size:.8rem"></i>Nom, e-mail…</div>
+                </div>
+                <div style="overflow-x:auto">
+                <table style="min-width:760px;width:100%;border-collapse:collapse">
+                  <thead><tr>
+                    <th style="text-align:left;padding:.8rem 1.4rem;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Utilisateur</th>
+                    <th style="text-align:left;padding:.8rem 1rem;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">E-mail</th>
+                    <th style="text-align:left;padding:.8rem 1rem;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Rôle</th>
+                    <th style="text-align:left;padding:.8rem 1rem;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Statut</th>
+                    <th style="text-align:left;padding:.8rem 1rem;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Créé le</th>
+                    <th style="text-align:right;padding:.8rem 1.4rem;font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Actions</th>
+                  </tr></thead>
+                  <tbody>
+                    <tr style="border-bottom:1px solid #18243c" style-hover="background:#13203a">
+                      <td style="padding:.85rem 1.4rem;font-size:.9rem;font-weight:700;color:#f1f5f9">m.dubois <span style="display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:rgba(52,211,153,.14);color:#34d399;font-size:.66rem;font-weight:700">vous</span></td>
+                      <td style="padding:.85rem 1rem;font-size:.86rem;color:#94a3b8">m.dubois@asso.fr</td>
+                      <td style="padding:.85rem 1rem"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(245,158,11,.14);color:#fcd34d;font-size:.76rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#f59e0b"></span>Admin</span></td>
+                      <td style="padding:.85rem 1rem"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(34,197,94,.14);color:#4ade80;font-size:.76rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#22c55e"></span>Actif</span></td>
+                      <td style="padding:.85rem 1rem;font-size:.84rem;color:#94a3b8">12 janv. 2024</td>
+                      <td style="padding:.85rem 1.4rem"><div style="display:flex;align-items:center;justify-content:flex-end;gap:6px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#94a3b8;cursor:pointer" style-hover="background:#1e293b"><i class="pi pi-pencil"></i></span><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#475569;cursor:not-allowed"><i class="pi pi-key"></i></span></div></td>
+                    </tr>
+                    <tr style="border-bottom:1px solid #18243c" style-hover="background:#13203a">
+                      <td style="padding:.85rem 1.4rem;font-size:.9rem;font-weight:700;color:#f1f5f9">a.moreau</td>
+                      <td style="padding:.85rem 1rem;font-size:.86rem;color:#94a3b8">a.moreau@asso.fr</td>
+                      <td style="padding:.85rem 1rem"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(245,158,11,.14);color:#fcd34d;font-size:.76rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#f59e0b"></span>Admin</span></td>
+                      <td style="padding:.85rem 1rem"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(34,197,94,.14);color:#4ade80;font-size:.76rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#22c55e"></span>Actif</span></td>
+                      <td style="padding:.85rem 1rem;font-size:.84rem;color:#94a3b8">03 mars 2024</td>
+                      <td style="padding:.85rem 1.4rem"><div style="display:flex;align-items:center;justify-content:flex-end;gap:6px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#94a3b8;cursor:pointer" style-hover="background:#1e293b"><i class="pi pi-pencil"></i></span><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#94a3b8;cursor:pointer" style-hover="background:#1e293b"><i class="pi pi-key"></i></span></div></td>
+                    </tr>
+                    <tr style="border-bottom:1px solid #18243c" style-hover="background:#13203a">
+                      <td style="padding:.85rem 1.4rem;font-size:.9rem;font-weight:700;color:#f1f5f9">c.lefevre</td>
+                      <td style="padding:.85rem 1rem;font-size:.86rem;color:#94a3b8">c.lefevre@asso.fr</td>
+                      <td style="padding:.85rem 1rem"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(34,197,94,.14);color:#4ade80;font-size:.76rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#22c55e"></span>Trésorier</span></td>
+                      <td style="padding:.85rem 1rem"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(34,197,94,.14);color:#4ade80;font-size:.76rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#22c55e"></span>Actif</span></td>
+                      <td style="padding:.85rem 1rem;font-size:.84rem;color:#94a3b8">21 mars 2024</td>
+                      <td style="padding:.85rem 1.4rem"><div style="display:flex;align-items:center;justify-content:flex-end;gap:6px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#94a3b8;cursor:pointer" style-hover="background:#1e293b"><i class="pi pi-pencil"></i></span><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#94a3b8;cursor:pointer" style-hover="background:#1e293b"><i class="pi pi-key"></i></span></div></td>
+                    </tr>
+                    <tr style="border-bottom:1px solid #18243c" style-hover="background:#13203a">
+                      <td style="padding:.85rem 1.4rem;font-size:.9rem;font-weight:700;color:#f1f5f9">s.bernard</td>
+                      <td style="padding:.85rem 1rem;font-size:.86rem;color:#94a3b8">s.bernard@asso.fr</td>
+                      <td style="padding:.85rem 1rem"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(96,165,250,.16);color:#93c5fd;font-size:.76rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#60a5fa"></span>Secrétaire</span></td>
+                      <td style="padding:.85rem 1rem"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(34,197,94,.14);color:#4ade80;font-size:.76rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#22c55e"></span>Actif</span></td>
+                      <td style="padding:.85rem 1rem;font-size:.84rem;color:#94a3b8">08 avr. 2024</td>
+                      <td style="padding:.85rem 1.4rem"><div style="display:flex;align-items:center;justify-content:flex-end;gap:6px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#94a3b8;cursor:pointer" style-hover="background:#1e293b"><i class="pi pi-pencil"></i></span><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#94a3b8;cursor:pointer" style-hover="background:#1e293b"><i class="pi pi-key"></i></span></div></td>
+                    </tr>
+                    <tr style-hover="background:#13203a">
+                      <td style="padding:.85rem 1.4rem;font-size:.9rem;font-weight:700;color:#94a3b8">j.petit</td>
+                      <td style="padding:.85rem 1rem;font-size:.86rem;color:#64748b">j.petit@asso.fr</td>
+                      <td style="padding:.85rem 1rem"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(148,163,184,.14);color:#cbd5e1;font-size:.76rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#94a3b8"></span>Lecture seule</span></td>
+                      <td style="padding:.85rem 1rem"><span style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(148,163,184,.12);color:#94a3b8;font-size:.76rem;font-weight:700"><span style="width:6px;height:6px;border-radius:999px;background:#64748b"></span>Inactif</span></td>
+                      <td style="padding:.85rem 1rem;font-size:.84rem;color:#94a3b8">15 sept. 2024</td>
+                      <td style="padding:.85rem 1.4rem"><div style="display:flex;align-items:center;justify-content:flex-end;gap:6px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#94a3b8;cursor:pointer" style-hover="background:#1e293b"><i class="pi pi-pencil"></i></span><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#94a3b8;cursor:pointer" style-hover="background:#1e293b"><i class="pi pi-key"></i></span></div></td>
+                    </tr>
+                  </tbody>
+                </table>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================== -->
+    <!-- ================= FRAME 2 : SYSTÈME ================== -->
+    <!-- ===================================================== -->
+    <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
+      <span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;background:#34d399;color:#04231a;font-weight:800;font-size:1rem">2</span>
+      <h2 style="margin:0;font-size:1.6rem;font-weight:800;letter-spacing:-.03em;color:#f8fafc">Administration · Système</h2>
+    </div>
+
+    <div style="border-radius:14px;overflow:hidden;border:1px solid #1f2c44;box-shadow:0 40px 80px -20px rgba(2,6,23,.7)">
+      <div style="display:flex;align-items:center;gap:14px;padding:11px 16px;background:#0b1424">
+        <div style="display:flex;gap:7px">
+          <span style="width:11px;height:11px;border-radius:999px;background:#475569"></span>
+          <span style="width:11px;height:11px;border-radius:999px;background:#475569"></span>
+          <span style="width:11px;height:11px;border-radius:999px;background:#475569"></span>
+        </div>
+        <div style="flex:1;max-width:340px;background:#060c18;border:1px solid #1f2c44;border-radius:8px;padding:5px 12px;color:#64748b;font-size:.8rem">solde.asso&nbsp;/&nbsp;système</div>
+      </div>
+
+      <div data-screen-label="Système (sombre)" style="background:#020617">
+        <!-- topbar -->
+        <div style="display:flex;align-items:center;gap:18px;padding:11px 22px;background:#0f172a;border-bottom:1px solid #1f2c44">
+          <span style="display:flex;align-items:center;gap:9px;font-weight:800;font-size:1.12rem;letter-spacing:-.02em;color:#f8fafc">⚖️ Solde</span>
+          <button style="display:inline-flex;align-items:center;gap:9px;padding:7px 14px;border:1px solid rgba(52,211,153,.4);background:rgba(52,211,153,.12);border-radius:999px;color:#6ee7b7;font-weight:700;font-size:.86rem;cursor:pointer;white-space:nowrap"><i class="pi pi-calendar" style="font-size:.82rem"></i>Exercice 2024<i class="pi pi-angle-down" style="font-size:.78rem;opacity:.7"></i></button>
+          <div style="flex:1;display:flex;align-items:center;gap:9px;max-width:300px;background:#0b1424;border:1px solid #1f2c44;border-radius:10px;padding:8px 12px;color:#64748b;font-size:.85rem"><i class="pi pi-search" style="font-size:.82rem"></i>Rechercher…</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
+            <span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;color:#fcd34d;background:rgba(245,158,11,.12)"><i class="pi pi-sun"></i></span>
+            <span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;color:#94a3b8" style-hover="background:#1e293b"><i class="pi pi-bell"></i></span>
+            <span style="display:flex;align-items:center;gap:9px;padding:5px 8px 5px 5px;border-radius:999px" style-hover="background:#1e293b">
+              <span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;background:#34d399;color:#04231a;font-weight:700;font-size:.8rem">MD</span>
+              <span style="font-size:.85rem;font-weight:600;color:#cbd5e1">M. Dubois</span>
+            </span>
+          </div>
+        </div>
+
+        <div style="display:flex;min-height:980px">
+          <!-- sidebar (Administration › Système active) -->
+          <aside style="width:240px;flex-shrink:0;background:#0f172a;border-right:1px solid #1f2c44;display:flex;flex-direction:column;padding:14px 0">
+            <div style="display:flex;flex-direction:column;gap:16px;flex:1;overflow:hidden">
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <p style="margin:0;padding:0 18px 4px;font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b">Accueil</p>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-home" style="font-size:1rem;color:#64748b"></i>Tableau de bord</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <p style="margin:0;padding:0 18px 4px;font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b">Gestion</p>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-file" style="font-size:1rem;color:#64748b"></i>Factures clients</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-building-columns" style="font-size:1rem;color:#64748b"></i>Banque</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-wallet" style="font-size:1rem;color:#64748b"></i>Caisse</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <p style="margin:0;padding:0 18px 4px;font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b">Comptabilité</p>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-chart-bar" style="font-size:1rem;color:#64748b"></i>Balance</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-chart-pie" style="font-size:1rem;color:#64748b"></i>Résultat</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <p style="margin:0;padding:0 18px 4px;font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#64748b">Administration</p>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-users" style="font-size:1rem;color:#64748b"></i>Utilisateurs</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-cog" style="font-size:1rem;color:#64748b"></i>Paramètres</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;background:rgba(52,211,153,.12);color:#34d399;font-weight:600;font-size:.9rem"><i class="pi pi-server" style="font-size:1rem"></i>Système</span>
+                <span style="display:flex;align-items:center;gap:12px;margin:0 10px;padding:9px 14px;border-radius:10px;color:#cbd5e1;font-size:.9rem" style-hover="background:#1e293b"><i class="pi pi-comment" style="font-size:1rem;color:#64748b"></i>Commentaires</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid #1f2c44;margin-top:8px">
+              <div style="flex:1;display:flex;flex-direction:column;min-width:0"><span style="font-size:.85rem;font-weight:600;color:#cbd5e1">M. Dubois</span><span style="font-size:.72rem;color:#64748b">Administrateur</span></div>
+              <span style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:999px;color:#64748b" style-hover="background:#1e293b"><i class="pi pi-sign-out"></i></span>
+            </div>
+            <span style="font-size:.7rem;color:#475569;padding:6px 16px 2px">v2.4.0</span>
+          </aside>
+
+          <!-- main -->
+          <main style="flex:1;min-width:0;background:#020617;padding:26px">
+            <div style="display:flex;flex-direction:column;gap:22px">
+              <!-- header -->
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <p style="margin:0;color:#34d399;font-size:.76rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Administration</p>
+                <h2 style="margin:0;font-size:2rem;font-weight:800;line-height:1.05;letter-spacing:-.04em;color:#f8fafc">Système</h2>
+                <p style="margin:0;color:#94a3b8;font-size:.96rem">État de l'instance, sauvegardes et journaux</p>
+              </div>
+
+              <!-- status band (improvement: health prominent) -->
+              <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;box-shadow:0 20px 44px rgba(2,6,23,.45);padding:20px 24px;display:flex;align-items:center;gap:28px;flex-wrap:wrap">
+                <div style="display:flex;align-items:center;gap:12px">
+                  <span style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:rgba(34,197,94,.14);color:#4ade80"><i class="pi pi-check-circle" style="font-size:1.3rem"></i></span>
+                  <div style="display:flex;flex-direction:column"><span style="font-weight:800;font-size:1.1rem;color:#f8fafc">Opérationnel</span><span style="font-size:.82rem;color:#94a3b8">Tous les services répondent</span></div>
+                </div>
+                <div style="width:1px;height:38px;background:#243349"></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b">Version</span><span style="font-weight:700;color:#e2e8f0;font-variant-numeric:tabular-nums">v2.4.0</span></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b">Base de données</span><span style="font-weight:700;color:#e2e8f0;font-variant-numeric:tabular-nums">18,42 Mo</span></div>
+                <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b">Démarré le</span><span style="font-weight:700;color:#e2e8f0;font-variant-numeric:tabular-nums">14/06/2026 08:12</span></div>
+              </div>
+
+              <!-- data-quality task (improvement: inconsistent payments as a worklist) -->
+              <div style="background:linear-gradient(180deg,#1c1606,#15110a);border:1px solid #5a4410;border-radius:16px;overflow:hidden">
+                <div style="padding:16px 22px;display:flex;align-items:center;gap:12px">
+                  <span style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:rgba(245,158,11,.16);color:#fcd34d"><i class="pi pi-exclamation-triangle"></i></span>
+                  <div style="flex:1;display:flex;flex-direction:column"><span style="font-weight:700;color:#f1f5f9">Données à corriger — chèques sans date de dépôt</span><span style="font-size:.84rem;color:#94a3b8">2 paiements bloquent le rapprochement</span></div>
+                  <span style="display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:26px;padding:0 8px;border-radius:999px;background:rgba(245,158,11,.18);color:#fcd34d;font-weight:800;font-size:.82rem">2</span>
+                </div>
+              </div>
+
+              <!-- DANGER ZONE : backups & restore (improvement: isolate destructive) -->
+              <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;box-shadow:0 20px 44px rgba(2,6,23,.45);overflow:hidden">
+                <div style="padding:18px 22px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                  <div style="display:flex;flex-direction:column;gap:3px"><h3 style="margin:0;font-size:1.05rem;font-weight:700;color:#f1f5f9">Sauvegardes &amp; restauration</h3><p style="margin:0;color:#94a3b8;font-size:.88rem">Télécharge une copie ou restaure une sauvegarde existante</p></div>
+                  <div style="display:flex;align-items:center;gap:8px"><div style="display:flex;align-items:center;gap:8px;background:#0b1424;border:1px solid #25344e;border-radius:9px;padding:7px 12px;color:#64748b;font-size:.83rem;min-width:150px"><i class="pi pi-tag" style="font-size:.78rem"></i>Libellé…</div><button style="display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border:1px solid #25344e;background:#0b1424;border-radius:9px;color:#cbd5e1;font-weight:700;font-size:.83rem;cursor:pointer" style-hover="background:#1e293b"><i class="pi pi-download" style="font-size:.78rem"></i>Télécharger</button></div>
+                </div>
+                <div style="padding:14px 22px 18px;overflow-x:auto">
+                  <table style="min-width:620px;width:100%;border-collapse:collapse">
+                    <thead><tr>
+                      <th style="text-align:left;padding:.7rem 1rem;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Fichier</th>
+                      <th style="text-align:left;padding:.7rem 1rem;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Libellé</th>
+                      <th style="text-align:right;padding:.7rem 1rem;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Taille</th>
+                      <th style="text-align:left;padding:.7rem 1rem;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Date</th>
+                      <th style="text-align:right;padding:.7rem 1rem;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55"></th>
+                    </tr></thead>
+                    <tbody>
+                      <tr style="border-bottom:1px solid #18243c" style-hover="background:#13203a">
+                        <td style="padding:.8rem 1rem;font-family:ui-monospace,monospace;font-size:.82rem;color:#cbd5e1">solde_backup_20260618.db</td>
+                        <td style="padding:.8rem 1rem;font-size:.86rem;color:#94a3b8">Avant clôture</td>
+                        <td style="padding:.8rem 1rem;text-align:right;font-size:.86rem;color:#e2e8f0;font-variant-numeric:tabular-nums;white-space:nowrap">18,4 Mo</td>
+                        <td style="padding:.8rem 1rem;font-size:.84rem;color:#94a3b8;white-space:nowrap">18/06/2026 02:00</td>
+                        <td style="padding:.8rem 1rem"><div style="display:flex;align-items:center;justify-content:flex-end;gap:6px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#94a3b8;cursor:pointer" style-hover="background:#1e293b" title="Valider"><i class="pi pi-shield"></i></span><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#f87171;cursor:pointer" style-hover="background:rgba(239,68,68,.14)" title="Restaurer"><i class="pi pi-history"></i></span></div></td>
+                      </tr>
+                      <tr style-hover="background:#13203a">
+                        <td style="padding:.8rem 1rem;font-family:ui-monospace,monospace;font-size:.82rem;color:#cbd5e1">solde_backup_20260611.db</td>
+                        <td style="padding:.8rem 1rem;font-size:.86rem;color:#64748b">—</td>
+                        <td style="padding:.8rem 1rem;text-align:right;font-size:.86rem;color:#e2e8f0;font-variant-numeric:tabular-nums;white-space:nowrap">18,1 Mo</td>
+                        <td style="padding:.8rem 1rem;font-size:.84rem;color:#94a3b8;white-space:nowrap">11/06/2026 02:00</td>
+                        <td style="padding:.8rem 1rem"><div style="display:flex;align-items:center;justify-content:flex-end;gap:6px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#94a3b8;cursor:pointer" style-hover="background:#1e293b" title="Valider"><i class="pi pi-shield"></i></span><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;color:#f87171;cursor:pointer" style-hover="background:rgba(239,68,68,.14)" title="Restaurer"><i class="pi pi-history"></i></span></div></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p style="margin:14px 0 0;display:flex;align-items:center;gap:8px;font-size:.8rem;color:#f87171"><i class="pi pi-lock" style="font-size:.78rem"></i>La restauration écrase la base actuelle — confirmation en deux étapes (saisie de « RESTAURER »).</p>
+                </div>
+              </div>
+
+              <!-- logs terminal -->
+              <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;box-shadow:0 20px 44px rgba(2,6,23,.45);overflow:hidden">
+                <div style="padding:18px 22px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                  <h3 style="margin:0;font-size:1.05rem;font-weight:700;color:#f1f5f9">Journaux applicatifs</h3>
+                  <div style="display:flex;gap:7px;flex-wrap:wrap"><span style="padding:5px 11px;border-radius:999px;background:rgba(96,165,250,.16);color:#93c5fd;font-size:.76rem;font-weight:700;cursor:pointer">INFO</span><span style="padding:5px 11px;border-radius:999px;background:rgba(245,158,11,.16);color:#fcd34d;font-size:.76rem;font-weight:700;cursor:pointer">WARNING</span><span style="padding:5px 11px;border-radius:999px;background:rgba(239,68,68,.16);color:#f87171;font-size:.76rem;font-weight:700;cursor:pointer">ERROR</span></div>
+                </div>
+                <div style="padding:14px 22px 22px">
+                  <div style="background:#060c18;border:1px solid #1c2840;border-radius:12px;padding:14px 16px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:.78rem;line-height:1.7;overflow-x:auto">
+                    <div style="display:flex;gap:12px;white-space:nowrap"><span style="color:#475569">10:42:01</span><span style="color:#93c5fd;font-weight:700;width:7ch;flex-shrink:0">INFO</span><span style="color:#60a5fa;flex-shrink:0">auth</span><span style="color:#d1d5db">Connexion m.dubois — succès</span></div>
+                    <div style="display:flex;gap:12px;white-space:nowrap"><span style="color:#475569">10:43:18</span><span style="color:#93c5fd;font-weight:700;width:7ch;flex-shrink:0">INFO</span><span style="color:#60a5fa;flex-shrink:0">invoices</span><span style="color:#d1d5db">Facture F-2024-0312 créée (4 200,00 €)</span></div>
+                    <div style="display:flex;gap:12px;white-space:nowrap"><span style="color:#475569">10:51:07</span><span style="color:#fcd34d;font-weight:700;width:7ch;flex-shrink:0">WARN</span><span style="color:#60a5fa;flex-shrink:0">bank</span><span style="color:#d1d5db">2 chèques sans date de dépôt détectés</span></div>
+                    <div style="display:flex;gap:12px;white-space:nowrap"><span style="color:#475569">11:02:44</span><span style="color:#93c5fd;font-weight:700;width:7ch;flex-shrink:0">INFO</span><span style="color:#60a5fa;flex-shrink:0">backup</span><span style="color:#d1d5db">Sauvegarde automatique terminée (18,4 Mo)</span></div>
+                    <div style="display:flex;gap:12px;white-space:nowrap"><span style="color:#475569">11:14:09</span><span style="color:#f87171;font-weight:700;width:7ch;flex-shrink:0">ERROR</span><span style="color:#60a5fa;flex-shrink:0">email</span><span style="color:#d1d5db">Échec d'envoi à mairie@valdron.fr — réessai planifié</span></div>
+                    <div style="display:flex;gap:12px;white-space:nowrap"><span style="color:#475569">11:15:33</span><span style="color:#93c5fd;font-weight:700;width:7ch;flex-shrink:0">INFO</span><span style="color:#60a5fa;flex-shrink:0">accounting</span><span style="color:#d1d5db">Écriture 2024-0488 validée par c.lefevre</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- audit log -->
+              <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;box-shadow:0 20px 44px rgba(2,6,23,.45);overflow:hidden">
+                <div style="padding:18px 22px 0;display:flex;flex-direction:column;gap:3px"><h3 style="margin:0;font-size:1.05rem;font-weight:700;color:#f1f5f9">Journal d'audit</h3><p style="margin:0;color:#94a3b8;font-size:.88rem">Traçabilité des actions sensibles</p></div>
+                <div style="padding:14px 22px 22px;overflow-x:auto">
+                  <table style="min-width:640px;width:100%;border-collapse:collapse">
+                    <thead><tr>
+                      <th style="text-align:left;padding:.7rem 1rem;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Horodatage</th>
+                      <th style="text-align:left;padding:.7rem 1rem;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Acteur</th>
+                      <th style="text-align:left;padding:.7rem 1rem;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Action</th>
+                      <th style="text-align:left;padding:.7rem 1rem;font-size:.7rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#8595ad;border-bottom:1px solid #2a3a55">Cible</th>
+                    </tr></thead>
+                    <tbody>
+                      <tr style="border-bottom:1px solid #18243c" style-hover="background:#13203a"><td style="padding:.78rem 1rem;font-size:.84rem;color:#94a3b8;white-space:nowrap">18/06 11:15</td><td style="padding:.78rem 1rem;font-size:.86rem;color:#e2e8f0">c.lefevre</td><td style="padding:.78rem 1rem;font-size:.86rem;color:#cbd5e1">Validation d'écriture</td><td style="padding:.78rem 1rem;font-size:.84rem;color:#94a3b8">Écriture #488</td></tr>
+                      <tr style="border-bottom:1px solid #18243c" style-hover="background:#13203a"><td style="padding:.78rem 1rem;font-size:.84rem;color:#94a3b8;white-space:nowrap">18/06 10:43</td><td style="padding:.78rem 1rem;font-size:.86rem;color:#e2e8f0">m.dubois</td><td style="padding:.78rem 1rem;font-size:.86rem;color:#cbd5e1">Création de facture</td><td style="padding:.78rem 1rem;font-size:.84rem;color:#94a3b8">Facture #312</td></tr>
+                      <tr style="border-bottom:1px solid #18243c" style-hover="background:#13203a"><td style="padding:.78rem 1rem;font-size:.84rem;color:#94a3b8;white-space:nowrap">17/06 16:20</td><td style="padding:.78rem 1rem;font-size:.86rem;color:#e2e8f0">a.moreau</td><td style="padding:.78rem 1rem;font-size:.86rem;color:#cbd5e1">Modification de rôle</td><td style="padding:.78rem 1rem;font-size:.84rem;color:#94a3b8">Utilisateur #6</td></tr>
+                      <tr style-hover="background:#13203a"><td style="padding:.78rem 1rem;font-size:.84rem;color:#94a3b8;white-space:nowrap">17/06 02:00</td><td style="padding:.78rem 1rem;font-size:.86rem;color:#e2e8f0">système</td><td style="padding:.78rem 1rem;font-size:.86rem;color:#cbd5e1">Sauvegarde automatique</td><td style="padding:.78rem 1rem;font-size:.84rem;color:#94a3b8">—</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MINI GALLERY : le reste de l'app ===== -->
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">
+      <p style="margin:0;color:#34d399;font-size:.76rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Même recette</p>
+      <h2 style="margin:0;font-size:1.5rem;font-weight:800;letter-spacing:-.03em;color:#f8fafc">Le reste de l'app en sombre</h2>
+      <p style="margin:4px 0 0;max-width:74ch;color:#94a3b8;font-size:.96rem;line-height:1.55">Les 26 autres vues sont des variantes des mêmes patrons (dashboard, listes + tables, formulaires). Aperçus du rendu sombre — je peux déplier n'importe lequel en pleine fidélité.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:18px">
+      <!-- thumb : tableau de bord -->
+      <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:14px;overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid #1f2c44;display:flex;align-items:center;gap:9px"><i class="pi pi-home" style="color:#34d399;font-size:.85rem"></i><span style="font-weight:700;color:#f1f5f9;font-size:.92rem">Tableau de bord</span></div>
+        <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;flex-direction:column;gap:4px"><span style="font-size:.66rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b">Trésorerie nette</span><span style="font-size:1.5rem;font-weight:800;color:#f8fafc;letter-spacing:-.03em;font-variant-numeric:tabular-nums">48 920,40 €</span></div>
+          <svg viewBox="0 0 280 40" style="width:100%;height:40px" preserveAspectRatio="none"><polyline points="0,32 40,28 80,30 120,20 160,22 200,12 240,14 280,6" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"/></svg>
+          <div style="display:flex;gap:8px"><span style="flex:1;height:46px;border-radius:9px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25)"></span><span style="flex:1;height:46px;border-radius:9px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25)"></span><span style="flex:1;height:46px;border-radius:9px;background:#0e1a31;border:1px solid #25344e"></span></div>
+        </div>
+      </div>
+      <!-- thumb : factures -->
+      <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:14px;overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid #1f2c44;display:flex;align-items:center;gap:9px"><i class="pi pi-file" style="color:#34d399;font-size:.85rem"></i><span style="font-weight:700;color:#f1f5f9;font-size:.92rem">Factures clients</span></div>
+        <div style="padding:16px 18px;display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:.85rem;color:#cbd5e1">F-2024-0312 · Mairie de Valdron</span><span style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;background:rgba(96,165,250,.16);color:#93c5fd;font-size:.72rem;font-weight:700">Envoyée</span></div>
+          <div style="height:1px;background:#1c2840"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:.85rem;color:#cbd5e1">F-2024-0307 · Le Tilleul</span><span style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;background:rgba(239,68,68,.15);color:#f87171;font-size:.72rem;font-weight:700">En retard</span></div>
+          <div style="height:1px;background:#1c2840"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:.85rem;color:#cbd5e1">F-2024-0305 · Solibri</span><span style="display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;background:rgba(34,197,94,.14);color:#4ade80;font-size:.72rem;font-weight:700">Payée</span></div>
+        </div>
+      </div>
+      <!-- thumb : banque -->
+      <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:14px;overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid #1f2c44;display:flex;align-items:center;gap:9px"><i class="pi pi-building-columns" style="color:#34d399;font-size:.85rem"></i><span style="font-weight:700;color:#f1f5f9;font-size:.92rem">Banque · rapprochement</span></div>
+        <div style="padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:.85rem;color:#94a3b8">Solde rapproché</span><span style="font-weight:800;color:#f8fafc;font-variant-numeric:tabular-nums">36 480,10 €</span></div>
+          <div style="display:flex;height:10px;border-radius:999px;overflow:hidden;background:#0b1424"><span style="width:82%;background:#34d399"></span><span style="width:18%;background:#fcd34d"></span></div>
+          <span style="font-size:.78rem;color:#94a3b8">12 opérations à pointer</span>
+        </div>
+      </div>
+      <!-- thumb : comptabilité -->
+      <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:14px;overflow:hidden">
+        <div style="padding:14px 18px;border-bottom:1px solid #1f2c44;display:flex;align-items:center;gap:9px"><i class="pi pi-chart-bar" style="color:#34d399;font-size:.85rem"></i><span style="font-weight:700;color:#f1f5f9;font-size:.92rem">Comptabilité · balance</span></div>
+        <div style="padding:16px 18px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:.84rem;color:#cbd5e1">606 · Achats</span><span style="font-size:.84rem;color:#e2e8f0;font-variant-numeric:tabular-nums">14 220,00</span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:.84rem;color:#cbd5e1">706 · Prestations</span><span style="font-size:.84rem;color:#4ade80;font-variant-numeric:tabular-nums">18 640,00</span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:.84rem;color:#cbd5e1">756 · Cotisations</span><span style="font-size:.84rem;color:#4ade80;font-variant-numeric:tabular-nums">9 480,00</span></div>
+          <div style="height:1px;background:#1c2840;margin:2px 0"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:.84rem;font-weight:700;color:#f1f5f9">Résultat</span><span style="font-size:.84rem;font-weight:800;color:#4ade80;font-variant-numeric:tabular-nums">+4 420,00</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== RECOMMANDATIONS ADMIN ===== -->
+    <section style="display:flex;flex-direction:column;gap:20px;margin-top:8px">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <p style="margin:0;color:#34d399;font-size:.76rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Ce qui change · Admin</p>
+        <h2 style="margin:0;font-size:1.7rem;font-weight:800;letter-spacing:-.03em;color:#f8fafc">5 décisions de design</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px">
+        <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;padding:22px 24px;display:flex;flex-direction:column;gap:11px">
+          <div style="display:flex;align-items:center;gap:11px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;background:rgba(52,211,153,.14);color:#34d399;font-weight:800;font-size:.88rem">1</span><h4 style="margin:0;font-size:1.05rem;font-weight:700;color:#f1f5f9">Système : hiérarchiser, pas empiler</h4></div>
+          <p style="margin:0;color:#94a3b8;font-size:.93rem;line-height:1.55">6 <code style="background:#0b1424;padding:1px 5px;border-radius:5px;font-size:.85em;color:#cbd5e1">AppPanel</code> de même poids → un <strong style="color:#e2e8f0">bandeau d'état</strong> en tête, puis les groupes Sauvegardes / Journaux / Audit.</p>
+        </div>
+        <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;padding:22px 24px;display:flex;flex-direction:column;gap:11px">
+          <div style="display:flex;align-items:center;gap:11px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;background:rgba(52,211,153,.14);color:#34d399;font-weight:800;font-size:.88rem">2</span><h4 style="margin:0;font-size:1.05rem;font-weight:700;color:#f1f5f9">Isoler le destructif</h4></div>
+          <p style="margin:0;color:#94a3b8;font-size:.93rem;line-height:1.55">La restauration (qui écrase la base) était un bouton rouge noyé dans le tableau → mention de danger explicite + confirmation en 2 étapes mise en avant.</p>
+        </div>
+        <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;padding:22px 24px;display:flex;flex-direction:column;gap:11px">
+          <div style="display:flex;align-items:center;gap:11px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;background:rgba(52,211,153,.14);color:#34d399;font-weight:800;font-size:.88rem">3</span><h4 style="margin:0;font-size:1.05rem;font-weight:700;color:#f1f5f9">Les anomalies deviennent des tâches</h4></div>
+          <p style="margin:0;color:#94a3b8;font-size:.93rem;line-height:1.55">Les « paiements incohérents » étaient un panneau anonyme → une file d'action avec compteur, comme le « À traiter » du tableau de bord.</p>
+        </div>
+        <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;padding:22px 24px;display:flex;flex-direction:column;gap:11px">
+          <div style="display:flex;align-items:center;gap:11px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;background:rgba(52,211,153,.14);color:#34d399;font-weight:800;font-size:.88rem">4</span><h4 style="margin:0;font-size:1.05rem;font-weight:700;color:#f1f5f9">Matrice de rôles vivante</h4></div>
+          <p style="margin:0;color:#94a3b8;font-size:.93rem;line-height:1.55">4 cartes de rôle purement descriptives → un <strong style="color:#e2e8f0">compteur d'utilisateurs par rôle</strong> + filtres rapides par rôle au-dessus du tableau, et un badge « vous » sur sa propre ligne.</p>
+        </div>
+        <div style="background:linear-gradient(180deg,#13203a,#0e1a30);border:1px solid #2a3a55;border-radius:16px;padding:22px 24px;display:flex;flex-direction:column;gap:11px">
+          <div style="display:flex;align-items:center;gap:11px"><span style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:999px;background:rgba(52,211,153,.14);color:#34d399;font-weight:800;font-size:.88rem">5</span><h4 style="margin:0;font-size:1.05rem;font-weight:700;color:#f1f5f9">Sombre cohérent partout</h4></div>
+          <p style="margin:0;color:#94a3b8;font-size:.93rem;line-height:1.55">Tokens Aura sombres (surface 950→700, primaire <strong style="color:#34d399">#34d399</strong>, sémantiques désaturés). Le terminal de logs et les montants tabulaires y gagnent en lisibilité.</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/primeicons/primeicons.css">
+<style>
+  body { margin: 0; }
+  *, *::before, *::after { box-sizing: border-box; }
+</style>
+</helmet>
+
+<div style="min-width:100%;width:max-content;min-height:100vh;background:#e8edf3;padding:48px;box-sizing:border-box;font-family:Manrope,'Segoe UI Variable','Segoe UI',sans-serif;color:#0f172a;-webkit-font-smoothing:antialiased">
+
+  <!-- intro -->
+  <div style="max-width:760px;display:flex;flex-direction:column;gap:13px;margin-bottom:36px">
+    <p style="margin:0;color:#047857;font-size:.78rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase">Responsive · Solde ⚖️</p>
+    <h1 style="margin:0;font-size:2.4rem;font-weight:800;line-height:1.05;letter-spacing:-.04em">Téléphone &amp; tablette</h1>
+    <p style="margin:0;color:#475569;font-size:1.04rem;line-height:1.6">Comment les écrans desktop s'adaptent aux petits formats. Principe directeur&nbsp;: <strong>la sidebar devient une barre d'onglets basse</strong>, <strong>les tables deviennent des cartes empilées</strong>, et chaque vue garde une seule action primaire accessible au pouce.</p>
+  </div>
+
+  <!-- ===== PHONE ROW ===== -->
+  <div style="display:flex;gap:48px;align-items:flex-start;margin-bottom:44px">
+
+    <!-- PHONE 1 : DASHBOARD -->
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <span style="font-size:.82rem;font-weight:700;color:#475569;display:flex;align-items:center;gap:8px"><i class="pi pi-mobile" style="color:#047857"></i>Tableau de bord · 390px</span>
+      <div style="width:390px;background:#0f172a;border-radius:44px;padding:11px;box-shadow:0 40px 80px -20px rgba(15,23,42,.4)">
+        <div data-screen-label="Mobile · Tableau de bord" style="background:#f8fafc;border-radius:34px;overflow:hidden;height:800px;display:flex;flex-direction:column;position:relative">
+          <!-- status bar -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 26px 4px;background:#fff;font-size:.78rem;font-weight:700;color:#0f172a">
+            <span>9:41</span>
+            <span style="display:flex;gap:6px;align-items:center"><i class="pi pi-wifi" style="font-size:.72rem"></i><i class="pi pi-database" style="font-size:.72rem"></i><span style="font-weight:800">5G</span></span>
+          </div>
+          <!-- app top -->
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 18px 12px;background:#fff;border-bottom:1px solid #e2e8f0">
+            <span style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;color:#334155" style-hover="background:#f1f5f9"><i class="pi pi-bars" style="font-size:1.1rem"></i></span>
+            <span style="font-weight:800;font-size:1.05rem;letter-spacing:-.02em">⚖️ Solde</span>
+            <button style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border:1px solid #a7f3d0;background:#ecfdf5;border-radius:999px;color:#047857;font-weight:700;font-size:.76rem;white-space:nowrap">2024<i class="pi pi-angle-down" style="font-size:.66rem;opacity:.7"></i></button>
+            <span style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;background:#0f172a;color:#fff;font-weight:700;font-size:.74rem">MD</span>
+          </div>
+
+          <!-- scroll body -->
+          <div style="flex:1;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <p style="margin:0;color:#047857;font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase">Tableau de bord</p>
+              <h2 style="margin:0;font-size:1.4rem;font-weight:800;letter-spacing:-.03em">Vue d'ensemble</h2>
+            </div>
+            <!-- treasury hero -->
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 10px 26px rgba(15,23,42,.05);padding:18px">
+              <p style="margin:0 0 6px;color:#64748b;font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase">Trésorerie nette</p>
+              <div style="display:flex;align-items:flex-end;gap:9px;flex-wrap:wrap">
+                <span style="font-size:1.85rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums">48 920,40 €</span>
+                <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;background:#f0fdf4;color:#16a34a;font-weight:700;font-size:.74rem;margin-bottom:3px"><i class="pi pi-arrow-up-right" style="font-size:.64rem"></i>+3,2 %</span>
+              </div>
+              <svg viewBox="0 0 320 44" style="width:100%;height:44px;margin-top:8px" preserveAspectRatio="none"><defs><linearGradient id="ms" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#10b981" stop-opacity="0.18"/><stop offset="1" stop-color="#10b981" stop-opacity="0"/></linearGradient></defs><polygon points="0,34 40,31 80,32 120,25 160,26 200,18 240,20 280,11 320,8 320,44 0,44" fill="url(#ms)"/><polyline points="0,34 40,31 80,32 120,25 160,26 200,18 240,20 280,11 320,8" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <!-- À traiter -->
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-weight:700;font-size:.98rem">À traiter</span>
+              <span style="display:inline-flex;align-items:center;justify-content:center;min-width:24px;height:24px;padding:0 8px;border-radius:999px;background:#fef2f2;color:#dc2626;font-weight:800;font-size:.78rem">4</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:13px">
+              <span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:#fef2f2;color:#dc2626"><i class="pi pi-exclamation-circle"></i></span>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-weight:700;font-size:.88rem">Factures impayées</span><span style="color:#64748b;font-size:.78rem">7 factures</span></div>
+              <span style="font-weight:800;font-size:.9rem;color:#dc2626;font-variant-numeric:tabular-nums;white-space:nowrap">12 450 €</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:13px">
+              <span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;background:#eff6ff;color:#2563eb"><i class="pi pi-building-columns"></i></span>
+              <div style="flex:1;min-width:0;display:flex;flex-direction:column"><span style="font-weight:700;font-size:.88rem">À rapprocher</span><span style="color:#64748b;font-size:.78rem">12 lignes bancaires</span></div>
+              <span style="font-weight:800;font-size:.9rem;color:#475569;font-variant-numeric:tabular-nums">12</span>
+            </div>
+            <!-- KPI 2-col -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div style="padding:13px 14px;border-radius:13px;background:#f0fdf4;border:1px solid #dcfce7"><p style="margin:0 0 3px;color:#64748b;font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase">Résultat</p><span style="font-size:1.05rem;font-weight:800;color:#16a34a;font-variant-numeric:tabular-nums">+4 420 €</span></div>
+              <div style="padding:13px 14px;border-radius:13px;background:#fff;border:1px solid #e2e8f0"><p style="margin:0 0 3px;color:#64748b;font-size:.62rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase">Adhérents</p><span style="font-size:1.05rem;font-weight:800;font-variant-numeric:tabular-nums">142</span></div>
+            </div>
+          </div>
+
+          <!-- bottom tab bar -->
+          <div style="display:flex;align-items:center;justify-content:space-around;padding:9px 8px 20px;background:#fff;border-top:1px solid #e2e8f0">
+            <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#047857"><i class="pi pi-home" style="font-size:1.15rem"></i><span style="font-size:.62rem;font-weight:700">Accueil</span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#94a3b8"><i class="pi pi-file" style="font-size:1.15rem"></i><span style="font-size:.62rem;font-weight:600">Factures</span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#94a3b8"><i class="pi pi-building-columns" style="font-size:1.15rem"></i><span style="font-size:.62rem;font-weight:600">Banque</span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#94a3b8"><i class="pi pi-chart-pie" style="font-size:1.15rem"></i><span style="font-size:.62rem;font-weight:600">Compta</span></span>
+          </div>
+          <!-- FAB -->
+          <button style="position:absolute;bottom:78px;right:16px;width:52px;height:52px;border-radius:999px;border:none;background:#10b981;color:#fff;box-shadow:0 10px 24px -6px rgba(16,185,129,.6);display:flex;align-items:center;justify-content:center"><i class="pi pi-plus" style="font-size:1.2rem"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHONE 2 : FACTURES (cards) -->
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <span style="font-size:.82rem;font-weight:700;color:#475569;display:flex;align-items:center;gap:8px"><i class="pi pi-mobile" style="color:#047857"></i>Factures — table → cartes · 390px</span>
+      <div style="width:390px;background:#0f172a;border-radius:44px;padding:11px;box-shadow:0 40px 80px -20px rgba(15,23,42,.4)">
+        <div data-screen-label="Mobile · Factures" style="background:#f8fafc;border-radius:34px;overflow:hidden;height:800px;display:flex;flex-direction:column;position:relative">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 26px 4px;background:#fff;font-size:.78rem;font-weight:700;color:#0f172a">
+            <span>9:41</span>
+            <span style="display:flex;gap:6px;align-items:center"><i class="pi pi-wifi" style="font-size:.72rem"></i><i class="pi pi-database" style="font-size:.72rem"></i><span style="font-weight:800">5G</span></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 18px 12px;background:#fff;border-bottom:1px solid #e2e8f0">
+            <span style="display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;color:#334155"><i class="pi pi-arrow-left" style="font-size:1.05rem"></i></span>
+            <span style="font-weight:800;font-size:1.05rem;letter-spacing:-.02em">Factures clients</span>
+            <span style="margin-left:auto;display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:10px;color:#334155"><i class="pi pi-search" style="font-size:1rem"></i></span>
+          </div>
+
+          <div style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+            <!-- funnel hero -->
+            <div style="padding:14px 16px 12px;background:#fff;border-bottom:1px solid #e2e8f0;display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex;align-items:flex-end;justify-content:space-between"><div style="display:flex;flex-direction:column"><span style="color:#64748b;font-size:.64rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase">Reste à encaisser</span><span style="font-size:1.5rem;font-weight:800;color:#b45309;font-variant-numeric:tabular-nums">24 830 €</span></div><span style="color:#94a3b8;font-size:.74rem;margin-bottom:3px">/ 98 420 €</span></div>
+              <div style="display:flex;height:9px;border-radius:999px;overflow:hidden;background:#f1f5f9"><span style="width:74.8%;background:#16a34a"></span><span style="width:21%;background:#fcd34d"></span><span style="width:4.2%;background:#ef4444"></span></div>
+            </div>
+            <!-- segment chips (scroll) -->
+            <div style="display:flex;gap:8px;padding:12px 16px;overflow:hidden;border-bottom:1px solid #eef2f7">
+              <span style="flex:none;padding:6px 13px;border-radius:999px;background:#0f172a;color:#fff;font-weight:700;font-size:.78rem">Toutes 47</span>
+              <span style="flex:none;padding:6px 13px;border-radius:999px;background:#fff;border:1px solid #e2e8f0;color:#dc2626;font-weight:700;font-size:.78rem">En retard 3</span>
+              <span style="flex:none;padding:6px 13px;border-radius:999px;background:#fff;border:1px solid #e2e8f0;color:#334155;font-weight:700;font-size:.78rem">Impayées 12</span>
+            </div>
+            <!-- invoice cards -->
+            <div style="flex:1;overflow:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:11px">
+              <!-- card 1 -->
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+                  <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-weight:700;font-size:.9rem;font-variant-numeric:tabular-nums">F-2024-0312</span><span style="color:#64748b;font-size:.82rem">Mairie de Valdron</span></div>
+                  <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:#eff6ff;color:#2563eb;font-size:.72rem;font-weight:700;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#2563eb"></span>Envoyée</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between"><span style="color:#94a3b8;font-size:.78rem">02/06/2026</span><span style="font-weight:800;font-size:1rem;font-variant-numeric:tabular-nums">4 200,00 €</span></div>
+                <div style="display:flex;gap:8px"><button style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:1px solid #6ee7b7;background:#fff;border-radius:9px;color:#047857;font-weight:700;font-size:.82rem"><i class="pi pi-wallet" style="font-size:.76rem"></i>Encaisser</button><span style="display:flex;align-items:center;justify-content:center;width:38px;border:1px solid #e2e8f0;border-radius:9px;color:#94a3b8"><i class="pi pi-ellipsis-h"></i></span></div>
+              </div>
+              <!-- card 2 (retard) -->
+              <div style="background:#fff;border:1px solid #fca5a5;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+                  <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-weight:700;font-size:.9rem;font-variant-numeric:tabular-nums">F-2024-0307</span><span style="color:#64748b;font-size:.82rem">Restaurant Le Tilleul</span></div>
+                  <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:#fef2f2;color:#dc2626;font-size:.72rem;font-weight:700;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#dc2626"></span>En retard</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between"><span style="color:#94a3b8;font-size:.78rem">30/04/2026 · +49 j</span><span style="font-weight:800;font-size:1rem;color:#dc2626;font-variant-numeric:tabular-nums">2 480,00 €</span></div>
+                <div style="display:flex;gap:8px"><button style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:1px solid #fca5a5;background:#fff;border-radius:9px;color:#dc2626;font-weight:700;font-size:.82rem"><i class="pi pi-send" style="font-size:.76rem"></i>Relancer</button><span style="display:flex;align-items:center;justify-content:center;width:38px;border:1px solid #e2e8f0;border-radius:9px;color:#94a3b8"><i class="pi pi-ellipsis-h"></i></span></div>
+              </div>
+              <!-- card 3 (payée) -->
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+                  <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-weight:700;font-size:.9rem;font-variant-numeric:tabular-nums">F-2024-0305</span><span style="color:#64748b;font-size:.82rem">Association Solibri</span></div>
+                  <span style="display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;background:#f0fdf4;color:#16a34a;font-size:.72rem;font-weight:700;white-space:nowrap"><span style="width:5px;height:5px;border-radius:999px;background:#16a34a"></span>Payée</span>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between"><span style="color:#94a3b8;font-size:.78rem">22/04/2026</span><span style="font-weight:800;font-size:1rem;font-variant-numeric:tabular-nums">540,00 €</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-around;padding:9px 8px 20px;background:#fff;border-top:1px solid #e2e8f0">
+            <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#94a3b8"><i class="pi pi-home" style="font-size:1.15rem"></i><span style="font-size:.62rem;font-weight:600">Accueil</span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#047857"><i class="pi pi-file" style="font-size:1.15rem"></i><span style="font-size:.62rem;font-weight:700">Factures</span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#94a3b8"><i class="pi pi-building-columns" style="font-size:1.15rem"></i><span style="font-size:.62rem;font-weight:600">Banque</span></span>
+            <span style="display:flex;flex-direction:column;align-items:center;gap:3px;color:#94a3b8"><i class="pi pi-chart-pie" style="font-size:1.15rem"></i><span style="font-size:.62rem;font-weight:600">Compta</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PHONE 3 : DRAWER NAV -->
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <span style="font-size:.82rem;font-weight:700;color:#475569;display:flex;align-items:center;gap:8px"><i class="pi pi-bars" style="color:#047857"></i>Menu complet (drawer) · 390px</span>
+      <div style="width:390px;background:#0f172a;border-radius:44px;padding:11px;box-shadow:0 40px 80px -20px rgba(15,23,42,.4)">
+        <div data-screen-label="Mobile · Drawer" style="background:#f8fafc;border-radius:34px;overflow:hidden;height:800px;display:flex;flex-direction:column;position:relative">
+          <!-- dimmed dashboard behind -->
+          <div style="position:absolute;inset:0;background:#0f172a;opacity:.45"></div>
+          <!-- drawer -->
+          <div style="position:absolute;top:0;bottom:0;left:0;width:300px;background:#fff;display:flex;flex-direction:column;box-shadow:14px 0 40px rgba(15,23,42,.25)">
+            <div style="display:flex;align-items:center;gap:10px;padding:24px 20px 16px"><span style="font-weight:800;font-size:1.15rem;letter-spacing:-.02em">⚖️ Solde</span><span style="display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;color:#94a3b8;margin-left:auto"><i class="pi pi-times"></i></span></div>
+            <div style="flex:1;overflow:hidden;padding:6px 0;display:flex;flex-direction:column;gap:14px">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <p style="margin:0;padding:0 20px 4px;font-size:.68rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8">Gestion</p>
+                <span style="display:flex;align-items:center;gap:13px;margin:0 12px;padding:11px 14px;border-radius:11px;background:#ecfdf5;color:#047857;font-weight:600;font-size:.94rem"><i class="pi pi-file"></i>Factures clients</span>
+                <span style="display:flex;align-items:center;gap:13px;margin:0 12px;padding:11px 14px;border-radius:11px;color:#334155;font-size:.94rem"><i class="pi pi-file-import" style="color:#64748b"></i>Factures fournisseurs</span>
+                <span style="display:flex;align-items:center;gap:13px;margin:0 12px;padding:11px 14px;border-radius:11px;color:#334155;font-size:.94rem"><i class="pi pi-building-columns" style="color:#64748b"></i>Banque</span>
+                <span style="display:flex;align-items:center;gap:13px;margin:0 12px;padding:11px 14px;border-radius:11px;color:#334155;font-size:.94rem"><i class="pi pi-wallet" style="color:#64748b"></i>Caisse</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <p style="margin:0;padding:0 20px 4px;font-size:.68rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8">Comptabilité</p>
+                <span style="display:flex;align-items:center;gap:13px;margin:0 12px;padding:11px 14px;border-radius:11px;color:#334155;font-size:.94rem"><i class="pi pi-chart-bar" style="color:#64748b"></i>Balance</span>
+                <span style="display:flex;align-items:center;gap:13px;margin:0 12px;padding:11px 14px;border-radius:11px;color:#334155;font-size:.94rem"><i class="pi pi-chart-pie" style="color:#64748b"></i>Résultat</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:11px;padding:16px 20px;border-top:1px solid #e2e8f0">
+              <span style="display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;background:#0f172a;color:#fff;font-weight:700;font-size:.82rem">MD</span>
+              <div style="flex:1;display:flex;flex-direction:column"><span style="font-size:.88rem;font-weight:600;color:#334155">M. Dubois</span><span style="font-size:.74rem;color:#94a3b8">Trésorier</span></div>
+              <i class="pi pi-sign-out" style="color:#94a3b8"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== TABLET ROW ===== -->
+  <div style="display:flex;gap:48px;align-items:flex-start;margin-bottom:44px">
+    <div style="flex:none;width:1024px;display:flex;flex-direction:column;gap:14px">
+      <span style="font-size:.82rem;font-weight:700;color:#475569;display:flex;align-items:center;gap:8px"><i class="pi pi-tablet" style="color:#047857"></i>Tablette · 1024px — sidebar en rail d'icônes, grilles en 2 colonnes</span>
+      <div style="width:1024px;background:#0f172a;border-radius:30px;padding:13px;box-shadow:0 40px 80px -20px rgba(15,23,42,.4)">
+        <div data-screen-label="Tablette · Tableau de bord" style="background:#f8fafc;border-radius:18px;overflow:hidden;display:flex;height:680px">
+          <!-- icon rail -->
+          <aside style="width:72px;flex-shrink:0;background:#fff;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:6px">
+            <span style="display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:12px;font-size:1.1rem;margin-bottom:8px">⚖️</span>
+            <span style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;background:#ecfdf5;color:#047857"><i class="pi pi-home" style="font-size:1.15rem"></i></span>
+            <span style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;color:#64748b"><i class="pi pi-file" style="font-size:1.15rem"></i></span>
+            <span style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;color:#64748b"><i class="pi pi-building-columns" style="font-size:1.15rem"></i></span>
+            <span style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;color:#64748b"><i class="pi pi-wallet" style="font-size:1.15rem"></i></span>
+            <span style="display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;color:#64748b"><i class="pi pi-chart-pie" style="font-size:1.15rem"></i></span>
+            <span style="margin-top:auto;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:12px;color:#64748b"><i class="pi pi-cog" style="font-size:1.15rem"></i></span>
+          </aside>
+          <!-- main -->
+          <main style="flex:1;min-width:0;background:#f8fafc;padding:22px;display:flex;flex-direction:column;gap:18px;overflow:hidden">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px">
+              <div style="display:flex;flex-direction:column;gap:5px"><p style="margin:0;color:#047857;font-size:.7rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Tableau de bord</p><h2 style="margin:0;font-size:1.7rem;font-weight:800;letter-spacing:-.04em">Vue d'ensemble</h2></div>
+              <button style="display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border:none;background:#10b981;border-radius:10px;color:#fff;font-weight:700;font-size:.85rem;box-shadow:0 6px 14px -4px rgba(16,185,129,.5)"><i class="pi pi-plus" style="font-size:.78rem"></i>Nouvelle facture</button>
+            </div>
+            <!-- treasury hero full width -->
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:15px;box-shadow:0 10px 26px rgba(15,23,42,.05);padding:18px 22px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+              <div style="display:flex;flex-direction:column;gap:6px"><p style="margin:0;color:#64748b;font-size:.66rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase">Trésorerie nette</p><span style="font-size:2rem;font-weight:800;letter-spacing:-.04em;font-variant-numeric:tabular-nums">48 920,40 €</span></div>
+              <svg viewBox="0 0 320 50" style="width:300px;height:50px" preserveAspectRatio="none"><polyline points="0,40 40,36 80,38 120,28 160,30 200,20 240,22 280,12 320,8" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <!-- 2-col : worklist + actions -->
+            <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px;flex:1;min-height:0">
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:15px;box-shadow:0 10px 26px rgba(15,23,42,.05);padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+                <span style="font-weight:700;font-size:.95rem">À traiter</span>
+                <div style="display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid #e2e8f0;border-radius:11px"><span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;background:#fef2f2;color:#dc2626"><i class="pi pi-exclamation-circle" style="font-size:.95rem"></i></span><div style="flex:1;display:flex;flex-direction:column"><span style="font-weight:700;font-size:.85rem">Factures impayées</span><span style="color:#64748b;font-size:.76rem">7 factures</span></div><span style="font-weight:800;font-size:.88rem;color:#dc2626;font-variant-numeric:tabular-nums">12 450 €</span></div>
+                <div style="display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid #e2e8f0;border-radius:11px"><span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;background:#eff6ff;color:#2563eb"><i class="pi pi-building-columns" style="font-size:.95rem"></i></span><div style="flex:1;display:flex;flex-direction:column"><span style="font-weight:700;font-size:.85rem">À rapprocher</span><span style="color:#64748b;font-size:.76rem">12 lignes</span></div><span style="font-weight:800;font-size:.88rem;color:#475569;font-variant-numeric:tabular-nums">12</span></div>
+              </div>
+              <div style="background:#fff;border:1px solid #e2e8f0;border-radius:15px;box-shadow:0 10px 26px rgba(15,23,42,.05);padding:16px 18px;display:flex;flex-direction:column;gap:10px">
+                <span style="font-weight:700;font-size:.95rem">Actions rapides</span>
+                <div style="display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid #e2e8f0;border-radius:11px"><span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;background:#ecfdf5;color:#059669"><i class="pi pi-file-plus" style="font-size:.95rem"></i></span><span style="font-weight:700;font-size:.85rem">Nouvelle facture</span></div>
+                <div style="display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid #e2e8f0;border-radius:11px"><span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;background:#ecfdf5;color:#059669"><i class="pi pi-credit-card" style="font-size:.95rem"></i></span><span style="font-weight:700;font-size:.85rem">Nouveau paiement</span></div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== RESPONSIVE RULES ===== -->
+  <div style="max-width:1100px;display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <p style="margin:0;color:#047857;font-size:.76rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase">Règles d'adaptation</p>
+      <h2 style="margin:0;font-size:1.6rem;font-weight:800;letter-spacing:-.03em">Breakpoints &amp; comportements</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 14px 34px rgba(15,23,42,.05);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+        <span style="display:inline-flex;align-items:center;gap:9px;font-weight:800;font-size:1rem"><i class="pi pi-mobile" style="color:#047857"></i>Mobile · &lt; 768px</span>
+        <ul style="margin:0;padding-left:18px;color:#475569;font-size:.9rem;line-height:1.6">
+          <li>Sidebar → <strong>barre d'onglets basse</strong> (4 items) + drawer pour le reste</li>
+          <li>Tables → <strong>cartes empilées</strong> (1 facture = 1 carte, action primaire pleine largeur)</li>
+          <li>Grilles KPI → 1–2 colonnes</li>
+          <li>Topbar condensée : burger + logo + exercice + avatar ; recherche en icône</li>
+          <li>Action primaire en <strong>FAB</strong> ancré au pouce</li>
+        </ul>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 14px 34px rgba(15,23,42,.05);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+        <span style="display:inline-flex;align-items:center;gap:9px;font-weight:800;font-size:1rem"><i class="pi pi-tablet" style="color:#047857"></i>Tablette · 768–1199px</span>
+        <ul style="margin:0;padding-left:18px;color:#475569;font-size:.9rem;line-height:1.6">
+          <li>Sidebar → <strong>rail d'icônes 72px</strong> (libellés au survol / tap)</li>
+          <li>Grilles passent en <strong>2 colonnes</strong></li>
+          <li>Tables conservées mais <code style="background:#f1f5f9;padding:1px 5px;border-radius:5px;font-size:.85em">overflow-x:auto</code></li>
+          <li>Héros restent pleine largeur</li>
+        </ul>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;box-shadow:0 14px 34px rgba(15,23,42,.05);padding:20px 22px;display:flex;flex-direction:column;gap:10px">
+        <span style="display:inline-flex;align-items:center;gap:9px;font-weight:800;font-size:1rem"><i class="pi pi-desktop" style="color:#047857"></i>Desktop · ≥ 1200px</span>
+        <ul style="margin:0;padding-left:18px;color:#475569;font-size:.9rem;line-height:1.6">
+          <li>Sidebar pleine <strong>240px</strong></li>
+          <li>Grilles 3–4 colonnes, héros multi-colonnes</li>
+          <li>Tables complètes</li>
+          <li>Cible : <code style="background:#f1f5f9;padding:1px 5px;border-radius:5px;font-size:.85em">max-width</code> ~1320px centré</li>
+        </ul>
+      </div>
+    </div>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:16px 20px;display:flex;gap:12px;align-items:flex-start">
+      <i class="pi pi-info-circle" style="color:#047857;margin-top:2px"></i>
+      <p style="margin:0;color:#166534;font-size:.9rem;line-height:1.55"><strong>Hauteurs tactiles</strong> : toute cible interactive ≥ <strong>44px</strong>. Les boutons-icônes (édition, ⋯) deviennent des items de menu pleine largeur sur mobile plutôt que des cibles serrées. PrimeVue <code style="background:#fff;padding:1px 5px;border-radius:5px;font-size:.85em">DataTable</code> a un mode <code style="background:#fff;padding:1px 5px;border-radius:5px;font-size:.85em">responsiveLayout="stack"</code> exploitable pour la bascule table → cartes.</p>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

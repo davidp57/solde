@@ -603,11 +603,31 @@ Filtrer par compte, période, exercice.
 
 La clôture est irréversible. N'effectuez cette opération que lorsque toutes les écritures de la période sont finalisées.
 
-1. Ouvrir la fiche de l'exercice.
-2. Cliquer sur **Clôturer l'exercice**.
+1. Sur la ligne de l'exercice, cliquer sur **Clôturer l'exercice**.
+2. La fenêtre affiche d'abord les **vérifications avant clôture** : balance débit/crédit et écritures sans exercice associé. Ces avertissements ne bloquent pas la clôture, mais ce qu'ils signalent sera figé — traitez-les d'abord.
 3. Confirmer.
 
-Après clôture, l'exercice passe à l'état **Clôturé** et les écritures ne peuvent plus être modifiées.
+L'exercice passe à l'état **Clôturé**, et une écriture de résultat est générée automatiquement (compte 120000 en cas d'excédent, 129000 en cas de déficit).
+
+### Passer à l'exercice suivant
+
+> **Important** : ne créez pas le nouvel exercice avec **Nouvel exercice**. Ce bouton crée une période vide, **sans reprise des soldes** : banque, caisse, créances clients et dettes fournisseurs repartiraient à zéro.
+
+Une fois l'exercice précédent clôturé, sa ligne propose **Ouvrir le prochain exercice**. C'est cette action qui génère les **reports à nouveau** — le solde de chaque compte de bilan est repris à l'ouverture du nouvel exercice.
+
+1. Sur la ligne de l'exercice clôturé, cliquer sur **Ouvrir le prochain exercice**.
+2. Le nom et les dates sont pré-remplis dans la continuité : le nouvel exercice commence le lendemain de la fin du précédent et couvre douze mois. Ajuster si besoin.
+3. Cliquer sur **Créer l'exercice et reporter les soldes**.
+
+Le bouton n'apparaît plus dès qu'un exercice postérieur existe, pour éviter les doublons. Deux exercices ne peuvent pas se chevaucher : la création est refusée si les dates empiètent sur une période existante.
+
+### Ordre à respecter en fin d'exercice
+
+1. Terminer la saisie du dernier mois (factures, règlements, remises en banque, salaires).
+2. Vérifier qu'aucun règlement en attente ne traîne : un règlement saisi **après** la fin de l'exercice mais avant la création du nouveau se retrouve **sans exercice** et n'apparaît plus dans les écrans filtrés par exercice. Si c'est déjà arrivé, l'administrateur peut annuler ces règlements (voir *Annuler un règlement saisi par erreur*) et les ressaisir une fois le nouvel exercice ouvert.
+3. Clôturer l'exercice.
+4. Ouvrir le prochain exercice depuis la ligne de l'exercice clôturé.
+5. Sélectionner le nouvel exercice dans le sélecteur en haut de l'application pour retrouver les écrans à jour.
 
 ---
 
