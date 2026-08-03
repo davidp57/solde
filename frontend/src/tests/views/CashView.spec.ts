@@ -406,6 +406,26 @@ describe('CashView', () => {
     expect(wrapper.text()).toContain('Participation sortie')
   })
 
+  it('labels a payment entry by direction, not by source alone', async () => {
+    mockListCashEntries.mockResolvedValue([
+      { ...cashEntryFixture, id: 1, source: 'payment', type: 'in' },
+      {
+        ...cashEntryFixture,
+        id: 2,
+        source: 'payment',
+        type: 'out',
+        description: 'Règlement facture FA-2026-003',
+      },
+    ])
+
+    const wrapper = mountView()
+    await flushView()
+
+    // An outgoing cash payment settles a supplier invoice — it is not a client one.
+    expect(wrapper.text()).toContain('cash.origins.payment_client')
+    expect(wrapper.text()).toContain('cash.origins.payment_supplier')
+  })
+
   it('renders the system opening indicator when a cash entry is flagged', async () => {
     mockListCashEntries.mockResolvedValue([
       { ...cashEntryFixture, source: 'system_opening', is_system_opening: true },

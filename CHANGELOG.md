@@ -22,6 +22,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **FY-ROLLOVER** — Les dates du nouvel exercice sont calculées sur les composantes locales et non via `toISOString()`, qui décalait la frontière d'exercice d'un jour à l'est de Greenwich.
 - **TEC-218** — **Soldes bancaires périmés à l'écran après suppression d'une opération**. Supprimer une opération manuelle ne retirait que la ligne du tableau côté navigateur, alors que le serveur recalcule le `balance_after` de **toutes** les opérations suivantes (`recompute_bank_balances`). Les lignes postérieures gardaient donc leur ancien solde à l'écran, gonflé du montant supprimé — donnant l'impression d'une comptabilité fausse juste après un nettoyage pourtant correct (cas réel : deux remises supprimées, soldes affichés 526 € trop hauts alors que la base était juste). La liste est désormais rechargée depuis le serveur après suppression.
 
+||||||| constructed fake ancestor
+- **TEC-219** — **Écran Caisse : un règlement fournisseur en espèces était étiqueté « Paiement client »**. Le libellé d'origine était déduit de la seule source de l'écriture (`payment`), sans tenir compte du sens du mouvement. Le montant et le sens étaient corrects (sortie de caisse), seul l'intitulé induisait en erreur. L'origine distingue désormais **Règlement client** (entrée) et **Règlement fournisseur** (sortie).
+
 ## [1.10.0] — 2026-08-03
 
 ### Ajouté
