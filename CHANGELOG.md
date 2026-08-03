@@ -11,6 +11,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Modifié
+- **CHR-020** — **Image Docker construite aussi sur `develop`**. Chaque merge sur `develop` publie désormais une image de test `ghcr.io/davidp57/solde:develop`, déployable sur le NAS via `SOLDE_IMAGE`. Le tag `latest` — celui que tire la production par défaut — reste **réservé à `main`** : sans cette restriction, un build depuis `develop` aurait silencieusement envoyé une image de test en production au prochain `docker pull`. Chaque branche construite reçoit en plus un tag à son nom, et le tag `sha-<court>` permet d'épingler un commit précis.
+
 ### Ajouté
 - **BIZ-229** — **Avertissement quand une date sort de tout exercice comptable**. Saisir une écriture datée hors de tout exercice déclaré la rendait invisible partout : aucun écran filtré par exercice ne la montre, et son écriture comptable part sans `fiscal_year_id`. Les formulaires de saisie (entrée de caisse, comptage de caisse, opération bancaire manuelle, règlement de facture et assistant de règlement rapide) affichent désormais un avertissement dès que la date choisie n'est couverte par aucun exercice. Le message informe sans bloquer : il invite à créer l'exercice ou à corriger la date. Cas réel : un comptage saisi le 3 août, l'exercice suivant n'ayant pas encore été ouvert.
 - **BIZ-230** — **Bascule « Tout l'historique » dans l'écran Caisse**. Le journal et les comptages étaient systématiquement bornés à l'exercice sélectionné, sans moyen de voir ce qui existait en dehors. Un interrupteur lève ce filtre et recharge sans borne de dates, sur le modèle de « À remettre en banque » de l'écran Paiements.
