@@ -9,12 +9,16 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.bank import BankTransaction
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
+from backend.models.bank import BankTransaction, DepositType
 from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
 from backend.models.contact import Contact, ContactType
+from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
+from backend.schemas.bank import DepositCreate
 from backend.schemas.payment import PaymentCreate, PaymentUpdate
+from backend.services import bank_service
 from backend.services import payment as payment_service
 
 # ---------------------------------------------------------------------------
@@ -431,7 +435,8 @@ async def test_update_cheque_payment_rejects_date_change(db_session: AsyncSessio
 
 
 @pytest.mark.asyncio
-async def test_delete_payment_reverts_invoice(db_session: AsyncSession) -> None:
+async def test_cancel_payment_reverts_invoice(db_session: AsyncSession) -> None:
+    """Cancelling an uncashed cheque removes it and sends the invoice back to SENT."""
     contact = await _make_contact(db_session)
     inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
     p = await payment_service.create_payment(
@@ -447,11 +452,12 @@ async def test_delete_payment_reverts_invoice(db_session: AsyncSession) -> None:
     await db_session.refresh(inv)
     assert inv.status == InvoiceStatus.PAID
 
-    with pytest.raises(ValueError, match="payments cannot be deleted after creation"):
-        await payment_service.delete_payment(db_session, p.id)
+    await payment_service.cancel_payment(db_session, p.id)
 
     await db_session.refresh(inv)
-    assert inv.status == InvoiceStatus.PAID
+    assert inv.status == InvoiceStatus.SENT
+    assert inv.paid_amount == Decimal("0")
+    assert await payment_service.get_payment(db_session, p.id) is None
 
 
 @pytest.mark.asyncio
@@ -547,3 +553,266 @@ async def test_disputed_invoice_not_updated(db_session: AsyncSession) -> None:
     )
     await db_session.refresh(inv)
     assert inv.status == InvoiceStatus.DISPUTED
+
+
+# ---------------------------------------------------------------------------
+# Cancellation
+# ---------------------------------------------------------------------------
+
+
+async def _make_cheque(
+    db: AsyncSession,
+    contact_id: int,
+    invoice_id: int,
+    amount: Decimal,
+) -> int:
+    payment = await payment_service.create_payment(
+        db,
+        PaymentCreate(
+            invoice_id=invoice_id,
+            contact_id=contact_id,
+            amount=amount,
+            date=date(2024, 2, 1),
+            method=PaymentMethod.CHEQUE,
+        ),
+    )
+    return payment.id
+
+
+@pytest.mark.asyncio
+async def test_cancel_payment_keeps_deposit_with_other_cheques(db_session: AsyncSession) -> None:
+    """Cancelling one cheque of a shared slip keeps the slip and lowers its total."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("300.00"))
+    first = await _make_cheque(db_session, contact.id, inv.id, Decimal("120.00"))
+    second = await _make_cheque(db_session, contact.id, inv.id, Decimal("80.00"))
+    deposit = await bank_service.create_deposit(
+        db_session,
+        DepositCreate(
+            date=date(2024, 2, 2),
+            type=DepositType.CHEQUES,
+            payment_ids=[first, second],
+        ),
+    )
+    assert deposit.total_amount == Decimal("200.00")
+
+    await payment_service.cancel_payment(db_session, first)
+
+    await db_session.refresh(deposit)
+    assert deposit.total_amount == Decimal("80.00")
+    assert await bank_service.get_deposit_payment_ids(db_session, deposit.id) == [second]
+    assert await payment_service.get_payment(db_session, first) is None
+
+
+@pytest.mark.asyncio
+async def test_cancel_payment_deletes_slip_left_empty(db_session: AsyncSession) -> None:
+    """A slip holding only the cancelled cheque is removed, associations included."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
+    only = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
+    deposit = await bank_service.create_deposit(
+        db_session,
+        DepositCreate(
+            date=date(2024, 2, 2),
+            type=DepositType.CHEQUES,
+            payment_ids=[only],
+        ),
+    )
+    deposit_id = deposit.id
+
+    await payment_service.cancel_payment(db_session, only)
+
+    assert await bank_service.get_deposit(db_session, deposit_id) is None
+    assert await bank_service.get_deposit_payment_ids(db_session, deposit_id) == []
+
+
+@pytest.mark.asyncio
+async def test_cancel_payment_removes_accounting_entries(db_session: AsyncSession) -> None:
+    """Entries generated by the payment are dropped along with it."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
+    payment_id = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
+    db_session.add(
+        AccountingEntry(
+            entry_number="EC-0001",
+            date=date(2024, 2, 1),
+            account_number="511200",
+            label="Cheque",
+            debit=Decimal("100.00"),
+            credit=Decimal("0"),
+            source_type=EntrySourceType.PAYMENT,
+            source_id=payment_id,
+        )
+    )
+    await db_session.flush()
+
+    await payment_service.cancel_payment(db_session, payment_id)
+
+    remaining = list(
+        (
+            await db_session.execute(
+                select(AccountingEntry).where(
+                    AccountingEntry.source_type == EntrySourceType.PAYMENT,
+                    AccountingEntry.source_id == payment_id,
+                )
+            )
+        ).scalars()
+    )
+    assert remaining == []
+
+
+@pytest.mark.asyncio
+async def test_cancel_payment_refused_when_deposited(db_session: AsyncSession) -> None:
+    """A cheque already cashed in at the bank cannot be cancelled."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
+    payment_id = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
+    payment = (
+        await db_session.execute(select(Payment).where(Payment.id == payment_id))
+    ).scalar_one()
+    payment.deposited = True
+    await db_session.flush()
+
+    with pytest.raises(payment_service.PaymentCancelError) as exc_info:
+        await payment_service.cancel_payment(db_session, payment_id)
+
+    assert exc_info.value.code == "PAYMENT_DEPOSITED"
+    assert await payment_service.get_payment(db_session, payment_id) is not None
+
+
+@pytest.mark.asyncio
+async def test_cancel_payment_refused_for_supplier_invoice(db_session: AsyncSession) -> None:
+    """Cheques issued to a supplier are out of scope for cancellation."""
+    contact = Contact(type=ContactType.FOURNISSEUR, nom="Fournisseur", prenom="Test")
+    db_session.add(contact)
+    await db_session.flush()
+    inv = Invoice(
+        number="FA-2024-009",
+        type=InvoiceType.FOURNISSEUR,
+        contact_id=contact.id,
+        date=date(2024, 1, 15),
+        total_amount=Decimal("100.00"),
+        paid_amount=Decimal("0"),
+        status=InvoiceStatus.SENT,
+    )
+    db_session.add(inv)
+    await db_session.flush()
+    payment_id = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
+
+    with pytest.raises(payment_service.PaymentCancelError) as exc_info:
+        await payment_service.cancel_payment(db_session, payment_id)
+
+    assert exc_info.value.code == "PAYMENT_SUPPLIER"
+    assert await payment_service.get_payment(db_session, payment_id) is not None
+
+
+@pytest.mark.asyncio
+async def test_cancel_payment_refused_when_bank_linked(db_session: AsyncSession) -> None:
+    """A cheque tied to a bank transaction stays put."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
+    payment_id = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
+    db_session.add(
+        BankTransaction(
+            date=date(2024, 2, 3),
+            amount=Decimal("100.00"),
+            description="Encaissement",
+            payment_id=payment_id,
+        )
+    )
+    await db_session.flush()
+
+    with pytest.raises(payment_service.PaymentCancelError) as exc_info:
+        await payment_service.cancel_payment(db_session, payment_id)
+
+    assert exc_info.value.code == "PAYMENT_RECONCILED"
+    assert await payment_service.get_payment(db_session, payment_id) is not None
+
+
+@pytest.mark.asyncio
+async def test_cancel_payment_refused_when_fiscal_year_closed(db_session: AsyncSession) -> None:
+    """A payment sitting in a closed fiscal year cannot be cancelled."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
+    payment_id = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
+    db_session.add(
+        FiscalYear(
+            name="2023-2024",
+            start_date=date(2023, 8, 1),
+            end_date=date(2024, 7, 31),
+            status=FiscalYearStatus.CLOSED,
+        )
+    )
+    await db_session.flush()
+
+    with pytest.raises(payment_service.PaymentCancelError) as exc_info:
+        await payment_service.cancel_payment(db_session, payment_id)
+
+    assert exc_info.value.code == "FISCAL_YEAR_CLOSED"
+    assert await payment_service.get_payment(db_session, payment_id) is not None
+
+
+@pytest.mark.asyncio
+async def test_preview_cancellation_reports_deposit_impact(db_session: AsyncSession) -> None:
+    """The preview announces the slip totals before and after cancellation."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("300.00"))
+    first = await _make_cheque(db_session, contact.id, inv.id, Decimal("120.00"))
+    second = await _make_cheque(db_session, contact.id, inv.id, Decimal("80.00"))
+    deposit = await bank_service.create_deposit(
+        db_session,
+        DepositCreate(
+            date=date(2024, 2, 2),
+            type=DepositType.CHEQUES,
+            payment_ids=[first, second],
+        ),
+    )
+
+    preview = await payment_service.preview_payment_cancellation(db_session, first)
+
+    assert preview.can_cancel is True
+    assert preview.reason_code is None
+    assert preview.deposit_id == deposit.id
+    assert preview.deposit_total_before == Decimal("200.00")
+    assert preview.deposit_total_after == Decimal("80.00")
+    assert preview.deposit_will_be_deleted is False
+
+
+@pytest.mark.asyncio
+async def test_preview_cancellation_flags_slip_deletion(db_session: AsyncSession) -> None:
+    """A slip that would be left empty is announced as deleted."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
+    only = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
+    await bank_service.create_deposit(
+        db_session,
+        DepositCreate(
+            date=date(2024, 2, 2),
+            type=DepositType.CHEQUES,
+            payment_ids=[only],
+        ),
+    )
+
+    preview = await payment_service.preview_payment_cancellation(db_session, only)
+
+    assert preview.can_cancel is True
+    assert preview.deposit_will_be_deleted is True
+
+
+@pytest.mark.asyncio
+async def test_preview_cancellation_reports_refusal(db_session: AsyncSession) -> None:
+    """An ineligible payment comes back with its refusal code and no deposit data."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
+    payment_id = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
+    payment = (
+        await db_session.execute(select(Payment).where(Payment.id == payment_id))
+    ).scalar_one()
+    payment.deposited = True
+    await db_session.flush()
+
+    preview = await payment_service.preview_payment_cancellation(db_session, payment_id)
+
+    assert preview.can_cancel is False
+    assert preview.reason_code == "PAYMENT_DEPOSITED"
+    assert preview.deposit_id is None

@@ -28,7 +28,7 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [RELANCES](RELANCES/PRD.md) — relances factures impayées : historique daté, templates dédiés, filtrage irrécouvrables (BIZ-218→221) | ✅ |
 | [TABLE-FIT](TABLE-FIT/PRD.md) — supprimer le scroll horizontal des tableaux sur grand écran (TEC-212) | ✅ |
 | [SALARY-FIX](SALARY-FIX/PRD.md) — fiabiliser les écritures comptables des salaires : net auto-validé, régénération à l'édition, garde-fou incomplet (BIZ-222 + TEC-213/214) | ✅ |
-| [PAY-CANCEL](PAY-CANCEL/PRD.md) — annulation d'un règlement client non encore encaissé, réservée à l'admin (BIZ-223/224) | ⬜ |
+| [PAY-CANCEL](PAY-CANCEL/PRD.md) — annulation d'un règlement client non encore encaissé, réservée à l'admin (BIZ-223/224) | ✅ |
 
 ## Lots archivés
 

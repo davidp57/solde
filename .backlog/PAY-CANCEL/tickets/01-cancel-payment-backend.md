@@ -1,6 +1,6 @@
 # BIZ-223 — Annuler un règlement client non encaissé (backend)
 
-Status: ⬜ ready
+Status: ✅ done
 Type: feature
 Files: `backend/services/payment.py`, `backend/services/bank_service.py`,
 `backend/routers/payment.py`, `backend/schemas/payment.py`,

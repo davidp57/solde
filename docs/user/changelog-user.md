@@ -4,6 +4,13 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.9.2 — à paraître
+
+### Administrateur
+
+- **Annuler un règlement saisi par erreur** — un règlement qui n'est pas encore arrivé sur le compte bancaire (typiquement un chèque client dont la remise n'est pas confirmée) peut désormais être annulé depuis l'écran **Paiements**, menu **⋯** de la ligne. Avant de valider, une fenêtre indique ce qui sera touché : le montant supprimé et, le cas échéant, le bordereau de remise dont le total sera recalculé — ou qui sera supprimé s'il ne contenait que ce chèque. La facture repasse alors en attente de règlement, prête pour une nouvelle saisie. Utile quand plusieurs chèques réglant une même facture ont été saisis comme un seul règlement.
+- Quand l'annulation n'est pas possible (règlement déjà encaissé, espèces, virement, règlement rapproché avec une opération bancaire, exercice clôturé), la raison est affichée explicitement.
+
 ## Version 1.9.1 — 30 juin 2026
 
 ### Tous les utilisateurs
