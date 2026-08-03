@@ -307,12 +307,16 @@ async function flushView() {
   await nextTick()
 }
 
+const AppPageHeaderStub = defineComponent({
+  template: '<div><slot /><slot name="actions" /></div>',
+})
+
 function mountView() {
   return mount(CashView, {
     global: {
       stubs: {
         AppPage: ContainerStub,
-        AppPageHeader: ContainerStub,
+        AppPageHeader: AppPageHeaderStub,
         AppPanel: ContainerStub,
         AppStatCard: AppStatCardStub,
         Button: ButtonStub,
@@ -424,6 +428,25 @@ describe('CashView', () => {
     // An outgoing cash payment settles a supplier invoice — it is not a client one.
     expect(wrapper.text()).toContain('cash.origins.payment_client')
     expect(wrapper.text()).toContain('cash.origins.payment_supplier')
+  })
+
+  it('totals the count as it is typed, against the book balance', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    await wrapper.get('button[data-testid="cash-new-count"]').trigger('click')
+    await flushView()
+
+    const numberInputs = wrapper.findAll('input[type="number"]')
+    // Five bill denominations (100, 50, 20, 10, 5) then the coins total.
+    await numberInputs[0].setValue('2')
+    await numberInputs[5].setValue('45.50')
+    await flushView()
+
+    const live = wrapper.get('[data-testid="cash-count-live-total"]')
+    expect(live.text()).toContain('245.50')
+    // Book balance is 145.00, so the till shows 100.50 too much.
+    expect(live.text()).toContain('+100.50')
   })
 
   it('renders the system opening indicator when a cash entry is flagged', async () => {

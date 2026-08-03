@@ -3,6 +3,7 @@
     <AppPageHeader :eyebrow="t('ui.page.collection_eyebrow')" :title="t('cash.title')">
       <template #actions>
         <Button
+          data-testid="cash-new-count"
           :label="t('cash.new_count')"
           icon="pi pi-calculator"
           severity="secondary"
@@ -662,6 +663,29 @@
               />
             </div>
           </div>
+          <div class="cash-count-live" data-testid="cash-count-live-total">
+            <div class="cash-count-live__row">
+              <span>{{ t('cash.count_live_total') }}</span>
+              <strong>{{ formatAmount(countFormTotal) }}</strong>
+            </div>
+            <p class="cash-count-live__detail">
+              {{
+                t('cash.count_live_detail', {
+                  bills: formatAmount(countFormBillsTotal),
+                  coins: formatAmount(countFormCoinsTotal),
+                })
+              }}
+            </p>
+            <div
+              class="cash-count-live__row cash-count-live__row--diff"
+              :class="
+                Math.abs(countFormDifference) < 0.005 ? 'cash-count-live--ok' : 'cash-count-live--off'
+              "
+            >
+              <span>{{ t('cash.count_live_expected', { amount: formatAmount(balance) }) }}</span>
+              <strong>{{ formatSignedAmount(countFormDifference) }}</strong>
+            </div>
+          </div>
         </section>
         <section class="app-dialog-section">
           <div class="app-field">
@@ -953,12 +977,12 @@ type CashDenomField =
   | 'count_10'
   | 'count_5'
 
-const denominations: Array<{ field: CashDenomField; label: string }> = [
-  { field: 'count_100', label: '100 €' },
-  { field: 'count_50', label: '50 €' },
-  { field: 'count_20', label: '20 €' },
-  { field: 'count_10', label: '10 €' },
-  { field: 'count_5', label: '5 €' },
+const denominations: Array<{ field: CashDenomField; value: number; label: string }> = [
+  { field: 'count_100', value: 100, label: '100 €' },
+  { field: 'count_50', value: 50, label: '50 €' },
+  { field: 'count_20', value: 20, label: '20 €' },
+  { field: 'count_10', value: 10, label: '10 €' },
+  { field: 'count_5', value: 5, label: '5 €' },
 ]
 
 interface CashEntryFormState {
@@ -998,6 +1022,21 @@ const countForm = ref<CashCountFormState>({
   pieces_total: 0,
   notes: '',
 })
+
+/** Running total of the count being typed — bills by denomination, plus the coins. */
+const countFormBillsTotal = computed(() =>
+  denominations.reduce(
+    (sum, denom) => sum + (Number(countForm.value[denom.field]) || 0) * denom.value,
+    0,
+  ),
+)
+
+const countFormCoinsTotal = computed(() => Number(countForm.value.pieces_total) || 0)
+
+const countFormTotal = computed(() => countFormBillsTotal.value + countFormCoinsTotal.value)
+
+/** Gap against the book balance — the whole point of counting the till. */
+const countFormDifference = computed(() => countFormTotal.value - parseFloat(balance.value || '0'))
 
 function formatAmount(value: string | number): string {
   return `${parseFloat(String(value)).toFixed(2)} €`
@@ -1339,6 +1378,40 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--app-space-3);
+}
+
+.cash-count-live {
+  margin-top: var(--app-space-3);
+  padding: var(--app-space-3);
+  border: 1px solid var(--app-border, rgba(127, 127, 127, 0.3));
+  border-radius: var(--app-radius-md, 8px);
+}
+
+.cash-count-live__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--app-space-2);
+  font-size: 1.05rem;
+}
+
+.cash-count-live__detail {
+  margin: var(--app-space-1) 0 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.cash-count-live__row--diff {
+  margin-top: var(--app-space-2);
+  font-size: 0.95rem;
+}
+
+.cash-count-live--ok strong {
+  color: var(--p-green-500, #16a34a);
+}
+
+.cash-count-live--off strong {
+  color: var(--p-orange-500, #f97316);
 }
 
 .cash-positive {
