@@ -55,6 +55,38 @@ class TestCreateFiscalYear:
         assert fy.name == "2024"
 
     @pytest.mark.asyncio
+    async def test_rejects_a_period_overlapping_an_existing_year(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Overlapping years would make the year of an entry ambiguous."""
+        await _create_fy(
+            db_session, name="2024-2025", start=date(2024, 8, 1), end=date(2025, 7, 31)
+        )
+
+        payload = FiscalYearCreate(
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
+        )
+        with pytest.raises(FiscalYearError, match="chevauche"):
+            await create_fiscal_year(db_session, payload)
+
+    @pytest.mark.asyncio
+    async def test_accepts_a_period_starting_the_day_after(self, db_session: AsyncSession) -> None:
+        """Consecutive years share no day and must be accepted."""
+        await _create_fy(
+            db_session, name="2024-2025", start=date(2024, 8, 1), end=date(2025, 7, 31)
+        )
+
+        payload = FiscalYearCreate(
+            name="2025-2026",
+            start_date=date(2025, 8, 1),
+            end_date=date(2026, 7, 31),
+        )
+        fy = await create_fiscal_year(db_session, payload)
+        assert fy.start_date == date(2025, 8, 1)
+
+    @pytest.mark.asyncio
     async def test_end_date_must_be_after_start(self) -> None:
         from pydantic import ValidationError
 

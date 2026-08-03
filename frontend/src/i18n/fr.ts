@@ -1535,8 +1535,16 @@ export default {
       },
       pre_close_checks: 'Vérifications avant clôture',
       pre_close_ok: 'Aucun problème détecté.',
+      checks_loading: 'Vérifications en cours…',
+      checks_warning_intro:
+        'Points à examiner avant de clôturer. La clôture reste possible, mais ces anomalies seront figées :',
+      close_then_open_next:
+        "Après la clôture, utilisez « Ouvrir le prochain exercice » sur cette ligne : c'est cette action qui reporte les soldes de banque, de caisse, des créances et des dettes sur le nouvel exercice.",
       open_next: 'Ouvrir le prochain exercice',
       open_next_name_placeholder: 'Ex : 2026',
+      open_next_intro:
+        "Crée l'exercice qui suit {name} et génère automatiquement les reports à nouveau : le solde de chaque compte de bilan est repris à l'ouverture. Les dates sont pré-remplies dans la continuité de l'exercice clôturé.",
+      open_next_confirm: "Créer l'exercice et reporter les soldes",
       open_next_ok: 'Exercice {name} ouvert avec report à nouveau.',
     },
   },
