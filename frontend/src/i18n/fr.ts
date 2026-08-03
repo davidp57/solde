@@ -694,6 +694,29 @@ export default {
     created: 'Paiement enregistré.',
     deleted: 'Paiement supprimé.',
     confirm_delete: 'Supprimer ce paiement de {amount} € ?',
+    cancel_action: 'Annuler ce règlement',
+    cancel_title: 'Annuler un règlement',
+    cancel_loading: 'Vérification en cours…',
+    cancel_intro:
+      'Le règlement de {amount} du {date} sera supprimé, ainsi que les écritures comptables générées. Cette action est définitive.',
+    cancel_deposit_kept:
+      'Il sera retiré du bordereau de remise du {date}, dont le total passera de {before} à {after}.',
+    cancel_deposit_deleted:
+      'Ce règlement est le seul du bordereau de remise du {date} : le bordereau sera supprimé.',
+    cancel_hint:
+      'La facture repassera en attente de règlement : vous pourrez ensuite saisir les règlements corrects.',
+    cancel_confirm: 'Annuler le règlement',
+    cancelled: 'Règlement annulé.',
+    cancel_refused: {
+      PAYMENT_SUPPLIER:
+        "Seuls les règlements reçus des clients peuvent être annulés ici. Un règlement émis à un fournisseur n'est pas concerné.",
+      PAYMENT_DEPOSITED:
+        "Ce règlement est déjà arrivé sur le compte bancaire : il ne peut plus être annulé. Il faut passer par une écriture comptable d'annulation.",
+      PAYMENT_RECONCILED:
+        'Ce règlement est rattaché à une opération bancaire. Détachez-le de cette opération avant de pouvoir l’annuler.',
+      FISCAL_YEAR_CLOSED:
+        "Ce règlement appartient à un exercice comptable clôturé : il ne peut plus être annulé.",
+    },
     metrics: {
       visible: 'Paiements affiches',
       total: '{count} au total',

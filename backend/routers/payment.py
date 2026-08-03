@@ -11,7 +11,12 @@ from backend.errors import api_error, conflict, not_found
 from backend.models.invoice import InvoiceType
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
-from backend.schemas.payment import PaymentCreate, PaymentRead, PaymentUpdate
+from backend.schemas.payment import (
+    PaymentCancelPreview,
+    PaymentCreate,
+    PaymentRead,
+    PaymentUpdate,
+)
 from backend.services import payment as payment_service
 from backend.services import settings as settings_service
 from backend.services.audit_service import AuditAction, record_audit
@@ -26,6 +31,8 @@ _ReadAccess = Annotated[
     User,
     Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
 ]
+# Cancelling a payment destroys data (payment, entries, possibly a deposit slip).
+_CancelAccess = Annotated[User, Depends(require_role(UserRole.ADMIN))]
 
 
 @router.get("/", response_model=list[PaymentRead])
@@ -144,12 +151,26 @@ async def update_payment(
     return updated
 
 
+@router.get("/{payment_id}/cancel-preview", response_model=PaymentCancelPreview)
+async def preview_payment_cancellation(
+    payment_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _CancelAccess,
+) -> PaymentCancelPreview:
+    """Report whether a payment can be cancelled and what cancelling it would touch."""
+    try:
+        return await payment_service.preview_payment_cancellation(db, payment_id)
+    except LookupError as exc:
+        raise not_found("Payment") from exc
+
+
 @router.delete("/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_payment(
     payment_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_user: _WriteAccess,
+    current_user: _CancelAccess,
 ) -> None:
+    """Cancel a client payment that has not reached the bank account yet."""
     payment = await payment_service.get_payment(db, payment_id)
     if payment is None:
         raise not_found("Payment")
@@ -159,9 +180,14 @@ async def delete_payment(
         "method": payment.method,
     }
     try:
-        await payment_service.delete_payment(db, payment_id)
+        outcome = await payment_service.cancel_payment(db, payment_id)
+    except payment_service.PaymentCancelError as exc:
+        raise conflict(exc.code, str(exc)) from exc
     except payment_service.PaymentDeleteError as exc:
         raise conflict("PAYMENT_CONFLICT", str(exc)) from exc
+    if outcome.deposit_id is not None:
+        detail["deposit_id"] = outcome.deposit_id
+        detail["deposit_deleted"] = outcome.deposit_will_be_deleted
     await record_audit(
         db,
         action=AuditAction.PAYMENT_DELETED,

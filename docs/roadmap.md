@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 MD033 -->
 # Roadmap — Solde ⚖️
 
-> Last updated: 2026-05-11 — active branch `develop` — current version: 1.7.0 (PR open)
+> Last updated: 2026-08-03 — active branch `develop` — current version: 1.10.0 (release PR open)
 
 > This roadmap is the source of truth for **sequencing** (what ships in which version).
 > For per-lot **scope + status**, see the backlog: [`.backlog/README.md`](../.backlog/README.md).
@@ -33,9 +33,11 @@
 | **1.7** | Lot BK — automated backup (BIZ-173–184) | 🔧 In progress (PR #85) |
 | **1.8** | Lot RF — UI/UX redesign (dashboard, invoices, admin) + dark mode + responsive | ✅ Released 2026-06-21 |
 | **1.8.1** | Lot BK2 (backup retention + incremental mirror) · Lot ML (member mailing) · dashboard "to reconcile" fix | ✅ Released 2026-06-23 |
-| **1.9.0** | Lot RELANCES (invoice reminders) · Lot TABLE-FIT (table horizontal scroll) · Lot EDIT-OPS (manual bank ops guard) · Lot BK3 (non-regenerable PDF backups) | 🔧 Release PR (→ main) |
+| **1.9.0** | Lot RELANCES (invoice reminders) · Lot TABLE-FIT (table horizontal scroll) · Lot EDIT-OPS (manual bank ops guard) · Lot BK3 (non-regenerable PDF backups) | ✅ Released 2026-06-29 |
+| **1.9.1** | Lot SALARY-FIX (salary accounting entries) · TEC-215 (dashboard current month) | ✅ Released 2026-06-30 |
+| **1.10.0** | Lot PAY-CANCEL — cancel an uncashed client payment (BIZ-223/224) | 🔧 Release PR (→ main) |
 
-Test suite: **1163 backend + 197 frontend Vitest — 0 failures.**
+Test suite: **1181 backend + 205 frontend Vitest — 0 failures.**
 
 ---
 
