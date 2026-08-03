@@ -67,8 +67,9 @@
               <span class="app-mobile-card-label">{{ t('accounting.fiscalYear.end_date') }}</span>
               <span class="app-mobile-card-value">{{ formatDisplayDate(data.end_date) }}</span>
             </div>
-            <div v-if="data.status === 'open'" class="app-mobile-card-actions">
+            <div v-if="data.status === 'open' || canOpenNext(data)" class="app-mobile-card-actions">
               <Button
+                v-if="data.status === 'open'"
                 :label="t('accounting.fiscalYear.close_administrative')"
                 icon="pi pi-box"
                 severity="warn"
@@ -77,12 +78,21 @@
                 @click="confirmAdministrativeClose(data)"
               />
               <Button
+                v-if="data.status === 'open'"
                 :label="t('accounting.fiscalYear.close')"
                 icon="pi pi-lock"
                 severity="danger"
                 text
                 size="small"
-                @click="confirmClose(data)"
+                @click="openCloseDialog(data)"
+              />
+              <Button
+                v-if="canOpenNext(data)"
+                :label="t('accounting.fiscalYear.open_next')"
+                icon="pi pi-forward"
+                text
+                size="small"
+                @click="openNextDialog(data)"
               />
             </div>
           </template>
@@ -182,7 +192,15 @@
               icon="pi pi-lock"
               severity="danger"
               text
-              @click="confirmClose(data)"
+              @click="openCloseDialog(data)"
+            />
+            <Button
+              v-if="canOpenNext(data)"
+              data-testid="fy-open-next"
+              :label="t('accounting.fiscalYear.open_next')"
+              icon="pi pi-forward"
+              text
+              @click="openNextDialog(data)"
             />
           </template>
         </Column>
@@ -238,6 +256,83 @@
       </template>
     </Dialog>
 
+    <!-- Close dialog — shows the pre-close checks before the irreversible step -->
+    <Dialog
+      v-model:visible="closeDialogVisible"
+      :header="t('accounting.fiscalYear.close')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <div class="app-dialog-form" data-testid="fy-close-body">
+        <p v-if="checksLoading">{{ t('accounting.fiscalYear.checks_loading') }}</p>
+        <template v-else>
+          <Message v-if="preCloseWarnings.length" severity="warn">
+            <p>{{ t('accounting.fiscalYear.checks_warning_intro') }}</p>
+            <ul class="fy-checks">
+              <li v-for="warning in preCloseWarnings" :key="warning">{{ warning }}</li>
+            </ul>
+          </Message>
+          <Message v-else severity="success">
+            {{ t('accounting.fiscalYear.pre_close_ok') }}
+          </Message>
+          <p>{{ t('accounting.fiscalYear.close_confirm', { name: closeTarget?.name ?? '' }) }}</p>
+          <p class="app-dialog-hint">{{ t('accounting.fiscalYear.close_then_open_next') }}</p>
+        </template>
+      </div>
+      <template #footer>
+        <Button :label="t('common.cancel')" text @click="closeDialogVisible = false" />
+        <Button
+          data-testid="fy-close-confirm"
+          :label="t('accounting.fiscalYear.close')"
+          icon="pi pi-lock"
+          severity="danger"
+          :loading="closing"
+          :disabled="checksLoading"
+          @click="doClose"
+        />
+      </template>
+    </Dialog>
+
+    <!-- Open next fiscal year — carries balances forward (report à nouveau) -->
+    <Dialog
+      v-model:visible="nextDialogVisible"
+      :header="t('accounting.fiscalYear.open_next')"
+      modal
+      class="app-dialog app-dialog--medium"
+    >
+      <div class="app-dialog-form">
+        <section class="app-dialog-intro">
+          <p class="app-dialog-intro__text">
+            {{ t('accounting.fiscalYear.open_next_intro', { name: nextTarget?.name ?? '' }) }}
+          </p>
+        </section>
+        <div class="app-form-grid">
+          <div class="app-field app-field--full">
+            <label class="app-field__label">{{ t('accounting.fiscalYear.name') }}</label>
+            <InputText v-model="nextForm.name" data-testid="fy-next-name" />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('accounting.fiscalYear.start_date') }}</label>
+            <InputText v-model="nextForm.start_date" type="date" />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">{{ t('accounting.fiscalYear.end_date') }}</label>
+            <InputText v-model="nextForm.end_date" type="date" />
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <Button :label="t('common.cancel')" text @click="nextDialogVisible = false" />
+        <Button
+          data-testid="fy-next-confirm"
+          :label="t('accounting.fiscalYear.open_next_confirm')"
+          icon="pi pi-check"
+          :loading="openingNext"
+          @click="doOpenNext"
+        />
+      </template>
+    </Dialog>
+
     <!-- Confirm close dialog -->
     <ConfirmDialog />
   </AppPage>
@@ -252,6 +347,7 @@ import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
+import Message from 'primevue/message'
 import Tag from 'primevue/tag'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
@@ -267,6 +363,8 @@ import {
   createFiscalYearApi,
   closeFiscalYearApi,
   closeFiscalYearAdministrativeApi,
+  getFiscalYearPreCloseChecksApi,
+  openNextFiscalYearApi,
   type FiscalYearRead,
   type FiscalYearStatus,
 } from '../api/accounting'
@@ -322,6 +420,17 @@ const {
 
 const form = ref({ name: '', start_date: '', end_date: '' })
 
+const closeDialogVisible = ref(false)
+const closeTarget = ref<FiscalYearRead | null>(null)
+const preCloseWarnings = ref<string[]>([])
+const checksLoading = ref(false)
+const closing = ref(false)
+
+const nextDialogVisible = ref(false)
+const nextTarget = ref<FiscalYearRead | null>(null)
+const nextForm = ref({ name: '', start_date: '', end_date: '' })
+const openingNext = ref(false)
+
 function statusSeverity(status: FiscalYearStatus) {
   if (status === 'open') return 'success'
   if (status === 'closing') return 'warn'
@@ -355,27 +464,95 @@ async function createFY() {
   }
 }
 
-function confirmClose(fy: FiscalYearRead) {
-  confirm.require({
-    message: t('accounting.fiscalYear.close_confirm', { name: fy.name }),
-    header: t('accounting.fiscalYear.close'),
-    icon: 'pi pi-exclamation-triangle',
-    rejectProps: { label: t('common.cancel'), severity: 'secondary', text: true },
-    acceptProps: { label: t('common.confirm'), severity: 'danger' },
-    accept: async () => {
-      try {
-        await closeFiscalYearApi(fy.id)
-        toast.add({
-          severity: 'success',
-          summary: t('accounting.fiscalYear.closed_ok', { name: fy.name }),
-          life: 3000,
-        })
-        await load()
-      } catch {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
-      }
-    },
-  })
+async function openCloseDialog(fy: FiscalYearRead) {
+  closeTarget.value = fy
+  preCloseWarnings.value = []
+  closeDialogVisible.value = true
+  checksLoading.value = true
+  try {
+    preCloseWarnings.value = await getFiscalYearPreCloseChecksApi(fy.id)
+  } catch {
+    closeDialogVisible.value = false
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } finally {
+    checksLoading.value = false
+  }
+}
+
+async function doClose() {
+  const fy = closeTarget.value
+  if (!fy) return
+  closing.value = true
+  try {
+    await closeFiscalYearApi(fy.id)
+    closeDialogVisible.value = false
+    toast.add({
+      severity: 'success',
+      summary: t('accounting.fiscalYear.closed_ok', { name: fy.name }),
+      life: 3000,
+    })
+    await load()
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } finally {
+    closing.value = false
+  }
+}
+
+/** A closed year can be rolled over as long as no later year exists yet. */
+function canOpenNext(fy: FiscalYearRead): boolean {
+  if (fy.status !== 'closed') return false
+  return !fiscalYears.value.some((other) => other.start_date > fy.end_date)
+}
+
+function openNextDialog(fy: FiscalYearRead) {
+  nextTarget.value = fy
+  nextForm.value = suggestNextFiscalYear(fy)
+  nextDialogVisible.value = true
+}
+
+/** Suggest the year that starts the day after *fy* ends and spans the same length. */
+function suggestNextFiscalYear(fy: FiscalYearRead): {
+  name: string
+  start_date: string
+  end_date: string
+} {
+  const start = new Date(`${fy.end_date}T00:00:00`)
+  start.setDate(start.getDate() + 1)
+  const end = new Date(start)
+  end.setFullYear(end.getFullYear() + 1)
+  end.setDate(end.getDate() - 1)
+  // Format from local parts: toISOString() shifts to UTC and would move the
+  // fiscal year boundary by one day east of Greenwich.
+  const iso = (value: Date) =>
+    `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`
+  const startYear = start.getFullYear()
+  const endYear = end.getFullYear()
+  return {
+    name: startYear === endYear ? String(startYear) : `${startYear}-${endYear}`,
+    start_date: iso(start),
+    end_date: iso(end),
+  }
+}
+
+async function doOpenNext() {
+  const fy = nextTarget.value
+  if (!fy) return
+  openingNext.value = true
+  try {
+    await openNextFiscalYearApi(fy.id, nextForm.value)
+    nextDialogVisible.value = false
+    toast.add({
+      severity: 'success',
+      summary: t('accounting.fiscalYear.open_next_ok', { name: nextForm.value.name }),
+      life: 4000,
+    })
+    await load()
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } finally {
+    openingNext.value = false
+  }
 }
 
 function confirmAdministrativeClose(fy: FiscalYearRead) {
