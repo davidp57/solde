@@ -79,7 +79,28 @@ async def find_fiscal_year_id_for_date(db: AsyncSession, target_date: date) -> i
     return fiscal_year.id if fiscal_year is not None else None
 
 
+async def _assert_no_overlap(db: AsyncSession, start_date: date, end_date: date) -> None:
+    """Reject a period overlapping an existing fiscal year.
+
+    Overlapping years would make ``find_fiscal_year_for_date`` ambiguous: entries
+    would silently land in whichever year sorts first.
+    """
+    result = await db.execute(
+        select(FiscalYear)
+        .where(FiscalYear.start_date <= end_date, FiscalYear.end_date >= start_date)
+        .order_by(FiscalYear.start_date.asc())
+        .limit(1)
+    )
+    existing = result.scalar_one_or_none()
+    if existing is not None:
+        raise FiscalYearError(
+            f"La période demandée chevauche l'exercice « {existing.name} » "
+            f"({existing.start_date} → {existing.end_date})."
+        )
+
+
 async def create_fiscal_year(db: AsyncSession, payload: FiscalYearCreate) -> FiscalYear:
+    await _assert_no_overlap(db, payload.start_date, payload.end_date)
     fy = FiscalYear(
         name=payload.name,
         start_date=payload.start_date,
@@ -213,6 +234,7 @@ async def open_new_fiscal_year(
     """
     if closed_fy.status != FiscalYearStatus.CLOSED:
         raise FiscalYearError("Source fiscal year must be CLOSED to open a new one")
+    await _assert_no_overlap(db, payload.start_date, payload.end_date)
 
     # Create new FY
     new_fy = FiscalYear(
