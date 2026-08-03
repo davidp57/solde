@@ -20,6 +20,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ### Corrigé
 - **TEC-217** (Lot FY-ROLLOVER) — Deux exercices comptables ne peuvent plus **se chevaucher** : la création (et l'ouverture du suivant) est refusée en `422 FISCAL_YEAR_OVERLAP` en nommant l'exercice en conflit. Des périodes recouvrantes rendaient l'exercice d'une écriture dépendant de l'ordre de tri de `find_fiscal_year_for_date`.
 - **FY-ROLLOVER** — Les dates du nouvel exercice sont calculées sur les composantes locales et non via `toISOString()`, qui décalait la frontière d'exercice d'un jour à l'est de Greenwich.
+- **TEC-218** — **Soldes bancaires périmés à l'écran après suppression d'une opération**. Supprimer une opération manuelle ne retirait que la ligne du tableau côté navigateur, alors que le serveur recalcule le `balance_after` de **toutes** les opérations suivantes (`recompute_bank_balances`). Les lignes postérieures gardaient donc leur ancien solde à l'écran, gonflé du montant supprimé — donnant l'impression d'une comptabilité fausse juste après un nettoyage pourtant correct (cas réel : deux remises supprimées, soldes affichés 526 € trop hauts alors que la base était juste). La liste est désormais rechargée depuis le serveur après suppression.
 
 ## [1.10.0] — 2026-08-03
 
