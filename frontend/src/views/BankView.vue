@@ -1166,7 +1166,10 @@ async function deleteManualTx(tx: BankTransaction): Promise<void> {
     accept: async () => {
       try {
         await deleteTransaction(tx.id)
-        transactions.value = transactions.value.filter((t) => t.id !== tx.id)
+        // Deleting shifts the running balance of every later transaction, so the
+        // whole list must be refetched — dropping the row locally would leave
+        // stale balances on screen.
+        await loadTransactions()
         toast.add({ severity: 'success', summary: t('bank.transaction_deleted'), life: 2000 })
       } catch {
         toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })

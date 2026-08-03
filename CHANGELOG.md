@@ -11,6 +11,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **TEC-218** — **Soldes bancaires périmés à l'écran après suppression d'une opération**. Supprimer une opération manuelle ne retirait que la ligne du tableau côté navigateur, alors que le serveur recalcule le `balance_after` de **toutes** les opérations suivantes (`recompute_bank_balances`). Les lignes postérieures gardaient donc leur ancien solde à l'écran, gonflé du montant supprimé — donnant l'impression d'une comptabilité fausse juste après un nettoyage pourtant correct (cas réel : deux remises supprimées, soldes affichés 526 € trop hauts alors que la base était juste). La liste est désormais rechargée depuis le serveur après suppression.
+
 ## [1.10.0] — 2026-08-03
 
 ### Ajouté
