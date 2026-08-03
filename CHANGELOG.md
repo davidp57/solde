@@ -12,6 +12,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
+- **BIZ-227** (Lot DEPOSIT-MERGE) — **Une remise n'apparaît plus deux fois**. Confirmer un bordereau créait une opération bancaire pour créditer le compte tout de suite ; l'import du relevé apportait ensuite le même mouvement avec la référence de la banque. Rien ne les rapprochait (la déduplication ne porte que sur `reference`), donc le solde comptait chaque remise deux fois jusqu'à un nettoyage manuel. À l'import, une ligne reconnue comme remise est désormais **absorbée** par l'opération provisoire correspondante — même compte, même montant, catégorie remise, non rapprochée, à ± 3 jours. La ligne conserve la description de Solde (qui nomme le bordereau) et prend la date, la référence et la source du relevé. En cas d'ambiguïté (plusieurs candidates), **aucune fusion** : la ligne est importée normalement et le cas est journalisé. Le résultat d'import distingue les opérations créées des remises rapprochées, et l'annonce en fin d'import.
 - **BIZ-226** (Lot FY-ROLLOVER) — **Bascule d'exercice utilisable depuis l'interface**. Le moteur était complet côté serveur, mais aucun écran n'appelait `open-next` (création de l'exercice suivant **avec reports à nouveau**) ni `pre-close-checks` — les fonctions front correspondantes existaient pourtant, en code mort. L'utilisateur n'avait donc que « Nouvel exercice », qui crée une période **sans reprise des soldes** : banque, caisse, créances et dettes repartaient à zéro.
   - La fenêtre de clôture affiche désormais les **vérifications avant clôture** (balance déséquilibrée, écritures sans exercice) ; elles informent sans bloquer.
   - Une action **« Ouvrir le prochain exercice »** apparaît sur un exercice clôturé sans successeur, avec nom et dates pré-remplis dans la continuité (lendemain de la fin, douze mois), et génère les reports à nouveau.
@@ -21,8 +22,6 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - **TEC-217** (Lot FY-ROLLOVER) — Deux exercices comptables ne peuvent plus **se chevaucher** : la création (et l'ouverture du suivant) est refusée en `422 FISCAL_YEAR_OVERLAP` en nommant l'exercice en conflit. Des périodes recouvrantes rendaient l'exercice d'une écriture dépendant de l'ordre de tri de `find_fiscal_year_for_date`.
 - **FY-ROLLOVER** — Les dates du nouvel exercice sont calculées sur les composantes locales et non via `toISOString()`, qui décalait la frontière d'exercice d'un jour à l'est de Greenwich.
 - **TEC-218** — **Soldes bancaires périmés à l'écran après suppression d'une opération**. Supprimer une opération manuelle ne retirait que la ligne du tableau côté navigateur, alors que le serveur recalcule le `balance_after` de **toutes** les opérations suivantes (`recompute_bank_balances`). Les lignes postérieures gardaient donc leur ancien solde à l'écran, gonflé du montant supprimé — donnant l'impression d'une comptabilité fausse juste après un nettoyage pourtant correct (cas réel : deux remises supprimées, soldes affichés 526 € trop hauts alors que la base était juste). La liste est désormais rechargée depuis le serveur après suppression.
-
-||||||| constructed fake ancestor
 - **TEC-219** — **Écran Caisse : un règlement fournisseur en espèces était étiqueté « Paiement client »**. Le libellé d'origine était déduit de la seule source de l'écriture (`payment`), sans tenir compte du sens du mouvement. Le montant et le sens étaient corrects (sortie de caisse), seul l'intitulé induisait en erreur. L'origine distingue désormais **Règlement client** (entrée) et **Règlement fournisseur** (sortie).
 
 ## [1.10.0] — 2026-08-03
@@ -442,7 +441,6 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - BIZ-123 : Prix par défaut par type de ligne de facture — colonnes `default_price_cours`, `default_price_adhesion`, `default_price_autres` sur `AppSettings` (migration 0034) ; section « Prix unitaires par défaut » dans les paramètres ; pré-remplissage automatique au `addLine()` et au changement de `line_type` dans `ClientInvoiceForm`
 - BIZ-111 (suite) : Adresse postale du contact (`Contact.adresse`) affichée dans la section Destinataire des factures PDF — chaque ligne rendue séparément
 - BIZ-111 (suite) : SIRET de l’émetteur supprimé de la carte Émetteur dans les factures PDF (déjà présent dans l’en-tête et le pied de page)
-
 - BIZ-119 : Panneau « Actions rapides » sur le tableau de bord — 3 cartes d'accès direct (nouvelle facture client, encoder un paiement, nouvelle entrée de caisse) ; navigation vers la vue cible avec ouverture automatique du dialog de création via le paramètre `?create=1`
 - BIZ-119 : Carte « Saisir une facture client » — ouvre désormais un wizard inline (dialog) avec formulaire de création et bouton « Saisir une autre facture » après succès, sur le modèle du wizard de paiement
 - BIZ-112 : Numéro de facture affiché dans le titre du dialog de modification (factures clients et fournisseurs) — header dynamique `Modifier — F-2025-042` au lieu du libellé générique
@@ -525,7 +523,6 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - TEC-091 : Logging serveur ajouté sur les routeurs `invoice`, `excel_import`, `settings` — les exceptions inattendues sont désormais tracées (`logger.exception`) avant relance
 - TEC-092 : Validation du contenu réel des fichiers uploadés par magic bytes (PDF, JPEG, PNG, WebP) dans `upload_invoice_file` — le header `Content-Type` client ne suffit plus
 - TEC-093 : Contraintes Pydantic sur les schémas `contact`, `invoice`, `salary`, `payment` — `max_length` sur tous les champs texte libres, `ge=0` sur les montants salaires, validation plage `hours` (0–744)
-
 - `backend/models/contact.py` : enum `ContractType` (CDI/CDD) + 5 nouveaux champs sur `Contact` : `contract_type`, `base_gross`, `base_hours`, `hourly_rate`, `is_contractor` (BIZ-089)
 - `backend/models/salary.py` : 3 champs CDD nullable : `brut_declared`, `conges_payes`, `precarite` (BIZ-089)
 - `backend/models/invoice.py` : champ `hours` nullable (pour factures AE) (BIZ-089)
@@ -542,13 +539,11 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `backend/services/excel_import_types.py` : `NormalizedSalaryRow` étendu avec `brut_declared`, `conges_payes`, `precarite` (optionnels) (BIZ-090)
 - `backend/services/excel_import_parsers.py` : `parse_salary_sheet` lit désormais les colonnes CDD (cols 2/3/4) du format détaillé de la feuille « Aide Salaires » — les lignes CDD obtiennent leurs 3 champs, les lignes CDI conservent `None` (BIZ-090)
 - `backend/services/excel_import/_import_payments_salaries.py` : `_import_salaries_sheet` passe `brut_declared`, `conges_payes`, `precarite` au constructeur `Salary` lors de l'import (BIZ-090)
-
 - `backend/models/invoice.py` : relation ORM `contact` ajoutée sur `Invoice` (nécessaire pour `selectinload` dans `get_workforce_cost`) (BIZ-089)
 - `backend/routers/salary.py` : route `GET /salaries/workforce-cost` déplacée avant `GET /salaries/{salary_id}` — Starlette essayait de convertir "workforce-cost" en `int` → 422 (BIZ-089)
 - `frontend/src/views/SalaryView.vue` : panneau « Coûts du personnel » refondu en tableau pivoté 5 colonnes (mois, CDI, CDD, Auto-E, total du mois) — agrégation `total_cost` par type par mois (BIZ-089)
 - `frontend/src/components/ContactForm.vue` : toggle « Auto-entrepreneur / prestataire » (`is_contractor`) ajouté dans le formulaire contact — permet de marquer un fournisseur comme auto-E pour l'inclure dans la vue coûts du personnel (BIZ-089)
 - `frontend/src/i18n/fr.ts` : clé `common.refresh` ajoutée ; `workforce_col_total` ajouté ; libellé `workforce_type_ae` abrégé en "Auto-E" (BIZ-089)
-
 - `backend/models/contact.py` : valeur `EMPLOYE = "employe"` ajoutée à `ContactType` — les employés sont désormais des contacts d'un sous-type dédié (BIZ-088)
 - `backend/alembic/versions/0024_add_employe_contact_type.py` : migration documentant la nouvelle valeur enum (colonne `VARCHAR(20)`, pas de DDL) (BIZ-088)
 - `frontend/src/views/EmployeesView.vue` : nouvel écran de gestion des employés — liste (filtrable par nom/prénom/e-mail/téléphone, toggle actifs/inactifs), création, édition, activation/désactivation (BIZ-088)
@@ -559,24 +554,19 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ### Corrigé
 
 - `backend/services/excel_import/_import_payments_salaries.py` et `import_reversible.py` : les contacts employés créés lors de l'import Excel utilisent désormais `ContactType.EMPLOYE` au lieu de `FOURNISSEUR` (BIZ-088)
-
 - `doc/user/installation.md` : option A — image pré-construite depuis GHCR (`SOLDE_IMAGE=ghcr.io/davidp57/solde:latest`) et option B — build local ; sections FR + EN (CHR-019)
 - `doc/dev/exploitation.md` : nouvelle section « Image deployment options » présentant GHCR vs build local + variable `SOLDE_IMAGE` ; `SWAGGER_ENABLED` ajouté au tableau de configuration (CHR-019, CHR-082)
 - `backend/config.py` : paramètre `SWAGGER_ENABLED` — active Swagger UI (`/api/docs`) et ReDoc (`/api/redoc`) indépendamment de `DEBUG` (CHR-082)
 - `.env.example` : entrée `SWAGGER_ENABLED=false` documentée (CHR-082)
 - `backend/main.py` : `openapi_tags` avec descriptions pour les 12 groupes d'endpoints ; `/api/docs`, `/api/redoc` et `/api/openapi.json` activés si `debug` ou `swagger_enabled` est vrai (CHR-082)
-
-
 - `.github/workflows/ci.yml` : workflow CI GitHub Actions (jobs `backend` + `frontend`) — ruff check + format, mypy, pytest sur toutes les branches actives ; ESLint, vue-tsc, vitest sur le frontend (CHR-086)
 - `.github/workflows/docker.yml` : workflow Docker — build multi-stage + push image `ghcr.io/davidp57/solde` sur push `main` avec tags `latest` + `sha-<short>` et cache GitHub Actions (CHR-087)
 - `docker-compose.yml` : commentaire indiquant comment substituer le `build:` par `image: ghcr.io/davidp57/solde:latest` pour déploiement NAS sans rebuild local (CHR-087)
-
 - `frontend/src/views/ContactsView.vue` : onglets Tous / Clients / Fournisseurs via `Tabs` PrimeVue — filtrage frontend (`les_deux` visible dans les deux onglets), remplacement du `Select` type par les onglets (BIZ-035)
 - `POST /api/contacts/import-emails` : endpoint d'import d'e-mails en masse pour enrichir les contacts existants par correspondance sur le nom (normalisation des accents, matching prénom+nom et nom seul) — schémas `ContactEmailImportRow` / `ContactEmailImportResult`, 9 nouveaux tests (BIZ-040)
 - `frontend/src/views/ContactsView.vue` : bouton « Importer e-mails » + dialogue avec zone de texte collée (`Nom, email` par ligne) + affichage du bilan (mis à jour / non trouvés / déjà renseignés) (BIZ-040)
 - `frontend/src/layouts/AppLayout.vue` : nom d'utilisateur (sidebar et topbar) cliquable via `RouterLink` vers `/profile` — suppression de l'entrée « Mon profil » du menu de navigation (BIZ-037)
 - `frontend/src/layouts/AppLayout.vue` : numéro de version discret en bas de la sidebar, injecté depuis `package.json` via `vite.config.ts` `define.__APP_VERSION__` (CHR-038)
-
 - `frontend/src/tests/composables/useDarkMode.spec.ts` : tests unitaires Vitest pour le composable `useDarkMode` — toggle, persistance dans localStorage, classe CSS `dark-mode` (TEC-079)
 - `frontend/src/tests/composables/useTableFilter.spec.ts` : tests unitaires Vitest pour `applyFilter` et `useTableFilter` — filtrage par sous-chaîne insensible à la casse, réactivité, cas limites null/undefined (TEC-079)
 - `frontend/src/tests/composables/activeFilterLabels.spec.ts` : tests unitaires Vitest pour `findSelectedFilterLabel` et `collectActiveFilterLabels` — matching, valeurs nulles, types numériques (TEC-079)
@@ -586,7 +576,6 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `tests/integration/test_fiscal_year_api.py` : tests d'intégration pour les endpoints pre-close-checks, open-next, close 404, auth/rôles (TEC-081)
 - `tests/integration/test_salary_api.py` : tests complémentaires — get by id, update, delete not found, accès trésorier (TEC-081)
 - `tests/integration/test_dashboard_api.py` : test d'authentification pour le graphique ressources (TEC-081)
-
 - `frontend/src/components/ui/AppTableSkeleton.vue` : composant de skeleton réutilisable (grille de cellules PrimeVue `Skeleton`, props `rows`/`cols` avec valeurs par défaut 8×4) remplaçant les `ProgressSpinner` dans toutes les vues de liste au premier chargement (BIZ-071)
 - `frontend/src/components/ui/AppAccountSelect.vue` : composant combo comptes comptables avec point coloré pour les 5 comptes de suivi (créances membres, fournisseurs, caisse, courant, chèques à déposer) via `AppAccountSelect` wrappant PrimeVue `Select` avec slots `#option` et `#value` (BIZ-043)
 - `frontend/src/assets/main.css` : classes globales `.app-table-skeleton`, `.app-table-skeleton__row`, `.account-select-option`, `.account-select-dot` et variantes couleur par compte de suivi
@@ -600,7 +589,6 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `frontend/src/views/ContactsView.vue` + `PaymentsView.vue` : skeleton sur liste principale au premier chargement (`loading && !*.length`) (BIZ-071)
 - `frontend/src/views/AccountingJournalView.vue` : skeleton liste + filtre compte remplacé par `AppAccountSelect` avec rechargement automatique à la sélection (BIZ-071, BIZ-043)
 - `frontend/src/views/AccountingLedgerView.vue` : select compte remplacé par `AppAccountSelect` avec points colorés (BIZ-043)
-
 - `frontend/src/composables/useKeyboardShortcuts.ts` : composable Vue 3 gérant les raccourcis clavier Ctrl/Cmd+N (nouveau), Ctrl/Cmd+S (sauvegarder) et Escape (fermer) avec gestion du focus (Ctrl+N ignoré dans les champs de saisie) et nettoyage automatique au démontage (BIZ-073)
 - `frontend/src/components/ui/AppStatCard.vue` : prop optionnelle `to` (route Vue Router) rendant la carte KPI cliquable via `<RouterLink>` avec animation hover et focus-visible accessible (BIZ-075)
 - `frontend/src/views/DashboardView.vue` : tous les KPI (solde banque, caisse, factures impayées/en retard, chèques non déposés, exercice courant, résultat) sont désormais cliquables vers les vues filtrées correspondantes (BIZ-075)
@@ -887,7 +875,6 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 - `BankView.vue` : relevé bancaire, import CSV, bordereaux de remise, bouton de lettrage
 - Routes `/payments`, `/cash`, `/bank` enregistrées dans le router
 - Clés i18n `payments.*`, `cash.*`, `bank.*` ajoutées dans `fr.ts`
-
 - Modèle `Invoice` + `InvoiceLine` : numéro `YYYY-C-NNNN` / `YYYY-F-NNNN`, type (`client` | `fournisseur`), label, statuts (draft→sent→paid/partial/overdue/disputed), lignes multi
 - Migration Alembic `0004` : tables `invoices` + `invoice_lines`
 - Service factures : numérotation auto séquentielle par type et année, calcul total, transitions de statut avec validation, duplication, soft-delete (draft uniquement)

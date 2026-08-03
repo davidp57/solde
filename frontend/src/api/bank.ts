@@ -187,6 +187,8 @@ export async function reconcileTransactionsBulk(ids: number[]): Promise<number> 
 export interface BankImportResult {
   created: BankTransaction[]
   skipped: number
+  /** Statement rows folded into a deposit already recorded by Solde. */
+  merged: number
 }
 
 export async function importCsv(content: string): Promise<BankImportResult> {

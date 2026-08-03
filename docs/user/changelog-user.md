@@ -13,8 +13,8 @@ Ce document présente les changements visibles dans l'application, version par v
 - **Voir ce qui cloche avant de clôturer** — la fenêtre de clôture affiche maintenant les vérifications : balance déséquilibrée, écritures sans exercice associé. Elles ne bloquent pas la clôture, mais ce qu'elles signalent sera figé.
 - **Plus de chevauchement possible** — créer un exercice dont les dates empiètent sur un exercice existant est désormais refusé, avec le nom de l'exercice en conflit.
 - **Soldes bancaires justes après suppression d'une opération** — supprimer une opération dans l'écran Banque laissait affichés les anciens soldes des lignes suivantes, comme si le compte était faux du montant supprimé. Les données en base étaient correctes ; seul l'affichage était périmé. La liste est maintenant rechargée automatiquement.
-
-||||||| constructed fake ancestor
+- **Vos remises n'apparaissent plus en double** — jusqu'ici, confirmer un bordereau créait une opération bancaire, et l'import du relevé en créait une seconde pour le même mouvement : il fallait supprimer l'une des deux à la main, sinon le solde était faux. L'import reconnaît maintenant la remise déjà enregistrée et la complète avec les informations de la banque, au lieu de la dupliquer. Le message de fin d'import précise combien de remises ont été ainsi rapprochées.
+- Si deux remises du même montant tombent la même semaine, l'application ne devine pas : elle importe normalement, et vous gardez la main.
 - **Caisse : l'origine d'un règlement est enfin juste** — un règlement de facture fournisseur payé en espèces s'affichait comme « Paiement client » dans le journal de caisse. Le mouvement était pourtant bien enregistré en sortie : seul l'intitulé était trompeur. La colonne distingue maintenant « Règlement client » et « Règlement fournisseur ».
 
 ## Version 1.10.0 — 3 août 2026
