@@ -797,7 +797,8 @@ export default {
     origins: {
       manual: 'Manuel',
       deposit: 'Remise en banque',
-      payment: 'Paiement client',
+      payment_client: 'Règlement client',
+      payment_supplier: 'Règlement fournisseur',
       system_opening: 'Ouverture du système',
     },
     metrics: {

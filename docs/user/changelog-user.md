@@ -14,6 +14,9 @@ Ce document présente les changements visibles dans l'application, version par v
 - **Plus de chevauchement possible** — créer un exercice dont les dates empiètent sur un exercice existant est désormais refusé, avec le nom de l'exercice en conflit.
 - **Soldes bancaires justes après suppression d'une opération** — supprimer une opération dans l'écran Banque laissait affichés les anciens soldes des lignes suivantes, comme si le compte était faux du montant supprimé. Les données en base étaient correctes ; seul l'affichage était périmé. La liste est maintenant rechargée automatiquement.
 
+||||||| constructed fake ancestor
+- **Caisse : l'origine d'un règlement est enfin juste** — un règlement de facture fournisseur payé en espèces s'affichait comme « Paiement client » dans le journal de caisse. Le mouvement était pourtant bien enregistré en sortie : seul l'intitulé était trompeur. La colonne distingue maintenant « Règlement client » et « Règlement fournisseur ».
+
 ## Version 1.10.0 — 3 août 2026
 
 ### Administrateur

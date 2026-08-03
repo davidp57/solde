@@ -527,7 +527,7 @@
         <div class="cash-detail__row">
           <span class="cash-detail__label">{{ t('cash.entry_origin') }}</span>
           <Tag
-            :value="t(`cash.origins.${selectedEntry.source}`)"
+            :value="originLabel(selectedEntry)"
             class="cash-entry-type__system-opening"
             :severity="selectedEntry.source === 'payment' ? 'success' : 'info'"
           />
@@ -799,11 +799,20 @@ const movementTypes = [
   { label: t('cash.movements.out'), value: 'out' },
 ]
 
+/** Label the origin of an entry — a payment is a client or a supplier one
+ *  depending on the direction of the movement, not on the source alone. */
+function originLabel(entry: { source: string; type: string }): string {
+  if (entry.source === 'payment') {
+    return t(entry.type === 'out' ? 'cash.origins.payment_supplier' : 'cash.origins.payment_client')
+  }
+  return t(`cash.origins.${entry.source}`)
+}
+
 const entryRows = computed(() =>
   entries.value.map((entry) => ({
     ...entry,
     type_label: t(`cash.movements.${entry.type}`),
-    origin_label: t(`cash.origins.${entry.source}`),
+    origin_label: originLabel(entry),
     amount_value: parseFloat(entry.amount),
     balance_after_value: parseFloat(entry.balance_after),
   })),
