@@ -28,6 +28,7 @@
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.date') }}</label>
             <AppDatePicker v-model="form.date" />
+            <AppFiscalYearDateWarning :date="form.date" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.amount') }}</label>
@@ -87,6 +88,7 @@ import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import { useToast } from 'primevue/usetoast'
 import AppDatePicker from '../ui/AppDatePicker.vue'
+import AppFiscalYearDateWarning from '../ui/AppFiscalYearDateWarning.vue'
 import { createPayment, suggestChequeNumber } from '../../api/payments'
 import type { Invoice } from '../../api/invoices'
 import { remainingForInvoice } from '../../composables/useInvoiceMetrics'

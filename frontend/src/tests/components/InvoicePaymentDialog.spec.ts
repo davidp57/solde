@@ -10,6 +10,20 @@ vi.mock('primevue/usetoast', () => ({
   useToast: () => ({ add: vi.fn() }),
 }))
 
+vi.mock('../../stores/fiscalYear', () => ({
+  useFiscalYearStore: () => ({
+    fiscalYears: [
+      {
+        id: 1,
+        name: 'Exercice 2025',
+        start_date: '2025-01-01',
+        end_date: '2025-12-31',
+        status: 'open',
+      },
+    ],
+  }),
+}))
+
 vi.mock('../../api/payments', () => ({
   createPayment: vi.fn().mockResolvedValue({ id: 1 }),
   suggestChequeNumber: vi.fn().mockResolvedValue('12345'),

@@ -16,6 +16,7 @@
           <div class="app-field">
             <label class="app-field__label">{{ t('bank.tx_date') }}</label>
             <AppDatePicker v-model="form.date" />
+            <AppFiscalYearDateWarning :date="form.date" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('bank.tx_amount') }}</label>
@@ -68,6 +69,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
+import AppFiscalYearDateWarning from '@/components/ui/AppFiscalYearDateWarning.vue'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'

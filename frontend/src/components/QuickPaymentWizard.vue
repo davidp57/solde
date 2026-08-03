@@ -98,6 +98,7 @@
             <div class="app-field">
               <label class="app-field__label">{{ t('payments.date') }}</label>
               <AppDatePicker v-model="form.date" />
+              <AppFiscalYearDateWarning :date="form.date" />
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('payments.amount') }}</label>
@@ -194,6 +195,7 @@ import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Textarea from 'primevue/textarea'
 import AppDatePicker from './ui/AppDatePicker.vue'
+import AppFiscalYearDateWarning from './ui/AppFiscalYearDateWarning.vue'
 import AppMobileCardList from './ui/AppMobileCardList.vue'
 import { listInvoicesApi, type Invoice } from '../api/invoices'
 import { listContactsApi, type Contact } from '../api/contacts'

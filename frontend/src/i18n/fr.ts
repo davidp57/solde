@@ -204,6 +204,10 @@ export default {
       same_password: 'Le nouveau mot de passe doit être différent de l’actuel.',
     },
   },
+  fiscalYearGuard: {
+    date_outside:
+      "Cette date n'appartient à aucun exercice comptable. L'enregistrement restera possible, mais il n'apparaîtra dans aucun écran filtré par exercice et son écriture ne sera rattachée à aucun exercice. Créez l'exercice correspondant, ou corrigez la date.",
+  },
   common: {
     loading: 'Chargement…',
     save: 'Enregistrer',
@@ -784,6 +788,7 @@ export default {
     count_diff: 'Écart',
     count_notes: 'Observations',
     count_pieces_total: 'Pièces (ferraille)',
+    show_all_history: 'Tout l’historique',
     count_live_total: 'Total compté',
     count_live_detail: 'Billets {bills} · pièces {coins}',
     count_live_expected: 'Écart avec le solde théorique ({amount})',

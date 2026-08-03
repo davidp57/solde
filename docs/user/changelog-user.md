@@ -8,6 +8,9 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Alerte si la date ne tombe dans aucun exercice** — en saisissant une entrée de caisse, un comptage, une opération bancaire ou un règlement de facture, un message apparaît si la date choisie n'appartient à aucun exercice comptable. C'est le piège classique en début d'exercice : la saisie est enregistrée, mais elle n'apparaît dans aucun écran filtré par exercice. Le message n'empêche pas d'enregistrer — il vous invite à créer l'exercice ou à corriger la date.
+- **Caisse : bouton « Tout l'historique »** — pour afficher le journal et les comptages sans se limiter à l'exercice sélectionné. Pratique pour retrouver une saisie faite hors période.
+
 - **Comptage de caisse : le total s'affiche pendant la saisie** — plus besoin d'enregistrer pour savoir ce qu'on a compté. Le dialogue affiche en direct le total des billets et des pièces, ainsi que l'**écart avec le solde théorique** de la caisse : si tout concorde, l'écart est à zéro et apparaît en vert.
 
 - **Passer d'un exercice au suivant sans perdre les soldes** — une fois un exercice clôturé, sa ligne propose **« Ouvrir le prochain exercice »**. Cette action crée le nouvel exercice **et reporte les soldes** de banque, caisse, créances clients et dettes fournisseurs. Le nom et les dates sont pré-remplis dans la continuité du précédent.
