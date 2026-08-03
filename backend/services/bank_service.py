@@ -1049,6 +1049,15 @@ async def get_deposit_payment_ids(db: AsyncSession, deposit_id: int) -> list[int
     return [row[0] for row in result.all()]
 
 
+async def get_deposit_id_for_payment(db: AsyncSession, payment_id: int) -> int | None:
+    """Return the deposit slip a payment belongs to, or None if it is unassigned."""
+    result = await db.execute(
+        select(deposit_payments.c.deposit_id).where(deposit_payments.c.payment_id == payment_id)
+    )
+    row = result.first()
+    return None if row is None else int(row[0])
+
+
 async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
     """Confirm a deposit (physically taken to the bank).
 
