@@ -12,7 +12,7 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Ajouté
-- **BIZ-229** — **Avertissement quand une date sort de tout exercice comptable**. Saisir une écriture datée hors de tout exercice déclaré la rendait invisible partout : aucun écran filtré par exercice ne la montre, et son écriture comptable part sans `fiscal_year_id`. Les formulaires de saisie (entrée de caisse, comptage de caisse, opération bancaire manuelle) affichent désormais un avertissement dès que la date choisie n'est couverte par aucun exercice. Le message informe sans bloquer : il invite à créer l'exercice ou à corriger la date. Cas réel : un comptage saisi le 3 août, l'exercice suivant n'ayant pas encore été ouvert.
+- **BIZ-229** — **Avertissement quand une date sort de tout exercice comptable**. Saisir une écriture datée hors de tout exercice déclaré la rendait invisible partout : aucun écran filtré par exercice ne la montre, et son écriture comptable part sans `fiscal_year_id`. Les formulaires de saisie (entrée de caisse, comptage de caisse, opération bancaire manuelle, règlement de facture et assistant de règlement rapide) affichent désormais un avertissement dès que la date choisie n'est couverte par aucun exercice. Le message informe sans bloquer : il invite à créer l'exercice ou à corriger la date. Cas réel : un comptage saisi le 3 août, l'exercice suivant n'ayant pas encore été ouvert.
 - **BIZ-230** — **Bascule « Tout l'historique » dans l'écran Caisse**. Le journal et les comptages étaient systématiquement bornés à l'exercice sélectionné, sans moyen de voir ce qui existait en dehors. Un interrupteur lève ce filtre et recharge sans borne de dates, sur le modèle de « À remettre en banque » de l'écran Paiements.
 
 ### Ajouté

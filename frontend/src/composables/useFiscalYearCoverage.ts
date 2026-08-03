@@ -24,20 +24,25 @@ function toIsoDay(value: Date | string): string | null {
 export function useFiscalYearCoverage() {
   const fiscalYearStore = useFiscalYearStore()
 
+  /** The store may not have loaded yet — treat an absent list as "unknown". */
+  function knownFiscalYears(): FiscalYearRead[] {
+    return fiscalYearStore.fiscalYears ?? []
+  }
+
   function coveringFiscalYear(
     value: Date | string | null | undefined,
   ): FiscalYearRead | undefined {
     if (!value) return undefined
     const day = toIsoDay(value)
     if (day === null) return undefined
-    return fiscalYearStore.fiscalYears.find(
+    return knownFiscalYears().find(
       (fiscalYear) => fiscalYear.start_date <= day && day <= fiscalYear.end_date,
     )
   }
 
-  /** False only when the date is valid, years are known, and none covers it. */
+  /** True only when the date is valid, years are known, and none covers it. */
   function isDateOutsideFiscalYears(value: Date | string | null | undefined): boolean {
-    if (!value || !fiscalYearStore.fiscalYears.length) return false
+    if (!value || !knownFiscalYears().length) return false
     if (toIsoDay(value) === null) return false
     return coveringFiscalYear(value) === undefined
   }
