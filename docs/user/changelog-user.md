@@ -4,6 +4,12 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.10.1 — à paraître
+
+### Trésorier
+
+- **Soldes bancaires justes après suppression d'une opération** — supprimer une opération dans l'écran Banque laissait affichés les anciens soldes des lignes suivantes, comme si le compte était faux du montant supprimé. Les données en base étaient correctes ; seul l'affichage était périmé. La liste est maintenant rechargée automatiquement.
+
 ## Version 1.10.0 — 3 août 2026
 
 ### Administrateur
