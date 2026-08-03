@@ -1,6 +1,6 @@
 # Lot PAY-CANCEL — Annulation d'un règlement non encore encaissé
 
-Status: ⬜ ready
+Status: ✅ done
 Branch: feature/payment-cancellation → PR → develop
 
 ## Problem Statement

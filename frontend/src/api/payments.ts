@@ -44,6 +44,26 @@ export interface PaymentUpdate {
   deposit_date?: string | null
 }
 
+/** Refusal codes returned when a payment cannot be cancelled. */
+export type PaymentCancelReason =
+  | 'PAYMENT_SUPPLIER'
+  | 'PAYMENT_DEPOSITED'
+  | 'PAYMENT_RECONCILED'
+  | 'FISCAL_YEAR_CLOSED'
+
+export interface PaymentCancelPreview {
+  payment_id: number
+  can_cancel: boolean
+  reason_code: PaymentCancelReason | null
+  amount: string
+  date: string
+  deposit_id: number | null
+  deposit_date: string | null
+  deposit_total_before: string | null
+  deposit_total_after: string | null
+  deposit_will_be_deleted: boolean
+}
+
 export interface PaymentListParams {
   invoice_id?: number
   invoice_type?: PaymentInvoiceType
@@ -85,6 +105,17 @@ export async function updatePayment(id: number, payload: PaymentUpdate): Promise
 
 export async function deletePayment(id: number): Promise<void> {
   await apiClient.delete(`/api/payments/${id}`)
+}
+
+/** Admin only — cancel a payment that has not reached the bank account yet. */
+export async function cancelPayment(id: number): Promise<void> {
+  await apiClient.delete(`/api/payments/${id}`)
+}
+
+/** Admin only — report whether a payment can be cancelled and what it would touch. */
+export async function getPaymentCancelPreview(id: number): Promise<PaymentCancelPreview> {
+  const response = await apiClient.get<PaymentCancelPreview>(`/api/payments/${id}/cancel-preview`)
+  return response.data
 }
 
 export async function suggestChequeNumber(paymentDate?: string): Promise<string> {
