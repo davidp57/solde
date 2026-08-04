@@ -303,7 +303,7 @@ async def open_new_fiscal_year(
         AccountingAccount,
         AccountType,
     )  # noqa: PLC0415
-    from backend.services.accounting_engine import _next_entry_number  # noqa: PLC0415
+    from backend.services.accounting_engine import next_entry_numbers  # noqa: PLC0415
 
     entries_result = await db.execute(
         select(AccountingEntry).where(AccountingEntry.fiscal_year_id == closed_fy.id)
@@ -325,18 +325,21 @@ async def open_new_fiscal_year(
             continue
         soldes[e.account_number] = soldes.get(e.account_number, Decimal("0")) + e.debit - e.credit
 
-    # Generate RAN entries
+    # Generate RAN entries.
+    # Numbers are allocated in one go: asking for the next number per iteration
+    # reads MAX(entry_number) from the database, which does not move until the
+    # flush — so every entry would claim the same number and the unique
+    # constraint would blow up on the first year carrying more than one balance.
     ran_date = new_fy.start_date
-    for account_number, solde in soldes.items():
-        if solde == Decimal("0"):
-            continue
+    carried = [(number, solde) for number, solde in soldes.items() if solde != Decimal("0")]
+    entry_numbers = await next_entry_numbers(db, len(carried))
+    for (account_number, solde), entry_number in zip(carried, entry_numbers, strict=True):
         acct = acct_map[account_number]
         is_debit = solde > 0
         abs_solde = abs(solde)
-        num = await _next_entry_number(db)
         db.add(
             AccountingEntry(
-                entry_number=num,
+                entry_number=entry_number,
                 date=ran_date,
                 account_number=account_number,
                 label=f"RAN {closed_fy.name} — {acct.label}",
