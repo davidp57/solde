@@ -34,6 +34,11 @@ const fiscalYearStoreMock = reactive({
   initialize: vi.fn().mockResolvedValue(undefined),
 })
 
+// The row menu now offers an admin-only entry regeneration action.
+vi.mock('../../stores/auth', () => ({
+  useAuthStore: () => ({ isAdmin: true }),
+}))
+
 vi.mock('../../stores/fiscalYear', () => ({
   useFiscalYearStore: () => fiscalYearStoreMock,
 }))

@@ -9,6 +9,7 @@ Ce document présente les changements visibles dans l'application, version par v
 ### Trésorier
 
 - **Remises sur facture correctement comptabilisées** — une remise saisie sur une facture (ligne à montant négatif) pouvait être ignorée dans les écritures comptables, laissant une balance déséquilibrée du montant de la remise. Le problème n'apparaissait qu'à la clôture, sans indication de la facture en cause.
+- **Reconstruire les écritures d'une facture** (administrateur) — depuis le menu **⋯** d'une facture, l'action « Régénérer les écritures comptables » recrée ses écritures à partir des règles en vigueur. Utile après une correction de l'application : les factures déjà enregistrées gardent sinon leurs anciennes écritures. Sans effet sur un exercice clôturé.
 - **Vérifications de clôture plus utiles** — quand la balance est déséquilibrée, la fenêtre de clôture indique maintenant **quelles écritures** posent problème et de combien, au lieu d'un simple total.
 
 - **« Tout l'historique » sur les écrans Factures et Paiements** — comme pour la caisse, un bouton permet d'afficher les factures et les règlements sans se limiter à l'exercice sélectionné. Utile en début d'exercice, quand une saisie datée du nouvel exercice n'apparaît encore nulle part.

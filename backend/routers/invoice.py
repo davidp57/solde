@@ -87,6 +87,8 @@ _WriteAccess = Annotated[
     User,
     Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
 ]
+# Regenerating entries rewrites accounting data — admin only.
+_AdminAccess = Annotated[User, Depends(require_role(UserRole.ADMIN))]
 _ReadAccess = Annotated[
     User,
     Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
@@ -278,6 +280,35 @@ async def write_off_invoice(
         detail={"number": invoice.number},
     )
     return updated
+
+
+@router.post("/{invoice_id}/regenerate-entries", response_model=dict[str, int])
+async def regenerate_invoice_entries(
+    invoice_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _AdminAccess,
+) -> dict[str, int]:
+    """Rebuild the accounting entries of an invoice — admin maintenance action.
+
+    Needed after an engine fix: earlier invoices keep the entries the old code
+    produced, and a paid invoice cannot be edited to trigger a rebuild.
+    """
+    invoice = await invoice_service.get_invoice(db, invoice_id)
+    if invoice is None:
+        raise not_found("Invoice")
+    try:
+        created = await invoice_service.regenerate_invoice_entries(db, invoice)
+    except InvoiceStatusError as exc:
+        raise conflict("INVOICE_OPERATION_FAILED", str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.INVOICE_ENTRIES_REGENERATED,
+        actor=current_user,
+        target_id=invoice_id,
+        target_type="invoice",
+        detail={"number": invoice.number, "entries": str(created)},
+    )
+    return {"entries": created}
 
 
 @router.post("/{invoice_id}/restore-from-writeoff", response_model=InvoiceRead)
