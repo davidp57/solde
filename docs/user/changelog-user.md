@@ -8,6 +8,8 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Annuler un règlement en espèces** — une erreur de saisie sur un règlement en espèces (mauvaise facture, mauvais montant) était définitive : l'application refusait l'annulation en indiquant, à tort, que l'argent était déjà arrivé en banque. Les règlements en espèces sont désormais annulables tant qu'ils n'ont pas été rapprochés d'une opération bancaire ; le mouvement de caisse correspondant est retiré en même temps et le solde de caisse est recalculé.
+
 - **Banque : bouton « Tout l'historique »** — pour afficher les opérations et les remises sans se limiter à l'exercice sélectionné. Indispensable après un import de relevé contenant des opérations du nouvel exercice, qui n'apparaissaient nulle part.
 
 - **Factures fournisseur enfin comptabilisées** — une facture fournisseur saisie dans l'application ne générait aucune écriture comptable : seul son règlement en produisait une. Les charges étaient donc sous-évaluées et le compte fournisseur affichait un solde anormal. C'est corrigé pour les nouvelles factures, et l'action « Régénérer les écritures comptables » est désormais proposée sur les factures fournisseur pour rattraper les anciennes.

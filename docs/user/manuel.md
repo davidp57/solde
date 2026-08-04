@@ -317,7 +317,12 @@ Un règlement enregistré ne se modifie plus (montant, date et mode sont figés)
 
 **Qui** : cette opération est réservée à l'**administrateur**.
 
-**Jusqu'à quand** : tant que l'argent n'est **pas arrivé sur le compte bancaire**. Concrètement, un chèque reçu d'un client reste annulable tant que sa remise n'a pas été confirmée. Un règlement en espèces (déjà en caisse), un virement reçu, un règlement déjà rapproché avec une opération bancaire ou appartenant à un exercice clôturé ne peuvent plus être annulés — dans ces cas, il faut passer par une écriture comptable de correction.
+**Jusqu'à quand** : tant que l'argent n'est **pas arrivé sur le compte bancaire**. Concrètement :
+
+- un **chèque** reçu d'un client reste annulable tant que sa remise n'a pas été confirmée ;
+- un règlement en **espèces** reste annulable : l'argent est en caisse, pas à la banque. L'annulation retire aussi le mouvement de caisse correspondant, et le solde de caisse est recalculé.
+
+En revanche, un virement reçu, un règlement déjà rapproché avec une opération bancaire ou appartenant à un exercice clôturé ne peuvent plus être annulés — dans ces cas, il faut passer par une écriture comptable de correction.
 
 **Comment** :
 
