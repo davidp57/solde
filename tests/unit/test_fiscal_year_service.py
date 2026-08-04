@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import backend.services.fiscal_year_service as fiscal_year_service_module
@@ -96,6 +97,69 @@ class TestCreateFiscalYear:
                 start_date=date(2024, 12, 31),
                 end_date=date(2024, 1, 1),
             )
+
+
+class TestOpenNextWithSeveralBalances:
+    @pytest.mark.asyncio
+    async def test_carries_every_balance_with_distinct_entry_numbers(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Production failure: every RAN entry claimed the same number.
+
+        Entry numbers were requested one at a time, and each request reads
+        MAX(entry_number) from the database — which does not move until the
+        flush. With a single balance sheet account nothing showed; with two the
+        unique constraint blew up and the year could not be opened at all.
+        """
+        from backend.models.accounting_account import AccountingAccount, AccountType
+
+        fy = await _create_fy(
+            db_session, "2025", date(2025, 8, 1), date(2026, 7, 31), FiscalYearStatus.CLOSED
+        )
+        for number, label in (
+            ("512100", "Compte courant"),
+            ("530000", "Caisse"),
+            ("411100", "Clients"),
+        ):
+            db_session.add(
+                AccountingAccount(
+                    number=number, label=label, type=AccountType.ACTIF, is_active=True
+                )
+            )
+        for index, (number, amount) in enumerate(
+            (("512100", "2134.33"), ("530000", "254.34"), ("411100", "480.00"))
+        ):
+            db_session.add(
+                AccountingEntry(
+                    entry_number=f"00050{index}",
+                    date=date(2026, 3, 1),
+                    account_number=number,
+                    label="mouvement",
+                    debit=Decimal(amount),
+                    credit=Decimal("0"),
+                    fiscal_year_id=fy.id,
+                    source_type=EntrySourceType.MANUAL,
+                )
+            )
+        await db_session.commit()
+
+        payload = FiscalYearCreate(
+            name="2026", start_date=date(2026, 8, 1), end_date=date(2027, 7, 31)
+        )
+        new_fy = await open_new_fiscal_year(db_session, fy, payload)
+
+        result = await db_session.execute(
+            select(AccountingEntry).where(AccountingEntry.fiscal_year_id == new_fy.id)
+        )
+        ran = list(result.scalars().all())
+        assert len(ran) == 3, "one carry-forward per non-zero balance sheet account"
+        numbers = [entry.entry_number for entry in ran]
+        assert len(set(numbers)) == 3, f"entry numbers must be distinct, got {numbers}"
+        assert {entry.account_number: entry.debit for entry in ran} == {
+            "512100": Decimal("2134.33"),
+            "530000": Decimal("254.34"),
+            "411100": Decimal("480.00"),
+        }
 
 
 class TestPreCloseUnbalancedGroups:

@@ -12,6 +12,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Corrigé
+- **TEC-223** — **L'ouverture d'un nouvel exercice échouait dès que plusieurs soldes étaient à reporter**. Les numéros des écritures de report à nouveau étaient demandés **un par un**, or chaque demande lit le plus grand numéro **en base**, qui ne bouge pas tant que rien n'est écrit : toutes les écritures réclamaient donc le même numéro et l'enregistrement se soldait par une violation de contrainte d'unicité (`UNIQUE constraint failed: accounting_entries.entry_number`), laissant l'exercice impossible à ouvrir. Les numéros sont désormais alloués en une seule fois. Le défaut restait invisible avec un seul compte de bilan à reporter — c'est le cas d'un dossier réel, avec banque, caisse et créances, qui l'a révélé.
+
+### Corrigé
 - **TEC-222** — **Contrôle de pré-clôture resserré sur la période de l'exercice**. L'avertissement « écritures sans exercice associé » comptait **toutes** les écritures non rattachées de la base, y compris celles datées avant le premier exercice (import historique) ou après la fin de l'exercice clôturé. Il s'affichait donc à chaque clôture pour des écritures que cette clôture ne peut ni corriger ni intégrer — un signal que l'on apprend à ignorer. Seules sont désormais signalées les écritures **datées dans la période clôturée** mais non rattachées, avec le libellé des documents concernés et la mention qu'elles seront exclues du résultat.
 
 ### Corrigé
