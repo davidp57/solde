@@ -53,6 +53,15 @@
             size="small"
             @click="doExportExcel"
           />
+          <Button
+            data-testid="payments-show-all-history"
+            :label="t('payments.show_all_history')"
+            :icon="showAllHistory ? 'pi pi-calendar-times' : 'pi pi-calendar'"
+            :severity="showAllHistory ? 'primary' : 'secondary'"
+            outlined
+            size="small"
+            @click="showAllHistory = !showAllHistory; loadPayments()"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -425,6 +434,10 @@ const payments = ref<Payment[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const undepositedOnly = ref(false)
+// Lifts the fiscal-year date filter — records dated outside the selected year
+// (or outside every year) are otherwise invisible here.
+const showAllHistory = ref(false)
+
 const dialogVisible = ref(false)
 const editingPayment = ref<Payment | null>(null)
 const cancelDialogVisible = ref(false)
@@ -656,7 +669,7 @@ async function loadPayments() {
   loading.value = true
   try {
     // Skip fiscal-year date filter when showing all undeposited — they can span multiple years
-    const dateFilter = undepositedOnly.value
+    const dateFilter = undepositedOnly.value || showAllHistory.value
       ? {}
       : {
           from_date: fiscalYearStore.selectedFiscalYear?.start_date,

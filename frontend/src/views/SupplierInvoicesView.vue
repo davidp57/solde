@@ -22,6 +22,20 @@
     @reset-filters="resetFilters"
     @export="doExportExcel"
   >
+    <template #toolbar-extras>
+      <div class="app-field">
+        <Button
+          data-testid="invoices-show-all-history"
+          :label="t('invoices.show_all_history')"
+          :icon="showAllHistory ? 'pi pi-calendar-times' : 'pi pi-calendar'"
+          :severity="showAllHistory ? 'primary' : 'secondary'"
+          outlined
+          size="small"
+          @click="showAllHistory = !showAllHistory; loadInvoices()"
+        />
+      </div>
+    </template>
+
 
       <AppListLimitBanner
         :view-key="LIMIT_VIEW_KEY"
@@ -577,6 +591,10 @@ function doExportExcel(): void {
 const invoices = ref<Invoice[]>([])
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
+// Lifts the fiscal-year date filter — records dated outside the selected year
+// (or outside every year) are otherwise invisible here.
+const showAllHistory = ref(false)
+
 const dialogVisible = ref(false)
 const editingInvoice = ref<Invoice | null>(null)
 const supplierFormRef = ref<InstanceType<typeof SupplierInvoiceForm> | null>(null)
@@ -839,7 +857,7 @@ async function loadInvoices() {
       invoice_type: 'fournisseur',
       limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
     }
-    if (fiscalYearStore.selectedFiscalYear) {
+    if (fiscalYearStore.selectedFiscalYear && !showAllHistory.value) {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
       filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
     }

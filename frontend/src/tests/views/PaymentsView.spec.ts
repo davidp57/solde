@@ -436,6 +436,20 @@ describe('PaymentsView', () => {
     expect(wrapper.get('select').element).toHaveProperty('disabled', true)
   })
 
+  it('drops the fiscal-year date filter when showing all history', async () => {
+    const wrapper = mountView()
+    await flushView()
+    mockListPaymentsWithCount.mockClear()
+
+    await wrapper.get('[data-testid="payments-show-all-history"]').trigger('click')
+    await flushView()
+
+    // Showing all history drops the bounds entirely rather than passing undefined.
+    const params = mockListPaymentsWithCount.mock.calls.at(-1)?.[0]
+    expect(params).not.toHaveProperty('from_date')
+    expect(params).not.toHaveProperty('to_date')
+  })
+
   it('hides the cancel action from non-admin users', async () => {
     authStoreMock.isAdmin = false
 

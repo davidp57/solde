@@ -617,6 +617,7 @@ export default {
     hide_irrecoverable: 'Masquer les irrécouvrables',
     show_irrecoverable: 'Afficher les irrécouvrables',
     bulk_archive: 'Archiver la sélection',
+    show_all_history: 'Tout l’historique',
     bulk_archive_confirm_title: 'Archiver les factures',
     bulk_archive_confirm_msg:
       'Les factures payées sélectionnées seront archivées définitivement. Cette action est irréversible.',
@@ -694,6 +695,7 @@ export default {
     deposit_date: 'Date de remise',
     deposit_status_in_transit: 'En bordereau',
     filter_undeposited: 'À remettre en banque',
+    show_all_history: 'Tout l’historique',
     updated: 'Paiement mis à jour.',
     created: 'Paiement enregistré.',
     deleted: 'Paiement supprimé.',

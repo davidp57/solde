@@ -42,6 +42,17 @@
           @click="confirmBulkArchive"
         />
       </div>
+      <div class="app-field">
+        <Button
+          data-testid="invoices-show-all-history"
+          :label="t('invoices.show_all_history')"
+          :icon="showAllHistory ? 'pi pi-calendar-times' : 'pi pi-calendar'"
+          :severity="showAllHistory ? 'primary' : 'secondary'"
+          outlined
+          size="small"
+          @click="showAllHistory = !showAllHistory; loadInvoices()"
+        />
+      </div>
     </template>
 
       <AppListLimitBanner
@@ -637,6 +648,10 @@ const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => Boolean(invoic
 const editingInvoice = ref<Invoice | null>(null)
 const statusFilter = ref<InvoiceStatus | null>(null)
 const unpaidOnly = ref(false)
+// Lifts the fiscal-year date filter — records dated outside the selected year
+// (or outside every year) are otherwise invisible here.
+const showAllHistory = ref(false)
+
 const showIrrecoverable = ref(false)
 
 // Email dialog
@@ -754,7 +769,7 @@ const displayedTotal = computed(() =>
 // the way loadInvoices fetches each segment).
 const fiscalYearScopedInvoices = computed(() => {
   const fy = fiscalYearStore.selectedFiscalYear
-  if (!fy) return allClientInvoices.value
+  if (!fy || showAllHistory.value) return allClientInvoices.value
   return allClientInvoices.value.filter((inv) => inv.date >= fy.start_date && inv.date <= fy.end_date)
 })
 
@@ -989,8 +1004,9 @@ async function loadInvoices() {
       invoice_type: 'client',
       limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
     }
-    // Skip fiscal-year date filter for cross-year queries (overdue, unpaid from dashboard)
-    const skipDateFilter = unpaidOnly.value || statusFilter.value === 'overdue'
+    // Skip fiscal-year date filter for cross-year queries (overdue, unpaid from
+    // dashboard) and when the user asked to see the whole history.
+    const skipDateFilter = unpaidOnly.value || statusFilter.value === 'overdue' || showAllHistory.value
     if (fiscalYearStore.selectedFiscalYear && !skipDateFilter) {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
       filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
