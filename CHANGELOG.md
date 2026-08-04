@@ -12,6 +12,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Corrigé
+- **TEC-230** — **Les factures fournisseur n'étaient jamais comptabilisées**. Une facture fournisseur est créée directement au statut « validée » — elle est *reçue*, pas rédigée — or les écritures ne sont générées qu'au **passage** à ce statut : la transition n'ayant jamais lieu, aucune écriture n'était produite. Le règlement, lui, débitait bien le compte fournisseur, jamais crédité en contrepartie. Résultat : **charges sous-évaluées** et compte 401000 au solde débiteur (cas réel : 8 factures, 1 141,45 € de dettes payées sans avoir été constatées ; aucune facture fournisseur créée dans l'application n'avait jamais eu d'écriture, seules celles issues de l'import Excel en avaient). Les écritures sont désormais générées à la création lorsque la facture naît validée ; les factures client, qui naissent en brouillon, restent comptabilisées à leur validation.
+- **TEC-231** — L'action **« Régénérer les écritures comptables »** est désormais disponible aussi sur les factures **fournisseur**, ce qui permet de rattraper celles créées avant ce correctif.
+
+### Corrigé
 - **TEC-225** — **La clôture d'exercice produisait une comptabilité fausse**. Trois défauts cumulés dans `close_fiscal_year`, jamais détectés faute d'avoir été exécutés en conditions réelles :
   - l'écriture de résultat était écrite **en simple partie**, une seule ligne sans contrepartie, ce qui déséquilibrait l'exercice du montant du résultat ;
   - les **comptes de charges et de produits n'étaient pas soldés**, si bien que la somme des comptes de bilan ne revenait pas à zéro ;

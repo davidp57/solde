@@ -8,6 +8,8 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Factures fournisseur enfin comptabilisées** — une facture fournisseur saisie dans l'application ne générait aucune écriture comptable : seul son règlement en produisait une. Les charges étaient donc sous-évaluées et le compte fournisseur affichait un solde anormal. C'est corrigé pour les nouvelles factures, et l'action « Régénérer les écritures comptables » est désormais proposée sur les factures fournisseur pour rattraper les anciennes.
+
 - **Clôture d'exercice corrigée** — l'écriture de clôture ne soldait pas les comptes de charges et de produits, n'avait pas de contrepartie et portait le résultat à l'envers. Conséquence : l'exercice clôturé et le suivant se retrouvaient déséquilibrés. La clôture produit désormais une écriture complète et équilibrée, et le résultat est enregistré dans le bon sens (excédent au crédit du compte 120000, déficit au débit du 129000).
 - **Ouverture d'exercice protégée** — si les soldes à reporter ne s'équilibrent pas, l'ouverture est refusée avec un message expliquant qu'il faut d'abord vérifier la clôture, plutôt que de démarrer l'exercice sur une balance fausse.
 
