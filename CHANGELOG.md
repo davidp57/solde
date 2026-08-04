@@ -12,6 +12,14 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Corrigé
+- **TEC-225** — **La clôture d'exercice produisait une comptabilité fausse**. Trois défauts cumulés dans `close_fiscal_year`, jamais détectés faute d'avoir été exécutés en conditions réelles :
+  - l'écriture de résultat était écrite **en simple partie**, une seule ligne sans contrepartie, ce qui déséquilibrait l'exercice du montant du résultat ;
+  - les **comptes de charges et de produits n'étaient pas soldés**, si bien que la somme des comptes de bilan ne revenait pas à zéro ;
+  - le **sens du résultat était inversé** : excédent porté au débit de 120000, déficit au crédit de 129000, à rebours de la convention.
+  La clôture solde désormais chaque compte de résultat par une contrepartie au compte de résultat (120000 crédité pour un excédent, 129000 débité pour un déficit), en une écriture équilibrée, avec des numéros alloués en une fois.
+- **TEC-226** — **Garde-fou sur le report à nouveau**. L'ouverture d'un exercice recopiait fidèlement le bilan de clôture, y compris lorsqu'il ne s'équilibrait pas : le nouvel exercice démarrait alors sur une balance faussée. L'opération est désormais **refusée** avec un message explicite si le report ne s'équilibre pas, en invitant à vérifier la clôture. C'est exactement ce qui s'est produit sur un dossier réel : un exercice ouvert avec 8 229,02 € d'écart.
+
+### Corrigé
 - **TEC-224** — **Le sélecteur d'exercice ne suivait pas les créations et clôtures**. Le magasin partagé des exercices — celui qui alimente le sélecteur d'exercice de l'en-tête — était chargé au démarrage de l'application et **jamais rafraîchi** : après avoir créé, clôturé ou ouvert un exercice, il fallait recharger la page (F5) pour que le sélecteur en tienne compte, et donc pour que les écrans filtrés par exercice affichent la bonne période. L'écran Exercices rafraîchit désormais le magasin à chaque rechargement de sa liste, donc après chacune de ses actions.
 
 ### Corrigé

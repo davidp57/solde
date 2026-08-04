@@ -8,6 +8,9 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Clôture d'exercice corrigée** — l'écriture de clôture ne soldait pas les comptes de charges et de produits, n'avait pas de contrepartie et portait le résultat à l'envers. Conséquence : l'exercice clôturé et le suivant se retrouvaient déséquilibrés. La clôture produit désormais une écriture complète et équilibrée, et le résultat est enregistré dans le bon sens (excédent au crédit du compte 120000, déficit au débit du 129000).
+- **Ouverture d'exercice protégée** — si les soldes à reporter ne s'équilibrent pas, l'ouverture est refusée avec un message expliquant qu'il faut d'abord vérifier la clôture, plutôt que de démarrer l'exercice sur une balance fausse.
+
 - **Plus besoin de recharger la page après une action sur un exercice** — créer, clôturer ou ouvrir un exercice met maintenant à jour le sélecteur d'exercice en haut de l'écran immédiatement. Auparavant il fallait appuyer sur F5 pour que le nouvel exercice apparaisse.
 
 - **Écran Paiements : une colonne « Facture »** — le numéro de facture disparaissait pour les règlements par virement, masqué par le libellé de la banque. Il dispose maintenant de sa propre colonne, triable et filtrable, également reprise dans la recherche, l'export Excel et la fenêtre de modification d'un règlement.

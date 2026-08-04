@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_entry import (
@@ -213,42 +213,97 @@ async def pre_close_checks(db: AsyncSession, fy: FiscalYear) -> list[str]:
 
 
 async def close_fiscal_year(db: AsyncSession, fy: FiscalYear) -> FiscalYear:
-    """Close a fiscal year:
+    """Close a fiscal year with a proper closing entry.
 
-    1. Compute net result from accounting entries scoped to this FY.
-    2. Create a CLOTURE entry for the result (120000 excédent / 129000 déficit).
-    3. Mark the fiscal year as CLOSED.
+    Closing means clearing the result accounts into the result account:
+
+    1. every charge account with a debit balance is credited by that balance;
+    2. every revenue account with a credit balance is debited by that balance;
+    3. the difference lands on 120000 (surplus, credited) or 129000 (deficit,
+       debited), which balances the whole group.
+
+    Steps 1 and 2 are what makes the carry-forward correct afterwards: leave the
+    result accounts loaded and the balance sheet accounts no longer add up to
+    zero, so the next year opens on a lopsided balance.
     """
     if fy.status != FiscalYearStatus.OPEN:
         raise FiscalYearError("Only OPEN fiscal years can be closed")
 
-    from backend.services.accounting_engine import _next_entry_number  # noqa: PLC0415
-    from backend.services.accounting_entry_service import (  # noqa: PLC0415
-        _compute_resultat,
+    from backend.models.accounting_account import (  # noqa: PLC0415
+        AccountingAccount,
+        AccountType,
     )
+    from backend.services.accounting_engine import next_entry_numbers  # noqa: PLC0415
 
-    charges, produits = await _compute_resultat(db, fy.id)
-    resultat = produits - charges  # positive = excédent
+    # Balance per result account, from this year's entries only.
+    result = await db.execute(
+        select(
+            AccountingEntry.account_number,
+            func.sum(AccountingEntry.debit),
+            func.sum(AccountingEntry.credit),
+        )
+        .join(AccountingAccount, AccountingAccount.number == AccountingEntry.account_number)
+        .where(
+            AccountingEntry.fiscal_year_id == fy.id,
+            AccountingAccount.type.in_([AccountType.CHARGE, AccountType.PRODUIT]),
+        )
+        .group_by(AccountingEntry.account_number)
+        .order_by(AccountingEntry.account_number)
+    )
+    balances = [
+        (account_number, Decimal(str(debit or 0)) - Decimal(str(credit or 0)))
+        for account_number, debit, credit in result.all()
+    ]
+    balances = [(number, solde) for number, solde in balances if solde != Decimal("0")]
+
+    # Surplus is a credit balance on 120000, deficit a debit balance on 129000.
+    resultat = -sum((solde for _, solde in balances), start=Decimal("0"))
+
+    entries_to_write: list[tuple[str, Decimal, Decimal, str]] = []
+    for account_number, solde in balances:
+        # Clear the account by posting its balance on the opposite side.
+        debit = -solde if solde < 0 else Decimal("0")
+        credit = solde if solde > 0 else Decimal("0")
+        entries_to_write.append((account_number, debit, credit, f"Solde {fy.name}"))
 
     if resultat != Decimal("0"):
-        result_account = "120000" if resultat >= 0 else "129000"
-        abs_result = abs(resultat)
-
-        num1 = await _next_entry_number(db)
-        db.add(
-            AccountingEntry(
-                entry_number=num1,
-                date=fy.end_date,
-                account_number=result_account,
-                label=f"Résultat exercice {fy.name}",
-                debit=abs_result if resultat >= 0 else Decimal("0"),
-                credit=abs_result if resultat < 0 else Decimal("0"),
-                fiscal_year_id=fy.id,
-                source_type=EntrySourceType.CLOTURE,
-                source_id=fy.id,
-                group_key=build_entry_group_key(EntrySourceType.CLOTURE, fy.id),
+        surplus = resultat > 0
+        entries_to_write.append(
+            (
+                "120000" if surplus else "129000",
+                Decimal("0") if surplus else -resultat,
+                resultat if surplus else Decimal("0"),
+                f"Résultat exercice {fy.name}",
             )
         )
+
+    if entries_to_write:
+        total_debit = sum((line[1] for line in entries_to_write), start=Decimal("0"))
+        total_credit = sum((line[2] for line in entries_to_write), start=Decimal("0"))
+        if total_debit != total_credit:  # pragma: no cover - guarded by construction
+            raise FiscalYearError(
+                f"Écriture de clôture déséquilibrée : débit {total_debit} ≠ crédit {total_credit}"
+            )
+
+        numbers = await next_entry_numbers(db, len(entries_to_write))
+        group_key = build_entry_group_key(EntrySourceType.CLOTURE, fy.id)
+        for (account_number, debit, credit, label), entry_number in zip(
+            entries_to_write, numbers, strict=True
+        ):
+            db.add(
+                AccountingEntry(
+                    entry_number=entry_number,
+                    date=fy.end_date,
+                    account_number=account_number,
+                    label=label,
+                    debit=debit,
+                    credit=credit,
+                    fiscal_year_id=fy.id,
+                    source_type=EntrySourceType.CLOTURE,
+                    source_id=fy.id,
+                    group_key=group_key,
+                )
+            )
 
     fy.status = FiscalYearStatus.CLOSED
     await db.flush()
@@ -333,11 +388,12 @@ async def open_new_fiscal_year(
     ran_date = new_fy.start_date
     carried = [(number, solde) for number, solde in soldes.items() if solde != Decimal("0")]
     entry_numbers = await next_entry_numbers(db, len(carried))
+    carried_entries: list[AccountingEntry] = []
     for (account_number, solde), entry_number in zip(carried, entry_numbers, strict=True):
         acct = acct_map[account_number]
         is_debit = solde > 0
         abs_solde = abs(solde)
-        db.add(
+        carried_entries.append(
             AccountingEntry(
                 entry_number=entry_number,
                 date=ran_date,
@@ -350,6 +406,20 @@ async def open_new_fiscal_year(
                 source_id=closed_fy.id,
                 group_key=build_entry_group_key(EntrySourceType.CLOTURE, closed_fy.id),
             )
+        )
+    for entry in carried_entries:
+        db.add(entry)
+
+    # A carry-forward that does not balance means the closed year's balance sheet
+    # did not add up — result accounts left loaded, a result account missing from
+    # the chart, an unbalanced document. Opening on a lopsided balance is worse
+    # than refusing: the whole new year would be built on it.
+    total_debit = sum((entry.debit for entry in carried_entries), start=Decimal("0"))
+    total_credit = sum((entry.credit for entry in carried_entries), start=Decimal("0"))
+    if total_debit != total_credit:
+        raise FiscalYearError(
+            f"Report à nouveau déséquilibré : débit {total_debit} ≠ crédit {total_credit}. "
+            f"Vérifiez la clôture de l'exercice « {closed_fy.name} » avant d'ouvrir le suivant."
         )
 
     await db.flush()

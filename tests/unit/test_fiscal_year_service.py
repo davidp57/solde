@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import backend.services.fiscal_year_service as fiscal_year_service_module
@@ -126,6 +126,24 @@ class TestOpenNextWithSeveralBalances:
                     number=number, label=label, type=AccountType.ACTIF, is_active=True
                 )
             )
+        db_session.add(
+            AccountingAccount(
+                number="106800", label="Réserves", type=AccountType.PASSIF, is_active=True
+            )
+        )
+        # Counterpart so the balance sheet adds up: 2134.33 + 254.34 + 480.00.
+        db_session.add(
+            AccountingEntry(
+                entry_number="000510",
+                date=date(2026, 3, 1),
+                account_number="106800",
+                label="reserves",
+                debit=Decimal("0"),
+                credit=Decimal("2868.67"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.MANUAL,
+            )
+        )
         for index, (number, amount) in enumerate(
             (("512100", "2134.33"), ("530000", "254.34"), ("411100", "480.00"))
         ):
@@ -152,10 +170,11 @@ class TestOpenNextWithSeveralBalances:
             select(AccountingEntry).where(AccountingEntry.fiscal_year_id == new_fy.id)
         )
         ran = list(result.scalars().all())
-        assert len(ran) == 3, "one carry-forward per non-zero balance sheet account"
+        assert len(ran) == 4, "one carry-forward per non-zero balance sheet account"
         numbers = [entry.entry_number for entry in ran]
-        assert len(set(numbers)) == 3, f"entry numbers must be distinct, got {numbers}"
-        assert {entry.account_number: entry.debit for entry in ran} == {
+        assert len(set(numbers)) == 4, f"entry numbers must be distinct, got {numbers}"
+        debits = {entry.account_number: entry.debit for entry in ran if entry.debit > 0}
+        assert debits == {
             "512100": Decimal("2134.33"),
             "530000": Decimal("254.34"),
             "411100": Decimal("480.00"),
@@ -441,6 +460,217 @@ class TestCloseFiscalYear:
         assert cloture_entries[0].fiscal_year_id == fy.id
 
 
+class TestClosingEntryShape:
+    """The closing entry is what makes the next year's opening balance right."""
+
+    async def _year_with_activity(
+        self, db: AsyncSession, *, produits: str, charges: str
+    ) -> FiscalYear:
+        from backend.models.accounting_account import AccountingAccount, AccountType
+
+        fy = await _create_fy(db, "2025", date(2025, 8, 1), date(2026, 7, 31))
+        db.add_all(
+            [
+                AccountingAccount(
+                    number="706110", label="Cours", type=AccountType.PRODUIT, is_active=True
+                ),
+                AccountingAccount(
+                    number="641000", label="Salaires", type=AccountType.CHARGE, is_active=True
+                ),
+                AccountingAccount(
+                    number="512100", label="Banque", type=AccountType.ACTIF, is_active=True
+                ),
+                # The result accounts must be part of the chart, otherwise the
+                # carry-forward silently skips them.
+                AccountingAccount(
+                    number="120000", label="Excédent", type=AccountType.PASSIF, is_active=True
+                ),
+                AccountingAccount(
+                    number="129000", label="Déficit", type=AccountType.PASSIF, is_active=True
+                ),
+            ]
+        )
+        # Revenue collected in the bank, wages paid from it: a self-contained year.
+        db.add_all(
+            [
+                AccountingEntry(
+                    entry_number="000010",
+                    date=date(2026, 1, 5),
+                    account_number="706110",
+                    label="produits",
+                    debit=Decimal("0"),
+                    credit=Decimal(produits),
+                    fiscal_year_id=fy.id,
+                    source_type=EntrySourceType.INVOICE,
+                ),
+                AccountingEntry(
+                    entry_number="000011",
+                    date=date(2026, 1, 5),
+                    account_number="512100",
+                    label="encaissement",
+                    debit=Decimal(produits),
+                    credit=Decimal("0"),
+                    fiscal_year_id=fy.id,
+                    source_type=EntrySourceType.INVOICE,
+                ),
+                AccountingEntry(
+                    entry_number="000012",
+                    date=date(2026, 2, 5),
+                    account_number="641000",
+                    label="charges",
+                    debit=Decimal(charges),
+                    credit=Decimal("0"),
+                    fiscal_year_id=fy.id,
+                    source_type=EntrySourceType.SALARY,
+                ),
+                AccountingEntry(
+                    entry_number="000013",
+                    date=date(2026, 2, 5),
+                    account_number="512100",
+                    label="paiement",
+                    debit=Decimal("0"),
+                    credit=Decimal(charges),
+                    fiscal_year_id=fy.id,
+                    source_type=EntrySourceType.SALARY,
+                ),
+            ]
+        )
+        await db.commit()
+        return fy
+
+    async def _closing_entries(self, db: AsyncSession, fy: FiscalYear) -> list[AccountingEntry]:
+        result = await db.execute(
+            select(AccountingEntry).where(
+                AccountingEntry.source_type == EntrySourceType.CLOTURE,
+                AccountingEntry.fiscal_year_id == fy.id,
+            )
+        )
+        return list(result.scalars().all())
+
+    @pytest.mark.asyncio
+    async def test_closing_entry_is_balanced(self, db_session: AsyncSession) -> None:
+        """It used to post a single line with no counterpart, unbalancing the year."""
+        fy = await self._year_with_activity(db_session, produits="1000.00", charges="600.00")
+
+        await close_fiscal_year(db_session, fy)
+
+        entries = await self._closing_entries(db_session, fy)
+        assert sum(e.debit for e in entries) == sum(e.credit for e in entries)
+        assert len({e.entry_number for e in entries}) == len(entries)
+
+    @pytest.mark.asyncio
+    async def test_result_accounts_are_cleared(self, db_session: AsyncSession) -> None:
+        """Leaving them loaded is what made the carry-forward lopsided."""
+        fy = await self._year_with_activity(db_session, produits="1000.00", charges="600.00")
+
+        await close_fiscal_year(db_session, fy)
+
+        for account in ("706110", "641000"):
+            result = await db_session.execute(
+                select(func.sum(AccountingEntry.debit) - func.sum(AccountingEntry.credit)).where(
+                    AccountingEntry.fiscal_year_id == fy.id,
+                    AccountingEntry.account_number == account,
+                )
+            )
+            assert Decimal(str(result.scalar_one())) == Decimal("0"), account
+
+    @pytest.mark.asyncio
+    async def test_surplus_is_credited_to_120000(self, db_session: AsyncSession) -> None:
+        fy = await self._year_with_activity(db_session, produits="1000.00", charges="600.00")
+
+        await close_fiscal_year(db_session, fy)
+
+        entry = next(
+            e for e in await self._closing_entries(db_session, fy) if e.account_number == "120000"
+        )
+        assert entry.credit == Decimal("400.00")
+        assert entry.debit == Decimal("0")
+
+    @pytest.mark.asyncio
+    async def test_deficit_is_debited_to_129000(self, db_session: AsyncSession) -> None:
+        fy = await self._year_with_activity(db_session, produits="600.00", charges="1000.00")
+
+        await close_fiscal_year(db_session, fy)
+
+        entry = next(
+            e for e in await self._closing_entries(db_session, fy) if e.account_number == "129000"
+        )
+        assert entry.debit == Decimal("400.00")
+        assert entry.credit == Decimal("0")
+
+    @pytest.mark.asyncio
+    async def test_next_year_opens_on_a_balanced_carry_forward(
+        self, db_session: AsyncSession
+    ) -> None:
+        """The end-to-end check: close, then open, and the new year must balance.
+
+        This is what failed in production — the carry-forward faithfully copied a
+        balance sheet that did not add up, because the result accounts had never
+        been cleared.
+        """
+        fy = await self._year_with_activity(db_session, produits="1000.00", charges="600.00")
+        await close_fiscal_year(db_session, fy)
+
+        new_fy = await open_new_fiscal_year(
+            db_session,
+            fy,
+            FiscalYearCreate(name="2026", start_date=date(2026, 8, 1), end_date=date(2027, 7, 31)),
+        )
+
+        result = await db_session.execute(
+            select(AccountingEntry).where(AccountingEntry.fiscal_year_id == new_fy.id)
+        )
+        ran = list(result.scalars().all())
+        assert ran, "the new year must carry something forward"
+        assert sum(e.debit for e in ran) == sum(e.credit for e in ran)
+
+
+class TestCarryForwardGuard:
+    @pytest.mark.asyncio
+    async def test_refuses_to_open_on_an_unbalanced_carry_forward(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Production case: a year closed without clearing its result accounts.
+
+        The carry-forward faithfully copied a balance sheet that did not add up,
+        and the new year opened lopsided. Refusing is the only sane answer — the
+        whole year would be built on it.
+        """
+        from backend.models.accounting_account import AccountingAccount, AccountType
+
+        fy = await _create_fy(
+            db_session, "2025", date(2025, 8, 1), date(2026, 7, 31), FiscalYearStatus.CLOSED
+        )
+        db_session.add(
+            AccountingAccount(
+                number="512100", label="Banque", type=AccountType.ACTIF, is_active=True
+            )
+        )
+        # A lone debit on a balance sheet account: nothing balances it.
+        db_session.add(
+            AccountingEntry(
+                entry_number="000020",
+                date=date(2026, 1, 5),
+                account_number="512100",
+                label="solde orphelin",
+                debit=Decimal("400.00"),
+                credit=Decimal("0"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.MANUAL,
+            )
+        )
+        await db_session.commit()
+
+        with pytest.raises(FiscalYearError, match="Report à nouveau déséquilibré"):
+            await open_new_fiscal_year(
+                db_session,
+                fy,
+                FiscalYearCreate(
+                    name="2026", start_date=date(2026, 8, 1), end_date=date(2027, 7, 31)
+                ),
+            )
+
+
 class TestAdministrativeCloseFiscalYear:
     @pytest.mark.asyncio
     async def test_marks_closed_without_creating_cloture_entries(
@@ -573,6 +803,25 @@ class TestOpenNewFiscalYear:
         acct = AccountingAccount(
             number="512000", label="Banque", type=AccountType.ACTIF, is_active=True
         )
+        # A balance sheet only carries forward if it balances: give the bank
+        # position its counterpart in equity.
+        db_session.add(
+            AccountingAccount(
+                number="106800", label="Réserves", type=AccountType.PASSIF, is_active=True
+            )
+        )
+        db_session.add(
+            AccountingEntry(
+                entry_number="000003",
+                date=date(2024, 6, 1),
+                account_number="106800",
+                label="reserves",
+                debit=Decimal("0"),
+                credit=Decimal("700.00"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.MANUAL,
+            )
+        )
         db_session.add(acct)
         await db_session.flush()
 
@@ -618,11 +867,13 @@ class TestOpenNewFiscalYear:
                 AccountingEntry.source_type == EntrySourceType.CLOTURE,
             )
         )
-        ran_entries = result.scalars().all()
-        assert len(ran_entries) == 1
-        assert ran_entries[0].account_number == "512000"
-        assert ran_entries[0].debit == Decimal("700.00")  # 1000 - 300
-        assert ran_entries[0].credit == Decimal("0")
+        ran_entries = list(result.scalars().all())
+        # Bank position and its equity counterpart.
+        assert len(ran_entries) == 2
+        bank = next(entry for entry in ran_entries if entry.account_number == "512000")
+        assert bank.debit == Decimal("700.00")  # 1000 - 300
+        assert bank.credit == Decimal("0")
+        assert sum(e.debit for e in ran_entries) == sum(e.credit for e in ran_entries)
 
     @pytest.mark.asyncio
     async def test_no_ran_for_zero_balance_accounts(self, db_session: AsyncSession) -> None:
