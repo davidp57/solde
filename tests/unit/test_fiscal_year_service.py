@@ -139,6 +139,52 @@ class TestPreCloseUnbalancedGroups:
         assert any("Fact. 2026-0125" in w and "-24.00" in w for w in warnings)
 
 
+class TestPreCloseOrphanScope:
+    async def _add_orphan(self, db: AsyncSession, when: date, label: str, number: str) -> None:
+        db.add(
+            AccountingEntry(
+                entry_number=number,
+                date=when,
+                account_number="411100",
+                label=label,
+                debit=Decimal("10.00"),
+                credit=Decimal("10.00"),
+                fiscal_year_id=None,
+            )
+        )
+        await db.commit()
+
+    @pytest.mark.asyncio
+    async def test_reports_only_orphans_dated_within_the_period(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Orphans outside the period cannot affect this closing — staying silent
+        on them keeps the warning meaningful."""
+        fy = await _create_fy(db_session, "2025", date(2025, 8, 1), date(2026, 7, 31))
+        await self._add_orphan(db_session, date(2022, 11, 28), "Fact. 2022-0361", "000200")
+        await self._add_orphan(db_session, date(2026, 8, 1), "Fact. 2026-0129", "000201")
+        await self._add_orphan(db_session, date(2026, 3, 10), "Fact. 2026-0050", "000202")
+
+        warnings = await pre_close_checks(db_session, fy)
+
+        orphan_warnings = [w for w in warnings if "non rattachée" in w or "↳" in w]
+        assert any("1 écriture(s)" in w for w in orphan_warnings)
+        assert any("Fact. 2026-0050" in w for w in orphan_warnings)
+        assert not any("2022-0361" in w for w in orphan_warnings)
+        assert not any("2026-0129" in w for w in orphan_warnings)
+
+    @pytest.mark.asyncio
+    async def test_stays_silent_when_every_orphan_is_outside(
+        self, db_session: AsyncSession
+    ) -> None:
+        fy = await _create_fy(db_session, "2025", date(2025, 8, 1), date(2026, 7, 31))
+        await self._add_orphan(db_session, date(2022, 11, 28), "Fact. 2022-0361", "000200")
+
+        warnings = await pre_close_checks(db_session, fy)
+
+        assert warnings == []
+
+
 class TestListFiscalYears:
     @pytest.mark.asyncio
     async def test_empty_list(self, db_session: AsyncSession) -> None:
@@ -429,7 +475,9 @@ class TestPreCloseChecks:
         await db_session.commit()
 
         warnings = await pre_close_checks(db_session, fy)
-        assert any("sans exercice" in w for w in warnings)
+        # Dated inside the period, so still reported — with the wording that now
+        # says what it means for the closing.
+        assert any("non rattachée" in w for w in warnings)
 
     @pytest.mark.asyncio
     async def test_returns_warning_if_fy_not_open(self, db_session: AsyncSession) -> None:
