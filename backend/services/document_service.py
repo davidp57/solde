@@ -43,9 +43,16 @@ _SIGNATURES: tuple[tuple[bytes, str], ...] = (
 
 #: Formats with no signature of their own, accepted on extension once the content is
 #: shown to be text.
-_TEXT_EXTENSIONS = (".csv", ".txt")
+_TEXT_EXTENSIONS = (".csv", ".txt", ".md", ".json", ".xml", ".log")
 
-ACCEPTED_FORMATS = "PDF, JPEG, PNG, WebP, Excel, Word, CSV, texte"
+_TEXT_MIME_TYPES = {
+    ".csv": "text/csv",
+    ".md": "text/markdown",
+    ".json": "application/json",
+    ".xml": "application/xml",
+}
+
+ACCEPTED_FORMATS = "PDF, JPEG, PNG, WebP, Excel, Word, CSV, Markdown, texte"
 
 
 class DocumentError(ValueError):
@@ -92,7 +99,7 @@ def detect_mime_type(content: bytes, filename: str) -> str:
 
     suffix = Path(filename).suffix.lower()
     if suffix in _TEXT_EXTENSIONS and _looks_like_text(content):
-        return "text/csv" if suffix == ".csv" else "text/plain"
+        return _TEXT_MIME_TYPES.get(suffix, "text/plain")
 
     raise DocumentError(
         "DOCUMENT_INVALID_TYPE",

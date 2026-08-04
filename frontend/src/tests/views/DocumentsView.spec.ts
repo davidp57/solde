@@ -51,11 +51,13 @@ import {
   deleteDocumentApi,
   listDocumentTagsApi,
   listDocumentsApi,
+  uploadDocumentApi,
 } from '../../api/document'
 
 const mockList = vi.mocked(listDocumentsApi)
 const mockTags = vi.mocked(listDocumentTagsApi)
 const mockDelete = vi.mocked(deleteDocumentApi)
+const mockUpload = vi.mocked(uploadDocumentApi)
 
 const ContainerStub = defineComponent({
   template: '<div><slot /><slot name="actions" /></div>',
@@ -208,11 +210,11 @@ describe('DocumentsView', () => {
     )
   })
 
-  it('reloads the list after a deletion', async () => {
+  it('refreshes the tag suggestions after a deletion', async () => {
     mockDelete.mockResolvedValue(undefined)
     const wrapper = mountView()
     await flushView()
-    mockList.mockClear()
+    mockTags.mockClear()
 
     const vm = wrapper.vm as unknown as { confirmDelete: (doc: typeof DOCUMENT) => void }
     vm.confirmDelete(DOCUMENT)
@@ -220,7 +222,48 @@ describe('DocumentsView', () => {
     await confirmAccept?.()
 
     expect(mockDelete).toHaveBeenCalledWith(7)
-    expect(mockList).toHaveBeenCalled()
+    // A tag may have lost its last document, so the suggestion list is fetched again.
+    expect(mockTags).toHaveBeenCalled()
+  })
+
+  it('shows an uploaded document even when the reload returns a stale list', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    const created = { ...DOCUMENT, id: 9, title: 'Rapport de clôture', fiscal_year_id: null,
+      fiscal_year_name: null, tags: [] }
+    mockUpload.mockResolvedValue(created)
+    // The reload answers with the list as it was before the upload.
+    mockList.mockResolvedValue({ items: [DOCUMENT], total: 1 })
+
+    const vm = wrapper.vm as unknown as {
+      form: { title: string; fiscal_year_id: number | null; tags: string; notes: string }
+      selectedFile: File | null
+      submit: () => Promise<void>
+    }
+    vm.form = { title: 'Rapport de clôture', fiscal_year_id: null, tags: '', notes: '' }
+    vm.selectedFile = new File(['x'], 'rapport.md', { type: 'text/markdown' })
+    await vm.submit()
+    await flushView()
+
+    expect(wrapper.text()).toContain('Rapport de clôture')
+  })
+
+  it('drops a deleted row immediately, without waiting for the reload', async () => {
+    mockDelete.mockResolvedValue(undefined)
+    const wrapper = mountView()
+    await flushView()
+    // The reload keeps answering with the document still present.
+    mockList.mockResolvedValue({ items: [DOCUMENT], total: 1 })
+
+    const vm = wrapper.vm as unknown as {
+      confirmDelete: (doc: typeof DOCUMENT) => void
+      documents: { id: number }[]
+    }
+    vm.confirmDelete(DOCUMENT)
+    await confirmAccept?.()
+
+    expect(vm.documents.some((entry) => entry.id === DOCUMENT.id)).toBe(false)
   })
 
   it('hides the write actions from a read-only account', async () => {

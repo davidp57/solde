@@ -757,7 +757,7 @@ export default {
       "Statuts, procès-verbaux, attestations, états financiers signés : les pièces qui n'appartiennent à aucune facture. L'exercice et les étiquettes sont facultatifs.",
     upload: 'Déposer un document',
     file: 'Fichier',
-    file_hint: 'PDF, image, Excel, Word, CSV ou texte — 20 Mo maximum.',
+    file_hint: 'PDF, image, Excel, Word, CSV, Markdown ou texte — 20 Mo maximum.',
     file_required: 'Choisissez un fichier à déposer.',
     title_required: 'Le titre est obligatoire.',
     column_title: 'Titre',
