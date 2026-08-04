@@ -158,6 +158,8 @@ import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import { getBilanApi, getExportCsvUrl, getExportPdfUrl } from '../api/accounting'
 import type { BilanRead } from '../api/accounting'
+import { useToast } from 'primevue/usetoast'
+import { downloadAuthenticatedFile } from '../utils/downloadFile'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
@@ -165,6 +167,7 @@ import { formatAccountingAmount } from '../utils/format'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
+const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 const { exportToExcel } = useTableExport()
 const exportColumns: ExportColumn[] = [
@@ -196,18 +199,26 @@ async function loadBilan() {
   }
 }
 
-function downloadCsv() {
+async function downloadCsv() {
   const url = getExportCsvUrl('bilan', {
     fiscal_year_id: fiscalYearId.value,
   })
-  window.open(url, '_blank')
+  await download(url, 'bilan.csv')
 }
 
-function downloadPdf() {
+async function downloadPdf() {
   const url = getExportPdfUrl('bilan', {
     fiscal_year_id: fiscalYearId.value,
   })
-  window.open(url, '_blank')
+  await download(url, 'bilan.pdf')
+}
+
+async function download(url: string, fallbackFilename: string) {
+  try {
+    await downloadAuthenticatedFile(url, fallbackFilename)
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  }
 }
 
 watch(

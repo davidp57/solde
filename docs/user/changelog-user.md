@@ -12,6 +12,9 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Les téléchargements fonctionnent à nouveau** — cliquer sur un export renvoyait un message « Not authenticated » au lieu du fichier. Cela touchait les exports CSV du bilan et du journal, les nouveaux exports PDF et le téléchargement des documents.
+- **Écrans Bilan et Compte de résultat harmonisés** — même barre d'actions sur les deux, avec le sélecteur d'exercice et les trois exports (CSV, PDF, Excel) réunis en haut. Le compte de résultat gagne l'export CSV qui lui manquait.
+
 - **Bilan et compte de résultat en PDF** — un bouton « Exporter PDF » sur chacun des deux écrans produit un document mis en page, avec l'en-tête de l'association, la période de l'exercice et la mention « clôturé » ou « en cours ». C'est le document à ranger dans les archives comptables ou à transmettre.
 
 - **Compte de résultat d'un exercice clôturé enfin lisible** — il s'affichait entièrement à zéro, à l'écran comme à l'export, dès que l'exercice était clôturé. La clôture solde les comptes de charges et de produits, et ce solde était compté dans le total : le document devenait vide au moment précis où on en a besoin.

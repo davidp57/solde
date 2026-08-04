@@ -238,6 +238,7 @@ import AppPanel from '../components/ui/AppPanel.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
 import { useAuthStore } from '../stores/auth'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { downloadAuthenticatedFile } from '../utils/downloadFile'
 import { getErrorDetail } from '../utils/errorUtils'
 
 const { t } = useI18n()
@@ -431,8 +432,16 @@ async function submit(): Promise<void> {
   }
 }
 
-function download(document: AppDocument): void {
-  window.open(getDocumentDownloadUrl(document.id), '_blank')
+async function download(item: AppDocument): Promise<void> {
+  try {
+    await downloadAuthenticatedFile(getDocumentDownloadUrl(item.id), item.filename)
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: getErrorDetail(error, t('common.error.unknown')),
+      life: 5000,
+    })
+  }
 }
 
 function confirmDelete(document: AppDocument): void {

@@ -261,6 +261,7 @@ export default {
     required_fields: 'Veuillez remplir tous les champs requis.',
     close: 'Fermer',
     export_excel: 'Exporter Excel',
+    export_csv: 'Exporter CSV',
     export_pdf: 'Exporter PDF',
     api_limit_warning:
       "Limite d'affichage atteinte (5 000 éléments). Les résultats peuvent être incomplets — affinez les filtres pour réduire le volume chargé.",
