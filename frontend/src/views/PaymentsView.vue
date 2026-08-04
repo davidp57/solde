@@ -95,6 +95,10 @@
               <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
               <span class="app-mobile-card-value" style="font-weight:700">{{ formatAmount(data.amount) }} €</span>
             </div>
+            <div class="app-mobile-card-row" v-if="data.invoice_number">
+              <span class="app-mobile-card-label">{{ t('payments.invoice') }} :</span>
+              <span class="app-mobile-card-value">{{ data.invoice_number }}</span>
+            </div>
             <div class="app-mobile-card-row">
               <Tag :value="t(`payments.methods.${data.method}`)" />
               <span v-if="data.reference_value" class="app-mobile-card-value">{{ data.reference_value }}</span>
@@ -135,6 +139,7 @@
           'amount_value',
           'method',
           'reference_value',
+          'invoice_number',
           'cheque_number',
           'deposited',
         ]"
@@ -192,6 +197,18 @@
               :placeholder="t('common.all')"
               show-clear
             />
+          </template>
+        </Column>
+        <Column
+          field="invoice_number"
+          :header="t('payments.invoice')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #body="{ data }">{{ data.invoice_number ?? '' }}</template>
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('payments.invoice')" />
           </template>
         </Column>
         <Column
@@ -275,6 +292,10 @@
     >
       <div class="app-dialog-form">
         <div class="app-form-grid">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('payments.invoice') }}</label>
+            <InputText :model-value="editingPayment?.invoice_number ?? ''" disabled />
+          </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.date') }}</label>
             <InputText v-model="paymentForm.date" type="date" disabled />
@@ -421,6 +442,7 @@ const exportColumns: ExportColumn[] = [
   { field: 'date', header: t('payments.date') },
   { field: 'amount_value', header: t('payments.amount') },
   { field: 'method_label', header: t('payments.method') },
+  { field: 'invoice_number', header: t('payments.invoice') },
   { field: 'reference_value', header: t('payments.reference') },
   { field: 'cheque_number', header: t('payments.cheque_number') },
   { field: 'deposited_label', header: t('payments.deposited') },
@@ -479,6 +501,7 @@ const {
   amount_value: numericRangeFilter(),
   method: inFilter(),
   reference_value: textFilter(),
+  invoice_number: textFilter(),
   cheque_number: textFilter(),
   deposited: inFilter(),
 })
@@ -527,7 +550,7 @@ const yesNoOptions = computed(() => [
 ])
 
 function paymentReference(payment: Payment): string {
-  return payment.reference ?? payment.invoice_number ?? ''
+  return payment.reference ?? ''
 }
 
 function formatAmount(value: string | number): string {

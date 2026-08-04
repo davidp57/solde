@@ -370,13 +370,30 @@ describe('PaymentsView', () => {
     expect(wrapper.text()).toContain('REF-2025-001')
   })
 
-  it('falls back to the invoice number when the payment reference is empty', async () => {
+  it('shows the invoice number in its own column, next to the reference', async () => {
+    // A bank-reconciled transfer carries the bank wording as reference; the
+    // invoice must stay visible instead of being pushed out by it.
+    mockListPaymentsWithCount.mockResolvedValue({
+      items: [{ ...paymentFixture, method: 'virement', reference: 'VIR MME JAECK DIE' }],
+      total: 1,
+    })
+
+    const wrapper = mountView()
+    await flushView()
+
+    expect(wrapper.text()).toContain('VIR MME JAECK DIE')
+    expect(wrapper.text()).toContain('2025-0142')
+  })
+
+  it('leaves the reference column empty when there is no reference', async () => {
     mockListPaymentsWithCount.mockResolvedValue({ items: [{ ...paymentFixture, reference: null }], total: 1 })
 
     const wrapper = mountView()
     await flushView()
 
+    // The invoice column carries it; the reference column no longer borrows it.
     expect(wrapper.text()).toContain('2025-0142')
+    expect(wrapper.text()).not.toContain('REF-2025-001')
   })
 
   it('loads all payments when no fiscal year is selected', async () => {

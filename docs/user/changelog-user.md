@@ -8,6 +8,7 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Écran Paiements : une colonne « Facture »** — le numéro de facture disparaissait pour les règlements par virement, masqué par le libellé de la banque. Il dispose maintenant de sa propre colonne, triable et filtrable, également reprise dans la recherche, l'export Excel et la fenêtre de modification d'un règlement.
 - **Ouverture d'un nouvel exercice réparée** — l'action « Ouvrir le prochain exercice » échouait avec une erreur technique dès qu'il y avait plusieurs soldes à reporter (banque, caisse, créances…), rendant la bascule impossible. Corrigé.
 
 - **Remises sur facture correctement comptabilisées** — une remise saisie sur une facture (ligne à montant négatif) pouvait être ignorée dans les écritures comptables, laissant une balance déséquilibrée du montant de la remise. Le problème n'apparaissait qu'à la clôture, sans indication de la facture en cause.
