@@ -144,6 +144,16 @@ def _unbalanced_groups(entries: Sequence[AccountingEntry]) -> list[tuple[str, De
     return unbalanced[:_MAX_REPORTED_UNBALANCED_GROUPS]
 
 
+def _distinct_labels(entries: Sequence[AccountingEntry]) -> list[str]:
+    """Return the distinct entry labels, capped — entries of one document share a label."""
+    seen: list[str] = []
+    for entry in entries:
+        label = entry.label or f"écriture #{entry.id}"
+        if label not in seen:
+            seen.append(label)
+    return seen[:_MAX_REPORTED_UNBALANCED_GROUPS]
+
+
 async def pre_close_checks(db: AsyncSession, fy: FiscalYear) -> list[str]:
     """Run sanity checks before closing a fiscal year.
 
@@ -172,15 +182,27 @@ async def pre_close_checks(db: AsyncSession, fy: FiscalYear) -> list[str]:
         for label, gap in _unbalanced_groups(entries):
             warnings.append(f"  ↳ {label} : écart de {gap}.")
 
-    # Check 2: entries without fiscal year assigned (orphans)
-    orphans = await db.execute(
-        select(AccountingEntry).where(AccountingEntry.fiscal_year_id.is_(None))
-    )
-    orphan_count = len(orphans.scalars().all())
-    if orphan_count > 0:
-        warnings.append(
-            f"{orphan_count} écriture(s) sans exercice associé — vérifier avant clôture."
+    # Check 2: entries with no fiscal year *whose date falls in this period*.
+    # Orphans dated outside it (imported history, entries written before the next
+    # year was opened) carry no weight in this closing: they are excluded from the
+    # result and from the balance. Reporting them would raise an alarm every year
+    # for something this closing cannot fix — and an alarm nobody can act on is an
+    # alarm everybody learns to skip.
+    orphans_result = await db.execute(
+        select(AccountingEntry).where(
+            AccountingEntry.fiscal_year_id.is_(None),
+            AccountingEntry.date >= fy.start_date,
+            AccountingEntry.date <= fy.end_date,
         )
+    )
+    orphans = list(orphans_result.scalars().all())
+    if orphans:
+        warnings.append(
+            f"{len(orphans)} écriture(s) datée(s) dans cet exercice mais non rattachée(s) — "
+            "elles seront exclues du résultat."
+        )
+        for label in _distinct_labels(orphans):
+            warnings.append(f"  ↳ {label}.")
 
     return warnings
 
