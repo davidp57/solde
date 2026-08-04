@@ -8,6 +8,8 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Banque : bouton « Tout l'historique »** — pour afficher les opérations et les remises sans se limiter à l'exercice sélectionné. Indispensable après un import de relevé contenant des opérations du nouvel exercice, qui n'apparaissaient nulle part.
+
 - **Factures fournisseur enfin comptabilisées** — une facture fournisseur saisie dans l'application ne générait aucune écriture comptable : seul son règlement en produisait une. Les charges étaient donc sous-évaluées et le compte fournisseur affichait un solde anormal. C'est corrigé pour les nouvelles factures, et l'action « Régénérer les écritures comptables » est désormais proposée sur les factures fournisseur pour rattraper les anciennes.
 - **Comptes manquants signalés avant la clôture** — si une écriture utilise un compte absent du plan comptable, la fenêtre de clôture le signale avec son solde. Un tel compte n'est ni soldé ni reporté et fausse l'équilibre de l'exercice sans que rien ne l'indique. Le plan comptable se complète également tout seul au démarrage avec les comptes standard manquants.
 - **Messages d'erreur explicites sur les exercices** — quand une clôture ou une ouverture d'exercice est refusée, la raison exacte s'affiche désormais, au lieu du message générique « une erreur est survenue » qui obligeait à deviner.

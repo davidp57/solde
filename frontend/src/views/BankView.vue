@@ -121,6 +121,18 @@
               @click="doExportExcel"
             />
           </div>
+          <div class="app-field">
+            <label class="app-field__label">&nbsp;</label>
+            <Button
+              data-testid="bank-show-all-history"
+              :label="t('bank.show_all_history')"
+              :icon="showAllHistory ? 'pi pi-calendar-times' : 'pi pi-calendar'"
+              :severity="showAllHistory ? 'primary' : 'secondary'"
+              outlined
+              size="small"
+              @click="showAllHistory = !showAllHistory; loadAll()"
+            />
+          </div>
         </div>
       </div>
 
@@ -1115,6 +1127,9 @@ const loadingDeposits = ref(false)
 const route = useRoute()
 const activeTab = ref('transactions_courant')
 const unreconciledOnly = ref(false)
+// Lifts the fiscal-year date filter — statement rows dated outside the selected
+// year (or outside every year, right after a rollover) are otherwise invisible.
+const showAllHistory = ref(false)
 
 function isTransactionTab(tab: string): boolean {
   return tab === 'transactions_courant' || tab === 'transactions_epargne'
@@ -1539,9 +1554,14 @@ async function openDepositDialog(): Promise<void> {
 async function loadTransactions(): Promise<void> {
   loadingTx.value = true
   try {
+    const dateFilter = showAllHistory.value
+      ? {}
+      : {
+          from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+          to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+        }
     const { items, total } = await listTransactionsWithCount({
-      from_date: fiscalYearStore.selectedFiscalYear?.start_date,
-      to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+      ...dateFilter,
       unreconciled_only: unreconciledOnly.value,
       bank_account: activeTransactionAccount.value,
       limit: limitStore.requestLimit(LIMIT_VIEW_TX),
@@ -1560,8 +1580,12 @@ async function loadDeposits(): Promise<void> {
   try {
     const [allResult, pending] = await Promise.all([
       listDepositsWithCount({
-        from_date: fiscalYearStore.selectedFiscalYear?.start_date,
-        to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+        ...(showAllHistory.value
+          ? {}
+          : {
+              from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+              to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+            }),
         limit: limitStore.requestLimit(LIMIT_VIEW_DEP),
       }),
       listDeposits({ confirmed: false }),

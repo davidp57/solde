@@ -1005,6 +1005,7 @@ export default {
     import_pick_file: 'Choisir un fichier',
     import_no_file: 'Aucun fichier sélectionné',
     import_file_required: 'Sélectionnez un fichier de relevé avant l’import.',
+    show_all_history: 'Tout l’historique',
     import_success: '{n} opération(s) importée(s).',
     import_success_with_skipped: '{n} opération(s) importée(s), {s} ignorée(s) (déjà présente(s)).',
     import_merged_suffix:
