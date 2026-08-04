@@ -373,6 +373,63 @@ class TestGenerateEntriesForInvoice:
         }
 
     @pytest.mark.asyncio
+    async def test_discount_line_apart_keeps_the_group_balanced(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Real case 2026-0125: a discount booked apart used to be dropped.
+
+        The debit took the net total while the credit only covered the positive
+        component, leaving the group short by the discount — 24 € that only
+        surfaced a month later, as an unbalanced trial balance at closing time.
+        """
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_GENERAL, "411100", "758000")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS,
+            lines=[
+                ("Cours de soutien", Decimal("104.00"), InvoiceLineType.COURSE),
+                ("Remise", Decimal("-24.00"), InvoiceLineType.OTHER),
+            ],
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        total_debit = sum(entry.debit for entry in entries)
+        total_credit = sum(entry.credit for entry in entries)
+        assert total_debit == total_credit == Decimal("104.00")
+        # The receivable carries the net amount actually owed.
+        assert any(
+            entry.account_number == "411100" and entry.debit == Decimal("80.00")
+            for entry in entries
+        )
+        # The discount lands as a debit on its revenue account, never a negative credit.
+        discount = next(entry for entry in entries if entry.account_number == "758000")
+        assert discount.debit == Decimal("24.00")
+        assert discount.credit == Decimal("0")
+
+    @pytest.mark.asyncio
+    async def test_discount_within_the_same_component_is_unchanged(
+        self, db_session: AsyncSession
+    ) -> None:
+        """A discount typed like the line it reduces nets off — no extra entry."""
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS,
+            lines=[
+                ("Cours de soutien", Decimal("104.00"), InvoiceLineType.COURSE),
+                ("Remise", Decimal("-24.00"), InvoiceLineType.COURSE),
+            ],
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 2
+        assert sum(entry.debit for entry in entries) == Decimal("80.00")
+        assert sum(entry.credit for entry in entries) == Decimal("80.00")
+
+    @pytest.mark.asyncio
     async def test_client_other_lines_use_general_rule(self, db_session: AsyncSession) -> None:
         await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_GENERAL, "411100", "758000")
         inv = await _make_invoice(

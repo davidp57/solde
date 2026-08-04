@@ -8,6 +8,9 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Remises sur facture correctement comptabilisées** — une remise saisie sur une facture (ligne à montant négatif) pouvait être ignorée dans les écritures comptables, laissant une balance déséquilibrée du montant de la remise. Le problème n'apparaissait qu'à la clôture, sans indication de la facture en cause.
+- **Vérifications de clôture plus utiles** — quand la balance est déséquilibrée, la fenêtre de clôture indique maintenant **quelles écritures** posent problème et de combien, au lieu d'un simple total.
+
 - **« Tout l'historique » sur les écrans Factures et Paiements** — comme pour la caisse, un bouton permet d'afficher les factures et les règlements sans se limiter à l'exercice sélectionné. Utile en début d'exercice, quand une saisie datée du nouvel exercice n'apparaît encore nulle part.
 - **Alerte si la date ne tombe dans aucun exercice** — en saisissant une entrée de caisse, un comptage, une opération bancaire ou un règlement de facture, un message apparaît si la date choisie n'appartient à aucun exercice comptable. C'est le piège classique en début d'exercice : la saisie est enregistrée, mais elle n'apparaît dans aucun écran filtré par exercice. Le message n'empêche pas d'enregistrer — il vous invite à créer l'exercice ou à corriger la date.
 - **Caisse : bouton « Tout l'historique »** — pour afficher le journal et les comptages sans se limiter à l'exercice sélectionné. Pratique pour retrouver une saisie faite hors période.

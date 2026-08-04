@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date
 from decimal import Decimal
 
@@ -118,6 +119,31 @@ async def create_fiscal_year(db: AsyncSession, payload: FiscalYearCreate) -> Fis
 # ---------------------------------------------------------------------------
 
 
+_MAX_REPORTED_UNBALANCED_GROUPS = 10
+
+
+def _unbalanced_groups(entries: Sequence[AccountingEntry]) -> list[tuple[str, Decimal]]:
+    """Return (label, gap) for each entry group whose debits differ from its credits.
+
+    The label leans on the entries' own wording, which names the document far
+    better than a raw group key would.
+    """
+    totals: dict[str, list[Decimal]] = {}
+    labels: dict[str, str] = {}
+    for entry in entries:
+        key = entry.group_key or f"entry:{entry.id}"
+        bucket = totals.setdefault(key, [Decimal("0"), Decimal("0")])
+        bucket[0] += entry.debit
+        bucket[1] += entry.credit
+        labels.setdefault(key, entry.label or key)
+
+    unbalanced = [
+        (labels[key], debit - credit) for key, (debit, credit) in totals.items() if debit != credit
+    ]
+    unbalanced.sort(key=lambda item: abs(item[1]), reverse=True)
+    return unbalanced[:_MAX_REPORTED_UNBALANCED_GROUPS]
+
+
 async def pre_close_checks(db: AsyncSession, fy: FiscalYear) -> list[str]:
     """Run sanity checks before closing a fiscal year.
 
@@ -141,6 +167,10 @@ async def pre_close_checks(db: AsyncSession, fy: FiscalYear) -> list[str]:
         warnings.append(
             f"Balance déséquilibrée : total débit {total_debit} ≠ total crédit {total_credit}."
         )
+        # Naming the offending documents turns an unusable total into something
+        # actionable — the imbalance always comes from a handful of groups.
+        for label, gap in _unbalanced_groups(entries):
+            warnings.append(f"  ↳ {label} : écart de {gap}.")
 
     # Check 2: entries without fiscal year assigned (orphans)
     orphans = await db.execute(

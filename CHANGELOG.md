@@ -11,6 +11,10 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Corrigé
+- **TEC-220** — **Une remise sur facture pouvait déséquilibrer la comptabilité**. Les écritures d'une facture client sont ventilées par nature de ligne (cours, adhésion, autre) : le débit client prenait le **total net**, mais les crédits n'étaient générés que pour les natures au montant **positif**. Une ligne de remise classée dans une nature distincte de la ligne qu'elle réduit était donc purement ignorée au crédit, produisant un écart égal au montant de la remise (cas réel : facture 2026-0125, 24 € d'écart révélés un mois plus tard par la balance de clôture). La ventilation couvre désormais **toutes** les natures non nulles, une nature négative produisant un **débit** au compte de produit — la traduction comptable d'une remise. Le filtre « positif » reste utilisé pour dériver le libellé de la facture, son usage légitime.
+- **TEC-221** — **Garde-fou sur les écritures déséquilibrées**. Le moteur journalise désormais une erreur explicite si un groupe d'écritures est écrit avec des débits différents des crédits, au lieu de le laisser filer silencieusement. Et les **vérifications avant clôture** ne se contentent plus d'annoncer un total déséquilibré : elles **nomment les documents fautifs** et leur écart, ce qui transforme un chiffre inexploitable en piste actionnable.
+
 ### Ajouté
 - **BIZ-231** — **Bascule « Tout l'historique » sur les écrans Factures et Paiements**, à l'image de celle de la caisse. Ces écrans bornent leurs listes à l'exercice sélectionné : une facture ou un règlement daté hors de cet exercice — ou hors de tout exercice, cas classique au changement d'année — n'apparaissait nulle part, sans indication. La bascule lève le filtre de dates et recharge sans borne (factures client, factures fournisseur, paiements).
 
