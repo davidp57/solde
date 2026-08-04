@@ -662,6 +662,42 @@ async def test_cancel_payment_removes_accounting_entries(db_session: AsyncSessio
 
 
 @pytest.mark.asyncio
+async def test_cancel_cash_payment_removes_it_from_the_till(db_session: AsyncSession) -> None:
+    """Cash sits in the till, not at the bank: a mistyped receipt stays correctable."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
+    payment = await payment_service.create_payment(
+        db_session,
+        PaymentCreate(
+            invoice_id=inv.id,
+            contact_id=contact.id,
+            amount=Decimal("100.00"),
+            date=date(2024, 2, 1),
+            method=PaymentMethod.ESPECES,
+        ),
+    )
+    assert payment.deposited is True  # cash is marked deposited from creation
+
+    preview = await payment_service.preview_payment_cancellation(db_session, payment.id)
+    assert preview.can_cancel is True
+
+    await payment_service.cancel_payment(db_session, payment.id)
+
+    assert await payment_service.get_payment(db_session, payment.id) is None
+    till = list(
+        (
+            await db_session.execute(
+                select(CashRegister).where(CashRegister.payment_id == payment.id)
+            )
+        ).scalars()
+    )
+    assert till == []
+    refreshed = (await db_session.execute(select(Invoice).where(Invoice.id == inv.id))).scalar_one()
+    assert refreshed.paid_amount == Decimal("0.00")
+    assert refreshed.status != InvoiceStatus.PAID
+
+
+@pytest.mark.asyncio
 async def test_cancel_payment_refused_when_deposited(db_session: AsyncSession) -> None:
     """A cheque already cashed in at the bank cannot be cancelled."""
     contact = await _make_contact(db_session)

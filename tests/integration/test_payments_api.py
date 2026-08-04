@@ -7,6 +7,7 @@ from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.contact import Contact, ContactType
@@ -361,11 +362,20 @@ async def test_delete_payment(
     assert get_resp.status_code == 404
 
 
+async def _mark_deposited(db: AsyncSession, payment_id: int) -> None:
+    """Flag a payment as cashed in at the bank, as a confirmed deposit would."""
+    from backend.models.payment import Payment
+
+    payment = (await db.execute(select(Payment).where(Payment.id == payment_id))).scalar_one()
+    payment.deposited = True
+    await db.flush()
+
+
 @pytest.mark.asyncio
 async def test_cancel_payment_refused_when_deposited(
     client: AsyncClient, db_session: AsyncSession, admin_user: User, auth_headers: dict
 ) -> None:
-    """A cashed-in payment is refused with its machine-readable reason code."""
+    """A cheque cashed in at the bank is refused with its machine-readable reason code."""
     contact_id, invoice_id = await _setup_contact_invoice(db_session)
     create_resp = await client.post(
         "/api/payments/",
@@ -374,11 +384,12 @@ async def test_cancel_payment_refused_when_deposited(
             "contact_id": contact_id,
             "amount": "60.00",
             "date": "2024-03-01",
-            "method": "especes",
+            "method": "cheque",
         },
         headers=auth_headers,
     )
     payment_id = create_resp.json()["id"]
+    await _mark_deposited(db_session, payment_id)
 
     del_resp = await client.delete(f"/api/payments/{payment_id}", headers=auth_headers)
 
@@ -386,6 +397,33 @@ async def test_cancel_payment_refused_when_deposited(
     assert del_resp.json()["detail"]["code"] == "PAYMENT_DEPOSITED"
     get_resp = await client.get(f"/api/payments/{payment_id}", headers=auth_headers)
     assert get_resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_cancel_cash_payment_is_allowed(
+    client: AsyncClient, db_session: AsyncSession, admin_user: User, auth_headers: dict
+) -> None:
+    """Cash is in the till, not at the bank — a mistyped receipt can still be undone."""
+    contact_id, invoice_id = await _setup_contact_invoice(db_session)
+    payment_id = (
+        await client.post(
+            "/api/payments/",
+            json={
+                "invoice_id": invoice_id,
+                "contact_id": contact_id,
+                "amount": "60.00",
+                "date": "2024-03-01",
+                "method": "especes",
+            },
+            headers=auth_headers,
+        )
+    ).json()["id"]
+
+    del_resp = await client.delete(f"/api/payments/{payment_id}", headers=auth_headers)
+
+    assert del_resp.status_code == 204
+    get_resp = await client.get(f"/api/payments/{payment_id}", headers=auth_headers)
+    assert get_resp.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -463,7 +501,12 @@ async def test_cancel_preview_reports_eligibility(
     assert ok.json()["reason_code"] is None
     assert ok.json()["deposit_id"] is None
 
-    ko = await client.get(f"/api/payments/{cash_id}/cancel-preview", headers=auth_headers)
+    cash_preview = await client.get(f"/api/payments/{cash_id}/cancel-preview", headers=auth_headers)
+    assert cash_preview.status_code == 200
+    assert cash_preview.json()["can_cancel"] is True
+
+    await _mark_deposited(db_session, cheque_id)
+    ko = await client.get(f"/api/payments/{cheque_id}/cancel-preview", headers=auth_headers)
     assert ko.status_code == 200
     assert ko.json()["can_cancel"] is False
     assert ko.json()["reason_code"] == "PAYMENT_DEPOSITED"
