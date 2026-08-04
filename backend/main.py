@@ -224,6 +224,21 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     await init_db()
 
+    # Top up the chart of accounts: the seed is idempotent, and a database
+    # created before an account was added to DEFAULT_ACCOUNTS would otherwise
+    # never receive it. The engine writes on those numbers regardless, and an
+    # account missing from the chart is invisible to both the closing entry and
+    # the carry-forward — it silently unbalances the year.
+    try:
+        from backend.services.accounting_account import seed_default_accounts
+
+        async with get_session() as db:
+            inserted = await seed_default_accounts(db)
+            if inserted:
+                logger.info("Chart of accounts topped up: %d account(s) added", inserted)
+    except Exception:
+        logger.warning("Chart of accounts top-up failed", exc_info=True)
+
     # Start scheduler and configure job based on current settings
     start_scheduler()
     try:

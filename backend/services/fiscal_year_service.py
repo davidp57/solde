@@ -182,7 +182,29 @@ async def pre_close_checks(db: AsyncSession, fy: FiscalYear) -> list[str]:
         for label, gap in _unbalanced_groups(entries):
             warnings.append(f"  ↳ {label} : écart de {gap}.")
 
-    # Check 2: entries with no fiscal year *whose date falls in this period*.
+    # Check 2: accounts written to but absent from the chart of accounts.
+    # Such an account is invisible to both the closing entry (which only knows
+    # charge/revenue accounts) and the carry-forward (balance sheet accounts):
+    # its balance hangs in the void and unbalances the year by exactly that much.
+    from backend.models.accounting_account import AccountingAccount  # noqa: PLC0415
+
+    unknown_result = await db.execute(
+        select(
+            AccountingEntry.account_number,
+            func.sum(AccountingEntry.debit) - func.sum(AccountingEntry.credit),
+        )
+        .outerjoin(AccountingAccount, AccountingAccount.number == AccountingEntry.account_number)
+        .where(AccountingEntry.fiscal_year_id == fy.id, AccountingAccount.number.is_(None))
+        .group_by(AccountingEntry.account_number)
+        .order_by(AccountingEntry.account_number)
+    )
+    for account_number, solde in unknown_result.all():
+        warnings.append(
+            f"Compte {account_number} absent du plan comptable "
+            f"(solde {Decimal(str(solde or 0))}) — il ne sera ni soldé ni reporté."
+        )
+
+    # Check 3: entries with no fiscal year *whose date falls in this period*.
     # Orphans dated outside it (imported history, entries written before the next
     # year was opened) carry no weight in this closing: they are excluded from the
     # result and from the balance. Reporting them would raise an alarm every year

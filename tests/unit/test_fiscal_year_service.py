@@ -222,6 +222,104 @@ class TestPreCloseUnbalancedGroups:
         assert any("Fact. 2026-0125" in w and "-24.00" in w for w in warnings)
 
 
+class TestPreCloseUnknownAccounts:
+    @pytest.mark.asyncio
+    async def test_reports_an_account_missing_from_the_chart(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Production case: 654000 was written to but never added to the chart.
+
+        Such an account is invisible to the closing entry and to the
+        carry-forward alike, so its balance silently unbalances the year — which
+        only surfaced when opening the next one was refused.
+        """
+        from backend.models.accounting_account import AccountingAccount, AccountType
+
+        fy = await _create_fy(db_session, "2025", date(2025, 8, 1), date(2026, 7, 31))
+        db_session.add(
+            AccountingAccount(
+                number="411100", label="Clients", type=AccountType.ACTIF, is_active=True
+            )
+        )
+        db_session.add_all(
+            [
+                AccountingEntry(
+                    entry_number="000030",
+                    date=date(2026, 4, 26),
+                    account_number="654000",
+                    label="Créance irrécouvrable",
+                    debit=Decimal("170.50"),
+                    credit=Decimal("0"),
+                    fiscal_year_id=fy.id,
+                    source_type=EntrySourceType.WRITE_OFF,
+                ),
+                AccountingEntry(
+                    entry_number="000031",
+                    date=date(2026, 4, 26),
+                    account_number="411100",
+                    label="Créance irrécouvrable",
+                    debit=Decimal("0"),
+                    credit=Decimal("170.50"),
+                    fiscal_year_id=fy.id,
+                    source_type=EntrySourceType.WRITE_OFF,
+                ),
+            ]
+        )
+        await db_session.commit()
+
+        warnings = await pre_close_checks(db_session, fy)
+
+        assert any("654000" in w and "absent du plan comptable" in w for w in warnings)
+        assert any("170.50" in w for w in warnings)
+
+    @pytest.mark.asyncio
+    async def test_stays_silent_when_every_account_is_declared(
+        self, db_session: AsyncSession
+    ) -> None:
+        from backend.models.accounting_account import AccountingAccount, AccountType
+
+        fy = await _create_fy(db_session, "2025", date(2025, 8, 1), date(2026, 7, 31))
+        db_session.add_all(
+            [
+                AccountingAccount(
+                    number="654000", label="Pertes", type=AccountType.CHARGE, is_active=True
+                ),
+                AccountingAccount(
+                    number="411100", label="Clients", type=AccountType.ACTIF, is_active=True
+                ),
+            ]
+        )
+        db_session.add_all(
+            [
+                AccountingEntry(
+                    entry_number="000032",
+                    date=date(2026, 4, 26),
+                    account_number="654000",
+                    label="Créance irrécouvrable",
+                    debit=Decimal("170.50"),
+                    credit=Decimal("0"),
+                    fiscal_year_id=fy.id,
+                    source_type=EntrySourceType.WRITE_OFF,
+                ),
+                AccountingEntry(
+                    entry_number="000033",
+                    date=date(2026, 4, 26),
+                    account_number="411100",
+                    label="Créance irrécouvrable",
+                    debit=Decimal("0"),
+                    credit=Decimal("170.50"),
+                    fiscal_year_id=fy.id,
+                    source_type=EntrySourceType.WRITE_OFF,
+                ),
+            ]
+        )
+        await db_session.commit()
+
+        warnings = await pre_close_checks(db_session, fy)
+
+        assert not any("absent du plan comptable" in w for w in warnings)
+
+
 class TestPreCloseOrphanScope:
     async def _add_orphan(self, db: AsyncSession, when: date, label: str, number: str) -> None:
         db.add(
@@ -700,7 +798,21 @@ class TestAdministrativeCloseFiscalYear:
 class TestPreCloseChecks:
     @pytest.mark.asyncio
     async def test_returns_empty_for_balanced_open_fy(self, db_session: AsyncSession) -> None:
+        from backend.models.accounting_account import AccountingAccount, AccountType
+
         fy = await _create_fy(db_session)
+        # Declared accounts: an account missing from the chart is a warning of
+        # its own, and this case is meant to raise none.
+        db_session.add_all(
+            [
+                AccountingAccount(
+                    number="512000", label="Banque", type=AccountType.ACTIF, is_active=True
+                ),
+                AccountingAccount(
+                    number="411000", label="Clients", type=AccountType.ACTIF, is_active=True
+                ),
+            ]
+        )
         # Balanced entry pair
         db_session.add(
             AccountingEntry(
