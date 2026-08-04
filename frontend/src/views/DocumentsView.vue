@@ -112,6 +112,17 @@
           <template #body="{ data }">
             <div class="document-actions">
               <Button
+                v-if="canPreview(data)"
+                icon="pi pi-eye"
+                severity="secondary"
+                outlined
+                size="small"
+                :aria-label="t('documents.preview')"
+                :title="t('documents.preview')"
+                data-testid="document-preview-open"
+                @click="openPreview(data)"
+              />
+              <Button
                 icon="pi pi-download"
                 severity="secondary"
                 outlined
@@ -202,6 +213,12 @@
       </template>
     </Dialog>
 
+    <DocumentPreviewDialog
+      v-model:visible="previewVisible"
+      :document="previewTarget"
+      @download="previewTarget && download(previewTarget)"
+    />
+
     <ConfirmDialog />
   </AppPage>
 </template>
@@ -236,8 +253,10 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppTableSkeleton from '../components/ui/AppTableSkeleton.vue'
+import DocumentPreviewDialog from '../components/documents/DocumentPreviewDialog.vue'
 import { useAuthStore } from '../stores/auth'
 import { useFiscalYearStore } from '../stores/fiscalYear'
+import { previewKind } from '../utils/documentPreview'
 import { downloadAuthenticatedFile } from '../utils/downloadFile'
 import { getErrorDetail } from '../utils/errorUtils'
 
@@ -257,6 +276,8 @@ const search = ref('')
 const fiscalYearFilter = ref<number | 'all' | 'none'>('all')
 const tagFilter = ref<string | null>(null)
 
+const previewVisible = ref(false)
+const previewTarget = ref<AppDocument | null>(null)
 const uploadDialogVisible = ref(false)
 const editingId = ref<number | null>(null)
 const selectedFile = ref<File | null>(null)
@@ -471,6 +492,15 @@ async function submit(): Promise<void> {
   } finally {
     saving.value = false
   }
+}
+
+function canPreview(item: AppDocument): boolean {
+  return previewKind(item) !== 'unsupported'
+}
+
+function openPreview(item: AppDocument): void {
+  previewTarget.value = item
+  previewVisible.value = true
 }
 
 async function download(item: AppDocument): Promise<void> {

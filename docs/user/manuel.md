@@ -673,6 +673,20 @@ Tout le monde peut consulter et télécharger. Le dépôt, la modification et la
 
 > Les étiquettes déjà utilisées sont rappelées sous le champ : les reprendre plutôt que d'en inventer une variante évite de se retrouver avec « AG » d'un côté et « assemblée générale » de l'autre. La casse et les espaces sont normalisés automatiquement.
 
+### Consulter un document sans le télécharger
+
+L'icône **œil** ouvre un aperçu dans l'application, pour les formats que le navigateur sait afficher :
+
+| Format | Aperçu |
+|---|---|
+| PDF | Le document, dans une visionneuse intégrée |
+| Images (JPEG, PNG, WebP) | L'image |
+| Markdown (`.md`) | Le texte mis en forme — titres, listes, tableaux |
+| Texte, CSV, JSON, XML | Le contenu brut |
+| Word, Excel, archives | Pas d'aperçu — l'icône n'apparaît pas, seul le téléchargement est proposé |
+
+Sur mobile, l'aperçu d'un PDF s'ouvre dans un onglet, les navigateurs mobiles l'affichant mal en fenêtre.
+
 ### Retrouver un document
 
 Trois filtres se combinent : la **recherche** (titre, notes, nom de fichier), l'**exercice** — dont « Sans exercice » pour les pièces intemporelles comme les statuts — et l'**étiquette**.
