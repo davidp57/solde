@@ -8,6 +8,8 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Tous les utilisateurs
 
+- **Factures et paiements se mettent à jour immédiatement** — comme l'écran Documents en 1.16.2, ces écrans ne montraient pas toujours le résultat d'une action (facture créée, supprimée, règlement annulé) sans recharger la page. C'est corrigé pour les trois écrans.
+
 - **Aperçu des documents** — l'icône œil affiche le document directement dans l'application : PDF, images, Markdown mis en forme et fichiers texte. Les formats que le navigateur ne sait pas afficher (Word, Excel) restent en téléchargement seul.
 
 - **Documents Markdown acceptés** — les fichiers `.md` (ainsi que `.json`, `.xml` et `.log`) étaient refusés au dépôt.

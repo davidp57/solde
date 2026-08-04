@@ -16,9 +16,12 @@ vi.mock('primevue/usetoast', () => ({
   }),
 }))
 
+let confirmAccept: (() => Promise<void> | void) | null = null
 vi.mock('primevue/useconfirm', () => ({
   useConfirm: () => ({
-    require: vi.fn(),
+    require: (options: { accept: () => Promise<void> | void }) => {
+      confirmAccept = options.accept
+    },
   }),
 }))
 
@@ -88,10 +91,11 @@ vi.mock('../../api/payments', () => ({
 
 import ClientInvoicesView from '../../views/ClientInvoicesView.vue'
 import { listContactsApi } from '../../api/contacts'
-import { listInvoicesApi, listInvoicesWithCountApi } from '../../api/invoices'
+import { deleteInvoiceApi, listInvoicesApi, listInvoicesWithCountApi } from '../../api/invoices'
 import { createPayment, listPayments } from '../../api/payments'
 
 const mockListContactsApi = vi.mocked(listContactsApi)
+const mockDeleteInvoiceApi = vi.mocked(deleteInvoiceApi)
 const mockListInvoicesApi = vi.mocked(listInvoicesApi)
 const mockListInvoicesWithCountApi = vi.mocked(listInvoicesWithCountApi)
 const mockListPayments = vi.mocked(listPayments)
@@ -547,5 +551,37 @@ describe('ClientInvoicesView — history dialog navigation', () => {
     expect(prevButtons.length).toBeGreaterThanOrEqual(1)
     // All Previous buttons must be disabled at index 0
     expect(prevButtons.every((btn) => btn.element.disabled)).toBe(true)
+  })
+
+  it('drops a deleted invoice even when the list would answer stale', async () => {
+    confirmAccept = null
+    mockDeleteInvoiceApi.mockResolvedValue(undefined as never)
+    const wrapper = mountView()
+    await flushView()
+    expect(wrapper.text()).toContain(invoiceFixture.number)
+    // Any later list fetch keeps returning the invoice as if nothing happened.
+    mockListInvoicesWithCountApi.mockResolvedValue({ items: [invoiceFixture], total: 1 } as never)
+
+    const vm = wrapper.vm as unknown as { confirmDelete: (invoice: typeof invoiceFixture) => void }
+    vm.confirmDelete(invoiceFixture)
+    await confirmAccept?.()
+    await flushView()
+
+    expect(mockDeleteInvoiceApi).toHaveBeenCalledWith(invoiceFixture.id)
+    expect(wrapper.text()).not.toContain(invoiceFixture.number)
+  })
+
+  it('shows a saved invoice without asking for the list again', async () => {
+    const wrapper = mountView()
+    await flushView()
+    mockListInvoicesWithCountApi.mockClear()
+
+    const created = { ...invoiceFixture, id: 999, number: '2026-0999' }
+    const vm = wrapper.vm as unknown as { onSaved: (invoice: typeof invoiceFixture) => void }
+    vm.onSaved(created)
+    await flushView()
+
+    expect(wrapper.text()).toContain('2026-0999')
+    expect(mockListInvoicesWithCountApi).not.toHaveBeenCalled()
   })
 })

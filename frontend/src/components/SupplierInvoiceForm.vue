@@ -112,7 +112,7 @@ const props = defineProps<{
   contacts: Contact[]
 }>()
 const emit = defineEmits<{
-  saved: []
+  saved: [invoice: Invoice]
   cancel: []
 }>()
 
@@ -243,12 +243,10 @@ async function submit() {
       total_amount: String(form.total_amount),
       description: form.description || null,
     }
-    if (props.invoice) {
-      await updateInvoiceApi(props.invoice.id, payload)
-    } else {
-      await createInvoiceApi(payload)
-    }
-    emit('saved')
+    const savedInvoice = props.invoice
+      ? await updateInvoiceApi(props.invoice.id, payload)
+      : await createInvoiceApi(payload)
+    emit('saved', savedInvoice)
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 422) {
       const detail = error.response.data?.detail
