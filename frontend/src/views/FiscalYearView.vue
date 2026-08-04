@@ -378,6 +378,7 @@ import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { formatDisplayDate } from '@/utils/format'
+import { getErrorDetail } from '@/utils/errorUtils'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
@@ -462,8 +463,12 @@ async function createFY() {
     showDialog.value = false
     form.value = { name: '', start_date: '', end_date: '' }
     await load()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: getErrorDetail(error, t('common.error.unknown')),
+      life: 8000,
+    })
   } finally {
     saving.value = false
   }
@@ -497,8 +502,12 @@ async function doClose() {
       life: 3000,
     })
     await load()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: getErrorDetail(error, t('common.error.unknown')),
+      life: 8000,
+    })
   } finally {
     closing.value = false
   }
@@ -553,8 +562,12 @@ async function doOpenNext() {
       life: 4000,
     })
     await load()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: getErrorDetail(error, t('common.error.unknown')),
+      life: 8000,
+    })
   } finally {
     openingNext.value = false
   }
@@ -576,8 +589,12 @@ function confirmAdministrativeClose(fy: FiscalYearRead) {
           life: 3000,
         })
         await load()
-      } catch {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+      } catch (error) {
+        toast.add({
+          severity: 'error',
+          summary: getErrorDetail(error, t('common.error.unknown')),
+          life: 8000,
+        })
       }
     },
   })
