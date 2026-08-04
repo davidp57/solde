@@ -8,6 +8,8 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Tous les utilisateurs
 
+- **Aperçu des documents** — l'icône œil affiche le document directement dans l'application : PDF, images, Markdown mis en forme et fichiers texte. Les formats que le navigateur ne sait pas afficher (Word, Excel) restent en téléchargement seul.
+
 - **Documents Markdown acceptés** — les fichiers `.md` (ainsi que `.json`, `.xml` et `.log`) étaient refusés au dépôt.
 - **Le document déposé apparaît immédiatement** — la liste ne se mettait pas toujours à jour après un dépôt, alors que le fichier était bien enregistré. Elle s'appuie maintenant sur la réponse du serveur au lieu de l'interroger une seconde fois. Idem après une modification ou une suppression.
 

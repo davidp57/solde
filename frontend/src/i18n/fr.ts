@@ -772,6 +772,11 @@ export default {
     uploaded_at: 'Déposé le',
     size: 'Taille',
     download: 'Télécharger',
+    preview: 'Aperçu',
+    preview_open_tab: "Ouvrir l'aperçu dans un onglet",
+    preview_unsupported:
+      "Ce format ne s'affiche pas dans le navigateur. Téléchargez le fichier pour le consulter.",
+    preview_failed: "L'aperçu n'a pas pu être chargé.",
     search_placeholder: 'Titre, notes ou nom de fichier…',
     empty: 'Aucun document ne correspond aux filtres actuels.',
     uploaded: 'Document déposé.',

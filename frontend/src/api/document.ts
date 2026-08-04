@@ -87,3 +87,9 @@ export async function deleteDocumentApi(id: number): Promise<void> {
 export function getDocumentDownloadUrl(id: number): string {
   return `/api/documents/${id}/download`
 }
+
+/** Fetch the stored bytes through the authenticated client, for in-app preview. */
+export async function fetchDocumentBlobApi(id: number): Promise<Blob> {
+  const response = await apiClient.get(getDocumentDownloadUrl(id), { responseType: 'blob' })
+  return response.data as Blob
+}
