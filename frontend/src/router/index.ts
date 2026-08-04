@@ -70,6 +70,12 @@ const router = createRouter({
           meta: { requiresManagement: true, label: 'nav.payments' },
         },
         {
+          path: 'documents',
+          name: 'documents',
+          component: () => import('../views/DocumentsView.vue'),
+          meta: { label: 'nav.documents' },
+        },
+        {
           path: 'cash',
           name: 'cash',
           component: () => import('../views/CashView.vue'),

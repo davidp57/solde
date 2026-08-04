@@ -18,9 +18,10 @@ Il est destiné aux utilisateurs disposant d'un rôle **Gestionnaire**, **Compta
 9. [Salaires et employés](#9-salaires-et-employés)
 10. [Comptabilité](#10-comptabilité)
 11. [Exercices comptables](#11-exercices-comptables)
-12. [Mon profil](#12-mon-profil)
-13. [Paramètres (administrateur)](#13-paramètres-administrateur)
-14. [Guide par rôle — « Je veux… »](#guide-par-rôle-je-veux)
+12. [Documents](#12-documents)
+13. [Mon profil](#13-mon-profil)
+14. [Paramètres (administrateur)](#14-paramètres-administrateur)
+15. [Guide par rôle — « Je veux… »](#guide-par-rôle-je-veux)
 
 ---
 
@@ -656,7 +657,37 @@ Le bouton n'apparaît plus dès qu'un exercice postérieur existe, pour éviter 
 
 ---
 
-## 12. Mon profil
+## 12. Documents
+
+**Accueil → Documents.** Un espace pour les pièces qui n'appartiennent à aucune facture : statuts, procès-verbaux d'assemblée générale, attestations d'assurance, conventions, bilans et comptes de résultat signés.
+
+Tout le monde peut consulter et télécharger. Le dépôt, la modification et la suppression sont réservés aux gestionnaires, trésoriers et administrateurs.
+
+### Déposer un document
+
+1. Cliquer sur **Déposer un document**.
+2. Choisir le fichier — PDF, image, Excel, Word, CSV ou texte, **20 Mo maximum**.
+3. Donner un **titre** : c'est lui qu'on lira dans la liste, pas le nom du fichier. Le titre se pré-remplit avec le nom du fichier, à corriger si besoin (« scan_0042 » ne se retrouve pas, « PV assemblée générale 2026 » si).
+4. Facultatif : rattacher un **exercice**, poser des **étiquettes** séparées par des virgules, ajouter des **notes**.
+5. Valider.
+
+> Les étiquettes déjà utilisées sont rappelées sous le champ : les reprendre plutôt que d'en inventer une variante évite de se retrouver avec « AG » d'un côté et « assemblée générale » de l'autre. La casse et les espaces sont normalisés automatiquement.
+
+### Retrouver un document
+
+Trois filtres se combinent : la **recherche** (titre, notes, nom de fichier), l'**exercice** — dont « Sans exercice » pour les pièces intemporelles comme les statuts — et l'**étiquette**.
+
+### Modifier ou supprimer
+
+Le crayon permet de corriger le titre, l'exercice, les étiquettes et les notes. **Le fichier lui-même ne se remplace pas** : pour une nouvelle version, déposer un nouveau document.
+
+La corbeille supprime la fiche **et le fichier**, après confirmation. L'opération est définitive.
+
+> **Sauvegarde** : les fichiers déposés vivent dans le volume de données, aux côtés des PDF de factures. La sauvegarde intégrée à l'application ne couvre que la base ; c'est la sauvegarde du NAS qui protège les fichiers.
+
+---
+
+## 13. Mon profil
 
 ### Modifier ses informations
 
@@ -675,7 +706,7 @@ Le nouveau mot de passe doit respecter la politique : minimum 8 caractères, au 
 
 ---
 
-## 13. Paramètres (administrateur)
+## 14. Paramètres (administrateur)
 
 *Cette section est réservée aux utilisateurs ayant le rôle **Administrateur**.*
 
@@ -759,7 +790,7 @@ Permet de gérer les comptes utilisateurs : créer un compte, modifier le rôle,
 
 ---
 
-## 14. Guide par rôle — « Je veux… »
+## 15. Guide par rôle — « Je veux… »
 
 Ce guide recense les actions courantes par rôle et renvoie vers la section correspondante du manuel.
 
@@ -777,7 +808,7 @@ Ce guide recense les actions courantes par rôle et renvoie vers la section corr
 | Télécharger le PDF d'une facture | [4. Factures clients — Télécharger le PDF](#télécharger-le-pdf) |
 | Modifier ou supprimer une facture | [4. Factures clients — Modifier une facture](#modifier-une-facture) |
 | Créer un avoir (note de crédit) | [4. Factures clients](#4-factures-clients) |
-| Modifier mon profil ou mon mot de passe | [12. Mon profil](#12-mon-profil) |
+| Modifier mon profil ou mon mot de passe | [13. Mon profil](#13-mon-profil) |
 
 ### Trésorier
 

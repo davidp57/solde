@@ -30,6 +30,7 @@ for module_name in (
     "backend.models.cash",
     "backend.models.contact",
     "backend.models.contact_email",
+    "backend.models.document",
     "backend.models.fiscal_year",
     "backend.models.import_log",
     "backend.models.invoice",
