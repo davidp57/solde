@@ -11,6 +11,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **BIZ-231** — **Bascule « Tout l'historique » sur les écrans Factures et Paiements**, à l'image de celle de la caisse. Ces écrans bornent leurs listes à l'exercice sélectionné : une facture ou un règlement daté hors de cet exercice — ou hors de tout exercice, cas classique au changement d'année — n'apparaissait nulle part, sans indication. La bascule lève le filtre de dates et recharge sans borne (factures client, factures fournisseur, paiements).
+
 ### Modifié
 - **CHR-020** — **Image Docker construite aussi sur `develop`**. Chaque merge sur `develop` publie désormais une image de test `ghcr.io/davidp57/solde:develop`, déployable sur le NAS via `SOLDE_IMAGE`. Le tag `latest` — celui que tire la production par défaut — reste **réservé à `main`** : sans cette restriction, un build depuis `develop` aurait silencieusement envoyé une image de test en production au prochain `docker pull`. Chaque branche construite reçoit en plus un tag à son nom, et le tag `sha-<court>` permet d'épingler un commit précis.
 
