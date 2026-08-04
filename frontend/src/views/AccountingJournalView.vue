@@ -656,6 +656,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import type { MenuItem } from 'primevue/menuitem'
 import { useToast } from 'primevue/usetoast'
+import { downloadAuthenticatedFile } from '../utils/downloadFile'
 import {
   createManualEntryApi,
   getExportCsvUrl,
@@ -1049,14 +1050,18 @@ async function saveManualEntry() {
   }
 }
 
-function downloadCsv() {
+async function downloadCsv() {
   const url = getExportCsvUrl('journal', {
     from_date: filters.value.from_date || undefined,
     to_date: filters.value.to_date || undefined,
     account_number: filters.value.account_number || undefined,
     fiscal_year_id: selectedFiscalYearId.value,
   })
-  window.open(url, '_blank')
+  try {
+    await downloadAuthenticatedFile(url, 'journal.csv')
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  }
 }
 
 watch(

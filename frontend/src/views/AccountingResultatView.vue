@@ -3,51 +3,44 @@
     <AppPageHeader
       :eyebrow="t('ui.page.accounting_eyebrow')"
       :title="t('accounting.resultat.title')"
-    />
+    >
+      <template #actions>
+        <div class="app-page-header__actions">
+          <Select
+            v-model="fiscalYearId"
+            :options="fiscalYears"
+            option-label="name"
+            option-value="id"
+            :placeholder="t('accounting.fiscalYear.name')"
+            class="w-48"
+            @change="load"
+          />
+          <Button
+            :label="t('common.export_csv')"
+            icon="pi pi-download"
+            severity="secondary"
+            outlined
+            @click="downloadCsv"
+          />
+          <Button
+            :label="t('common.export_pdf')"
+            icon="pi pi-file-pdf"
+            severity="secondary"
+            outlined
+            @click="downloadPdf"
+          />
+          <Button
+            :label="t('common.export_excel')"
+            icon="pi pi-file-excel"
+            severity="secondary"
+            outlined
+            @click="doExportExcel"
+          />
+        </div>
+      </template>
+    </AppPageHeader>
 
     <AppPanel :title="t('accounting.resultat.title')" dense>
-      <div class="app-toolbar">
-        <div class="app-filter-grid">
-          <div class="app-field">
-            <label class="app-field__label">{{ t('accounting.journal.filter_fiscal_year') }}</label>
-            <Select
-              v-model="fiscalYearId"
-              :options="fiscalYears"
-              option-label="name"
-              option-value="id"
-              :placeholder="t('common.all')"
-              @change="load"
-            />
-          </div>
-          <div class="app-field">
-            <label class="app-field__label">{{ t('common.search') }}</label>
-            <Button :label="t('common.search')" icon="pi pi-refresh" @click="load" />
-          </div>
-          <div class="app-field">
-            <label class="app-field__label">&nbsp;</label>
-            <Button
-              :label="t('common.export_pdf')"
-              icon="pi pi-file-pdf"
-              severity="secondary"
-              outlined
-              size="small"
-              @click="downloadPdf"
-            />
-          </div>
-          <div class="app-field">
-            <label class="app-field__label">&nbsp;</label>
-            <Button
-              :label="t('common.export_excel')"
-              icon="pi pi-file-excel"
-              severity="secondary"
-              outlined
-              size="small"
-              @click="doExportExcel"
-            />
-          </div>
-        </div>
-      </div>
-
       <div v-if="resultat" class="resultat-grid">
         <!-- Charges -->
         <AppPanel :title="t('accounting.resultat.charges')" dense>
@@ -173,7 +166,9 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
-import { getExportPdfUrl, getResultatApi, type ResultatRead } from '../api/accounting'
+import { getExportCsvUrl, getExportPdfUrl, getResultatApi, type ResultatRead } from '../api/accounting'
+import { downloadAuthenticatedFile } from '../utils/downloadFile'
+import { useToast } from 'primevue/usetoast'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
@@ -181,6 +176,7 @@ import { formatAccountingAmount } from '../utils/format'
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
+const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 const { exportToExcel } = useTableExport()
 const exportColumns: ExportColumn[] = [
@@ -191,8 +187,20 @@ const exportColumns: ExportColumn[] = [
 const exportRows = computed(() =>
   resultat.value ? [...resultat.value.charges, ...resultat.value.produits] : []
 )
-function downloadPdf(): void {
-  window.open(getExportPdfUrl('resultat', { fiscal_year_id: fiscalYearId.value }), '_blank')
+async function downloadCsv(): Promise<void> {
+  await download(getExportCsvUrl('resultat', { fiscal_year_id: fiscalYearId.value }), 'resultat.csv')
+}
+
+async function downloadPdf(): Promise<void> {
+  await download(getExportPdfUrl('resultat', { fiscal_year_id: fiscalYearId.value }), 'resultat.pdf')
+}
+
+async function download(url: string, fallbackFilename: string): Promise<void> {
+  try {
+    await downloadAuthenticatedFile(url, fallbackFilename)
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  }
 }
 
 function doExportExcel(): void {
