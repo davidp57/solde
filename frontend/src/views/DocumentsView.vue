@@ -389,6 +389,42 @@ function splitTags(raw: string): string[] {
     .filter(Boolean)
 }
 
+/**
+ * Show what the server just returned, without waiting for the list to be fetched again.
+ *
+ * The reload still runs behind this, but the screen no longer depends on it: whatever
+ * delays or intercepts that second request, the row the user just created is on screen.
+ */
+function applyLocally(document: AppDocument): void {
+  const index = documents.value.findIndex((candidate) => candidate.id === document.id)
+  if (index >= 0) {
+    documents.value[index] = document
+    return
+  }
+  if (matchesActiveFilters(document)) {
+    documents.value = [document, ...documents.value]
+    total.value += 1
+  }
+}
+
+/** Report whether a document belongs on screen given the filters currently applied. */
+function matchesActiveFilters(document: AppDocument): boolean {
+  if (fiscalYearFilter.value === 'none' && document.fiscal_year_id !== null) return false
+  if (
+    typeof fiscalYearFilter.value === 'number' &&
+    document.fiscal_year_id !== fiscalYearFilter.value
+  ) {
+    return false
+  }
+  if (tagFilter.value && !document.tags.includes(tagFilter.value)) return false
+  if (search.value) {
+    const needle = search.value.toLowerCase()
+    const haystack = [document.title, document.notes ?? '', document.filename].join(' ').toLowerCase()
+    if (!haystack.includes(needle)) return false
+  }
+  return true
+}
+
 async function submit(): Promise<void> {
   if (!form.value.title.trim()) {
     toast.add({ severity: 'warn', summary: t('documents.title_required'), life: 3000 })
@@ -402,25 +438,30 @@ async function submit(): Promise<void> {
   saving.value = true
   try {
     if (editingId.value !== null) {
-      await updateDocumentApi(editingId.value, {
+      const updated = await updateDocumentApi(editingId.value, {
         title: form.value.title.trim(),
         fiscal_year_id: form.value.fiscal_year_id,
         tags: splitTags(form.value.tags),
         notes: form.value.notes || null,
       })
+      applyLocally(updated)
       toast.add({ severity: 'success', summary: t('documents.updated'), life: 3000 })
     } else {
-      await uploadDocumentApi({
+      const created = await uploadDocumentApi({
         file: selectedFile.value as File,
         title: form.value.title.trim(),
         fiscal_year_id: form.value.fiscal_year_id,
         tags: splitTags(form.value.tags),
         notes: form.value.notes || null,
       })
+      applyLocally(created)
       toast.add({ severity: 'success', summary: t('documents.uploaded'), life: 3000 })
     }
     uploadDialogVisible.value = false
-    await refresh()
+    // The server just told us exactly what it stored, so the list is already right.
+    // Re-fetching it here would only give a second answer a chance to be wrong or stale;
+    // only the tag suggestions need refreshing.
+    await loadTags()
   } catch (error) {
     toast.add({
       severity: 'error',
@@ -454,8 +495,10 @@ function confirmDelete(document: AppDocument): void {
     accept: async () => {
       try {
         await deleteDocumentApi(document.id)
+        documents.value = documents.value.filter((candidate) => candidate.id !== document.id)
+        total.value = Math.max(0, total.value - 1)
         toast.add({ severity: 'success', summary: t('documents.deleted'), life: 3000 })
-        await refresh()
+        await loadTags()
       } catch (error) {
         toast.add({
           severity: 'error',

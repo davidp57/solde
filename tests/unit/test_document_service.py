@@ -57,6 +57,9 @@ class TestTypeDetection:
             (b"RIFF\x00\x00\x00\x00WEBPmore", "x.webp", "image/webp"),
             (b"PK\x03\x04rest", "x.xlsx", "application/zip"),
             (b"nom;montant\nx;1", "x.csv", "text/csv"),
+            (b"# Rapport de cloture\n\nTexte", "rapport.md", "text/markdown"),
+            (b'{"a": 1}', "export.json", "application/json"),
+            (b"note libre", "notes.txt", "text/plain"),
         ],
     )
     def test_accepted_formats(self, content: bytes, filename: str, expected: str) -> None:

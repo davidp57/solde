@@ -8,6 +8,9 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Tous les utilisateurs
 
+- **Documents Markdown acceptés** — les fichiers `.md` (ainsi que `.json`, `.xml` et `.log`) étaient refusés au dépôt.
+- **Le document déposé apparaît immédiatement** — la liste ne se mettait pas toujours à jour après un dépôt, alors que le fichier était bien enregistré. Elle s'appuie maintenant sur la réponse du serveur au lieu de l'interroger une seconde fois. Idem après une modification ou une suppression.
+
 - **Nouvel espace « Documents »** — pour ranger dans l'application les pièces qui n'ont leur place nulle part ailleurs : statuts, procès-verbaux d'assemblée générale, attestations, bilans signés. Chaque document reçoit un titre, éventuellement un exercice et des étiquettes, et se retrouve ensuite par recherche ou par filtre. Tout le monde peut consulter et télécharger ; le dépôt et la suppression sont réservés aux gestionnaires et aux trésoriers.
 
 ### Trésorier

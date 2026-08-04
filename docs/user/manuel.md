@@ -666,7 +666,7 @@ Tout le monde peut consulter et télécharger. Le dépôt, la modification et la
 ### Déposer un document
 
 1. Cliquer sur **Déposer un document**.
-2. Choisir le fichier — PDF, image, Excel, Word, CSV ou texte, **20 Mo maximum**.
+2. Choisir le fichier — PDF, image, Excel, Word, CSV, Markdown ou texte, **20 Mo maximum**.
 3. Donner un **titre** : c'est lui qu'on lira dans la liste, pas le nom du fichier. Le titre se pré-remplit avec le nom du fichier, à corriger si besoin (« scan_0042 » ne se retrouve pas, « PV assemblée générale 2026 » si).
 4. Facultatif : rattacher un **exercice**, poser des **étiquettes** séparées par des virgules, ajouter des **notes**.
 5. Valider.
