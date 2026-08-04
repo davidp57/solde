@@ -559,6 +559,7 @@ import {
   listInvoicesWithCountApi,
   writeOffInvoiceApi,
   restoreFromWriteoffApi,
+  regenerateInvoiceEntriesApi,
   type EmailKind,
   type Invoice,
   type InvoiceStatus,
@@ -599,6 +600,7 @@ import {
   isOverdueInvoice,
   isOpenReceivableInvoice,
 } from '../composables/useInvoiceMetrics'
+import { useAuthStore } from '../stores/auth'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useListLimitStore } from '../stores/listLimit'
 import { formatContactDisplayName } from '../utils/contact'
@@ -613,6 +615,7 @@ const confirm = useConfirm()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const authStore = useAuthStore()
 const fiscalYearStore = useFiscalYearStore()
 const { exportToExcel } = useTableExport()
 
@@ -624,6 +627,19 @@ const exportColumns = computed<ExportColumn[]>(() => [
   { field: 'total_amount_value', header: t('invoices.total') },
   { field: 'status_label', header: t('invoices.status') },
 ])
+
+async function regenerateEntries(invoice: Invoice): Promise<void> {
+  try {
+    const { entries } = await regenerateInvoiceEntriesApi(invoice.id)
+    toast.add({
+      severity: 'success',
+      summary: t('invoices.regenerate_entries_ok', { n: entries }),
+      life: 3000,
+    })
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  }
+}
 
 function doExportExcel(): void {
   exportToExcel(displayedInvoices.value, exportColumns.value, 'client-invoices-export')
@@ -960,6 +976,17 @@ function clientMenuItems(invoice: Invoice): MenuItem[] {
   }
   if (invoice.status === 'irrecoverable') {
     normal.push({ key: 'restore', label: t('invoices.restore_from_writeoff'), icon: 'pi pi-refresh', command: () => restoreFromWriteoff(invoice) })
+  }
+
+  // Maintenance: an engine fix leaves older invoices with stale entries, and a
+  // paid invoice cannot be edited to trigger a rebuild.
+  if (authStore.isAdmin && invoice.status !== 'draft') {
+    normal.push({
+      key: 'regenerate-entries',
+      label: t('invoices.regenerate_entries'),
+      icon: 'pi pi-sync',
+      command: () => regenerateEntries(invoice),
+    })
   }
 
   const danger: MenuItem[] = []

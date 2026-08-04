@@ -41,6 +41,7 @@ class AuditAction(StrEnum):
     INVOICE_EMAIL_SENT = "invoice.email.send"
     INVOICE_WRITTEN_OFF = "invoice.write_off"
     INVOICE_RESTORED_FROM_WRITEOFF = "invoice.restore_from_writeoff"
+    INVOICE_ENTRIES_REGENERATED = "invoice.entries.regenerate"
     INVOICE_BULK_ARCHIVED = "invoice.bulk_archive"
     # Cash
     CASH_ENTRY_CREATED = "cash.entry.create"

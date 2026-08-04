@@ -98,6 +98,47 @@ class TestCreateFiscalYear:
             )
 
 
+class TestPreCloseUnbalancedGroups:
+    @pytest.mark.asyncio
+    async def test_names_the_offending_document(self, db_session: AsyncSession) -> None:
+        """A raw total is unusable; the warning must point at the culprit."""
+        fy = await _create_fy(db_session, "2025", date(2025, 8, 1), date(2026, 7, 31))
+        db_session.add(
+            AccountingEntry(
+                entry_number="000100",
+                date=date(2026, 7, 2),
+                account_number="411100",
+                label="Fact. 2026-0125 Piruza T.",
+                debit=Decimal("80.00"),
+                credit=Decimal("0"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.INVOICE,
+                source_id=2927,
+                group_key="invoice:2927",
+            )
+        )
+        db_session.add(
+            AccountingEntry(
+                entry_number="000101",
+                date=date(2026, 7, 2),
+                account_number="706110",
+                label="Fact. 2026-0125 Piruza T.",
+                debit=Decimal("0"),
+                credit=Decimal("104.00"),
+                fiscal_year_id=fy.id,
+                source_type=EntrySourceType.INVOICE,
+                source_id=2927,
+                group_key="invoice:2927",
+            )
+        )
+        await db_session.commit()
+
+        warnings = await pre_close_checks(db_session, fy)
+
+        assert any("Balance déséquilibrée" in w for w in warnings)
+        assert any("Fact. 2026-0125" in w and "-24.00" in w for w in warnings)
+
+
 class TestListFiscalYears:
     @pytest.mark.asyncio
     async def test_empty_list(self, db_session: AsyncSession) -> None:

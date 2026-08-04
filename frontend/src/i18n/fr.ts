@@ -618,6 +618,8 @@ export default {
     show_irrecoverable: 'Afficher les irrécouvrables',
     bulk_archive: 'Archiver la sélection',
     show_all_history: 'Tout l’historique',
+    regenerate_entries: 'Régénérer les écritures comptables',
+    regenerate_entries_ok: '{n} écriture(s) comptable(s) régénérée(s).',
     bulk_archive_confirm_title: 'Archiver les factures',
     bulk_archive_confirm_msg:
       'Les factures payées sélectionnées seront archivées définitivement. Cette action est irréversible.',
