@@ -8,6 +8,12 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Bilan et compte de résultat en PDF** — un bouton « Exporter PDF » sur chacun des deux écrans produit un document mis en page, avec l'en-tête de l'association, la période de l'exercice et la mention « clôturé » ou « en cours ». C'est le document à ranger dans les archives comptables ou à transmettre.
+
+- **Compte de résultat d'un exercice clôturé enfin lisible** — il s'affichait entièrement à zéro, à l'écran comme à l'export, dès que l'exercice était clôturé. La clôture solde les comptes de charges et de produits, et ce solde était compté dans le total : le document devenait vide au moment précis où on en a besoin.
+
+- **Total du passif corrigé** — le bilan affichait un actif positif face à un passif négatif du même montant. Les deux colonnes se lisent maintenant en positif, avec des totaux égaux.
+
 - **Annuler un règlement en espèces** — une erreur de saisie sur un règlement en espèces (mauvaise facture, mauvais montant) était définitive : l'application refusait l'annulation en indiquant, à tort, que l'argent était déjà arrivé en banque. Les règlements en espèces sont désormais annulables tant qu'ils n'ont pas été rapprochés d'une opération bancaire ; le mouvement de caisse correspondant est retiré en même temps et le solde de caisse est recalculé.
 
 - **Banque : bouton « Tout l'historique »** — pour afficher les opérations et les remises sans se limiter à l'exercice sélectionné. Indispensable après un import de relevé contenant des opérations du nouvel exercice, qui n'apparaissaient nulle part.

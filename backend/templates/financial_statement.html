@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>{{ title }}{% if fiscal_year_name %} — {{ fiscal_year_name }}{% endif %}</title>
+<style>
+  @page { size: A4 portrait; margin: 18mm 15mm 16mm 15mm;
+          @bottom-center { content: "Page " counter(page) " / " counter(pages); font-family: Arial, sans-serif; font-size: 8pt; color: #64748b; } }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 10pt; color: #1a1a1a; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
+  .association h1 { font-size: 14pt; margin-bottom: 3px; }
+  .association p { font-size: 9pt; color: #444; }
+  .doc-title { text-align: right; }
+  .doc-title h2 { font-size: 18pt; color: #2563eb; text-transform: uppercase; letter-spacing: 1px; }
+  .doc-title .period { font-size: 10pt; color: #555; margin-top: 4px; }
+  .doc-title .generated { font-size: 8pt; color: #777; margin-top: 2px; }
+  .status { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 3px;
+            font-size: 8pt; text-transform: uppercase; letter-spacing: 0.5px; }
+  .status.closed { background: #dcfce7; color: #166534; }
+  .status.open { background: #fef3c7; color: #92400e; }
+  section { margin-bottom: 20px; }
+  h3 { font-size: 10pt; text-transform: uppercase; letter-spacing: 0.8px; color: #334155;
+       margin-bottom: 6px; padding-bottom: 3px; border-bottom: 1px solid #cbd5e1; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: #2563eb; color: #fff; }
+  thead th { padding: 6px 10px; text-align: left; font-size: 9pt; font-weight: 600; }
+  thead th.right { text-align: right; }
+  tbody td { padding: 5px 10px; font-size: 9.5pt; border-bottom: 1px solid #e2e8f0; }
+  tbody tr:nth-child(even) { background: #f8f9fb; }
+  td.right { text-align: right; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.section-total td { font-weight: bold; border-top: 1px solid #94a3b8; border-bottom: none;
+                        background: #f1f5f9; }
+  .result { margin-top: 4px; padding: 10px 14px; border-radius: 5px; display: flex;
+            justify-content: space-between; align-items: baseline; }
+  .result.surplus { background: #f0fdf4; border: 1px solid #86efac; }
+  .result.deficit { background: #fef2f2; border: 1px solid #fca5a5; }
+  .result .label { font-size: 11pt; font-weight: bold; }
+  .result .amount { font-size: 14pt; font-weight: bold; font-variant-numeric: tabular-nums; }
+  .result.surplus .amount { color: #166534; }
+  .result.deficit .amount { color: #b91c1c; }
+  .empty { padding: 10px; font-size: 9.5pt; color: #64748b; font-style: italic; }
+  .footer { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e2e8f0;
+            font-size: 8pt; color: #64748b; text-align: center; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="association">
+    <h1>{{ settings.association_name }}</h1>
+    {% if settings.association_address %}<p>{{ settings.association_address }}</p>{% endif %}
+    {% if settings.association_siret %}<p>SIRET : {{ settings.association_siret }}</p>{% endif %}
+  </div>
+  <div class="doc-title">
+    <h2>{{ title }}</h2>
+    {% if fiscal_year_name %}<div class="period">Exercice {{ fiscal_year_name }}</div>{% endif %}
+    {% if period %}<div class="period">{{ period }}</div>{% endif %}
+    {% if fiscal_year_status %}
+      <div class="status {{ 'closed' if fiscal_year_status == 'closed' else 'open' }}">
+        {{ 'Exercice clôturé' if fiscal_year_status == 'closed' else 'Exercice en cours' }}
+      </div>
+    {% endif %}
+    <div class="generated">Édité le {{ generated_at }}</div>
+  </div>
+</div>
+
+{% for section in sections %}
+<section>
+  <h3>{{ section.title }}</h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:16%">Compte</th>
+        <th>Libellé</th>
+        <th class="right" style="width:20%">{{ section.amount_header }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if section.rows %}
+        {% for row in section.rows %}
+        <tr>
+          <td class="num">{{ row.account_number }}</td>
+          <td>{{ row.account_label }}</td>
+          <td class="right num">{{ row.amount }}</td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="3" class="empty">Aucun mouvement sur l'exercice.</td></tr>
+      {% endif %}
+      <tr class="section-total">
+        <td colspan="2">{{ section.total_label }}</td>
+        <td class="right num">{{ section.total }}</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+{% endfor %}
+
+{% if show_result %}
+<div class="result {{ 'deficit' if result_is_negative else 'surplus' }}">
+  <span class="label">{{ result_label }}</span>
+  <span class="amount">{{ result_amount }}</span>
+</div>
+{% endif %}
+
+<div class="footer">
+  {{ settings.association_name }}{% if settings.association_siret %} — SIRET {{ settings.association_siret }}{% endif %}<br/>
+  Document généré par Solde ⚖️ — à conserver dans les archives comptables de l'association.
+</div>
+
+</body>
+</html>

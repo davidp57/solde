@@ -26,6 +26,17 @@
           <div class="app-field">
             <label class="app-field__label">&nbsp;</label>
             <Button
+              :label="t('common.export_pdf')"
+              icon="pi pi-file-pdf"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="downloadPdf"
+            />
+          </div>
+          <div class="app-field">
+            <label class="app-field__label">&nbsp;</label>
+            <Button
               :label="t('common.export_excel')"
               icon="pi pi-file-excel"
               severity="secondary"
@@ -162,7 +173,7 @@ import AppPage from '../components/ui/AppPage.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
-import { getResultatApi, type ResultatRead } from '../api/accounting'
+import { getExportPdfUrl, getResultatApi, type ResultatRead } from '../api/accounting'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
@@ -180,6 +191,10 @@ const exportColumns: ExportColumn[] = [
 const exportRows = computed(() =>
   resultat.value ? [...resultat.value.charges, ...resultat.value.produits] : []
 )
+function downloadPdf(): void {
+  window.open(getExportPdfUrl('resultat', { fiscal_year_id: fiscalYearId.value }), '_blank')
+}
+
 function doExportExcel(): void {
   exportToExcel(exportRows.value, exportColumns, 'accounting-resultat-export')
 }
