@@ -19,6 +19,13 @@ vi.mock('primevue/useconfirm', () => ({
   useConfirm: () => ({ require: confirmRequire }),
 }))
 
+// The view now refreshes the shared store so the header year selector follows.
+const fiscalYearStoreMock = { refresh: vi.fn().mockResolvedValue(undefined) }
+
+vi.mock('../../stores/fiscalYear', () => ({
+  useFiscalYearStore: () => fiscalYearStoreMock,
+}))
+
 vi.mock('../../api/accounting', () => ({
   listFiscalYearsApi: vi.fn(),
   createFiscalYearApi: vi.fn(),
@@ -246,5 +253,7 @@ describe('FiscalYearView', () => {
       start_date: '2026-08-01',
       end_date: '2027-07-31',
     })
+    // Without this the header selector would not offer the year just created.
+    expect(fiscalYearStoreMock.refresh).toHaveBeenCalled()
   })
 })

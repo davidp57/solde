@@ -8,6 +8,8 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Plus besoin de recharger la page après une action sur un exercice** — créer, clôturer ou ouvrir un exercice met maintenant à jour le sélecteur d'exercice en haut de l'écran immédiatement. Auparavant il fallait appuyer sur F5 pour que le nouvel exercice apparaisse.
+
 - **Écran Paiements : une colonne « Facture »** — le numéro de facture disparaissait pour les règlements par virement, masqué par le libellé de la banque. Il dispose maintenant de sa propre colonne, triable et filtrable, également reprise dans la recherche, l'export Excel et la fenêtre de modification d'un règlement.
 - **Ouverture d'un nouvel exercice réparée** — l'action « Ouvrir le prochain exercice » échouait avec une erreur technique dès qu'il y avait plusieurs soldes à reporter (banque, caisse, créances…), rendant la bascule impossible. Corrigé.
 

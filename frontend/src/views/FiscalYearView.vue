@@ -374,6 +374,7 @@ import {
   textFilter,
   useDataTableFilters,
 } from '../composables/useDataTableFilters'
+import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { formatDisplayDate } from '@/utils/format'
@@ -382,6 +383,7 @@ const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const toast = useToast()
 const confirm = useConfirm()
+const fiscalYearStore = useFiscalYearStore()
 const { exportToExcel } = useTableExport()
 const exportColumns: ExportColumn[] = [
   { field: 'name', header: t('accounting.fiscalYear.name') },
@@ -440,6 +442,9 @@ function statusSeverity(status: FiscalYearStatus) {
 async function load() {
   loading.value = true
   try {
+    // Refresh the shared store too: it feeds the year selector in the app header,
+    // which would otherwise keep the list it fetched at startup until a reload.
+    await fiscalYearStore.refresh()
     fiscalYears.value = await listFiscalYearsApi()
     fiscalYearRows.value = fiscalYears.value.map((fiscalYear) => ({
       ...fiscalYear,
