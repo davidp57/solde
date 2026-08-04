@@ -12,6 +12,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Corrigé
+- **TEC-227** — **Les messages d'erreur du serveur étaient remplacés par « une erreur est survenue »**. `getErrorDetail` ne savait pas lire le format structuré `{code, detail}` que renvoie l'API pour toutes ses erreurs délibérées : le motif précis était perdu et l'utilisateur ne voyait qu'un message générique — particulièrement gênant pour les refus explicites (clôture, ouverture d'exercice, annulation de règlement) dont le message **est** l'information utile. L'écran Exercices affiche désormais le motif renvoyé par le serveur pour ses quatre actions.
+
+### Corrigé
 - **TEC-225** — **La clôture d'exercice produisait une comptabilité fausse**. Trois défauts cumulés dans `close_fiscal_year`, jamais détectés faute d'avoir été exécutés en conditions réelles :
   - l'écriture de résultat était écrite **en simple partie**, une seule ligne sans contrepartie, ce qui déséquilibrait l'exercice du montant du résultat ;
   - les **comptes de charges et de produits n'étaient pas soldés**, si bien que la somme des comptes de bilan ne revenait pas à zéro ;

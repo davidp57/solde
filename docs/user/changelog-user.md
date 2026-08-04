@@ -8,6 +8,8 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Messages d'erreur explicites sur les exercices** — quand une clôture ou une ouverture d'exercice est refusée, la raison exacte s'affiche désormais, au lieu du message générique « une erreur est survenue » qui obligeait à deviner.
+
 - **Clôture d'exercice corrigée** — l'écriture de clôture ne soldait pas les comptes de charges et de produits, n'avait pas de contrepartie et portait le résultat à l'envers. Conséquence : l'exercice clôturé et le suivant se retrouvaient déséquilibrés. La clôture produit désormais une écriture complète et équilibrée, et le résultat est enregistré dans le bon sens (excédent au crédit du compte 120000, déficit au débit du 129000).
 - **Ouverture d'exercice protégée** — si les soldes à reporter ne s'équilibrent pas, l'ouverture est refusée avec un message expliquant qu'il faut d'abord vérifier la clôture, plutôt que de démarrer l'exercice sur une balance fausse.
 
