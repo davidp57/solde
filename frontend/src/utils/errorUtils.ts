@@ -23,6 +23,13 @@ export function getErrorDetail(error: unknown, fallback: string): string {
           }
           return String(first)
         }
+        // The API returns { code, detail } for every structured error
+        // (see backend/errors.py); without this the caller would show
+        // "[object Object]" and the actual reason would be lost.
+        if (detail !== null && typeof detail === 'object' && 'detail' in detail) {
+          const inner = (detail as { detail?: unknown }).detail
+          if (typeof inner === 'string') return inner
+        }
         if (detail !== null && detail !== undefined) return String(detail)
       }
     }
