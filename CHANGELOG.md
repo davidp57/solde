@@ -12,6 +12,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 ## [Non publié]
 
 ### Corrigé
+- **BIZ-233** — **Le numéro de facture n'apparaissait plus sur les règlements par virement**. La colonne « Référence » de l'écran Paiements n'affichait le numéro de facture qu'à défaut de référence : les virements issus du rapprochement bancaire arrivant avec le libellé de la banque, le numéro de facture était systématiquement masqué — alors que le lien existait bien en base. Une colonne **Facture** distincte a été ajoutée (triable, filtrable, incluse dans la recherche globale et dans l'export), la facture est rappelée en lecture seule dans la fenêtre d'édition, et la colonne « Référence » n'emprunte plus le numéro de facture.
+
+### Corrigé
 - **TEC-222** — **Contrôle de pré-clôture resserré sur la période de l'exercice**. L'avertissement « écritures sans exercice associé » comptait **toutes** les écritures non rattachées de la base, y compris celles datées avant le premier exercice (import historique) ou après la fin de l'exercice clôturé. Il s'affichait donc à chaque clôture pour des écritures que cette clôture ne peut ni corriger ni intégrer — un signal que l'on apprend à ignorer. Seules sont désormais signalées les écritures **datées dans la période clôturée** mais non rattachées, avec le libellé des documents concernés et la mention qu'elles seront exclues du résultat.
 
 ### Corrigé
