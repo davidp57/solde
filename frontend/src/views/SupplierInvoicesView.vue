@@ -533,6 +533,7 @@ import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
+  getInvoiceApi,
   downloadInvoiceFileApi,
   listInvoicesWithCountApi,
   uploadInvoiceFileApi,
@@ -861,7 +862,13 @@ function supplierMenuItems(invoice: Invoice): MenuItem[] {
 }
 
 async function onPaymentRecorded(invoiceId: number): Promise<void> {
-  await loadInvoices()
+  // Fetch the one invoice that changed: a request for a known id cannot come back
+  // missing the row we are looking for, unlike a filtered list.
+  try {
+    applyInvoiceLocally(await getInvoiceApi(invoiceId))
+  } catch {
+    await loadInvoices()
+  }
   // Refresh preview payments if preview is open for the same invoice
   if (previewInvoice.value?.id === invoiceId) {
     previewPayments.value = await listPayments({ invoice_id: invoiceId })
@@ -940,9 +947,22 @@ function openEditDialog(invoice: Invoice) {
   }
 }
 
-function onSaved() {
+/**
+ * Reflect a server-confirmed invoice on screen without re-fetching the list.
+ *
+ * A created invoice is shown even when the active filters would exclude it: hiding what
+ * the user has just saved is worse than showing a row a filter would have dropped.
+ */
+function applyInvoiceLocally(invoice: Invoice): void {
+  const index = invoices.value.findIndex((candidate) => candidate.id === invoice.id)
+  if (index >= 0) invoices.value[index] = invoice
+  else invoices.value = [invoice, ...invoices.value]
+}
+
+function onSaved(saved?: Invoice) {
   dialogVisible.value = false
-  void loadInvoices()
+  if (saved) applyInvoiceLocally(saved)
+  else void loadInvoices()
 }
 
 function openUploadDialog(invoice: Invoice) {
@@ -1052,10 +1072,10 @@ async function uploadFile() {
   if (!uploadTargetId.value || !selectedFile.value) return
   uploading.value = true
   try {
-    await uploadInvoiceFileApi(uploadTargetId.value, selectedFile.value)
+    const withFile = await uploadInvoiceFileApi(uploadTargetId.value, selectedFile.value)
+    applyInvoiceLocally(withFile)
     toast.add({ severity: 'success', summary: t('invoices.file_uploaded'), life: 3000 })
     uploadDialogVisible.value = false
-    await loadInvoices()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   } finally {
@@ -1073,8 +1093,8 @@ function confirmDelete(invoice: Invoice) {
     accept: async () => {
       try {
         await deleteInvoiceApi(invoice.id)
+        invoices.value = invoices.value.filter((candidate) => candidate.id !== invoice.id)
         toast.add({ severity: 'success', summary: t('invoices.deleted'), life: 3000 })
-        await loadInvoices()
       } catch (error) {
         toast.add({
           severity: 'error',

@@ -553,6 +553,7 @@ import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
   duplicateInvoiceApi,
+  getInvoiceApi,
   downloadInvoicePdfApi,
   bulkArchiveInvoicesApi,
   listInvoicesApi,
@@ -1106,9 +1107,34 @@ function openEditDialog(invoice: Invoice) {
   dialogVisible.value = true
 }
 
-function onSaved() {
+/**
+ * Reflect a server-confirmed invoice on screen without asking for the list again.
+ *
+ * The row appearing used to depend on a second request; whatever delays it or answers
+ * it from an earlier state left the screen stale while the change was safely stored.
+ * A created invoice is shown even when the active filters would exclude it: hiding what
+ * the user has just saved is worse than showing one row a filter would have dropped.
+ * `allClientInvoices` is kept in step because the receivable metrics read from it.
+ */
+function applyInvoiceLocally(invoice: Invoice): void {
+  const index = invoices.value.findIndex((candidate) => candidate.id === invoice.id)
+  if (index >= 0) invoices.value[index] = invoice
+  else invoices.value = [invoice, ...invoices.value]
+
+  const snapshotIndex = allClientInvoices.value.findIndex((c) => c.id === invoice.id)
+  if (snapshotIndex >= 0) allClientInvoices.value[snapshotIndex] = invoice
+  else allClientInvoices.value = [invoice, ...allClientInvoices.value]
+}
+
+function removeInvoiceLocally(invoiceId: number): void {
+  invoices.value = invoices.value.filter((candidate) => candidate.id !== invoiceId)
+  allClientInvoices.value = allClientInvoices.value.filter((c) => c.id !== invoiceId)
+}
+
+function onSaved(saved?: Invoice) {
   dialogVisible.value = false
-  void refreshInvoicesData()
+  if (saved) applyInvoiceLocally(saved)
+  else void refreshInvoicesData()
 }
 
 useKeyboardShortcuts({
@@ -1144,6 +1170,8 @@ function sendEmail(invoice: Invoice, kind: EmailKind = 'initial'): void {
 
 async function onEmailSent(): Promise<void> {
   emailDialogInvoiceId.value = null
+  // Sending records a reminder date on the invoice but returns nothing to rebuild it
+  // from, so the list is the only source here.
   await refreshInvoicesData()
 }
 
@@ -1156,10 +1184,10 @@ async function confirmWriteOff(): Promise<void> {
   if (!writeOffTarget.value) return
   writeOffLoading.value = true
   try {
-    await writeOffInvoiceApi(writeOffTarget.value.id)
+    const written = await writeOffInvoiceApi(writeOffTarget.value.id)
     writeOffDialogVisible.value = false
+    applyInvoiceLocally(written)
     toast.add({ severity: 'success', summary: t('invoices.write_off'), life: 3000 })
-    await refreshInvoicesData()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   } finally {
@@ -1169,9 +1197,9 @@ async function confirmWriteOff(): Promise<void> {
 
 async function restoreFromWriteoff(invoice: Invoice): Promise<void> {
   try {
-    await restoreFromWriteoffApi(invoice.id)
+    const restored = await restoreFromWriteoffApi(invoice.id)
+    applyInvoiceLocally(restored)
     toast.add({ severity: 'success', summary: t('invoices.restore_from_writeoff'), life: 3000 })
-    await refreshInvoicesData()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   }
@@ -1197,6 +1225,7 @@ async function executeBulkArchive(): Promise<void> {
       summary: t('invoices.bulk_archive_result', { archived: result.archived, skipped: result.skipped }),
       life: 5000,
     })
+    // A bulk operation answers with counts, not with the archived invoices.
     await refreshInvoicesData()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
@@ -1205,9 +1234,9 @@ async function executeBulkArchive(): Promise<void> {
 
 async function duplicate(invoice: Invoice) {
   try {
-    await duplicateInvoiceApi(invoice.id)
+    const copy = await duplicateInvoiceApi(invoice.id)
+    applyInvoiceLocally(copy)
     toast.add({ severity: 'success', summary: t('invoices.duplicated'), life: 3000 })
-    await refreshInvoicesData()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
   }
@@ -1284,7 +1313,13 @@ function openPaymentDialog(invoice: Invoice) {
 }
 
 async function onPaymentRecorded(invoiceId: number): Promise<void> {
-  await refreshInvoicesData()
+  // Fetch the one invoice that changed rather than the whole filtered list: a request
+  // for a known id cannot come back missing the row we are looking for.
+  try {
+    applyInvoiceLocally(await getInvoiceApi(invoiceId))
+  } catch {
+    await refreshInvoicesData()
+  }
   paymentInvoice.value = invoices.value.find((invoice) => invoice.id === invoiceId) ?? null
   if (historyVisible.value && historyInvoice.value?.id === invoiceId) {
     await loadHistoryPayments(invoiceId)
@@ -1301,8 +1336,8 @@ function confirmDelete(invoice: Invoice) {
     accept: async () => {
       try {
         await deleteInvoiceApi(invoice.id)
+        removeInvoiceLocally(invoice.id)
         toast.add({ severity: 'success', summary: t('invoices.deleted'), life: 3000 })
-        await refreshInvoicesData()
       } catch (error) {
         toast.add({
           severity: 'error',

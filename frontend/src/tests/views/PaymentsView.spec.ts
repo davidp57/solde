@@ -495,6 +495,20 @@ describe('PaymentsView', () => {
     )
   })
 
+  it('drops a cancelled payment even when the list would answer stale', async () => {
+    const wrapper = mountView()
+    await flushView()
+    // Any later list fetch keeps returning the payment as if nothing happened.
+    mockListPaymentsWithCount.mockResolvedValue({ items: [paymentFixture], total: 1 })
+
+    await wrapper.get('[title="payments.cancel_action"]').trigger('click')
+    await flushView()
+    await wrapper.get('[data-testid="payment-cancel-confirm"]').trigger('click')
+    await flushView()
+
+    expect(wrapper.text()).not.toContain(paymentFixture.invoice_number)
+  })
+
   it('announces the deposit slip impact in the confirmation dialog', async () => {
     mockCancelPreview.mockResolvedValue({
       ...cancelPreviewFixture,

@@ -635,8 +635,10 @@ async function confirmCancelPayment(): Promise<void> {
   try {
     await cancelPayment(payment.id)
     cancelDialogVisible.value = false
+    // Drop the row here rather than re-fetching the list: the screen must not depend on
+    // a second request to reflect what the server has already confirmed.
+    payments.value = payments.value.filter((candidate) => candidate.id !== payment.id)
     toast.add({ severity: 'success', summary: t('payments.cancelled'), life: 3000 })
-    await loadPayments()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
@@ -657,12 +659,18 @@ function openEditDialog(payment: Payment) {
   dialogVisible.value = true
 }
 
+/** Replace a row with what the server just returned, in place. */
+function applyUpdatedPayment(updated: Payment): void {
+  const index = payments.value.findIndex((candidate) => candidate.id === updated.id)
+  if (index >= 0) payments.value[index] = { ...payments.value[index], ...updated }
+}
+
 async function savePayment() {
   if (!editingPayment.value) return
 
   saving.value = true
   try {
-    await updatePayment(editingPayment.value.id, {
+    const updated = await updatePayment(editingPayment.value.id, {
       cheque_number:
         paymentForm.value.method === 'cheque'
           ? normalizeOptionalField(paymentForm.value.cheque_number)
@@ -671,8 +679,8 @@ async function savePayment() {
       notes: normalizeOptionalField(paymentForm.value.notes),
     })
     dialogVisible.value = false
+    applyUpdatedPayment(updated)
     toast.add({ severity: 'success', summary: t('payments.updated'), life: 3000 })
-    await loadPayments()
   } catch {
     toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
   } finally {
