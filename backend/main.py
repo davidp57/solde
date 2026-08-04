@@ -28,6 +28,7 @@ from backend.routers import (
     chat,
     contact,
     dashboard,
+    document,
     excel_import,
     fiscal_year,
     invoice,
@@ -361,6 +362,7 @@ def create_app() -> FastAPI:
     app.include_router(invoice.router, prefix="/api")
     app.include_router(payment.router, prefix="/api")
     app.include_router(cash.router, prefix="/api")
+    app.include_router(document.router, prefix="/api")
     app.include_router(bank.router, prefix="/api")
     app.include_router(salary.router, prefix="/api")
     app.include_router(dashboard.router, prefix="/api")

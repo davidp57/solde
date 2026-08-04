@@ -43,6 +43,10 @@ class AuditAction(StrEnum):
     INVOICE_RESTORED_FROM_WRITEOFF = "invoice.restore_from_writeoff"
     INVOICE_ENTRIES_REGENERATED = "invoice.entries.regenerate"
     INVOICE_BULK_ARCHIVED = "invoice.bulk_archive"
+    # Documents
+    DOCUMENT_UPLOADED = "document.upload"
+    DOCUMENT_UPDATED = "document.update"
+    DOCUMENT_DELETED = "document.delete"
     # Cash
     CASH_ENTRY_CREATED = "cash.entry.create"
     CASH_ENTRY_UPDATED = "cash.entry.update"

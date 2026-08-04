@@ -29,6 +29,7 @@ export function useNavigation() {
 
   const homeItems = computed<NavItem[]>(() => [
     { to: '/dashboard', icon: 'pi-home', label: t('nav.dashboard') },
+    { to: '/documents', icon: 'pi-folder', label: t('nav.documents') },
     { to: '/aide', icon: 'pi-question-circle', label: t('nav.help') },
   ])
 

@@ -57,7 +57,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl rclone \
     && rm -rf /var/lib/apt/lists/*
 
 # Ensure data directory exists and is owned by solde user
-RUN mkdir -p /app/data/pdfs /app/data/uploads \
+RUN mkdir -p /app/data/pdfs /app/data/uploads /app/data/documents \
     && chown -R solde:solde /app/data
 
 # Copy entrypoint script

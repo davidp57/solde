@@ -34,6 +34,7 @@ data/*.db-shm
 # Uploaded files & generated PDFs (keep the folder, not the files)
 data/uploads/
 data/pdfs/
+data/documents/
 
 # Excel source files (kept locally, not versioned)
 data/*.xlsx

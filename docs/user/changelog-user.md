@@ -6,6 +6,10 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ## Version 1.13.0 — à paraître
 
+### Tous les utilisateurs
+
+- **Nouvel espace « Documents »** — pour ranger dans l'application les pièces qui n'ont leur place nulle part ailleurs : statuts, procès-verbaux d'assemblée générale, attestations, bilans signés. Chaque document reçoit un titre, éventuellement un exercice et des étiquettes, et se retrouve ensuite par recherche ou par filtre. Tout le monde peut consulter et télécharger ; le dépôt et la suppression sont réservés aux gestionnaires et aux trésoriers.
+
 ### Trésorier
 
 - **Bilan et compte de résultat en PDF** — un bouton « Exporter PDF » sur chacun des deux écrans produit un document mis en page, avec l'en-tête de l'association, la période de l'exercice et la mention « clôturé » ou « en cours ». C'est le document à ranger dans les archives comptables ou à transmettre.

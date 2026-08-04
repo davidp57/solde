@@ -45,7 +45,8 @@ describe('useNavigation — bottomNavItems', () => {
 
   it('falls back to what is reachable for a readonly user (help excluded)', () => {
     const wrapper = mountWithRole('readonly')
-    expect(wrapper.vm.bottomNavItems.map((i) => i.to)).toEqual(['/dashboard'])
+    // Documents are readable by every role, so they survive the fallback; help never does.
+    expect(wrapper.vm.bottomNavItems.map((i) => i.to)).toEqual(['/dashboard', '/documents'])
   })
 
   it('never exceeds four items', () => {
