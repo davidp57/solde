@@ -20,6 +20,13 @@
             @click="downloadCsv"
           />
           <Button
+            :label="t('common.export_pdf')"
+            icon="pi pi-file-pdf"
+            severity="secondary"
+            outlined
+            @click="downloadPdf"
+          />
+          <Button
             :label="t('common.export_excel')"
             icon="pi pi-file-excel"
             severity="secondary"
@@ -149,7 +156,7 @@ import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
 import AppPage from '../components/ui/AppPage.vue'
 import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
-import { getBilanApi, getExportCsvUrl } from '../api/accounting'
+import { getBilanApi, getExportCsvUrl, getExportPdfUrl } from '../api/accounting'
 import type { BilanRead } from '../api/accounting'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useBreakpoints } from '../composables/useBreakpoints'
@@ -191,6 +198,13 @@ async function loadBilan() {
 
 function downloadCsv() {
   const url = getExportCsvUrl('bilan', {
+    fiscal_year_id: fiscalYearId.value,
+  })
+  window.open(url, '_blank')
+}
+
+function downloadPdf() {
+  const url = getExportPdfUrl('bilan', {
     fiscal_year_id: fiscalYearId.value,
   })
   window.open(url, '_blank')

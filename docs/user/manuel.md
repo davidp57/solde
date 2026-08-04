@@ -594,9 +594,23 @@ Filtrer par compte, période, exercice.
 
 ### Bilan et compte de résultat
 
-**Comptabilité → Bilan** → vue synthétique des actifs et passifs.
+**Comptabilité → Bilan** → vue synthétique des actifs et passifs. Les deux colonnes se lisent en positif et leurs totaux doivent être égaux.
 
 **Comptabilité → Résultat** → recettes vs dépenses sur l'exercice.
+
+### Archiver le bilan et le compte de résultat
+
+Chaque écran propose trois exports, pour l'exercice sélectionné :
+
+| Bouton | Usage |
+|---|---|
+| **Exporter PDF** | Document mis en page, en-tête de l'association et date d'édition — c'est celui à ranger dans les archives comptables ou à transmettre. |
+| **Exporter CSV** | Données brutes séparées par des points-virgules. |
+| **Exporter Excel** | Le tableau tel qu'il est affiché à l'écran. |
+
+Le PDF indique si l'exercice est **clôturé** ou **en cours**, et prend le nom de l'exercice comme nom de fichier (par exemple `bilan_2025.pdf`).
+
+> Sur un exercice clôturé, le bilan n'affiche plus de ligne « résultat de l'exercice » séparée : le résultat a été affecté aux comptes 120000 (excédent) ou 129000 (déficit), qui figurent au passif. Le compte de résultat, lui, continue d'afficher le détail des charges et des produits de l'exercice.
 
 ---
 

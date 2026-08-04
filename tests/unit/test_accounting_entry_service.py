@@ -826,6 +826,52 @@ class TestGetResultat:
         assert result.resultat == Decimal("200")  # excédent
 
     @pytest.mark.asyncio
+    async def test_closing_entries_do_not_flatten_the_result(
+        self, db_session: AsyncSession
+    ) -> None:
+        """A closed year keeps a readable result, though closing zeroed its accounts."""
+        await _add_account(db_session, "611100", "Sous-traitance", AccountType.CHARGE)
+        await _add_account(db_session, "706110", "Cours de soutien", AccountType.PRODUIT)
+        await _add_entry(
+            db_session,
+            entry_number="000001",
+            entry_date=date(2024, 1, 5),
+            account_number="611100",
+            debit=Decimal("300"),
+        )
+        await _add_entry(
+            db_session,
+            entry_number="000002",
+            entry_date=date(2024, 1, 5),
+            account_number="706110",
+            credit=Decimal("500"),
+        )
+        # Closing clears both accounts, which used to report a nil result.
+        await _add_entry(
+            db_session,
+            entry_number="000003",
+            entry_date=date(2024, 7, 31),
+            account_number="611100",
+            credit=Decimal("300"),
+            source_type=EntrySourceType.CLOTURE,
+        )
+        await _add_entry(
+            db_session,
+            entry_number="000004",
+            entry_date=date(2024, 7, 31),
+            account_number="706110",
+            debit=Decimal("500"),
+            source_type=EntrySourceType.CLOTURE,
+        )
+
+        result = await get_resultat(db_session)
+
+        assert result.total_charges == Decimal("300")
+        assert result.total_produits == Decimal("500")
+        assert result.resultat == Decimal("200")
+        assert [row.account_number for row in result.charges] == ["611100"]
+
+    @pytest.mark.asyncio
     async def test_deficit_is_negative(self, db_session: AsyncSession) -> None:
         await _add_account(db_session, "611100", "Sous-traitance", AccountType.CHARGE)
         await _add_account(db_session, "706110", "Cours de soutien", AccountType.PRODUIT)

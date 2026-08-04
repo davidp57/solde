@@ -319,6 +319,13 @@ def create_app() -> FastAPI:
         request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         response: Response = await call_next(request)
+        # Accounting data must never be read from a cache: a stale figure is worse than
+        # a slow one. Without this, an intermediary (browser heuristics, a NAS reverse
+        # proxy) is free to replay a previous answer, and the screen keeps showing
+        # amounts that no longer exist until the user hits F5.
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
