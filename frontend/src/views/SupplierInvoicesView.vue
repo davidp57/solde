@@ -537,6 +537,7 @@ import {
   listInvoicesWithCountApi,
   uploadInvoiceFileApi,
   type Invoice,
+  regenerateInvoiceEntriesApi,
 } from '../api/invoices'
 import { listPayments, type Payment } from '../api/payments'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
@@ -560,6 +561,7 @@ import {
 } from '../composables/useDataTableFilters'
 import { collectActiveFilterLabels } from '../composables/activeFilterLabels'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
+import { useAuthStore } from '../stores/auth'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useListLimitStore } from '../stores/listLimit'
 import { formatContactDisplayName } from '../utils/contact'
@@ -571,6 +573,7 @@ const confirm = useConfirm()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const authStore = useAuthStore()
 const fiscalYearStore = useFiscalYearStore()
 const limitStore = useListLimitStore()
 const LIMIT_VIEW_KEY = 'invoices-supplier'
@@ -584,6 +587,23 @@ const exportColumns: ExportColumn[] = [
   { field: 'total_amount_value', header: t('invoices.total') },
   { field: 'status_label', header: t('invoices.status') },
 ]
+async function regenerateEntries(invoice: Invoice): Promise<void> {
+  try {
+    const { entries } = await regenerateInvoiceEntriesApi(invoice.id)
+    toast.add({
+      severity: 'success',
+      summary: t('invoices.regenerate_entries_ok', { n: entries }),
+      life: 3000,
+    })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: getErrorDetail(error, t('common.error.unknown')),
+      life: 6000,
+    })
+  }
+}
+
 function doExportExcel(): void {
   exportToExcel(displayedInvoices.value, exportColumns, 'supplier-invoices-export')
 }
@@ -808,6 +828,17 @@ function supplierMenuItems(invoice: Invoice): MenuItem[] {
   normal.push({ key: 'upload', label: t('invoices.upload_file'), icon: 'pi pi-upload', command: () => openUploadDialog(invoice) })
   if (canRecordPayment(invoice)) {
     normal.push({ key: 'pay', label: t('invoices.record_payment'), icon: 'pi pi-wallet', command: () => openPaymentDialog(invoice) })
+  }
+
+  // Maintenance: supplier invoices created before entries were booked on
+  // creation carry none, and a paid invoice cannot be edited to rebuild them.
+  if (authStore.isAdmin && invoice.status !== 'draft') {
+    normal.push({
+      key: 'regenerate-entries',
+      label: t('invoices.regenerate_entries'),
+      icon: 'pi pi-sync',
+      command: () => regenerateEntries(invoice),
+    })
   }
 
   const danger: MenuItem[] = []

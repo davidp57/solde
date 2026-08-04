@@ -285,6 +285,22 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
             continue
 
         await db.refresh(invoice)
+
+        # Supplier invoices are born SENT (they are received, not drafted), so they
+        # never cross the DRAFT -> SENT transition that generates entries elsewhere.
+        # Without this, the debt is never recognised while its payment still debits
+        # the supplier account: charges understated, 401000 left with a debit
+        # balance, and nothing on screen to say so.
+        if invoice.status == InvoiceStatus.SENT:
+            from backend.services.accounting_engine import (  # noqa: PLC0415
+                generate_entries_for_invoice,
+            )
+
+            refreshed_for_entries = await get_invoice(db, invoice.id)
+            if refreshed_for_entries is not None:
+                await generate_entries_for_invoice(db, refreshed_for_entries)
+                await db.flush()
+
         refreshed = await get_invoice(db, invoice.id)
         assert refreshed is not None, f"Invoice {invoice.id} missing after commit"
         return refreshed
