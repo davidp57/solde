@@ -509,6 +509,11 @@ async def _graph_list_children_by_id(
     syntax with a ``$skiptoken`` and then rejects that very link with a 400
     (OneDrive/onedrive-api-docs#620 and #774). Returns the raw Graph item dicts
     (each has ``id``, ``name``, ``size`` and, for folders, a ``folder`` facet).
+
+    A folder that disappears mid-listing — deleted remotely between the moment
+    its id was read and the moment it is walked — yields what was collected so
+    far rather than sinking the whole mirror: a missing folder simply holds no
+    files, and the worst consequence is re-uploading what it used to contain.
     """
     auth = {"Authorization": f"Bearer {access_token}"}
     url: str | None = (
@@ -518,6 +523,9 @@ async def _graph_list_children_by_id(
     items: list[dict[str, object]] = []
     while url:
         resp = await _graph_request(client, "GET", url, headers=auth, timeout=30)
+        if resp.status_code == 404:
+            logger.warning("Graph: folder %s vanished while listing it", item_id)
+            return items
         resp.raise_for_status()
         data = resp.json()
         items.extend(data.get("value", []))

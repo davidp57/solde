@@ -917,3 +917,45 @@ async def test_children_listing_survives_a_throttled_page() -> None:
 
     assert [i["name"] for i in items] == ["a.pdf", "b.pdf"]
     assert calls.count(page2) == 2  # throttled once, then retried
+
+
+@pytest.mark.asyncio
+async def test_children_listing_tolerates_a_folder_deleted_mid_walk() -> None:
+    """A sub-folder removed between the parent listing and its walk yields no files.
+
+    Before, the 404 escalated through raise_for_status() and sank the whole
+    mirror — the very failure mode this lot fixes.
+    """
+    routes = {
+        f"{_BASE}/drives/d1/root:/backups/pdfs": {"id": "root1"},
+        f"{_BASE}/drives/d1/items/root1/children{_CHILDREN_Q}": {
+            "value": [
+                {"id": "f1", "name": "facture_A.pdf", "size": 10},
+                {"id": "gone", "name": "2025", "folder": {}},
+            ]
+        },
+        # No route for items/gone/children → the fake client answers 404.
+    }
+    client = _FakeGraphClient(routes)
+
+    files = await bds._graph_list_files(client, "tok", "d1", "backups/pdfs")  # type: ignore[arg-type]
+
+    assert files == {"facture_A.pdf": 10}
+
+
+@pytest.mark.asyncio
+async def test_listing_keeps_pages_collected_before_the_folder_vanished() -> None:
+    page2 = f"{_BASE}/drives/d1/items/folder1/children?$skiptoken=abc"
+    routes = {
+        f"{_BASE}/drives/d1/root:/backups/pdfs": {"id": "folder1"},
+        f"{_BASE}/drives/d1/items/folder1/children{_CHILDREN_Q}": {
+            "value": [{"id": "a", "name": "a.pdf", "size": 1}],
+            "@odata.nextLink": page2,
+        },
+        # page2 missing → 404 halfway through the listing.
+    }
+    client = _FakeGraphClient(routes)
+
+    items = await bds._graph_list_children(client, "tok", "d1", "backups/pdfs")  # type: ignore[arg-type]
+
+    assert [i["name"] for i in items] == ["a.pdf"]
