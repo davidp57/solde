@@ -227,7 +227,11 @@ Le wizard permet de créer et valider une facture client en quelques clics depui
 
 Une facture en **brouillon** peut être modifiée librement.
 
-Une facture **validée** peut être modifiée dans certaines limites (ajout de notes, modification de l'échéance) mais ses lignes ne peuvent plus être changées.
+Une facture **validée** reste modifiable — **lignes comprises** — tant qu'**aucun règlement n'y est enregistré**. Les écritures comptables sont alors régénérées automatiquement, et le PDF est reconstruit à la prochaine consultation ou au prochain envoi. Le **numéro de facture ne change jamais**.
+
+Dès qu'un règlement est saisi, la facture est verrouillée. Pour la corriger, il faut d'abord **annuler le règlement** (voir [Annuler un règlement saisi par erreur](#annuler-un-règlement-saisi-par-erreur)), modifier la facture, puis ressaisir le règlement.
+
+> **Facture erronée déjà envoyée au client ?** La corriger, puis la **renvoyer par e-mail** en précisant dans le message qu'elle annule et remplace la précédente : le PDF joint reflète automatiquement la correction. Pour une remise oubliée, ajouter une ligne de facturation à **prix unitaire négatif** (le total de la facture doit rester positif).
 
 ### Supprimer une facture
 

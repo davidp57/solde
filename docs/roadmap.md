@@ -20,7 +20,7 @@
 | **0.6** | Lots L, M — employee management + security | ✅ Completed |
 | **0.7** | Lots N, O, P, Q — UX, forms, quality | ✅ Completed |
 | **0.8** | Lots R, S — supervision, i18n, doc restructure | ✅ Completed |
-| **1.0** | Lots T — chatbot, email templates, credit notes — first stable release | ✅ Completed |
+| **1.0** | Lot T — chatbot, email templates — first stable release | ✅ Completed |
 | **1.1** | Bank deposit workflow + 7 UX improvements | ✅ Completed |
 | **1.2** | Bank reconciliation accounting entries, lot I-BNK, lot J (wizard + contacts) | ✅ Completed |
 | **1.3** | Supplier invoice preview, cash count UX, dashboard deposits, multi-email contacts, blocked client, supplier cash payments | ✅ Released 2026-05-02 |
@@ -198,7 +198,7 @@ Completed 2026-04-27.
 
 ---
 
-## v1.0 — Chatbot IA, e-mail templates & credit notes ✅
+## v1.0 — Chatbot IA & e-mail templates ✅
 
 Completed 2026-04-27. First stable production release.
 
@@ -212,8 +212,25 @@ Pre-send preview dialog with editable subject/body and embedded PDF preview.
 ### BIZ-128 — Configurable email templates
 Admin-configurable subject and body templates for invoice emails (variables: `{invoice_number}`, `{description}`, `{association_name}`, `{invoice_ref}`).
 
-### BIZ-129 — Credit notes (avoirs)
-Full credit note support: `avoir` document type, separate `AV-YYYY-NNN` numbering, pre-filled reversed lines, dedicated PDF template, `credit_note_for_id` traceability.
+### BIZ-129 — Credit notes (avoirs) — ❌ never shipped
+**This entry was wrong and is kept as a correction.** It described full credit note
+support (`avoir` document type, `AV-YYYY-NNN` numbering, pre-filled reversed lines,
+dedicated PDF template, `credit_note_for_id` traceability) as delivered in v1.0. **None of
+it exists in the codebase**, and none of it ever did:
+
+- commit `07e039e` — *"feat(invoice): add support for credit notes (BIZ-129)"* — touches a
+  single file, `doc/backlog.md`, adding 25 lines. No code, no test, no migration;
+- `git log -S "credit_note_for_id"` returns no commit on `backend/`, ever;
+- Alembic `0038`, named in the CHANGELOG as the credit-note migration, is
+  `0038_add_deposit_confirmed.py` — an unrelated change;
+- `InvoiceType` still has only `CLIENT` and `FOURNISSEUR`, and a client invoice total is
+  still constrained to be non-negative (`schemas/invoice.py`).
+
+**Consequence for anyone reading this**: Solde has **no credit note mechanism**. Correcting
+an invoice means editing it in place while no payment is recorded (see
+`docs/user/manuel.md`, *Modifier une facture*), or carrying a negative line over to the
+next invoice. Same warning applies to `CHANGELOG.md` (v1.0.0) and
+`docs/releases/v1.0.0.md`, which carry the same claim.
 
 ---
 
