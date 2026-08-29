@@ -604,8 +604,14 @@ async def test_mirror_rclone_no_filter_without_allowlist(tmp_path: Path) -> None
 
 
 class _FakeResponse:
-    def __init__(self, payload: dict[str, object], status_code: int = 200) -> None:
+    def __init__(
+        self,
+        payload: dict[str, object],
+        status_code: int = 200,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         self.status_code = status_code
+        self.headers = headers or {}
         self._payload = payload
 
     def json(self) -> dict[str, object]:
@@ -623,7 +629,7 @@ class _FakeGraphClient:
         self._routes = routes
         self.calls: list[str] = []
 
-    async def get(self, url: str, **kwargs: object) -> _FakeResponse:
+    async def request(self, method: str, url: str, **kwargs: object) -> _FakeResponse:
         self.calls.append(url)
         payload = self._routes.get(url)
         if payload is None:
@@ -776,3 +782,138 @@ def test_describe_error_collapses_whitespace() -> None:
     from backend.services.backup_scheduler import _describe_error
 
     assert _describe_error(RuntimeError("a\n  b\tc")) == "a b c"
+
+
+# ---------------------------------------------------------------------------
+# Graph retry — throttling (429) and transient server errors
+# ---------------------------------------------------------------------------
+
+
+class _SequenceClient:
+    """Returns canned responses in order, recording the requests made."""
+
+    def __init__(self, responses: list[_FakeResponse]) -> None:
+        self._responses = list(responses)
+        self.requests: list[tuple[str, str]] = []
+
+    async def request(self, method: str, url: str, **kwargs: object) -> _FakeResponse:
+        self.requests.append((method, url))
+        return self._responses.pop(0) if self._responses else _FakeResponse({})
+
+
+class TestGraphRequestRetry:
+    @staticmethod
+    def _sleep_spy() -> tuple[AsyncMock, list[float]]:
+        waits: list[float] = []
+
+        async def _sleep(seconds: float) -> None:
+            waits.append(seconds)
+
+        return AsyncMock(side_effect=_sleep), waits
+
+    @pytest.mark.asyncio
+    async def test_retries_throttling_then_succeeds(self) -> None:
+        client = _SequenceClient(
+            [
+                _FakeResponse({}, status_code=429, headers={"Retry-After": "7"}),
+                _FakeResponse({"ok": True}),
+            ]
+        )
+        sleep_mock, waits = self._sleep_spy()
+
+        with patch.object(bds.asyncio, "sleep", sleep_mock):
+            resp = await bds._graph_request(client, "GET", "https://graph/x")  # type: ignore[arg-type]
+
+        assert resp.status_code == 200
+        assert resp.json() == {"ok": True}
+        assert waits == [7.0]  # honours Retry-After rather than the backoff
+        assert len(client.requests) == 2
+
+    @pytest.mark.asyncio
+    async def test_gives_up_after_max_retries_with_exponential_backoff(self) -> None:
+        client = _SequenceClient([_FakeResponse({}, status_code=503) for _ in range(6)])
+        sleep_mock, waits = self._sleep_spy()
+
+        with patch.object(bds.asyncio, "sleep", sleep_mock):
+            resp = await bds._graph_request(client, "GET", "https://graph/x")  # type: ignore[arg-type]
+
+        # The last response is handed back so the caller can raise on it.
+        assert resp.status_code == 503
+        assert waits == [2.0, 4.0, 8.0, 16.0]
+        assert len(client.requests) == bds._GRAPH_MAX_RETRIES + 1
+
+    @pytest.mark.asyncio
+    async def test_does_not_retry_a_client_error(self) -> None:
+        client = _SequenceClient([_FakeResponse({}, status_code=404)])
+        sleep_mock, _ = self._sleep_spy()
+
+        with patch.object(bds.asyncio, "sleep", sleep_mock):
+            resp = await bds._graph_request(client, "GET", "https://graph/x")  # type: ignore[arg-type]
+
+        assert resp.status_code == 404
+        assert len(client.requests) == 1
+        sleep_mock.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_unusable_retry_after_falls_back_to_backoff(self) -> None:
+        """An HTTP-date Retry-After is not parsed — the backoff takes over."""
+        client = _SequenceClient(
+            [
+                _FakeResponse(
+                    {}, status_code=503, headers={"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}
+                ),
+                _FakeResponse({"ok": True}),
+            ]
+        )
+        sleep_mock, waits = self._sleep_spy()
+
+        with patch.object(bds.asyncio, "sleep", sleep_mock):
+            await bds._graph_request(client, "GET", "https://graph/x")  # type: ignore[arg-type]
+
+        assert waits == [bds._GRAPH_BACKOFF_BASE]
+
+    @pytest.mark.asyncio
+    async def test_retry_after_is_capped(self) -> None:
+        client = _SequenceClient(
+            [
+                _FakeResponse({}, status_code=429, headers={"Retry-After": "3600"}),
+                _FakeResponse({"ok": True}),
+            ]
+        )
+        sleep_mock, waits = self._sleep_spy()
+
+        with patch.object(bds.asyncio, "sleep", sleep_mock):
+            await bds._graph_request(client, "GET", "https://graph/x")  # type: ignore[arg-type]
+
+        assert waits == [bds._GRAPH_MAX_BACKOFF]
+
+
+@pytest.mark.asyncio
+async def test_children_listing_survives_a_throttled_page() -> None:
+    """A 429 in the middle of a paged listing does not lose the folder."""
+    page2 = f"{_BASE}/drives/d1/items/folder1/children?$skiptoken=abc"
+    calls: list[str] = []
+    throttled: set[str] = set()
+
+    class _ThrottleOnceClient:
+        async def request(self, method: str, url: str, **kwargs: object) -> _FakeResponse:
+            calls.append(url)
+            if url == page2 and url not in throttled:
+                throttled.add(url)
+                return _FakeResponse({}, status_code=429, headers={"Retry-After": "1"})
+            routes: dict[str, dict[str, object]] = {
+                f"{_BASE}/drives/d1/root:/backups/pdfs": {"id": "folder1"},
+                f"{_BASE}/drives/d1/items/folder1/children{_CHILDREN_Q}": {
+                    "value": [{"id": "a", "name": "a.pdf", "size": 1}],
+                    "@odata.nextLink": page2,
+                },
+                page2: {"value": [{"id": "b", "name": "b.pdf", "size": 2}]},
+            }
+            payload = routes.get(url)
+            return _FakeResponse(payload) if payload is not None else _FakeResponse({}, 404)
+
+    with patch.object(bds.asyncio, "sleep", AsyncMock()):
+        items = await bds._graph_list_children(_ThrottleOnceClient(), "tok", "d1", "backups/pdfs")  # type: ignore[arg-type]
+
+    assert [i["name"] for i in items] == ["a.pdf", "b.pdf"]
+    assert calls.count(page2) == 2  # throttled once, then retried

@@ -240,6 +240,13 @@ _GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 _GRAPH_CHUNK_SIZE = 10 * 1024 * 1024  # 10 MiB — must be a multiple of 320 KiB
 _GRAPH_SMALL_LIMIT = 4 * 1024 * 1024  # use simple PUT below 4 MiB
 
+# Statuses Graph documents as transient: throttling (429) and service-side
+# hiccups. Everything else — 4xx in particular — is a real answer, not a retry.
+_GRAPH_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+_GRAPH_MAX_RETRIES = 4  # 5 attempts in total
+_GRAPH_BACKOFF_BASE = 2.0  # seconds, doubled at each attempt: 2, 4, 8, 16
+_GRAPH_MAX_BACKOFF = 60.0  # cap, also applied to a server-sent Retry-After
+
 
 def _graph_access_token(dest: BackupDestination) -> str:
     """Extract the current access_token from dest.rclone_config."""
@@ -251,6 +258,55 @@ def _graph_access_token(dest: BackupDestination) -> str:
     if not access_token:
         raise RuntimeError(f"OneDrive dest {dest.id}: no access_token in config")
     return str(access_token)
+
+
+def _retry_after_seconds(resp: httpx.Response) -> float | None:
+    """Read the ``Retry-After`` header as a delay in seconds, if usable.
+
+    Graph sends a plain number of seconds; the HTTP-date form is not honoured
+    here — the exponential backoff takes over in that case.
+    """
+    raw = resp.headers.get("Retry-After")
+    if not raw:
+        return None
+    try:
+        return min(max(float(raw), 0.0), _GRAPH_MAX_BACKOFF)
+    except ValueError:
+        return None
+
+
+async def _graph_request(
+    client: httpx.AsyncClient, method: str, url: str, **kwargs: object
+) -> httpx.Response:
+    """Issue one Graph request, retrying throttled and transient responses.
+
+    Mirrors the retry guidance for Microsoft Graph: wait for ``Retry-After``
+    when the server sends one, otherwise back off exponentially, and give up
+    after ``_GRAPH_MAX_RETRIES`` extra attempts so a backup run stays bounded.
+    The response is returned as-is — callers keep deciding what a 404 or a 4xx
+    means for them.
+    """
+    attempt = 0
+    delay = _GRAPH_BACKOFF_BASE
+    while True:
+        resp = await client.request(method, url, **kwargs)  # type: ignore[arg-type]
+        if resp.status_code not in _GRAPH_RETRY_STATUSES or attempt >= _GRAPH_MAX_RETRIES:
+            return resp
+        wait = _retry_after_seconds(resp)
+        if wait is None:
+            wait = delay
+            delay = min(delay * 2, _GRAPH_MAX_BACKOFF)
+        logger.warning(
+            "Graph %s %s → %d, retry %d/%d in %.0fs",
+            method,
+            url.split("?", 1)[0],
+            resp.status_code,
+            attempt + 1,
+            _GRAPH_MAX_RETRIES,
+            wait,
+        )
+        await asyncio.sleep(wait)
+        attempt += 1
 
 
 async def _graph_upload_file(
@@ -276,7 +332,9 @@ async def _graph_upload_file(
     if file_size <= _GRAPH_SMALL_LIMIT:
         # Simple PUT
         content = local_file.read_bytes()
-        resp = await client.put(
+        resp = await _graph_request(
+            client,
+            "PUT",
             f"{item_url}:/content",
             headers={**auth, "Content-Type": "application/octet-stream"},
             content=content,
@@ -286,7 +344,9 @@ async def _graph_upload_file(
         logger.debug("Graph PUT %s → %d", local_file.name, resp.status_code)
     else:
         # Create upload session
-        resp = await client.post(
+        resp = await _graph_request(
+            client,
+            "POST",
             f"{item_url}:/createUploadSession",
             headers=auth,
             json={"item": {"@microsoft.graph.conflictBehavior": "replace"}},
@@ -304,7 +364,11 @@ async def _graph_upload_file(
                 if not chunk:
                     break
                 end = uploaded + len(chunk) - 1
-                chunk_resp = await client.put(
+                # Replaying a segment with the same Content-Range is safe:
+                # Graph is idempotent on already-received byte ranges.
+                chunk_resp = await _graph_request(
+                    client,
+                    "PUT",
                     upload_url,
                     headers={
                         "Content-Range": f"bytes {uploaded}-{end}/{file_size}",
@@ -425,7 +489,9 @@ async def _graph_resolve_item_id(
         url = f"{_GRAPH_BASE}/drives/{drive_id}/root:/{encoded}"
     else:
         url = f"{_GRAPH_BASE}/drives/{drive_id}/root"
-    resp = await client.get(url, headers=auth, params={"$select": "id"}, timeout=30)
+    resp = await _graph_request(
+        client, "GET", url, headers=auth, params={"$select": "id"}, timeout=30
+    )
     if resp.status_code == 404:
         return None
     resp.raise_for_status()
@@ -451,7 +517,7 @@ async def _graph_list_children_by_id(
     )
     items: list[dict[str, object]] = []
     while url:
-        resp = await client.get(url, headers=auth, timeout=30)
+        resp = await _graph_request(client, "GET", url, headers=auth, timeout=30)
         resp.raise_for_status()
         data = resp.json()
         items.extend(data.get("value", []))
@@ -481,8 +547,12 @@ async def _graph_delete_item(
 ) -> None:
     """Delete a OneDrive item (folder or file) by its id."""
     auth = {"Authorization": f"Bearer {access_token}"}
-    resp = await client.delete(
-        f"{_GRAPH_BASE}/drives/{drive_id}/items/{item_id}", headers=auth, timeout=30
+    resp = await _graph_request(
+        client,
+        "DELETE",
+        f"{_GRAPH_BASE}/drives/{drive_id}/items/{item_id}",
+        headers=auth,
+        timeout=30,
     )
     if resp.status_code not in (200, 204, 404):
         resp.raise_for_status()
