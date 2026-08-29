@@ -1,4 +1,4 @@
-# BIZ-249 — Saisie explicite du montant pour un règlement en espèces
+# BIZ-250 — Saisie explicite du montant pour un règlement en espèces
 
 Status: ⬜ ready
 Type: feature
