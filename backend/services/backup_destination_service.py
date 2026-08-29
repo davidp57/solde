@@ -240,6 +240,13 @@ _GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 _GRAPH_CHUNK_SIZE = 10 * 1024 * 1024  # 10 MiB — must be a multiple of 320 KiB
 _GRAPH_SMALL_LIMIT = 4 * 1024 * 1024  # use simple PUT below 4 MiB
 
+# Statuses Graph documents as transient: throttling (429) and service-side
+# hiccups. Everything else — 4xx in particular — is a real answer, not a retry.
+_GRAPH_RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+_GRAPH_MAX_RETRIES = 4  # 5 attempts in total
+_GRAPH_BACKOFF_BASE = 2.0  # seconds, doubled at each attempt: 2, 4, 8, 16
+_GRAPH_MAX_BACKOFF = 60.0  # cap, also applied to a server-sent Retry-After
+
 
 def _graph_access_token(dest: BackupDestination) -> str:
     """Extract the current access_token from dest.rclone_config."""
@@ -251,6 +258,55 @@ def _graph_access_token(dest: BackupDestination) -> str:
     if not access_token:
         raise RuntimeError(f"OneDrive dest {dest.id}: no access_token in config")
     return str(access_token)
+
+
+def _retry_after_seconds(resp: httpx.Response) -> float | None:
+    """Read the ``Retry-After`` header as a delay in seconds, if usable.
+
+    Graph sends a plain number of seconds; the HTTP-date form is not honoured
+    here — the exponential backoff takes over in that case.
+    """
+    raw = resp.headers.get("Retry-After")
+    if not raw:
+        return None
+    try:
+        return min(max(float(raw), 0.0), _GRAPH_MAX_BACKOFF)
+    except ValueError:
+        return None
+
+
+async def _graph_request(
+    client: httpx.AsyncClient, method: str, url: str, **kwargs: object
+) -> httpx.Response:
+    """Issue one Graph request, retrying throttled and transient responses.
+
+    Mirrors the retry guidance for Microsoft Graph: wait for ``Retry-After``
+    when the server sends one, otherwise back off exponentially, and give up
+    after ``_GRAPH_MAX_RETRIES`` extra attempts so a backup run stays bounded.
+    The response is returned as-is — callers keep deciding what a 404 or a 4xx
+    means for them.
+    """
+    attempt = 0
+    delay = _GRAPH_BACKOFF_BASE
+    while True:
+        resp = await client.request(method, url, **kwargs)  # type: ignore[arg-type]
+        if resp.status_code not in _GRAPH_RETRY_STATUSES or attempt >= _GRAPH_MAX_RETRIES:
+            return resp
+        wait = _retry_after_seconds(resp)
+        if wait is None:
+            wait = delay
+            delay = min(delay * 2, _GRAPH_MAX_BACKOFF)
+        logger.warning(
+            "Graph %s %s → %d, retry %d/%d in %.0fs",
+            method,
+            url.split("?", 1)[0],
+            resp.status_code,
+            attempt + 1,
+            _GRAPH_MAX_RETRIES,
+            wait,
+        )
+        await asyncio.sleep(wait)
+        attempt += 1
 
 
 async def _graph_upload_file(
@@ -276,7 +332,9 @@ async def _graph_upload_file(
     if file_size <= _GRAPH_SMALL_LIMIT:
         # Simple PUT
         content = local_file.read_bytes()
-        resp = await client.put(
+        resp = await _graph_request(
+            client,
+            "PUT",
             f"{item_url}:/content",
             headers={**auth, "Content-Type": "application/octet-stream"},
             content=content,
@@ -286,7 +344,9 @@ async def _graph_upload_file(
         logger.debug("Graph PUT %s → %d", local_file.name, resp.status_code)
     else:
         # Create upload session
-        resp = await client.post(
+        resp = await _graph_request(
+            client,
+            "POST",
             f"{item_url}:/createUploadSession",
             headers=auth,
             json={"item": {"@microsoft.graph.conflictBehavior": "replace"}},
@@ -304,7 +364,11 @@ async def _graph_upload_file(
                 if not chunk:
                     break
                 end = uploaded + len(chunk) - 1
-                chunk_resp = await client.put(
+                # Replaying a segment with the same Content-Range is safe:
+                # Graph is idempotent on already-received byte ranges.
+                chunk_resp = await _graph_request(
+                    client,
+                    "PUT",
                     upload_url,
                     headers={
                         "Content-Range": f"bytes {uploaded}-{end}/{file_size}",
@@ -404,31 +468,86 @@ async def fetch_remote_backup(
 _BACKUP_TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$")
 
 
+# Page size for children listings. Graph caps it at 200 for drive items.
+_GRAPH_PAGE_SIZE = 200
+# Only the fields the callers actually read — keeps responses small on folders
+# holding thousands of invoice PDFs.
+_GRAPH_CHILD_FIELDS = "id,name,size,folder"
+
+
+async def _graph_resolve_item_id(
+    client: httpx.AsyncClient, access_token: str, drive_id: str, base: str
+) -> str | None:
+    """Return the item id of the folder at drive-relative path ``base``.
+
+    ``base`` empty means the drive root. Returns ``None`` when the folder does
+    not exist yet.
+    """
+    auth = {"Authorization": f"Bearer {access_token}"}
+    if base:
+        encoded = urllib.parse.quote(base)
+        url = f"{_GRAPH_BASE}/drives/{drive_id}/root:/{encoded}"
+    else:
+        url = f"{_GRAPH_BASE}/drives/{drive_id}/root"
+    resp = await _graph_request(
+        client, "GET", url, headers=auth, params={"$select": "id"}, timeout=30
+    )
+    if resp.status_code == 404:
+        return None
+    resp.raise_for_status()
+    item_id = resp.json().get("id")
+    return str(item_id) if item_id else None
+
+
+async def _graph_list_children_by_id(
+    client: httpx.AsyncClient, access_token: str, drive_id: str, item_id: str
+) -> list[dict[str, object]]:
+    """List the immediate children of a OneDrive folder addressed by item id.
+
+    Item-id addressing is required for pagination: when the folder is addressed
+    by path, Graph builds an ``@odata.nextLink`` that mixes the ``root:/…:/``
+    syntax with a ``$skiptoken`` and then rejects that very link with a 400
+    (OneDrive/onedrive-api-docs#620 and #774). Returns the raw Graph item dicts
+    (each has ``id``, ``name``, ``size`` and, for folders, a ``folder`` facet).
+
+    A folder that disappears mid-listing — deleted remotely between the moment
+    its id was read and the moment it is walked — yields what was collected so
+    far rather than sinking the whole mirror: a missing folder simply holds no
+    files, and the worst consequence is re-uploading what it used to contain.
+    """
+    auth = {"Authorization": f"Bearer {access_token}"}
+    url: str | None = (
+        f"{_GRAPH_BASE}/drives/{drive_id}/items/{item_id}/children"
+        f"?$top={_GRAPH_PAGE_SIZE}&$select={_GRAPH_CHILD_FIELDS}"
+    )
+    items: list[dict[str, object]] = []
+    while url:
+        resp = await _graph_request(client, "GET", url, headers=auth, timeout=30)
+        if resp.status_code == 404:
+            logger.warning("Graph: folder %s vanished while listing it", item_id)
+            return items
+        resp.raise_for_status()
+        data = resp.json()
+        items.extend(data.get("value", []))
+        # Follow the nextLink verbatim — it already carries $top/$select.
+        next_link = data.get("@odata.nextLink")
+        url = str(next_link) if next_link else None
+    return items
+
+
 async def _graph_list_children(
     client: httpx.AsyncClient, access_token: str, drive_id: str, base: str
 ) -> list[dict[str, object]]:
     """List the immediate children (files + folders) of a OneDrive folder.
 
     ``base`` is the drive-relative path of the parent folder (empty = drive root).
-    Returns the raw Graph item dicts (each has ``id``, ``name`` and, for folders,
-    a ``folder`` facet). Returns ``[]`` if the folder does not exist yet.
+    Returns the raw Graph item dicts. Returns ``[]`` if the folder does not exist
+    yet. The path is resolved to an item id first so that paging works.
     """
-    auth = {"Authorization": f"Bearer {access_token}"}
-    if base:
-        encoded = urllib.parse.quote(base)
-        url: str | None = f"{_GRAPH_BASE}/drives/{drive_id}/root:/{encoded}:/children"
-    else:
-        url = f"{_GRAPH_BASE}/drives/{drive_id}/root/children"
-    items: list[dict[str, object]] = []
-    while url:
-        resp = await client.get(url, headers=auth, timeout=30)
-        if resp.status_code == 404:
-            return []
-        resp.raise_for_status()
-        data = resp.json()
-        items.extend(data.get("value", []))
-        url = data.get("@odata.nextLink")
-    return items
+    item_id = await _graph_resolve_item_id(client, access_token, drive_id, base)
+    if item_id is None:
+        return []
+    return await _graph_list_children_by_id(client, access_token, drive_id, item_id)
 
 
 async def _graph_delete_item(
@@ -436,8 +555,12 @@ async def _graph_delete_item(
 ) -> None:
     """Delete a OneDrive item (folder or file) by its id."""
     auth = {"Authorization": f"Bearer {access_token}"}
-    resp = await client.delete(
-        f"{_GRAPH_BASE}/drives/{drive_id}/items/{item_id}", headers=auth, timeout=30
+    resp = await _graph_request(
+        client,
+        "DELETE",
+        f"{_GRAPH_BASE}/drives/{drive_id}/items/{item_id}",
+        headers=auth,
+        timeout=30,
     )
     if resp.status_code not in (200, 204, 404):
         resp.raise_for_status()
@@ -504,20 +627,28 @@ async def _graph_list_files(
 
     Used to diff a OneDrive mirror folder against the local directory so only
     missing/changed files are uploaded. Empty dict if the folder is absent.
+
+    Sub-folders are walked by item id — children already carry their id, so no
+    path has to be resolved again.
     """
     files: dict[str, int] = {}
 
-    async def _walk(folder_path: str, rel_prefix: str) -> None:
-        for child in await _graph_list_children(client, access_token, drive_id, folder_path):
+    async def _walk(folder_id: str, rel_prefix: str) -> None:
+        for child in await _graph_list_children_by_id(client, access_token, drive_id, folder_id):
             name = str(child.get("name", ""))
             rel = f"{rel_prefix}{name}"
             if child.get("folder") is not None:
-                await _walk(f"{folder_path}/{name}", f"{rel}/")
+                child_id = str(child.get("id", ""))
+                if child_id:
+                    await _walk(child_id, f"{rel}/")
             else:
                 size = child.get("size", 0)
                 files[rel] = size if isinstance(size, int) else 0
 
-    await _walk(base, "")
+    root_id = await _graph_resolve_item_id(client, access_token, drive_id, base)
+    if root_id is None:
+        return files
+    await _walk(root_id, "")
     return files
 
 
