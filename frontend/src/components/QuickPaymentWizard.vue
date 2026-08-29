@@ -109,6 +109,17 @@
                 :min-fraction-digits="2"
                 :max-fraction-digits="2"
               />
+              <div v-if="isCash" class="qpw-cash">
+                <p class="qpw-cash__hint">{{ t('payments.cash_amount_hint') }}</p>
+                <Button
+                  type="button"
+                  severity="secondary"
+                  text
+                  :label="t('payments.apply_remaining', { amount: formatCurrency(remainingAmount) })"
+                  @click="applyRemaining"
+                />
+                <p v-if="cashProjection" class="qpw-cash__effect">{{ cashProjection }}</p>
+              </div>
             </div>
             <div class="app-field">
               <label class="app-field__label">{{ t('payments.method') }}</label>
@@ -141,7 +152,12 @@
             type="button"
             @click="step = 1"
           />
-          <Button type="submit" :label="t('common.save')" :loading="saving" />
+          <Button
+            type="submit"
+            :label="t('common.save')"
+            :loading="saving"
+            :disabled="!hasAmount"
+          />
         </div>
       </form>
     </template>
@@ -201,8 +217,10 @@ import { listInvoicesApi, type Invoice } from '../api/invoices'
 import { listContactsApi, type Contact } from '../api/contacts'
 import { createPayment, suggestChequeNumber } from '../api/payments'
 import { remainingForInvoice, isOverdueInvoice } from '../composables/useInvoiceMetrics'
+import { useCashPaymentGuard, type CashDirection } from '../composables/useCashPaymentGuard'
 import { useBreakpoints } from '../composables/useBreakpoints'
 import { formatContactDisplayName } from '../utils/contact'
+import { formatCurrency } from '../utils/format'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (e: 'update:visible', v: boolean): void }>()
@@ -224,7 +242,7 @@ const selectedInvoice = ref<Invoice | null>(null)
 
 const form = ref({
   date: new Date(),
-  amount: 0,
+  amount: null as number | null,
   method: 'cheque' as 'especes' | 'cheque',
   cheque_number: '',
   reference: '',
@@ -261,6 +279,21 @@ const methodOptions = [
   { label: t('payments.methods.especes'), value: 'especes' },
   { label: t('payments.methods.cheque'), value: 'cheque' },
 ]
+
+// A cash amount must be typed, never proposed — see useCashPaymentGuard.
+// This wizard only ever lists client invoices, so the till can only go up.
+const { isCash, cashBalance, projectedCashBalance, initialAmount, applyRemaining } =
+  useCashPaymentGuard(form, remainingAmount, ref<CashDirection>('in'))
+
+const hasAmount = computed(() => Number(form.value.amount ?? 0) > 0)
+
+const cashProjection = computed(() => {
+  if (cashBalance.value === null || projectedCashBalance.value === null) return ''
+  return t('payments.cash_effect', {
+    before: formatCurrency(cashBalance.value),
+    after: formatCurrency(projectedCashBalance.value),
+  })
+})
 
 // ── helpers ────────────────────────────────────────────────────────────────
 function formatDate(iso: string): string {
@@ -301,7 +334,7 @@ function selectInvoice(invoice: Invoice) {
   selectedInvoice.value = invoice
   form.value = {
     date: new Date(),
-    amount: remainingForInvoice(invoice),
+    amount: initialAmount('cheque'),
     method: 'cheque',
     cheque_number: '',
     reference: '',
@@ -317,7 +350,7 @@ function selectInvoice(invoice: Invoice) {
 
 async function submitPayment() {
   if (!selectedInvoice.value) return
-  const amount = Number(form.value.amount)
+  const amount = Number(form.value.amount ?? 0)
   if (!(amount > 0) || amount > remainingAmount.value + 0.001) return
   if (form.value.method === 'cheque' && !form.value.cheque_number.trim()) return
 
@@ -422,6 +455,25 @@ watch(
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--p-amber-600);
+}
+
+.qpw-cash {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--app-space-1);
+  margin-top: var(--app-space-2);
+}
+
+.qpw-cash__hint,
+.qpw-cash__effect {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+}
+
+.qpw-cash__effect {
+  font-weight: 600;
 }
 
 .qpw-result {

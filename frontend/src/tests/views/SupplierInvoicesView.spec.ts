@@ -438,10 +438,20 @@ describe('SupplierInvoicesView — payment dialog', () => {
     await paymentButton!.trigger('click')
     await flushView()
 
-    // Switch method to especes
+    // Switch method to especes. The amount is cleared on purpose (BIZ-250): a
+    // cash sum has to be typed, so the balance is reported explicitly here.
     const selects = wrapper.findAll('select')
     const methodSelect = selects.at(-1)!
     await methodSelect.setValue('especes')
+    await flushView()
+
+    expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe('')
+
+    const applyButton = wrapper
+      .findAll('button')
+      .find((btn) => btn.text() === 'payments.apply_remaining')
+    await applyButton!.trigger('click')
+    await flushView()
 
     const paymentForm = wrapper.findAll('form').at(-1)!
     await paymentForm.trigger('submit')
