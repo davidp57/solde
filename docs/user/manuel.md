@@ -314,6 +314,19 @@ Le format de numérotation est configurable par l'administrateur (ex. `2026-001`
 5. Saisir la référence (numéro de virement, de chèque, etc.).
 6. Cliquer sur **Enregistrer**.
 
+### Règlement en espèces : le montant est à saisir
+
+Quand on enregistre un règlement depuis une **fiche facture** ou depuis la **facture rapide**, le montant est proposé d'office : c'est le solde restant dû. Pratique pour un chèque, dont le montant est écrit dessus — mais risqué pour les **espèces**, où rien d'autre que le comptage ne dit ce qui a été reçu.
+
+Aussi, dès que le mode **Espèces** est choisi, le champ **Montant** se vide : il faut y saisir ce qui a réellement été compté. Deux repères sont affichés juste en dessous :
+
+- un bouton **Reporter le solde dû (X €)** — à utiliser quand le montant compté correspond bien au solde de la facture ;
+- l'effet sur la caisse : **Caisse après ce règlement : … → …**, pour rapprocher la saisie de l'argent qu'on a sous les yeux.
+
+Repasser en **Chèque** repropose automatiquement le solde dû.
+
+> Cette précaution évite le cas typique où un montant erroné est enregistré d'un simple clic — par exemple une facture émise à 310 € réglée par 270 € en espèces : sans elle, la caisse théorique et la caisse réelle divergent, et l'écart n'apparaît qu'au comptage suivant.
+
 > **Astuce** : si une facture reste affichée comme impayée après l'enregistrement d'un paiement, vérifier que la facture est bien sélectionnée dans la section **Factures liées** du paiement.
 
 ### Annuler un règlement saisi par erreur

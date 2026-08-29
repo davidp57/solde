@@ -39,6 +39,19 @@
               :min-fraction-digits="2"
               :max-fraction-digits="2"
             />
+            <div v-if="isCash" class="invoice-payment-dialog__cash">
+              <p class="invoice-payment-dialog__cash-hint">{{ t('payments.cash_amount_hint') }}</p>
+              <Button
+                type="button"
+                severity="secondary"
+                text
+                :label="t('payments.apply_remaining', { amount: formatCurrency(paymentRemaining) })"
+                @click="applyRemaining"
+              />
+              <p v-if="cashProjection" class="invoice-payment-dialog__cash-effect">
+                {{ cashProjection }}
+              </p>
+            </div>
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.method') }}</label>
@@ -92,6 +105,7 @@ import AppFiscalYearDateWarning from '../ui/AppFiscalYearDateWarning.vue'
 import { createPayment, suggestChequeNumber } from '../../api/payments'
 import type { Invoice } from '../../api/invoices'
 import { remainingForInvoice } from '../../composables/useInvoiceMetrics'
+import { useCashPaymentGuard, type CashDirection } from '../../composables/useCashPaymentGuard'
 import { formatCurrency, formatDisplayDate } from '@/utils/format'
 
 const props = defineProps<{
@@ -117,7 +131,7 @@ const paymentMethodOptions = [
 const saving = ref(false)
 const form = ref({
   date: new Date() as Date,
-  amount: 0,
+  amount: null as number | null,
   method: 'cheque' as 'especes' | 'cheque',
   cheque_number: '',
   reference: '',
@@ -127,6 +141,24 @@ const form = ref({
 const paymentRemaining = computed(() =>
   props.invoice ? remainingForInvoice(props.invoice) : 0,
 )
+
+// Client receipts come into the till, supplier payments leave it — this dialog
+// serves both.
+const cashDirection = computed<CashDirection>(() =>
+  props.invoice?.type === 'fournisseur' ? 'out' : 'in',
+)
+
+// A cash amount must be typed, never proposed — see useCashPaymentGuard.
+const { isCash, cashBalance, projectedCashBalance, initialAmount, applyRemaining } =
+  useCashPaymentGuard(form, paymentRemaining, cashDirection)
+
+const cashProjection = computed(() => {
+  if (cashBalance.value === null || projectedCashBalance.value === null) return ''
+  return t('payments.cash_effect', {
+    before: formatCurrency(cashBalance.value),
+    after: formatCurrency(projectedCashBalance.value),
+  })
+})
 
 const introSubtitle = computed(() => {
   const parts: string[] = []
@@ -150,7 +182,7 @@ watch(
     if (!visible || !props.invoice) return
     form.value = {
       date: new Date(),
-      amount: remainingForInvoice(props.invoice),
+      amount: initialAmount('cheque'),
       method: 'cheque',
       cheque_number: '',
       reference: '',
@@ -176,7 +208,7 @@ function toIsoDate(value: Date | string): string {
 async function submitPayment(): Promise<void> {
   if (!props.invoice) return
 
-  const amount = Number(form.value.amount)
+  const amount = Number(form.value.amount ?? 0)
   if (!(amount > 0)) {
     toast.add({ severity: 'warn', summary: t('payments.errors.amount_positive'), life: 3500 })
     return
@@ -247,6 +279,25 @@ async function submitPayment(): Promise<void> {
   font-size: 1.05rem;
   font-weight: 800;
   color: var(--p-orange-500);
+}
+
+.invoice-payment-dialog__cash {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--app-space-1);
+  margin-top: var(--app-space-2);
+}
+
+.invoice-payment-dialog__cash-hint,
+.invoice-payment-dialog__cash-effect {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color);
+}
+
+.invoice-payment-dialog__cash-effect {
+  font-weight: 600;
 }
 
 @media (max-width: 767px) {

@@ -431,6 +431,18 @@ describe('ClientInvoicesView', () => {
     const methodSelect = wrapper.findAll('select').at(-1)
     expect(methodSelect).toBeTruthy()
     await methodSelect!.setValue('especes')
+    await flushView()
+
+    // Switching to cash clears the amount on purpose (BIZ-250): the sum has to
+    // be typed, or the balance reported explicitly.
+    expect((amountInput.element as HTMLInputElement).value).toBe('')
+
+    const applyButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'payments.apply_remaining')
+    expect(applyButton).toBeTruthy()
+    await applyButton!.trigger('click')
+    await flushView()
 
     const paymentForm = wrapper.findAll('form').at(-1)
     expect(paymentForm).toBeTruthy()

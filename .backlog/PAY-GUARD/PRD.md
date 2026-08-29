@@ -1,6 +1,6 @@
 # Lot PAY-GUARD — Garde-fou à la saisie d'un règlement en espèces
 
-Status: ⬜ ready
+Status: ✅ done
 Branch: feature/pay-guard → PR → develop
 
 ## Problem Statement
@@ -69,6 +69,12 @@ un confort légitime.
   demande **aucun** geste.
 - **Un seul endroit pour la règle.** Les deux dialogues (fiche facture et wizard rapide)
   partagent la logique via un composable, plutôt que de dupliquer la condition.
+- **Le sens du mouvement de caisse est explicite.** `InvoicePaymentDialog` sert aussi les
+  factures **fournisseur**, où les espèces *sortent* de la caisse
+  (`_create_treasury_entries_for_payment` crée un mouvement `OUT`). La projection prend
+  donc une direction (`in`/`out`) déduite du type de facture — sans quoi elle annoncerait
+  une caisse en hausse au moment de payer un fournisseur. Le wizard rapide ne liste que
+  des factures client : direction `in` constante.
 - **Aucun changement backend.** Ni schéma, ni service, ni migration : `getCashBalance()`
   et les validations existantes suffisent.
 
@@ -82,8 +88,8 @@ un confort légitime.
   `payments.errors.amount_positive`).
 - Un montant inférieur au solde dû reste accepté (règlement partiel légitime) ; un montant
   supérieur reste refusé (comportement existant inchangé).
-- L'effet caisse affiché correspond à `solde courant + montant saisi`, et se met à jour à
-  chaque frappe.
+- L'effet caisse affiché suit la frappe : `solde + montant` pour un encaissement client,
+  `solde − montant` pour un règlement fournisseur.
 - Mode chèque : le pré-remplissage est **inchangé** (non-régression).
 - Les deux points de saisie (`InvoicePaymentDialog`, `QuickPaymentWizard`) se comportent
   à l'identique.

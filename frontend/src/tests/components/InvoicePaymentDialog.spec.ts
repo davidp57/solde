@@ -29,6 +29,10 @@ vi.mock('../../api/payments', () => ({
   suggestChequeNumber: vi.fn().mockResolvedValue('12345'),
 }))
 
+vi.mock('../../api/cash', () => ({
+  getCashBalance: vi.fn().mockResolvedValue({ balance: '120.00' }),
+}))
+
 const stubs = {
   Dialog: defineComponent({
     props: ['visible'],
@@ -44,10 +48,21 @@ const stubs = {
     },
   }),
   Select: defineComponent({
-    props: ['modelValue'],
+    props: ['modelValue', 'options'],
     emits: ['update:modelValue'],
-    setup() {
-      return () => h('select')
+    setup(props, { emit }) {
+      return () =>
+        h(
+          'select',
+          {
+            value: props.modelValue,
+            onChange: (event: Event) =>
+              emit('update:modelValue', (event.target as HTMLSelectElement).value),
+          },
+          (props.options ?? []).map((option: { label: string; value: string }) =>
+            h('option', { value: option.value }, option.label),
+          ),
+        )
     },
   }),
   InputText: defineComponent({
@@ -127,6 +142,70 @@ describe('InvoicePaymentDialog', () => {
     )
     expect(wrapper.emitted('paid')?.[0]).toEqual([42])
     expect(wrapper.emitted('update:visible')?.at(-1)).toEqual([false])
+  })
+
+  it('clears the amount when the method switches to cash, and refuses an empty submit', async () => {
+    vi.mocked(createPayment).mockClear()
+    const wrapper = mount(InvoicePaymentDialog, {
+      props: { visible: false, invoice: makeInvoice({ total_amount: '310.00' }) },
+      global: { stubs },
+    })
+    await wrapper.setProps({ visible: true })
+    await flushPromises()
+
+    // Cheque is the default: the balance is still proposed.
+    expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe('310')
+
+    await wrapper.find('select').setValue('especes')
+    await flushPromises()
+
+    expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe('')
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(createPayment).not.toHaveBeenCalled()
+  })
+
+  it('reports the remaining amount on demand for a cash payment', async () => {
+    vi.mocked(createPayment).mockClear()
+    const wrapper = mount(InvoicePaymentDialog, {
+      props: { visible: false, invoice: makeInvoice({ total_amount: '270.00' }) },
+      global: { stubs },
+    })
+    await wrapper.setProps({ visible: true })
+    await flushPromises()
+    await wrapper.find('select').setValue('especes')
+    await flushPromises()
+
+    const applyButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'payments.apply_remaining')
+    expect(applyButton).toBeDefined()
+
+    await applyButton!.trigger('click')
+    await flushPromises()
+
+    expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe('270')
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(createPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: '270.00', method: 'especes' }),
+    )
+  })
+
+  it('keeps the cheque pre-fill untouched', async () => {
+    const wrapper = mount(InvoicePaymentDialog, {
+      props: { visible: false, invoice: makeInvoice({ total_amount: '310.00' }) },
+      global: { stubs },
+    })
+    await wrapper.setProps({ visible: true })
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('payments.apply_remaining')
+    expect(wrapper.text()).not.toContain('payments.cash_amount_hint')
   })
 
   it('does not record a payment when the remaining amount is zero', async () => {

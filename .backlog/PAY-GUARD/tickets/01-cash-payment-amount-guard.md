@@ -1,6 +1,6 @@
 # BIZ-250 — Saisie explicite du montant pour un règlement en espèces
 
-Status: ⬜ ready
+Status: ✅ done
 Type: feature
 Files: `frontend/src/components/invoices/InvoicePaymentDialog.vue`,
 `frontend/src/components/QuickPaymentWizard.vue`,
@@ -40,19 +40,19 @@ les deux points de saisie d'un règlement client.
 
 ## Acceptance criteria
 
-- [ ] Dialogue ouvert avec « espèces » sélectionné : le champ montant est **vide**.
-- [ ] Passer de « chèque » à « espèces » vide le montant ; revenir à « chèque » le
+- [x] Dialogue ouvert avec « espèces » sélectionné : le champ montant est **vide**.
+- [x] Passer de « chèque » à « espèces » vide le montant ; revenir à « chèque » le
       repropose au solde dû.
-- [ ] Le bouton « Solde dû » remplit le champ avec le solde dû exact, au centime.
-- [ ] Enregistrer avec un montant vide ou nul reste refusé, avec le message existant.
-- [ ] Un montant **inférieur** au solde dû est toujours accepté ; un montant
+- [x] Le bouton « Solde dû » remplit le champ avec le solde dû exact, au centime.
+- [x] Enregistrer avec un montant vide ou nul reste refusé, avec le message existant.
+- [x] Un montant **inférieur** au solde dû est toujours accepté ; un montant
       **supérieur** est toujours refusé (non-régression).
-- [ ] En mode espèces, le solde de caisse projeté s'affiche et suit la saisie ; il vaut
+- [x] En mode espèces, le solde de caisse projeté s'affiche et suit la saisie ; il vaut
       `solde courant + montant saisi`.
-- [ ] Si `getCashBalance()` échoue, la ligne d'effet caisse disparaît et la saisie reste
+- [x] Si `getCashBalance()` échoue, la ligne d'effet caisse disparaît et la saisie reste
       possible.
-- [ ] Le comportement des deux points de saisie est identique.
-- [ ] `docs/user/manuel.md` (section *Enregistrer un règlement*) décrit la saisie
+- [x] Le comportement des deux points de saisie est identique.
+- [x] `docs/user/manuel.md` (section *Enregistrer un règlement*) décrit la saisie
       explicite pour les espèces ; `docs/user/changelog-user.md` mentionne le changement.
 
 ## Blocked by

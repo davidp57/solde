@@ -32,7 +32,7 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [FY-ROLLOVER](FY-ROLLOVER/PRD.md) — bascule d'exercice depuis l'interface : pré-contrôles, ouverture avec report à nouveau, anti-chevauchement (BIZ-226 + TEC-217) | ✅ |
 | [DEPOSIT-MERGE](DEPOSIT-MERGE/PRD.md) — fusionner une remise confirmée avec sa ligne de relevé au lieu de la dupliquer (BIZ-227) | ✅ |
 | [DOCS](DOCS/PRD.md) — espace de documents : dépôt libre, exercice facultatif, étiquettes (BIZ-240→242) | ✅ |
-| [PAY-GUARD](PAY-GUARD/PRD.md) — garde-fou à la saisie d'un règlement en espèces : montant saisi, pas pré-rempli (BIZ-250) | ⬜ |
+| [PAY-GUARD](PAY-GUARD/PRD.md) — garde-fou à la saisie d'un règlement en espèces : montant saisi, pas pré-rempli (BIZ-250) | ✅ |
 
 ## Lots archivés
 
