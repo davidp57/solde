@@ -404,31 +404,76 @@ async def fetch_remote_backup(
 _BACKUP_TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}$")
 
 
+# Page size for children listings. Graph caps it at 200 for drive items.
+_GRAPH_PAGE_SIZE = 200
+# Only the fields the callers actually read — keeps responses small on folders
+# holding thousands of invoice PDFs.
+_GRAPH_CHILD_FIELDS = "id,name,size,folder"
+
+
+async def _graph_resolve_item_id(
+    client: httpx.AsyncClient, access_token: str, drive_id: str, base: str
+) -> str | None:
+    """Return the item id of the folder at drive-relative path ``base``.
+
+    ``base`` empty means the drive root. Returns ``None`` when the folder does
+    not exist yet.
+    """
+    auth = {"Authorization": f"Bearer {access_token}"}
+    if base:
+        encoded = urllib.parse.quote(base)
+        url = f"{_GRAPH_BASE}/drives/{drive_id}/root:/{encoded}"
+    else:
+        url = f"{_GRAPH_BASE}/drives/{drive_id}/root"
+    resp = await client.get(url, headers=auth, params={"$select": "id"}, timeout=30)
+    if resp.status_code == 404:
+        return None
+    resp.raise_for_status()
+    item_id = resp.json().get("id")
+    return str(item_id) if item_id else None
+
+
+async def _graph_list_children_by_id(
+    client: httpx.AsyncClient, access_token: str, drive_id: str, item_id: str
+) -> list[dict[str, object]]:
+    """List the immediate children of a OneDrive folder addressed by item id.
+
+    Item-id addressing is required for pagination: when the folder is addressed
+    by path, Graph builds an ``@odata.nextLink`` that mixes the ``root:/…:/``
+    syntax with a ``$skiptoken`` and then rejects that very link with a 400
+    (OneDrive/onedrive-api-docs#620 and #774). Returns the raw Graph item dicts
+    (each has ``id``, ``name``, ``size`` and, for folders, a ``folder`` facet).
+    """
+    auth = {"Authorization": f"Bearer {access_token}"}
+    url: str | None = (
+        f"{_GRAPH_BASE}/drives/{drive_id}/items/{item_id}/children"
+        f"?$top={_GRAPH_PAGE_SIZE}&$select={_GRAPH_CHILD_FIELDS}"
+    )
+    items: list[dict[str, object]] = []
+    while url:
+        resp = await client.get(url, headers=auth, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        items.extend(data.get("value", []))
+        # Follow the nextLink verbatim — it already carries $top/$select.
+        next_link = data.get("@odata.nextLink")
+        url = str(next_link) if next_link else None
+    return items
+
+
 async def _graph_list_children(
     client: httpx.AsyncClient, access_token: str, drive_id: str, base: str
 ) -> list[dict[str, object]]:
     """List the immediate children (files + folders) of a OneDrive folder.
 
     ``base`` is the drive-relative path of the parent folder (empty = drive root).
-    Returns the raw Graph item dicts (each has ``id``, ``name`` and, for folders,
-    a ``folder`` facet). Returns ``[]`` if the folder does not exist yet.
+    Returns the raw Graph item dicts. Returns ``[]`` if the folder does not exist
+    yet. The path is resolved to an item id first so that paging works.
     """
-    auth = {"Authorization": f"Bearer {access_token}"}
-    if base:
-        encoded = urllib.parse.quote(base)
-        url: str | None = f"{_GRAPH_BASE}/drives/{drive_id}/root:/{encoded}:/children"
-    else:
-        url = f"{_GRAPH_BASE}/drives/{drive_id}/root/children"
-    items: list[dict[str, object]] = []
-    while url:
-        resp = await client.get(url, headers=auth, timeout=30)
-        if resp.status_code == 404:
-            return []
-        resp.raise_for_status()
-        data = resp.json()
-        items.extend(data.get("value", []))
-        url = data.get("@odata.nextLink")
-    return items
+    item_id = await _graph_resolve_item_id(client, access_token, drive_id, base)
+    if item_id is None:
+        return []
+    return await _graph_list_children_by_id(client, access_token, drive_id, item_id)
 
 
 async def _graph_delete_item(
@@ -504,20 +549,28 @@ async def _graph_list_files(
 
     Used to diff a OneDrive mirror folder against the local directory so only
     missing/changed files are uploaded. Empty dict if the folder is absent.
+
+    Sub-folders are walked by item id — children already carry their id, so no
+    path has to be resolved again.
     """
     files: dict[str, int] = {}
 
-    async def _walk(folder_path: str, rel_prefix: str) -> None:
-        for child in await _graph_list_children(client, access_token, drive_id, folder_path):
+    async def _walk(folder_id: str, rel_prefix: str) -> None:
+        for child in await _graph_list_children_by_id(client, access_token, drive_id, folder_id):
             name = str(child.get("name", ""))
             rel = f"{rel_prefix}{name}"
             if child.get("folder") is not None:
-                await _walk(f"{folder_path}/{name}", f"{rel}/")
+                child_id = str(child.get("id", ""))
+                if child_id:
+                    await _walk(child_id, f"{rel}/")
             else:
                 size = child.get("size", 0)
                 files[rel] = size if isinstance(size, int) else 0
 
-    await _walk(base, "")
+    root_id = await _graph_resolve_item_id(client, access_token, drive_id, base)
+    if root_id is None:
+        return files
+    await _walk(root_id, "")
     return files
 
 

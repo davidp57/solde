@@ -596,3 +596,183 @@ async def test_mirror_rclone_no_filter_without_allowlist(tmp_path: Path) -> None
         await bds.mirror_dir_incremental(dest, str(pdfs), "pdfs")
 
     assert "--files-from" not in captured["cmd"]  # type: ignore[operator]
+
+
+# ---------------------------------------------------------------------------
+# OneDrive children listing — item-id addressing + paging
+# ---------------------------------------------------------------------------
+
+
+class _FakeResponse:
+    def __init__(self, payload: dict[str, object], status_code: int = 200) -> None:
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self) -> dict[str, object]:
+        return self._payload
+
+    def raise_for_status(self) -> None:
+        if self.status_code >= 400:
+            raise AssertionError(f"unexpected HTTP {self.status_code}")
+
+
+class _FakeGraphClient:
+    """Minimal httpx.AsyncClient stand-in returning canned Graph responses."""
+
+    def __init__(self, routes: dict[str, dict[str, object]]) -> None:
+        self._routes = routes
+        self.calls: list[str] = []
+
+    async def get(self, url: str, **kwargs: object) -> _FakeResponse:
+        self.calls.append(url)
+        payload = self._routes.get(url)
+        if payload is None:
+            return _FakeResponse({}, status_code=404)
+        return _FakeResponse(payload)
+
+
+_BASE = bds._GRAPH_BASE
+_CHILDREN_Q = f"?$top={bds._GRAPH_PAGE_SIZE}&$select={bds._GRAPH_CHILD_FIELDS}"
+
+
+class TestGraphListChildren:
+    @pytest.mark.asyncio
+    async def test_follows_next_link_across_pages(self) -> None:
+        """A folder larger than one page is listed in full, addressed by item id."""
+        page2 = f"{_BASE}/drives/d1/items/folder1/children?$skiptoken=abc"
+        routes = {
+            f"{_BASE}/drives/d1/root:/backups/pdfs": {"id": "folder1"},
+            f"{_BASE}/drives/d1/items/folder1/children{_CHILDREN_Q}": {
+                "value": [{"id": "a", "name": "a.pdf", "size": 1}],
+                "@odata.nextLink": page2,
+            },
+            page2: {"value": [{"id": "b", "name": "b.pdf", "size": 2}]},
+        }
+        client = _FakeGraphClient(routes)
+
+        items = await bds._graph_list_children(client, "tok", "d1", "backups/pdfs")  # type: ignore[arg-type]
+
+        assert [i["name"] for i in items] == ["a.pdf", "b.pdf"]
+        # The children endpoint is never addressed by path — that is what made
+        # Graph reject its own nextLink with a 400.
+        children_calls = [c for c in client.calls if "/children" in c]
+        assert children_calls and all("root:/" not in c for c in children_calls)
+
+    @pytest.mark.asyncio
+    async def test_missing_folder_returns_empty(self) -> None:
+        client = _FakeGraphClient({})
+
+        items = await bds._graph_list_children(client, "tok", "d1", "backups/pdfs")  # type: ignore[arg-type]
+
+        assert items == []
+        assert not [c for c in client.calls if "/children" in c]
+
+    @pytest.mark.asyncio
+    async def test_root_folder_uses_root_endpoint(self) -> None:
+        routes = {
+            f"{_BASE}/drives/d1/root": {"id": "rootid"},
+            f"{_BASE}/drives/d1/items/rootid/children{_CHILDREN_Q}": {
+                "value": [{"id": "x", "name": "x.pdf", "size": 3}]
+            },
+        }
+        client = _FakeGraphClient(routes)
+
+        items = await bds._graph_list_children(client, "tok", "d1", "")  # type: ignore[arg-type]
+
+        assert [i["name"] for i in items] == ["x.pdf"]
+
+
+class TestGraphListFiles:
+    @pytest.mark.asyncio
+    async def test_walks_subfolders_by_id_and_pages(self) -> None:
+        page2 = f"{_BASE}/drives/d1/items/root1/children?$skiptoken=xyz"
+        routes = {
+            f"{_BASE}/drives/d1/root:/backups/pdfs": {"id": "root1"},
+            f"{_BASE}/drives/d1/items/root1/children{_CHILDREN_Q}": {
+                "value": [{"id": "f1", "name": "facture_A.pdf", "size": 10}],
+                "@odata.nextLink": page2,
+            },
+            page2: {"value": [{"id": "sub1", "name": "2025", "folder": {}}]},
+            f"{_BASE}/drives/d1/items/sub1/children{_CHILDREN_Q}": {
+                "value": [{"id": "f2", "name": "facture_B.pdf", "size": 20}]
+            },
+        }
+        client = _FakeGraphClient(routes)
+
+        files = await bds._graph_list_files(client, "tok", "d1", "backups/pdfs")  # type: ignore[arg-type]
+
+        assert files == {"facture_A.pdf": 10, "2025/facture_B.pdf": 20}
+        # Sub-folder walked through its id, not through a rebuilt path.
+        assert f"{_BASE}/drives/d1/items/sub1/children{_CHILDREN_Q}" in client.calls
+
+    @pytest.mark.asyncio
+    async def test_absent_mirror_folder_yields_empty_map(self) -> None:
+        client = _FakeGraphClient({})
+
+        files = await bds._graph_list_files(client, "tok", "d1", "backups/pdfs")  # type: ignore[arg-type]
+
+        assert files == {}
+
+
+class TestBackupJobFailureMessage:
+    """A destination failure says which stage broke, without the httpx trailer."""
+
+    @pytest.mark.asyncio
+    async def test_mirror_failure_names_the_stage(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        (tmp_path / "data" / "pdfs").mkdir(parents=True)
+        monkeypatch.chdir(tmp_path)
+
+        fake_backup = tmp_path / "solde_backup_20260101_120000.db"
+        fake_backup.write_bytes(b"fake")
+        dest = _make_dest(name="onedrive", rclone_remote_name="od")
+
+        async def _fake_sync(dest, src_paths, run_ts, on_progress=None):
+            return None
+
+        boom = RuntimeError(
+            "Client error '400 Bad Request' for url 'https://graph/children'\n"
+            "For more information check: https://developer.mozilla.org/x"
+        )
+        status_mock = AsyncMock()
+        from backend.services import backup_scheduler as sched
+
+        patches = _make_scheduler_patches(fake_backup, dest, _fake_sync)
+        with ExitStack() as stack:
+            for p in patches:
+                stack.enter_context(p)
+            stack.enter_context(
+                patch(
+                    "backend.services.backup_destination_service.mirror_dir_incremental",
+                    AsyncMock(side_effect=boom),
+                )
+            )
+            stack.enter_context(patch.object(sched, "_update_run_status", status_mock))
+            await sched._run_backup_job_inner(
+                db_path="data/solde.db",
+                backup_dir="data/backups",
+                include_uploads=False,
+                include_all_backups=False,
+                notify_on_failure=False,
+            )
+
+        success, error = status_mock.call_args.args
+        assert success is False
+        assert error is not None
+        assert "miroir des PDF" in error
+        assert "onedrive" in error
+        assert "For more information check" not in error
+
+
+def test_describe_error_strips_httpx_trailer() -> None:
+    from backend.services.backup_scheduler import _describe_error
+
+    exc = RuntimeError("boom\nFor more information check: https://developer.mozilla.org/x")
+    assert _describe_error(exc) == "boom"
+
+
+def test_describe_error_collapses_whitespace() -> None:
+    from backend.services.backup_scheduler import _describe_error
+
+    assert _describe_error(RuntimeError("a\n  b\tc")) == "a b c"
