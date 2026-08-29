@@ -428,6 +428,17 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [1.0.0] — 2026-04-27
 
+> ⚠️ **Rectification du 2026-08-29** — les deux entrées **BIZ-129 (notes de crédit / avoirs)**
+> ci-dessous sont **fausses** : cette fonctionnalité n'a jamais été implémentée. Le commit
+> `07e039e` « feat(invoice): add support for credit notes (BIZ-129) » ne modifie qu'un seul
+> fichier (`doc/backlog.md`, 25 lignes), sans une ligne de code ni de test ; `git log -S
+> "credit_note_for_id"` ne renvoie aucun commit sur `backend/` ; et la migration `0038`
+> annoncée est en réalité `0038_add_deposit_confirmed` (BIZ-130 — voir la version 1.1.0
+> ci-dessus, qui la revendique correctement). `InvoiceType` n'a toujours que `client` et
+> `fournisseur`, et le total d'une facture client reste contraint à ≥ 0.
+> **Solde n'a pas de mécanisme d'avoir.** Le texte d'origine est conservé tel quel ;
+> détail dans `docs/roadmap.md` § v1.0.
+
 ### Ajouté
 
 - BIZ-129 : Notes de crédit (avoirs) — nouveau type de document `avoir` sur les factures ; numérotation séparée `AV-YYYY-NNN` ; endpoint `POST /api/invoices/{id}/credit-note` pré-remplissant les lignes inversées ; contrainte total ≥ 0 levée pour les avoirs ; badge « Avoir » dans les listes et formulaires ; template PDF dédié avec en-tête « NOTE DE CRÉDIT » ; bouton « Créer un avoir » sur les factures envoyées/payées
