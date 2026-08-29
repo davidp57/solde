@@ -114,8 +114,9 @@ For every non-trivial change, unless told otherwise, proceed end-to-end without 
 5. **If the user must test manually**, stop and wait for explicit approval ("c'est bon" / "go") before continuing; otherwise proceed.
 6. **Commit + push** (Conventional Commits in English, with the required `Co-Authored-By` trailer).
 7. **Open the PR** targeting `develop` and report its URL.
+8. **Merge it into `develop` once CI is green** — every required check passing, no conflict. Report the merge. A red or pending check is not a merge: wait, or say what is blocking.
 
-This grants standing authorization to **commit, push, and open PRs** without asking each time. It does **not** authorize **merging**, force-push, or pushing tags — those stay with the user (merges to `main` are always manual; `release/x.y.z` branches target `main`).
+This grants standing authorization to **commit, push, open PRs, and merge them into `develop` when CI is green** without asking each time. It does **not** authorize **merging into `main`**, force-push, or pushing tags — those stay with the user (merges to `main` are always manual; `release/x.y.z` branches target `main`).
 
 ## Working rules (surgical mode)
 
