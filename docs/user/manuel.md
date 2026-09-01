@@ -475,13 +475,13 @@ Une remise en banque regroupe plusieurs paiements remis ensemble à la banque (l
 4. Saisir la date de remise et le montant total.
 5. Enregistrer.
 
-**Confirmer la remise** (quand le bordereau part à la banque) crédite immédiatement le compte : une opération est ajoutée au journal bancaire, sans attendre le relevé. Cette opération porte **la date du bordereau**, celle à laquelle vous avez porté les chèques ou les espèces à la banque — et non la date du jour où vous confirmez, qui peut arriver plusieurs jours plus tard.
+**Confirmer la remise** (quand le bordereau part à la banque) crédite immédiatement le compte : une opération est ajoutée au journal bancaire, sans attendre le relevé. Si le relevé a déjà été importé et contient ce mouvement, l'application **reprend cette opération** au lieu d'en créer une seconde : elle la renomme du nom du bordereau et la marque rapprochée. Rien à nettoyer, et le solde ne monte jamais à tort. Cette opération porte **la date du bordereau**, celle à laquelle vous avez porté les chèques ou les espèces à la banque — et non la date du jour où vous confirmez, qui peut arriver plusieurs jours plus tard.
 
 Quand vous importerez ensuite le relevé, la banque apportera ce même mouvement avec sa propre référence. L'application le **reconnaît et complète l'opération existante** au lieu d'en créer une seconde — le message de fin d'import indique combien de remises ont été rapprochées de cette façon. Vous n'avez donc rien à supprimer.
 
 > Dans un cas ambigu — deux remises du même montant à quelques jours d'intervalle — l'application ne choisit pas à votre place : les deux lignes sont importées, à vous d'indiquer laquelle correspond (voir ci-dessous).
 
-**Si le rapprochement automatique n'a pas eu lieu** (bordereau confirmé longtemps après le crédit, ou plusieurs remises du même montant), vous vous retrouvez avec deux lignes pour un seul mouvement. Ne supprimez rien : sur la ligne venue du relevé, ouvrez le menu **…** et choisissez **Rattacher à un bordereau enregistré**. Sélectionnez le bordereau concerné : les deux lignes n'en font plus qu'une, qui garde le nom du bordereau et prend la date et la référence de la banque.
+**Si le rapprochement automatique n'a pas eu lieu** (bordereau confirmé longtemps après le crédit, ou plusieurs remises du même montant), vous vous retrouvez avec deux lignes pour un seul mouvement. Ne supprimez rien : sur la ligne venue du relevé, ouvrez le menu **…** et choisissez **Rattacher à un bordereau enregistré**. Sélectionnez le bordereau concerné : les deux lignes n'en font plus qu'une, qui garde le nom du bordereau, prend la date et la référence de la banque, et est **rapprochée d'office** — la correspondance est établie, il n'y a plus rien à confirmer. La colonne *Réf. comptable* affiche alors le bordereau.
 
 > Un bordereau **non confirmé** ne crée aucune opération : il n'y a donc rien à rattacher tant que vous ne l'avez pas confirmé. Le dialogue vous le signale et vous indique le bordereau en attente plutôt que de vous laisser sans explication.
 
