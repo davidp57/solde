@@ -35,7 +35,7 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [PAY-GUARD](PAY-GUARD/PRD.md) — garde-fou à la saisie d'un règlement en espèces : montant saisi, pas pré-rempli (BIZ-250) | ✅ |
 | [DEPOSIT-MERGE-2](DEPOSIT-MERGE-2/PRD.md) — rattraper la remise que la fusion automatique a manquée : date du bordereau, fenêtre élargie, rattachement manuel (TEC-250/251/252 + BIZ-251/252) | ✅ |
 | [DEPOSIT-ADOPT](DEPOSIT-ADOPT/PRD.md) — confirmer un bordereau sans créer de doublon : adoption de la ligne du relevé, fusion rapprochée d'office (BIZ-253 + TEC-253) | ✅ |
-| [CHECKLIST](CHECKLIST/PRD.md) — checklist mensuelle de tenue comptable, ordonnée par allers-retours externes (BIZ-254→256) | ⬜ |
+| [CHECKLIST](CHECKLIST/PRD.md) — checklist mensuelle de tenue comptable : séance ordonnée par passages externes, état en base, clôture explicite (BIZ-254→256) | ⬜ |
 
 ## Lots archivés
 
