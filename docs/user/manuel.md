@@ -441,6 +441,16 @@ L'application n'écarte jamais une ligne d'elle-même : les deux sont importées
 
 > Le bouton est grisé sur une ligne qui ne peut pas être supprimée : une opération **rapprochée** (il faut alors supprimer l'autre côté de la paire) ou une opération issue d'un **import Excel**.
 
+### Défaire un rapprochement
+
+Le rapprochement est le verrou de tout le reste : une opération rapprochée ne peut plus être ni modifiée ni supprimée. Pour revenir en arrière — catégorie erronée découverte après coup, clic malheureux sur « Tout rapprocher », ligne rapprochée alors qu'elle faisait doublon — ouvrez le menu **…** de la ligne et choisissez **Défaire le rapprochement**. L'opération repasse « à rapprocher » et les écritures comptables que le rapprochement avait générées sont supprimées. Réservé au trésorier et à l'administrateur.
+
+Le geste ne défait que le rapprochement fait depuis l'écran Banque. Trois cas sont refusés, avec le message qui indique par où passer :
+
+- **Le rapprochement tient à un règlement** (vous l'aviez créé ou rattaché depuis la ligne) : c'est le règlement qu'il faut annuler, depuis la facture concernée.
+- **Le rapprochement tient à un bordereau de remise** : la ligne *est* le bordereau, passez par les actions du bordereau.
+- **L'opération appartient à un exercice clôturé** : défaire une écriture d'un exercice clos relève d'une contre-passation, pas d'une correction.
+
 ### Supprimer une opération
 
 Une opération peut être supprimée tant qu'elle n'est pas **rapprochée** : les opérations saisies à la main, et celles venues d'un import de relevé (OFX, CSV, QIF). Ouvrez le menu **…** de la ligne et choisissez **Supprimer l'opération**.

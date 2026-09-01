@@ -946,6 +946,17 @@ export default {
     delete_transaction_title: 'Supprimer l\'opération',
     delete_transaction_confirm: 'Cette opération sera supprimée définitivement. Confirmer ?',
     transaction_deleted: 'Opération supprimée.',
+    unreconcile_transaction: 'Défaire le rapprochement',
+    unreconcile_confirm:
+      'Le rapprochement sera annulé et les écritures comptables qu’il a générées seront supprimées. L’opération repassera « à rapprocher ». Confirmer ?',
+    transaction_unreconciled: 'Rapprochement annulé.',
+    unreconcile_error_not_reconciled: 'Cette opération n’est pas rapprochée.',
+    unreconcile_error_payment:
+      'Ce rapprochement tient à un règlement. Passez par l’annulation du règlement, depuis la facture concernée.',
+    unreconcile_error_deposit:
+      'Ce rapprochement tient à un bordereau de remise. Passez par les actions du bordereau.',
+    unreconcile_error_fiscal_year_closed:
+      'Cette opération appartient à un exercice clôturé : son rapprochement ne peut plus être défait.',
     new_deposit: 'Nouveau bordereau',
     import_statement: 'Importer un relevé',
     import_default_account: 'Compte cible',

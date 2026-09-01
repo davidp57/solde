@@ -179,6 +179,13 @@ export async function deleteTransaction(id: number): Promise<void> {
   await apiClient.delete(`/api/bank/transactions/${id}`)
 }
 
+export async function unreconcileTransaction(id: number): Promise<BankTransaction> {
+  const response = await apiClient.post<BankTransaction>(
+    `/api/bank/transactions/${id}/unreconcile`,
+  )
+  return response.data
+}
+
 export async function reconcileTransactionsBulk(ids: number[]): Promise<number> {
   const response = await apiClient.post<number>('/api/bank/transactions/reconcile-bulk', { ids })
   return response.data

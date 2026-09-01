@@ -11,9 +11,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
-from backend.models.bank import BankTransaction, BankTransactionSource
+from backend.models.accounting_rule import (
+    AccountingRule,
+    AccountingRuleEntry,
+    EntrySide,
+    TriggerType,
+)
+from backend.models.bank import (
+    BankTransaction,
+    BankTransactionCategory,
+    BankTransactionSource,
+)
 from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
 from backend.models.contact import Contact, ContactType
+from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
 from backend.models.user import User
@@ -755,6 +766,221 @@ async def test_import_csv(client: AsyncClient, admin_user: User, auth_headers: d
     assert data["created"][0]["detected_category"] == "customer_payment"
     assert data["created"][1]["amount"] == "-45.50"
     assert data["created"][1]["detected_category"] == "sepa_debit"
+
+
+class TestUnreconcileTransaction:
+    """BIZ-260 — undoing a reconciliation, and the paths that refuse it."""
+
+    async def _fiscal_year(
+        self, db: AsyncSession, status: FiscalYearStatus = FiscalYearStatus.OPEN
+    ) -> FiscalYear:
+        fy = FiscalYear(
+            name="2024",
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 12, 31),
+            status=status,
+        )
+        db.add(fy)
+        await db.commit()
+        await db.refresh(fy)
+        return fy
+
+    async def _bank_fee_rule(self, db: AsyncSession) -> None:
+        rule = AccountingRule(
+            name="Frais bancaires",
+            trigger_type=TriggerType.BANK_FEES,
+            is_active=True,
+            priority=10,
+        )
+        db.add(rule)
+        await db.flush()
+        db.add(
+            AccountingRuleEntry(
+                rule_id=rule.id,
+                account_number="627000",
+                side=EntrySide.DEBIT,
+                description_template="{{label}}",
+            )
+        )
+        db.add(
+            AccountingRuleEntry(
+                rule_id=rule.id,
+                account_number="512100",
+                side=EntrySide.CREDIT,
+                description_template="{{label}}",
+            )
+        )
+        await db.commit()
+
+    async def _make_tx(
+        self,
+        db: AsyncSession,
+        *,
+        category: BankTransactionCategory = BankTransactionCategory.BANK_FEE,
+        description: str = "Frais tenue de compte",
+        reference: str | None = None,
+        reconciled_with: str | None = None,
+    ) -> int:
+        tx = BankTransaction(
+            date=date(2024, 5, 1),
+            amount=Decimal("-15.00"),
+            description=description,
+            reference=reference,
+            reconciled_with=reconciled_with,
+            detected_category=category,
+            balance_after=Decimal("0"),
+            source=BankTransactionSource.IMPORT_OFX,
+        )
+        db.add(tx)
+        await db.commit()
+        await db.refresh(tx)
+        return tx.id
+
+    async def _reconcile(self, client: AsyncClient, headers: dict, tx_id: int) -> None:
+        r = await client.post(
+            "/api/bank/transactions/reconcile-bulk", json={"ids": [tx_id]}, headers=headers
+        )
+        assert r.status_code == 200
+
+    async def _entry_count(self, db: AsyncSession, tx_id: int) -> int:
+        result = await db.execute(
+            select(AccountingEntry)
+            .where(AccountingEntry.source_type == EntrySourceType.BANK_TRANSACTION)
+            .where(AccountingEntry.source_id == tx_id)
+        )
+        return len(list(result.scalars().all()))
+
+    async def test_undoes_flag_and_deletes_generated_entries(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        await self._fiscal_year(db_session)
+        await self._bank_fee_rule(db_session)
+        tx_id = await self._make_tx(db_session)
+        await self._reconcile(client, auth_headers, tx_id)
+        assert await self._entry_count(db_session, tx_id) == 2
+
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        assert r.status_code == 200
+        assert r.json()["reconciled"] is False
+        assert await self._entry_count(db_session, tx_id) == 0
+
+    async def test_no_entry_category_unreconciles_without_entries(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        """The common case: nothing was generated, so there is nothing to undo but the flag."""
+        await self._fiscal_year(db_session)
+        tx_id = await self._make_tx(
+            db_session,
+            category=BankTransactionCategory.NO_ENTRY,
+            description="Virement interne",
+        )
+        await self._reconcile(client, auth_headers, tx_id)
+
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        assert r.status_code == 200
+        assert r.json()["reconciled"] is False
+
+    async def test_unreconciled_row_becomes_deletable_again(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        """The whole point of the lot: a reconciled duplicate can finally be removed."""
+        await self._fiscal_year(db_session)
+        tx_id = await self._make_tx(
+            db_session, category=BankTransactionCategory.NO_ENTRY, description="Doublon"
+        )
+        await self._reconcile(client, auth_headers, tx_id)
+        blocked = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+        assert blocked.status_code == 422
+
+        await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        deleted = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+        assert deleted.status_code == 204
+
+    async def test_already_unreconciled_is_refused(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        tx_id = await self._make_tx(db_session)
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "NOT_RECONCILED"
+
+    async def test_payment_backed_reconciliation_is_refused(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        invoice = await _make_client_invoice(db_session)
+        create = await client.post(
+            "/api/bank/transactions",
+            json={"date": "2024-05-01", "amount": "150.00", "description": "VIR DUPONT"},
+            headers=auth_headers,
+        )
+        tx_id = create.json()["id"]
+        linked = await client.post(
+            f"/api/bank/transactions/{tx_id}/create-client-payment",
+            json={"invoice_id": invoice.id},
+            headers=auth_headers,
+        )
+        assert linked.status_code == 201
+
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "RECONCILED_VIA_PAYMENT"
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("reference", "DEP-CHQ-7"),
+            ("reconciled_with", "Bordereau #7"),
+            ("description", "Remise de chèques (bordereau #7)"),
+        ],
+    )
+    async def test_deposit_backed_reconciliation_is_refused(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict,
+        field: str,
+        value: str,
+    ):
+        """Each of the three marks a deposit path leaves behind must be honoured.
+
+        The description is the one that matters: a merged line takes the statement's
+        reference, and `reconciled_with` stays empty when the slip carries a hand-typed
+        bank reference — the description is then the only remaining link to the slip.
+        """
+        await self._fiscal_year(db_session)
+        kwargs: dict = {"category": BankTransactionCategory.CHEQUE_DEPOSIT}
+        kwargs[field] = value
+        tx_id = await self._make_tx(db_session, **kwargs)
+        await self._reconcile(client, auth_headers, tx_id)
+
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "RECONCILED_VIA_DEPOSIT"
+
+    async def test_closed_fiscal_year_is_refused(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        await self._fiscal_year(db_session, status=FiscalYearStatus.OPEN)
+        tx_id = await self._make_tx(db_session, category=BankTransactionCategory.NO_ENTRY)
+        await self._reconcile(client, auth_headers, tx_id)
+        result = await db_session.execute(select(FiscalYear))
+        fy = result.scalars().one()
+        fy.status = FiscalYearStatus.CLOSED
+        await db_session.commit()
+
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "FISCAL_YEAR_CLOSED"
+
+    async def test_unknown_transaction_returns_404(self, client: AsyncClient, auth_headers: dict):
+        r = await client.post("/api/bank/transactions/999999/unreconcile", headers=auth_headers)
+        assert r.status_code == 404
 
 
 class TestImportDuplicateReporting:

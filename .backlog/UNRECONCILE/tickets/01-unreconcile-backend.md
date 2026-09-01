@@ -1,6 +1,6 @@
 # BIZ-260 — Défaire le rapprochement d'une opération bancaire (backend)
 
-Status: ⬜ ready
+Status: ✅ done
 Type: feature
 Files: `backend/services/bank_service.py`, `backend/routers/bank_transactions.py`,
 `backend/services/audit_service.py`, `tests/integration/test_bank_api.py`,
@@ -36,14 +36,14 @@ Files: `backend/services/bank_service.py`, `backend/routers/bank_transactions.py
 
 ## Acceptance criteria
 
-- [ ] Un rapprochement simple ayant généré des écritures est défait : `reconciled=False`,
+- [x] Un rapprochement simple ayant généré des écritures est défait : `reconciled=False`,
       écritures `source_type=bank_transaction, source_id=tx.id` supprimées.
-- [ ] Une opération en catégorie `no_entry` se dé-rapproche sans erreur.
-- [ ] Après dé-rapprochement, l'opération est de nouveau **supprimable** et **éditable**
+- [x] Une opération en catégorie `no_entry` se dé-rapproche sans erreur.
+- [x] Après dé-rapprochement, l'opération est de nouveau **supprimable** et **éditable**
       (date, montant, compte, catégorie).
-- [ ] Refus `409` avec le bon code pour : rapprochement via règlement, via bordereau,
+- [x] Refus `409` avec le bon code pour : rapprochement via règlement, via bordereau,
       exercice clôturé, opération déjà non rapprochée — sans modification en base.
-- [ ] L'action est tracée dans `audit_logs`.
+- [x] L'action est tracée dans `audit_logs`.
 
 ## Blocked by
 

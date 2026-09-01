@@ -40,6 +40,12 @@ _ReadAccess = Annotated[
     User,
     Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
 ]
+# Undoing a reconciliation deletes accounting entries, so it sits one rung above the
+# reconciliation itself, which is day-to-day management work.
+_AccountingAccess = Annotated[
+    User,
+    Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +237,31 @@ async def delete_transaction(
         target_id=tx_id,
         target_type="bank_transaction",
     )
+
+
+@router.post("/transactions/{tx_id}/unreconcile", response_model=BankTransactionRead)
+async def unreconcile_transaction(
+    tx_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _AccountingAccess,
+) -> BankTransactionRead:
+    """Undo a reconciliation and delete the accounting entries it generated."""
+    tx = await bank_service.get_transaction(db, tx_id)
+    if tx is None:
+        raise not_found("Transaction")
+    try:
+        entry_count = await bank_service.unreconcile_transaction(db, tx)
+    except bank_service.UnreconcileError as exc:
+        raise conflict(exc.code, str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_TRANSACTION_UNRECONCILED,
+        actor=current_user,
+        target_id=tx_id,
+        target_type="bank_transaction",
+        detail={"category": tx.detected_category, "entries_deleted": entry_count},
+    )
+    return await _serialize_transaction(db, tx)
 
 
 @router.post("/transactions/reconcile-bulk", response_model=int)
