@@ -1,6 +1,6 @@
 # Lot DEPOSIT-MERGE-2 — Rattraper la remise que la fusion automatique a manquée
 
-Status: 🔄 in-progress
+Status: ✅ done
 Branch: fix/deposit-merge-window → PR → develop
 
 ## Problem Statement

@@ -33,7 +33,7 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [DEPOSIT-MERGE](DEPOSIT-MERGE/PRD.md) — fusionner une remise confirmée avec sa ligne de relevé au lieu de la dupliquer (BIZ-227) | ✅ |
 | [DOCS](DOCS/PRD.md) — espace de documents : dépôt libre, exercice facultatif, étiquettes (BIZ-240→242) | ✅ |
 | [PAY-GUARD](PAY-GUARD/PRD.md) — garde-fou à la saisie d'un règlement en espèces : montant saisi, pas pré-rempli (BIZ-250) | ✅ |
-| [DEPOSIT-MERGE-2](DEPOSIT-MERGE-2/PRD.md) — rattraper la remise que la fusion automatique a manquée : date du bordereau, fenêtre élargie, rattachement manuel (TEC-250/251 + BIZ-251) | 🔄 |
+| [DEPOSIT-MERGE-2](DEPOSIT-MERGE-2/PRD.md) — rattraper la remise que la fusion automatique a manquée : date du bordereau, fenêtre élargie, rattachement manuel (TEC-250/251 + BIZ-251) | ✅ |
 
 ## Lots archivés
 
