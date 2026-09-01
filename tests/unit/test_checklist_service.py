@@ -47,6 +47,22 @@ def test_external_steps_carry_no_signal() -> None:
             assert step.route is None, step.key
 
 
+def test_cash_is_counted_after_every_till_movement_is_entered() -> None:
+    """Counting before the last movement is entered compares the drawer to a stale total."""
+    keys = [step.key for step in CHECKLIST_STEPS]
+    count_at = keys.index("cash_count")
+    for movement in ("supplier_cash_payments", "cash_movements"):
+        assert keys.index(movement) < count_at, movement
+
+
+def test_deposit_slips_are_prepared_from_the_bank_screen() -> None:
+    """They are made up in Bank, not in Cash — the block name must not mislead."""
+    for step in CHECKLIST_STEPS:
+        if step.key in ("prepare_cash_slip", "prepare_cheque_slip"):
+            assert step.block == ChecklistBlock.DEPOSITS, step.key
+            assert step.route == "bank", step.key
+
+
 def test_the_single_bank_visit_is_one_contiguous_block() -> None:
     """The whole point of the ordering: one visit to the bank's website, not two."""
     blocks = [step.block for step in CHECKLIST_STEPS]

@@ -682,7 +682,7 @@ Le bouton n'apparaît plus dès qu'un exercice postérieur existe, pour éviter 
 
 La tenue mensuelle enchaîne une vingtaine de gestes répartis sur quatre écrans, entrecoupés de passages sur le site de la paie et sur celui de la banque. La **séance de comptabilité** les réunit en une liste ordonnée que l'on coche au fur et à mesure, à la manière d'une checklist d'aéronautique : l'état est conservé, vous le retrouvez d'un poste à l'autre, et une séance interrompue reprend là où vous l'aviez laissée.
 
-Le bouton se trouve dans le bandeau, présent sur **tous les écrans** : il affiche la progression (« 7 / 17 ») et ouvre la liste par-dessus l'écran courant. Vous cochez donc là où vous travaillez, sans revenir à l'accueil. Réservé au trésorier et à l'administrateur.
+Le bouton se trouve dans le bandeau, présent sur **tous les écrans** : il affiche la progression (« 7 / 17 ») et ouvre la liste dans un **panneau latéral, à droite**. Ce panneau n'est pas bloquant : il peut rester ouvert pendant que vous travaillez dans l'application, et vous cochez au fil des gestes sans le fermer. Réservé au trésorier et à l'administrateur.
 
 ### Démarrer une séance
 
@@ -694,12 +694,13 @@ Une seule séance est ouverte à la fois : pour passer au mois suivant, il faut 
 
 La liste suit un principe : **regrouper tout ce qui se fait dans l'application avant chaque sortie vers l'extérieur**, pour ne faire qu'un aller-retour par destination.
 
-1. **Saisie** — factures fournisseurs reçues, mouvements de caisse divers.
-2. **Paies** — faire les paies sur la plateforme, saisir les fiches, vérifier le récapitulatif.
+1. **Saisie** — factures fournisseurs reçues.
+2. **Paies** — faire les paies sur la plateforme, puis saisir les fiches.
 3. **Passage à la banque en ligne** — un seul : virements de salaires, virements fournisseurs, puis téléchargement du relevé.
 4. **Relevé** — importer, vérifier les catégories, créer les règlements clients depuis les virements reçus, rapprocher, comparer le solde.
-5. **Caisse et remises** — comptage de caisse, puis préparation des bordereaux (le dépôt lui-même se fait plus tard).
-6. **Clôture** — vérifier la sauvegarde, clôturer la séance.
+5. **Caisse** — encoder les règlements fournisseurs payés en espèces, enregistrer les mouvements divers, **puis** compter la caisse. Le comptage vient en dernier : compter avant d'avoir tout saisi reviendrait à comparer le tiroir à un total périmé.
+6. **Bordereaux de remise** — bordereau d'espèces, bordereau de chèques. Ils se préparent dans l'écran **Banque**, pas dans l'écran Caisse ; le dépôt lui-même se fait plus tard.
+7. **Clôture** — vérifier la sauvegarde, clôturer la séance.
 
 Les étapes précédées d'une flèche **⇢** se font **hors de l'application** : rien ici ne peut les constater, c'est à vous de les cocher.
 
