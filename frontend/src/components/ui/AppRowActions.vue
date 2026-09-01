@@ -1,6 +1,7 @@
 <template>
   <div class="app-row-actions">
     <Button
+      v-if="primary"
       :label="primary.label"
       :icon="primary.icon"
       :severity="primary.severity"
@@ -15,7 +16,7 @@
         size="small"
         text
         severity="secondary"
-        :aria-label="menuAriaLabel ?? primary.label"
+        :aria-label="menuAriaLabel ?? primary?.label"
         aria-haspopup="true"
         @click="toggle"
       />
@@ -39,7 +40,9 @@ export interface RowAction {
 }
 
 defineProps<{
-  primary: RowAction
+  /** Optional: a row may have nothing but overflow items — a reconciled statement
+   *  line, say, whose only actions are to undo the reconciliation or delete it. */
+  primary?: RowAction
   menuItems: MenuItem[]
   menuAriaLabel?: string
 }>()

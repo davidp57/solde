@@ -1,7 +1,7 @@
 # Lot UNRECONCILE — Défaire le rapprochement d'une opération bancaire
 
-Status: ⬜ ready
-Branch: —
+Status: ✅ done
+Branch: feature/unreconcile → PR → develop
 
 ## Problem Statement
 
@@ -68,13 +68,22 @@ indique le bon chemin, plutôt que défaits à moitié.
   `409` avec un message français qui nomme le bon chemin.
 - **Exercice clôturé** : refus. Défaire une écriture d'un exercice clos relève de la
   contre-passation, pas de la correction d'un geste.
-- **Détection du chemin** : présence de liens dans `bank_transaction_payments`, de
-  `payment_id`, ou d'un `reconciled_with` désignant un bordereau. À préciser à
-  l'implémentation — vérifier qu'aucune de ces marques ne peut manquer sur un
-  rapprochement issu d'un bordereau.
-- **Rôle : à trancher.** Le rapprochement est ouvert au trésorier ; défaire son propre
-  geste devrait l'être aussi (reco). Mais PAY-CANCEL a réservé l'annulation d'un
-  règlement à l'administrateur, et la symétrie plaiderait pour le même choix ici.
+- **Détection du chemin règlement** : `payment_id` renseigné, ou un lien dans
+  `bank_transaction_payments`.
+- **Détection du chemin bordereau** — le point ouvert à l'implémentation, tranché en
+  regardant le code : **rien ne relie une ligne bancaire à un bordereau dans le schéma**.
+  Les trois marques laissées par les chemins de remise sont donc lues à rebours, par
+  ordre de fiabilité : la référence `DEP-(ESP|CHQ)-{id}` d'une ligne créée par Solde,
+  l'étiquette `Bordereau #{id}` de `reconciled_with`, et enfin la **description**. Cette
+  dernière est la seule qui survive à tous les cas : une ligne fusionnée prend la
+  référence du relevé (`merge_deposit_transaction`, `_adopt_statement_row_for_deposit`),
+  et `reconciled_with` reste vide quand le bordereau porte une référence bancaire saisie
+  à la main — `_slip_label_from_reference` renvoie alors `None`. La description est
+  désormais construite par `_deposit_description`, à côté de la regex qui la relit, pour
+  que les deux ne divergent pas.
+- **Rôle : trésorier et administrateur** (tranché par David le 01/09/2026). Le
+  rapprochement lui-même reste ouvert au secrétaire : c'est de la gestion courante,
+  alors que le défaire supprime des écritures comptables.
 - **Journalisation** : nouvelle action d'audit, avec l'opération, sa catégorie et le
   nombre d'écritures supprimées.
 

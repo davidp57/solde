@@ -211,8 +211,8 @@
                   </div>
                   <div class="app-mobile-card-actions">
                     <AppRowActions
-                      v-if="txPrimaryAction(data)"
-                      :primary="txPrimaryAction(data)!"
+                      v-if="txPrimaryAction(data) || txMenuItems(data).length"
+                      :primary="txPrimaryAction(data) ?? undefined"
                       :menu-items="txMenuItems(data)"
                       :menu-aria-label="t('common.actions')"
                     />
@@ -437,8 +437,8 @@
               <Column :header="t('common.actions')" style="width: 7.25rem">
                 <template #body="{ data }">
                   <AppRowActions
-                    v-if="txPrimaryAction(data)"
-                    :primary="txPrimaryAction(data)!"
+                    v-if="txPrimaryAction(data) || txMenuItems(data).length"
+                    :primary="txPrimaryAction(data) ?? undefined"
                     :menu-items="txMenuItems(data)"
                     :menu-aria-label="t('common.actions')"
                   />
@@ -517,8 +517,8 @@
                   </div>
                   <div class="app-mobile-card-actions">
                     <AppRowActions
-                      v-if="txPrimaryAction(data)"
-                      :primary="txPrimaryAction(data)!"
+                      v-if="txPrimaryAction(data) || txMenuItems(data).length"
+                      :primary="txPrimaryAction(data) ?? undefined"
                       :menu-items="txMenuItems(data)"
                       :menu-aria-label="t('common.actions')"
                     />
@@ -743,8 +743,8 @@
               <Column :header="t('common.actions')" style="width: 7.25rem">
                 <template #body="{ data }">
                   <AppRowActions
-                    v-if="txPrimaryAction(data)"
-                    :primary="txPrimaryAction(data)!"
+                    v-if="txPrimaryAction(data) || txMenuItems(data).length"
+                    :primary="txPrimaryAction(data) ?? undefined"
                     :menu-items="txMenuItems(data)"
                     :menu-aria-label="t('common.actions')"
                   />
@@ -1076,6 +1076,7 @@ import {
   listTransactionsWithCount,
   updateTransaction,
   deleteTransaction,
+  unreconcileTransaction,
   canDeleteTransaction,
   reconcileTransactionsBulk,
   type BankTransaction,
@@ -1200,6 +1201,45 @@ async function deleteTx(tx: BankTransaction): Promise<void> {
         toast.add({ severity: 'success', summary: t('bank.transaction_deleted'), life: 2000 })
       } catch {
         toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+      }
+    },
+  })
+}
+
+//: Refusal codes of POST /transactions/{id}/unreconcile, mapped to their i18n key.
+const unreconcileErrorMessages: Record<string, string> = {
+  NOT_RECONCILED: 'bank.unreconcile_error_not_reconciled',
+  RECONCILED_VIA_PAYMENT: 'bank.unreconcile_error_payment',
+  RECONCILED_VIA_DEPOSIT: 'bank.unreconcile_error_deposit',
+  FISCAL_YEAR_CLOSED: 'bank.unreconcile_error_fiscal_year_closed',
+}
+
+function unreconcileErrorSummary(err: unknown): string {
+  const code = (
+    err as { response?: { data?: { detail?: { code?: string } } } }
+  )?.response?.data?.detail?.code
+  const key = code ? unreconcileErrorMessages[code] : undefined
+  return key ? t(key) : t('common.error.unknown')
+}
+
+// The interface stays optimistic: only "is it reconciled" gates the action, and the
+// server arbitrates the payment / deposit / closed-year cases. Rebuilding that
+// reasoning here would let the two drift apart.
+async function unreconcileTx(tx: BankTransaction): Promise<void> {
+  confirm.require({
+    message: t('bank.unreconcile_confirm'),
+    header: t('bank.unreconcile_transaction'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('bank.unreconcile_transaction'),
+    rejectLabel: t('common.cancel'),
+    accept: async () => {
+      try {
+        const updated = await unreconcileTransaction(tx.id)
+        const original = transactions.value.find((t) => t.id === tx.id)
+        if (original) Object.assign(original, updated)
+        toast.add({ severity: 'success', summary: t('bank.transaction_unreconciled'), life: 2500 })
+      } catch (err: unknown) {
+        toast.add({ severity: 'warn', summary: unreconcileErrorSummary(err), life: 6000 })
       }
     },
   })
@@ -1442,6 +1482,10 @@ function txPrimaryAction(tx: BankTransaction): RowAction | null {
 function txMenuItems(tx: BankTransaction): MenuItem[] {
   const [, ...rest] = txAvailableActions(tx)
   const items: MenuItem[] = rest.map((a) => ({ label: a.label, icon: a.icon, command: a.command }))
+  if (tx.reconciled) {
+    if (items.length) items.push({ separator: true })
+    items.push({ label: t('bank.unreconcile_transaction'), icon: 'pi pi-undo', command: () => unreconcileTx(tx) })
+  }
   if (canDeleteTransaction(tx)) {
     if (items.length) items.push({ separator: true })
     items.push({ label: t('bank.delete_transaction'), icon: 'pi pi-trash', class: 'app-row-actions-danger', command: () => deleteTx(tx) })

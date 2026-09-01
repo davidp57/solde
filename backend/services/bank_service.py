@@ -14,7 +14,7 @@ from typing import Protocol
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.accounting_entry import AccountingEntry
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.bank import (
     BankAccountType,
     BankTransaction,
@@ -26,6 +26,7 @@ from backend.models.bank import (
     deposit_payments,
 )
 from backend.models.cash import CashEntrySource, CashMovementType
+from backend.models.fiscal_year import FiscalYearStatus
 from backend.models.invoice import Invoice, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
 from backend.schemas.bank import (
@@ -37,6 +38,7 @@ from backend.schemas.bank import (
 )
 from backend.services import payment as payment_service
 from backend.services.bank_import import detect_transaction_category
+from backend.services.fiscal_year_service import find_fiscal_year_for_date
 
 logger = logging.getLogger(__name__)
 
@@ -314,11 +316,27 @@ _DEPOSIT_MERGE_WINDOW_DAYS = 10
 
 #: Reference Solde writes on the provisional line, e.g. ``DEP-CHQ-8``.
 _SLIP_REFERENCE_RE = re.compile(r"^DEP-(?:ESP|CHQ)-(\d+)$")
+_SLIP_LABEL_RE = re.compile(r"^Bordereau #(\d+)")
+#: Matches the slip id inside a deposit line's description — see :func:`_deposit_description`.
+#: That description is the only mark that survives every deposit path: a merged line takes
+#: the statement's reference, and ``reconciled_with`` stays empty when the slip carries a
+#: hand-typed bank reference.
+_SLIP_IN_DESCRIPTION_RE = re.compile(r"\(bordereau #(\d+)\)")
 
 
 def _slip_label(deposit_id: int) -> str:
     """Value shown in the journal's accounting-reference column for a deposit slip."""
     return f"Bordereau #{deposit_id}"
+
+
+def _deposit_description(deposit_type: DepositType, deposit_id: int) -> str:
+    """Description carried by the bank line of a deposit slip.
+
+    Kept in one place because :data:`_SLIP_IN_DESCRIPTION_RE` reads the slip id back
+    out of it: the two must never drift apart.
+    """
+    kind = "d'espèces" if deposit_type == DepositType.ESPECES else "de chèques"
+    return f"Remise {kind} (bordereau #{deposit_id})"
 
 
 def _slip_label_from_reference(reference: str | None) -> str | None:
@@ -722,6 +740,105 @@ async def update_transaction(
     await db.flush()
     await db.refresh(tx)
     return tx
+
+
+class UnreconcileError(ValueError):
+    """Raised when a reconciliation cannot be undone, carrying a machine-readable code."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+#: Refusal codes for :func:`unreconcile_transaction`, mapped to their API message.
+UNRECONCILE_REFUSAL_MESSAGES: dict[str, str] = {
+    "NOT_RECONCILED": "transaction is not reconciled",
+    "RECONCILED_VIA_PAYMENT": ("reconciliation is held by a payment — cancel the payment instead"),
+    "RECONCILED_VIA_DEPOSIT": (
+        "reconciliation is held by a deposit slip — act on the slip instead"
+    ),
+    "FISCAL_YEAR_CLOSED": (
+        "transaction belongs to a closed fiscal year and cannot be unreconciled"
+    ),
+}
+
+
+def find_deposit_id_for_transaction(tx: BankTransaction) -> int | None:
+    """Return the id of the deposit slip a transaction belongs to, if any.
+
+    Nothing links a bank line to a slip in the schema, so the three marks a deposit
+    path leaves behind are read back, in order of reliability: the slip's own
+    reference on a line Solde created, the accounting-reference label, and finally
+    the description — the only one that survives a merge, where the line takes the
+    statement's reference and ``reconciled_with`` may never have been set.
+    """
+    for value, pattern in (
+        (tx.reference, _SLIP_REFERENCE_RE),
+        (tx.reconciled_with, _SLIP_LABEL_RE),
+        (tx.description, _SLIP_IN_DESCRIPTION_RE),
+    ):
+        match = pattern.search(value) if value else None
+        if match:
+            return int(match.group(1))
+    return None
+
+
+async def unreconcile_transaction(db: AsyncSession, tx: BankTransaction) -> int:
+    """Undo a plain reconciliation and drop the entries it generated.
+
+    Returns the number of accounting entries removed — zero is a normal outcome, and
+    the common one: a `no_entry` transaction generates none, and neither does a
+    category absent from the engine's trigger map.
+
+    Only the direct path (:func:`reconcile_transactions_bulk`) is undone here. A
+    reconciliation held by a payment or by a deposit slip is refused with its own
+    code: undoing the flag alone would leave the payment or the slip pointing at a
+    line that no longer claims them, and undoing *them* is another operation
+    entirely.
+    """
+    from backend.services import accounting_engine  # noqa: PLC0415
+
+    if not tx.reconciled:
+        raise UnreconcileError("NOT_RECONCILED", UNRECONCILE_REFUSAL_MESSAGES["NOT_RECONCILED"])
+
+    if tx.payment_id is not None:
+        raise UnreconcileError(
+            "RECONCILED_VIA_PAYMENT", UNRECONCILE_REFUSAL_MESSAGES["RECONCILED_VIA_PAYMENT"]
+        )
+    linked = await db.execute(
+        select(bank_transaction_payments.c.transaction_id).where(
+            bank_transaction_payments.c.transaction_id == tx.id
+        )
+    )
+    if linked.first() is not None:
+        raise UnreconcileError(
+            "RECONCILED_VIA_PAYMENT", UNRECONCILE_REFUSAL_MESSAGES["RECONCILED_VIA_PAYMENT"]
+        )
+
+    if find_deposit_id_for_transaction(tx) is not None:
+        raise UnreconcileError(
+            "RECONCILED_VIA_DEPOSIT", UNRECONCILE_REFUSAL_MESSAGES["RECONCILED_VIA_DEPOSIT"]
+        )
+
+    fiscal_year = await find_fiscal_year_for_date(db, tx.date)
+    if fiscal_year is not None and fiscal_year.status == FiscalYearStatus.CLOSED:
+        raise UnreconcileError(
+            "FISCAL_YEAR_CLOSED", UNRECONCILE_REFUSAL_MESSAGES["FISCAL_YEAR_CLOSED"]
+        )
+
+    removed = await db.execute(
+        select(func.count())
+        .select_from(AccountingEntry)
+        .where(AccountingEntry.source_type == EntrySourceType.BANK_TRANSACTION)
+        .where(AccountingEntry.source_id == tx.id)
+    )
+    entry_count = int(removed.scalar_one())
+    await accounting_engine.delete_entries_for_source(db, EntrySourceType.BANK_TRANSACTION, tx.id)
+    tx.reconciled = False
+    tx.reconciled_with = None
+    await db.flush()
+    await db.refresh(tx)
+    return entry_count
 
 
 async def delete_transaction(db: AsyncSession, tx: BankTransaction) -> None:
@@ -1391,7 +1508,7 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
         )
         # Also credit the bank account so the bank balance is updated — unless the
         # statement already brought this very movement.
-        description = f"Remise d'espèces (bordereau #{deposit.id})"
+        description = _deposit_description(DepositType.ESPECES, deposit.id)
         adopted = await _adopt_statement_row_for_deposit(
             db,
             deposit=deposit,
@@ -1412,7 +1529,7 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
     else:
         # Cheques: create a bank transaction credit so the bank balance is updated
         reference = deposit.bank_reference or f"DEP-CHQ-{deposit.id}"
-        description = f"Remise de chèques (bordereau #{deposit.id})"
+        description = _deposit_description(DepositType.CHEQUES, deposit.id)
         adopted = await _adopt_statement_row_for_deposit(
             db,
             deposit=deposit,

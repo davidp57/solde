@@ -1,6 +1,6 @@
 # BIZ-261 — Action « Défaire le rapprochement » dans l'écran Banque
 
-Status: ⬜ ready
+Status: ✅ done
 Type: feature
 Files: `frontend/src/api/bank.ts`, `frontend/src/views/BankView.vue`,
 `frontend/src/i18n/fr.ts`, `frontend/src/tests/`, `CHANGELOG.md`,
@@ -25,11 +25,11 @@ Files: `frontend/src/api/bank.ts`, `frontend/src/views/BankView.vue`,
 
 ## Acceptance criteria
 
-- [ ] L'entrée n'apparaît que sur une opération rapprochée, et demande confirmation.
-- [ ] Après succès, la ligne redevient « à rapprocher » sans rechargement de page, et
+- [x] L'entrée n'apparaît que sur une opération rapprochée, et demande confirmation.
+- [x] Après succès, la ligne redevient « à rapprocher » sans rechargement de page, et
       propose de nouveau Modifier / Supprimer.
-- [ ] Un refus affiche le message du code renvoyé, qui nomme le chemin à emprunter.
-- [ ] Toutes les chaînes passent par i18n.
+- [x] Un refus affiche le message du code renvoyé, qui nomme le chemin à emprunter.
+- [x] Toutes les chaînes passent par i18n.
 
 ## Blocked by
 
