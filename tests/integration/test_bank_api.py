@@ -1594,6 +1594,8 @@ async def test_merge_deposit_transaction(
     assert data["date"] == "2026-08-04"
     assert data["reference"] == "LF9UM92LLO"
     assert data["description"] == "Remise de chèques (bordereau #6)"
+    assert data["reconciled"] is True
+    assert data["reconciled_with"] == "Bordereau #6"
     assert await db_session.get(BankTransaction, statement_id) is None
 
 

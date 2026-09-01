@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from calendar import monthrange
 from collections.abc import Sequence
 from datetime import date, timedelta
@@ -294,6 +295,40 @@ _DEPOSIT_CATEGORIES = (
 _DEPOSIT_MERGE_WINDOW_DAYS = 10
 
 
+#: Reference Solde writes on the provisional line, e.g. ``DEP-CHQ-8``.
+_SLIP_REFERENCE_RE = re.compile(r"^DEP-(?:ESP|CHQ)-(\d+)$")
+
+
+def _slip_label(deposit_id: int) -> str:
+    """Value shown in the journal's accounting-reference column for a deposit slip."""
+    return f"Bordereau #{deposit_id}"
+
+
+def _slip_label_from_reference(reference: str | None) -> str | None:
+    """Recover the slip label from the provisional line's own reference.
+
+    Returns None when the user supplied their own bank reference on the slip: the
+    link to the slip then lives in the description alone, and guessing is worse
+    than leaving the column empty.
+    """
+    if not reference:
+        return None
+    match = _SLIP_REFERENCE_RE.match(reference)
+    return _slip_label(int(match.group(1))) if match else None
+
+
+def _mark_merged_deposit_reconciled(tx: BankTransaction, slip_label: str | None) -> None:
+    """A merged deposit line *is* the slip — there is nothing left to reconcile by hand.
+
+    Deposit categories are deliberately absent from the accounting engine's trigger
+    map (their entries are generated when the slip is confirmed), so flagging the
+    line produces no entry: it only takes it out of the "still to handle" pile.
+    """
+    tx.reconciled = True
+    if slip_label is not None:
+        tx.reconciled_with = slip_label
+
+
 async def absorb_pending_deposit_transaction(
     db: AsyncSession, payload: BankTransactionCreate
 ) -> BankTransaction | None:
@@ -345,9 +380,11 @@ async def absorb_pending_deposit_transaction(
     tx = candidates[0]
     # Keep Solde's description — it names the deposit slip — but take the bank's
     # date, reference and source so the row becomes the statement's own.
+    slip_label = _slip_label_from_reference(tx.reference)
     tx.date = payload.date
     tx.reference = payload.reference
     tx.source = payload.source
+    _mark_merged_deposit_reconciled(tx, slip_label)
     await db.flush()
     await recompute_bank_balances(db)
     await db.flush()
@@ -419,9 +456,11 @@ async def merge_deposit_transaction(
     if tx is None:  # pragma: no cover — list_deposit_merge_candidates already checked
         raise LookupError("Transaction not found")
 
+    slip_label = _slip_label_from_reference(provisional.reference)
     provisional.date = tx.date
     provisional.reference = tx.reference
     provisional.source = tx.source
+    _mark_merged_deposit_reconciled(provisional, slip_label)
     await db.delete(tx)
     await db.flush()
     await recompute_bank_balances(db)
@@ -1210,6 +1249,63 @@ async def get_deposit_id_for_payment(db: AsyncSession, payment_id: int) -> int |
     return None if row is None else int(row[0])
 
 
+async def _adopt_statement_row_for_deposit(
+    db: AsyncSession,
+    *,
+    deposit: Deposit,
+    category: BankTransactionCategory,
+    description: str,
+    reference: str,
+) -> BankTransaction | None:
+    """Reuse the statement row that already carries this deposit, if it is there.
+
+    The mirror image of :func:`absorb_pending_deposit_transaction`: that one runs
+    when the slip is confirmed *before* the statement arrives.  When the statement
+    was imported first — the common case for a slip confirmed a few days late —
+    creating a provisional line would credit the account a second time, leaving
+    the user to merge the two by hand.
+
+    Returns the adopted row, or None when there is no single obvious match (the
+    caller then creates the provisional line as before).  Ambiguity is never
+    resolved by guessing: several candidates means no adoption.
+    """
+    window = timedelta(days=_DEPOSIT_MERGE_WINDOW_DAYS)
+    result = await db.execute(
+        select(BankTransaction).where(
+            BankTransaction.source.not_in(
+                (BankTransactionSource.MANUAL, BankTransactionSource.SYSTEM_OPENING)
+            ),
+            BankTransaction.reconciled == False,  # noqa: E712
+            BankTransaction.bank_account == BankAccountType.COURANT,
+            BankTransaction.amount == deposit.total_amount,
+            # The exact category, not merely a deposit one: a cash deposit must never
+            # be adopted by a cheque slip of the same amount.
+            BankTransaction.detected_category == category,
+            BankTransaction.date >= deposit.date - window,
+            BankTransaction.date <= deposit.date + window,
+        )
+    )
+    candidates = list(result.scalars().all())
+    if len(candidates) != 1:
+        if len(candidates) > 1:
+            logger.info(
+                "Deposit adoption skipped: %d statement candidates for %s on %s",
+                len(candidates),
+                deposit.total_amount,
+                deposit.date,
+            )
+        return None
+
+    tx = candidates[0]
+    # Solde's own wording names the slip, where "REM CHQ REF05001A05" says nothing.
+    # The bank's date, reference and source are left untouched: this row *is* the
+    # statement's.
+    tx.description = description
+    _mark_merged_deposit_reconciled(tx, _slip_label_from_reference(reference))
+    await db.flush()
+    return tx
+
+
 async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
     """Confirm a deposit (physically taken to the bank).
 
@@ -1217,7 +1313,10 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
     - Mark deposit as confirmed + set confirmed_date.
     - For especes: create CashEntry OUT (cash leaves the till for the bank).
     - For both types: generate accounting entries (caisse/chèques → banque).
-    - For cheques: create a positive BankTransaction representing the credit.
+    - For both types: credit the bank account with a positive BankTransaction —
+      unless the statement already brought that very movement, in which case that
+      row is adopted rather than doubled (see
+      :func:`_adopt_statement_row_for_deposit`).
 
     The cash movement and the bank credit are dated from ``deposit.date`` — the day
     the slip was made up — and not from the confirmation day: a slip confirmed late
@@ -1249,28 +1348,47 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
             description="Remise d'espèces en banque",
             source=CashEntrySource.DEPOSIT,
         )
-        # Also credit the bank account so the bank balance is updated
-        esp_tx = await create_bank_transaction_record(
+        # Also credit the bank account so the bank balance is updated — unless the
+        # statement already brought this very movement.
+        description = f"Remise d'espèces (bordereau #{deposit.id})"
+        adopted = await _adopt_statement_row_for_deposit(
             db,
-            date=deposit.date,
-            amount=deposit.total_amount,
+            deposit=deposit,
+            category=BankTransactionCategory.CASH_DEPOSIT,
+            description=description,
             reference=reference,
-            description=f"Remise d'espèces (bordereau #{deposit.id})",
-            source=BankTransactionSource.MANUAL,
         )
-        esp_tx.detected_category = BankTransactionCategory.CASH_DEPOSIT
+        if adopted is None:
+            esp_tx = await create_bank_transaction_record(
+                db,
+                date=deposit.date,
+                amount=deposit.total_amount,
+                reference=reference,
+                description=description,
+                source=BankTransactionSource.MANUAL,
+            )
+            esp_tx.detected_category = BankTransactionCategory.CASH_DEPOSIT
     else:
         # Cheques: create a bank transaction credit so the bank balance is updated
         reference = deposit.bank_reference or f"DEP-CHQ-{deposit.id}"
-        chq_tx = await create_bank_transaction_record(
+        description = f"Remise de chèques (bordereau #{deposit.id})"
+        adopted = await _adopt_statement_row_for_deposit(
             db,
-            date=deposit.date,
-            amount=deposit.total_amount,
+            deposit=deposit,
+            category=BankTransactionCategory.CHEQUE_DEPOSIT,
+            description=description,
             reference=reference,
-            description=f"Remise de chèques (bordereau #{deposit.id})",
-            source=BankTransactionSource.MANUAL,
         )
-        chq_tx.detected_category = BankTransactionCategory.CHEQUE_DEPOSIT
+        if adopted is None:
+            chq_tx = await create_bank_transaction_record(
+                db,
+                date=deposit.date,
+                amount=deposit.total_amount,
+                reference=reference,
+                description=description,
+                source=BankTransactionSource.MANUAL,
+            )
+            chq_tx.detected_category = BankTransactionCategory.CHEQUE_DEPOSIT
         # Mark linked cheque payments as fully deposited
         result = await db.execute(
             select(Payment)
