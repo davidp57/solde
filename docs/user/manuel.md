@@ -736,6 +736,8 @@ Les étapes précédées d'une flèche **⇢** se font **hors de l'application**
 
 Certaines étapes affichent un fait observé : « Dernier import le 01/09/2026, 12 opérations enregistrées », « Chèques à remettre : 2, soit 234,00 € ». Ces indications **ne cochent rien** — elles vous aident à répondre, elles ne répondent pas à votre place. Une case cochée sans que vous ayez regardé n'aurait pas été vérifiée, et c'est précisément l'étape sautée qui coûte cher.
 
+> **Le compteur d'opérations à rapprocher ne dit pas la même chose que l'écran Banque**, et c'est voulu. Il ne compte que les opérations **venues d'un relevé** et datées **au plus tard à la fin du mois traité**. Il laisse donc de côté trois choses : les opérations reprises de l'historique lors de la mise en service, qui n'ont jamais eu vocation à être rapprochées ; le solde d'ouverture ; et les opérations que le relevé apporte pour le mois suivant. Les remises que vous avez enregistrées et qui attendent encore leur relevé sont comptées **à part**, car seul un import futur pourra les solder.
+
 ### Clôturer une séance
 
 Le bouton **Clôturer la séance** affiche d'abord ce qui n'a pas été coché et demande confirmation. Une séance incomplète peut être clôturée : une étape qui ne dépend pas de vous — un chèque qu'on ne vous a pas remis — ne doit pas bloquer tout le mois. Les étapes laissées de côté sont **signalées sur la séance suivante**, avec la mention « En retard ».

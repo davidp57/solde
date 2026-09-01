@@ -178,7 +178,10 @@ function signalText(step: ChecklistStep): string | null {
     else if (key === 'amount') params[key] = formatCurrency(String(value))
     else params[key] = String(value)
   }
-  return t(`checklist.signals.${step.signal}`, params)
+  // Some signals have a variant used only when a secondary count is non-zero:
+  // mentioning "0 remise en attente" every month is noise.
+  const suffix = Number(payload.awaiting ?? 0) > 0 ? '_awaiting' : ''
+  return t(`checklist.signals.${step.signal}${suffix}`, params)
 }
 
 async function run(action: () => Promise<void>): Promise<void> {

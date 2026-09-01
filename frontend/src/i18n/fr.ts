@@ -911,7 +911,9 @@ export default {
     signals: {
       last_import: 'Dernier import le {at}, {count} opérations enregistrées',
       salary_slips: 'Fiches de salaire saisies pour ce mois : {count}',
-      unreconciled: 'Opérations encore non rapprochées : {count}',
+      unreconciled: 'Opérations du relevé encore à rapprocher : {count}',
+      unreconciled_awaiting:
+        'Opérations du relevé encore à rapprocher : {count} — plus {awaiting} remise(s) enregistrée(s) qui attendent le prochain relevé',
       last_cash_count: 'Dernier comptage le {date}',
       pending_cash: 'Caisse : {amount}',
       pending_cheques: 'Chèques à remettre : {count}, soit {amount}',

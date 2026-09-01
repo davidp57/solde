@@ -39,6 +39,13 @@ def suggest_period(today: date) -> str:
     return f"{previous_month.year:04d}-{previous_month.month:02d}"
 
 
+def _period_end(period: str) -> date:
+    """Last day of a period — the statement brings later rows, which are not its work."""
+    year, month = (int(part) for part in period.split("-"))
+    first_of_next = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    return first_of_next - timedelta(days=1)
+
+
 def _next_period(period: str) -> str:
     year, month = (int(part) for part in period.split("-"))
     return f"{year + 1:04d}-01" if month == 12 else f"{year:04d}-{month + 1:02d}"
@@ -247,10 +254,37 @@ async def compute_signals(db: AsyncSession, *, period: str) -> dict[str, dict[st
     slips = await db.execute(select(func.count(Salary.id)).where(Salary.month == period))
     signals[ChecklistSignal.SALARY_SLIPS.value] = {"count": slips.scalar_one()}
 
-    unreconciled = await db.execute(
-        select(func.count(BankTransaction.id)).where(BankTransaction.reconciled.is_(False))
+    # What is left to reconcile *for this session*, which is not the same as every
+    # unreconciled row in the journal. Three natures are deliberately kept apart:
+    #  - rows from an actual statement, up to the end of the period: the real work;
+    #  - `manual` rows — a slip confirmed before its statement arrived — which can
+    #    only be settled by a later import, so they are reported separately;
+    #  - the historical carry-over (`import`, `import_excel`) and the opening
+    #    balance, which were never meant to be reconciled and never will be.
+    period_end = _period_end(period)
+    statement_sources = (
+        BankTransactionSource.IMPORT_CSV,
+        BankTransactionSource.IMPORT_OFX,
+        BankTransactionSource.IMPORT_QIF,
     )
-    signals[ChecklistSignal.UNRECONCILED.value] = {"count": unreconciled.scalar_one()}
+    unreconciled = await db.execute(
+        select(func.count(BankTransaction.id)).where(
+            BankTransaction.reconciled.is_(False),
+            BankTransaction.source.in_(statement_sources),
+            BankTransaction.date <= period_end,
+        )
+    )
+    awaiting = await db.execute(
+        select(func.count(BankTransaction.id)).where(
+            BankTransaction.reconciled.is_(False),
+            BankTransaction.source == BankTransactionSource.MANUAL,
+            BankTransaction.date <= period_end,
+        )
+    )
+    signals[ChecklistSignal.UNRECONCILED.value] = {
+        "count": unreconciled.scalar_one(),
+        "awaiting": awaiting.scalar_one(),
+    }
 
     last_count = await db.execute(select(func.max(CashCount.date)))
     counted_on = last_count.scalar_one()

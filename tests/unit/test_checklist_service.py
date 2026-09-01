@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.checklist import ChecklistSessionStatus
@@ -214,6 +215,62 @@ async def test_signals_never_tick_anything(db_session: AsyncSession) -> None:
 
     assert signals  # something was observed
     assert all(not s.checked for s in states)
+
+
+@pytest.mark.asyncio
+async def test_unreconciled_signal_ignores_what_is_not_this_session_s_work(
+    db_session: AsyncSession,
+) -> None:
+    """Three natures share the "unreconciled" flag; only one is work for this session."""
+    from datetime import date as _date
+    from decimal import Decimal
+
+    from backend.models.bank import BankTransaction, BankTransactionSource
+    from backend.schemas.bank import BankTransactionCreate
+    from backend.services import bank_service
+
+    async def add(tx_date: _date, source: BankTransactionSource, reference: str) -> None:
+        await bank_service.add_transaction(
+            db_session,
+            BankTransactionCreate(
+                date=tx_date,
+                amount=Decimal("10.00"),
+                description="VIR TEST",
+                reference=reference,
+                source=source,
+            ),
+        )
+
+    # The real work: a statement row inside the period.
+    await add(_date(2026, 8, 10), BankTransactionSource.IMPORT_OFX, "A")
+    # A statement row after the period — brought by "all available operations",
+    # but it belongs to the next session.
+    await add(_date(2026, 9, 2), BankTransactionSource.IMPORT_OFX, "B")
+    # Historical carry-over: never meant to be reconciled.
+    await add(_date(2025, 3, 3), BankTransactionSource.IMPORT, "C")
+    await add(_date(2024, 8, 1), BankTransactionSource.SYSTEM_OPENING, "D")
+    # A slip confirmed before its statement arrived: only a later import settles it.
+    manual = await bank_service.create_bank_transaction_record(
+        db_session,
+        date=_date(2026, 8, 20),
+        amount=Decimal("50.00"),
+        reference="DEP-CHQ-1",
+        description="Remise de chèques (bordereau #1)",
+        source=BankTransactionSource.MANUAL,
+    )
+    assert manual.reconciled is False
+    await db_session.flush()
+
+    signals = await checklist_service.compute_signals(db_session, period="2026-08")
+
+    unreconciled = signals["unreconciled"]
+    assert unreconciled["count"] == 1
+    assert unreconciled["awaiting"] == 1
+    # Sanity check: the journal really does hold more unreconciled rows than that.
+    total = await db_session.execute(
+        select(func.count(BankTransaction.id)).where(BankTransaction.reconciled.is_(False))
+    )
+    assert total.scalar_one() == 5
 
 
 @pytest.mark.asyncio
