@@ -68,6 +68,8 @@ class AuditAction(StrEnum):
     BANK_DEPOSIT_CANCELLED = "bank.deposit.cancel"
     BANK_DEPOSIT_CONFIRMED = "bank.deposit.confirm"
     BANK_DEPOSIT_MERGED = "bank.deposit.merge"
+    CHECKLIST_SESSION_OPENED = "checklist.session.open"
+    CHECKLIST_SESSION_CLOSED = "checklist.session.close"
     # Contacts
     CONTACT_CREATED = "contact.create"
     CONTACT_UPDATED = "contact.update"

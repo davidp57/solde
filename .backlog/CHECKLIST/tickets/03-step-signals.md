@@ -1,6 +1,6 @@
 # BIZ-256 — Afficher le signal des étapes détectables
 
-Status: ⬜ ready
+Status: ✅ done
 Type: feature
 Files: `backend/services/checklist_service.py`, `backend/routers/checklist.py`,
 `frontend/src/components/checklist/`, `tests/unit/test_checklist_service.py`
@@ -27,10 +27,10 @@ saisi) ni pour les étapes externes.
 
 ## Acceptance criteria
 
-- [ ] Aucune étape n'est cochée automatiquement.
-- [ ] Chaque signal est daté et chiffré, jamais réduit à un booléen.
-- [ ] Une étape sans signal détectable n'affiche rien plutôt qu'un signal vide.
-- [ ] Le calcul des signaux ne ralentit pas l'ouverture de la fenêtre.
+- [x] Aucune étape n'est cochée automatiquement.
+- [x] Chaque signal est daté et chiffré, jamais réduit à un booléen.
+- [x] Une étape sans signal détectable n'affiche rien plutôt qu'un signal vide.
+- [x] Le calcul des signaux ne ralentit pas l'ouverture de la fenêtre.
 
 ## Blocked by
 

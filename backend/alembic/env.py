@@ -28,6 +28,7 @@ for module_name in (
     "backend.models.backup_destination",
     "backend.models.bank",
     "backend.models.cash",
+    "backend.models.checklist",
     "backend.models.contact",
     "backend.models.contact_email",
     "backend.models.document",

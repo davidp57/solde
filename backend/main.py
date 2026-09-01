@@ -26,6 +26,7 @@ from backend.routers import (
     bank,
     cash,
     chat,
+    checklist,
     contact,
     dashboard,
     document,
@@ -371,6 +372,7 @@ def create_app() -> FastAPI:
     app.include_router(backup.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
     app.include_router(app_comment.router, prefix="/api")
+    app.include_router(checklist.router, prefix="/api")
 
     # Serve Vue.js frontend static files (built output)
     frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"

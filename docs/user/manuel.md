@@ -678,6 +678,45 @@ Le bouton n'apparaît plus dès qu'un exercice postérieur existe, pour éviter 
 
 ---
 
+## 11 bis. Séance de comptabilité (checklist mensuelle)
+
+La tenue mensuelle enchaîne une vingtaine de gestes répartis sur quatre écrans, entrecoupés de passages sur le site de la paie et sur celui de la banque. La **séance de comptabilité** les réunit en une liste ordonnée que l'on coche au fur et à mesure, à la manière d'une checklist d'aéronautique : l'état est conservé, vous le retrouvez d'un poste à l'autre, et une séance interrompue reprend là où vous l'aviez laissée.
+
+Le bouton se trouve dans le bandeau, présent sur **tous les écrans** : il affiche la progression (« 7 / 17 ») et ouvre la liste par-dessus l'écran courant. Vous cochez donc là où vous travaillez, sans revenir à l'accueil. Réservé au trésorier et à l'administrateur.
+
+### Démarrer une séance
+
+Le mois proposé dépend de la date : avant le 15, c'est le mois précédent ; à partir du 15, le mois en cours. Un mois déjà traité n'est jamais proposé deux fois. Vous pouvez corriger le mois avant de démarrer.
+
+Une seule séance est ouverte à la fois : pour passer au mois suivant, il faut clôturer celle en cours.
+
+### L'ordre des étapes
+
+La liste suit un principe : **regrouper tout ce qui se fait dans l'application avant chaque sortie vers l'extérieur**, pour ne faire qu'un aller-retour par destination.
+
+1. **Saisie** — factures fournisseurs reçues, mouvements de caisse divers.
+2. **Paies** — faire les paies sur la plateforme, saisir les fiches, vérifier le récapitulatif.
+3. **Passage à la banque en ligne** — un seul : virements de salaires, virements fournisseurs, puis téléchargement du relevé.
+4. **Relevé** — importer, vérifier les catégories, créer les règlements clients depuis les virements reçus, rapprocher, comparer le solde.
+5. **Caisse et remises** — comptage de caisse, puis préparation des bordereaux (le dépôt lui-même se fait plus tard).
+6. **Clôture** — vérifier la sauvegarde, clôturer la séance.
+
+Les étapes précédées d'une flèche **⇢** se font **hors de l'application** : rien ici ne peut les constater, c'est à vous de les cocher.
+
+> Les virements lancés à l'étape 3 n'apparaîtront pas sur le relevé téléchargé dans la foulée : ils se rapprocheront à la séance suivante.
+
+### Les indications sous les étapes
+
+Certaines étapes affichent un fait observé : « Dernier import le 01/09/2026, 12 opérations enregistrées », « Chèques à remettre : 2, soit 234,00 € ». Ces indications **ne cochent rien** — elles vous aident à répondre, elles ne répondent pas à votre place. Une case cochée sans que vous ayez regardé n'aurait pas été vérifiée, et c'est précisément l'étape sautée qui coûte cher.
+
+### Clôturer une séance
+
+Le bouton **Clôturer la séance** affiche d'abord ce qui n'a pas été coché et demande confirmation. Une séance incomplète peut être clôturée : une étape qui ne dépend pas de vous — un chèque qu'on ne vous a pas remis — ne doit pas bloquer tout le mois. Les étapes laissées de côté sont **signalées sur la séance suivante**, avec la mention « En retard ».
+
+Une séance clôturée ne peut plus être modifiée ; elle reste consultable.
+
+---
+
 ## 12. Documents
 
 **Accueil → Documents.** Un espace pour les pièces qui n'appartiennent à aucune facture : statuts, procès-verbaux d'assemblée générale, attestations d'assurance, conventions, bilans et comptes de résultat signés.

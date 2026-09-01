@@ -24,6 +24,16 @@
         />
       </div>
       <div class="topbar-user">
+        <Button
+          v-if="auth.canAccessAccounting"
+          icon="pi pi-check-square"
+          text
+          rounded
+          :badge="checklistBadge"
+          :aria-label="t('checklist.title')"
+          :title="t('checklist.title')"
+          @click="openChecklist"
+        />
         <RouterLink to="/profile" class="topbar-username">{{ displayedUsername }}</RouterLink>
         <Button
           :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
@@ -56,6 +66,16 @@
       <aside class="sidebar">
         <NavMenu />
         <div class="sidebar-footer">
+          <Button
+            v-if="auth.canAccessAccounting"
+            icon="pi pi-check-square"
+            text
+            rounded
+            :badge="checklistBadge"
+            :aria-label="t('checklist.title')"
+            :title="t('checklist.title')"
+            @click="openChecklist"
+          />
           <RouterLink to="/profile" class="sidebar-user">
             <span class="sidebar-username">{{ displayedUsername }}</span>
             <span class="sidebar-role">{{ displayedRoleLabel }}</span>
@@ -82,6 +102,16 @@
       <aside class="rail">
         <NavMenu variant="rail" />
         <div class="rail-footer">
+          <Button
+            v-if="auth.canAccessAccounting"
+            icon="pi pi-check-square"
+            text
+            rounded
+            :badge="checklistBadge"
+            :aria-label="t('checklist.title')"
+            :title="t('checklist.title')"
+            @click="openChecklist"
+          />
           <Button
             :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
             text
@@ -123,6 +153,9 @@
       </RouterLink>
     </nav>
 
+    <!-- Monthly bookkeeping checklist (reachable from every screen) -->
+    <ChecklistDialog v-if="auth.canAccessAccounting" />
+
     <!-- Chat sidebar (floating, authenticated pages only) -->
     <ChatSidebar />
 
@@ -149,8 +182,10 @@ import Select from 'primevue/select'
 import { useAuthStore } from '../stores/auth'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useChatStore } from '../stores/chat'
+import { useChecklistStore } from '../stores/checklist'
 import NavMenu from '../components/NavMenu.vue'
 import ChatSidebar from '../components/chat/ChatSidebar.vue'
+import ChecklistDialog from '../components/checklist/ChecklistDialog.vue'
 import { useDarkMode } from '../composables/useDarkMode'
 import { useNavigation } from '../composables/useNavigation'
 const { t } = useI18n()
@@ -187,12 +222,25 @@ async function handleLogout(): Promise<void> {
 }
 
 const chatStore = useChatStore()
+const checklistStore = useChecklistStore()
+
+// Progress on the button itself, so the session is visible without opening it.
+const checklistBadge = computed(() =>
+  checklistStore.isOpen ? `${checklistStore.checkedCount}/${checklistStore.totalCount}` : undefined,
+)
+
+function openChecklist(): void {
+  checklistStore.dialogVisible = true
+}
 
 onMounted(() => {
   if (auth.canAccessManagement) {
     void fiscalYearStore.initialize()
   }
   void chatStore.loadConfig()
+  if (auth.canAccessAccounting) {
+    void checklistStore.load()
+  }
 })
 </script>
 
