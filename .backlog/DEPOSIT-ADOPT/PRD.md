@@ -1,6 +1,6 @@
 # Lot DEPOSIT-ADOPT — Confirmer un bordereau sans créer de doublon
 
-Status: 🔄 in-progress
+Status: ✅ done
 Branch: feature/deposit-adopt-statement-row → PR → develop
 
 ## Problem Statement
