@@ -475,11 +475,13 @@ Une remise en banque regroupe plusieurs paiements remis ensemble à la banque (l
 4. Saisir la date de remise et le montant total.
 5. Enregistrer.
 
-**Confirmer la remise** (quand le bordereau part à la banque) crédite immédiatement le compte : une opération est ajoutée au journal bancaire, sans attendre le relevé.
+**Confirmer la remise** (quand le bordereau part à la banque) crédite immédiatement le compte : une opération est ajoutée au journal bancaire, sans attendre le relevé. Cette opération porte **la date du bordereau**, celle à laquelle vous avez porté les chèques ou les espèces à la banque — et non la date du jour où vous confirmez, qui peut arriver plusieurs jours plus tard.
 
 Quand vous importerez ensuite le relevé, la banque apportera ce même mouvement avec sa propre référence. L'application le **reconnaît et complète l'opération existante** au lieu d'en créer une seconde — le message de fin d'import indique combien de remises ont été rapprochées de cette façon. Vous n'avez donc rien à supprimer.
 
-> Dans un cas ambigu — deux remises du même montant à quelques jours d'intervalle — l'application ne choisit pas à votre place : les deux lignes sont importées, à vous de supprimer celle qui fait double emploi.
+> Dans un cas ambigu — deux remises du même montant à quelques jours d'intervalle — l'application ne choisit pas à votre place : les deux lignes sont importées, à vous d'indiquer laquelle correspond (voir ci-dessous).
+
+**Si le rapprochement automatique n'a pas eu lieu** (bordereau confirmé longtemps après le crédit, ou plusieurs remises du même montant), vous vous retrouvez avec deux lignes pour un seul mouvement. Ne supprimez rien : sur la ligne venue du relevé, ouvrez le menu **…** et choisissez **Rattacher à un bordereau enregistré**. Sélectionnez le bordereau concerné : les deux lignes n'en font plus qu'une, qui garde le nom du bordereau et prend la date et la référence de la banque.
 
 ---
 

@@ -111,6 +111,11 @@ class BankTransactionClientPaymentLink(BaseModel):
     payment_id: int
 
 
+class BankTransactionDepositMerge(BaseModel):
+    #: The provisional (``manual``) deposit line the statement row is folded into.
+    provisional_tx_id: int
+
+
 class BankTransactionClientPaymentLinks(BaseModel):
     payment_ids: list[int]
 

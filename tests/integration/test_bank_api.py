@@ -1515,3 +1515,115 @@ class TestEditDeleteManualTransactions:
         )
         assert r.status_code == 200
         assert r.json()["description"] == "Note ajoutée après rapprochement"
+
+
+# ---------------------------------------------------------------------------
+# Merging a statement deposit row with a slip, after the fact
+# ---------------------------------------------------------------------------
+
+
+async def _make_provisional_and_statement_rows(
+    client: AsyncClient, auth_headers: dict
+) -> tuple[int, int]:
+    """A slip line and its statement row that the import left side by side."""
+    provisional_resp = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2026-07-11",
+            "amount": "226.00",
+            "description": "Remise de chèques (bordereau #6)",
+            "reference": "DEP-CHQ-6",
+        },
+        headers=auth_headers,
+    )
+    assert provisional_resp.status_code == 201
+    provisional_id = provisional_resp.json()["id"]
+    # confirm_deposit stamps the category on the line it creates; the plain
+    # description does not match any detection pattern on its own.
+    category_resp = await client.put(
+        f"/api/bank/transactions/{provisional_id}",
+        json={"detected_category": "cheque_deposit"},
+        headers=auth_headers,
+    )
+    assert category_resp.status_code == 200
+    statement_resp = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2026-08-04",
+            "amount": "226.00",
+            "description": "REM CHQ REF05001A05",
+            "reference": "LF9UM92LLO",
+            "source": "import_ofx",
+        },
+        headers=auth_headers,
+    )
+    assert statement_resp.status_code == 201
+    return provisional_id, statement_resp.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_list_deposit_merge_candidates(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    provisional_id, statement_id = await _make_provisional_and_statement_rows(client, auth_headers)
+
+    response = await client.get(
+        f"/api/bank/transactions/{statement_id}/deposit-merge-candidates",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert [c["id"] for c in response.json()] == [provisional_id]
+
+
+@pytest.mark.asyncio
+async def test_merge_deposit_transaction(
+    client: AsyncClient, db_session: AsyncSession, admin_user: User, auth_headers: dict
+) -> None:
+    provisional_id, statement_id = await _make_provisional_and_statement_rows(client, auth_headers)
+
+    response = await client.post(
+        f"/api/bank/transactions/{statement_id}/merge-deposit",
+        json={"provisional_tx_id": provisional_id},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == provisional_id
+    assert data["date"] == "2026-08-04"
+    assert data["reference"] == "LF9UM92LLO"
+    assert data["description"] == "Remise de chèques (bordereau #6)"
+    assert await db_session.get(BankTransaction, statement_id) is None
+
+
+@pytest.mark.asyncio
+async def test_merge_deposit_transaction_rejects_a_stranger(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    _, statement_id = await _make_provisional_and_statement_rows(client, auth_headers)
+    other_resp = await client.post(
+        "/api/bank/transactions",
+        json={"date": "2026-07-11", "amount": "300.00", "description": "Remise d'espèces"},
+        headers=auth_headers,
+    )
+    assert other_resp.status_code == 201
+
+    response = await client.post(
+        f"/api/bank/transactions/{statement_id}/merge-deposit",
+        json={"provisional_tx_id": other_resp.json()["id"]},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "BANK_DEPOSIT_MERGE_INVALID"
+
+
+@pytest.mark.asyncio
+async def test_deposit_merge_candidates_not_found(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    response = await client.get(
+        "/api/bank/transactions/999999/deposit-merge-candidates", headers=auth_headers
+    )
+    assert response.status_code == 404

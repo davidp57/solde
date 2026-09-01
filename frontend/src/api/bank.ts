@@ -293,6 +293,26 @@ export async function linkClientPaymentsToTransaction(
   return response.data
 }
 
+export async function listDepositMergeCandidates(txId: number): Promise<BankTransaction[]> {
+  const response = await apiClient.get<BankTransaction[]>(
+    `/api/bank/transactions/${txId}/deposit-merge-candidates`,
+  )
+  return response.data
+}
+
+export async function mergeDepositTransaction(
+  txId: number,
+  provisionalTxId: number,
+): Promise<BankTransaction> {
+  const response = await apiClient.post<BankTransaction>(
+    `/api/bank/transactions/${txId}/merge-deposit`,
+    {
+      provisional_tx_id: provisionalTxId,
+    },
+  )
+  return response.data
+}
+
 export async function linkSupplierPaymentToTransaction(
   txId: number,
   paymentId: number,

@@ -288,7 +288,10 @@ _DEPOSIT_CATEGORIES = (
 )
 
 #: How far the statement date may sit from the provisional transaction's date.
-_DEPOSIT_MERGE_WINDOW_DAYS = 3
+#: The provisional line is dated from the slip itself, but that date is declarative
+#: (the slip may be carried to the bank a few days later), so the window absorbs the
+#: residual drift. The "exactly one candidate" guard still forbids any guessing.
+_DEPOSIT_MERGE_WINDOW_DAYS = 10
 
 
 async def absorb_pending_deposit_transaction(
@@ -350,6 +353,81 @@ async def absorb_pending_deposit_transaction(
     await db.flush()
     await db.refresh(tx)
     return tx
+
+
+def _is_statement_source(source: BankTransactionSource) -> bool:
+    """True for a row that came from a bank statement rather than from Solde."""
+    return source not in (
+        BankTransactionSource.MANUAL,
+        BankTransactionSource.SYSTEM_OPENING,
+    )
+
+
+async def list_deposit_merge_candidates(db: AsyncSession, *, tx_id: int) -> list[BankTransaction]:
+    """Provisional deposit lines the given statement row could be folded into.
+
+    The counterpart of :func:`absorb_pending_deposit_transaction`, for after the
+    fact: when the automatic merge did not happen at import time (slip confirmed
+    well after the credit, statement imported first), both lines sit in the
+    account and the user has to sort it out.  Candidates are unreconciled
+    ``manual`` deposit lines on the same account, for the very same amount — no
+    date window here, since the user is the one designating the match.
+
+    Ordered by date proximity, closest first.
+    """
+    tx = await get_transaction(db, tx_id)
+    if tx is None:
+        raise LookupError("Transaction not found")
+    if not _is_statement_source(tx.source):
+        raise ValueError("only a statement row can absorb a provisional deposit line")
+    if tx.reconciled:
+        raise ValueError("this transaction is already reconciled")
+    if tx.detected_category not in _DEPOSIT_CATEGORIES:
+        raise ValueError("only a deposit row can be merged with a deposit slip")
+
+    result = await db.execute(
+        select(BankTransaction).where(
+            BankTransaction.id != tx.id,
+            BankTransaction.source == BankTransactionSource.MANUAL,
+            BankTransaction.reconciled == False,  # noqa: E712
+            BankTransaction.bank_account == tx.bank_account,
+            BankTransaction.amount == tx.amount,
+            BankTransaction.detected_category.in_(_DEPOSIT_CATEGORIES),
+        )
+    )
+    candidates = list(result.scalars().all())
+    candidates.sort(key=lambda c: abs((c.date - tx.date).days))
+    return candidates
+
+
+async def merge_deposit_transaction(
+    db: AsyncSession, *, tx_id: int, provisional_tx_id: int
+) -> BankTransaction:
+    """Fold a statement row into a provisional deposit line the user designated.
+
+    Same outcome as the automatic merge at import time: the provisional line is
+    kept — its description names the slip — and takes the statement's date,
+    reference and source; the imported row is then removed.  Returns the
+    surviving line.
+    """
+    candidates = await list_deposit_merge_candidates(db, tx_id=tx_id)
+    provisional = next((c for c in candidates if c.id == provisional_tx_id), None)
+    if provisional is None:
+        raise ValueError("this deposit slip line cannot absorb that statement row")
+
+    tx = await get_transaction(db, tx_id)
+    if tx is None:  # pragma: no cover — list_deposit_merge_candidates already checked
+        raise LookupError("Transaction not found")
+
+    provisional.date = tx.date
+    provisional.reference = tx.reference
+    provisional.source = tx.source
+    await db.delete(tx)
+    await db.flush()
+    await recompute_bank_balances(db)
+    await db.flush()
+    await db.refresh(provisional)
+    return provisional
 
 
 async def add_transaction(
@@ -1140,6 +1218,13 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
     - For especes: create CashEntry OUT (cash leaves the till for the bank).
     - For both types: generate accounting entries (caisse/chèques → banque).
     - For cheques: create a positive BankTransaction representing the credit.
+
+    The cash movement and the bank credit are dated from ``deposit.date`` — the day
+    the slip was made up — and not from the confirmation day: a slip confirmed late
+    would otherwise carry a date the bank never used, drifting away from the
+    accounting entries (already dated from the slip) and from the statement row that
+    is meant to absorb it.  ``confirmed_date`` still records when the confirmation
+    itself happened.
     """
     deposit = await get_deposit(db, deposit_id)
     if deposit is None:
@@ -1157,7 +1242,7 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
         reference = deposit.bank_reference or f"DEP-ESP-{deposit.id}"
         await create_cash_entry_record(
             db,
-            date=deposit.confirmed_date,
+            date=deposit.date,
             amount=deposit.total_amount,
             type=CashMovementType.OUT,
             reference=reference,
@@ -1167,7 +1252,7 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
         # Also credit the bank account so the bank balance is updated
         esp_tx = await create_bank_transaction_record(
             db,
-            date=deposit.confirmed_date,
+            date=deposit.date,
             amount=deposit.total_amount,
             reference=reference,
             description=f"Remise d'espèces (bordereau #{deposit.id})",
@@ -1179,7 +1264,7 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
         reference = deposit.bank_reference or f"DEP-CHQ-{deposit.id}"
         chq_tx = await create_bank_transaction_record(
             db,
-            date=deposit.confirmed_date,
+            date=deposit.date,
             amount=deposit.total_amount,
             reference=reference,
             description=f"Remise de chèques (bordereau #{deposit.id})",

@@ -21,6 +21,7 @@ from backend.schemas.bank import (
     BankTransactionClientPaymentLinks,
     BankTransactionClientPaymentsCreate,
     BankTransactionCreate,
+    BankTransactionDepositMerge,
     BankTransactionRead,
     BankTransactionUpdate,
 )
@@ -426,5 +427,53 @@ async def link_supplier_payment_to_transaction(
         target_id=tx_id,
         target_type="bank_transaction",
         detail={"payment_id": payload.payment_id, "type": "link_supplier"},
+    )
+    return await _serialize_transaction(db, tx)
+
+
+@router.get(
+    "/transactions/{tx_id}/deposit-merge-candidates",
+    response_model=list[BankTransactionRead],
+)
+async def list_deposit_merge_candidates(
+    tx_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _WriteAccess,
+) -> list[BankTransactionRead]:
+    """Provisional deposit lines this statement row could be folded into."""
+    try:
+        candidates = await bank_service.list_deposit_merge_candidates(db, tx_id=tx_id)
+    except LookupError as exc:
+        raise api_error(status.HTTP_404_NOT_FOUND, "BANK_RESOURCE_NOT_FOUND", str(exc)) from exc
+    except ValueError as exc:
+        raise unprocessable("BANK_DEPOSIT_MERGE_INVALID", str(exc)) from exc
+    return await _serialize_transactions(db, candidates)
+
+
+@router.post("/transactions/{tx_id}/merge-deposit", response_model=BankTransactionRead)
+async def merge_deposit_transaction(
+    tx_id: int,
+    payload: BankTransactionDepositMerge,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> BankTransactionRead:
+    """Fold this statement row into the provisional deposit line the user designated."""
+    try:
+        tx = await bank_service.merge_deposit_transaction(
+            db,
+            tx_id=tx_id,
+            provisional_tx_id=payload.provisional_tx_id,
+        )
+    except LookupError as exc:
+        raise api_error(status.HTTP_404_NOT_FOUND, "BANK_RESOURCE_NOT_FOUND", str(exc)) from exc
+    except ValueError as exc:
+        raise unprocessable("BANK_DEPOSIT_MERGE_INVALID", str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_DEPOSIT_MERGED,
+        actor=current_user,
+        target_id=tx.id,
+        target_type="bank_transaction",
+        detail={"absorbed_tx_id": tx_id},
     )
     return await _serialize_transaction(db, tx)
