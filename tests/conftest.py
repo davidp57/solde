@@ -47,6 +47,9 @@ from backend.models import (
     chat_log as _chat_log_module,
 )
 from backend.models import (
+    checklist as _checklist_module,
+)
+from backend.models import (
     contact as _contact_module,
 )
 from backend.models import (
@@ -81,6 +84,7 @@ _REGISTERED_MODEL_MODULES = (
     _audit_log_module,
     _bank_module,
     _cash_module,
+    _checklist_module,
     _chat_log_module,
     _contact_module,
     _fy_module,

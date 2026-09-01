@@ -1,7 +1,7 @@
 # Lot CHECKLIST — Checklist mensuelle de tenue comptable
 
-Status: ⬜ ready
-Branch: —
+Status: ✅ done
+Branch: feature/monthly-checklist → PR → develop
 
 ## Problem Statement
 

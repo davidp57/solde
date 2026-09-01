@@ -1,6 +1,6 @@
 # BIZ-254 — Modèle de séance mensuelle et son API
 
-Status: ⬜ ready
+Status: ✅ done
 Type: feature
 Files: `backend/models/checklist.py`, `backend/services/checklist_service.py`,
 `backend/routers/checklist.py`, `backend/schemas/checklist.py`,
@@ -24,11 +24,11 @@ ensuite ; l'appelant peut imposer un autre mois.
 
 ## Acceptance criteria
 
-- [ ] L'état survit à un rechargement et à une session interrompue.
-- [ ] Une seule séance ouverte à la fois ; ouvrir la suivante exige de clôturer.
-- [ ] Clôturer une séance incomplète est possible et reporte les étapes non cochées.
-- [ ] Une séance clôturée est en lecture seule.
-- [ ] Les mois passés restent consultables.
+- [x] L'état survit à un rechargement et à une session interrompue.
+- [x] Une seule séance ouverte à la fois ; ouvrir la suivante exige de clôturer.
+- [x] Clôturer une séance incomplète est possible et reporte les étapes non cochées.
+- [x] Une séance clôturée est en lecture seule.
+- [x] Les mois passés restent consultables.
 
 ## Blocked by
 

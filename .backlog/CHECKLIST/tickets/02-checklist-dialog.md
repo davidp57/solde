@@ -1,6 +1,6 @@
 # BIZ-255 — La fenêtre de checklist et son bouton d'en-tête
 
-Status: ⬜ ready
+Status: ✅ done
 Type: feature
 Files: `frontend/src/components/checklist/`, `frontend/src/api/checklist.ts`,
 `frontend/src/components/layout/` (en-tête), `frontend/src/i18n/fr.ts`,
@@ -24,11 +24,11 @@ libellé i18n et sa cible de navigation.
 
 ## Acceptance criteria
 
-- [ ] Les sept blocs et leur ordre correspondent au PRD.
-- [ ] Une étape externe est reconnaissable au premier coup d'œil.
-- [ ] Cocher depuis n'importe quel écran, sans revenir à l'accueil.
-- [ ] La clôture affiche ce qui reste non coché avant de demander confirmation.
-- [ ] Lisible et utilisable sur mobile.
+- [x] Les sept blocs et leur ordre correspondent au PRD.
+- [x] Une étape externe est reconnaissable au premier coup d'œil.
+- [x] Cocher depuis n'importe quel écran, sans revenir à l'accueil.
+- [x] La clôture affiche ce qui reste non coché avant de demander confirmation.
+- [x] Lisible et utilisable sur mobile.
 
 ## Blocked by
 
