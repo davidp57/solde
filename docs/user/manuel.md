@@ -431,6 +431,22 @@ Les transactions déjà présentes (même référence bancaire) sont automatique
 
 > Seuls les fichiers OFX contenant **un seul compte** sont acceptés. Si votre fichier contient plusieurs comptes, contactez votre administrateur.
 
+#### Doublons probables
+
+Cette détection automatique ne fonctionne que sur la **référence bancaire**. Une opération que vous avez saisie à la main n'en porte aucune : quand la banque apporte ensuite le même mouvement, rien ne peut les rapprocher, et vous vous retrouvez avec deux lignes pour un seul mouvement — le solde affiché s'écarte alors de celui de votre banque, sans rien pour vous alerter.
+
+L'application compare donc aussi chaque opération importée à ce qui est déjà enregistré : **même compte, même montant, à trois jours près**. Quand elle trouve une correspondance, la fenêtre d'import **reste ouverte** sur un panneau *Doublons probables* qui affiche les deux lignes côte à côte, avec un bouton **Supprimer** sur chacune.
+
+L'application n'écarte jamais une ligne d'elle-même : les deux sont importées, et c'est vous qui décidez. Supprimez celle qui est en trop — en règle générale, gardez la ligne venue du relevé, qui porte la référence et le libellé de la banque — ou laissez les deux s'il s'agit bien de deux mouvements distincts du même montant.
+
+> Le bouton est grisé sur une ligne qui ne peut pas être supprimée : une opération **rapprochée** (il faut alors supprimer l'autre côté de la paire) ou une opération issue d'un **import Excel**.
+
+### Supprimer une opération
+
+Une opération peut être supprimée tant qu'elle n'est pas **rapprochée** : les opérations saisies à la main, et celles venues d'un import de relevé (OFX, CSV, QIF). Ouvrez le menu **…** de la ligne et choisissez **Supprimer l'opération**.
+
+Restent protégées : les opérations **rapprochées** (leurs écritures comptables en dépendent) et les opérations issues d'un **import Excel** (l'annulation d'import a besoin d'elles). Une opération importée peut être supprimée, mais jamais **modifiée** — elle reflète ce que la banque a communiqué.
+
 ### Corriger la catégorie d'une transaction
 
 Solde détecte automatiquement la catégorie de chaque transaction (frais bancaires, cotisation sociale, subvention, virement interne…). Pour corriger :

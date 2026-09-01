@@ -1076,6 +1076,7 @@ import {
   listTransactionsWithCount,
   updateTransaction,
   deleteTransaction,
+  canDeleteTransaction,
   reconcileTransactionsBulk,
   type BankTransaction,
   type BankTransactionCategory,
@@ -1170,6 +1171,8 @@ const mergeDepositDialogVisible = ref(false)
 const editTransactionDialogVisible = ref(false)
 const editingTransaction = ref<BankTransaction | null>(null)
 
+// Editing stays reserved to manual rows; deleting also covers directly-imported ones
+// (see canDeleteTransaction) — that is how an import duplicate gets removed.
 function canEditOrDelete(tx: BankTransaction): boolean {
   return (tx.source === 'manual' || tx.source === 'system_opening') && !tx.reconciled
 }
@@ -1179,11 +1182,13 @@ function openEditTransactionDialog(tx: BankTransaction): void {
   editTransactionDialogVisible.value = true
 }
 
-async function deleteManualTx(tx: BankTransaction): Promise<void> {
+async function deleteTx(tx: BankTransaction): Promise<void> {
   confirm.require({
     message: t('bank.delete_transaction_confirm'),
     header: t('bank.delete_transaction_title'),
     icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('common.delete'),
+    rejectLabel: t('common.cancel'),
     acceptSeverity: 'danger',
     accept: async () => {
       try {
@@ -1437,9 +1442,9 @@ function txPrimaryAction(tx: BankTransaction): RowAction | null {
 function txMenuItems(tx: BankTransaction): MenuItem[] {
   const [, ...rest] = txAvailableActions(tx)
   const items: MenuItem[] = rest.map((a) => ({ label: a.label, icon: a.icon, command: a.command }))
-  if (canEditOrDelete(tx)) {
+  if (canDeleteTransaction(tx)) {
     if (items.length) items.push({ separator: true })
-    items.push({ label: t('bank.delete_transaction'), icon: 'pi pi-trash', class: 'app-row-actions-danger', command: () => deleteManualTx(tx) })
+    items.push({ label: t('bank.delete_transaction'), icon: 'pi pi-trash', class: 'app-row-actions-danger', command: () => deleteTx(tx) })
   }
   return items
 }

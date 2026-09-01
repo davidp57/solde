@@ -51,14 +51,54 @@
           </div>
         </div>
       </section>
+      <section v-if="duplicates.length" class="app-dialog-section">
+        <h3 class="bank-import-dup__title">
+          {{ t('bank.import_duplicates_title', { n: duplicates.length }) }}
+        </h3>
+        <p class="bank-import-dup__intro">{{ t('bank.import_duplicates_intro') }}</p>
+        <div v-for="(pair, index) in duplicates" :key="pair.imported.id" class="bank-import-dup">
+          <p class="bank-import-dup__caption">
+            {{ t('bank.import_duplicates_pair', { n: index + 1 }) }}
+          </p>
+          <div
+            v-for="side in ['imported', 'existing'] as const"
+            :key="side"
+            class="bank-import-dup__row"
+          >
+            <span class="bank-import-dup__badge">{{ t(`bank.import_duplicates_${side}`) }}</span>
+            <span class="bank-import-dup__date">{{ formatDisplayDate(pair[side].date) }}</span>
+            <span class="bank-import-dup__label">{{ pair[side].description }}</span>
+            <span class="bank-import-dup__amount">{{ pair[side].amount }} €</span>
+            <span class="bank-import-dup__source">
+              {{ t(`bank.sources.${pair[side].source}`) }}
+            </span>
+            <Button
+              :label="t('bank.delete_transaction')"
+              icon="pi pi-trash"
+              severity="danger"
+              text
+              size="small"
+              :disabled="!canDeleteTransaction(pair[side]) || deletingId !== null"
+              :loading="deletingId === pair[side].id"
+              :title="
+                canDeleteTransaction(pair[side])
+                  ? undefined
+                  : t('bank.import_duplicates_locked')
+              "
+              @click="dropDuplicate(pair.imported.id, pair[side].id)"
+            />
+          </div>
+        </div>
+      </section>
       <div class="app-form-actions">
         <Button
-          :label="t('common.cancel')"
+          :label="duplicates.length ? t('common.close') : t('common.cancel')"
           severity="secondary"
           text
-          @click="$emit('update:visible', false)"
+          @click="close"
         />
         <Button
+          v-if="!duplicates.length"
           :label="t('bank.import_statement')"
           icon="pi pi-upload"
           :loading="saving"
@@ -76,8 +116,16 @@ import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Select from 'primevue/select'
 import { useToast } from 'primevue/usetoast'
-import { importBankStatement, type BankImportFormat, type BankAccountType } from '@/api/bank'
+import {
+  importBankStatement,
+  deleteTransaction,
+  canDeleteTransaction,
+  type BankImportDuplicate,
+  type BankImportFormat,
+  type BankAccountType,
+} from '@/api/bank'
 import { getSettingsApi } from '@/api/settings'
+import { formatDisplayDate } from '@/utils/format'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{
@@ -93,6 +141,10 @@ const fileContent = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 const defaultBankAccount = ref<BankAccountType>('courant')
 const acctidFullyConfigured = ref(false)
+// Probable duplicates reported by the last import: the dialog stays open on them so the
+// user drops the redundant row while both are still side by side.
+const duplicates = ref<BankImportDuplicate[]>([])
+const deletingId = ref<number | null>(null)
 
 watch(
   () => props.visible,
@@ -129,6 +181,26 @@ async function onFileSelected(event: Event): Promise<void> {
   input.value = ''
 }
 
+function close(): void {
+  duplicates.value = []
+  emit('update:visible', false)
+}
+
+/** Drop one side of a reported pair; the pair then leaves the list, settled. */
+async function dropDuplicate(pairId: number, txId: number): Promise<void> {
+  deletingId.value = txId
+  try {
+    await deleteTransaction(txId)
+    duplicates.value = duplicates.value.filter((pair) => pair.imported.id !== pairId)
+    toast.add({ severity: 'success', summary: t('bank.transaction_deleted'), life: 2000 })
+    emit('saved')
+  } catch {
+    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } finally {
+    deletingId.value = null
+  }
+}
+
 async function submit(): Promise<void> {
   if (!fileName.value || !fileContent.value.trim()) {
     toast.add({ severity: 'warn', summary: t('bank.import_file_required'), life: 3000 })
@@ -137,7 +209,10 @@ async function submit(): Promise<void> {
   saving.value = true
   try {
     const result = await importBankStatement(detectFormat(fileName.value), fileContent.value, defaultBankAccount.value)
-    emit('update:visible', false)
+    duplicates.value = result.duplicates
+    // Keep the dialog open when there are duplicates to arbitrate; closing it would bury
+    // the pairs in the statement, where the older of the two is easy to miss.
+    if (!duplicates.value.length) emit('update:visible', false)
     fileName.value = ''
     fileContent.value = ''
     defaultBankAccount.value = 'courant'
@@ -147,12 +222,16 @@ async function submit(): Promise<void> {
         : t('bank.import_success', { n: result.created.length })
     // Deposits already recorded in Solde are folded into the statement rather
     // than imported a second time — say so, the counts would look off otherwise.
-    const summary =
+    const withMerged =
       result.merged > 0 ? base + t('bank.import_merged_suffix', { m: result.merged }) : base
+    const summary =
+      duplicates.value.length > 0
+        ? withMerged + t('bank.import_duplicates_suffix', { d: duplicates.value.length })
+        : withMerged
     toast.add({
-      severity: 'success',
+      severity: duplicates.value.length > 0 ? 'warn' : 'success',
       summary,
-      life: 4000,
+      life: 6000,
     })
     emit('saved')
   } catch (err: unknown) {
@@ -200,5 +279,72 @@ async function submit(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-4);
+}
+
+.bank-import-dup__title {
+  margin: 0 0 var(--app-space-2);
+  font-size: 1rem;
+}
+
+.bank-import-dup__intro {
+  margin: 0 0 var(--app-space-3);
+  color: var(--app-text-muted);
+  font-size: 0.9rem;
+}
+
+.bank-import-dup {
+  padding: var(--app-space-3);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm, 6px);
+}
+
+.bank-import-dup + .bank-import-dup {
+  margin-top: var(--app-space-3);
+}
+
+.bank-import-dup__caption {
+  margin: 0 0 var(--app-space-2);
+  color: var(--app-text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bank-import-dup__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--app-space-2);
+}
+
+.bank-import-dup__row + .bank-import-dup__row {
+  margin-top: var(--app-space-2);
+}
+
+.bank-import-dup__badge {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--app-surface-2, rgba(127, 127, 127, 0.15));
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.bank-import-dup__label {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.bank-import-dup__amount {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.bank-import-dup__source,
+.bank-import-dup__date {
+  color: var(--app-text-muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 </style>

@@ -51,6 +51,23 @@ _CURRENT_ACCOUNT_NUMBER = "512100"
 _SAVINGS_ACCOUNT_NUMBER = "512102"
 _FISCAL_YEAR_OPENING_LABEL_PREFIX = "Ouverture de l'exercice comptable"
 
+# Sources whose transactions may be deleted (when unreconciled). Excel-imported rows are
+# excluded: the reversible-import machinery tracks the rows it created, and deleting one
+# behind its back would break the rollback of that import run.
+DELETABLE_SOURCES: frozenset[BankTransactionSource] = frozenset(
+    {
+        BankTransactionSource.MANUAL,
+        BankTransactionSource.SYSTEM_OPENING,
+        BankTransactionSource.IMPORT_CSV,
+        BankTransactionSource.IMPORT_OFX,
+        BankTransactionSource.IMPORT_QIF,
+    }
+)
+
+# Window used to pair an imported row with an already-recorded equivalent. A statement
+# line keyed in by hand rarely carries the exact value date the bank later reports.
+_DUPLICATE_DATE_TOLERANCE = timedelta(days=3)
+
 
 def _shift_month(value: date, months: int) -> date:
     year = value.year
@@ -469,6 +486,33 @@ async def merge_deposit_transaction(
     return provisional
 
 
+async def find_probable_duplicate(db: AsyncSession, tx: BankTransaction) -> BankTransaction | None:
+    """Return an already-recorded transaction that *tx* probably duplicates.
+
+    Reference-based deduplication (see `add_transaction`) only catches rows the bank
+    itself keyed: it is blind to a statement line entered by hand, which carries no
+    bank reference. Such a line and its later import are the same movement recorded
+    twice, and nothing flags it. This pairs them on account, amount and a short date
+    window, restricted to candidates with no reference and a different source — an
+    imported row that already had a reference would have been deduplicated upstream.
+    """
+    result = await db.execute(
+        select(BankTransaction)
+        .where(
+            BankTransaction.id != tx.id,
+            BankTransaction.bank_account == tx.bank_account,
+            BankTransaction.amount == tx.amount,
+            BankTransaction.reference.is_(None),
+            BankTransaction.source != tx.source,
+            BankTransaction.date >= tx.date - _DUPLICATE_DATE_TOLERANCE,
+            BankTransaction.date <= tx.date + _DUPLICATE_DATE_TOLERANCE,
+        )
+        .order_by(BankTransaction.date.asc(), BankTransaction.id.asc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def add_transaction(
     db: AsyncSession, payload: BankTransactionCreate
 ) -> BankTransaction | None:
@@ -680,16 +724,13 @@ async def update_transaction(
     return tx
 
 
-async def delete_manual_transaction(db: AsyncSession, tx: BankTransaction) -> None:
-    """Delete a manual (or system_opening) transaction and recompute balances.
+async def delete_transaction(db: AsyncSession, tx: BankTransaction) -> None:
+    """Delete a manual or directly-imported transaction and recompute balances.
 
-    Raises ValueError if the transaction has a non-manual source or is reconciled.
+    Raises ValueError if the transaction comes from an Excel import or is reconciled.
     """
-    if tx.source not in (
-        BankTransactionSource.MANUAL,
-        BankTransactionSource.SYSTEM_OPENING,
-    ):
-        raise ValueError("Only manual transactions can be deleted")
+    if tx.source not in DELETABLE_SOURCES:
+        raise ValueError("Excel-imported transactions cannot be deleted")
     if tx.reconciled:
         raise ValueError("Reconciled transactions cannot be deleted")
     await db.delete(tx)

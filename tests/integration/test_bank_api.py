@@ -757,6 +757,100 @@ async def test_import_csv(client: AsyncClient, admin_user: User, auth_headers: d
     assert data["created"][1]["detected_category"] == "sepa_debit"
 
 
+class TestImportDuplicateReporting:
+    """Probable duplicates between an imported row and one already recorded."""
+
+    _OFX_TEMPLATE = """<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS>
+<CURDEF>EUR</CURDEF><BANKACCTFROM><ACCTID>00023135701</ACCTID></BANKACCTFROM>
+<BANKTRANLIST>
+<STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>{posted}</DTPOSTED>
+<TRNAMT>{amount}</TRNAMT><FITID>{fitid}</FITID><NAME>{name}</NAME></STMTTRN>
+</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>"""
+
+    async def _existing_manual(
+        self,
+        client: AsyncClient,
+        headers: dict,
+        *,
+        tx_date: str = "2026-05-01",
+        amount: str = "-3000.00",
+    ) -> int:
+        r = await client.post(
+            "/api/bank/transactions",
+            json={"date": tx_date, "amount": amount, "description": "Virement interne"},
+            headers=headers,
+        )
+        assert r.status_code == 201
+        return r.json()["id"]
+
+    async def _import(
+        self,
+        client: AsyncClient,
+        headers: dict,
+        *,
+        posted: str = "20260501",
+        amount: str = "-3000.00",
+        fitid: str = "LXS01G6OCF",
+        name: str = "VIR COMPTE COURANT ASSOCIATION",
+    ) -> dict:
+        r = await client.post(
+            "/api/bank/transactions/import-ofx",
+            json={
+                "content": self._OFX_TEMPLATE.format(
+                    posted=posted, amount=amount, fitid=fitid, name=name
+                )
+            },
+            headers=headers,
+        )
+        assert r.status_code == 201
+        return r.json()
+
+    async def test_manual_row_reported_as_probable_duplicate(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        existing_id = await self._existing_manual(client, auth_headers)
+        body = await self._import(client, auth_headers)
+        assert len(body["created"]) == 1
+        assert len(body["duplicates"]) == 1
+        pair = body["duplicates"][0]
+        assert pair["existing"]["id"] == existing_id
+        assert pair["imported"]["id"] == body["created"][0]["id"]
+
+    async def test_duplicate_reported_within_date_tolerance(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """A hand-keyed line rarely carries the exact value date the bank reports."""
+        await self._existing_manual(client, auth_headers, tx_date="2026-04-29")
+        body = await self._import(client, auth_headers)
+        assert len(body["duplicates"]) == 1
+
+    async def test_no_report_beyond_date_tolerance(self, client: AsyncClient, auth_headers: dict):
+        await self._existing_manual(client, auth_headers, tx_date="2026-04-20")
+        body = await self._import(client, auth_headers)
+        assert body["duplicates"] == []
+
+    async def test_no_report_on_different_amount(self, client: AsyncClient, auth_headers: dict):
+        await self._existing_manual(client, auth_headers, amount="-2000.00")
+        body = await self._import(client, auth_headers)
+        assert body["duplicates"] == []
+
+    async def test_reimport_is_skipped_not_reported(self, client: AsyncClient, auth_headers: dict):
+        """Same reference twice: the existing dedup still wins, nothing new to arbitrate."""
+        first = await self._import(client, auth_headers)
+        assert len(first["created"]) == 1
+        second = await self._import(client, auth_headers)
+        assert second["created"] == []
+        assert second["skipped"] == 1
+        assert second["duplicates"] == []
+
+    async def test_reported_duplicate_can_be_deleted(self, client: AsyncClient, auth_headers: dict):
+        await self._existing_manual(client, auth_headers)
+        body = await self._import(client, auth_headers)
+        imported_id = body["duplicates"][0]["imported"]["id"]
+        r = await client.delete(f"/api/bank/transactions/{imported_id}", headers=auth_headers)
+        assert r.status_code == 204
+
+
 @pytest.mark.asyncio
 async def test_create_client_payment_from_bank_transaction(
     client: AsyncClient,
@@ -1426,12 +1520,16 @@ class TestEditDeleteManualTransactions:
         assert r.status_code == 201
         return r.json()["id"]
 
-    async def _create_imported(self, db_session: AsyncSession) -> int:
+    async def _create_imported(
+        self,
+        db_session: AsyncSession,
+        source: BankTransactionSource = BankTransactionSource.IMPORT_OFX,
+    ) -> int:
         tx = BankTransaction(
             date=date(2024, 6, 1),
             amount=Decimal("12.00"),
             description="OFX import",
-            source=BankTransactionSource.IMPORT_OFX,
+            source=source,
         )
         db_session.add(tx)
         await db_session.commit()
@@ -1465,10 +1563,29 @@ class TestEditDeleteManualTransactions:
         listing = await client.get("/api/bank/transactions", headers=auth_headers)
         assert all(t["id"] != tx_id for t in listing.json())
 
-    async def test_delete_imported_transaction_refused(
+    async def test_delete_excel_imported_transaction_refused(
+        self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+    ):
+        """Excel rows back a reversible import run — deleting one would break its rollback."""
+        tx_id = await self._create_imported(db_session, source=BankTransactionSource.IMPORT_EXCEL)
+        r = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+        assert r.status_code == 422
+
+    async def test_delete_ofx_imported_transaction_allowed(
+        self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+    ):
+        """An unreconciled statement row can be dropped — that is how a duplicate goes away."""
+        tx_id = await self._create_imported(db_session)
+        r = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+        assert r.status_code == 204
+        listing = await client.get("/api/bank/transactions", headers=auth_headers)
+        assert all(t["id"] != tx_id for t in listing.json())
+
+    async def test_delete_reconciled_imported_transaction_refused(
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
     ):
         tx_id = await self._create_imported(db_session)
+        await self._reconcile(client, auth_headers, tx_id)
         r = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
         assert r.status_code == 422
 

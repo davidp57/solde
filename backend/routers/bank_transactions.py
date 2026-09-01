@@ -218,7 +218,7 @@ async def delete_transaction(
     if tx is None:
         raise not_found("Transaction")
     try:
-        await bank_service.delete_manual_transaction(db, tx)
+        await bank_service.delete_transaction(db, tx)
     except ValueError as exc:
         raise unprocessable(
             "BANK_TRANSACTION_DELETE_FAILED",
