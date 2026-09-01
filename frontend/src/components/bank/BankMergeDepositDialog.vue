@@ -35,7 +35,14 @@
           />
         </div>
         <Message v-if="!loading && candidateOptions.length === 0" severity="warn">
-          {{ t('bank.merge_deposit_no_candidate') }}
+          {{
+            unconfirmedSlip
+              ? t('bank.merge_deposit_unconfirmed_slip', {
+                  amount: formatAmount(unconfirmedSlip.total_amount),
+                  date: formatDisplayDate(unconfirmedSlip.date),
+                })
+              : t('bank.merge_deposit_no_candidate')
+          }}
         </Message>
         <Message v-else-if="!loading" severity="info">
           {{ t('bank.merge_deposit_hint') }}
@@ -69,8 +76,10 @@ import Select from 'primevue/select'
 import { useToast } from 'primevue/usetoast'
 import {
   listDepositMergeCandidates,
+  listDeposits,
   mergeDepositTransaction,
   type BankTransaction,
+  type Deposit,
 } from '@/api/bank'
 import { formatDisplayDate } from '@/utils/format'
 import { getErrorDetail } from '@/utils/errorUtils'
@@ -91,6 +100,8 @@ const loading = ref(false)
 const saving = ref(false)
 const candidates = ref<BankTransaction[]>([])
 const selectedTxId = ref<number | null>(null)
+//: A slip of the right amount that was never confirmed — hence no line to merge with.
+const unconfirmedSlip = ref<Deposit | null>(null)
 
 function formatAmount(value: string | number): string {
   return `${parseFloat(String(value)).toFixed(2)} €`
@@ -104,16 +115,38 @@ const candidateOptions = computed(() =>
   })),
 )
 
+// Nothing to merge with usually means the slip is still waiting for confirmation:
+// no bank line exists until then. Say so rather than leaving a dead end.
+async function findUnconfirmedSlip(tx: BankTransaction): Promise<Deposit | null> {
+  const expectedType = tx.detected_category === 'cheque_deposit' ? 'cheques' : 'especes'
+  const amount = parseFloat(tx.amount)
+  try {
+    const pending = await listDeposits({ confirmed: false })
+    return (
+      pending.find(
+        (d) => d.type === expectedType && Math.abs(parseFloat(d.total_amount) - amount) < 0.0001,
+      ) ?? null
+    )
+  } catch {
+    // Only used to phrase a message: a failure here must not hide the dialog's own error.
+    return null
+  }
+}
+
 watch(
   () => props.visible,
   async (isVisible) => {
     if (!isVisible || !props.transaction) return
     selectedTxId.value = null
     candidates.value = []
+    unconfirmedSlip.value = null
     loading.value = true
     try {
       candidates.value = await listDepositMergeCandidates(props.transaction.id)
       selectedTxId.value = candidates.value[0]?.id ?? null
+      if (candidates.value.length === 0) {
+        unconfirmedSlip.value = await findUnconfirmedSlip(props.transaction)
+      }
     } catch (error) {
       toast.add({
         severity: 'error',

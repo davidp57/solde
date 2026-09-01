@@ -144,7 +144,6 @@
         </div>
       </div>
     </div>
-    <ConfirmDialog />
   </Dialog>
 </template>
 
@@ -153,7 +152,6 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
-import ConfirmDialog from 'primevue/confirmdialog'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import Message from 'primevue/message'
