@@ -11,7 +11,7 @@ import {
 /**
  * The monthly bookkeeping session.
  *
- * Shared between the header button — which shows the progress — and the dialog,
+ * Shared between the header button — which shows the progress — and the panel,
  * so ticking a step updates both without a second round trip.
  */
 export const useChecklistStore = defineStore('checklist', () => {
@@ -19,7 +19,7 @@ export const useChecklistStore = defineStore('checklist', () => {
   const suggestedPeriod = ref('')
   const totalCount = ref(0)
   const loading = ref(false)
-  const dialogVisible = ref(false)
+  const panelVisible = ref(false)
 
   const session = computed(() => detail.value?.session ?? null)
   const steps = computed(() => detail.value?.steps ?? [])
@@ -66,7 +66,7 @@ export const useChecklistStore = defineStore('checklist', () => {
     suggestedPeriod,
     totalCount,
     loading,
-    dialogVisible,
+    panelVisible,
     session,
     steps,
     signals,

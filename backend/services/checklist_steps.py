@@ -23,7 +23,8 @@ class ChecklistBlock(StrEnum):
     PAYROLL = "payroll"
     BANK_VISIT = "bank_visit"
     STATEMENT = "statement"
-    CASH_AND_DEPOSITS = "cash_and_deposits"
+    CASH = "cash"
+    DEPOSITS = "deposits"
     CLOSING = "closing"
 
 
@@ -60,7 +61,6 @@ class ChecklistStep:
 CHECKLIST_STEPS: tuple[ChecklistStep, ...] = (
     # 1. Entry
     ChecklistStep("supplier_invoices", ChecklistBlock.ENTRY, route="invoices-supplier"),
-    ChecklistStep("cash_movements", ChecklistBlock.ENTRY, route="cash"),
     # 2. Payroll
     ChecklistStep("cea_payroll", ChecklistBlock.PAYROLL, external=True),
     ChecklistStep(
@@ -69,7 +69,6 @@ CHECKLIST_STEPS: tuple[ChecklistStep, ...] = (
         signal=ChecklistSignal.SALARY_SLIPS,
         route="salaries",
     ),
-    ChecklistStep("salary_summary", ChecklistBlock.PAYROLL, route="salaries"),
     # 3. The single visit to the bank's website
     ChecklistStep("transfer_salaries", ChecklistBlock.BANK_VISIT, external=True),
     ChecklistStep("transfer_suppliers", ChecklistBlock.BANK_VISIT, external=True),
@@ -90,26 +89,30 @@ CHECKLIST_STEPS: tuple[ChecklistStep, ...] = (
         route="bank",
     ),
     ChecklistStep("compare_balance", ChecklistBlock.STATEMENT, route="bank"),
-    # 5. Cash and deposits
+    # 5. Cash — everything that moves the till, then counting it. Counting before
+    # the last movement is entered would compare the drawer against a stale total.
+    ChecklistStep("supplier_cash_payments", ChecklistBlock.CASH, route="invoices-supplier"),
+    ChecklistStep("cash_movements", ChecklistBlock.CASH, route="cash"),
     ChecklistStep(
         "cash_count",
-        ChecklistBlock.CASH_AND_DEPOSITS,
+        ChecklistBlock.CASH,
         signal=ChecklistSignal.LAST_CASH_COUNT,
         route="cash",
     ),
+    # 6. Deposit slips — prepared in the Bank screen, not the till's.
     ChecklistStep(
         "prepare_cash_slip",
-        ChecklistBlock.CASH_AND_DEPOSITS,
+        ChecklistBlock.DEPOSITS,
         signal=ChecklistSignal.PENDING_CASH,
         route="bank",
     ),
     ChecklistStep(
         "prepare_cheque_slip",
-        ChecklistBlock.CASH_AND_DEPOSITS,
+        ChecklistBlock.DEPOSITS,
         signal=ChecklistSignal.PENDING_CHEQUES,
         route="bank",
     ),
-    # 6. Closing
+    # 7. Closing
     ChecklistStep(
         "check_backup",
         ChecklistBlock.CLOSING,

@@ -154,7 +154,7 @@
     </nav>
 
     <!-- Monthly bookkeeping checklist (reachable from every screen) -->
-    <ChecklistDialog v-if="auth.canAccessAccounting" />
+    <ChecklistPanel v-if="auth.canAccessAccounting" />
 
     <!-- Chat sidebar (floating, authenticated pages only) -->
     <ChatSidebar />
@@ -185,7 +185,7 @@ import { useChatStore } from '../stores/chat'
 import { useChecklistStore } from '../stores/checklist'
 import NavMenu from '../components/NavMenu.vue'
 import ChatSidebar from '../components/chat/ChatSidebar.vue'
-import ChecklistDialog from '../components/checklist/ChecklistDialog.vue'
+import ChecklistPanel from '../components/checklist/ChecklistPanel.vue'
 import { useDarkMode } from '../composables/useDarkMode'
 import { useNavigation } from '../composables/useNavigation'
 const { t } = useI18n()
@@ -230,7 +230,7 @@ const checklistBadge = computed(() =>
 )
 
 function openChecklist(): void {
-  checklistStore.dialogVisible = true
+  checklistStore.panelVisible = true
 }
 
 onMounted(() => {

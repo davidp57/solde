@@ -1,10 +1,12 @@
 <template>
-  <Dialog
-    :visible="store.dialogVisible"
+  <Drawer
+    :visible="store.panelVisible"
     :header="headerLabel"
-    modal
-    class="app-dialog app-dialog--medium checklist-dialog"
-    @update:visible="store.dialogVisible = $event"
+    position="right"
+    :modal="false"
+    :dismissable="false"
+    class="checklist-drawer"
+    @update:visible="store.panelVisible = $event"
   >
     <!-- No session yet: offer to start the one today's date points at. -->
     <div v-if="!store.isOpen" class="app-dialog-form">
@@ -111,7 +113,7 @@
         />
       </div>
     </div>
-  </Dialog>
+  </Drawer>
 </template>
 
 <script setup lang="ts">
@@ -120,7 +122,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
-import Dialog from 'primevue/dialog'
+import Drawer from 'primevue/drawer'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
 import Tag from 'primevue/tag'
@@ -212,11 +214,11 @@ async function close(): Promise<void> {
 
 function goTo(route: string): void {
   void router.push({ name: route })
-  store.dialogVisible = false
+  store.panelVisible = false
 }
 
 watch(
-  () => store.dialogVisible,
+  () => store.panelVisible,
   (visible) => {
     if (!visible) {
       confirmingClose.value = false
