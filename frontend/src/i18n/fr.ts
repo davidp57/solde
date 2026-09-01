@@ -982,6 +982,16 @@ export default {
     link_supplier_payment_success:
       'Règlement fournisseur existant confirmé et ligne bancaire rapprochée.',
     suggested_candidate_hint: 'La meilleure suggestion a été présélectionnée automatiquement.',
+    merge_deposit: 'Rattacher à un bordereau enregistré',
+    merge_deposit_title: 'Rattacher cette remise à un bordereau déjà enregistré',
+    merge_deposit_intro:
+      'Cette remise a déjà été enregistrée dans Solde lors de la confirmation du bordereau. Rattachez-la pour ne garder qu’une seule opération, sans supprimer de ligne à la main.',
+    merge_deposit_slip: 'Bordereau déjà enregistré',
+    merge_deposit_no_candidate:
+      'Aucun bordereau enregistré du même montant n’attend d’être rattaché à cette ligne.',
+    merge_deposit_hint:
+      'La ligne conservée gardera le nom du bordereau et prendra la date et la référence de la banque.',
+    merge_deposit_success: 'Remise rattachée au bordereau : une seule opération conservée.',
     categories: {
       uncategorized: 'À catégoriser',
       customer_payment: 'Règl. client',

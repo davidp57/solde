@@ -969,6 +969,11 @@
       :transaction="existingSupplierPaymentTransaction"
       @saved="loadAll"
     />
+    <BankMergeDepositDialog
+      v-model:visible="mergeDepositDialogVisible"
+      :transaction="mergeDepositTransaction"
+      @saved="loadAll"
+    />
     <BankNewDepositDialog
       v-model:visible="depositDialogVisible"
       :payments="undepositedPayments"
@@ -1056,6 +1061,7 @@ import BankClientPaymentDialog from '../components/bank/BankClientPaymentDialog.
 import BankLinkClientPaymentDialog from '../components/bank/BankLinkClientPaymentDialog.vue'
 import BankSupplierPaymentDialog from '../components/bank/BankSupplierPaymentDialog.vue'
 import BankLinkSupplierPaymentDialog from '../components/bank/BankLinkSupplierPaymentDialog.vue'
+import BankMergeDepositDialog from '../components/bank/BankMergeDepositDialog.vue'
 import BankNewDepositDialog from '../components/bank/BankNewDepositDialog.vue'
 import BankPendingDepositsPanel from '../components/bank/BankPendingDepositsPanel.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
@@ -1158,6 +1164,7 @@ const clientPaymentDialogVisible = ref(false)
 const existingClientPaymentDialogVisible = ref(false)
 const supplierPaymentDialogVisible = ref(false)
 const existingSupplierPaymentDialogVisible = ref(false)
+const mergeDepositDialogVisible = ref(false)
 
 // Edit/delete state for manual transactions
 const editTransactionDialogVisible = ref(false)
@@ -1198,6 +1205,7 @@ const clientPaymentTransaction = ref<BankTransaction | null>(null)
 const existingClientPaymentTransaction = ref<BankTransaction | null>(null)
 const supplierPaymentTransaction = ref<BankTransaction | null>(null)
 const existingSupplierPaymentTransaction = ref<BankTransaction | null>(null)
+const mergeDepositTransaction = ref<BankTransaction | null>(null)
 
 const sourceOptions = [
   { label: t('bank.sources.manual'), value: 'manual' },
@@ -1393,6 +1401,17 @@ function canLinkExistingSupplierPayment(tx: BankTransaction): boolean {
   return canCreateSupplierPayment(tx)
 }
 
+// A statement row crediting a deposit Solde already recorded: the automatic merge
+// at import time missed it (slip confirmed too late), so both lines are still there.
+function canMergeDeposit(tx: BankTransaction): boolean {
+  return (
+    !tx.reconciled &&
+    parseFloat(tx.amount) > 0 &&
+    ['cheque_deposit', 'cash_deposit'].includes(tx.detected_category) &&
+    !['manual', 'system_opening'].includes(tx.source)
+  )
+}
+
 // Contextual non-destructive actions available for a transaction, in priority order.
 function txAvailableActions(tx: BankTransaction): RowAction[] {
   const acts: RowAction[] = []
@@ -1404,6 +1423,8 @@ function txAvailableActions(tx: BankTransaction): RowAction[] {
     acts.push({ key: 'link-client', label: t('bank.link_client_payment'), icon: 'pi pi-link', severity: 'secondary', command: () => openExistingClientPaymentDialog(tx) })
   if (canLinkExistingSupplierPayment(tx))
     acts.push({ key: 'link-supplier', label: t('bank.link_supplier_payment'), icon: 'pi pi-link', severity: 'secondary', command: () => openExistingSupplierPaymentDialog(tx) })
+  if (canMergeDeposit(tx))
+    acts.push({ key: 'merge-deposit', label: t('bank.merge_deposit'), icon: 'pi pi-link', severity: 'secondary', command: () => openMergeDepositDialog(tx) })
   if (canEditOrDelete(tx))
     acts.push({ key: 'edit', label: t('bank.edit_transaction'), icon: 'pi pi-pencil', severity: 'secondary', command: () => openEditTransactionDialog(tx) })
   return acts
@@ -1539,6 +1560,11 @@ function openSupplierPaymentDialog(tx: BankTransaction): void {
 function openExistingSupplierPaymentDialog(tx: BankTransaction): void {
   existingSupplierPaymentTransaction.value = tx
   existingSupplierPaymentDialogVisible.value = true
+}
+
+function openMergeDepositDialog(tx: BankTransaction): void {
+  mergeDepositTransaction.value = tx
+  mergeDepositDialogVisible.value = true
 }
 
 async function openDepositDialog(): Promise<void> {

@@ -51,6 +51,9 @@ normalement et l'ambiguïté est journalisée. On ne devine pas.
   relevé portaient toujours **la même date** (la transaction est datée du jour de
   confirmation, et la confirmation se fait le jour du crédit). Trois jours couvrent le
   décalage sans ouvrir la porte aux faux positifs.
+  **Démenti par le bordereau #7** (confirmé six jours après le crédit) : la date de la
+  ligne provisoire vient désormais du bordereau et la fenêtre est passée à ± 10 jours —
+  voir [DEPOSIT-MERGE-2](../DEPOSIT-MERGE-2/PRD.md).
 - **Non rapprochée seulement** : une ligne déjà rapprochée est un mouvement traité, on n'y
   touche pas.
 - **Le point d'entrée est l'import** (`_import_rows`), donc les trois formats — CSV, OFX,

@@ -1220,13 +1220,33 @@ async def test_no_merge_when_amount_differs(db_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_no_merge_outside_the_date_window(db_session: AsyncSession) -> None:
-    await _make_pending_deposit_tx(db_session, tx_date=date(2026, 7, 1))
+    await _make_pending_deposit_tx(db_session, tx_date=date(2026, 6, 20))
 
     merged = await bank_service.absorb_pending_deposit_transaction(
         db_session, _statement_row(tx_date=date(2026, 7, 11))
     )
 
     assert merged is None
+
+
+@pytest.mark.asyncio
+async def test_merge_when_the_slip_line_lags_the_credit_by_several_days(
+    db_session: AsyncSession,
+) -> None:
+    """Slip line on the 9th, bank credit on the 4th: five days apart, still one movement.
+
+    The real case that went through: a slip confirmed well after the bank had
+    credited the account. Three days were not enough to catch it.
+    """
+    tx = await _make_pending_deposit_tx(db_session, tx_date=date(2026, 8, 9))
+
+    merged = await bank_service.absorb_pending_deposit_transaction(
+        db_session, _statement_row(tx_date=date(2026, 8, 4))
+    )
+
+    assert merged is not None
+    assert merged.id == tx.id
+    assert merged.date == date(2026, 8, 4)
 
 
 @pytest.mark.asyncio
@@ -1268,3 +1288,165 @@ async def test_no_merge_for_a_regular_statement_row(db_session: AsyncSession) ->
     )
 
     assert merged is None
+
+
+# ---------------------------------------------------------------------------
+# Deposit merge after the fact
+# ---------------------------------------------------------------------------
+
+
+async def _make_statement_deposit_tx(
+    db: AsyncSession,
+    *,
+    amount: Decimal = Decimal("226.00"),
+    tx_date: date = date(2026, 8, 4),
+) -> BankTransaction:
+    """Create the statement row an import left behind next to a provisional line."""
+    tx = await bank_service.add_transaction(
+        db,
+        BankTransactionCreate(
+            date=tx_date,
+            amount=amount,
+            description="REM CHQ REF05001A05",
+            reference="LF9UM92LLO",
+            source=BankTransactionSource.IMPORT_OFX,
+        ),
+    )
+    assert tx is not None
+    return tx
+
+
+@pytest.mark.asyncio
+async def test_merge_candidates_lists_the_provisional_line(db_session: AsyncSession) -> None:
+    """Out of the date window, so the import kept both lines: the user can still match them."""
+    provisional = await _make_pending_deposit_tx(db_session, tx_date=date(2026, 7, 11))
+    statement = await _make_statement_deposit_tx(db_session)
+
+    candidates = await bank_service.list_deposit_merge_candidates(db_session, tx_id=statement.id)
+
+    assert [c.id for c in candidates] == [provisional.id]
+
+
+@pytest.mark.asyncio
+async def test_merge_candidates_ignores_a_different_amount(db_session: AsyncSession) -> None:
+    await _make_pending_deposit_tx(db_session, amount=Decimal("300.00"))
+    statement = await _make_statement_deposit_tx(db_session, amount=Decimal("226.00"))
+
+    candidates = await bank_service.list_deposit_merge_candidates(db_session, tx_id=statement.id)
+
+    assert candidates == []
+
+
+@pytest.mark.asyncio
+async def test_merge_candidates_orders_by_date_proximity(db_session: AsyncSession) -> None:
+    far = await _make_pending_deposit_tx(db_session, tx_date=date(2026, 6, 1))
+    near = await _make_pending_deposit_tx(db_session, tx_date=date(2026, 8, 6))
+    statement = await _make_statement_deposit_tx(db_session, tx_date=date(2026, 8, 4))
+
+    candidates = await bank_service.list_deposit_merge_candidates(db_session, tx_id=statement.id)
+
+    assert [c.id for c in candidates] == [near.id, far.id]
+
+
+@pytest.mark.asyncio
+async def test_merge_candidates_refuses_a_manual_row(db_session: AsyncSession) -> None:
+    provisional = await _make_pending_deposit_tx(db_session)
+
+    with pytest.raises(ValueError, match="statement row"):
+        await bank_service.list_deposit_merge_candidates(db_session, tx_id=provisional.id)
+
+
+@pytest.mark.asyncio
+async def test_merge_candidates_refuses_a_reconciled_row(db_session: AsyncSession) -> None:
+    statement = await _make_statement_deposit_tx(db_session)
+    statement.reconciled = True
+    await db_session.flush()
+
+    with pytest.raises(ValueError, match="already reconciled"):
+        await bank_service.list_deposit_merge_candidates(db_session, tx_id=statement.id)
+
+
+@pytest.mark.asyncio
+async def test_merge_candidates_refuses_a_row_that_is_not_a_deposit(
+    db_session: AsyncSession,
+) -> None:
+    tx = await bank_service.add_transaction(
+        db_session,
+        BankTransactionCreate(
+            date=date(2026, 8, 4),
+            amount=Decimal("226.00"),
+            description="VIR INST MME DUPONT",
+            reference="LF9UM92XX",
+            source=BankTransactionSource.IMPORT_OFX,
+        ),
+    )
+    assert tx is not None
+
+    with pytest.raises(ValueError, match="deposit row"):
+        await bank_service.list_deposit_merge_candidates(db_session, tx_id=tx.id)
+
+
+@pytest.mark.asyncio
+async def test_merge_deposit_keeps_the_slip_line_and_drops_the_statement_row(
+    db_session: AsyncSession,
+) -> None:
+    provisional = await _make_pending_deposit_tx(db_session, tx_date=date(2026, 7, 11))
+    statement = await _make_statement_deposit_tx(db_session, tx_date=date(2026, 8, 4))
+
+    merged = await bank_service.merge_deposit_transaction(
+        db_session, tx_id=statement.id, provisional_tx_id=provisional.id
+    )
+
+    assert merged.id == provisional.id
+    # The slip line survives, wearing the bank's date, reference and source.
+    assert merged.date == date(2026, 8, 4)
+    assert merged.reference == "LF9UM92LLO"
+    assert merged.source == BankTransactionSource.IMPORT_OFX
+    assert merged.description == "Remise de chèques (bordereau #6)"
+    total = await db_session.execute(select(func.count()).select_from(BankTransaction))
+    assert total.scalar_one() == 1
+
+
+@pytest.mark.asyncio
+async def test_merge_deposit_refuses_a_line_that_is_not_a_candidate(
+    db_session: AsyncSession,
+) -> None:
+    provisional = await _make_pending_deposit_tx(db_session, amount=Decimal("300.00"))
+    statement = await _make_statement_deposit_tx(db_session, amount=Decimal("226.00"))
+
+    with pytest.raises(ValueError, match="cannot absorb"):
+        await bank_service.merge_deposit_transaction(
+            db_session, tx_id=statement.id, provisional_tx_id=provisional.id
+        )
+
+    total = await db_session.execute(select(func.count()).select_from(BankTransaction))
+    assert total.scalar_one() == 2
+
+
+@pytest.mark.asyncio
+async def test_confirm_deposit_dates_the_bank_credit_from_the_slip(
+    db_session: AsyncSession,
+) -> None:
+    """A slip confirmed late must not carry a date the bank never used."""
+    p = await _make_payment(db_session)
+    deposit = await bank_service.create_deposit(
+        db_session,
+        DepositCreate(
+            date=date(2026, 8, 3),
+            type=DepositType.CHEQUES,
+            payment_ids=[p.id],
+        ),
+    )
+
+    await bank_service.confirm_deposit(db_session, deposit.id)
+
+    result = await db_session.execute(
+        select(BankTransaction).where(
+            BankTransaction.source == BankTransactionSource.MANUAL,
+            BankTransaction.detected_category == BankTransactionCategory.CHEQUE_DEPOSIT,
+        )
+    )
+    tx = result.scalar_one()
+    assert tx.date == date(2026, 8, 3)
+    # The confirmation day is recorded on the slip itself, not on the movement.
+    assert deposit.confirmed_date == date.today()

@@ -67,6 +67,7 @@ class AuditAction(StrEnum):
     BANK_DEPOSIT_UPDATED = "bank.deposit.update"
     BANK_DEPOSIT_CANCELLED = "bank.deposit.cancel"
     BANK_DEPOSIT_CONFIRMED = "bank.deposit.confirm"
+    BANK_DEPOSIT_MERGED = "bank.deposit.merge"
     # Contacts
     CONTACT_CREATED = "contact.create"
     CONTACT_UPDATED = "contact.update"

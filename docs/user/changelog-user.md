@@ -23,6 +23,10 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Trésorier
 
+- **Une remise en banque confirmée en retard ne fait plus doublon** — l'opération ajoutée au journal quand vous confirmez un bordereau portait la date du jour où vous cliquiez, et non celle où vous aviez porté les chèques ou les espèces à la banque. Si vous confirmiez quelques jours plus tard, l'application ne reconnaissait plus l'opération du relevé et vous vous retrouviez avec deux lignes pour un seul mouvement. Elle porte désormais **la date du bordereau**, et le rapprochement tolère un décalage plus large.
+
+- **Rattacher une remise du relevé à son bordereau** — quand le rapprochement automatique n'a quand même pas eu lieu (deux remises du même montant, par exemple), inutile de supprimer une ligne : sur la ligne venue du relevé, le menu **…** propose **« Rattacher à un bordereau enregistré »**. Vous choisissez le bordereau, les deux lignes n'en font plus qu'une — elle garde le nom du bordereau et prend la date et la référence de la banque.
+
 - **Les téléchargements fonctionnent à nouveau** — cliquer sur un export renvoyait un message « Not authenticated » au lieu du fichier. Cela touchait les exports CSV du bilan et du journal, les nouveaux exports PDF et le téléchargement des documents.
 - **Écrans Bilan et Compte de résultat harmonisés** — même barre d'actions sur les deux, avec le sélecteur d'exercice et les trois exports (CSV, PDF, Excel) réunis en haut. Le compte de résultat gagne l'export CSV qui lui manquait.
 
