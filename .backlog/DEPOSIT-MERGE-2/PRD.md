@@ -67,6 +67,16 @@ Trois volets, du plus structurant au filet de sécurité :
   date, la référence et la source du relevé, garde sa description, et la ligne importée
   est supprimée. Cohérent avec la fusion automatique, et l'identifiant reste stable.
 
+## Suites (2e passage)
+
+L'usage réel a fait apparaître deux défauts, traités dans le même lot :
+
+- **TEC-252** — la demande de confirmation d'un bordereau restait affichée après
+  validation : deux `<ConfirmDialog />` étaient montés, et PrimeVue n'en referme qu'un.
+- **BIZ-252** — le dialogue de rattachement répondait « aucun bordereau » alors que le
+  bon bordereau existait, non confirmé — donc sans ligne bancaire à rattacher. Il le
+  nomme désormais et dit quoi faire.
+
 ## Out of scope
 
 - Clé étrangère `deposit_id` sur `bank_transactions`. Le lien vers le bordereau reste

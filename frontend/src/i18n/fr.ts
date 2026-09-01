@@ -989,6 +989,8 @@ export default {
     merge_deposit_slip: 'Bordereau déjà enregistré',
     merge_deposit_no_candidate:
       'Aucun bordereau enregistré du même montant n’attend d’être rattaché à cette ligne.',
+    merge_deposit_unconfirmed_slip:
+      'Un bordereau de {amount} daté du {date} existe, mais il n’est pas encore confirmé : tant qu’il ne l’est pas, aucune opération n’a été créée. Confirmez-le depuis « Dépôts en attente de confirmation », puis revenez ici.',
     merge_deposit_hint:
       'La ligne conservée gardera le nom du bordereau et prendra la date et la référence de la banque.',
     merge_deposit_success: 'Remise rattachée au bordereau : une seule opération conservée.',

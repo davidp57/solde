@@ -483,6 +483,8 @@ Quand vous importerez ensuite le relevé, la banque apportera ce même mouvement
 
 **Si le rapprochement automatique n'a pas eu lieu** (bordereau confirmé longtemps après le crédit, ou plusieurs remises du même montant), vous vous retrouvez avec deux lignes pour un seul mouvement. Ne supprimez rien : sur la ligne venue du relevé, ouvrez le menu **…** et choisissez **Rattacher à un bordereau enregistré**. Sélectionnez le bordereau concerné : les deux lignes n'en font plus qu'une, qui garde le nom du bordereau et prend la date et la référence de la banque.
 
+> Un bordereau **non confirmé** ne crée aucune opération : il n'y a donc rien à rattacher tant que vous ne l'avez pas confirmé. Le dialogue vous le signale et vous indique le bordereau en attente plutôt que de vous laisser sans explication.
+
 ---
 
 ## 9. Salaires et employés
