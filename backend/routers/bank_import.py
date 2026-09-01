@@ -16,6 +16,7 @@ from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.routers.bank_transactions import _serialize_transaction
 from backend.schemas.bank import (
+    BankImportDuplicate,
     BankImportResult,
     BankTransactionCreate,
     BankTransactionRead,
@@ -64,8 +65,16 @@ async def _import_rows(
     *,
     source: BankTransactionSource = BankTransactionSource.IMPORT,
 ) -> BankImportResult:
-    """Persist parsed rows, skipping duplicates by reference. Returns created + skipped count."""
+    """Persist parsed rows, skipping duplicates by reference.
+
+    Rows the bank already keyed are deduplicated on their reference. Rows that look like
+    an equivalent of something already recorded — same account, same amount, a few days
+    apart — are still imported, but reported as probable duplicates so the user arbitrates
+    which of the two to drop. Silently discarding one would throw away the row carrying
+    the bank reference, and hide the discrepancy instead of surfacing it.
+    """
     created: list[BankTransactionRead] = []
+    duplicates: list[BankImportDuplicate] = []
     skipped = 0
     merged = 0
 
@@ -110,9 +119,25 @@ async def _import_rows(
         tx = await bank_service.add_transaction(db, tx_payload)
         if tx is None:
             skipped += 1
-        else:
-            created.append(await _serialize_transaction(db, tx))
-    return BankImportResult(created=created, skipped=skipped, merged=merged)
+            continue
+        serialized = await _serialize_transaction(db, tx)
+        created.append(serialized)
+        twin = await bank_service.find_probable_duplicate(db, tx)
+        if twin is not None:
+            duplicates.append(
+                BankImportDuplicate(
+                    imported=serialized,
+                    existing=await _serialize_transaction(db, twin),
+                )
+            )
+    if duplicates:
+        logger.info("Probable duplicates reported after import: %d", len(duplicates))
+    return BankImportResult(
+        created=created,
+        skipped=skipped,
+        merged=merged,
+        duplicates=duplicates,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +168,12 @@ async def import_csv(
         action=AuditAction.BANK_IMPORTED,
         actor=current_user,
         target_type="bank_import",
-        detail={"format": "csv", "count": len(result.created), "skipped": result.skipped},
+        detail={
+            "format": "csv",
+            "count": len(result.created),
+            "skipped": result.skipped,
+            "duplicates": len(result.duplicates),
+        },
     )
     return result
 
@@ -178,7 +208,12 @@ async def import_ofx(
         action=AuditAction.BANK_IMPORTED,
         actor=current_user,
         target_type="bank_import",
-        detail={"format": "ofx", "count": len(result.created), "skipped": result.skipped},
+        detail={
+            "format": "ofx",
+            "count": len(result.created),
+            "skipped": result.skipped,
+            "duplicates": len(result.duplicates),
+        },
     )
     return result
 
@@ -205,6 +240,11 @@ async def import_qif(
         action=AuditAction.BANK_IMPORTED,
         actor=current_user,
         target_type="bank_import",
-        detail={"format": "qif", "count": len(result.created), "skipped": result.skipped},
+        detail={
+            "format": "qif",
+            "count": len(result.created),
+            "skipped": result.skipped,
+            "duplicates": len(result.duplicates),
+        },
     )
     return result

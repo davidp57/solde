@@ -29,6 +29,7 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [TABLE-FIT](TABLE-FIT/PRD.md) — supprimer le scroll horizontal des tableaux sur grand écran (TEC-212) | ✅ |
 | [SALARY-FIX](SALARY-FIX/PRD.md) — fiabiliser les écritures comptables des salaires : net auto-validé, régénération à l'édition, garde-fou incomplet (BIZ-222 + TEC-213/214) | ✅ |
 | [PAY-CANCEL](PAY-CANCEL/PRD.md) — annulation d'un règlement client non encore encaissé, réservée à l'admin (BIZ-223/224) | ✅ |
+| [IMPORT-DUP](IMPORT-DUP/PRD.md) — doublons d'import bancaire : signalement à l'import + suppression d'une ligne importée (BIZ-258/259) | ✅ |
 | [FY-ROLLOVER](FY-ROLLOVER/PRD.md) — bascule d'exercice depuis l'interface : pré-contrôles, ouverture avec report à nouveau, anti-chevauchement (BIZ-226 + TEC-217) | ✅ |
 | [DEPOSIT-MERGE](DEPOSIT-MERGE/PRD.md) — fusionner une remise confirmée avec sa ligne de relevé au lieu de la dupliquer (BIZ-227) | ✅ |
 | [DOCS](DOCS/PRD.md) — espace de documents : dépôt libre, exercice facultatif, étiquettes (BIZ-240→242) | ✅ |

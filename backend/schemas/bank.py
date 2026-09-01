@@ -43,9 +43,17 @@ class BankTransactionRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class BankImportDuplicate(BaseModel):
+    """An imported row paired with the transaction it probably duplicates."""
+
+    imported: BankTransactionRead
+    existing: BankTransactionRead
+
+
 class BankImportResult(BaseModel):
     created: list[BankTransactionRead]
     skipped: int
+    duplicates: list[BankImportDuplicate] = Field(default_factory=list)
     #: Statement rows folded into a provisional deposit transaction created by Solde.
     merged: int = 0
 

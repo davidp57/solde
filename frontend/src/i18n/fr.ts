@@ -1119,6 +1119,16 @@ export default {
     import_success_with_skipped: '{n} opération(s) importée(s), {s} ignorée(s) (déjà présente(s)).',
     import_merged_suffix:
       ' {m} remise(s) déjà enregistrée(s) dans Solde ont été rapprochées du relevé.',
+    import_duplicates_suffix:
+      ' {d} opération(s) ressemblent à un doublon d’une opération déjà enregistrée.',
+    import_duplicates_title: 'Doublons probables ({n})',
+    import_duplicates_intro:
+      'Ces opérations importées ressemblent à des opérations déjà enregistrées : même compte, même montant, à quelques jours près. Elles ont bien été importées — comparez-les et supprimez celle qui est en trop, ou laissez les deux si ce sont bien deux mouvements distincts.',
+    import_duplicates_pair: 'Doublon {n}',
+    import_duplicates_imported: 'Importée',
+    import_duplicates_existing: 'Déjà présente',
+    import_duplicates_locked:
+      'Cette opération ne peut pas être supprimée : elle est rapprochée ou provient d’un import Excel.',
     import_error: 'Erreur d\'import',
     metrics: {
       current_balance_caption: 'Toutes périodes confondues',
