@@ -12,6 +12,8 @@ _bcrypt_module.gensalt = lambda rounds=4, prefix=b"2b": _original_gensalt(
 )
 # ---------------------------------------------------------------------------
 
+import importlib
+import pkgutil
 from collections.abc import AsyncGenerator
 
 import pytest_asyncio
@@ -20,82 +22,17 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+import backend.models
 from backend.database import Base, get_db
-from backend.models import (
-    accounting_account as _acct_module,
-)
-from backend.models import (
-    accounting_entry as _entry_module,
-)
-from backend.models import (
-    accounting_rule as _rule_module,
-)
-from backend.models import app_comment as _app_comment_module
-from backend.models import (
-    app_settings,
-)
-from backend.models import (
-    audit_log as _audit_log_module,
-)
-from backend.models import (
-    bank as _bank_module,
-)
-from backend.models import (
-    cash as _cash_module,
-)
-from backend.models import (
-    chat_log as _chat_log_module,
-)
-from backend.models import (
-    checklist as _checklist_module,
-)
-from backend.models import (
-    contact as _contact_module,
-)
-from backend.models import (
-    fiscal_year as _fy_module,
-)
-from backend.models import (
-    import_log as _import_log_module,
-)
-from backend.models import (
-    import_run as _import_run_module,
-)
-from backend.models import (
-    invoice as _invoice_module,
-)
-from backend.models import (
-    payment as _payment_module,
-)
-from backend.models import (
-    salary as _salary_module,
-)
-from backend.models import (
-    user as _user_module,
-)
 from backend.models.user import User, UserRole
 from backend.services.auth import hash_password
 
-_REGISTERED_MODEL_MODULES = (
-    _acct_module,
-    _entry_module,
-    _rule_module,
-    app_settings,
-    _audit_log_module,
-    _bank_module,
-    _cash_module,
-    _checklist_module,
-    _chat_log_module,
-    _contact_module,
-    _fy_module,
-    _import_log_module,
-    _import_run_module,
-    _invoice_module,
-    _payment_module,
-    _salary_module,
-    _user_module,
-    _app_comment_module,
-)
+# Register every ORM model on Base.metadata before the session-scoped
+# create_all. Discovered rather than listed by hand: a forgotten module would
+# only be imported later (e.g. by the routers in create_app()), so its table is
+# missing from the schema while the per-test cleanup still tries to empty it.
+for _module_info in pkgutil.iter_modules(backend.models.__path__):
+    importlib.import_module(f"{backend.models.__name__}.{_module_info.name}")
 
 # In-memory SQLite for tests — StaticPool keeps a single connection alive
 # so the database persists across the session-scoped event loop.
