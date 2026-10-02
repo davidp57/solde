@@ -1239,7 +1239,12 @@ export default {
     smtp_from: 'Adresse expéditeur',
     smtp_bcc: 'Adresse BCC (copie cachée)',
     smtp_bcc_help: 'Recevez une copie de chaque facture envoyée (optionnel).',
-    smtp_use_tls: 'Utiliser TLS',
+    smtp_security: 'Sécurité de la connexion',
+    smtp_security_help:
+      "STARTTLS sur le port 587, SSL/TLS sur le port 465. « Aucune » ne convient qu'à un relais local sans identifiant.",
+    smtp_security_starttls: 'STARTTLS (port 587)',
+    smtp_security_ssl: 'SSL/TLS (port 465)',
+    smtp_security_none: 'Aucune (relais local sans identifiant)',
     section_email_templates: "Modèles d'e-mail",
     section_email_templates_subtitle:
       "Personnalisez le sujet et le corps par défaut des e-mails d'envoi de factures. Laissez vide pour utiliser les messages automatiques.",
@@ -2502,6 +2507,8 @@ export default {
     USER_CHANGELOG_NOT_FOUND: 'Changelog utilisateur introuvable.',
     RESOURCE_NOT_FOUND: 'Ressource introuvable.',
     SMTP_NOT_CONFIGURED: "Le serveur SMTP n'est pas configuré.",
+    SMTP_INSECURE_CREDENTIALS:
+      "Un identifiant SMTP est renseigné mais la connexion n'est pas chiffrée : choisissez STARTTLS ou SSL/TLS dans les paramètres.",
     EMAIL_NO_RECIPIENTS: 'Aucun destinataire spécifié.',
     EMAIL_RECIPIENTS_NOT_ALLOWED: 'Destinataire(s) non autorisé(s) pour ce contact.',
     EMAIL_DELIVERY_FAILED: "Échec de l'envoi de l'e-mail.",

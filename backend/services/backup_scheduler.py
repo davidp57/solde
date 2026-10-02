@@ -345,7 +345,12 @@ async def _update_run_status(success: bool, error: str | None) -> None:
 
 
 async def _send_failure_email(error: str) -> None:
-    """Send a notification email on backup failure if SMTP is configured."""
+    """Send a notification email on backup failure if SMTP is configured.
+
+    The alert exists to report that another mechanism failed, so its own failure
+    must not stay silent: it is appended to ``backup_last_run_error``, which the
+    administration screen displays.
+    """
     try:
         from backend.database import get_session
         from backend.models.app_settings import AppSettings
@@ -362,7 +367,7 @@ async def _send_failure_email(error: str) -> None:
                 port=settings.smtp_port,
                 user=settings.smtp_user,
                 password=settings.smtp_password,
-                use_tls=settings.smtp_use_tls,
+                security=settings.smtp_security,
                 from_email=settings.smtp_from_email,
                 to_email=recipient,
                 subject="[Solde] Échec de la sauvegarde automatique",
@@ -370,3 +375,21 @@ async def _send_failure_email(error: str) -> None:
             )
     except Exception as exc:
         logger.warning("Could not send backup failure notification: %s", exc)
+        await _append_run_error(f"Alerte e-mail non envoyée : {exc}")
+
+
+async def _append_run_error(note: str) -> None:
+    """Append *note* to backup_last_run_error, keeping the column limit."""
+    from backend.database import get_session
+
+    try:
+        async with get_session() as db:
+            result = await db.execute(select(AppSettings).where(AppSettings.id == 1))
+            settings = result.scalar_one_or_none()
+            if settings:
+                current = settings.backup_last_run_error
+                combined = f"{current} ; {note}" if current else note
+                settings.backup_last_run_error = combined[:1000]
+                await db.commit()
+    except Exception:
+        logger.exception("Could not record backup notification failure")

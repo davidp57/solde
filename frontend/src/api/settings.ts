@@ -1,5 +1,7 @@
 import apiClient from './client'
 
+export type SmtpSecurity = 'none' | 'starttls' | 'ssl'
+
 export interface AppSettings {
   association_name: string
   association_address: string
@@ -17,7 +19,7 @@ export interface AppSettings {
   smtp_port: number
   smtp_user: string | null
   smtp_from_email: string | null
-  smtp_use_tls: boolean
+  smtp_security: SmtpSecurity
   smtp_bcc: string | null
   chat_provider: string
   chat_model: string | null
@@ -54,7 +56,7 @@ export interface AppSettingsUpdate {
   smtp_user?: string | null
   smtp_password?: string | null
   smtp_from_email?: string | null
-  smtp_use_tls?: boolean
+  smtp_security?: SmtpSecurity
   smtp_bcc?: string | null
   chat_provider?: string
   chat_api_key?: string | null

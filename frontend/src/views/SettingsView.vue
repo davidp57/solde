@@ -169,9 +169,9 @@
             <InputText id="smtp_bcc" v-model="form.smtp_bcc" type="email" />
           </template>
         </AppSettingRow>
-        <AppSettingRow :label="t('settings.smtp_use_tls')" html-for="smtp_use_tls">
+        <AppSettingRow :label="t('settings.smtp_security')" :description="t('settings.smtp_security_help')" html-for="smtp_security">
           <template #control>
-            <ToggleSwitch id="smtp_use_tls" v-model="form.smtp_use_tls" />
+            <Select id="smtp_security" v-model="form.smtp_security" :options="smtpSecurityOptions" option-label="label" option-value="value" />
           </template>
         </AppSettingRow>
       </AppPanel>
@@ -236,7 +236,6 @@ import InputNumber from 'primevue/inputnumber'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
 import Password from 'primevue/password'
-import ToggleSwitch from 'primevue/toggleswitch'
 import Tag from 'primevue/tag'
 import Message from 'primevue/message'
 import Tabs from 'primevue/tabs'
@@ -250,7 +249,7 @@ import SettingsSaveBar from '@/components/settings/SettingsSaveBar.vue'
 import SettingsSystemOpeningPanel from '@/components/settings/SettingsSystemOpeningPanel.vue'
 import SettingsChatPanel from '@/components/settings/SettingsChatPanel.vue'
 import SettingsDangerZonePanel from '@/components/settings/SettingsDangerZonePanel.vue'
-import { getSettingsApi, updateSettingsApi } from '@/api/settings'
+import { getSettingsApi, updateSettingsApi, type SmtpSecurity } from '@/api/settings'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -281,7 +280,7 @@ interface SettingsForm {
   smtp_user: string | null
   smtp_password: string | null
   smtp_from_email: string | null
-  smtp_use_tls: boolean
+  smtp_security: SmtpSecurity
   smtp_bcc: string | null
   email_subject_template: string | null
   email_body_template: string | null
@@ -316,7 +315,7 @@ function defaultForm(): SettingsForm {
     smtp_user: null,
     smtp_password: null,
     smtp_from_email: null,
-    smtp_use_tls: true,
+    smtp_security: 'starttls',
     smtp_bcc: null,
     email_subject_template: null,
     email_body_template: null,
@@ -362,7 +361,7 @@ const COM_FIELDS = [
   'smtp_port',
   'smtp_user',
   'smtp_from_email',
-  'smtp_use_tls',
+  'smtp_security',
   'smtp_bcc',
   'email_subject_template',
   'email_body_template',
@@ -408,6 +407,12 @@ const reminderVarsHelp = computed(() =>
   }),
 )
 
+const smtpSecurityOptions = computed<{ label: string; value: SmtpSecurity }[]>(() => [
+  { label: t('settings.smtp_security_starttls'), value: 'starttls' },
+  { label: t('settings.smtp_security_ssl'), value: 'ssl' },
+  { label: t('settings.smtp_security_none'), value: 'none' },
+])
+
 const monthFormatter = new Intl.DateTimeFormat('fr-FR', { month: 'long' })
 const monthOptions = Array.from({ length: 12 }, (_, i) => {
   const label = monthFormatter.format(new Date(2000, i, 1))
@@ -448,7 +453,7 @@ async function load(): Promise<void> {
       smtp_user: data.smtp_user,
       smtp_password: null,
       smtp_from_email: data.smtp_from_email,
-      smtp_use_tls: data.smtp_use_tls,
+      smtp_security: data.smtp_security,
       smtp_bcc: data.smtp_bcc,
       email_subject_template: data.email_subject_template,
       email_body_template: data.email_body_template,
@@ -518,7 +523,7 @@ async function saveCom(): Promise<void> {
     smtp_port: form.smtp_port,
     smtp_user: form.smtp_user,
     smtp_from_email: form.smtp_from_email,
-    smtp_use_tls: form.smtp_use_tls,
+    smtp_security: form.smtp_security,
     smtp_bcc: form.smtp_bcc,
     email_subject_template: form.email_subject_template?.trim() || null,
     email_body_template: form.email_body_template?.trim() || null,

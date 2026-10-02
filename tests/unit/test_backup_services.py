@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from backend.models.app_settings import AppSettings
 from backend.models.backup_destination import BackupDestination
 from backend.schemas.backup import BackupConnectionTestResult, BackupRestoreTestResult
 from backend.services import backup_destination_service as bds
@@ -959,3 +960,69 @@ async def test_listing_keeps_pages_collected_before_the_folder_vanished() -> Non
     items = await bds._graph_list_children(client, "tok", "d1", "backups/pdfs")  # type: ignore[arg-type]
 
     assert [i["name"] for i in items] == ["a.pdf"]
+
+
+class TestFailureEmailNotSilent:
+    """The backup failure alert must not fail silently: its own failure is
+    recorded where the administration screen shows the backup state."""
+
+    @staticmethod
+    def _session_returning(settings: AppSettings) -> MagicMock:
+        mock_db = MagicMock()
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = settings
+        mock_db.execute = AsyncMock(return_value=mock_result)
+        mock_db.commit = AsyncMock()
+        ctx = MagicMock()
+        ctx.__aenter__ = AsyncMock(return_value=mock_db)
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        return MagicMock(return_value=ctx)
+
+    @pytest.mark.asyncio
+    async def test_send_failure_is_appended_to_last_run_error(self) -> None:
+        from backend.services import backup_scheduler as sched
+        from backend.services.email_service import EmailSendError
+
+        settings = AppSettings(
+            id=1,
+            smtp_host="smtp.example.com",
+            smtp_port=465,
+            smtp_user="user",
+            smtp_password="secret",
+            smtp_from_email="admin@asso.fr",
+            smtp_security="ssl",
+            backup_last_run_error="Backup creation failed: disk full",
+        )
+        with (
+            patch("backend.database.get_session", self._session_returning(settings)),
+            patch(
+                "backend.services.email_service.send_plain_email",
+                side_effect=EmailSendError("connection refused"),
+            ),
+        ):
+            await sched._send_failure_email("disk full")
+
+        assert settings.backup_last_run_error is not None
+        assert settings.backup_last_run_error.startswith("Backup creation failed: disk full ; ")
+        assert "connection refused" in settings.backup_last_run_error
+
+    @pytest.mark.asyncio
+    async def test_successful_send_leaves_last_run_error_untouched(self) -> None:
+        from backend.services import backup_scheduler as sched
+
+        settings = AppSettings(
+            id=1,
+            smtp_host="smtp.example.com",
+            smtp_port=465,
+            smtp_from_email="admin@asso.fr",
+            smtp_security="ssl",
+            backup_last_run_error="Backup creation failed: disk full",
+        )
+        with (
+            patch("backend.database.get_session", self._session_returning(settings)),
+            patch("backend.services.email_service.send_plain_email") as send_mock,
+        ):
+            await sched._send_failure_email("disk full")
+
+        assert send_mock.call_args.kwargs["security"] == "ssl"
+        assert settings.backup_last_run_error == "Backup creation failed: disk full"

@@ -85,6 +85,10 @@ Ce document présente les changements visibles dans l'application, version par v
 - Si deux remises du même montant tombent la même semaine, l'application ne devine pas : elle importe normalement, et vous gardez la main.
 - **Caisse : l'origine d'un règlement est enfin juste** — un règlement de facture fournisseur payé en espèces s'affichait comme « Paiement client » dans le journal de caisse. Le mouvement était pourtant bien enregistré en sortie : seul l'intitulé était trompeur. La colonne distingue maintenant « Règlement client » et « Règlement fournisseur ».
 
+### Administrateur
+
+- **Envoi d'e-mails : un seul réglage de sécurité pour tous les envois** — l'interrupteur « Utiliser TLS » des paramètres SMTP n'avait pas le même effet sur l'envoi de factures que sur le mailing adhérents et sur l'alerte d'échec de sauvegarde : selon le réglage, l'un ou l'autre échouait. Il est remplacé par un choix **« Sécurité de la connexion »** — STARTTLS (port 587), SSL/TLS (port 465) ou Aucune (relais local sans identifiant) — qui vaut pour tous les envois. Votre réglage actuel est repris automatiquement, à l'identique pour l'envoi de factures. Et si l'alerte d'échec de sauvegarde ne peut pas partir, la raison apparaît désormais dans l'état de la sauvegarde au lieu de passer inaperçue.
+
 ## Version 1.10.0 — 3 août 2026
 
 ### Administrateur
