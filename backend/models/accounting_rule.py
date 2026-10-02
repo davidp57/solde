@@ -57,7 +57,7 @@ class AccountingRule(Base):
 
     __tablename__ = "accounting_rules"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     trigger_type: Mapped[TriggerType] = mapped_column(
         String(50), nullable=False, unique=True, index=True
@@ -79,7 +79,7 @@ class AccountingRuleEntry(Base):
 
     __tablename__ = "accounting_rule_entries"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     rule_id: Mapped[int] = mapped_column(
         ForeignKey("accounting_rules.id"), nullable=False, index=True
     )
