@@ -170,7 +170,7 @@ describe('ImportExcelView', () => {
       smtp_port: 587,
       smtp_user: null,
       smtp_from_email: null,
-      smtp_use_tls: true,
+      smtp_security: 'starttls',
     })
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
       value: scrollIntoViewMock,

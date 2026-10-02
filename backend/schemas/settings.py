@@ -10,6 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, field_validator, model_validator
 
+from backend.models.app_settings import SmtpSecurity
 from backend.models.import_log import ImportLogType
 
 
@@ -43,7 +44,7 @@ class AppSettingsRead(BaseModel):
     smtp_port: int
     smtp_user: str | None
     smtp_from_email: str | None
-    smtp_use_tls: bool
+    smtp_security: SmtpSecurity
     smtp_bcc: str | None
 
     # Chat / AI assistant (api key intentionally excluded)
@@ -124,7 +125,7 @@ class AppSettingsUpdate(BaseModel):
     smtp_user: str | None = None
     smtp_password: str | None = None
     smtp_from_email: str | None = None
-    smtp_use_tls: bool | None = None
+    smtp_security: SmtpSecurity | None = None
     smtp_bcc: str | None = None
 
     # Chat / AI assistant

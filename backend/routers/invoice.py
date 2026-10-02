@@ -642,7 +642,7 @@ async def send_invoice_email(
             smtp_user=app_settings.smtp_user or "",
             smtp_password=app_settings.smtp_password or "",
             smtp_from_email=app_settings.smtp_from_email or "",
-            smtp_use_tls=app_settings.smtp_use_tls,
+            smtp_security=app_settings.smtp_security,
             bcc=app_settings.smtp_bcc,
             recipient_email=payload.recipients,
             invoice_number=invoice.number,
@@ -652,6 +652,8 @@ async def send_invoice_email(
             override_subject=payload.subject,
             override_body=payload.body,
         )
+    except email_service.EmailInsecureCredentialsError as exc:
+        raise api_error(status.HTTP_400_BAD_REQUEST, "SMTP_INSECURE_CREDENTIALS", str(exc)) from exc
     except email_service.EmailSendError as exc:
         raise api_error(
             status.HTTP_502_BAD_GATEWAY, "EMAIL_DELIVERY_FAILED", f"Email delivery failed: {exc}"

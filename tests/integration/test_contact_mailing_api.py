@@ -188,3 +188,33 @@ async def test_mailing_smtp_not_configured(
     )
     assert resp.status_code == 400
     assert resp.json()["detail"]["code"] == "SMTP_NOT_CONFIGURED"
+
+
+@pytest.mark.asyncio
+async def test_mailing_refuses_credentials_without_encryption(
+    client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+) -> None:
+    """Credentials with security "none" get a dedicated code, not "not configured"."""
+    a = await _add_contact(db_session, nom="Alpha", email="a@example.org")
+    await db_session.commit()
+    await client.put(
+        "/api/settings/",
+        json={
+            "smtp_host": "smtp.test",
+            "smtp_user": "user",
+            "smtp_password": "secret",
+            "smtp_from_email": "asso@test.com",
+            "smtp_security": "none",
+        },
+        headers=auth_headers,
+    )
+
+    with patch("smtplib.SMTP") as smtp_cls:
+        resp = await client.post(
+            "/api/contacts/mailing",
+            headers=auth_headers,
+            json={"contact_ids": [a.id], "subject": "S", "body": "B"},
+        )
+    assert resp.status_code == 400
+    assert resp.json()["detail"]["code"] == "SMTP_INSECURE_CREDENTIALS"
+    smtp_cls.assert_not_called()

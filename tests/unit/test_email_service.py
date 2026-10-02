@@ -8,11 +8,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from backend.services.email_service import (
+    EmailConfigError,
     EmailSendError,
     compose_body,
     compose_reminder,
     compose_subject,
+    send_bulk_emails,
     send_invoice_email,
+    send_plain_email,
 )
 
 # ---------------------------------------------------------------------------
@@ -25,7 +28,7 @@ _COMMON_KWARGS: dict = {
     "smtp_user": "user@example.com",
     "smtp_password": "secret",
     "smtp_from_email": "factures@asso.fr",
-    "smtp_use_tls": True,
+    "smtp_security": "starttls",
     "recipient_email": "client@example.com",
     "invoice_number": "2024-001",
     "association_name": "Association Test",
@@ -49,14 +52,15 @@ def test_send_invoice_email_starttls_success() -> None:
 
 
 def test_send_invoice_email_ssl_success() -> None:
-    kwargs = {**_COMMON_KWARGS, "smtp_use_tls": False, "smtp_port": 465}
+    kwargs = {**_COMMON_KWARGS, "smtp_security": "ssl", "smtp_port": 465}
     mock_server = MagicMock()
     with patch("smtplib.SMTP_SSL") as mock_smtp_ssl_cls:
         mock_smtp_ssl_cls.return_value.__enter__ = MagicMock(return_value=mock_server)
         mock_smtp_ssl_cls.return_value.__exit__ = MagicMock(return_value=False)
         send_invoice_email(**kwargs)
 
-    mock_smtp_ssl_cls.assert_called_once_with("smtp.example.com", 465, timeout=30)
+    mock_smtp_ssl_cls.assert_called_once()
+    assert mock_smtp_ssl_cls.call_args.args == ("smtp.example.com", 465)
 
 
 def test_send_invoice_email_with_bcc() -> None:
@@ -233,6 +237,127 @@ def test_send_invoice_email_raises_email_send_error_on_auth_failure() -> None:
 
     with patch("smtplib.SMTP", return_value=_FakeSMTP()), pytest.raises(EmailSendError):
         send_invoice_email(**_COMMON_KWARGS)
+
+
+# ---------------------------------------------------------------------------
+# Connection security — one meaning for every send path
+# ---------------------------------------------------------------------------
+
+
+def _invoke_invoice(security: str, user: str | None, password: str | None) -> None:
+    send_invoice_email(
+        **{
+            **_COMMON_KWARGS,
+            "smtp_security": security,
+            "smtp_user": user or "",
+            "smtp_password": password or "",
+        }
+    )
+
+
+def _invoke_plain(security: str, user: str | None, password: str | None) -> None:
+    send_plain_email(
+        host="smtp.example.com",
+        port=587,
+        user=user,
+        password=password,
+        security=security,  # type: ignore[arg-type]
+        from_email="noreply@asso.fr",
+        to_email="admin@asso.fr",
+        subject="s",
+        body="b",
+    )
+
+
+def _invoke_bulk(security: str, user: str | None, password: str | None) -> None:
+    send_bulk_emails(
+        host="smtp.example.com",
+        port=587,
+        user=user,
+        password=password,
+        security=security,  # type: ignore[arg-type]
+        from_email="noreply@asso.fr",
+        messages=[{"to": "a@b.fr", "cc": [], "subject": "s", "body": "b", "ref": 1}],
+    )
+
+
+_SENDERS = pytest.mark.parametrize(
+    "send", [_invoke_invoice, _invoke_plain, _invoke_bulk], ids=["invoice", "plain", "bulk"]
+)
+
+
+def _patch_smtp() -> tuple[MagicMock, MagicMock]:
+    """Return (SMTP class mock, SMTP_SSL class mock) usable as context managers."""
+    plain_cls, ssl_cls = MagicMock(), MagicMock()
+    for cls in (plain_cls, ssl_cls):
+        cls.return_value.__enter__.return_value = cls.return_value
+        cls.return_value.__exit__.return_value = False
+    return plain_cls, ssl_cls
+
+
+@_SENDERS
+def test_security_ssl_uses_implicit_tls(send) -> None:
+    plain_cls, ssl_cls = _patch_smtp()
+    with patch("smtplib.SMTP", plain_cls), patch("smtplib.SMTP_SSL", ssl_cls):
+        send("ssl", "user", "secret")
+
+    plain_cls.assert_not_called()
+    ssl_cls.assert_called_once()
+    ssl_cls.return_value.login.assert_called_once_with("user", "secret")
+
+
+@_SENDERS
+def test_security_starttls_upgrades_before_login(send) -> None:
+    plain_cls, ssl_cls = _patch_smtp()
+    server = plain_cls.return_value
+    with patch("smtplib.SMTP", plain_cls), patch("smtplib.SMTP_SSL", ssl_cls):
+        send("starttls", "user", "secret")
+
+    ssl_cls.assert_not_called()
+    names = [c[0] for c in server.method_calls]
+    assert names.index("starttls") < names.index("login")
+
+
+@_SENDERS
+def test_security_none_without_credentials_sends_unencrypted(send) -> None:
+    plain_cls, ssl_cls = _patch_smtp()
+    server = plain_cls.return_value
+    with patch("smtplib.SMTP", plain_cls), patch("smtplib.SMTP_SSL", ssl_cls):
+        send("none", None, None)
+
+    ssl_cls.assert_not_called()
+    server.starttls.assert_not_called()
+    server.login.assert_not_called()
+    server.send_message.assert_called_once()
+
+
+@_SENDERS
+def test_security_none_refuses_credentials_before_connecting(send) -> None:
+    plain_cls, ssl_cls = _patch_smtp()
+    with (
+        patch("smtplib.SMTP", plain_cls),
+        patch("smtplib.SMTP_SSL", ssl_cls),
+        pytest.raises(EmailConfigError),
+    ):
+        send("none", "user", "secret")
+
+    plain_cls.assert_not_called()
+    ssl_cls.assert_not_called()
+
+
+def test_starttls_failure_closes_the_socket() -> None:
+    plain_cls, ssl_cls = _patch_smtp()
+    server = plain_cls.return_value
+    server.starttls.side_effect = smtplib.SMTPNotSupportedError("STARTTLS not supported")
+    with (
+        patch("smtplib.SMTP", plain_cls),
+        patch("smtplib.SMTP_SSL", ssl_cls),
+        pytest.raises(EmailSendError),
+    ):
+        _invoke_plain("starttls", "user", "secret")
+
+    server.close.assert_called_once()
+    server.login.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

@@ -39,7 +39,7 @@ class TestGetSettings:
         assert data["default_invoice_due_days"] is None
         assert data["smtp_host"] is None
         assert data["smtp_port"] == 587
-        assert data["smtp_use_tls"] is True
+        assert data["smtp_security"] == "starttls"
 
     async def test_does_not_expose_smtp_password(self, client: AsyncClient, auth_headers: dict):
         response = await client.get("/api/settings/", headers=auth_headers)
@@ -122,7 +122,7 @@ class TestUpdateSettings:
                 "smtp_port": 587,
                 "smtp_user": "test@gmail.com",
                 "smtp_from_email": "noreply@test.com",
-                "smtp_use_tls": True,
+                "smtp_security": "starttls",
             },
             headers=auth_headers,
         )

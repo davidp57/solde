@@ -147,6 +147,8 @@ export default {
     USER_CHANGELOG_NOT_FOUND: 'User changelog not found.',
     RESOURCE_NOT_FOUND: 'Resource not found.',
     SMTP_NOT_CONFIGURED: 'SMTP server is not configured.',
+    SMTP_INSECURE_CREDENTIALS:
+      'An SMTP username is set but the connection is not encrypted: choose STARTTLS or SSL/TLS in the settings.',
     EMAIL_NO_RECIPIENTS: 'No recipients specified.',
     EMAIL_RECIPIENTS_NOT_ALLOWED: 'Recipient(s) not allowed for this contact.',
     EMAIL_DELIVERY_FAILED: 'Email delivery failed.',

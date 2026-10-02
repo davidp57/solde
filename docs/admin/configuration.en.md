@@ -80,7 +80,7 @@ Settings are stored in the database and take effect immediately without restarti
 |---|---|
 | SMTP server | Server address (e.g., `smtp.gmail.com`) |
 | Port | SMTP port (e.g., `587` for STARTTLS, `465` for SSL) |
-| Use SSL/TLS | Enable direct SSL (typically port 465) |
+| Connection security | `STARTTLS` (port 587), `SSL/TLS` (port 465) or `None` — only for a local relay without credentials: Solde refuses to send credentials over it |
 | SMTP username | Email address or account identifier |
 | SMTP password | Password or app-specific password |
 | Sender email | Address shown as sender |
