@@ -1,6 +1,7 @@
 """Alembic environment — async SQLAlchemy setup."""
 
 import asyncio
+import pkgutil
 from importlib import import_module
 from logging.config import fileConfig
 from typing import Any
@@ -9,6 +10,7 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import backend.models
 from backend.database import Base
 
 # Alembic Config object — gives access to alembic.ini values
@@ -18,29 +20,10 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-for module_name in (
-    "backend.models.accounting_account",
-    "backend.models.accounting_entry",
-    "backend.models.accounting_rule",
-    "backend.models.app_comment",
-    "backend.models.app_settings",
-    "backend.models.audit_log",
-    "backend.models.backup_destination",
-    "backend.models.bank",
-    "backend.models.cash",
-    "backend.models.checklist",
-    "backend.models.contact",
-    "backend.models.contact_email",
-    "backend.models.document",
-    "backend.models.fiscal_year",
-    "backend.models.import_log",
-    "backend.models.invoice",
-    "backend.models.payment",
-    "backend.models.chat_log",
-    "backend.models.salary",
-    "backend.models.user",
-):
-    import_module(module_name)
+# Register every ORM model on Base.metadata. Discovered rather than listed by
+# hand: a forgotten module makes autogenerate propose dropping its tables.
+for _module_info in pkgutil.iter_modules(backend.models.__path__):
+    import_module(f"{backend.models.__name__}.{_module_info.name}")
 
 target_metadata = Base.metadata
 
