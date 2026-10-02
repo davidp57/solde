@@ -39,6 +39,7 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [DEPOSIT-ADOPT](DEPOSIT-ADOPT/PRD.md) — confirmer un bordereau sans créer de doublon : adoption de la ligne du relevé, fusion rapprochée d'office (BIZ-253 + TEC-253) | ✅ |
 | [CHECKLIST](CHECKLIST/PRD.md) — checklist mensuelle de tenue comptable : séance ordonnée par passages externes, état en base, clôture explicite (BIZ-254→256) | ✅ |
 | [SCHEMA-DRIFT](SCHEMA-DRIFT/PRD.md) — aligner les modèles ORM sur les migrations (17 écarts, dont l'unicité des numéros d'écriture) et le vérifier en CI (TEC-256/257) | ✅ |
+| [ENTRY-NUMBER](ENTRY-NUMBER/PRD.md) — numéros d'écriture : import Excel qui repart à 1 sur un numéro `SAL-…`, fausse boucle de nouvelle tentative dans `next_entry_number` (TEC-258/259) | ⬜ |
 
 ## Lots archivés
 
