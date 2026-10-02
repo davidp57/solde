@@ -12,8 +12,6 @@ Ce document présente les changements visibles dans l'application, version par v
 
 - **Sauvegarde OneDrive réparée** (administrateur) — la sauvegarde automatique se terminait en erreur toutes les nuits, alors que la base de données partait bien et se validait sans problème. C'est la copie des factures PDF qui échouait, et elle échouait **avant d'envoyer quoi que ce soit** : les PDF n'étaient donc plus sauvegardés depuis que leur nombre avait dépassé un certain seuil. Le retard est rattrapé automatiquement à la sauvegarde suivante (comptez un envoi plus long, une seule fois). En prime, un échec de sauvegarde indique maintenant **quelle étape** a échoué, au lieu d'une erreur technique sans contexte, et l'application patiente puis réessaie quand OneDrive se déclare temporairement surchargé — auparavant la sauvegarde s'arrêtait net.
 
-- **Envoi d'e-mails : un seul réglage de sécurité pour tous les envois** (administrateur) — l'interrupteur « Utiliser TLS » des paramètres SMTP n'avait pas le même effet sur l'envoi de factures que sur le mailing adhérents et sur l'alerte d'échec de sauvegarde : selon le réglage, l'un ou l'autre échouait. Il est remplacé par un choix **« Sécurité de la connexion »** — STARTTLS (port 587), SSL/TLS (port 465) ou Aucune (relais local sans identifiant) — qui vaut pour tous les envois. Votre réglage actuel est repris automatiquement, à l'identique pour l'envoi de factures. Et si l'alerte d'échec de sauvegarde ne peut pas partir, la raison apparaît désormais dans l'état de la sauvegarde au lieu de passer inaperçue.
-
 - **Factures et paiements se mettent à jour immédiatement** — comme l'écran Documents en 1.16.2, ces écrans ne montraient pas toujours le résultat d'une action (facture créée, supprimée, règlement annulé) sans recharger la page. C'est corrigé pour les trois écrans.
 
 - **Aperçu des documents** — l'icône œil affiche le document directement dans l'application : PDF, images, Markdown mis en forme et fichiers texte. Les formats que le navigateur ne sait pas afficher (Word, Excel) restent en téléchargement seul.
@@ -86,6 +84,10 @@ Ce document présente les changements visibles dans l'application, version par v
 - **Vos remises n'apparaissent plus en double** — jusqu'ici, confirmer un bordereau créait une opération bancaire, et l'import du relevé en créait une seconde pour le même mouvement : il fallait supprimer l'une des deux à la main, sinon le solde était faux. L'import reconnaît maintenant la remise déjà enregistrée et la complète avec les informations de la banque, au lieu de la dupliquer. Le message de fin d'import précise combien de remises ont été ainsi rapprochées.
 - Si deux remises du même montant tombent la même semaine, l'application ne devine pas : elle importe normalement, et vous gardez la main.
 - **Caisse : l'origine d'un règlement est enfin juste** — un règlement de facture fournisseur payé en espèces s'affichait comme « Paiement client » dans le journal de caisse. Le mouvement était pourtant bien enregistré en sortie : seul l'intitulé était trompeur. La colonne distingue maintenant « Règlement client » et « Règlement fournisseur ».
+
+### Administrateur
+
+- **Envoi d'e-mails : un seul réglage de sécurité pour tous les envois** — l'interrupteur « Utiliser TLS » des paramètres SMTP n'avait pas le même effet sur l'envoi de factures que sur le mailing adhérents et sur l'alerte d'échec de sauvegarde : selon le réglage, l'un ou l'autre échouait. Il est remplacé par un choix **« Sécurité de la connexion »** — STARTTLS (port 587), SSL/TLS (port 465) ou Aucune (relais local sans identifiant) — qui vaut pour tous les envois. Votre réglage actuel est repris automatiquement, à l'identique pour l'envoi de factures. Et si l'alerte d'échec de sauvegarde ne peut pas partir, la raison apparaît désormais dans l'état de la sauvegarde au lieu de passer inaperçue.
 
 ## Version 1.10.0 — 3 août 2026
 
