@@ -38,7 +38,7 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [DEPOSIT-MERGE-2](DEPOSIT-MERGE-2/PRD.md) — rattraper la remise que la fusion automatique a manquée : date du bordereau, fenêtre élargie, rattachement manuel (TEC-250/251/252 + BIZ-251/252) | ✅ |
 | [DEPOSIT-ADOPT](DEPOSIT-ADOPT/PRD.md) — confirmer un bordereau sans créer de doublon : adoption de la ligne du relevé, fusion rapprochée d'office (BIZ-253 + TEC-253) | ✅ |
 | [CHECKLIST](CHECKLIST/PRD.md) — checklist mensuelle de tenue comptable : séance ordonnée par passages externes, état en base, clôture explicite (BIZ-254→256) | ✅ |
-| [SCHEMA-DRIFT](SCHEMA-DRIFT/PRD.md) — aligner les modèles ORM sur les migrations (17 écarts, dont l'unicité des numéros d'écriture) et le vérifier en CI (TEC-256/257) | ⬜ |
+| [SCHEMA-DRIFT](SCHEMA-DRIFT/PRD.md) — aligner les modèles ORM sur les migrations (17 écarts, dont l'unicité des numéros d'écriture) et le vérifier en CI (TEC-256/257) | ✅ |
 
 ## Lots archivés
 

@@ -1,6 +1,6 @@
 # TEC-256 / TEC-257 — Converger modèles et migrations, et garder la convergence en CI
 
-Status: ⬜ ready
+Status: ✅ done
 Type: chore
 Files: `backend/models/accounting_entry.py`, `backend/models/accounting_rule.py`,
 `backend/models/app_comment.py`, `backend/models/app_settings.py`,
@@ -30,13 +30,32 @@ Files: `backend/models/accounting_entry.py`, `backend/models/accounting_rule.py`
 
 ## Acceptance criteria
 
-- [ ] `tests/unit/test_schema_drift.py` échoue sur `develop` avant correctif (constaté et
+- [x] `tests/unit/test_schema_drift.py` échoue sur `develop` avant correctif (constaté et
       noté dans la PR).
-- [ ] Après correctif, `compare_metadata` est vide et `alembic check` répond
+- [x] Après correctif, `compare_metadata` est vide et `alembic check` répond
       « No new upgrade operations detected ».
-- [ ] L'index unique sur `accounting_entries.entry_number` existe toujours en base après
+- [x] L'index unique sur `accounting_entries.entry_number` existe toujours en base après
       `upgrade head`.
-- [ ] Toute nouvelle contrainte d'unicité a un test de migration avec doublon préexistant.
-- [ ] Aucune migration existante modifiée.
-- [ ] Porte de qualité verte, CHANGELOG `[Non publié]`, version patch montée
+- [x] Toute nouvelle contrainte d'unicité a un test de migration avec doublon préexistant.
+      *Sans objet : aucune contrainte n'est nouvelle (voir Résultat).*
+- [x] Aucune migration existante modifiée.
+- [x] Porte de qualité verte, CHANGELOG `[Non publié]`, version patch montée
       (`pyproject.toml` + `frontend/package.json`).
+
+## Résultat (2026-10-02)
+
+- Test de garde rouge sur `develop` : **17 écarts**, ceux du PRD. Vert après correctif ;
+  `alembic check` : « No new upgrade operations detected ». **Aucune migration ajoutée.**
+- **Unicité de `fiscal_years.name` / `accounting_rules.trigger_type` : déjà en base.**
+  0007 et 0009 déclarent `unique=True` sur la colonne (contrainte `UNIQUE` de table, vue
+  dans `sqlite_master` de la base locale) en plus d'un index simple. Le modèle disait
+  « index unique », la base « contrainte unique + index simple » : même garantie, forme
+  différente. Le modèle déclare désormais la forme réelle (`UniqueConstraint`), et un test
+  vérifie qu'un doublon est refusé à `head`. Le risque « échec de migration en prod » du
+  PRD n'existait donc pas.
+- Longueurs `app_settings` : modèle aligné sur la base (`TEXT`, `VARCHAR(4000)`), ce qui
+  élargit la limite déclarée sans rien réduire ; SQLite ne l'applique pas et ni le schéma
+  Pydantic ni l'écran ne bornent ces champs. Valeurs stockées en base locale : toutes nulles.
+- **Bug révélé par le garde-fou** : déclarer l'index unique de 0052 dans le modèle a fait
+  échouer 8 tests d'import de salaires — tous les numéros d'écriture d'un import étaient
+  identiques (session sans autoflush). Corrigé dans `_import_payments_salaries.py`.
