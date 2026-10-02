@@ -1,6 +1,6 @@
 # Lot SCHEMA-DRIFT — Aligner les modèles ORM sur les migrations, et le vérifier en CI
 
-Status: ⬜ ready
+Status: ✅ done
 Branch: fix/schema-drift → PR → develop
 
 ## Problem Statement

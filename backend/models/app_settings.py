@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from sqlalchemy import Boolean, DateTime, Integer, Numeric, String
+from sqlalchemy import Boolean, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
@@ -72,13 +72,13 @@ class AppSettings(Base):
 
     # Email templates (null = use built-in defaults)
     email_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    email_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
+    email_body_template: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Reminder (dunning) email templates — distinct from the initial send.
     # "first" = never reminded, "next" = follow-up. Null = built-in defaults.
-    reminder_first_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    reminder_first_subject_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
     reminder_first_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
-    reminder_next_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    reminder_next_subject_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
     reminder_next_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
 
     # Payment instructions on invoices
