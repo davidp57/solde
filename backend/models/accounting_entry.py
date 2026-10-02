@@ -43,8 +43,8 @@ class AccountingEntry(Base):
     """A single debit or credit line in the accounting journal."""
 
     __tablename__ = "accounting_entries"
-    # Created by migration 0052: the database rejects a duplicate entry number,
-    # which is what makes the retry loop in accounting_engine race-safe.
+    # Created by migration 0052: the database itself rejects a duplicate entry
+    # number, so two concurrent requests cannot write the same one.
     __table_args__ = (
         Index("ix_accounting_entries_entry_number_unique", "entry_number", unique=True),
     )

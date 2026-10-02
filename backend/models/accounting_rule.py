@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.database import Base
@@ -56,12 +56,13 @@ class AccountingRule(Base):
     """A named rule that generates accounting entries when its trigger fires."""
 
     __tablename__ = "accounting_rules"
+    # Migration 0009 created a table-level UNIQUE constraint plus a plain index,
+    # not a unique index: declared the same way so autogenerate sees no change.
+    __table_args__ = (UniqueConstraint("trigger_type"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    trigger_type: Mapped[TriggerType] = mapped_column(
-        String(50), nullable=False, unique=True, index=True
-    )
+    trigger_type: Mapped[TriggerType] = mapped_column(String(50), nullable=False, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     priority: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)

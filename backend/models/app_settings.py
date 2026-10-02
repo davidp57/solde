@@ -76,13 +76,9 @@ class AppSettings(Base):
 
     # Reminder (dunning) email templates — distinct from the initial send.
     # "first" = never reminded, "next" = follow-up. Null = built-in defaults.
-    reminder_first_subject_template: Mapped[str | None] = mapped_column(
-        String(4000), nullable=True
-    )
+    reminder_first_subject_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
     reminder_first_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
-    reminder_next_subject_template: Mapped[str | None] = mapped_column(
-        String(4000), nullable=True
-    )
+    reminder_next_subject_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
     reminder_next_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
 
     # Payment instructions on invoices
