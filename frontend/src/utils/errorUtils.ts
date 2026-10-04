@@ -1,4 +1,9 @@
-import i18n from '@/i18n'
+import fr from '@/i18n/fr'
+
+// The French messages are read directly rather than through the vue-i18n instance:
+// this helper runs outside any component setup, and the app has a single complete
+// locale. It also keeps the helper importable in tests that mock vue-i18n.
+const apiErrorMessages: Record<string, string> = fr.api_errors
 
 /**
  * Extracts a human-readable error detail string from an Axios-style error object.
@@ -24,7 +29,7 @@ export function getErrorDetail(error: unknown, fallback: string): string {
   if (response === null || typeof response !== 'object') {
     // Axios sets `request` and leaves `response` empty when the server never answered.
     if ('request' in error && (error as { request?: unknown }).request) {
-      return i18n.global.t('common.error.network')
+      return fr.common.error.network
     }
     return fallback
   }
@@ -38,11 +43,11 @@ export function getErrorDetail(error: unknown, fallback: string): string {
 
   if (detail !== null && typeof detail === 'object' && !Array.isArray(detail)) {
     const code = (detail as { code?: unknown }).code
-    if (typeof code === 'string' && i18n.global.te(`api_errors.${code}`, 'fr')) {
-      return i18n.global.t(`api_errors.${code}`)
+    if (typeof code === 'string' && Object.hasOwn(apiErrorMessages, code)) {
+      return apiErrorMessages[code] as string
     }
   }
-  if (statusCode === 403) return i18n.global.t('common.error.forbidden_action')
+  if (statusCode === 403) return fr.common.error.forbidden_action
 
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail) && detail.length > 0) {
