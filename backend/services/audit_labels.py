@@ -14,6 +14,7 @@ from collections import defaultdict
 from collections.abc import Awaitable, Callable, Iterable
 from datetime import date
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -56,101 +57,127 @@ def _join(*parts: str | None) -> str:
     return label
 
 
-def _contact_name(contact: Contact | None) -> str:
-    if contact is None:
-        return ""
-    return " ".join(p for p in (contact.prenom, contact.nom) if p)
+def _name(prenom: str | None, nom: str | None) -> str:
+    return " ".join(p for p in (prenom, nom) if p)
+
+
+# Every builder selects plain columns, never ORM entities: the label is computed in the
+# middle of a request whose objects are already loaded, and selecting an entity hands
+# back those same instances — under SQLAlchemy 2.1 that disturbed relationships the
+# request was about to serialise (MissingGreenlet on Invoice.lines).
 
 
 async def _bank_transactions(db: AsyncSession, ids: set[int]) -> dict[int, str]:
-    rows = await db.execute(select(BankTransaction).where(BankTransaction.id.in_(ids)))
+    rows = await db.execute(
+        select(
+            BankTransaction.id,
+            BankTransaction.date,
+            BankTransaction.amount,
+            BankTransaction.description,
+        ).where(BankTransaction.id.in_(ids))
+    )
     return {
-        tx.id: _join(_fmt_date(tx.date), _fmt_amount(tx.amount), tx.description)
-        for tx in rows.scalars()
+        tx_id: _join(_fmt_date(day), _fmt_amount(amount), description)
+        for tx_id, day, amount, description in rows.tuples()
     }
 
 
 async def _invoices(db: AsyncSession, ids: set[int]) -> dict[int, str]:
     rows = await db.execute(
-        select(Invoice, Contact)
+        select(Invoice.id, Invoice.number, Contact.prenom, Contact.nom)
         .outerjoin(Contact, Contact.id == Invoice.contact_id)
         .where(Invoice.id.in_(ids))
     )
-    return {inv.id: _join(inv.number, _contact_name(contact)) for inv, contact in rows.tuples()}
+    return {
+        invoice_id: _join(number, _name(prenom, nom))
+        for invoice_id, number, prenom, nom in rows.tuples()
+    }
 
 
 async def _payments(db: AsyncSession, ids: set[int]) -> dict[int, str]:
     rows = await db.execute(
-        select(Payment, Invoice.number)
+        select(Payment.id, Payment.date, Payment.amount, Invoice.number)
         .outerjoin(Invoice, Invoice.id == Payment.invoice_id)
         .where(Payment.id.in_(ids))
     )
     return {
-        payment.id: _join(_fmt_date(payment.date), _fmt_amount(payment.amount), number)
-        for payment, number in rows.tuples()
+        payment_id: _join(_fmt_date(day), _fmt_amount(amount), number)
+        for payment_id, day, amount, number in rows.tuples()
     }
 
 
 async def _contacts(db: AsyncSession, ids: set[int]) -> dict[int, str]:
-    rows = await db.execute(select(Contact).where(Contact.id.in_(ids)))
-    return {contact.id: _join(_contact_name(contact)) for contact in rows.scalars()}
+    rows = await db.execute(
+        select(Contact.id, Contact.prenom, Contact.nom).where(Contact.id.in_(ids))
+    )
+    return {contact_id: _join(_name(prenom, nom)) for contact_id, prenom, nom in rows.tuples()}
 
 
 async def _cash_entries(db: AsyncSession, ids: set[int]) -> dict[int, str]:
-    rows = await db.execute(select(CashRegister).where(CashRegister.id.in_(ids)))
+    rows = await db.execute(
+        select(
+            CashRegister.id, CashRegister.date, CashRegister.amount, CashRegister.description
+        ).where(CashRegister.id.in_(ids))
+    )
     return {
-        entry.id: _join(_fmt_date(entry.date), _fmt_amount(entry.amount), entry.description)
-        for entry in rows.scalars()
+        entry_id: _join(_fmt_date(day), _fmt_amount(amount), description)
+        for entry_id, day, amount, description in rows.tuples()
     }
 
 
 async def _cash_counts(db: AsyncSession, ids: set[int]) -> dict[int, str]:
-    rows = await db.execute(select(CashCount).where(CashCount.id.in_(ids)))
+    rows = await db.execute(
+        select(CashCount.id, CashCount.date, CashCount.total_counted).where(CashCount.id.in_(ids))
+    )
     return {
-        count.id: _join(_fmt_date(count.date), _fmt_amount(count.total_counted))
-        for count in rows.scalars()
+        count_id: _join(_fmt_date(day), _fmt_amount(total))
+        for count_id, day, total in rows.tuples()
     }
 
 
 async def _salaries(db: AsyncSession, ids: set[int]) -> dict[int, str]:
     rows = await db.execute(
-        select(Salary, Contact)
+        select(Salary.id, Salary.month, Contact.prenom, Contact.nom)
         .outerjoin(Contact, Contact.id == Salary.employee_id)
         .where(Salary.id.in_(ids))
     )
     return {
-        salary.id: _join(salary.month, _contact_name(contact)) for salary, contact in rows.tuples()
+        salary_id: _join(month, _name(prenom, nom))
+        for salary_id, month, prenom, nom in rows.tuples()
     }
 
 
 async def _deposits(db: AsyncSession, ids: set[int]) -> dict[int, str]:
-    rows = await db.execute(select(Deposit).where(Deposit.id.in_(ids)))
+    rows = await db.execute(
+        select(Deposit.id, Deposit.date, Deposit.total_amount).where(Deposit.id.in_(ids))
+    )
     return {
-        deposit.id: _join(
-            f"Bordereau #{deposit.id}", _fmt_date(deposit.date), _fmt_amount(deposit.total_amount)
-        )
-        for deposit in rows.scalars()
+        deposit_id: _join(f"Bordereau #{deposit_id}", _fmt_date(day), _fmt_amount(total))
+        for deposit_id, day, total in rows.tuples()
     }
 
 
+async def _single_column(
+    db: AsyncSession, id_column: Any, label_column: Any, ids: set[int]
+) -> dict[int, str]:
+    rows = await db.execute(select(id_column, label_column).where(id_column.in_(ids)))
+    return {target_id: _join(label) for target_id, label in rows.tuples()}
+
+
 async def _documents(db: AsyncSession, ids: set[int]) -> dict[int, str]:
-    rows = await db.execute(select(Document).where(Document.id.in_(ids)))
-    return {doc.id: _join(doc.title) for doc in rows.scalars()}
+    return await _single_column(db, Document.id, Document.title, ids)
 
 
 async def _users(db: AsyncSession, ids: set[int]) -> dict[int, str]:
-    rows = await db.execute(select(User).where(User.id.in_(ids)))
-    return {user.id: _join(user.username) for user in rows.scalars()}
+    return await _single_column(db, User.id, User.username, ids)
 
 
 async def _import_runs(db: AsyncSession, ids: set[int]) -> dict[int, str]:
-    rows = await db.execute(select(ImportRun).where(ImportRun.id.in_(ids)))
-    return {run.id: _join(run.file_name) for run in rows.scalars()}
+    return await _single_column(db, ImportRun.id, ImportRun.file_name, ids)
 
 
 async def _checklist_sessions(db: AsyncSession, ids: set[int]) -> dict[int, str]:
-    rows = await db.execute(select(ChecklistSession).where(ChecklistSession.id.in_(ids)))
-    return {session.id: _join(session.period) for session in rows.scalars()}
+    return await _single_column(db, ChecklistSession.id, ChecklistSession.period, ids)
 
 
 _BUILDERS: dict[str, _Builder] = {
