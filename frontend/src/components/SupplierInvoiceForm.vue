@@ -101,6 +101,7 @@ import { useToast } from 'primevue/usetoast'
 import axios from 'axios'
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 
 import type { Contact } from '../api/contacts'
 import { createInvoiceApi, updateInvoiceApi, type Invoice } from '../api/invoices'
@@ -259,10 +260,10 @@ async function submit() {
         }
         fieldErrors.value = errors
       } else {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+        toast.add({ severity: 'error', summary: getErrorDetail(error, t('common.error.unknown')), life: 5000 })
       }
     } else {
-      toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+      toast.add({ severity: 'error', summary: getErrorDetail(error, t('common.error.unknown')), life: 5000 })
     }
   } finally {
     saving.value = false

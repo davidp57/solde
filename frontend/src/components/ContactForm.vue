@@ -236,6 +236,7 @@ import Textarea from 'primevue/textarea'
 import ToggleSwitch from 'primevue/toggleswitch'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import axios from 'axios'
 import { createContactApi, updateContactApi, type Contact } from '@/api/contacts'
 import type { ContactType } from '@/api/types'
@@ -348,10 +349,10 @@ async function submit(): Promise<void> {
         }
         fieldErrors.value = errors
       } else {
-        errorMessage.value = t('common.error.unknown')
+        errorMessage.value = getErrorDetail(error, t('common.error.unknown'))
       }
     } else {
-      errorMessage.value = t('common.error.unknown')
+      errorMessage.value = getErrorDetail(error, t('common.error.unknown'))
     }
   } finally {
     saving.value = false

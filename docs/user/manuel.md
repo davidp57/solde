@@ -467,20 +467,28 @@ Solde détecte automatiquement la catégorie de chaque transaction (frais bancai
 
 La catégorie détermine les écritures comptables générées lors du rapprochement.
 
+Quand vous **créez ou rattachez un règlement** depuis la ligne, la catégorie passe d'elle-même en « Paiement client » ou « Paiement fournisseur », quelle que soit celle détectée à l'import.
+
+> **Cadenas à la place du crayon** — Une opération rapprochée directement (bouton **Rapprocher**, **Tout rapprocher**, **Rapprocher avant…**) a déjà généré ses écritures à partir de sa catégorie : celle-ci est verrouillée. Pour la corriger, un trésorier défait d'abord le rapprochement (voir *Défaire un rapprochement*), change la catégorie, puis rapproche à nouveau — ou crée le règlement client depuis la ligne s'il s'agissait d'un virement de client. Une opération rapprochée par un **règlement** ou un **bordereau** garde son crayon : ses écritures viennent du règlement ou du bordereau, sa catégorie n'est qu'une étiquette.
+
 > **Catégorie « Sans écriture »** — Si une transaction doit apparaître sur le relevé bancaire mais ne doit générer aucune écriture comptable (par exemple un virement vers un compte extérieur à Solde), assigner la catégorie **Sans écriture**. Lors du rapprochement, aucune écriture ne sera créée, quelle que soit la configuration des règles.
 
 ### Rapprochement bancaire
 
-Le rapprochement lie une transaction bancaire à un paiement ou une remise enregistrés dans Solde, et génère les écritures comptables correspondantes.
+Le rapprochement marque une ligne du relevé comme traitée. Il se fait de deux façons, qui n'ont pas le même effet comptable :
+
+- **Depuis un règlement** — pour le virement d'un client ou vers un fournisseur, utilisez **Créer un règlement client / fournisseur** ou **Lier à un règlement existant** (menu de la ligne). Le règlement solde la facture, porte les écritures, et rapproche la ligne.
+- **Avec le bouton Rapprocher** — pour les opérations sans facture (frais bancaires, charges sociales, subvention, virement interne…). Les écritures sont générées d'après la **catégorie** de la ligne.
 
 #### Rapprocher une transaction individuellement
 
 1. Repérer la transaction dans la liste (filtrer sur « Non rapprochées » pour aller vite).
-2. Cliquer sur le bouton **Rapprocher** dans la colonne Rapp.
-3. Sélectionner le paiement ou la remise correspondant.
-4. Confirmer.
+2. Vérifier sa catégorie, la corriger au besoin.
+3. Cliquer sur le bouton **Rapprocher** dans la colonne Rapp.
 
 La transaction passe en statut **Rapproché** (tag vert) et disparaît du filtre « Non rapprochées ».
+
+> **Avertissement « Rapprochement sans écriture comptable »** — Rapprocher une ligne en catégorie **Autre crédit**, **Autre débit**, **Paiement client** ou **Paiement fournisseur** ne génère aucune écriture : l'argent reste hors de la comptabilité. L'application le signale avant de rapprocher (y compris dans **Tout rapprocher** et **Rapprocher avant…**, avec le nombre de lignes concernées). S'il s'agit du règlement d'une facture, annulez et passez par le règlement ; sinon, confirmez avec **Rapprocher quand même**.
 
 #### Rapprocher en masse
 

@@ -79,6 +79,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -134,8 +135,8 @@ async function submitComment(): Promise<void> {
     comments.value.unshift(created)
     newContent.value = ''
     toast.add({ severity: 'success', summary: t('comments.added'), life: 3000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     submitting.value = false
   }
@@ -145,9 +146,9 @@ async function onToggleResolved(comment: AppComment): Promise<void> {
   try {
     const updated = await toggleResolvedApi(comment.id, comment.is_resolved)
     Object.assign(comment, updated)
-  } catch {
+  } catch (err: unknown) {
     comment.is_resolved = !comment.is_resolved
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 4000 })
   }
 }
 
@@ -167,8 +168,8 @@ async function doDelete(comment: AppComment): Promise<void> {
     await deleteCommentApi(comment.id)
     comments.value = comments.value.filter((c) => c.id !== comment.id)
     toast.add({ severity: 'success', summary: t('comments.deleted'), life: 3000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 

@@ -75,6 +75,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
@@ -117,8 +118,8 @@ async function load(): Promise<void> {
       chat_api_key: null,
       chat_model: data.chat_model,
     }
-  } catch {
-    errorMessage.value = t('common.error.unknown')
+  } catch (err: unknown) {
+    errorMessage.value = getErrorDetail(err, t('common.error.unknown'))
   }
 }
 

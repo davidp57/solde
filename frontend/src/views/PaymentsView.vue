@@ -394,6 +394,7 @@ import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import {
   cancelPayment,
   getPaymentCancelPreview,
@@ -592,9 +593,9 @@ async function openCancelDialog(payment: Payment): Promise<void> {
   cancelPreviewLoading.value = true
   try {
     cancelPreview.value = await getPaymentCancelPreview(payment.id)
-  } catch {
+  } catch (err: unknown) {
     cancelDialogVisible.value = false
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 3000 })
   } finally {
     cancelPreviewLoading.value = false
   }
@@ -639,8 +640,8 @@ async function confirmCancelPayment(): Promise<void> {
     // a second request to reflect what the server has already confirmed.
     payments.value = payments.value.filter((candidate) => candidate.id !== payment.id)
     toast.add({ severity: 'success', summary: t('payments.cancelled'), life: 3000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     cancelling.value = false
   }
@@ -681,8 +682,8 @@ async function savePayment() {
     dialogVisible.value = false
     applyUpdatedPayment(updated)
     toast.add({ severity: 'success', summary: t('payments.updated'), life: 3000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     saving.value = false
   }
@@ -714,8 +715,8 @@ async function loadPayments() {
     })
     limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
     payments.value = items
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     loading.value = false
   }

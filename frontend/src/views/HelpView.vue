@@ -98,6 +98,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Message from 'primevue/message'
@@ -172,8 +173,8 @@ async function submitComment(): Promise<void> {
     newContent.value = ''
     commentDialogVisible.value = false
     toast.add({ severity: 'success', summary: t('comments.added'), life: 3000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     submitting.value = false
   }

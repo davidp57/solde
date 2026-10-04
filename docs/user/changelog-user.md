@@ -8,6 +8,12 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Tous les utilisateurs
 
+- **Des messages d'erreur qui expliquent** — quand l'application refusait une action, elle affichait souvent « Une erreur est survenue », sans dire pourquoi. Elle donne maintenant la raison : opération déjà rapprochée, rôle insuffisant, serveur injoignable, etc.
+
+- **Avertissement avant un rapprochement « à vide »** — rapprocher une ligne en « Autre crédit », « Autre débit », « Paiement client » ou « Paiement fournisseur » avec le bouton **Rapprocher** ne passe aucune écriture comptable. L'application le signale désormais et propose de créer ou de rattacher plutôt le règlement de la facture.
+
+- **Catégorie des opérations bancaires** — créer ou rattacher un règlement depuis une ligne du relevé met désormais sa catégorie à « Paiement client » ou « Paiement fournisseur ». Sur une opération rapprochée directement, le crayon de la catégorie devient un **cadenas** : un clic explique comment la corriger (défaire d'abord le rapprochement, ce que seul un trésorier peut faire). Une opération rapprochée par un règlement ou un bordereau reste modifiable.
+
 - **Barre latérale allégée** — les boutons séance de comptabilité, mode clair/sombre et déconnexion, ainsi que votre nom, apparaissaient deux fois : en haut de l'écran et en bas de la barre de gauche. Ils restent seulement en haut.
 
 - **Un règlement en espèces demande maintenant de saisir le montant** — jusqu'ici, le montant proposé était le solde de la facture : il suffisait de valider, même sans avoir compté l'argent. Pour les espèces, le champ se vide désormais et attend le montant réellement compté. Un bouton **« Reporter le solde dû »** reste disponible quand les deux coïncident, et l'application indique juste en dessous ce que le règlement va faire au solde de la caisse. Rien ne change pour les chèques, dont le montant est écrit sur le chèque.

@@ -481,9 +481,9 @@ async function openCloseDialog(fy: FiscalYearRead) {
   checksLoading.value = true
   try {
     preCloseWarnings.value = await getFiscalYearPreCloseChecksApi(fy.id)
-  } catch {
+  } catch (err: unknown) {
     closeDialogVisible.value = false
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 3000 })
   } finally {
     checksLoading.value = false
   }

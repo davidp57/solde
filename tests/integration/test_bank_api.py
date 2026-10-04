@@ -1860,6 +1860,134 @@ class TestEditDeleteManualTransactions:
         assert r.json()["description"] == "Note ajoutée après rapprochement"
 
 
+class TestCategoryLock:
+    """The category only freezes where it generated the entries: a direct reconciliation."""
+
+    async def _create_imported(self, client: AsyncClient, headers: dict, amount: str) -> int:
+        r = await client.post(
+            "/api/bank/transactions",
+            json={
+                "date": "2024-03-15",
+                "amount": amount,
+                "description": "VIR CLIENT",
+                "reference": f"REF-{amount}",
+                "source": "import",
+            },
+            headers=headers,
+        )
+        assert r.status_code == 201
+        return int(r.json()["id"])
+
+    async def _row(self, client: AsyncClient, headers: dict, tx_id: int) -> dict:
+        listing = await client.get("/api/bank/transactions", headers=headers)
+        return next(t for t in listing.json() if t["id"] == tx_id)
+
+    async def test_direct_reconciliation_locks_the_category(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        tx_id = await self._create_imported(client, auth_headers, "150.00")
+        assert (await self._row(client, auth_headers, tx_id))["category_locked"] is False
+        r = await client.post(
+            "/api/bank/transactions/reconcile-bulk", json={"ids": [tx_id]}, headers=auth_headers
+        )
+        assert r.status_code == 200
+        assert (await self._row(client, auth_headers, tx_id))["category_locked"] is True
+
+        r = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"detected_category": "customer_payment"},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 422
+        assert r.json()["detail"]["code"] == "BANK_TRANSACTION_RECONCILED_LOCKED"
+
+    async def test_payment_created_from_the_line_sets_its_category(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        """The secretary validated a client transfer left on "other credit": the label
+        stayed wrong although the payment was right."""
+        invoice = await _make_client_invoice(db_session)
+        tx_id = await self._create_imported(client, auth_headers, "150.00")
+        put = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"detected_category": "other_credit"},
+            headers=auth_headers,
+        )
+        assert put.status_code == 200
+
+        r = await client.post(
+            f"/api/bank/transactions/{tx_id}/create-client-payment",
+            json={"invoice_id": invoice.id},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 201
+        assert r.json()["detected_category"] == "customer_payment"
+        assert r.json()["category_locked"] is False
+
+    async def test_linked_supplier_payment_sets_its_category(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        payment = await _make_supplier_virement_payment(db_session)
+        tx_id = await self._create_imported(client, auth_headers, "-200.00")
+
+        r = await client.post(
+            f"/api/bank/transactions/{tx_id}/link-supplier-payment",
+            json={"payment_id": payment.id},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 200
+        assert r.json()["detected_category"] == "supplier_payment"
+
+    async def test_category_stays_editable_on_a_line_held_by_a_payment(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        """Its entries come from the payment: the category is only a label there."""
+        invoice = await _make_client_invoice(db_session)
+        tx_id = await self._create_imported(client, auth_headers, "150.00")
+        await client.post(
+            f"/api/bank/transactions/{tx_id}/create-client-payment",
+            json={"invoice_id": invoice.id},
+            headers=auth_headers,
+        )
+
+        r = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"detected_category": "grant"},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 200
+        assert r.json()["detected_category"] == "grant"
+
+    async def test_amount_stays_locked_on_a_line_held_by_a_payment(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        invoice = await _make_client_invoice(db_session)
+        manual = await client.post(
+            "/api/bank/transactions",
+            json={"date": "2024-03-15", "amount": "150.00", "description": "Saisie"},
+            headers=auth_headers,
+        )
+        tx_id = manual.json()["id"]
+        await client.post(
+            f"/api/bank/transactions/{tx_id}/create-client-payment",
+            json={"invoice_id": invoice.id},
+            headers=auth_headers,
+        )
+
+        r = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"date": "2024-03-20"},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 422
+        assert r.json()["detail"]["code"] == "BANK_TRANSACTION_RECONCILED_LOCKED"
+
+
 # ---------------------------------------------------------------------------
 # Merging a statement deposit row with a slip, after the fact
 # ---------------------------------------------------------------------------

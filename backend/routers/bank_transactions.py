@@ -57,7 +57,12 @@ def _serialize_transaction_with_payment_ids(
     tx: BankTransaction,
     payment_ids: list[int],
 ) -> BankTransactionRead:
-    return BankTransactionRead.model_validate(tx).model_copy(update={"payment_ids": payment_ids})
+    return BankTransactionRead.model_validate(tx).model_copy(
+        update={
+            "payment_ids": payment_ids,
+            "category_locked": bank_service.is_category_locked(tx, payment_ids),
+        }
+    )
 
 
 async def _serialize_transaction(
@@ -190,14 +195,18 @@ async def update_transaction(
             "date, amount and bank_account can only be updated on manual transactions",
         )
     # A reconciled transaction is locked accounting-wise: editing the fields that
-    # drive its generated entries (date, amount, account, category) would leave the
-    # journal stale. Mirror the delete guard — it must be unreconciled first.
+    # drive its generated entries (date, amount, account) would leave the journal
+    # stale. Mirror the delete guard — it must be unreconciled first. The category
+    # only drives entries on a direct reconciliation (see is_category_locked).
     accounting_fields = {
-        k
-        for k in ("date", "amount", "bank_account", "detected_category")
-        if k in payload.model_fields_set
+        k for k in ("date", "amount", "bank_account") if k in payload.model_fields_set
     }
-    if accounting_fields and tx.reconciled:
+    category_locked = "detected_category" in payload.model_fields_set and (
+        bank_service.is_category_locked(
+            tx, await bank_service.get_transaction_payment_ids(db, tx.id)
+        )
+    )
+    if (accounting_fields and tx.reconciled) or category_locked:
         raise unprocessable(
             "BANK_TRANSACTION_RECONCILED_LOCKED",
             "A reconciled transaction's date, amount, account or category cannot be "

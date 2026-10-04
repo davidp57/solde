@@ -112,6 +112,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Select from 'primevue/select'
@@ -194,8 +195,8 @@ async function dropDuplicate(pairId: number, txId: number): Promise<void> {
     duplicates.value = duplicates.value.filter((pair) => pair.imported.id !== pairId)
     toast.add({ severity: 'success', summary: t('bank.transaction_deleted'), life: 2000 })
     emit('saved')
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     deletingId.value = null
   }
@@ -249,7 +250,7 @@ async function submit(): Promise<void> {
           : undefined
     toast.add({
       severity: 'error',
-      summary: detail ? t('bank.import_error') : t('common.error.unknown'),
+      summary: detail ? t('bank.import_error') : getErrorDetail(err, t('common.error.unknown')),
       detail: detail ?? undefined,
       life: 8000,
     })
