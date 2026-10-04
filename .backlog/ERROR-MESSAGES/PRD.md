@@ -18,6 +18,8 @@ Trois défauts s'additionnent :
 - **TEC-260** — `getErrorDetail` devient le résolveur central : code traduit dans `api_errors`, puis 403, puis absence de réponse, puis texte du serveur, puis message générique. Tous les `catch` à message générique passent par lui. La table `api_errors` ne garde que les codes à sens fixe : un code qui enveloppe un message variable (`…_INVALID`, `…_FAILED`) garde le texte du serveur.
 - **BIZ-262** — `is_category_locked` : seule une ligne rapprochée **directement** verrouille sa catégorie. Exposé dans l'API (`category_locked`) ; l'écran Banque affiche un cadenas explicatif à la place du crayon. Créer ou rattacher un règlement passe la catégorie en « Paiement client » ou « Paiement fournisseur ».
 
+- **BIZ-263** — « Rapprocher » sur une ligne `other_credit`, `other_debit`, `customer_payment` ou `supplier_payment` ne génère aucune écriture : confirmation demandée (aussi en masse), renvoi vers le règlement.
+
 ## Out of Scope
 
 - Traduire en français les messages variables des services (`ValueError` en anglais) : chantier à part, à ouvrir si le texte serveur gêne à l'usage.

@@ -1496,7 +1496,43 @@ function txMenuItems(tx: BankTransaction): MenuItem[] {
   return items
 }
 
-async function reconcile(tx: BankTransaction): Promise<void> {
+// Categories whose direct reconciliation generates no accounting entry although the
+// line is usually an invoice settlement: reconciling one silently leaves the money
+// out of the books, so the gesture asks first and points to the payment actions.
+const NO_ENTRY_RISK_CATEGORIES: BankTransactionCategory[] = [
+  'other_credit',
+  'other_debit',
+  'customer_payment',
+  'supplier_payment',
+]
+
+function confirmReconcile(txs: BankTransaction[], proceed: () => Promise<void>): void {
+  const risky = txs.filter((tx) => NO_ENTRY_RISK_CATEGORIES.includes(tx.detected_category))
+  const [single] = risky
+  if (!single) {
+    void proceed()
+    return
+  }
+  confirm.require({
+    header: t('bank.reconcile_no_entry_header'),
+    message:
+      txs.length === 1
+        ? t('bank.reconcile_no_entry_single', {
+            category: t(`bank.categories.${single.detected_category}`),
+          })
+        : t('bank.reconcile_no_entry_bulk', { count: risky.length }),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('bank.reconcile_anyway'),
+    rejectLabel: t('common.cancel'),
+    accept: proceed,
+  })
+}
+
+function reconcile(tx: BankTransaction): void {
+  confirmReconcile([tx], () => doReconcile(tx))
+}
+
+async function doReconcile(tx: BankTransaction): Promise<void> {
   try {
     await reconcileTransactionsBulk([tx.id])
     if (unreconciledOnly.value) {
@@ -1573,9 +1609,13 @@ const reconcileBeforeCount = computed(() => {
   return transactions.value.filter((tx) => !tx.reconciled && tx.date <= cutoff).length
 })
 
-async function reconcileAllVisible(): Promise<void> {
-  const ids = transactions.value.filter((tx) => !tx.reconciled).map((tx) => tx.id)
-  if (ids.length === 0) return
+function reconcileAllVisible(): void {
+  const txs = transactions.value.filter((tx) => !tx.reconciled)
+  if (txs.length === 0) return
+  confirmReconcile(txs, () => doReconcileAll(txs.map((tx) => tx.id)))
+}
+
+async function doReconcileAll(ids: number[]): Promise<void> {
   reconcilingAll.value = true
   try {
     const count = await reconcileTransactionsBulk(ids)
@@ -1592,16 +1632,18 @@ async function reconcileAllVisible(): Promise<void> {
   }
 }
 
-async function reconcileBeforeDateConfirm(): Promise<void> {
+function reconcileBeforeDateConfirm(): void {
   if (!reconcileBeforeDate.value) return
   const cutoff = toLocalDateString(reconcileBeforeDate.value)
-  const ids = transactions.value
-    .filter((tx) => !tx.reconciled && tx.date <= cutoff)
-    .map((tx) => tx.id)
-  if (ids.length === 0) {
+  const txs = transactions.value.filter((tx) => !tx.reconciled && tx.date <= cutoff)
+  if (txs.length === 0) {
     reconcileBeforePopover.value?.hide()
     return
   }
+  confirmReconcile(txs, () => doReconcileBefore(txs.map((tx) => tx.id)))
+}
+
+async function doReconcileBefore(ids: number[]): Promise<void> {
   reconcilingBefore.value = true
   try {
     const count = await reconcileTransactionsBulk(ids)

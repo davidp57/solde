@@ -1166,6 +1166,12 @@ export default {
     reconcile_before_count: '{count} opération(s) à rapprocher',
     reconcile_before_confirm: 'Confirmer le rapprochement',
     reconcile_all_success: '{count} opération(s) rapprochée(s).',
+    reconcile_no_entry_header: 'Rapprochement sans écriture comptable',
+    reconcile_no_entry_single:
+      'Une opération en catégorie « {category} » rapprochée ainsi ne génère aucune écriture comptable. S’il s’agit du règlement d’une facture, créez ou rattachez plutôt le règlement depuis la ligne. Rapprocher quand même ?',
+    reconcile_no_entry_bulk:
+      '{count} opération(s) de la sélection (autre crédit ou débit, paiement client ou fournisseur) ne généreront aucune écriture comptable. S’il s’agit de règlements de factures, créez ou rattachez plutôt les règlements depuis chaque ligne. Rapprocher quand même ?',
+    reconcile_anyway: 'Rapprocher quand même',
   },
   settings: {
     title: 'Paramètres',
