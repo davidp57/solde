@@ -100,30 +100,7 @@
       </AppPanel>
 
       <!-- Audit log -->
-      <AppPanel :title="t('system.audit_title')" :subtitle="t('system.audit_subtitle')">
-        <p v-if="auditLogs.length === 0" class="empty-message">{{ t('system.audit_empty') }}</p>
-        <DataTable v-else :value="auditLogs" size="small" striped-rows paginator :rows="50">
-          <Column :header="t('system.col_timestamp')" style="white-space: nowrap">
-            <template #body="{ data }">{{ formatDatetime(data.created_at) }}</template>
-          </Column>
-          <Column field="actor_username" :header="t('system.col_actor')" />
-          <Column :header="t('system.col_action')" style="min-width: 18rem">
-            <template #body="{ data }">{{ tAuditAction(data.action) }}</template>
-          </Column>
-          <Column :header="t('system.col_target')">
-            <template #body="{ data }">
-              <span v-if="data.target_type">{{ data.target_type }} #{{ data.target_id }}</span>
-              <span v-else>—</span>
-            </template>
-          </Column>
-          <Column :header="t('system.col_detail')" style="font-size: 0.6em">
-            <template #body="{ data }">
-              <code v-if="data.detail" class="audit-detail">{{ JSON.stringify(data.detail) }}</code>
-              <span v-else>—</span>
-            </template>
-          </Column>
-        </DataTable>
-      </AppPanel>
+      <AuditLogPanel />
     </div>
 
     <!-- ═══════════ Onglet : Sauvegardes & restauration ═══════════ -->
@@ -314,12 +291,10 @@ import Tabs from 'primevue/tabs'
 import TabList from 'primevue/tablist'
 import Tab from 'primevue/tab'
 import {
-  type AuditLogEntry,
   type BackupFile,
   type LogEntry,
   type SystemInfo,
   createBackupApi,
-  getAuditLogsApi,
   getLogsApi,
   getSystemInfoApi,
   listBackupsApi,
@@ -330,6 +305,7 @@ import { listPayments, fixDepositDate, type Payment } from '@/api/payments'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppPageHeader from '@/components/ui/AppPageHeader.vue'
+import AuditLogPanel from '@/components/settings/AuditLogPanel.vue'
 import SettingsBackupPanel from '@/components/settings/SettingsBackupPanel.vue'
 import AppPanel from '@/components/ui/AppPanel.vue'
 
@@ -372,7 +348,6 @@ const validateResult = ref<BackupRestoreTestResult | null>(null)
 const validateDialogVisible = ref(false)
 const logs = ref<LogEntry[]>([])
 const logsLoading = ref(false)
-const auditLogs = ref<AuditLogEntry[]>([])
 const selectedLevels = ref<string[]>([])
 const logsContainerRef = ref<HTMLElement | null>(null)
 
@@ -406,13 +381,6 @@ function formatDatetime(iso: string): string {
     dateStyle: 'short',
     timeStyle: 'short',
   })
-}
-
-function tAuditAction(action: string): string {
-  // Use dot-path as fallback: if the key is not found, vue-i18n returns the key itself.
-  const key = `system.action.${action}`
-  const result = t(key)
-  return result === key ? action : result
 }
 
 async function downloadBackup(): Promise<void> {
@@ -563,9 +531,6 @@ onMounted(async () => {
     listBackupsApi()
       .then((d) => (backupFiles.value = d))
       .catch((e) => console.error('Failed to load backups', e)),
-    getAuditLogsApi()
-      .then((d) => (auditLogs.value = d))
-      .catch((e) => console.error('Failed to load audit logs', e)),
     loadInconsistentPayments(),
     loadLogs(),
   ])
@@ -932,10 +897,5 @@ onMounted(async () => {
 .empty-message {
   color: var(--p-text-muted-color);
   font-style: italic;
-}
-
-.audit-detail {
-  font-size: 0.75rem;
-  color: var(--p-text-muted-color);
 }
 </style>

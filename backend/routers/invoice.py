@@ -37,6 +37,7 @@ from backend.schemas.invoice import (
 )
 from backend.services import invoice as invoice_service
 from backend.services import settings as settings_service
+from backend.services.audit_labels import describe_target
 from backend.services.audit_service import AuditAction, record_audit
 from backend.services.invoice import (
     BlockedContactError,
@@ -424,6 +425,7 @@ async def delete_invoice(
     if invoice is None:
         raise not_found("Invoice")
     detail = {"number": invoice.number, "type": invoice.type}
+    label = await describe_target(db, "invoice", invoice_id)
     try:
         await invoice_service.delete_invoice(db, invoice)
     except InvoiceDeleteError as exc:
@@ -434,6 +436,7 @@ async def delete_invoice(
         actor=current_user,
         target_id=invoice_id,
         target_type="invoice",
+        target_label=label,
         detail=detail,
     )
 

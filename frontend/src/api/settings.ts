@@ -1,4 +1,4 @@
-import apiClient from './client'
+import apiClient, { parseTotalCount } from './client'
 
 export type SmtpSecurity = 'none' | 'starttls' | 'ssl'
 
@@ -221,8 +221,22 @@ export interface AuditLogEntry {
   actor_username: string | null
   target_type: string | null
   target_id: number | null
+  /** Snapshot of the target taken when the action was recorded; "" when unresolvable. */
+  target_label: string | null
   detail: Record<string, unknown> | null
   created_at: string
+}
+
+export interface AuditLogQuery {
+  q?: string
+  /** Action codes whose displayed (French) name matches `q`. */
+  q_actions?: string[]
+  /** Action code prefix, e.g. "bank." */
+  action?: string
+  from_date?: string
+  to_date?: string
+  skip?: number
+  limit?: number
 }
 
 export async function getSystemInfoApi(): Promise<SystemInfo> {
@@ -258,8 +272,14 @@ export async function getLogsApi(levels?: string[]): Promise<LogEntry[]> {
   return response.data
 }
 
-export async function getAuditLogsApi(): Promise<AuditLogEntry[]> {
-  const response = await apiClient.get<AuditLogEntry[]>('/api/settings/audit-logs')
-  return response.data
+export async function searchAuditLogsApi(
+  query: AuditLogQuery,
+): Promise<{ items: AuditLogEntry[]; total: number }> {
+  const response = await apiClient.get<AuditLogEntry[]>('/api/settings/audit-logs', {
+    params: query,
+    // FastAPI reads a list as a repeated key (q_actions=a&q_actions=b), not q_actions[]=a.
+    paramsSerializer: { indexes: null },
+  })
+  return { items: response.data, total: parseTotalCount(response.headers as Record<string, string>) }
 }
 

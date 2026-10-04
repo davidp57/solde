@@ -878,6 +878,17 @@ async def delete_transaction(db: AsyncSession, tx: BankTransaction) -> None:
     await db.flush()
 
 
+async def list_unreconciled_transaction_ids(db: AsyncSession, ids: list[int]) -> list[int]:
+    """Return, in date order, the ids among *ids* that are not reconciled yet."""
+    result = await db.execute(
+        select(BankTransaction.id)
+        .where(BankTransaction.id.in_(ids))
+        .where(BankTransaction.reconciled.is_(False))
+        .order_by(BankTransaction.date, BankTransaction.id)
+    )
+    return list(result.scalars())
+
+
 async def reconcile_transactions_bulk(
     db: AsyncSession,
     *,

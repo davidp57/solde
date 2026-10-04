@@ -26,6 +26,7 @@ from backend.schemas.bank import (
     BankTransactionUpdate,
 )
 from backend.services import bank_service
+from backend.services.audit_labels import describe_target, describe_targets
 from backend.services.audit_service import AuditAction, record_audit
 
 logger = logging.getLogger(__name__)
@@ -232,6 +233,7 @@ async def delete_transaction(
     tx = await bank_service.get_transaction(db, tx_id)
     if tx is None:
         raise not_found("Transaction")
+    label = await describe_target(db, "bank_transaction", tx_id)
     try:
         await bank_service.delete_transaction(db, tx)
     except ValueError as exc:
@@ -245,6 +247,7 @@ async def delete_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
+        target_label=label,
     )
 
 
@@ -280,13 +283,21 @@ async def reconcile_transactions_bulk(
     current_user: _WriteAccess,
 ) -> int:
     """Mark a batch of transactions as reconciled in a single request."""
+    # Read before reconciling: only the lines still open are reconciled, and the
+    # journal must say which ones — a bare count cannot be traced back.
+    pending_ids = await bank_service.list_unreconciled_transaction_ids(db, payload.ids)
+    labels = await describe_targets(db, [("bank_transaction", i) for i in pending_ids])
     count = await bank_service.reconcile_transactions_bulk(db, ids=payload.ids)
     await record_audit(
         db,
         action=AuditAction.BANK_TRANSACTION_BULK_RECONCILED,
         actor=current_user,
         target_type="bank_transaction",
-        detail={"count": count},
+        target_id=pending_ids[0] if len(pending_ids) == 1 else None,
+        detail={
+            "count": count,
+            "transactions": [labels.get(("bank_transaction", i), f"#{i}") for i in pending_ids],
+        },
     )
     return count
 
@@ -318,7 +329,7 @@ async def create_client_payment_from_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"invoice_id": payload.invoice_id, "type": "client"},
+        detail={"invoices": tx.reconciled_with, "invoice_id": payload.invoice_id, "type": "client"},
     )
     return await _serialize_transaction(db, tx)
 
@@ -350,7 +361,7 @@ async def create_client_payments_from_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"type": "client_multi"},
+        detail={"invoices": tx.reconciled_with, "type": "client_multi"},
     )
     return await _serialize_transaction(db, tx)
 
@@ -382,7 +393,11 @@ async def create_supplier_payment_from_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"invoice_id": payload.invoice_id, "type": "supplier"},
+        detail={
+            "invoices": tx.reconciled_with,
+            "invoice_id": payload.invoice_id,
+            "type": "supplier",
+        },
     )
     return await _serialize_transaction(db, tx)
 
@@ -410,7 +425,11 @@ async def link_client_payment_to_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"payment_id": payload.payment_id, "type": "link_client"},
+        detail={
+            "invoices": tx.reconciled_with,
+            "payment_id": payload.payment_id,
+            "type": "link_client",
+        },
     )
     return await _serialize_transaction(db, tx)
 
@@ -438,7 +457,11 @@ async def link_client_payments_to_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"count": len(payload.payment_ids), "type": "link_client_multi"},
+        detail={
+            "invoices": tx.reconciled_with,
+            "count": len(payload.payment_ids),
+            "type": "link_client_multi",
+        },
     )
     return await _serialize_transaction(db, tx)
 
@@ -466,7 +489,11 @@ async def link_supplier_payment_to_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"payment_id": payload.payment_id, "type": "link_supplier"},
+        detail={
+            "invoices": tx.reconciled_with,
+            "payment_id": payload.payment_id,
+            "type": "link_supplier",
+        },
     )
     return await _serialize_transaction(db, tx)
 

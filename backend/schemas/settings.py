@@ -323,6 +323,7 @@ class AuditLogRead(BaseModel):
     actor_username: str | None
     target_type: str | None
     target_id: int | None
+    target_label: str | None = None
     detail: dict[str, Any] | None
     created_at: _Datetime
 

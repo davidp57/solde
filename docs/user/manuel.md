@@ -899,6 +899,17 @@ Permet de configurer les règles de catégorisation automatique des transactions
 
 Permet de gérer les comptes utilisateurs : créer un compte, modifier le rôle, réinitialiser le mot de passe, désactiver un compte.
 
+### Journal d'audit
+
+L'écran **Système** présente le journal des actions enregistrées : connexions, créations, modifications et suppressions, rapprochements, imports, envois d'e-mails.
+
+- **Cible** — chaque entrée nomme l'élément touché tel qu'il était au moment de l'action : « 15/03/2026 · 150,00 € · VIR DUPONT » pour une opération bancaire, « F-2026-012 · Marie Dupont » pour une facture. Le libellé reste lisible même si l'élément a été modifié ou supprimé depuis. Le type et le numéro interne figurent en dessous.
+- **Détail** — les informations propres à l'action, en clair : montant, catégorie, facture(s) rattachée(s), écritures supprimées… Un rapprochement en masse liste les opérations rapprochées.
+- **Recherche** — le champ cherche dans l'utilisateur, le nom de l'action (« rapprochement », « suppression »…), la cible et le détail. `#447` retrouve les actions sur l'élément numéro 447.
+- **Filtres** — par domaine (Banque, Factures, Connexions…) et par période.
+
+Le journal est paginé côté serveur : toutes les entrées sont accessibles, et le nombre total s'affiche à droite des filtres.
+
 ---
 
 ## 15. Guide par rôle — « Je veux… »

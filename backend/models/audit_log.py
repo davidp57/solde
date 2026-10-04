@@ -20,6 +20,9 @@ class AuditLog(Base):
     actor_username: Mapped[str | None] = mapped_column(String, nullable=True)
     target_type: Mapped[str | None] = mapped_column(String, nullable=True)
     target_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Human-readable snapshot of the target taken when the action is recorded, so the
+    # entry stays legible once the target is edited or deleted. "" = could not resolve.
+    target_label: Mapped[str | None] = mapped_column(String, nullable=True)
     detail: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

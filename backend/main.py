@@ -241,6 +241,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception:
         logger.warning("Chart of accounts top-up failed", exc_info=True)
 
+    # Label the audit entries recorded before targets were labelled; a no-op once done.
+    try:
+        from backend.services.audit_service import backfill_target_labels
+
+        async with get_session() as db:
+            labelled = await backfill_target_labels(db)
+            if labelled:
+                logger.info("Audit journal: %d past entr(ies) labelled", labelled)
+    except Exception:
+        logger.warning("Audit journal label backfill failed", exc_info=True)
+
     # Start scheduler and configure job based on current settings
     start_scheduler()
     try:
