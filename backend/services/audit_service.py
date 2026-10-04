@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -182,6 +183,9 @@ async def search_audit_logs(
             AuditLog.target_type.ilike(pattern),
             AuditLog.action.ilike(pattern),
             cast(AuditLog.detail, String).ilike(pattern),
+            # The JSON column stores non-ASCII characters escaped ("H\u00e9l\u00e8ne"):
+            # match that spelling too, or an accented name in a detail is unfindable.
+            cast(AuditLog.detail, String).ilike(f"%{json.dumps(term)[1:-1]}%"),
         ]
         if q_actions:
             conditions.append(AuditLog.action.in_(list(q_actions)))

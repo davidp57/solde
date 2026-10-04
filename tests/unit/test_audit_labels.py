@@ -133,3 +133,11 @@ async def test_action_prefix_and_pagination(db_session: AsyncSession):
     page, total = await search_audit_logs(db_session, action_prefix="bank.", limit=1)
     assert total == 2
     assert len(page) == 1
+
+
+async def test_search_finds_accented_detail_values(db_session: AsyncSession):
+    """Details are stored as JSON with escaped accents ("H\u00e9l\u00e8ne")."""
+    await record_audit(db_session, action=AuditAction.CONTACT_DELETED, detail={"nom": "Hélène"})
+    await db_session.flush()
+    logs, _ = await search_audit_logs(db_session, q="Hélène")
+    assert [log.action for log in logs] == ["contact.delete"]
