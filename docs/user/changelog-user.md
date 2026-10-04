@@ -8,6 +8,8 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Tous les utilisateurs
 
+- **Barre latérale allégée** — les boutons séance de comptabilité, mode clair/sombre et déconnexion, ainsi que votre nom, apparaissaient deux fois : en haut de l'écran et en bas de la barre de gauche. Ils restent seulement en haut.
+
 - **Un règlement en espèces demande maintenant de saisir le montant** — jusqu'ici, le montant proposé était le solde de la facture : il suffisait de valider, même sans avoir compté l'argent. Pour les espèces, le champ se vide désormais et attend le montant réellement compté. Un bouton **« Reporter le solde dû »** reste disponible quand les deux coïncident, et l'application indique juste en dessous ce que le règlement va faire au solde de la caisse. Rien ne change pour les chèques, dont le montant est écrit sur le chèque.
 
 - **Sauvegarde OneDrive réparée** (administrateur) — la sauvegarde automatique se terminait en erreur toutes les nuits, alors que la base de données partait bien et se validait sans problème. C'est la copie des factures PDF qui échouait, et elle échouait **avant d'envoyer quoi que ce soit** : les PDF n'étaient donc plus sauvegardés depuis que leur nombre avait dépassé un certain seuil. Le retard est rattrapé automatiquement à la sauvegarde suivante (comptez un envoi plus long, une seule fois). En prime, un échec de sauvegarde indique maintenant **quelle étape** a échoué, au lieu d'une erreur technique sans contexte, et l'application patiente puis réessaie quand OneDrive se déclare temporairement surchargé — auparavant la sauvegarde s'arrêtait net.

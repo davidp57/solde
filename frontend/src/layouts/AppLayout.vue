@@ -65,68 +65,12 @@
       <!-- Desktop sidebar (≥1200px) -->
       <aside class="sidebar">
         <NavMenu />
-        <div class="sidebar-footer">
-          <Button
-            v-if="auth.canAccessAccounting"
-            icon="pi pi-check-square"
-            text
-            rounded
-            :badge="checklistBadge"
-            :aria-label="t('checklist.title')"
-            :title="t('checklist.title')"
-            @click="openChecklist"
-          />
-          <RouterLink to="/profile" class="sidebar-user">
-            <span class="sidebar-username">{{ displayedUsername }}</span>
-            <span class="sidebar-role">{{ displayedRoleLabel }}</span>
-          </RouterLink>
-          <Button
-            :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
-            text
-            rounded
-            :aria-label="isDark ? t('auth.light_mode') : t('auth.dark_mode')"
-            @click="toggleDark"
-          />
-          <Button
-            icon="pi pi-sign-out"
-            text
-            rounded
-            :aria-label="t('auth.logout')"
-            @click="handleLogout"
-          />
-        </div>
         <span class="sidebar-version">v{{ appVersion }}</span>
       </aside>
 
       <!-- Tablet icon rail (768–1199px) -->
       <aside class="rail">
         <NavMenu variant="rail" />
-        <div class="rail-footer">
-          <Button
-            v-if="auth.canAccessAccounting"
-            icon="pi pi-check-square"
-            text
-            rounded
-            :badge="checklistBadge"
-            :aria-label="t('checklist.title')"
-            :title="t('checklist.title')"
-            @click="openChecklist"
-          />
-          <Button
-            :icon="isDark ? 'pi pi-sun' : 'pi pi-moon'"
-            text
-            rounded
-            :aria-label="isDark ? t('auth.light_mode') : t('auth.dark_mode')"
-            @click="toggleDark"
-          />
-          <Button
-            icon="pi pi-sign-out"
-            text
-            rounded
-            :aria-label="t('auth.logout')"
-            @click="handleLogout"
-          />
-        </div>
       </aside>
 
       <!-- Main content -->
@@ -198,9 +142,6 @@ const { bottomNavItems } = useNavigation()
 const sidebarVisible = ref(false)
 const appVersion = __APP_VERSION__
 const displayedUsername = computed(() => auth.user?.username ?? t('auth.me'))
-const displayedRoleLabel = computed(() =>
-  auth.user?.role ? t(`user.role.${auth.user.role}`) : t('auth.session_active'),
-)
 const fiscalYearOptions = computed(() => [
   { id: null, name: t('app.all_fiscal_years') },
   ...fiscalYearStore.fiscalYears,
@@ -214,7 +155,6 @@ const selectedFiscalYearOptionId = computed<number | null>({
 const panelBg = computed(() => (isDark.value ? 'var(--p-surface-900)' : 'var(--p-surface-0)'))
 const mainBg = computed(() => (isDark.value ? 'var(--p-surface-950)' : 'var(--p-surface-50)'))
 const borderColor = computed(() => (isDark.value ? 'var(--p-surface-700)' : 'var(--p-surface-200)'))
-const hoverBg = computed(() => (isDark.value ? 'var(--p-surface-800)' : 'var(--p-surface-100)'))
 
 async function handleLogout(): Promise<void> {
   auth.logout({ preventDevAutoLogin: true })
@@ -341,57 +281,8 @@ onMounted(() => {
   width: 72px;
 }
 
-.sidebar-footer {
-  margin-top: auto;
-  display: flex;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-top: 1px solid v-bind(borderColor);
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
-.rail-footer {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.5rem 0;
-  border-top: 1px solid v-bind(borderColor);
-  gap: 0.25rem;
-  flex-shrink: 0;
-}
-
-.sidebar-user {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  text-decoration: none;
-  color: inherit;
-  padding: 0.25rem 0.375rem;
-  border-radius: 0.375rem;
-  transition: background 0.15s;
-}
-
-.sidebar-user:hover {
-  background: v-bind(hoverBg);
-}
-
-.sidebar-username {
-  font-size: 0.875rem;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar-role {
-  font-size: 0.75rem;
-  color: var(--p-text-muted-color);
-}
-
 .sidebar-version {
+  margin-top: auto;
   font-size: 0.7rem;
   color: var(--p-text-muted-color);
   padding: 0.25rem 1rem 0.5rem;

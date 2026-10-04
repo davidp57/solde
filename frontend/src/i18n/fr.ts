@@ -23,7 +23,6 @@ export default {
     dark_mode: 'Mode sombre',
     light_mode: 'Mode clair',
     me: 'Mon compte',
-    session_active: 'Session active',
     session_expiring_soon: 'Votre session expire dans 5 minutes.',
     session_extend: 'Prolonger la session',
   },
