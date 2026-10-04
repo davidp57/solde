@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "solde"
-version = "1.18.12"
+version = "1.18.13"
 description = "Web app for French non-profit accounting — invoicing, payments, cash management and double-entry bookkeeping."
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "sqlalchemy[asyncio]>=2.0",
+    "sqlalchemy[asyncio]>=2.1,<2.2",
     "aiosqlite>=0.20",
     "alembic>=1.13",
     "pydantic[email]>=2.0",

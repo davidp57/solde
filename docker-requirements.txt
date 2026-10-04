@@ -4,7 +4,7 @@
 # do NOT invalidate the Docker pip install layer (only actual dep changes do).
 fastapi>=0.115
 uvicorn[standard]>=0.30
-sqlalchemy[asyncio]>=2.0
+sqlalchemy[asyncio]>=2.1,<2.2
 aiosqlite>=0.20
 alembic>=1.13
 pydantic[email]>=2.0
