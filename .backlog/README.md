@@ -41,7 +41,7 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [SCHEMA-DRIFT](SCHEMA-DRIFT/PRD.md) — aligner les modèles ORM sur les migrations (17 écarts, dont l'unicité des numéros d'écriture) et le vérifier en CI (TEC-256/257) | ✅ |
 | [ENTRY-NUMBER](ENTRY-NUMBER/PRD.md) — numéros d'écriture : import Excel qui repart à 1 sur un numéro `SAL-…`, fausse boucle de nouvelle tentative dans `next_entry_number` (TEC-258/259) | ⬜ |
 | [ERROR-MESSAGES](ERROR-MESSAGES/PRD.md) — messages d'erreur explicites (résolveur central, table `api_errors` branchée) et catégorie des opérations rapprochées : verrou ciblé, cadenas, catégorie posée par le règlement, avertissement avant un rapprochement sans écriture (TEC-260 + BIZ-262/263) | ✅ |
-| [AUDIT-LOG](AUDIT-LOG/PRD.md) — journal d'audit lisible et cherchable : libellé de cible figé, détail en clair, recherche et filtres côté serveur (TEC-261/262 + BIZ-264) | 🔄 |
+| [AUDIT-LOG](AUDIT-LOG/PRD.md) — journal d'audit lisible et cherchable : libellé de cible figé, détail en clair, recherche et filtres côté serveur (TEC-261/262 + BIZ-264) | ✅ |
 
 ## Lots archivés
 

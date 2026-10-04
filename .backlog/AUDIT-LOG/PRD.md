@@ -1,7 +1,7 @@
 # Lot AUDIT-LOG — Journal d'audit lisible et cherchable
 
-Status: 🔄 in-progress
-Branch: feature/audit-log → PR → develop
+Status: ✅ done
+Branch: feature/audit-log → PR #173 → develop (mergée le 04/10/2026)
 
 ## Problem Statement
 
