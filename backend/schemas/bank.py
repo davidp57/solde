@@ -39,6 +39,8 @@ class BankTransactionRead(BaseModel):
     detected_category: BankTransactionCategory
     payment_id: int | None
     payment_ids: list[int] = Field(default_factory=list)
+    #: True when the category drives entries already generated (direct reconciliation).
+    category_locked: bool = False
 
     model_config = {"from_attributes": True}
 

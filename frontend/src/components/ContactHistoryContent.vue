@@ -622,6 +622,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -822,8 +823,8 @@ async function loadInvoiceDetailData(id: number): Promise<void> {
           if (requestId === clientPdfRequestId.value) clientPdfLoading.value = false
         })
     }
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
     closeInvoiceDetail()
   } finally {
     invoiceDetailLoading.value = false
@@ -864,8 +865,8 @@ async function openPaymentDetail(data: ContactPaymentSummary): Promise<void> {
   paymentDetail.value = null
   try {
     paymentDetail.value = await getPayment(data.id)
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
     paymentDetailVisible.value = false
   } finally {
     paymentDetailLoading.value = false
@@ -882,8 +883,8 @@ async function downloadPdf(invoice: Invoice): Promise<void> {
     a.download = `facture-${invoice.number ?? invoice.id}.pdf`
     a.click()
     URL.revokeObjectURL(url)
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     downloadingPdf.value = false
   }
@@ -914,8 +915,8 @@ function confirmMarkDouteux() {
           life: 5000,
         })
         await loadHistory()
-      } catch {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+      } catch (err: unknown) {
+        toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
       }
     },
   })

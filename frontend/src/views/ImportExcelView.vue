@@ -69,6 +69,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
@@ -171,6 +172,8 @@ function getImportErrorSummary(error: unknown): string {
     : undefined
   if (typeof detail === 'string' && detail.trim()) return detail
   if ((error as { code?: string }).code === 'ECONNABORTED') return t('import.request_timeout')
+  const resolved = getErrorDetail(error, '')
+  if (resolved) return resolved
   const message = (error as { message?: unknown }).message
   if (typeof message === 'string' && message.trim()) return message
   return t('common.error.unknown')
@@ -202,7 +205,7 @@ async function loadTestShortcuts() {
     )
   } catch (error: unknown) {
     const status = (error as { response?: { status?: number } }).response?.status
-    if (status !== 404) toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+    if (status !== 404) toast.add({ severity: 'error', summary: getErrorDetail(error, t('common.error.unknown')), life: 4000 })
     testShortcuts.value = []
   }
 }

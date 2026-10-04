@@ -230,6 +230,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import { useToast } from 'primevue/usetoast'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
@@ -463,8 +464,8 @@ async function load(): Promise<void> {
       reminder_next_body_template: data.reminder_next_body_template,
     })
     baseline = snapshot()
-  } catch {
-    errorMessage.value = t('common.error.unknown')
+  } catch (err: unknown) {
+    errorMessage.value = getErrorDetail(err, t('common.error.unknown'))
   }
 }
 

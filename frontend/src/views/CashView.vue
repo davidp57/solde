@@ -751,6 +751,7 @@ import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import { useRoute, useRouter } from 'vue-router'
 import TrendLineChart, {
   type TrendLineChartSeries,
@@ -1121,8 +1122,8 @@ async function confirmDeleteEntry(entry: CashEntry) {
   let connections
   try {
     connections = await getCashEntryConnections(entry.id)
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
     return
   }
   if (!connections.can_delete) {
@@ -1151,8 +1152,8 @@ async function doDeleteEntry(entry: CashEntry) {
     await deleteCashEntry(entry.id)
     entries.value = entries.value.filter((e) => e.id !== entry.id)
     toast.add({ severity: 'success', summary: t('cash.entry_deleted'), life: 3000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -1212,9 +1213,9 @@ async function loadAll() {
     entries.value = e
     counts.value = c
     fundsChartData.value = chart
-  } catch {
+  } catch (err: unknown) {
     fundsChartData.value = []
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     loadingEntries.value = false
     loadingCounts.value = false
@@ -1246,8 +1247,8 @@ async function submitEntry() {
     editingEntry.value = null
     resetEntryForm()
     await loadAll()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     saving.value = false
   }
@@ -1265,8 +1266,8 @@ async function submitCount() {
     await addCashCount(payload)
     countDialogVisible.value = false
     await loadAll()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     saving.value = false
   }

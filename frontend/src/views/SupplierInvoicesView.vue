@@ -1026,8 +1026,8 @@ async function downloadFile(invoice: Invoice) {
     a.download = `facture-${invoice.number}.${ext}`
     a.click()
     URL.revokeObjectURL(url)
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     previewDownloading.value = false
   }
@@ -1076,8 +1076,8 @@ async function uploadFile() {
     applyInvoiceLocally(withFile)
     toast.add({ severity: 'success', summary: t('invoices.file_uploaded'), life: 3000 })
     uploadDialogVisible.value = false
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     uploading.value = false
   }

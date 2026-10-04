@@ -41,6 +41,8 @@ export interface BankTransaction {
   bank_account: BankAccountType
   payment_id: number | null
   payment_ids: number[]
+  /** The category drives entries already generated (direct reconciliation): not editable. */
+  category_locked: boolean
 }
 
 export interface BankTransactionClientPaymentAllocation {

@@ -438,6 +438,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
@@ -753,7 +754,7 @@ function getApiErrorSummary(error: unknown): string {
     return t('common.error.notFound')
   }
 
-  return t('common.error.unknown')
+  return getErrorDetail(error, t('common.error.unknown'))
 }
 
 async function loadUsers(): Promise<void> {

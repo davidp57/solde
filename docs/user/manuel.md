@@ -467,6 +467,10 @@ Solde détecte automatiquement la catégorie de chaque transaction (frais bancai
 
 La catégorie détermine les écritures comptables générées lors du rapprochement.
 
+Quand vous **créez ou rattachez un règlement** depuis la ligne, la catégorie passe d'elle-même en « Paiement client » ou « Paiement fournisseur », quelle que soit celle détectée à l'import.
+
+> **Cadenas à la place du crayon** — Une opération rapprochée directement (bouton **Rapprocher**, **Tout rapprocher**, **Rapprocher avant…**) a déjà généré ses écritures à partir de sa catégorie : celle-ci est verrouillée. Pour la corriger, un trésorier défait d'abord le rapprochement (voir *Défaire un rapprochement*), change la catégorie, puis rapproche à nouveau — ou crée le règlement client depuis la ligne s'il s'agissait d'un virement de client. Une opération rapprochée par un **règlement** ou un **bordereau** garde son crayon : ses écritures viennent du règlement ou du bordereau, sa catégorie n'est qu'une étiquette.
+
 > **Catégorie « Sans écriture »** — Si une transaction doit apparaître sur le relevé bancaire mais ne doit générer aucune écriture comptable (par exemple un virement vers un compte extérieur à Solde), assigner la catégorie **Sans écriture**. Lors du rapprochement, aucune écriture ne sera créée, quelle que soit la configuration des règles.
 
 ### Rapprochement bancaire

@@ -637,8 +637,8 @@ async function regenerateEntries(invoice: Invoice): Promise<void> {
       summary: t('invoices.regenerate_entries_ok', { n: entries }),
       life: 3000,
     })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -1158,8 +1158,8 @@ async function openPdf(invoice: Invoice) {
     a.download = `facture-${invoice.number ?? invoice.id}.pdf`
     a.click()
     URL.revokeObjectURL(url)
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -1188,8 +1188,8 @@ async function confirmWriteOff(): Promise<void> {
     writeOffDialogVisible.value = false
     applyInvoiceLocally(written)
     toast.add({ severity: 'success', summary: t('invoices.write_off'), life: 3000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     writeOffLoading.value = false
   }
@@ -1200,8 +1200,8 @@ async function restoreFromWriteoff(invoice: Invoice): Promise<void> {
     const restored = await restoreFromWriteoffApi(invoice.id)
     applyInvoiceLocally(restored)
     toast.add({ severity: 'success', summary: t('invoices.restore_from_writeoff'), life: 3000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -1227,8 +1227,8 @@ async function executeBulkArchive(): Promise<void> {
     })
     // A bulk operation answers with counts, not with the archived invoices.
     await refreshInvoicesData()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -1237,8 +1237,8 @@ async function duplicate(invoice: Invoice) {
     const copy = await duplicateInvoiceApi(invoice.id)
     applyInvoiceLocally(copy)
     toast.add({ severity: 'success', summary: t('invoices.duplicated'), life: 3000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 

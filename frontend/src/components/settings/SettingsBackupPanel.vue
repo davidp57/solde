@@ -371,6 +371,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
@@ -693,8 +694,8 @@ async function saveSchedule() {
     const saved = await updateSchedule({ ...schedule })
     Object.assign(schedule, saved)
     toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), detail: t('common.save_failed'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.save_failed')), life: 5000 })
   }
 }
 
@@ -707,8 +708,8 @@ async function runNow() {
     await triggerBackup()
     toast.add({ severity: 'info', summary: t('settings.backup_started'), life: 3000 })
     _startActivePolling()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     runningNow.value = false
   }
@@ -739,8 +740,8 @@ async function toggleDestEnabled(dest: BackupDestination, v: boolean) {
   try {
     await updateDestination(dest.id, { enabled: v })
     dest.enabled = v
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -753,8 +754,8 @@ async function testConnection(dest: BackupDestination) {
       detail: result.message,
       life: 5000,
     })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -769,8 +770,8 @@ function confirmDeleteDest(dest: BackupDestination) {
         await deleteDestination(dest.id)
         destinations.value = destinations.value.filter((d) => d.id !== dest.id)
         toast.add({ severity: 'success', summary: t('common.deleted'), life: 2000 })
-      } catch {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+      } catch (err: unknown) {
+        toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
       }
     },
   })
@@ -835,8 +836,8 @@ async function saveNewDest() {
     destinations.value.push(created)
     showAddDestDialog.value = false
     toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     savingDest.value = false
   }
@@ -867,8 +868,8 @@ async function saveEditDest() {
     destinations.value = destinations.value.map((d) => (d.id === updated.id ? updated : d))
     showAddDestDialog.value = false
     toast.add({ severity: 'success', summary: t('common.saved'), life: 2000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     savingDest.value = false
   }

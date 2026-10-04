@@ -217,11 +217,11 @@
                       :menu-aria-label="t('common.actions')"
                     />
                     <Button
-                      icon="pi pi-pencil"
+                      :icon="categoryEditIcon(data)"
                       size="small"
                       text
                       severity="secondary"
-                      :title="t('bank.edit_category_label')"
+                      :title="categoryEditTitle(data)"
                       @click="openCategoryEdit($event, data)"
                     />
                   </div>
@@ -383,12 +383,12 @@
                       :value="t(`bank.categories.${data.detected_category}`)"
                     />
                     <Button
-                      icon="pi pi-pencil"
+                      :icon="categoryEditIcon(data)"
                       size="small"
                       text
                       severity="secondary"
                       class="bank-category-edit-btn"
-                      :title="t('bank.edit_category_label')"
+                      :title="categoryEditTitle(data)"
                       @click="openCategoryEdit($event, data)"
                     />
                   </div>
@@ -523,11 +523,11 @@
                       :menu-aria-label="t('common.actions')"
                     />
                     <Button
-                      icon="pi pi-pencil"
+                      :icon="categoryEditIcon(data)"
                       size="small"
                       text
                       severity="secondary"
-                      :title="t('bank.edit_category_label')"
+                      :title="categoryEditTitle(data)"
                       @click="openCategoryEdit($event, data)"
                     />
                   </div>
@@ -689,12 +689,12 @@
                       :value="t(`bank.categories.${data.detected_category}`)"
                     />
                     <Button
-                      icon="pi pi-pencil"
+                      :icon="categoryEditIcon(data)"
                       size="small"
                       text
                       severity="secondary"
                       class="bank-category-edit-btn"
-                      :title="t('bank.edit_category_label')"
+                      :title="categoryEditTitle(data)"
                       @click="openCategoryEdit($event, data)"
                     />
                   </div>
@@ -1089,6 +1089,8 @@ import { listPayments, type Payment } from '@/api/payments'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
 import { useListLimitStore } from '@/stores/listLimit'
 import { formatDisplayDate } from '@/utils/format'
+import { getErrorDetail } from '@/utils/errorUtils'
+import { useAuthStore } from '@/stores/auth'
 import {
   dateRangeFilter,
   inFilter,
@@ -1104,6 +1106,7 @@ const { isMobile } = useBreakpoints()
 const toast = useToast()
 const confirm = useConfirm()
 const fiscalYearStore = useFiscalYearStore()
+const authStore = useAuthStore()
 const limitStore = useListLimitStore()
 const LIMIT_VIEW_TX = 'bank-transactions'
 const LIMIT_VIEW_DEP = 'bank-deposits'
@@ -1199,8 +1202,8 @@ async function deleteTx(tx: BankTransaction): Promise<void> {
         // stale balances on screen.
         await loadTransactions()
         toast.add({ severity: 'success', summary: t('bank.transaction_deleted'), life: 2000 })
-      } catch {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+      } catch (err: unknown) {
+        toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
       }
     },
   })
@@ -1219,7 +1222,7 @@ function unreconcileErrorSummary(err: unknown): string {
     err as { response?: { data?: { detail?: { code?: string } } } }
   )?.response?.data?.detail?.code
   const key = code ? unreconcileErrorMessages[code] : undefined
-  return key ? t(key) : t('common.error.unknown')
+  return key ? t(key) : getErrorDetail(err, t('common.error.unknown'))
 }
 
 // The interface stays optimistic: only "is it reconciled" gates the action, and the
@@ -1500,14 +1503,40 @@ async function reconcile(tx: BankTransaction): Promise<void> {
       transactions.value = transactions.value.filter((t) => t.id !== tx.id)
     } else {
       const original = transactions.value.find((t) => t.id === tx.id)
-      if (original) original.reconciled = true
+      if (original) {
+        original.reconciled = true
+        // A direct reconciliation is exactly what freezes the category.
+        original.category_locked = true
+      }
     }
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
+// The category of a directly reconciled transaction is locked server-side
+// (BANK_TRANSACTION_RECONCILED_LOCKED, rule in is_category_locked): the button turns
+// into a padlock that explains the way out instead of opening an editor whose save is
+// bound to fail.
+function categoryEditIcon(tx: BankTransaction): string {
+  return tx.category_locked ? 'pi pi-lock' : 'pi pi-pencil'
+}
+
+function categoryLockedMessage(): string {
+  return authStore.isTresorier
+    ? t('bank.category_locked_tresorier')
+    : t('bank.category_locked_secretaire')
+}
+
+function categoryEditTitle(tx: BankTransaction): string {
+  return tx.category_locked ? categoryLockedMessage() : t('bank.edit_category_label')
+}
+
 function openCategoryEdit(event: Event, tx: BankTransaction): void {
+  if (tx.category_locked) {
+    toast.add({ severity: 'info', summary: categoryLockedMessage(), life: 6000 })
+    return
+  }
   categoryEditTx.value = tx
   categoryEditValue.value = tx.detected_category
   categoryEditPopover.value?.show(event)
@@ -1521,8 +1550,8 @@ async function saveCategoryEdit(): Promise<void> {
     if (original) original.detected_category = categoryEditValue.value
     categoryEditPopover.value?.hide()
     toast.add({ severity: 'success', summary: t('bank.category_updated'), life: 2000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -1556,8 +1585,8 @@ async function reconcileAllVisible(): Promise<void> {
       life: 3000,
     })
     await loadTransactions()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     reconcilingAll.value = false
   }
@@ -1584,8 +1613,8 @@ async function reconcileBeforeDateConfirm(): Promise<void> {
     reconcileBeforePopover.value?.hide()
     reconcileBeforeDate.value = null
     await loadTransactions()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     reconcilingBefore.value = false
   }
@@ -1643,8 +1672,8 @@ async function loadTransactions(): Promise<void> {
     })
     limitStore.setTotalCount(LIMIT_VIEW_TX, total)
     transactions.value = items
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     loadingTx.value = false
   }
@@ -1668,8 +1697,8 @@ async function loadDeposits(): Promise<void> {
     limitStore.setTotalCount(LIMIT_VIEW_DEP, allResult.total)
     deposits.value = allResult.items
     pendingDeposits.value = pending
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     loadingDeposits.value = false
   }

@@ -198,6 +198,13 @@ async def _store_transaction_payment_links(
     tx.reconciled = True
     tx.reconciled_with = _build_reconciled_with_value(payment_ids, invoice_numbers)
     tx.payment_id = payment_ids[0] if len(payment_ids) == 1 else None
+    # A line settled by a payment *is* a customer or supplier payment, whatever the
+    # import guessed: leaving "other credit" on it mislabels work that was done right.
+    tx.detected_category = (
+        BankTransactionCategory.CUSTOMER_PAYMENT
+        if tx.amount > 0
+        else BankTransactionCategory.SUPPLIER_PAYMENT
+    )
 
 
 async def _finalize_payment_link(
@@ -781,6 +788,21 @@ def find_deposit_id_for_transaction(tx: BankTransaction) -> int | None:
         if match:
             return int(match.group(1))
     return None
+
+
+def is_category_locked(tx: BankTransaction, payment_ids: Sequence[int]) -> bool:
+    """Tell whether the category of *tx* can no longer be edited.
+
+    Only a direct reconciliation (:func:`reconcile_transactions_bulk`) turns the
+    category into accounting entries, so only there would editing it leave the
+    journal stale. A line held by a payment or a deposit slip gets its entries from
+    the payment or the slip: its category is a label, free to fix.
+    """
+    if not tx.reconciled:
+        return False
+    if tx.payment_id is not None or payment_ids:
+        return False
+    return find_deposit_id_for_transaction(tx) is None
 
 
 async def unreconcile_transaction(db: AsyncSession, tx: BankTransaction) -> int:
