@@ -19,6 +19,7 @@ from backend.schemas.payment import (
 )
 from backend.services import payment as payment_service
 from backend.services import settings as settings_service
+from backend.services.audit_labels import describe_target
 from backend.services.audit_service import AuditAction, record_audit
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -179,6 +180,7 @@ async def delete_payment(
         "amount": str(payment.amount),
         "method": payment.method,
     }
+    label = await describe_target(db, "payment", payment_id)
     try:
         outcome = await payment_service.cancel_payment(db, payment_id)
     except payment_service.PaymentCancelError as exc:
@@ -194,6 +196,7 @@ async def delete_payment(
         actor=current_user,
         target_id=payment_id,
         target_type="payment",
+        target_label=label,
         detail=detail,
     )
 

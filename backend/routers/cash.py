@@ -23,6 +23,7 @@ from backend.schemas.cash import (
     LinkedAccountingEntry,
 )
 from backend.services import cash_service
+from backend.services.audit_labels import describe_target
 from backend.services.audit_service import AuditAction, record_audit
 
 router = APIRouter(prefix="/cash", tags=["cash"])
@@ -164,6 +165,7 @@ async def delete_entry(
             "CASH_ENTRY_NOT_MANUAL",
             "Only manual cash entries can be deleted",
         )
+    label = await describe_target(db, "cash_entry", entry_id)
     try:
         await cash_service.delete_cash_entry(db, entry)
     except ValueError as exc:
@@ -178,6 +180,7 @@ async def delete_entry(
         actor=current_user,
         target_id=entry_id,
         target_type="cash_entry",
+        target_label=label,
     )
 
 

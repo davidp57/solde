@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from httpx import AsyncClient
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.bank import BankTransaction, BankTransactionSource
@@ -678,6 +679,33 @@ class TestGetAuditLogs:
         response = await client.get("/api/settings/audit-logs", headers=auth_headers)
         assert response.status_code == 200
         assert isinstance(response.json(), list)
+
+    async def test_search_returns_labelled_page_and_total(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ) -> None:
+        """The journal names what was touched and can be searched by it."""
+        created = await client.post(
+            "/api/bank/transactions",
+            json={"date": "2026-03-15", "amount": "150.00", "description": "VIR DUPONT"},
+            headers=auth_headers,
+        )
+        tx_id = created.json()["id"]
+        await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"description": "VIR DUPONT MARS"},
+            headers=auth_headers,
+        )
+
+        await db_session.flush()  # the shared test session never commits between requests
+        response = await client.get(
+            "/api/settings/audit-logs", params={"q": "dupont", "limit": 1}, headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        assert response.headers["X-Total-Count"] == "2"
+        [newest] = response.json()
+        assert newest["action"] == "bank.transaction.update"
+        assert newest["target_label"] == "15/03/2026 · 150,00 € · VIR DUPONT MARS"
 
 
 class TestReminderTemplates:

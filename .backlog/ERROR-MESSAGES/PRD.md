@@ -1,7 +1,7 @@
 # Lot ERROR-MESSAGES — Messages d'erreur explicites et catégorie des opérations rapprochées
 
-Status: 🔄 in-progress
-Branch: fix/error-messages → PR → develop
+Status: ✅ done
+Branch: fix/error-messages → PR #172 → develop (mergée le 04/10/2026)
 
 ## Problem Statement
 

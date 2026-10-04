@@ -1860,6 +1860,93 @@ class TestEditDeleteManualTransactions:
         assert r.json()["description"] == "Note ajoutée après rapprochement"
 
 
+class TestAuditTrail:
+    """Lot AUDIT-LOG — bank actions say which lines they touched."""
+
+    async def _create(self, client: AsyncClient, headers: dict, description: str) -> int:
+        r = await client.post(
+            "/api/bank/transactions",
+            json={"date": "2026-03-15", "amount": "-15.00", "description": description},
+            headers=headers,
+        )
+        return int(r.json()["id"])
+
+    async def _last(
+        self, client: AsyncClient, db: AsyncSession, headers: dict, action: str
+    ) -> dict:
+        # The test client shares one session that never commits: flush the pending
+        # audit rows so the journal endpoint can read them.
+        await db.flush()
+        r = await client.get("/api/settings/audit-logs", params={"action": action}, headers=headers)
+        return r.json()[0]
+
+    async def test_bulk_reconcile_lists_the_reconciled_lines(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        first = await self._create(client, auth_headers, "FRAIS A")
+        second = await self._create(client, auth_headers, "FRAIS B")
+        await client.post(
+            "/api/bank/transactions/reconcile-bulk",
+            json={"ids": [first, second]},
+            headers=auth_headers,
+        )
+
+        entry = await self._last(
+            client, db_session, auth_headers, "bank.transaction.bulk_reconcile"
+        )
+
+        assert entry["detail"]["count"] == 2
+        assert entry["detail"]["transactions"] == [
+            "15/03/2026 · -15,00 € · FRAIS A",
+            "15/03/2026 · -15,00 € · FRAIS B",
+        ]
+
+    async def test_single_reconcile_names_its_line(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        tx_id = await self._create(client, auth_headers, "FRAIS SEUL")
+        await client.post(
+            "/api/bank/transactions/reconcile-bulk", json={"ids": [tx_id]}, headers=auth_headers
+        )
+
+        entry = await self._last(
+            client, db_session, auth_headers, "bank.transaction.bulk_reconcile"
+        )
+
+        assert entry["target_id"] == tx_id
+        assert entry["target_label"] == "15/03/2026 · -15,00 € · FRAIS SEUL"
+
+    async def test_deleted_line_keeps_its_label(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        tx_id = await self._create(client, auth_headers, "DOUBLON")
+        await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+
+        entry = await self._last(client, db_session, auth_headers, "bank.transaction.delete")
+
+        assert entry["target_label"] == "15/03/2026 · -15,00 € · DOUBLON"
+
+    async def test_payment_reconciliation_names_the_invoice(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        invoice = await _make_client_invoice(db_session)
+        r = await client.post(
+            "/api/bank/transactions",
+            json={"date": "2024-03-15", "amount": "150.00", "description": "VIR CLIENT"},
+            headers=auth_headers,
+        )
+        await client.post(
+            f"/api/bank/transactions/{r.json()['id']}/create-client-payment",
+            json={"invoice_id": invoice.id},
+            headers=auth_headers,
+        )
+
+        entry = await self._last(client, db_session, auth_headers, "bank.reconcile.payment")
+
+        assert entry["detail"]["invoices"] == invoice.number
+        assert entry["target_label"] == "15/03/2024 · 150,00 € · VIR CLIENT"
+
+
 class TestCategoryLock:
     """The category only freezes where it generated the entries: a direct reconciliation."""
 
