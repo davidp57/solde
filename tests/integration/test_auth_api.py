@@ -157,7 +157,7 @@ async def test_get_me_rejects_access_token_without_iat(
     """Access tokens without an iat claim are rejected."""
     settings = get_settings()
     token_without_iat = jwt.encode(
-        {"sub": admin_user.username},
+        {"sub": admin_user.username, "type": "access"},
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm,
     )

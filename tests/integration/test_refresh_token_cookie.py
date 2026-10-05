@@ -2,6 +2,7 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.user import User
 
@@ -152,3 +153,40 @@ async def test_refresh_updates_must_change_password(
     )
     assert refresh_resp.status_code == 200
     assert refresh_resp.json()["must_change_password"] is False
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_rejected_as_bearer(client: AsyncClient, admin_user: User) -> None:
+    """The 30-day refresh token must not be usable as an access token on the API."""
+    login_resp = await client.post(
+        "/api/auth/login",
+        data={"username": "admin", "password": "adminpassword123"},
+    )
+    refresh_token = login_resp.cookies.get("refresh_token")
+    assert refresh_token is not None
+
+    response = await client.get(
+        "/api/contacts/", headers={"Authorization": f"Bearer {refresh_token}"}
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_does_not_bypass_password_change_gate(
+    client: AsyncClient, admin_user: User, db_session: AsyncSession
+) -> None:
+    """A user who must change password cannot reach the API with the refresh token,
+    which carries no ``mcp`` claim for the password-change middleware to see."""
+    admin_user.must_change_password = True
+    await db_session.commit()
+    login_resp = await client.post(
+        "/api/auth/login",
+        data={"username": "admin", "password": "adminpassword123"},
+    )
+    refresh_token = login_resp.cookies.get("refresh_token")
+    assert refresh_token is not None
+
+    response = await client.get(
+        "/api/contacts/", headers={"Authorization": f"Bearer {refresh_token}"}
+    )
+    assert response.status_code == 401
