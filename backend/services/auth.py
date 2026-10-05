@@ -8,6 +8,11 @@ from jose import JWTError, jwt
 
 from backend.config import get_settings
 
+# JWT "type" claim: only access tokens may authenticate API requests; refresh
+# tokens are only accepted by /api/auth/refresh.
+ACCESS_TOKEN_TYPE = "access"
+REFRESH_TOKEN_TYPE = "refresh"
+
 
 def hash_password(password: str) -> str:
     """Return a bcrypt hash of the given plaintext password."""
@@ -34,6 +39,7 @@ def create_access_token(
     """
     settings = get_settings()
     payload = data.copy()
+    payload.setdefault("type", ACCESS_TOKEN_TYPE)
     now = datetime.now(UTC)
     expire = now + (
         expires_delta
@@ -49,7 +55,7 @@ def create_refresh_token(username: str) -> str:
     """Create a long-lived refresh token for the given username."""
     settings = get_settings()
     return create_access_token(
-        data={"sub": username, "type": "refresh"},
+        data={"sub": username, "type": REFRESH_TOKEN_TYPE},
         expires_delta=timedelta(days=settings.jwt_refresh_token_expire_days),
     )
 

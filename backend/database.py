@@ -27,6 +27,10 @@ def _build_engine(database_url: str | None = None) -> AsyncEngine:
     return create_async_engine(
         url,
         echo=False,
+        # SQL is still logged (main.py routes sqlalchemy.engine to the log file),
+        # but never with its bound values: they include the SMTP password, the
+        # chat API key and contact personal data.
+        hide_parameters=True,
         connect_args={"check_same_thread": False},
     )
 

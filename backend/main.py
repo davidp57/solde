@@ -88,6 +88,9 @@ class UnhandledExceptionMiddleware:
 
 LOG_DIR = Path("data/logs")
 
+# Built Vue.js frontend served by the SPA catch-all route (module-level so tests can patch it)
+FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
+
 # Do not write to the log file when running under pytest to avoid polluting
 # the production log file (shared via volume mount with the Docker container).
 _TESTING = "pytest" in sys.modules
@@ -386,7 +389,7 @@ def create_app() -> FastAPI:
     app.include_router(checklist.router, prefix="/api")
 
     # Serve Vue.js frontend static files (built output)
-    frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+    frontend_dist = FRONTEND_DIST.resolve()
     if frontend_dist.exists():
         # SPA fallback: serve the exact file if it exists (assets, favicon…),
         # otherwise return index.html so Vue Router handles client-side routing.
@@ -402,10 +405,16 @@ def create_app() -> FastAPI:
             # FastAPI should return 404, not index.html.
             if full_path.startswith("api/"):
                 raise HTTPException(status_code=404)
-            file_path = frontend_dist / full_path
-            if file_path.is_file() and full_path != "index.html":
+            # Resolve before checking containment: `full_path` arrives percent-decoded,
+            # so `%2e%2e/` or an absolute path would otherwise reach any file on disk.
+            file_path = (frontend_dist / full_path).resolve()
+            if (
+                file_path.is_relative_to(frontend_dist)
+                and file_path.is_file()
+                and file_path != frontend_dist / "index.html"
+            ):
                 response = FileResponse(str(file_path))
-                if full_path.startswith("assets/"):
+                if file_path.is_relative_to(frontend_dist / "assets"):
                     response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
                 return response
             # SPA route fallback or direct /index.html request — never cache

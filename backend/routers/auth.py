@@ -23,6 +23,8 @@ from backend.schemas.auth import (
 )
 from backend.services.audit_service import AuditAction, record_audit
 from backend.services.auth import (
+    ACCESS_TOKEN_TYPE,
+    REFRESH_TOKEN_TYPE,
     create_access_token,
     create_refresh_token,
     decode_access_token,
@@ -80,7 +82,7 @@ async def get_current_user(
     payload: dict[str, Any] | None = getattr(request.state, "jwt_payload", None)
     if payload is None:
         payload = decode_access_token(token)
-    if payload is None:
+    if payload is None or payload.get("type") != ACCESS_TOKEN_TYPE:
         raise credentials_exception
     username: str | None = payload.get("sub")
     if username is None:
@@ -254,7 +256,7 @@ async def refresh_token(
             detail="Missing refresh token",
         )
     payload = decode_access_token(cookie_token)
-    if payload is None or payload.get("type") != "refresh":
+    if payload is None or payload.get("type") != REFRESH_TOKEN_TYPE:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
