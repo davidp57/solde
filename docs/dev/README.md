@@ -19,7 +19,8 @@ git clone git@github.com:davidp57/solde.git
 cd solde
 python -m venv .venv
 .venv\Scripts\activate
-pip install -e ".[dev]"
+pip install -r requirements-dev.txt   # exact versions, as in CI
+pip install --no-deps -e .
 Copy-Item .env.example .env
 alembic upgrade head
 
