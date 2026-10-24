@@ -16,9 +16,12 @@ vi.mock('primevue/usetoast', () => ({
   }),
 }))
 
+let confirmAccept: (() => Promise<void> | void) | null = null
 vi.mock('primevue/useconfirm', () => ({
   useConfirm: () => ({
-    require: vi.fn(),
+    require: (options: { accept: () => Promise<void> | void }) => {
+      confirmAccept = options.accept
+    },
   }),
 }))
 
@@ -33,6 +36,11 @@ const fiscalYearStoreMock = reactive({
   initialized: true,
   initialize: vi.fn().mockResolvedValue(undefined),
 })
+
+// The row menu now offers an admin-only entry regeneration action.
+vi.mock('../../stores/auth', () => ({
+  useAuthStore: () => ({ isAdmin: true }),
+}))
 
 vi.mock('../../stores/fiscalYear', () => ({
   useFiscalYearStore: () => fiscalYearStoreMock,
@@ -78,10 +86,11 @@ vi.mock('../../api/payments', () => ({
 
 import SupplierInvoicesView from '../../views/SupplierInvoicesView.vue'
 import { listContactsApi } from '../../api/contacts'
-import { listInvoicesWithCountApi } from '../../api/invoices'
+import { deleteInvoiceApi, listInvoicesWithCountApi } from '../../api/invoices'
 import { createPayment, listPayments, suggestChequeNumber } from '../../api/payments'
 
 const mockListContactsApi = vi.mocked(listContactsApi)
+const mockDeleteInvoiceApi = vi.mocked(deleteInvoiceApi)
 const mockListInvoicesWithCountApi = vi.mocked(listInvoicesWithCountApi)
 const mockListPayments = vi.mocked(listPayments)
 const mockCreatePayment = vi.mocked(createPayment)
@@ -429,10 +438,20 @@ describe('SupplierInvoicesView — payment dialog', () => {
     await paymentButton!.trigger('click')
     await flushView()
 
-    // Switch method to especes
+    // Switch method to especes. The amount is cleared on purpose (BIZ-250): a
+    // cash sum has to be typed, so the balance is reported explicitly here.
     const selects = wrapper.findAll('select')
     const methodSelect = selects.at(-1)!
     await methodSelect.setValue('especes')
+    await flushView()
+
+    expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe('')
+
+    const applyButton = wrapper
+      .findAll('button')
+      .find((btn) => btn.text() === 'payments.apply_remaining')
+    await applyButton!.trigger('click')
+    await flushView()
 
     const paymentForm = wrapper.findAll('form').at(-1)!
     await paymentForm.trigger('submit')
@@ -536,5 +555,36 @@ describe('SupplierInvoicesView — preview dialog bottom navigation', () => {
     expect(prevButtons.length).toBeGreaterThanOrEqual(1)
     // All Previous buttons must be disabled at index 0
     expect(prevButtons.every((btn) => btn.element.disabled)).toBe(true)
+  })
+
+  it('drops a deleted invoice even when the list would answer stale', async () => {
+    confirmAccept = null
+    mockDeleteInvoiceApi.mockResolvedValue(undefined as never)
+    const wrapper = mountView()
+    await flushView()
+    expect(wrapper.text()).toContain(invoiceFixture.number)
+    mockListInvoicesWithCountApi.mockResolvedValue({ items: [invoiceFixture], total: 1 } as never)
+
+    const vm = wrapper.vm as unknown as { confirmDelete: (invoice: typeof invoiceFixture) => void }
+    vm.confirmDelete(invoiceFixture)
+    await confirmAccept?.()
+    await flushView()
+
+    expect(mockDeleteInvoiceApi).toHaveBeenCalledWith(invoiceFixture.id)
+    expect(wrapper.text()).not.toContain(invoiceFixture.number)
+  })
+
+  it('shows a saved invoice without asking for the list again', async () => {
+    const wrapper = mountView()
+    await flushView()
+    mockListInvoicesWithCountApi.mockClear()
+
+    const created = { ...invoiceFixture, id: 999, number: 'FF-2026-0999' }
+    const vm = wrapper.vm as unknown as { onSaved: (invoice: typeof invoiceFixture) => void }
+    vm.onSaved(created)
+    await flushView()
+
+    expect(wrapper.text()).toContain('FF-2026-0999')
+    expect(mockListInvoicesWithCountApi).not.toHaveBeenCalled()
   })
 })

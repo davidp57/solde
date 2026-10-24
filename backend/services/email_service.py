@@ -7,13 +7,55 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import TypedDict
 
+from backend.models.app_settings import SmtpSecurity
+
 
 class EmailConfigError(Exception):
     """Raised when SMTP is not configured."""
 
 
+class EmailInsecureCredentialsError(EmailConfigError):
+    """Raised when credentials are configured on an unencrypted connection."""
+
+
 class EmailSendError(Exception):
     """Raised when the email cannot be sent."""
+
+
+def _open_smtp(host: str, port: int, security: SmtpSecurity, timeout: float) -> smtplib.SMTP:
+    """Open an SMTP connection with the requested transport security.
+
+    Single connection factory shared by every send path, so that one setting
+    always means the same thing.
+    """
+    if security == "ssl":
+        return smtplib.SMTP_SSL(host, port, timeout=timeout, context=ssl.create_default_context())
+    server = smtplib.SMTP(host, port, timeout=timeout)
+    if security == "starttls":
+        try:
+            server.ehlo()
+            server.starttls(context=ssl.create_default_context())
+        except BaseException:
+            server.close()
+            raise
+    return server
+
+
+def _check_security(security: SmtpSecurity, user: str | None, password: str | None) -> None:
+    """Refuse to send credentials over an unencrypted connection.
+
+    Checked before connecting. Raises EmailInsecureCredentialsError.
+    """
+    if security == "none" and user and password:
+        raise EmailInsecureCredentialsError(
+            "SMTP credentials require an encrypted connection (starttls or ssl)"
+        )
+
+
+def _login(server: smtplib.SMTP, user: str | None, password: str | None) -> None:
+    """Authenticate if credentials are configured."""
+    if user and password:
+        server.login(user, password)
 
 
 def compose_subject(
@@ -184,7 +226,7 @@ def send_invoice_email(
     smtp_user: str,
     smtp_password: str,
     smtp_from_email: str,
-    smtp_use_tls: bool,
+    smtp_security: SmtpSecurity,
     recipient_email: str | list[str],
     invoice_number: str,
     association_name: str,
@@ -199,7 +241,8 @@ def send_invoice_email(
     If override_subject / override_body are provided they take precedence over
     the automatically composed defaults (used when the user edits before sending).
 
-    Raises EmailSendError if delivery fails.
+    Raises EmailConfigError if credentials would travel unencrypted,
+    EmailSendError if delivery fails.
     """
     subject = override_subject or compose_subject(invoice_number, description, association_name)
     body = override_body or compose_body(invoice_number, description, association_name)
@@ -222,18 +265,11 @@ def send_invoice_email(
     )
     msg.attach(attachment)
 
+    _check_security(smtp_security, smtp_user, smtp_password)
     try:
-        if smtp_use_tls:
-            context = ssl.create_default_context()
-            with smtplib.SMTP(smtp_host, smtp_port, timeout=30) as server:
-                server.ehlo()
-                server.starttls(context=context)
-                server.login(smtp_user, smtp_password)
-                server.send_message(msg)
-        else:
-            with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=30) as server:
-                server.login(smtp_user, smtp_password)
-                server.send_message(msg)
+        with _open_smtp(smtp_host, smtp_port, smtp_security, timeout=30) as server:
+            _login(server, smtp_user, smtp_password)
+            server.send_message(msg)
     except (smtplib.SMTPException, OSError) as exc:
         raise EmailSendError(f"Failed to send email: {exc}") from exc
 
@@ -244,7 +280,7 @@ def send_plain_email(
     port: int,
     user: str | None,
     password: str | None,
-    use_tls: bool,
+    security: SmtpSecurity,
     from_email: str,
     to_email: str,
     subject: str,
@@ -253,7 +289,8 @@ def send_plain_email(
     """Send a plain-text email (no attachment).
 
     Used for system notifications such as backup failure alerts.
-    Raises EmailSendError if delivery fails.
+    Raises EmailConfigError if credentials would travel unencrypted,
+    EmailSendError if delivery fails.
     """
     msg = MIMEMultipart()
     msg["From"] = from_email
@@ -261,20 +298,11 @@ def send_plain_email(
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain", "utf-8"))
 
+    _check_security(security, user, password)
     try:
-        if use_tls:
-            ctx = ssl.create_default_context()
-            with smtplib.SMTP(host, port, timeout=15) as server:
-                server.ehlo()
-                server.starttls(context=ctx)
-                if user and password:
-                    server.login(user, password)
-                server.send_message(msg)
-        else:
-            with smtplib.SMTP(host, port, timeout=15) as server:
-                if user and password:
-                    server.login(user, password)
-                server.send_message(msg)
+        with _open_smtp(host, port, security, timeout=15) as server:
+            _login(server, user, password)
+            server.send_message(msg)
     except (smtplib.SMTPException, OSError) as exc:
         raise EmailSendError(f"Failed to send plain email: {exc}") from exc
 
@@ -298,7 +326,7 @@ def send_bulk_emails(
     port: int,
     user: str | None,
     password: str | None,
-    use_tls: bool,
+    security: SmtpSecurity,
     from_email: str,
     messages: list[BulkEmailMessage],
 ) -> list[BulkEmailFailure]:
@@ -312,19 +340,12 @@ def send_bulk_emails(
     """
     if not host:
         raise EmailConfigError("SMTP host is not configured")
+    _check_security(security, user, password)
 
     failures: list[BulkEmailFailure] = []
     try:
-        if use_tls:
-            ctx = ssl.create_default_context()
-            server = smtplib.SMTP(host, port, timeout=30)
-            server.ehlo()
-            server.starttls(context=ctx)
-        else:
-            server = smtplib.SMTP(host, port, timeout=30)
-        with server:
-            if user and password:
-                server.login(user, password)
+        with _open_smtp(host, port, security, timeout=30) as server:
+            _login(server, user, password)
             for message in messages:
                 to_email = message["to"]
                 cc_list = list(message["cc"])

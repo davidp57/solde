@@ -26,8 +26,10 @@ from backend.routers import (
     bank,
     cash,
     chat,
+    checklist,
     contact,
     dashboard,
+    document,
     excel_import,
     fiscal_year,
     invoice,
@@ -85,6 +87,9 @@ class UnhandledExceptionMiddleware:
 # ---------------------------------------------------------------------------
 
 LOG_DIR = Path("data/logs")
+
+# Built Vue.js frontend served by the SPA catch-all route (module-level so tests can patch it)
+FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
 
 # Do not write to the log file when running under pytest to avoid polluting
 # the production log file (shared via volume mount with the Docker container).
@@ -224,6 +229,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     await init_db()
 
+    # Top up the chart of accounts: the seed is idempotent, and a database
+    # created before an account was added to DEFAULT_ACCOUNTS would otherwise
+    # never receive it. The engine writes on those numbers regardless, and an
+    # account missing from the chart is invisible to both the closing entry and
+    # the carry-forward — it silently unbalances the year.
+    try:
+        from backend.services.accounting_account import seed_default_accounts
+
+        async with get_session() as db:
+            inserted = await seed_default_accounts(db)
+            if inserted:
+                logger.info("Chart of accounts topped up: %d account(s) added", inserted)
+    except Exception:
+        logger.warning("Chart of accounts top-up failed", exc_info=True)
+
+    # Label the audit entries recorded before targets were labelled; a no-op once done.
+    try:
+        from backend.services.audit_service import backfill_target_labels
+
+        async with get_session() as db:
+            labelled = await backfill_target_labels(db)
+            if labelled:
+                logger.info("Audit journal: %d past entr(ies) labelled", labelled)
+    except Exception:
+        logger.warning("Audit journal label backfill failed", exc_info=True)
+
     # Start scheduler and configure job based on current settings
     start_scheduler()
     try:
@@ -304,6 +335,13 @@ def create_app() -> FastAPI:
         request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         response: Response = await call_next(request)
+        # Accounting data must never be read from a cache: a stale figure is worse than
+        # a slow one. Without this, an intermediary (browser heuristics, a NAS reverse
+        # proxy) is free to replay a previous answer, and the screen keeps showing
+        # amounts that no longer exist until the user hits F5.
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
@@ -339,6 +377,7 @@ def create_app() -> FastAPI:
     app.include_router(invoice.router, prefix="/api")
     app.include_router(payment.router, prefix="/api")
     app.include_router(cash.router, prefix="/api")
+    app.include_router(document.router, prefix="/api")
     app.include_router(bank.router, prefix="/api")
     app.include_router(salary.router, prefix="/api")
     app.include_router(dashboard.router, prefix="/api")
@@ -347,9 +386,10 @@ def create_app() -> FastAPI:
     app.include_router(backup.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
     app.include_router(app_comment.router, prefix="/api")
+    app.include_router(checklist.router, prefix="/api")
 
     # Serve Vue.js frontend static files (built output)
-    frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+    frontend_dist = FRONTEND_DIST.resolve()
     if frontend_dist.exists():
         # SPA fallback: serve the exact file if it exists (assets, favicon…),
         # otherwise return index.html so Vue Router handles client-side routing.
@@ -365,10 +405,16 @@ def create_app() -> FastAPI:
             # FastAPI should return 404, not index.html.
             if full_path.startswith("api/"):
                 raise HTTPException(status_code=404)
-            file_path = frontend_dist / full_path
-            if file_path.is_file() and full_path != "index.html":
+            # Resolve before checking containment: `full_path` arrives percent-decoded,
+            # so `%2e%2e/` or an absolute path would otherwise reach any file on disk.
+            file_path = (frontend_dist / full_path).resolve()
+            if (
+                file_path.is_relative_to(frontend_dist)
+                and file_path.is_file()
+                and file_path != frontend_dist / "index.html"
+            ):
                 response = FileResponse(str(file_path))
-                if full_path.startswith("assets/"):
+                if file_path.is_relative_to(frontend_dist / "assets"):
                     response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
                 return response
             # SPA route fallback or direct /index.html request — never cache

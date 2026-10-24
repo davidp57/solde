@@ -106,6 +106,7 @@ import Message from 'primevue/message'
 import Select from 'primevue/select'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import {
   createAccountApi,
   listAccountsApi,
@@ -184,8 +185,8 @@ async function submit(): Promise<void> {
       })
     }
     emit('saved')
-  } catch {
-    errorMessage.value = t('common.error.unknown')
+  } catch (err: unknown) {
+    errorMessage.value = getErrorDetail(err, t('common.error.unknown'))
   } finally {
     saving.value = false
   }

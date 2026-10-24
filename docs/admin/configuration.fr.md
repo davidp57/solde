@@ -99,7 +99,7 @@ Paramètres pour l'envoi d'e-mails (factures, notifications).
 |---|---|
 | Serveur SMTP | Adresse du serveur (ex. `smtp.gmail.com`) |
 | Port | Port SMTP (ex. `587` pour STARTTLS, `465` pour SSL) |
-| Utiliser SSL/TLS | Activer SSL direct (port 465 typiquement) |
+| Sécurité de la connexion | `STARTTLS` (port 587), `SSL/TLS` (port 465) ou `Aucune` — réservée à un relais local sans identifiant : Solde refuse d'y envoyer un identifiant |
 | Identifiant SMTP | Adresse e-mail ou identifiant du compte |
 | Mot de passe SMTP | Mot de passe ou mot de passe d'application |
 | E-mail expéditeur | Adresse affichée comme expéditeur |

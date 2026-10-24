@@ -2,11 +2,20 @@
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
-from sqlalchemy import Boolean, DateTime, Integer, Numeric, String
+from sqlalchemy import Boolean, DateTime, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
+
+SmtpSecurity = Literal["none", "starttls", "ssl"]
+"""Transport security of the SMTP connection.
+
+- ``none``     — plain connection, no encryption (local relay without authentication only)
+- ``starttls`` — plain connection upgraded with STARTTLS (typically port 587)
+- ``ssl``      — implicit TLS from the first byte (typically port 465)
+"""
 
 
 class AppSettings(Base):
@@ -51,7 +60,9 @@ class AppSettings(Base):
     smtp_user: Mapped[str | None] = mapped_column(String(255), nullable=True)
     smtp_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
     smtp_from_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    smtp_use_tls: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    smtp_security: Mapped[SmtpSecurity] = mapped_column(
+        String(10), nullable=False, default="starttls"
+    )
     smtp_bcc: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Chat / AI assistant
@@ -61,13 +72,13 @@ class AppSettings(Base):
 
     # Email templates (null = use built-in defaults)
     email_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    email_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
+    email_body_template: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Reminder (dunning) email templates — distinct from the initial send.
     # "first" = never reminded, "next" = follow-up. Null = built-in defaults.
-    reminder_first_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    reminder_first_subject_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
     reminder_first_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
-    reminder_next_subject_template: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    reminder_next_subject_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
     reminder_next_body_template: Mapped[str | None] = mapped_column(String(4000), nullable=True)
 
     # Payment instructions on invoices

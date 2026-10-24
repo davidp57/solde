@@ -144,7 +144,6 @@
         </div>
       </div>
     </div>
-    <ConfirmDialog />
   </Dialog>
 </template>
 
@@ -153,7 +152,6 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Button from 'primevue/button'
 import Checkbox from 'primevue/checkbox'
-import ConfirmDialog from 'primevue/confirmdialog'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import Message from 'primevue/message'
@@ -296,7 +294,7 @@ async function saveChanges(): Promise<void> {
     emit('update:visible', false)
     emit('updated')
   } catch (err) {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), detail: getErrorDetail(err), life: 5000 })
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     saving.value = false
   }
@@ -320,7 +318,7 @@ function confirmDeposit(): void {
         emit('update:visible', false)
         emit('updated')
       } catch (err) {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), detail: getErrorDetail(err), life: 5000 })
+        toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
       } finally {
         saving.value = false
       }
@@ -344,7 +342,7 @@ function cancelDeposit(): void {
         emit('update:visible', false)
         emit('cancelled')
       } catch (err) {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), detail: getErrorDetail(err), life: 5000 })
+        toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
       } finally {
         saving.value = false
       }

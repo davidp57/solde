@@ -19,7 +19,7 @@ Solde is a modular monolithic Python web application (FastAPI + SQLite) designed
 | Migrations | **Alembic** | CLI only, no runtime RAM cost |
 | PDF | **WeasyPrint** | ~30–50 MB peak during generation |
 | E-mail | **smtplib** (Python stdlib) | No extra memory cost |
-| Auth | **JWT** (`python-jose` + bcrypt) | Included in the Python process |
+| Auth | **JWT** (`PyJWT` + bcrypt) | Included in the Python process |
 | Container | **Single Docker container** | One service only |
 
 **Estimated total RAM: ~80–130 MB idle, ~180 MB peak during PDF generation, well below the 384 MB budget.**

@@ -215,3 +215,11 @@ export async function bulkArchiveInvoicesApi(ids: number[]): Promise<BulkArchive
   })
   return response.data
 }
+
+/** Admin only — rebuild the accounting entries of an invoice. */
+export async function regenerateInvoiceEntriesApi(id: number): Promise<{ entries: number }> {
+  const response = await apiClient.post<{ entries: number }>(
+    `/api/invoices/${id}/regenerate-entries`,
+  )
+  return response.data
+}

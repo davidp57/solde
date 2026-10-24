@@ -33,7 +33,7 @@ const getSettingsApi = vi.fn().mockResolvedValue({
   smtp_port: 587,
   smtp_user: null,
   smtp_from_email: null,
-  smtp_use_tls: true,
+  smtp_security: 'starttls',
   smtp_bcc: null,
   email_subject_template: null,
   email_body_template: null,

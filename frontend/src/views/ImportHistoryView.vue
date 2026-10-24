@@ -263,6 +263,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
@@ -358,6 +359,11 @@ function getImportErrorSummary(error: unknown): string {
 
   if (typeof detail === 'string' && detail.trim()) {
     return detail
+  }
+
+  const resolved = getErrorDetail(error, '')
+  if (resolved) {
+    return resolved
   }
 
   const message = (error as { message?: unknown }).message

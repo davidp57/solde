@@ -285,6 +285,22 @@ async def create_invoice(db: AsyncSession, payload: InvoiceCreate) -> Invoice:
             continue
 
         await db.refresh(invoice)
+
+        # Supplier invoices are born SENT (they are received, not drafted), so they
+        # never cross the DRAFT -> SENT transition that generates entries elsewhere.
+        # Without this, the debt is never recognised while its payment still debits
+        # the supplier account: charges understated, 401000 left with a debit
+        # balance, and nothing on screen to say so.
+        if invoice.status == InvoiceStatus.SENT:
+            from backend.services.accounting_engine import (  # noqa: PLC0415
+                generate_entries_for_invoice,
+            )
+
+            refreshed_for_entries = await get_invoice(db, invoice.id)
+            if refreshed_for_entries is not None:
+                await generate_entries_for_invoice(db, refreshed_for_entries)
+                await db.flush()
+
         refreshed = await get_invoice(db, invoice.id)
         assert refreshed is not None, f"Invoice {invoice.id} missing after commit"
         return refreshed
@@ -646,3 +662,36 @@ async def archive_invoice(db: AsyncSession, invoice: Invoice) -> Invoice:
     await db.flush()
     await db.refresh(invoice)
     return invoice
+
+
+async def regenerate_invoice_entries(db: AsyncSession, invoice: Invoice) -> int:
+    """Drop and re-create the accounting entries generated from an invoice.
+
+    An engine fix leaves earlier documents carrying the entries the old code
+    produced, and a paid invoice can no longer be edited to trigger a rebuild —
+    hence this dedicated operation. Returns the number of entries created.
+
+    Refuses to touch a closed fiscal year: reopening settled accounts is not
+    something a maintenance action should do behind the treasurer's back.
+    """
+    from backend.models.accounting_entry import EntrySourceType  # noqa: PLC0415
+    from backend.models.fiscal_year import FiscalYearStatus  # noqa: PLC0415
+    from backend.services.accounting_engine import (  # noqa: PLC0415
+        delete_entries_for_source,
+        generate_entries_for_invoice,
+    )
+    from backend.services.fiscal_year_service import find_fiscal_year_for_date  # noqa: PLC0415
+
+    if invoice.status == InvoiceStatus.DRAFT:
+        raise InvoiceStatusError("A draft invoice has no accounting entries to regenerate")
+
+    fiscal_year = await find_fiscal_year_for_date(db, invoice.date)
+    if fiscal_year is not None and fiscal_year.status == FiscalYearStatus.CLOSED:
+        raise InvoiceStatusError(
+            f"Cannot regenerate entries: fiscal year '{fiscal_year.name}' is closed"
+        )
+
+    await delete_entries_for_source(db, EntrySourceType.INVOICE, invoice.id)
+    entries = await generate_entries_for_invoice(db, invoice)
+    await db.flush()
+    return len(entries)

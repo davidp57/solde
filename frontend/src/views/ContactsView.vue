@@ -393,6 +393,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
 import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
@@ -653,8 +654,8 @@ async function loadContacts(): Promise<void> {
     })
     limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
     contacts.value = items
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     loading.value = false
   }
@@ -737,7 +738,7 @@ async function runImport(): Promise<void> {
         importError.value = t('contacts.import_emails_error_format')
       }
     } else {
-      toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+      toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 3000 })
     }
   } finally {
     importLoading.value = false
@@ -787,8 +788,8 @@ async function doDelete(contact: Contact): Promise<void> {
     await deleteContactApi(contact.id)
     toast.add({ severity: 'success', summary: t('contacts.deleted'), life: 3000 })
     void loadContacts()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 

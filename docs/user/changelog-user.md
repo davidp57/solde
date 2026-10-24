@@ -4,6 +4,115 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.19.0 — 24 octobre 2026
+
+### Tous les utilisateurs
+
+- **Laisser un message pour la compta** — une icône de bulle, en haut à droite, ouvre une petite fenêtre pour écrire un message au trésorier : une facture reçue à la main, un chèque mis de côté, une dépense à rembourser. Le message s'affiche en tête de sa prochaine séance de comptabilité, jusqu'à ce qu'il l'ait traité. Vous voyez vos messages en attente et pouvez les retirer tant qu'ils n'ont pas été traités.
+
+- **Des messages d'erreur qui expliquent** — quand l'application refusait une action, elle affichait souvent « Une erreur est survenue », sans dire pourquoi. Elle donne maintenant la raison : opération déjà rapprochée, rôle insuffisant, serveur injoignable, etc.
+
+- **Avertissement avant un rapprochement « à vide »** — rapprocher une ligne en « Autre crédit », « Autre débit », « Paiement client » ou « Paiement fournisseur » avec le bouton **Rapprocher** ne passe aucune écriture comptable. L'application le signale désormais et propose de créer ou de rattacher plutôt le règlement de la facture.
+
+- **Catégorie des opérations bancaires** — créer ou rattacher un règlement depuis une ligne du relevé met désormais sa catégorie à « Paiement client » ou « Paiement fournisseur ». Sur une opération rapprochée directement, le crayon de la catégorie devient un **cadenas** : un clic explique comment la corriger (défaire d'abord le rapprochement, ce que seul un trésorier peut faire). Une opération rapprochée par un règlement ou un bordereau reste modifiable.
+
+- **Barre latérale allégée** — les boutons séance de comptabilité, mode clair/sombre et déconnexion, ainsi que votre nom, apparaissaient deux fois : en haut de l'écran et en bas de la barre de gauche. Ils restent seulement en haut.
+
+- **Sauvegarde OneDrive réparée** (administrateur) — la sauvegarde automatique se terminait en erreur toutes les nuits, alors que la base de données partait bien et se validait sans problème. C'est la copie des factures PDF qui échouait, et elle échouait **avant d'envoyer quoi que ce soit** : les PDF n'étaient donc plus sauvegardés depuis que leur nombre avait dépassé un certain seuil. Le retard est rattrapé automatiquement à la sauvegarde suivante (comptez un envoi plus long, une seule fois). En prime, un échec de sauvegarde indique maintenant **quelle étape** a échoué, au lieu d'une erreur technique sans contexte, et l'application patiente puis réessaie quand OneDrive se déclare temporairement surchargé — auparavant la sauvegarde s'arrêtait net.
+
+- **Factures et paiements se mettent à jour immédiatement** — comme l'écran Documents, ces écrans ne montraient pas toujours le résultat d'une action (facture créée, supprimée, règlement annulé) sans recharger la page. C'est corrigé pour les trois écrans.
+
+- **Aperçu des documents** — l'icône œil affiche le document directement dans l'application : PDF, images, Markdown mis en forme et fichiers texte. Les formats que le navigateur ne sait pas afficher (Word, Excel) restent en téléchargement seul.
+
+- **Documents Markdown acceptés** — les fichiers `.md` (ainsi que `.json`, `.xml` et `.log`) étaient refusés au dépôt.
+- **Le document déposé apparaît immédiatement** — la liste ne se mettait pas toujours à jour après un dépôt, alors que le fichier était bien enregistré. Elle s'appuie maintenant sur la réponse du serveur au lieu de l'interroger une seconde fois. Idem après une modification ou une suppression.
+
+- **Nouvel espace « Documents »** — pour ranger dans l'application les pièces qui n'ont leur place nulle part ailleurs : statuts, procès-verbaux d'assemblée générale, attestations, bilans signés. Chaque document reçoit un titre, éventuellement un exercice et des étiquettes, et se retrouve ensuite par recherche ou par filtre. Tout le monde peut consulter et télécharger ; le dépôt et la suppression sont réservés aux gestionnaires et aux trésoriers.
+
+### Secrétaire
+
+- **Un règlement en espèces demande maintenant de saisir le montant** — jusqu'ici, le montant proposé était le solde de la facture : il suffisait de valider, même sans avoir compté l'argent. Pour les espèces, le champ se vide désormais et attend le montant réellement compté. Un bouton **« Reporter le solde dû »** reste disponible quand les deux coïncident, et l'application indique juste en dessous ce que le règlement va faire au solde de la caisse. Rien ne change pour les chèques, dont le montant est écrit sur le chèque.
+
+- **Écran Paiements : une colonne « Facture »** — le numéro de facture disparaissait pour les règlements par virement, masqué par le libellé de la banque. Il dispose maintenant de sa propre colonne, triable et filtrable, également reprise dans la recherche, l'export Excel et la fenêtre de modification d'un règlement.
+
+- **« Tout l'historique » sur les écrans Factures et Paiements** — comme pour la caisse, un bouton permet d'afficher les factures et les règlements sans se limiter à l'exercice sélectionné. Utile en début d'exercice, quand une saisie datée du nouvel exercice n'apparaît encore nulle part.
+
+- **Caisse : bouton « Tout l'historique »** — pour afficher le journal et les comptages sans se limiter à l'exercice sélectionné. Pratique pour retrouver une saisie faite hors période.
+
+- **Alerte si la date ne tombe dans aucun exercice** — en saisissant une entrée de caisse, un comptage, une opération bancaire ou un règlement de facture, un message apparaît si la date choisie n'appartient à aucun exercice comptable. C'est le piège classique en début d'exercice : la saisie est enregistrée, mais elle n'apparaît dans aucun écran filtré par exercice. Le message n'empêche pas d'enregistrer — il vous invite à créer l'exercice ou à corriger la date.
+
+- **Comptage de caisse : le total s'affiche pendant la saisie** — plus besoin d'enregistrer pour savoir ce qu'on a compté. Le dialogue affiche en direct le total des billets et des pièces, ainsi que l'**écart avec le solde théorique** de la caisse : si tout concorde, l'écart est à zéro et apparaît en vert.
+
+- **Caisse : l'origine d'un règlement est enfin juste** — un règlement de facture fournisseur payé en espèces s'affichait comme « Paiement client » dans le journal de caisse. Le mouvement était pourtant bien enregistré en sortie : seul l'intitulé était trompeur. La colonne distingue maintenant « Règlement client » et « Règlement fournisseur ».
+
+### Trésorier
+
+- **L'import d'un fichier Gestion contenant des salaires fonctionne de nouveau** — depuis mai, un import qui apportait les salaires d'un mois pas encore enregistré s'arrêtait en erreur sur la feuille des salaires : l'application donnait le même numéro à toutes les écritures de salaire, et la base, qui interdit les doublons de numéro, les refusait. Les écritures déjà enregistrées ne sont pas touchées.
+
+- **Défaire un rapprochement** — jusqu'ici, rapprocher était sans retour, et c'est le rapprochement qui verrouille tout le reste : une opération rapprochée ne pouvait plus être ni corrigée ni supprimée, même quand elle n'avait généré aucune écriture. Le menu **…** d'une ligne rapprochée propose maintenant **« Défaire le rapprochement »** : l'opération repasse « à rapprocher » et les écritures produites par ce rapprochement sont supprimées. Réservé au trésorier et à l'administrateur. Trois cas restent refusés, et le message vous dit alors par où passer : quand le rapprochement tient à un **règlement** (c'est le règlement qu'il faut annuler), quand il tient à un **bordereau de remise** (passez par les actions du bordereau), et quand l'opération appartient à un **exercice clôturé**.
+
+- **Une opération importée en double peut enfin être supprimée, et l'import vous la signale** — le solde du compte d'épargne affiché dans l'écran Banque annonçait 39 820,46 € alors que la banque et la balance comptable disaient 42 820,46 €. Le virement de 3 000 € du 1er mai y figurait deux fois : une première saisie à la main, puis la même opération ramenée par l'import du relevé sous le libellé de la banque. Et aucune des deux ne pouvait être supprimée — la suppression n'était possible que sur les opérations saisies à la main et non rapprochées. Deux changements : (1) une opération venue d'un import de relevé peut être supprimée tant qu'elle n'est pas rapprochée ; (2) quand un import ramène une opération qui ressemble à une opération déjà enregistrée — même compte, même montant, à trois jours près — la fenêtre d'import **reste ouverte** et vous montre les deux lignes côte à côte, avec un bouton pour supprimer celle qui est en trop. L'application ne choisit jamais à votre place : les deux lignes sont importées, à vous de dire laquelle part (gardez plutôt celle qui porte la référence de la banque). Les opérations issues d'un import Excel restent protégées, et une opération importée n'est toujours pas modifiable. *Votre comptabilité n'était pas touchée : sur un virement entre vos deux comptes, les écritures ne sont produites que depuis le compte courant, donc une ligne d'épargne en trop ne change rien à la balance. C'est aussi pour cela que l'écart est resté invisible deux mois : sur le livret, le relevé et la comptabilité ne se comparent nulle part.*
+
+- **Le compteur d'opérations à rapprocher ne compte plus l'historique** — il annonçait plus de deux cents opérations non rapprochées, dont l'écrasante majorité venait de la reprise de l'historique à la mise en service et n'a jamais eu vocation à être rapprochée. Il ne compte plus que les opérations venues d'un relevé et datées du mois traité ou avant ; les remises que vous avez enregistrées en attendant leur relevé sont indiquées à part.
+
+- **Nouveau : la séance de comptabilité** — un bouton dans le bandeau, présent sur tous les écrans, ouvre dans un panneau latéral (qui peut rester ouvert pendant que vous travaillez) la liste des gestes du mois dans l'ordre : saisie, paies, un seul passage à la banque en ligne (virements *et* téléchargement du relevé), traitement du relevé, caisse (les mouvements du tiroir puis le comptage), bordereaux de remise, clôture. Vous cochez au fur et à mesure, depuis l'écran où vous travaillez ; l'état est conservé et vous le retrouvez d'un poste à l'autre, y compris après une interruption. Les étapes qui se font ailleurs (plateforme de paie, site de la banque) sont marquées d'une flèche : personne ne peut les constater à votre place. Certaines étapes affichent une indication — « Dernier import le 01/09, 12 opérations », « Chèques à remettre : 2, soit 234,00 € » — mais rien n'est jamais coché automatiquement : la liste sert à vérifier, pas à enregistrer. En fin de séance, le bouton **Clôturer** récapitule ce qui n'a pas été fait avant de confirmer, et ce qui reste est signalé le mois suivant.
+
+- **Une remise en banque confirmée en retard ne fait plus doublon** — l'opération ajoutée au journal quand vous confirmez un bordereau portait la date du jour où vous cliquiez, et non celle où vous aviez porté les chèques ou les espèces à la banque. Si vous confirmiez quelques jours plus tard, l'application ne reconnaissait plus l'opération du relevé et vous vous retrouviez avec deux lignes pour un seul mouvement. Elle porte désormais **la date du bordereau**, et le rapprochement tolère un décalage plus large.
+
+- **Confirmer un bordereau ne crée plus de ligne en double** — si vous aviez déjà importé le relevé, confirmer le bordereau ajoutait une seconde opération pour le même mouvement, et votre solde grimpait du montant de la remise jusqu'à ce que vous rattachiez les deux à la main. L'application reconnaît maintenant l'opération du relevé au moment de la confirmation : elle la renomme du nom du bordereau et la marque rapprochée. Plus rien à faire.
+
+- **Une remise rattachée est rapprochée toute seule** — une fois les deux lignes réunies, il n'y avait plus rien à décider, mais il fallait quand même cliquer sur « Rapprocher ». C'est fait automatiquement, et la colonne *Réf. comptable* indique désormais le bordereau.
+
+- **La fenêtre « Confirmer le dépôt » se referme enfin** — après avoir cliqué sur « Confirmer le dépôt », la demande de confirmation restait affichée, comme si rien ne s'était passé. Le bordereau était pourtant bien confirmé, et re-valider affichait une erreur. Deux fenêtres de confirmation se superposaient ; il n'y en a plus qu'une.
+
+- **Rattacher une remise du relevé à son bordereau** — quand le rapprochement automatique n'a quand même pas eu lieu (deux remises du même montant, par exemple), inutile de supprimer une ligne : sur la ligne venue du relevé, le menu **…** propose **« Rattacher à un bordereau enregistré »**. Vous choisissez le bordereau, les deux lignes n'en font plus qu'une — elle garde le nom du bordereau et prend la date et la référence de la banque. Si le bordereau n'est **pas encore confirmé**, aucune opération n'existe pour lui : le dialogue vous le dit et vous indique lequel confirmer, au lieu de répondre qu'il n'y a rien.
+
+- **Les téléchargements fonctionnent à nouveau** — cliquer sur un export renvoyait un message « Not authenticated » au lieu du fichier. Cela touchait les exports CSV du bilan et du journal, les nouveaux exports PDF et le téléchargement des documents.
+- **Écrans Bilan et Compte de résultat harmonisés** — même barre d'actions sur les deux, avec le sélecteur d'exercice et les trois exports (CSV, PDF, Excel) réunis en haut. Le compte de résultat gagne l'export CSV qui lui manquait.
+
+- **Bilan et compte de résultat en PDF** — un bouton « Exporter PDF » sur chacun des deux écrans produit un document mis en page, avec l'en-tête de l'association, la période de l'exercice et la mention « clôturé » ou « en cours ». C'est le document à ranger dans les archives comptables ou à transmettre.
+
+- **Compte de résultat d'un exercice clôturé enfin lisible** — il s'affichait entièrement à zéro, à l'écran comme à l'export, dès que l'exercice était clôturé. La clôture solde les comptes de charges et de produits, et ce solde était compté dans le total : le document devenait vide au moment précis où on en a besoin.
+
+- **Total du passif corrigé** — le bilan affichait un actif positif face à un passif négatif du même montant. Les deux colonnes se lisent maintenant en positif, avec des totaux égaux.
+
+- **Banque : bouton « Tout l'historique »** — pour afficher les opérations et les remises sans se limiter à l'exercice sélectionné. Indispensable après un import de relevé contenant des opérations du nouvel exercice, qui n'apparaissaient nulle part.
+
+- **Factures fournisseur enfin comptabilisées** — une facture fournisseur saisie dans l'application ne générait aucune écriture comptable : seul son règlement en produisait une. Les charges étaient donc sous-évaluées et le compte fournisseur affichait un solde anormal. C'est corrigé pour les nouvelles factures, et l'action « Régénérer les écritures comptables » est désormais proposée sur les factures fournisseur pour rattraper les anciennes.
+- **Comptes manquants signalés avant la clôture** — si une écriture utilise un compte absent du plan comptable, la fenêtre de clôture le signale avec son solde. Un tel compte n'est ni soldé ni reporté et fausse l'équilibre de l'exercice sans que rien ne l'indique. Le plan comptable se complète également tout seul au démarrage avec les comptes standard manquants.
+- **Messages d'erreur explicites sur les exercices** — quand une clôture ou une ouverture d'exercice est refusée, la raison exacte s'affiche désormais, au lieu du message générique « une erreur est survenue » qui obligeait à deviner.
+
+- **Clôture d'exercice corrigée** — l'écriture de clôture ne soldait pas les comptes de charges et de produits, n'avait pas de contrepartie et portait le résultat à l'envers. Conséquence : l'exercice clôturé et le suivant se retrouvaient déséquilibrés. La clôture produit désormais une écriture complète et équilibrée, et le résultat est enregistré dans le bon sens (excédent au crédit du compte 120000, déficit au débit du 129000).
+- **Ouverture d'exercice protégée** — si les soldes à reporter ne s'équilibrent pas, l'ouverture est refusée avec un message expliquant qu'il faut d'abord vérifier la clôture, plutôt que de démarrer l'exercice sur une balance fausse.
+
+- **Plus besoin de recharger la page après une action sur un exercice** — créer, clôturer ou ouvrir un exercice met maintenant à jour le sélecteur d'exercice en haut de l'écran immédiatement. Auparavant il fallait appuyer sur F5 pour que le nouvel exercice apparaisse.
+
+- **Ouverture d'un nouvel exercice réparée** — l'action « Ouvrir le prochain exercice » échouait avec une erreur technique dès qu'il y avait plusieurs soldes à reporter (banque, caisse, créances…), rendant la bascule impossible. Corrigé.
+
+- **Remises sur facture correctement comptabilisées** — une remise saisie sur une facture (ligne à montant négatif) pouvait être ignorée dans les écritures comptables, laissant une balance déséquilibrée du montant de la remise. Le problème n'apparaissait qu'à la clôture, sans indication de la facture en cause.
+- **Avertissement de clôture plus juste** — le message sur les écritures non rattachées à un exercice ne signale plus que celles **datées dans la période que vous clôturez**. Les écritures plus anciennes ou postérieures, qui ne concernent pas cette clôture, n'y figurent plus, et les documents en cause sont nommés.
+- **Vérifications de clôture plus utiles** — quand la balance est déséquilibrée, la fenêtre de clôture indique maintenant **quelles écritures** posent problème et de combien, au lieu d'un simple total.
+
+- **Passer d'un exercice au suivant sans perdre les soldes** — une fois un exercice clôturé, sa ligne propose **« Ouvrir le prochain exercice »**. Cette action crée le nouvel exercice **et reporte les soldes** de banque, caisse, créances clients et dettes fournisseurs. Le nom et les dates sont pré-remplis dans la continuité du précédent.
+- **Attention au bouton « Nouvel exercice »** — il crée une période vide, **sans reprise des soldes**. Pour un changement d'exercice, passez toujours par « Ouvrir le prochain exercice ». Le manuel décrit la procédure complète de fin d'exercice.
+- **Voir ce qui cloche avant de clôturer** — la fenêtre de clôture affiche maintenant les vérifications : balance déséquilibrée, écritures sans exercice associé. Elles ne bloquent pas la clôture, mais ce qu'elles signalent sera figé.
+- **Plus de chevauchement possible** — créer un exercice dont les dates empiètent sur un exercice existant est désormais refusé, avec le nom de l'exercice en conflit.
+- **Soldes bancaires justes après suppression d'une opération** — supprimer une opération dans l'écran Banque laissait affichés les anciens soldes des lignes suivantes, comme si le compte était faux du montant supprimé. Les données en base étaient correctes ; seul l'affichage était périmé. La liste est maintenant rechargée automatiquement.
+- **Vos remises n'apparaissent plus en double** — jusqu'ici, confirmer un bordereau créait une opération bancaire, et l'import du relevé en créait une seconde pour le même mouvement : il fallait supprimer l'une des deux à la main, sinon le solde était faux. L'import reconnaît maintenant la remise déjà enregistrée et la complète avec les informations de la banque, au lieu de la dupliquer. Le message de fin d'import précise combien de remises ont été ainsi rapprochées.
+- Si deux remises du même montant tombent la même semaine, l'application ne devine pas : elle importe normalement, et vous gardez la main.
+
+### Administrateur
+
+- **Journal d'audit lisible et cherchable** — chaque entrée nomme désormais ce qui a été touché (« 15/03/2026 · 150,00 € · VIR DUPONT », « F-2026-012 · Marie Dupont »), même si l'élément a été supprimé depuis, et le détail s'affiche en clair au lieu d'un code technique. Un champ de recherche et des filtres par domaine et par période donnent accès à tout l'historique — l'écran ne montrait jusqu'ici que les 50 dernières actions. Un « Tout rapprocher » liste les opérations qu'il a rapprochées.
+
+- **Envoi d'e-mails : un seul réglage de sécurité pour tous les envois** — l'interrupteur « Utiliser TLS » des paramètres SMTP n'avait pas le même effet sur l'envoi de factures que sur le mailing adhérents et sur l'alerte d'échec de sauvegarde : selon le réglage, l'un ou l'autre échouait. Il est remplacé par un choix **« Sécurité de la connexion »** — STARTTLS (port 587), SSL/TLS (port 465) ou Aucune (relais local sans identifiant) — qui vaut pour tous les envois. Votre réglage actuel est repris automatiquement, à l'identique pour l'envoi de factures. Et si l'alerte d'échec de sauvegarde ne peut pas partir, la raison apparaît désormais dans l'état de la sauvegarde au lieu de passer inaperçue.
+
+- **Annuler un règlement en espèces** — une erreur de saisie sur un règlement en espèces (mauvaise facture, mauvais montant) était définitive : l'application refusait l'annulation en indiquant, à tort, que l'argent était déjà arrivé en banque. Les règlements en espèces sont désormais annulables tant qu'ils n'ont pas été rapprochés d'une opération bancaire ; le mouvement de caisse correspondant est retiré en même temps et le solde de caisse est recalculé.
+
+- **Reconstruire les écritures d'une facture** — depuis le menu **⋯** d'une facture, l'action « Régénérer les écritures comptables » recrée ses écritures à partir des règles en vigueur. Utile après une correction de l'application : les factures déjà enregistrées gardent sinon leurs anciennes écritures. Sans effet sur un exercice clôturé.
+
+- **Sécurité renforcée** — trois failles ont été corrigées, dont une qui permettait de lire des fichiers du serveur sans être connecté. Le mot de passe d'envoi d'e-mails et la clé de l'assistant de chat n'apparaissent plus dans les journaux de l'application (les journaux déjà écrits ne sont pas effacés). La bibliothèque des jetons de connexion, presque plus maintenue, est remplacée sans déconnecter personne ; seul l'assistant de chat peut afficher une erreur au premier message dans l'heure qui suit la mise à jour, et recharger la page suffit.
+
 ## Version 1.10.0 — 3 août 2026
 
 ### Administrateur

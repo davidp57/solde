@@ -208,6 +208,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import { storeToRefs } from 'pinia'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
@@ -391,8 +392,8 @@ async function doDelete(rule: AccountingRuleRead): Promise<void> {
     rules.value = rules.value.filter((r) => r.id !== rule.id)
     ruleRows.value = buildRows(rules.value)
     toast.add({ severity: 'success', summary: t('accounting.rules.deleted'), life: 3000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -404,8 +405,8 @@ async function toggleRule(rule: AccountingRuleRead) {
       rules.value[idx] = updated
       ruleRows.value = buildRows(rules.value)
     }
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -423,8 +424,8 @@ async function seedRules() {
       toast.add({ severity: 'info', summary: t('accounting.rules.seed_already_done'), life: 3000 })
     }
     await load()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     seeding.value = false
   }

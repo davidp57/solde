@@ -18,9 +18,10 @@ Il est destiné aux utilisateurs disposant d'un rôle **Gestionnaire**, **Compta
 9. [Salaires et employés](#9-salaires-et-employés)
 10. [Comptabilité](#10-comptabilité)
 11. [Exercices comptables](#11-exercices-comptables)
-12. [Mon profil](#12-mon-profil)
-13. [Paramètres (administrateur)](#13-paramètres-administrateur)
-14. [Guide par rôle — « Je veux… »](#guide-par-rôle-je-veux)
+12. [Documents](#12-documents)
+13. [Mon profil](#13-mon-profil)
+14. [Paramètres (administrateur)](#14-paramètres-administrateur)
+15. [Guide par rôle — « Je veux… »](#guide-par-rôle-je-veux)
 
 ---
 
@@ -226,7 +227,11 @@ Le wizard permet de créer et valider une facture client en quelques clics depui
 
 Une facture en **brouillon** peut être modifiée librement.
 
-Une facture **validée** peut être modifiée dans certaines limites (ajout de notes, modification de l'échéance) mais ses lignes ne peuvent plus être changées.
+Une facture **validée** reste modifiable — **lignes comprises** — tant qu'**aucun règlement n'y est enregistré**. Les écritures comptables sont alors régénérées automatiquement, et le PDF est reconstruit à la prochaine consultation ou au prochain envoi. Le **numéro de facture ne change jamais**.
+
+Dès qu'un règlement est saisi, la facture est verrouillée. Pour la corriger, il faut d'abord **annuler le règlement** (voir [Annuler un règlement saisi par erreur](#annuler-un-règlement-saisi-par-erreur)), modifier la facture, puis ressaisir le règlement.
+
+> **Facture erronée déjà envoyée au client ?** La corriger, puis la **renvoyer par e-mail** en précisant dans le message qu'elle annule et remplace la précédente : le PDF joint reflète automatiquement la correction. Pour une remise oubliée, ajouter une ligne de facturation à **prix unitaire négatif** (le total de la facture doit rester positif).
 
 ### Supprimer une facture
 
@@ -309,6 +314,19 @@ Le format de numérotation est configurable par l'administrateur (ex. `2026-001`
 5. Saisir la référence (numéro de virement, de chèque, etc.).
 6. Cliquer sur **Enregistrer**.
 
+### Règlement en espèces : le montant est à saisir
+
+Quand on enregistre un règlement depuis une **fiche facture** ou depuis la **facture rapide**, le montant est proposé d'office : c'est le solde restant dû. Pratique pour un chèque, dont le montant est écrit dessus — mais risqué pour les **espèces**, où rien d'autre que le comptage ne dit ce qui a été reçu.
+
+Aussi, dès que le mode **Espèces** est choisi, le champ **Montant** se vide : il faut y saisir ce qui a réellement été compté. Deux repères sont affichés juste en dessous :
+
+- un bouton **Reporter le solde dû (X €)** — à utiliser quand le montant compté correspond bien au solde de la facture ;
+- l'effet sur la caisse : **Caisse après ce règlement : … → …**, pour rapprocher la saisie de l'argent qu'on a sous les yeux.
+
+Repasser en **Chèque** repropose automatiquement le solde dû.
+
+> Cette précaution évite le cas typique où un montant erroné est enregistré d'un simple clic — par exemple une facture émise à 310 € réglée par 270 € en espèces : sans elle, la caisse théorique et la caisse réelle divergent, et l'écart n'apparaît qu'au comptage suivant.
+
 > **Astuce** : si une facture reste affichée comme impayée après l'enregistrement d'un paiement, vérifier que la facture est bien sélectionnée dans la section **Factures liées** du paiement.
 
 ### Annuler un règlement saisi par erreur
@@ -317,7 +335,12 @@ Un règlement enregistré ne se modifie plus (montant, date et mode sont figés)
 
 **Qui** : cette opération est réservée à l'**administrateur**.
 
-**Jusqu'à quand** : tant que l'argent n'est **pas arrivé sur le compte bancaire**. Concrètement, un chèque reçu d'un client reste annulable tant que sa remise n'a pas été confirmée. Un règlement en espèces (déjà en caisse), un virement reçu, un règlement déjà rapproché avec une opération bancaire ou appartenant à un exercice clôturé ne peuvent plus être annulés — dans ces cas, il faut passer par une écriture comptable de correction.
+**Jusqu'à quand** : tant que l'argent n'est **pas arrivé sur le compte bancaire**. Concrètement :
+
+- un **chèque** reçu d'un client reste annulable tant que sa remise n'a pas été confirmée ;
+- un règlement en **espèces** reste annulable : l'argent est en caisse, pas à la banque. L'annulation retire aussi le mouvement de caisse correspondant, et le solde de caisse est recalculé.
+
+En revanche, un virement reçu, un règlement déjà rapproché avec une opération bancaire ou appartenant à un exercice clôturé ne peuvent plus être annulés — dans ces cas, il faut passer par une écriture comptable de correction.
 
 **Comment** :
 
@@ -408,6 +431,32 @@ Les transactions déjà présentes (même référence bancaire) sont automatique
 
 > Seuls les fichiers OFX contenant **un seul compte** sont acceptés. Si votre fichier contient plusieurs comptes, contactez votre administrateur.
 
+#### Doublons probables
+
+Cette détection automatique ne fonctionne que sur la **référence bancaire**. Une opération que vous avez saisie à la main n'en porte aucune : quand la banque apporte ensuite le même mouvement, rien ne peut les rapprocher, et vous vous retrouvez avec deux lignes pour un seul mouvement — le solde affiché s'écarte alors de celui de votre banque, sans rien pour vous alerter.
+
+L'application compare donc aussi chaque opération importée à ce qui est déjà enregistré : **même compte, même montant, à trois jours près**. Quand elle trouve une correspondance, la fenêtre d'import **reste ouverte** sur un panneau *Doublons probables* qui affiche les deux lignes côte à côte, avec un bouton **Supprimer** sur chacune.
+
+L'application n'écarte jamais une ligne d'elle-même : les deux sont importées, et c'est vous qui décidez. Supprimez celle qui est en trop — en règle générale, gardez la ligne venue du relevé, qui porte la référence et le libellé de la banque — ou laissez les deux s'il s'agit bien de deux mouvements distincts du même montant.
+
+> Le bouton est grisé sur une ligne qui ne peut pas être supprimée : une opération **rapprochée** (il faut alors supprimer l'autre côté de la paire) ou une opération issue d'un **import Excel**.
+
+### Défaire un rapprochement
+
+Le rapprochement est le verrou de tout le reste : une opération rapprochée ne peut plus être ni modifiée ni supprimée. Pour revenir en arrière — catégorie erronée découverte après coup, clic malheureux sur « Tout rapprocher », ligne rapprochée alors qu'elle faisait doublon — ouvrez le menu **…** de la ligne et choisissez **Défaire le rapprochement**. L'opération repasse « à rapprocher » et les écritures comptables que le rapprochement avait générées sont supprimées. Réservé au trésorier et à l'administrateur.
+
+Le geste ne défait que le rapprochement fait depuis l'écran Banque. Trois cas sont refusés, avec le message qui indique par où passer :
+
+- **Le rapprochement tient à un règlement** (vous l'aviez créé ou rattaché depuis la ligne) : c'est le règlement qu'il faut annuler, depuis la facture concernée.
+- **Le rapprochement tient à un bordereau de remise** : la ligne *est* le bordereau, passez par les actions du bordereau.
+- **L'opération appartient à un exercice clôturé** : défaire une écriture d'un exercice clos relève d'une contre-passation, pas d'une correction.
+
+### Supprimer une opération
+
+Une opération peut être supprimée tant qu'elle n'est pas **rapprochée** : les opérations saisies à la main, et celles venues d'un import de relevé (OFX, CSV, QIF). Ouvrez le menu **…** de la ligne et choisissez **Supprimer l'opération**.
+
+Restent protégées : les opérations **rapprochées** (leurs écritures comptables en dépendent) et les opérations issues d'un **import Excel** (l'annulation d'import a besoin d'elles). Une opération importée peut être supprimée, mais jamais **modifiée** — elle reflète ce que la banque a communiqué.
+
 ### Corriger la catégorie d'une transaction
 
 Solde détecte automatiquement la catégorie de chaque transaction (frais bancaires, cotisation sociale, subvention, virement interne…). Pour corriger :
@@ -418,20 +467,28 @@ Solde détecte automatiquement la catégorie de chaque transaction (frais bancai
 
 La catégorie détermine les écritures comptables générées lors du rapprochement.
 
+Quand vous **créez ou rattachez un règlement** depuis la ligne, la catégorie passe d'elle-même en « Paiement client » ou « Paiement fournisseur », quelle que soit celle détectée à l'import.
+
+> **Cadenas à la place du crayon** — Une opération rapprochée directement (bouton **Rapprocher**, **Tout rapprocher**, **Rapprocher avant…**) a déjà généré ses écritures à partir de sa catégorie : celle-ci est verrouillée. Pour la corriger, un trésorier défait d'abord le rapprochement (voir *Défaire un rapprochement*), change la catégorie, puis rapproche à nouveau — ou crée le règlement client depuis la ligne s'il s'agissait d'un virement de client. Une opération rapprochée par un **règlement** ou un **bordereau** garde son crayon : ses écritures viennent du règlement ou du bordereau, sa catégorie n'est qu'une étiquette.
+
 > **Catégorie « Sans écriture »** — Si une transaction doit apparaître sur le relevé bancaire mais ne doit générer aucune écriture comptable (par exemple un virement vers un compte extérieur à Solde), assigner la catégorie **Sans écriture**. Lors du rapprochement, aucune écriture ne sera créée, quelle que soit la configuration des règles.
 
 ### Rapprochement bancaire
 
-Le rapprochement lie une transaction bancaire à un paiement ou une remise enregistrés dans Solde, et génère les écritures comptables correspondantes.
+Le rapprochement marque une ligne du relevé comme traitée. Il se fait de deux façons, qui n'ont pas le même effet comptable :
+
+- **Depuis un règlement** — pour le virement d'un client ou vers un fournisseur, utilisez **Créer un règlement client / fournisseur** ou **Lier à un règlement existant** (menu de la ligne). Le règlement solde la facture, porte les écritures, et rapproche la ligne.
+- **Avec le bouton Rapprocher** — pour les opérations sans facture (frais bancaires, charges sociales, subvention, virement interne…). Les écritures sont générées d'après la **catégorie** de la ligne.
 
 #### Rapprocher une transaction individuellement
 
 1. Repérer la transaction dans la liste (filtrer sur « Non rapprochées » pour aller vite).
-2. Cliquer sur le bouton **Rapprocher** dans la colonne Rapp.
-3. Sélectionner le paiement ou la remise correspondant.
-4. Confirmer.
+2. Vérifier sa catégorie, la corriger au besoin.
+3. Cliquer sur le bouton **Rapprocher** dans la colonne Rapp.
 
 La transaction passe en statut **Rapproché** (tag vert) et disparaît du filtre « Non rapprochées ».
+
+> **Avertissement « Rapprochement sans écriture comptable »** — Rapprocher une ligne en catégorie **Autre crédit**, **Autre débit**, **Paiement client** ou **Paiement fournisseur** ne génère aucune écriture : l'argent reste hors de la comptabilité. L'application le signale avant de rapprocher (y compris dans **Tout rapprocher** et **Rapprocher avant…**, avec le nombre de lignes concernées). S'il s'agit du règlement d'une facture, annulez et passez par le règlement ; sinon, confirmez avec **Rapprocher quand même**.
 
 #### Rapprocher en masse
 
@@ -451,6 +508,16 @@ Une remise en banque regroupe plusieurs paiements remis ensemble à la banque (l
 3. Ajouter les paiements concernés.
 4. Saisir la date de remise et le montant total.
 5. Enregistrer.
+
+**Confirmer la remise** (quand le bordereau part à la banque) crédite immédiatement le compte : une opération est ajoutée au journal bancaire, sans attendre le relevé. Si le relevé a déjà été importé et contient ce mouvement, l'application **reprend cette opération** au lieu d'en créer une seconde : elle la renomme du nom du bordereau et la marque rapprochée. Rien à nettoyer, et le solde ne monte jamais à tort. Cette opération porte **la date du bordereau**, celle à laquelle vous avez porté les chèques ou les espèces à la banque — et non la date du jour où vous confirmez, qui peut arriver plusieurs jours plus tard.
+
+Quand vous importerez ensuite le relevé, la banque apportera ce même mouvement avec sa propre référence. L'application le **reconnaît et complète l'opération existante** au lieu d'en créer une seconde — le message de fin d'import indique combien de remises ont été rapprochées de cette façon. Vous n'avez donc rien à supprimer.
+
+> Dans un cas ambigu — deux remises du même montant à quelques jours d'intervalle — l'application ne choisit pas à votre place : les deux lignes sont importées, à vous d'indiquer laquelle correspond (voir ci-dessous).
+
+**Si le rapprochement automatique n'a pas eu lieu** (bordereau confirmé longtemps après le crédit, ou plusieurs remises du même montant), vous vous retrouvez avec deux lignes pour un seul mouvement. Ne supprimez rien : sur la ligne venue du relevé, ouvrez le menu **…** et choisissez **Rattacher à un bordereau enregistré**. Sélectionnez le bordereau concerné : les deux lignes n'en font plus qu'une, qui garde le nom du bordereau, prend la date et la référence de la banque, et est **rapprochée d'office** — la correspondance est établie, il n'y a plus rien à confirmer. La colonne *Réf. comptable* affiche alors le bordereau.
+
+> Un bordereau **non confirmé** ne crée aucune opération : il n'y a donc rien à rattacher tant que vous ne l'avez pas confirmé. Le dialogue vous le signale et vous indique le bordereau en attente plutôt que de vous laisser sans explication.
 
 ---
 
@@ -583,9 +650,23 @@ Filtrer par compte, période, exercice.
 
 ### Bilan et compte de résultat
 
-**Comptabilité → Bilan** → vue synthétique des actifs et passifs.
+**Comptabilité → Bilan** → vue synthétique des actifs et passifs. Les deux colonnes se lisent en positif et leurs totaux doivent être égaux.
 
 **Comptabilité → Résultat** → recettes vs dépenses sur l'exercice.
+
+### Archiver le bilan et le compte de résultat
+
+Chaque écran propose trois exports, pour l'exercice sélectionné :
+
+| Bouton | Usage |
+|---|---|
+| **Exporter PDF** | Document mis en page, en-tête de l'association et date d'édition — c'est celui à ranger dans les archives comptables ou à transmettre. |
+| **Exporter CSV** | Données brutes séparées par des points-virgules. |
+| **Exporter Excel** | Le tableau tel qu'il est affiché à l'écran. |
+
+Le PDF indique si l'exercice est **clôturé** ou **en cours**, et prend le nom de l'exercice comme nom de fichier (par exemple `bilan_2025.pdf`).
+
+> Sur un exercice clôturé, le bilan n'affiche plus de ligne « résultat de l'exercice » séparée : le résultat a été affecté aux comptes 120000 (excédent) ou 129000 (déficit), qui figurent au passif. Le compte de résultat, lui, continue d'afficher le détail des charges et des produits de l'exercice.
 
 ---
 
@@ -603,15 +684,131 @@ Filtrer par compte, période, exercice.
 
 La clôture est irréversible. N'effectuez cette opération que lorsque toutes les écritures de la période sont finalisées.
 
-1. Ouvrir la fiche de l'exercice.
-2. Cliquer sur **Clôturer l'exercice**.
+1. Sur la ligne de l'exercice, cliquer sur **Clôturer l'exercice**.
+2. La fenêtre affiche d'abord les **vérifications avant clôture** : balance débit/crédit et écritures sans exercice associé. Ces avertissements ne bloquent pas la clôture, mais ce qu'ils signalent sera figé — traitez-les d'abord.
 3. Confirmer.
 
-Après clôture, l'exercice passe à l'état **Clôturé** et les écritures ne peuvent plus être modifiées.
+L'exercice passe à l'état **Clôturé**, et une écriture de résultat est générée automatiquement (compte 120000 en cas d'excédent, 129000 en cas de déficit).
+
+### Passer à l'exercice suivant
+
+> **Important** : ne créez pas le nouvel exercice avec **Nouvel exercice**. Ce bouton crée une période vide, **sans reprise des soldes** : banque, caisse, créances clients et dettes fournisseurs repartiraient à zéro.
+
+Une fois l'exercice précédent clôturé, sa ligne propose **Ouvrir le prochain exercice**. C'est cette action qui génère les **reports à nouveau** — le solde de chaque compte de bilan est repris à l'ouverture du nouvel exercice.
+
+1. Sur la ligne de l'exercice clôturé, cliquer sur **Ouvrir le prochain exercice**.
+2. Le nom et les dates sont pré-remplis dans la continuité : le nouvel exercice commence le lendemain de la fin du précédent et couvre douze mois. Ajuster si besoin.
+3. Cliquer sur **Créer l'exercice et reporter les soldes**.
+
+Le bouton n'apparaît plus dès qu'un exercice postérieur existe, pour éviter les doublons. Deux exercices ne peuvent pas se chevaucher : la création est refusée si les dates empiètent sur une période existante.
+
+### Ordre à respecter en fin d'exercice
+
+1. Terminer la saisie du dernier mois (factures, règlements, remises en banque, salaires).
+2. Vérifier qu'aucun règlement en attente ne traîne : un règlement saisi **après** la fin de l'exercice mais avant la création du nouveau se retrouve **sans exercice** et n'apparaît plus dans les écrans filtrés par exercice. Si c'est déjà arrivé, l'administrateur peut annuler ces règlements (voir *Annuler un règlement saisi par erreur*) et les ressaisir une fois le nouvel exercice ouvert.
+3. Clôturer l'exercice.
+4. Ouvrir le prochain exercice depuis la ligne de l'exercice clôturé.
+5. Sélectionner le nouvel exercice dans le sélecteur en haut de l'application pour retrouver les écrans à jour.
 
 ---
 
-## 12. Mon profil
+## 11 bis. Séance de comptabilité (checklist mensuelle)
+
+La tenue mensuelle enchaîne une vingtaine de gestes répartis sur quatre écrans, entrecoupés de passages sur le site de la paie et sur celui de la banque. La **séance de comptabilité** les réunit en une liste ordonnée que l'on coche au fur et à mesure, à la manière d'une checklist d'aéronautique : l'état est conservé, vous le retrouvez d'un poste à l'autre, et une séance interrompue reprend là où vous l'aviez laissée.
+
+Le bouton se trouve dans le bandeau, présent sur **tous les écrans** : il affiche la progression (« 7 / 17 ») et ouvre la liste dans un **panneau latéral, à droite**. Ce panneau n'est pas bloquant : il peut rester ouvert pendant que vous travaillez dans l'application, et vous cochez au fil des gestes sans le fermer. Réservé au trésorier et à l'administrateur.
+
+### Les messages de l'équipe
+
+L'icône de **bulle**, à gauche du bouton de la séance, est ouverte à **tous les rôles**. Elle sert à laisser un message au trésorier : une facture reçue à la main, un chèque mis de côté, un remboursement promis. Le trésorier s'en sert aussi pour se noter quelque chose à faire à sa prochaine séance.
+
+Il n'y a pas de mois à choisir : le message s'affiche dans la séance ouverte ou, s'il n'y en a pas, dans la prochaine. Il apparaît en **premier bloc**, « Messages », avant la saisie, avec son auteur et sa date, et se coche comme une étape — sans compter dans la progression « 7 / 17 ».
+
+Un message non coché à la clôture reste affiché sur la séance suivante, avec la mention « En retard ». Une fois coché, il est rattaché à la séance qui l'a traité et reste consultable avec elle.
+
+Dans la fenêtre, chacun voit ses propres messages en attente et peut les **retirer** tant que le trésorier ne les a pas cochés. Un message ne se modifie pas : on le retire et on en écrit un autre.
+
+### Démarrer une séance
+
+Le mois proposé dépend de la date : avant le 15, c'est le mois précédent ; à partir du 15, le mois en cours. Un mois déjà traité n'est jamais proposé deux fois. Vous pouvez corriger le mois avant de démarrer.
+
+Une seule séance est ouverte à la fois : pour passer au mois suivant, il faut clôturer celle en cours.
+
+### L'ordre des étapes
+
+La liste suit un principe : **regrouper tout ce qui se fait dans l'application avant chaque sortie vers l'extérieur**, pour ne faire qu'un aller-retour par destination.
+
+1. **Saisie** — factures fournisseurs reçues.
+2. **Paies** — faire les paies sur la plateforme, puis saisir les fiches.
+3. **Passage à la banque en ligne** — un seul : virements de salaires, virements fournisseurs, puis téléchargement du relevé.
+4. **Relevé** — importer, vérifier les catégories, créer les règlements clients depuis les virements reçus, rapprocher, comparer le solde.
+5. **Caisse** — encoder les règlements fournisseurs payés en espèces, enregistrer les mouvements divers, **puis** compter la caisse. Le comptage vient en dernier : compter avant d'avoir tout saisi reviendrait à comparer le tiroir à un total périmé.
+6. **Bordereaux de remise** — bordereau d'espèces, bordereau de chèques. Ils se préparent dans l'écran **Banque**, pas dans l'écran Caisse ; le dépôt lui-même se fait plus tard.
+7. **Clôture** — vérifier la sauvegarde, clôturer la séance.
+
+Les étapes précédées d'une flèche **⇢** se font **hors de l'application** : rien ici ne peut les constater, c'est à vous de les cocher.
+
+> Les virements lancés à l'étape 3 n'apparaîtront pas sur le relevé téléchargé dans la foulée : ils se rapprocheront à la séance suivante.
+
+### Les indications sous les étapes
+
+Certaines étapes affichent un fait observé : « Dernier import le 01/09/2026, 12 opérations enregistrées », « Chèques à remettre : 2, soit 234,00 € ». Ces indications **ne cochent rien** — elles vous aident à répondre, elles ne répondent pas à votre place. Une case cochée sans que vous ayez regardé n'aurait pas été vérifiée, et c'est précisément l'étape sautée qui coûte cher.
+
+> **Le compteur d'opérations à rapprocher ne dit pas la même chose que l'écran Banque**, et c'est voulu. Il ne compte que les opérations **venues d'un relevé** et datées **au plus tard à la fin du mois traité**. Il laisse donc de côté trois choses : les opérations reprises de l'historique lors de la mise en service, qui n'ont jamais eu vocation à être rapprochées ; le solde d'ouverture ; et les opérations que le relevé apporte pour le mois suivant. Les remises que vous avez enregistrées et qui attendent encore leur relevé sont comptées **à part**, car seul un import futur pourra les solder.
+
+### Clôturer une séance
+
+Le bouton **Clôturer la séance** affiche d'abord ce qui n'a pas été coché et demande confirmation. Une séance incomplète peut être clôturée : une étape qui ne dépend pas de vous — un chèque qu'on ne vous a pas remis — ne doit pas bloquer tout le mois. Les étapes laissées de côté sont **signalées sur la séance suivante**, avec la mention « En retard ».
+
+Une séance clôturée ne peut plus être modifiée ; elle reste consultable.
+
+---
+
+## 12. Documents
+
+**Accueil → Documents.** Un espace pour les pièces qui n'appartiennent à aucune facture : statuts, procès-verbaux d'assemblée générale, attestations d'assurance, conventions, bilans et comptes de résultat signés.
+
+Tout le monde peut consulter et télécharger. Le dépôt, la modification et la suppression sont réservés aux gestionnaires, trésoriers et administrateurs.
+
+### Déposer un document
+
+1. Cliquer sur **Déposer un document**.
+2. Choisir le fichier — PDF, image, Excel, Word, CSV, Markdown ou texte, **20 Mo maximum**.
+3. Donner un **titre** : c'est lui qu'on lira dans la liste, pas le nom du fichier. Le titre se pré-remplit avec le nom du fichier, à corriger si besoin (« scan_0042 » ne se retrouve pas, « PV assemblée générale 2026 » si).
+4. Facultatif : rattacher un **exercice**, poser des **étiquettes** séparées par des virgules, ajouter des **notes**.
+5. Valider.
+
+> Les étiquettes déjà utilisées sont rappelées sous le champ : les reprendre plutôt que d'en inventer une variante évite de se retrouver avec « AG » d'un côté et « assemblée générale » de l'autre. La casse et les espaces sont normalisés automatiquement.
+
+### Consulter un document sans le télécharger
+
+L'icône **œil** ouvre un aperçu dans l'application, pour les formats que le navigateur sait afficher :
+
+| Format | Aperçu |
+|---|---|
+| PDF | Le document, dans une visionneuse intégrée |
+| Images (JPEG, PNG, WebP) | L'image |
+| Markdown (`.md`) | Le texte mis en forme — titres, listes, tableaux |
+| Texte, CSV, JSON, XML | Le contenu brut |
+| Word, Excel, archives | Pas d'aperçu — l'icône n'apparaît pas, seul le téléchargement est proposé |
+
+Sur mobile, l'aperçu d'un PDF s'ouvre dans un onglet, les navigateurs mobiles l'affichant mal en fenêtre.
+
+### Retrouver un document
+
+Trois filtres se combinent : la **recherche** (titre, notes, nom de fichier), l'**exercice** — dont « Sans exercice » pour les pièces intemporelles comme les statuts — et l'**étiquette**.
+
+### Modifier ou supprimer
+
+Le crayon permet de corriger le titre, l'exercice, les étiquettes et les notes. **Le fichier lui-même ne se remplace pas** : pour une nouvelle version, déposer un nouveau document.
+
+La corbeille supprime la fiche **et le fichier**, après confirmation. L'opération est définitive.
+
+> **Sauvegarde** : les fichiers déposés vivent dans le volume de données, aux côtés des PDF de factures. La sauvegarde intégrée à l'application ne couvre que la base ; c'est la sauvegarde du NAS qui protège les fichiers.
+
+---
+
+## 13. Mon profil
 
 ### Modifier ses informations
 
@@ -630,7 +827,7 @@ Le nouveau mot de passe doit respecter la politique : minimum 8 caractères, au 
 
 ---
 
-## 13. Paramètres (administrateur)
+## 14. Paramètres (administrateur)
 
 *Cette section est réservée aux utilisateurs ayant le rôle **Administrateur**.*
 
@@ -712,9 +909,20 @@ Permet de configurer les règles de catégorisation automatique des transactions
 
 Permet de gérer les comptes utilisateurs : créer un compte, modifier le rôle, réinitialiser le mot de passe, désactiver un compte.
 
+### Journal d'audit
+
+L'écran **Système** présente le journal des actions enregistrées : connexions, créations, modifications et suppressions, rapprochements, imports, envois d'e-mails.
+
+- **Cible** — chaque entrée nomme l'élément touché tel qu'il était au moment de l'action : « 15/03/2026 · 150,00 € · VIR DUPONT » pour une opération bancaire, « F-2026-012 · Marie Dupont » pour une facture. Le libellé reste lisible même si l'élément a été modifié ou supprimé depuis. Le type et le numéro interne figurent en dessous.
+- **Détail** — les informations propres à l'action, en clair : montant, catégorie, facture(s) rattachée(s), écritures supprimées… Un rapprochement en masse liste les opérations rapprochées.
+- **Recherche** — le champ cherche dans l'utilisateur, le nom de l'action (« rapprochement », « suppression »…), la cible et le détail. `#447` retrouve les actions sur l'élément numéro 447.
+- **Filtres** — par domaine (Banque, Factures, Connexions…) et par période.
+
+Le journal est paginé côté serveur : toutes les entrées sont accessibles, et le nombre total s'affiche à droite des filtres.
+
 ---
 
-## 14. Guide par rôle — « Je veux… »
+## 15. Guide par rôle — « Je veux… »
 
 Ce guide recense les actions courantes par rôle et renvoie vers la section correspondante du manuel.
 
@@ -732,7 +940,7 @@ Ce guide recense les actions courantes par rôle et renvoie vers la section corr
 | Télécharger le PDF d'une facture | [4. Factures clients — Télécharger le PDF](#télécharger-le-pdf) |
 | Modifier ou supprimer une facture | [4. Factures clients — Modifier une facture](#modifier-une-facture) |
 | Créer un avoir (note de crédit) | [4. Factures clients](#4-factures-clients) |
-| Modifier mon profil ou mon mot de passe | [12. Mon profil](#12-mon-profil) |
+| Modifier mon profil ou mon mot de passe | [13. Mon profil](#13-mon-profil) |
 
 ### Trésorier
 

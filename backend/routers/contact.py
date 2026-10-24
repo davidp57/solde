@@ -132,6 +132,13 @@ async def send_member_mailing(
             body=payload.body,
             settings=app_settings,
         )
+    except email_service.EmailInsecureCredentialsError as exc:
+        raise api_error(
+            status.HTTP_400_BAD_REQUEST,
+            "SMTP_INSECURE_CREDENTIALS",
+            "Un identifiant SMTP est renseigné mais la connexion n'est pas chiffrée : "
+            "choisissez STARTTLS ou SSL/TLS dans les paramètres.",
+        ) from exc
     except email_service.EmailConfigError as exc:
         raise api_error(
             status.HTTP_400_BAD_REQUEST,

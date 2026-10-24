@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import get_db
 from backend.errors import api_error
 from backend.models.accounting_entry import EntrySourceType
+from backend.models.fiscal_year import FiscalYear
 from backend.models.user import User, UserRole
 from backend.routers.auth import require_role
 from backend.schemas.accounting_entry import (
@@ -239,4 +240,51 @@ async def export_bilan_csv(
         content=content,
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": "attachment; filename=bilan.csv"},
+    )
+
+
+def _pdf_filename(prefix: str, fiscal_year_name: str | None) -> str:
+    """Name the archive file after its fiscal year, falling back to the bare report."""
+    if not fiscal_year_name:
+        return f"{prefix}.pdf"
+    safe = "".join(c if c.isalnum() or c in "-_" else "-" for c in fiscal_year_name)
+    return f"{prefix}_{safe}.pdf"
+
+
+async def _fiscal_year_name(db: AsyncSession, fiscal_year_id: int | None) -> str | None:
+    if fiscal_year_id is None:
+        return None
+    fy = await db.get(FiscalYear, fiscal_year_id)
+    return fy.name if fy else None
+
+
+@router.get("/resultat/export/pdf")
+async def export_resultat_pdf(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    fiscal_year_id: int | None = Query(default=None),
+) -> Response:
+    """Download the compte de résultat as an archivable PDF."""
+    content = await export_service.export_resultat_pdf(db, fiscal_year_id=fiscal_year_id)
+    filename = _pdf_filename("compte-de-resultat", await _fiscal_year_name(db, fiscal_year_id))
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get("/bilan/export/pdf")
+async def export_bilan_pdf(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _: _ReadAccess,
+    fiscal_year_id: int | None = Query(default=None),
+) -> Response:
+    """Download the simplified bilan as an archivable PDF."""
+    content = await export_service.export_bilan_pdf(db, fiscal_year_id=fiscal_year_id)
+    filename = _pdf_filename("bilan", await _fiscal_year_name(db, fiscal_year_id))
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )

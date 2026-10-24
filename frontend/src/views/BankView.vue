@@ -121,6 +121,18 @@
               @click="doExportExcel"
             />
           </div>
+          <div class="app-field">
+            <label class="app-field__label">&nbsp;</label>
+            <Button
+              data-testid="bank-show-all-history"
+              :label="t('bank.show_all_history')"
+              :icon="showAllHistory ? 'pi pi-calendar-times' : 'pi pi-calendar'"
+              :severity="showAllHistory ? 'primary' : 'secondary'"
+              outlined
+              size="small"
+              @click="showAllHistory = !showAllHistory; loadAll()"
+            />
+          </div>
         </div>
       </div>
 
@@ -199,17 +211,17 @@
                   </div>
                   <div class="app-mobile-card-actions">
                     <AppRowActions
-                      v-if="txPrimaryAction(data)"
-                      :primary="txPrimaryAction(data)!"
+                      v-if="txPrimaryAction(data) || txMenuItems(data).length"
+                      :primary="txPrimaryAction(data) ?? undefined"
                       :menu-items="txMenuItems(data)"
                       :menu-aria-label="t('common.actions')"
                     />
                     <Button
-                      icon="pi pi-pencil"
+                      :icon="categoryEditIcon(data)"
                       size="small"
                       text
                       severity="secondary"
-                      :title="t('bank.edit_category_label')"
+                      :title="categoryEditTitle(data)"
                       @click="openCategoryEdit($event, data)"
                     />
                   </div>
@@ -371,12 +383,12 @@
                       :value="t(`bank.categories.${data.detected_category}`)"
                     />
                     <Button
-                      icon="pi pi-pencil"
+                      :icon="categoryEditIcon(data)"
                       size="small"
                       text
                       severity="secondary"
                       class="bank-category-edit-btn"
-                      :title="t('bank.edit_category_label')"
+                      :title="categoryEditTitle(data)"
                       @click="openCategoryEdit($event, data)"
                     />
                   </div>
@@ -425,8 +437,8 @@
               <Column :header="t('common.actions')" style="width: 7.25rem">
                 <template #body="{ data }">
                   <AppRowActions
-                    v-if="txPrimaryAction(data)"
-                    :primary="txPrimaryAction(data)!"
+                    v-if="txPrimaryAction(data) || txMenuItems(data).length"
+                    :primary="txPrimaryAction(data) ?? undefined"
                     :menu-items="txMenuItems(data)"
                     :menu-aria-label="t('common.actions')"
                   />
@@ -505,17 +517,17 @@
                   </div>
                   <div class="app-mobile-card-actions">
                     <AppRowActions
-                      v-if="txPrimaryAction(data)"
-                      :primary="txPrimaryAction(data)!"
+                      v-if="txPrimaryAction(data) || txMenuItems(data).length"
+                      :primary="txPrimaryAction(data) ?? undefined"
                       :menu-items="txMenuItems(data)"
                       :menu-aria-label="t('common.actions')"
                     />
                     <Button
-                      icon="pi pi-pencil"
+                      :icon="categoryEditIcon(data)"
                       size="small"
                       text
                       severity="secondary"
-                      :title="t('bank.edit_category_label')"
+                      :title="categoryEditTitle(data)"
                       @click="openCategoryEdit($event, data)"
                     />
                   </div>
@@ -677,12 +689,12 @@
                       :value="t(`bank.categories.${data.detected_category}`)"
                     />
                     <Button
-                      icon="pi pi-pencil"
+                      :icon="categoryEditIcon(data)"
                       size="small"
                       text
                       severity="secondary"
                       class="bank-category-edit-btn"
-                      :title="t('bank.edit_category_label')"
+                      :title="categoryEditTitle(data)"
                       @click="openCategoryEdit($event, data)"
                     />
                   </div>
@@ -731,8 +743,8 @@
               <Column :header="t('common.actions')" style="width: 7.25rem">
                 <template #body="{ data }">
                   <AppRowActions
-                    v-if="txPrimaryAction(data)"
-                    :primary="txPrimaryAction(data)!"
+                    v-if="txPrimaryAction(data) || txMenuItems(data).length"
+                    :primary="txPrimaryAction(data) ?? undefined"
                     :menu-items="txMenuItems(data)"
                     :menu-aria-label="t('common.actions')"
                   />
@@ -957,6 +969,11 @@
       :transaction="existingSupplierPaymentTransaction"
       @saved="loadAll"
     />
+    <BankMergeDepositDialog
+      v-model:visible="mergeDepositDialogVisible"
+      :transaction="mergeDepositTransaction"
+      @saved="loadAll"
+    />
     <BankNewDepositDialog
       v-model:visible="depositDialogVisible"
       :payments="undepositedPayments"
@@ -1044,6 +1061,7 @@ import BankClientPaymentDialog from '../components/bank/BankClientPaymentDialog.
 import BankLinkClientPaymentDialog from '../components/bank/BankLinkClientPaymentDialog.vue'
 import BankSupplierPaymentDialog from '../components/bank/BankSupplierPaymentDialog.vue'
 import BankLinkSupplierPaymentDialog from '../components/bank/BankLinkSupplierPaymentDialog.vue'
+import BankMergeDepositDialog from '../components/bank/BankMergeDepositDialog.vue'
 import BankNewDepositDialog from '../components/bank/BankNewDepositDialog.vue'
 import BankPendingDepositsPanel from '../components/bank/BankPendingDepositsPanel.vue'
 import AppMobileCardList from '../components/ui/AppMobileCardList.vue'
@@ -1058,6 +1076,8 @@ import {
   listTransactionsWithCount,
   updateTransaction,
   deleteTransaction,
+  unreconcileTransaction,
+  canDeleteTransaction,
   reconcileTransactionsBulk,
   type BankTransaction,
   type BankTransactionCategory,
@@ -1069,6 +1089,8 @@ import { listPayments, type Payment } from '@/api/payments'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
 import { useListLimitStore } from '@/stores/listLimit'
 import { formatDisplayDate } from '@/utils/format'
+import { getErrorDetail } from '@/utils/errorUtils'
+import { useAuthStore } from '@/stores/auth'
 import {
   dateRangeFilter,
   inFilter,
@@ -1084,6 +1106,7 @@ const { isMobile } = useBreakpoints()
 const toast = useToast()
 const confirm = useConfirm()
 const fiscalYearStore = useFiscalYearStore()
+const authStore = useAuthStore()
 const limitStore = useListLimitStore()
 const LIMIT_VIEW_TX = 'bank-transactions'
 const LIMIT_VIEW_DEP = 'bank-deposits'
@@ -1115,6 +1138,9 @@ const loadingDeposits = ref(false)
 const route = useRoute()
 const activeTab = ref('transactions_courant')
 const unreconciledOnly = ref(false)
+// Lifts the fiscal-year date filter — statement rows dated outside the selected
+// year (or outside every year, right after a rollover) are otherwise invisible.
+const showAllHistory = ref(false)
 
 function isTransactionTab(tab: string): boolean {
   return tab === 'transactions_courant' || tab === 'transactions_epargne'
@@ -1143,11 +1169,14 @@ const clientPaymentDialogVisible = ref(false)
 const existingClientPaymentDialogVisible = ref(false)
 const supplierPaymentDialogVisible = ref(false)
 const existingSupplierPaymentDialogVisible = ref(false)
+const mergeDepositDialogVisible = ref(false)
 
 // Edit/delete state for manual transactions
 const editTransactionDialogVisible = ref(false)
 const editingTransaction = ref<BankTransaction | null>(null)
 
+// Editing stays reserved to manual rows; deleting also covers directly-imported ones
+// (see canDeleteTransaction) — that is how an import duplicate gets removed.
 function canEditOrDelete(tx: BankTransaction): boolean {
   return (tx.source === 'manual' || tx.source === 'system_opening') && !tx.reconciled
 }
@@ -1157,19 +1186,63 @@ function openEditTransactionDialog(tx: BankTransaction): void {
   editTransactionDialogVisible.value = true
 }
 
-async function deleteManualTx(tx: BankTransaction): Promise<void> {
+async function deleteTx(tx: BankTransaction): Promise<void> {
   confirm.require({
     message: t('bank.delete_transaction_confirm'),
     header: t('bank.delete_transaction_title'),
     icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('common.delete'),
+    rejectLabel: t('common.cancel'),
     acceptSeverity: 'danger',
     accept: async () => {
       try {
         await deleteTransaction(tx.id)
-        transactions.value = transactions.value.filter((t) => t.id !== tx.id)
+        // Deleting shifts the running balance of every later transaction, so the
+        // whole list must be refetched — dropping the row locally would leave
+        // stale balances on screen.
+        await loadTransactions()
         toast.add({ severity: 'success', summary: t('bank.transaction_deleted'), life: 2000 })
-      } catch {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+      } catch (err: unknown) {
+        toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
+      }
+    },
+  })
+}
+
+//: Refusal codes of POST /transactions/{id}/unreconcile, mapped to their i18n key.
+const unreconcileErrorMessages: Record<string, string> = {
+  NOT_RECONCILED: 'bank.unreconcile_error_not_reconciled',
+  RECONCILED_VIA_PAYMENT: 'bank.unreconcile_error_payment',
+  RECONCILED_VIA_DEPOSIT: 'bank.unreconcile_error_deposit',
+  FISCAL_YEAR_CLOSED: 'bank.unreconcile_error_fiscal_year_closed',
+}
+
+function unreconcileErrorSummary(err: unknown): string {
+  const code = (
+    err as { response?: { data?: { detail?: { code?: string } } } }
+  )?.response?.data?.detail?.code
+  const key = code ? unreconcileErrorMessages[code] : undefined
+  return key ? t(key) : getErrorDetail(err, t('common.error.unknown'))
+}
+
+// The interface stays optimistic: only "is it reconciled" gates the action, and the
+// server arbitrates the payment / deposit / closed-year cases. Rebuilding that
+// reasoning here would let the two drift apart.
+async function unreconcileTx(tx: BankTransaction): Promise<void> {
+  confirm.require({
+    message: t('bank.unreconcile_confirm'),
+    header: t('bank.unreconcile_transaction'),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('bank.unreconcile_transaction'),
+    rejectLabel: t('common.cancel'),
+    accept: async () => {
+      try {
+        const updated = await unreconcileTransaction(tx.id)
+        const original = transactions.value.find((t) => t.id === tx.id)
+        if (original) Object.assign(original, updated)
+        toast.add({ severity: 'success', summary: t('bank.transaction_unreconciled'), life: 2500 })
+      } catch (err: unknown) {
+        toast.add({ severity: 'warn', summary: unreconcileErrorSummary(err), life: 6000 })
       }
     },
   })
@@ -1180,6 +1253,7 @@ const clientPaymentTransaction = ref<BankTransaction | null>(null)
 const existingClientPaymentTransaction = ref<BankTransaction | null>(null)
 const supplierPaymentTransaction = ref<BankTransaction | null>(null)
 const existingSupplierPaymentTransaction = ref<BankTransaction | null>(null)
+const mergeDepositTransaction = ref<BankTransaction | null>(null)
 
 const sourceOptions = [
   { label: t('bank.sources.manual'), value: 'manual' },
@@ -1375,6 +1449,17 @@ function canLinkExistingSupplierPayment(tx: BankTransaction): boolean {
   return canCreateSupplierPayment(tx)
 }
 
+// A statement row crediting a deposit Solde already recorded: the automatic merge
+// at import time missed it (slip confirmed too late), so both lines are still there.
+function canMergeDeposit(tx: BankTransaction): boolean {
+  return (
+    !tx.reconciled &&
+    parseFloat(tx.amount) > 0 &&
+    ['cheque_deposit', 'cash_deposit'].includes(tx.detected_category) &&
+    !['manual', 'system_opening'].includes(tx.source)
+  )
+}
+
 // Contextual non-destructive actions available for a transaction, in priority order.
 function txAvailableActions(tx: BankTransaction): RowAction[] {
   const acts: RowAction[] = []
@@ -1386,6 +1471,8 @@ function txAvailableActions(tx: BankTransaction): RowAction[] {
     acts.push({ key: 'link-client', label: t('bank.link_client_payment'), icon: 'pi pi-link', severity: 'secondary', command: () => openExistingClientPaymentDialog(tx) })
   if (canLinkExistingSupplierPayment(tx))
     acts.push({ key: 'link-supplier', label: t('bank.link_supplier_payment'), icon: 'pi pi-link', severity: 'secondary', command: () => openExistingSupplierPaymentDialog(tx) })
+  if (canMergeDeposit(tx))
+    acts.push({ key: 'merge-deposit', label: t('bank.merge_deposit'), icon: 'pi pi-link', severity: 'secondary', command: () => openMergeDepositDialog(tx) })
   if (canEditOrDelete(tx))
     acts.push({ key: 'edit', label: t('bank.edit_transaction'), icon: 'pi pi-pencil', severity: 'secondary', command: () => openEditTransactionDialog(tx) })
   return acts
@@ -1398,28 +1485,94 @@ function txPrimaryAction(tx: BankTransaction): RowAction | null {
 function txMenuItems(tx: BankTransaction): MenuItem[] {
   const [, ...rest] = txAvailableActions(tx)
   const items: MenuItem[] = rest.map((a) => ({ label: a.label, icon: a.icon, command: a.command }))
-  if (canEditOrDelete(tx)) {
+  if (tx.reconciled) {
     if (items.length) items.push({ separator: true })
-    items.push({ label: t('bank.delete_transaction'), icon: 'pi pi-trash', class: 'app-row-actions-danger', command: () => deleteManualTx(tx) })
+    items.push({ label: t('bank.unreconcile_transaction'), icon: 'pi pi-undo', command: () => unreconcileTx(tx) })
+  }
+  if (canDeleteTransaction(tx)) {
+    if (items.length) items.push({ separator: true })
+    items.push({ label: t('bank.delete_transaction'), icon: 'pi pi-trash', class: 'app-row-actions-danger', command: () => deleteTx(tx) })
   }
   return items
 }
 
-async function reconcile(tx: BankTransaction): Promise<void> {
+// Categories whose direct reconciliation generates no accounting entry although the
+// line is usually an invoice settlement: reconciling one silently leaves the money
+// out of the books, so the gesture asks first and points to the payment actions.
+const NO_ENTRY_RISK_CATEGORIES: BankTransactionCategory[] = [
+  'other_credit',
+  'other_debit',
+  'customer_payment',
+  'supplier_payment',
+]
+
+function confirmReconcile(txs: BankTransaction[], proceed: () => Promise<void>): void {
+  const risky = txs.filter((tx) => NO_ENTRY_RISK_CATEGORIES.includes(tx.detected_category))
+  const [single] = risky
+  if (!single) {
+    void proceed()
+    return
+  }
+  confirm.require({
+    header: t('bank.reconcile_no_entry_header'),
+    message:
+      txs.length === 1
+        ? t('bank.reconcile_no_entry_single', {
+            category: t(`bank.categories.${single.detected_category}`),
+          })
+        : t('bank.reconcile_no_entry_bulk', { count: risky.length }),
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: t('bank.reconcile_anyway'),
+    rejectLabel: t('common.cancel'),
+    accept: proceed,
+  })
+}
+
+function reconcile(tx: BankTransaction): void {
+  confirmReconcile([tx], () => doReconcile(tx))
+}
+
+async function doReconcile(tx: BankTransaction): Promise<void> {
   try {
     await reconcileTransactionsBulk([tx.id])
     if (unreconciledOnly.value) {
       transactions.value = transactions.value.filter((t) => t.id !== tx.id)
     } else {
       const original = transactions.value.find((t) => t.id === tx.id)
-      if (original) original.reconciled = true
+      if (original) {
+        original.reconciled = true
+        // A direct reconciliation is exactly what freezes the category.
+        original.category_locked = true
+      }
     }
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
+// The category of a directly reconciled transaction is locked server-side
+// (BANK_TRANSACTION_RECONCILED_LOCKED, rule in is_category_locked): the button turns
+// into a padlock that explains the way out instead of opening an editor whose save is
+// bound to fail.
+function categoryEditIcon(tx: BankTransaction): string {
+  return tx.category_locked ? 'pi pi-lock' : 'pi pi-pencil'
+}
+
+function categoryLockedMessage(): string {
+  return authStore.isTresorier
+    ? t('bank.category_locked_tresorier')
+    : t('bank.category_locked_secretaire')
+}
+
+function categoryEditTitle(tx: BankTransaction): string {
+  return tx.category_locked ? categoryLockedMessage() : t('bank.edit_category_label')
+}
+
 function openCategoryEdit(event: Event, tx: BankTransaction): void {
+  if (tx.category_locked) {
+    toast.add({ severity: 'info', summary: categoryLockedMessage(), life: 6000 })
+    return
+  }
   categoryEditTx.value = tx
   categoryEditValue.value = tx.detected_category
   categoryEditPopover.value?.show(event)
@@ -1433,8 +1586,8 @@ async function saveCategoryEdit(): Promise<void> {
     if (original) original.detected_category = categoryEditValue.value
     categoryEditPopover.value?.hide()
     toast.add({ severity: 'success', summary: t('bank.category_updated'), life: 2000 })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -1456,9 +1609,13 @@ const reconcileBeforeCount = computed(() => {
   return transactions.value.filter((tx) => !tx.reconciled && tx.date <= cutoff).length
 })
 
-async function reconcileAllVisible(): Promise<void> {
-  const ids = transactions.value.filter((tx) => !tx.reconciled).map((tx) => tx.id)
-  if (ids.length === 0) return
+function reconcileAllVisible(): void {
+  const txs = transactions.value.filter((tx) => !tx.reconciled)
+  if (txs.length === 0) return
+  confirmReconcile(txs, () => doReconcileAll(txs.map((tx) => tx.id)))
+}
+
+async function doReconcileAll(ids: number[]): Promise<void> {
   reconcilingAll.value = true
   try {
     const count = await reconcileTransactionsBulk(ids)
@@ -1468,23 +1625,25 @@ async function reconcileAllVisible(): Promise<void> {
       life: 3000,
     })
     await loadTransactions()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     reconcilingAll.value = false
   }
 }
 
-async function reconcileBeforeDateConfirm(): Promise<void> {
+function reconcileBeforeDateConfirm(): void {
   if (!reconcileBeforeDate.value) return
   const cutoff = toLocalDateString(reconcileBeforeDate.value)
-  const ids = transactions.value
-    .filter((tx) => !tx.reconciled && tx.date <= cutoff)
-    .map((tx) => tx.id)
-  if (ids.length === 0) {
+  const txs = transactions.value.filter((tx) => !tx.reconciled && tx.date <= cutoff)
+  if (txs.length === 0) {
     reconcileBeforePopover.value?.hide()
     return
   }
+  confirmReconcile(txs, () => doReconcileBefore(txs.map((tx) => tx.id)))
+}
+
+async function doReconcileBefore(ids: number[]): Promise<void> {
   reconcilingBefore.value = true
   try {
     const count = await reconcileTransactionsBulk(ids)
@@ -1496,8 +1655,8 @@ async function reconcileBeforeDateConfirm(): Promise<void> {
     reconcileBeforePopover.value?.hide()
     reconcileBeforeDate.value = null
     await loadTransactions()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     reconcilingBefore.value = false
   }
@@ -1523,6 +1682,11 @@ function openExistingSupplierPaymentDialog(tx: BankTransaction): void {
   existingSupplierPaymentDialogVisible.value = true
 }
 
+function openMergeDepositDialog(tx: BankTransaction): void {
+  mergeDepositTransaction.value = tx
+  mergeDepositDialogVisible.value = true
+}
+
 async function openDepositDialog(): Promise<void> {
   undepositedPayments.value = await listPayments({
     invoice_type: 'client',
@@ -1536,17 +1700,22 @@ async function openDepositDialog(): Promise<void> {
 async function loadTransactions(): Promise<void> {
   loadingTx.value = true
   try {
+    const dateFilter = showAllHistory.value
+      ? {}
+      : {
+          from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+          to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+        }
     const { items, total } = await listTransactionsWithCount({
-      from_date: fiscalYearStore.selectedFiscalYear?.start_date,
-      to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+      ...dateFilter,
       unreconciled_only: unreconciledOnly.value,
       bank_account: activeTransactionAccount.value,
       limit: limitStore.requestLimit(LIMIT_VIEW_TX),
     })
     limitStore.setTotalCount(LIMIT_VIEW_TX, total)
     transactions.value = items
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     loadingTx.value = false
   }
@@ -1557,8 +1726,12 @@ async function loadDeposits(): Promise<void> {
   try {
     const [allResult, pending] = await Promise.all([
       listDepositsWithCount({
-        from_date: fiscalYearStore.selectedFiscalYear?.start_date,
-        to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+        ...(showAllHistory.value
+          ? {}
+          : {
+              from_date: fiscalYearStore.selectedFiscalYear?.start_date,
+              to_date: fiscalYearStore.selectedFiscalYear?.end_date,
+            }),
         limit: limitStore.requestLimit(LIMIT_VIEW_DEP),
       }),
       listDeposits({ confirmed: false }),
@@ -1566,8 +1739,8 @@ async function loadDeposits(): Promise<void> {
     limitStore.setTotalCount(LIMIT_VIEW_DEP, allResult.total)
     deposits.value = allResult.items
     pendingDeposits.value = pending
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     loadingDeposits.value = false
   }

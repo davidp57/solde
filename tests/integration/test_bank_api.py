@@ -11,9 +11,20 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.accounting_entry import AccountingEntry, EntrySourceType
-from backend.models.bank import BankTransaction, BankTransactionSource
+from backend.models.accounting_rule import (
+    AccountingRule,
+    AccountingRuleEntry,
+    EntrySide,
+    TriggerType,
+)
+from backend.models.bank import (
+    BankTransaction,
+    BankTransactionCategory,
+    BankTransactionSource,
+)
 from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
 from backend.models.contact import Contact, ContactType
+from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
 from backend.models.user import User
@@ -757,6 +768,315 @@ async def test_import_csv(client: AsyncClient, admin_user: User, auth_headers: d
     assert data["created"][1]["detected_category"] == "sepa_debit"
 
 
+class TestUnreconcileTransaction:
+    """BIZ-260 — undoing a reconciliation, and the paths that refuse it."""
+
+    async def _fiscal_year(
+        self, db: AsyncSession, status: FiscalYearStatus = FiscalYearStatus.OPEN
+    ) -> FiscalYear:
+        fy = FiscalYear(
+            name="2024",
+            start_date=date(2024, 1, 1),
+            end_date=date(2024, 12, 31),
+            status=status,
+        )
+        db.add(fy)
+        await db.commit()
+        await db.refresh(fy)
+        return fy
+
+    async def _bank_fee_rule(self, db: AsyncSession) -> None:
+        rule = AccountingRule(
+            name="Frais bancaires",
+            trigger_type=TriggerType.BANK_FEES,
+            is_active=True,
+            priority=10,
+        )
+        db.add(rule)
+        await db.flush()
+        db.add(
+            AccountingRuleEntry(
+                rule_id=rule.id,
+                account_number="627000",
+                side=EntrySide.DEBIT,
+                description_template="{{label}}",
+            )
+        )
+        db.add(
+            AccountingRuleEntry(
+                rule_id=rule.id,
+                account_number="512100",
+                side=EntrySide.CREDIT,
+                description_template="{{label}}",
+            )
+        )
+        await db.commit()
+
+    async def _make_tx(
+        self,
+        db: AsyncSession,
+        *,
+        category: BankTransactionCategory = BankTransactionCategory.BANK_FEE,
+        description: str = "Frais tenue de compte",
+        reference: str | None = None,
+        reconciled_with: str | None = None,
+    ) -> int:
+        tx = BankTransaction(
+            date=date(2024, 5, 1),
+            amount=Decimal("-15.00"),
+            description=description,
+            reference=reference,
+            reconciled_with=reconciled_with,
+            detected_category=category,
+            balance_after=Decimal("0"),
+            source=BankTransactionSource.IMPORT_OFX,
+        )
+        db.add(tx)
+        await db.commit()
+        await db.refresh(tx)
+        return tx.id
+
+    async def _reconcile(self, client: AsyncClient, headers: dict, tx_id: int) -> None:
+        r = await client.post(
+            "/api/bank/transactions/reconcile-bulk", json={"ids": [tx_id]}, headers=headers
+        )
+        assert r.status_code == 200
+
+    async def _entry_count(self, db: AsyncSession, tx_id: int) -> int:
+        result = await db.execute(
+            select(AccountingEntry)
+            .where(AccountingEntry.source_type == EntrySourceType.BANK_TRANSACTION)
+            .where(AccountingEntry.source_id == tx_id)
+        )
+        return len(list(result.scalars().all()))
+
+    async def test_undoes_flag_and_deletes_generated_entries(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        await self._fiscal_year(db_session)
+        await self._bank_fee_rule(db_session)
+        tx_id = await self._make_tx(db_session)
+        await self._reconcile(client, auth_headers, tx_id)
+        assert await self._entry_count(db_session, tx_id) == 2
+
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        assert r.status_code == 200
+        assert r.json()["reconciled"] is False
+        assert await self._entry_count(db_session, tx_id) == 0
+
+    async def test_no_entry_category_unreconciles_without_entries(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        """The common case: nothing was generated, so there is nothing to undo but the flag."""
+        await self._fiscal_year(db_session)
+        tx_id = await self._make_tx(
+            db_session,
+            category=BankTransactionCategory.NO_ENTRY,
+            description="Virement interne",
+        )
+        await self._reconcile(client, auth_headers, tx_id)
+
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        assert r.status_code == 200
+        assert r.json()["reconciled"] is False
+
+    async def test_unreconciled_row_becomes_deletable_again(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        """The whole point of the lot: a reconciled duplicate can finally be removed."""
+        await self._fiscal_year(db_session)
+        tx_id = await self._make_tx(
+            db_session, category=BankTransactionCategory.NO_ENTRY, description="Doublon"
+        )
+        await self._reconcile(client, auth_headers, tx_id)
+        blocked = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+        assert blocked.status_code == 422
+
+        await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        deleted = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+        assert deleted.status_code == 204
+
+    async def test_already_unreconciled_is_refused(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        tx_id = await self._make_tx(db_session)
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "NOT_RECONCILED"
+
+    async def test_payment_backed_reconciliation_is_refused(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        invoice = await _make_client_invoice(db_session)
+        create = await client.post(
+            "/api/bank/transactions",
+            json={"date": "2024-05-01", "amount": "150.00", "description": "VIR DUPONT"},
+            headers=auth_headers,
+        )
+        tx_id = create.json()["id"]
+        linked = await client.post(
+            f"/api/bank/transactions/{tx_id}/create-client-payment",
+            json={"invoice_id": invoice.id},
+            headers=auth_headers,
+        )
+        assert linked.status_code == 201
+
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "RECONCILED_VIA_PAYMENT"
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("reference", "DEP-CHQ-7"),
+            ("reconciled_with", "Bordereau #7"),
+            ("description", "Remise de chèques (bordereau #7)"),
+        ],
+    )
+    async def test_deposit_backed_reconciliation_is_refused(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict,
+        field: str,
+        value: str,
+    ):
+        """Each of the three marks a deposit path leaves behind must be honoured.
+
+        The description is the one that matters: a merged line takes the statement's
+        reference, and `reconciled_with` stays empty when the slip carries a hand-typed
+        bank reference — the description is then the only remaining link to the slip.
+        """
+        await self._fiscal_year(db_session)
+        kwargs: dict = {"category": BankTransactionCategory.CHEQUE_DEPOSIT}
+        kwargs[field] = value
+        tx_id = await self._make_tx(db_session, **kwargs)
+        await self._reconcile(client, auth_headers, tx_id)
+
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "RECONCILED_VIA_DEPOSIT"
+
+    async def test_closed_fiscal_year_is_refused(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        await self._fiscal_year(db_session, status=FiscalYearStatus.OPEN)
+        tx_id = await self._make_tx(db_session, category=BankTransactionCategory.NO_ENTRY)
+        await self._reconcile(client, auth_headers, tx_id)
+        result = await db_session.execute(select(FiscalYear))
+        fy = result.scalars().one()
+        fy.status = FiscalYearStatus.CLOSED
+        await db_session.commit()
+
+        r = await client.post(f"/api/bank/transactions/{tx_id}/unreconcile", headers=auth_headers)
+
+        assert r.status_code == 409
+        assert r.json()["detail"]["code"] == "FISCAL_YEAR_CLOSED"
+
+    async def test_unknown_transaction_returns_404(self, client: AsyncClient, auth_headers: dict):
+        r = await client.post("/api/bank/transactions/999999/unreconcile", headers=auth_headers)
+        assert r.status_code == 404
+
+
+class TestImportDuplicateReporting:
+    """Probable duplicates between an imported row and one already recorded."""
+
+    _OFX_TEMPLATE = """<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS>
+<CURDEF>EUR</CURDEF><BANKACCTFROM><ACCTID>00023135701</ACCTID></BANKACCTFROM>
+<BANKTRANLIST>
+<STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>{posted}</DTPOSTED>
+<TRNAMT>{amount}</TRNAMT><FITID>{fitid}</FITID><NAME>{name}</NAME></STMTTRN>
+</BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>"""
+
+    async def _existing_manual(
+        self,
+        client: AsyncClient,
+        headers: dict,
+        *,
+        tx_date: str = "2026-05-01",
+        amount: str = "-3000.00",
+    ) -> int:
+        r = await client.post(
+            "/api/bank/transactions",
+            json={"date": tx_date, "amount": amount, "description": "Virement interne"},
+            headers=headers,
+        )
+        assert r.status_code == 201
+        return r.json()["id"]
+
+    async def _import(
+        self,
+        client: AsyncClient,
+        headers: dict,
+        *,
+        posted: str = "20260501",
+        amount: str = "-3000.00",
+        fitid: str = "LXS01G6OCF",
+        name: str = "VIR COMPTE COURANT ASSOCIATION",
+    ) -> dict:
+        r = await client.post(
+            "/api/bank/transactions/import-ofx",
+            json={
+                "content": self._OFX_TEMPLATE.format(
+                    posted=posted, amount=amount, fitid=fitid, name=name
+                )
+            },
+            headers=headers,
+        )
+        assert r.status_code == 201
+        return r.json()
+
+    async def test_manual_row_reported_as_probable_duplicate(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        existing_id = await self._existing_manual(client, auth_headers)
+        body = await self._import(client, auth_headers)
+        assert len(body["created"]) == 1
+        assert len(body["duplicates"]) == 1
+        pair = body["duplicates"][0]
+        assert pair["existing"]["id"] == existing_id
+        assert pair["imported"]["id"] == body["created"][0]["id"]
+
+    async def test_duplicate_reported_within_date_tolerance(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        """A hand-keyed line rarely carries the exact value date the bank reports."""
+        await self._existing_manual(client, auth_headers, tx_date="2026-04-29")
+        body = await self._import(client, auth_headers)
+        assert len(body["duplicates"]) == 1
+
+    async def test_no_report_beyond_date_tolerance(self, client: AsyncClient, auth_headers: dict):
+        await self._existing_manual(client, auth_headers, tx_date="2026-04-20")
+        body = await self._import(client, auth_headers)
+        assert body["duplicates"] == []
+
+    async def test_no_report_on_different_amount(self, client: AsyncClient, auth_headers: dict):
+        await self._existing_manual(client, auth_headers, amount="-2000.00")
+        body = await self._import(client, auth_headers)
+        assert body["duplicates"] == []
+
+    async def test_reimport_is_skipped_not_reported(self, client: AsyncClient, auth_headers: dict):
+        """Same reference twice: the existing dedup still wins, nothing new to arbitrate."""
+        first = await self._import(client, auth_headers)
+        assert len(first["created"]) == 1
+        second = await self._import(client, auth_headers)
+        assert second["created"] == []
+        assert second["skipped"] == 1
+        assert second["duplicates"] == []
+
+    async def test_reported_duplicate_can_be_deleted(self, client: AsyncClient, auth_headers: dict):
+        await self._existing_manual(client, auth_headers)
+        body = await self._import(client, auth_headers)
+        imported_id = body["duplicates"][0]["imported"]["id"]
+        r = await client.delete(f"/api/bank/transactions/{imported_id}", headers=auth_headers)
+        assert r.status_code == 204
+
+
 @pytest.mark.asyncio
 async def test_create_client_payment_from_bank_transaction(
     client: AsyncClient,
@@ -1426,12 +1746,16 @@ class TestEditDeleteManualTransactions:
         assert r.status_code == 201
         return r.json()["id"]
 
-    async def _create_imported(self, db_session: AsyncSession) -> int:
+    async def _create_imported(
+        self,
+        db_session: AsyncSession,
+        source: BankTransactionSource = BankTransactionSource.IMPORT_OFX,
+    ) -> int:
         tx = BankTransaction(
             date=date(2024, 6, 1),
             amount=Decimal("12.00"),
             description="OFX import",
-            source=BankTransactionSource.IMPORT_OFX,
+            source=source,
         )
         db_session.add(tx)
         await db_session.commit()
@@ -1465,10 +1789,29 @@ class TestEditDeleteManualTransactions:
         listing = await client.get("/api/bank/transactions", headers=auth_headers)
         assert all(t["id"] != tx_id for t in listing.json())
 
-    async def test_delete_imported_transaction_refused(
+    async def test_delete_excel_imported_transaction_refused(
+        self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+    ):
+        """Excel rows back a reversible import run — deleting one would break its rollback."""
+        tx_id = await self._create_imported(db_session, source=BankTransactionSource.IMPORT_EXCEL)
+        r = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+        assert r.status_code == 422
+
+    async def test_delete_ofx_imported_transaction_allowed(
+        self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
+    ):
+        """An unreconciled statement row can be dropped — that is how a duplicate goes away."""
+        tx_id = await self._create_imported(db_session)
+        r = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+        assert r.status_code == 204
+        listing = await client.get("/api/bank/transactions", headers=auth_headers)
+        assert all(t["id"] != tx_id for t in listing.json())
+
+    async def test_delete_reconciled_imported_transaction_refused(
         self, client: AsyncClient, auth_headers: dict, db_session: AsyncSession
     ):
         tx_id = await self._create_imported(db_session)
+        await self._reconcile(client, auth_headers, tx_id)
         r = await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
         assert r.status_code == 422
 
@@ -1515,3 +1858,332 @@ class TestEditDeleteManualTransactions:
         )
         assert r.status_code == 200
         assert r.json()["description"] == "Note ajoutée après rapprochement"
+
+
+class TestAuditTrail:
+    """Lot AUDIT-LOG — bank actions say which lines they touched."""
+
+    async def _create(self, client: AsyncClient, headers: dict, description: str) -> int:
+        r = await client.post(
+            "/api/bank/transactions",
+            json={"date": "2026-03-15", "amount": "-15.00", "description": description},
+            headers=headers,
+        )
+        return int(r.json()["id"])
+
+    async def _last(
+        self, client: AsyncClient, db: AsyncSession, headers: dict, action: str
+    ) -> dict:
+        # The test client shares one session that never commits: flush the pending
+        # audit rows so the journal endpoint can read them.
+        await db.flush()
+        r = await client.get("/api/settings/audit-logs", params={"action": action}, headers=headers)
+        return r.json()[0]
+
+    async def test_bulk_reconcile_lists_the_reconciled_lines(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        first = await self._create(client, auth_headers, "FRAIS A")
+        second = await self._create(client, auth_headers, "FRAIS B")
+        await client.post(
+            "/api/bank/transactions/reconcile-bulk",
+            json={"ids": [first, second]},
+            headers=auth_headers,
+        )
+
+        entry = await self._last(
+            client, db_session, auth_headers, "bank.transaction.bulk_reconcile"
+        )
+
+        assert entry["detail"]["count"] == 2
+        assert entry["detail"]["transactions"] == [
+            "15/03/2026 · -15,00 € · FRAIS A",
+            "15/03/2026 · -15,00 € · FRAIS B",
+        ]
+
+    async def test_single_reconcile_names_its_line(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        tx_id = await self._create(client, auth_headers, "FRAIS SEUL")
+        await client.post(
+            "/api/bank/transactions/reconcile-bulk", json={"ids": [tx_id]}, headers=auth_headers
+        )
+
+        entry = await self._last(
+            client, db_session, auth_headers, "bank.transaction.bulk_reconcile"
+        )
+
+        assert entry["target_id"] == tx_id
+        assert entry["target_label"] == "15/03/2026 · -15,00 € · FRAIS SEUL"
+
+    async def test_deleted_line_keeps_its_label(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        tx_id = await self._create(client, auth_headers, "DOUBLON")
+        await client.delete(f"/api/bank/transactions/{tx_id}", headers=auth_headers)
+
+        entry = await self._last(client, db_session, auth_headers, "bank.transaction.delete")
+
+        assert entry["target_label"] == "15/03/2026 · -15,00 € · DOUBLON"
+
+    async def test_payment_reconciliation_names_the_invoice(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        invoice = await _make_client_invoice(db_session)
+        r = await client.post(
+            "/api/bank/transactions",
+            json={"date": "2024-03-15", "amount": "150.00", "description": "VIR CLIENT"},
+            headers=auth_headers,
+        )
+        await client.post(
+            f"/api/bank/transactions/{r.json()['id']}/create-client-payment",
+            json={"invoice_id": invoice.id},
+            headers=auth_headers,
+        )
+
+        entry = await self._last(client, db_session, auth_headers, "bank.reconcile.payment")
+
+        assert entry["detail"]["invoices"] == invoice.number
+        assert entry["target_label"] == "15/03/2024 · 150,00 € · VIR CLIENT"
+
+
+class TestCategoryLock:
+    """The category only freezes where it generated the entries: a direct reconciliation."""
+
+    async def _create_imported(self, client: AsyncClient, headers: dict, amount: str) -> int:
+        r = await client.post(
+            "/api/bank/transactions",
+            json={
+                "date": "2024-03-15",
+                "amount": amount,
+                "description": "VIR CLIENT",
+                "reference": f"REF-{amount}",
+                "source": "import",
+            },
+            headers=headers,
+        )
+        assert r.status_code == 201
+        return int(r.json()["id"])
+
+    async def _row(self, client: AsyncClient, headers: dict, tx_id: int) -> dict:
+        listing = await client.get("/api/bank/transactions", headers=headers)
+        return next(t for t in listing.json() if t["id"] == tx_id)
+
+    async def test_direct_reconciliation_locks_the_category(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        tx_id = await self._create_imported(client, auth_headers, "150.00")
+        assert (await self._row(client, auth_headers, tx_id))["category_locked"] is False
+        r = await client.post(
+            "/api/bank/transactions/reconcile-bulk", json={"ids": [tx_id]}, headers=auth_headers
+        )
+        assert r.status_code == 200
+        assert (await self._row(client, auth_headers, tx_id))["category_locked"] is True
+
+        r = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"detected_category": "customer_payment"},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 422
+        assert r.json()["detail"]["code"] == "BANK_TRANSACTION_RECONCILED_LOCKED"
+
+    async def test_payment_created_from_the_line_sets_its_category(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        """The secretary validated a client transfer left on "other credit": the label
+        stayed wrong although the payment was right."""
+        invoice = await _make_client_invoice(db_session)
+        tx_id = await self._create_imported(client, auth_headers, "150.00")
+        put = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"detected_category": "other_credit"},
+            headers=auth_headers,
+        )
+        assert put.status_code == 200
+
+        r = await client.post(
+            f"/api/bank/transactions/{tx_id}/create-client-payment",
+            json={"invoice_id": invoice.id},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 201
+        assert r.json()["detected_category"] == "customer_payment"
+        assert r.json()["category_locked"] is False
+
+    async def test_linked_supplier_payment_sets_its_category(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        payment = await _make_supplier_virement_payment(db_session)
+        tx_id = await self._create_imported(client, auth_headers, "-200.00")
+
+        r = await client.post(
+            f"/api/bank/transactions/{tx_id}/link-supplier-payment",
+            json={"payment_id": payment.id},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 200
+        assert r.json()["detected_category"] == "supplier_payment"
+
+    async def test_category_stays_editable_on_a_line_held_by_a_payment(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        """Its entries come from the payment: the category is only a label there."""
+        invoice = await _make_client_invoice(db_session)
+        tx_id = await self._create_imported(client, auth_headers, "150.00")
+        await client.post(
+            f"/api/bank/transactions/{tx_id}/create-client-payment",
+            json={"invoice_id": invoice.id},
+            headers=auth_headers,
+        )
+
+        r = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"detected_category": "grant"},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 200
+        assert r.json()["detected_category"] == "grant"
+
+    async def test_amount_stays_locked_on_a_line_held_by_a_payment(
+        self, client: AsyncClient, db_session: AsyncSession, auth_headers: dict
+    ):
+        invoice = await _make_client_invoice(db_session)
+        manual = await client.post(
+            "/api/bank/transactions",
+            json={"date": "2024-03-15", "amount": "150.00", "description": "Saisie"},
+            headers=auth_headers,
+        )
+        tx_id = manual.json()["id"]
+        await client.post(
+            f"/api/bank/transactions/{tx_id}/create-client-payment",
+            json={"invoice_id": invoice.id},
+            headers=auth_headers,
+        )
+
+        r = await client.put(
+            f"/api/bank/transactions/{tx_id}",
+            json={"date": "2024-03-20"},
+            headers=auth_headers,
+        )
+
+        assert r.status_code == 422
+        assert r.json()["detail"]["code"] == "BANK_TRANSACTION_RECONCILED_LOCKED"
+
+
+# ---------------------------------------------------------------------------
+# Merging a statement deposit row with a slip, after the fact
+# ---------------------------------------------------------------------------
+
+
+async def _make_provisional_and_statement_rows(
+    client: AsyncClient, auth_headers: dict
+) -> tuple[int, int]:
+    """A slip line and its statement row that the import left side by side."""
+    provisional_resp = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2026-07-11",
+            "amount": "226.00",
+            "description": "Remise de chèques (bordereau #6)",
+            "reference": "DEP-CHQ-6",
+        },
+        headers=auth_headers,
+    )
+    assert provisional_resp.status_code == 201
+    provisional_id = provisional_resp.json()["id"]
+    # confirm_deposit stamps the category on the line it creates; the plain
+    # description does not match any detection pattern on its own.
+    category_resp = await client.put(
+        f"/api/bank/transactions/{provisional_id}",
+        json={"detected_category": "cheque_deposit"},
+        headers=auth_headers,
+    )
+    assert category_resp.status_code == 200
+    statement_resp = await client.post(
+        "/api/bank/transactions",
+        json={
+            "date": "2026-08-04",
+            "amount": "226.00",
+            "description": "REM CHQ REF05001A05",
+            "reference": "LF9UM92LLO",
+            "source": "import_ofx",
+        },
+        headers=auth_headers,
+    )
+    assert statement_resp.status_code == 201
+    return provisional_id, statement_resp.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_list_deposit_merge_candidates(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    provisional_id, statement_id = await _make_provisional_and_statement_rows(client, auth_headers)
+
+    response = await client.get(
+        f"/api/bank/transactions/{statement_id}/deposit-merge-candidates",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    assert [c["id"] for c in response.json()] == [provisional_id]
+
+
+@pytest.mark.asyncio
+async def test_merge_deposit_transaction(
+    client: AsyncClient, db_session: AsyncSession, admin_user: User, auth_headers: dict
+) -> None:
+    provisional_id, statement_id = await _make_provisional_and_statement_rows(client, auth_headers)
+
+    response = await client.post(
+        f"/api/bank/transactions/{statement_id}/merge-deposit",
+        json={"provisional_tx_id": provisional_id},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == provisional_id
+    assert data["date"] == "2026-08-04"
+    assert data["reference"] == "LF9UM92LLO"
+    assert data["description"] == "Remise de chèques (bordereau #6)"
+    assert data["reconciled"] is True
+    assert data["reconciled_with"] == "Bordereau #6"
+    assert await db_session.get(BankTransaction, statement_id) is None
+
+
+@pytest.mark.asyncio
+async def test_merge_deposit_transaction_rejects_a_stranger(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    _, statement_id = await _make_provisional_and_statement_rows(client, auth_headers)
+    other_resp = await client.post(
+        "/api/bank/transactions",
+        json={"date": "2026-07-11", "amount": "300.00", "description": "Remise d'espèces"},
+        headers=auth_headers,
+    )
+    assert other_resp.status_code == 201
+
+    response = await client.post(
+        f"/api/bank/transactions/{statement_id}/merge-deposit",
+        json={"provisional_tx_id": other_resp.json()["id"]},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "BANK_DEPOSIT_MERGE_INVALID"
+
+
+@pytest.mark.asyncio
+async def test_deposit_merge_candidates_not_found(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    response = await client.get(
+        "/api/bank/transactions/999999/deposit-merge-candidates", headers=auth_headers
+    )
+    assert response.status_code == 404

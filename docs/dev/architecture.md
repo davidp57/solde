@@ -50,7 +50,7 @@ WeasyPrint is imported on demand (not at startup) to respect this budget.
 | Database | SQLite (WAL mode) | Zero config, single-instance NAS |
 | ORM | SQLAlchemy 2 async | Async sessions, type safety |
 | Migrations | Alembic | Schema version control |
-| Authentication | python-jose (JWT) + bcrypt | Stateless JWTs; bcrypt direct (passlib incompatible with Python 3.13+) |
+| Authentication | PyJWT + bcrypt | Stateless JWTs; bcrypt direct (passlib incompatible with Python 3.13+) |
 | Validation | Pydantic v2 | Input/output schemas, settings |
 | PDF generation | WeasyPrint | Imported on demand |
 | Email | smtplib (stdlib) | No external dependency |
@@ -142,6 +142,8 @@ Typed exceptions are raised in services and caught in routers, which map them to
 ## Authentication and authorization
 
 Authentication uses stateless JWTs stored in **HttpOnly cookies** (access + refresh tokens). The frontend cannot access the tokens from JavaScript, preventing XSS token theft.
+
+Both tokens carry a `type` claim (`access` or `refresh`). `get_current_user` only accepts `type: "access"`, and `/api/auth/refresh` only accepts `type: "refresh"`: the 30-day refresh token can never authenticate an API call.
 
 Role-based authorization is implemented at the router level via FastAPI dependencies:
 

@@ -568,6 +568,17 @@ class TestReminderSendFlow:
         assert r.status_code == 200
         assert "Rappel" in r.json()["subject"]
 
+    async def test_send_refuses_credentials_without_encryption(
+        self, client: AsyncClient, auth_headers: dict
+    ):
+        invoice = await self._setup_sendable_invoice(client, auth_headers)
+        await client.put("/api/settings/", json={"smtp_security": "none"}, headers=auth_headers)
+        with patch(self._PDF_PATCH, return_value=b"%PDF"), patch("smtplib.SMTP") as smtp_cls:
+            r = await self._send(client, auth_headers, invoice["id"], "initial")
+        assert r.status_code == 400
+        assert r.json()["detail"]["code"] == "SMTP_INSECURE_CREDENTIALS"
+        smtp_cls.assert_not_called()
+
     async def test_send_reminder_appends_date(self, client: AsyncClient, auth_headers: dict):
         invoice = await self._setup_sendable_invoice(client, auth_headers)
         with patch(self._PDF_PATCH, return_value=b"%PDF"), patch(self._SEND_PATCH):

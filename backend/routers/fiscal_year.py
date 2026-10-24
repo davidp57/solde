@@ -47,7 +47,10 @@ async def create_fiscal_year(
     db: Annotated[AsyncSession, Depends(get_db)],
     _: _AdminAccess,
 ) -> FiscalYearRead:
-    return await fiscal_year_service.create_fiscal_year(db, payload)  # type: ignore[return-value]
+    try:
+        return await fiscal_year_service.create_fiscal_year(db, payload)  # type: ignore[return-value]
+    except FiscalYearError as exc:
+        raise unprocessable("FISCAL_YEAR_OVERLAP", str(exc)) from exc
 
 
 @router.get("/{fy_id}", response_model=FiscalYearRead)

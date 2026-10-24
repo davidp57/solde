@@ -21,10 +21,12 @@ from backend.schemas.bank import (
     BankTransactionClientPaymentLinks,
     BankTransactionClientPaymentsCreate,
     BankTransactionCreate,
+    BankTransactionDepositMerge,
     BankTransactionRead,
     BankTransactionUpdate,
 )
 from backend.services import bank_service
+from backend.services.audit_labels import describe_target, describe_targets
 from backend.services.audit_service import AuditAction, record_audit
 
 logger = logging.getLogger(__name__)
@@ -39,6 +41,12 @@ _ReadAccess = Annotated[
     User,
     Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
 ]
+# Undoing a reconciliation deletes accounting entries, so it sits one rung above the
+# reconciliation itself, which is day-to-day management work.
+_AccountingAccess = Annotated[
+    User,
+    Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN)),
+]
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +58,12 @@ def _serialize_transaction_with_payment_ids(
     tx: BankTransaction,
     payment_ids: list[int],
 ) -> BankTransactionRead:
-    return BankTransactionRead.model_validate(tx).model_copy(update={"payment_ids": payment_ids})
+    return BankTransactionRead.model_validate(tx).model_copy(
+        update={
+            "payment_ids": payment_ids,
+            "category_locked": bank_service.is_category_locked(tx, payment_ids),
+        }
+    )
 
 
 async def _serialize_transaction(
@@ -183,14 +196,18 @@ async def update_transaction(
             "date, amount and bank_account can only be updated on manual transactions",
         )
     # A reconciled transaction is locked accounting-wise: editing the fields that
-    # drive its generated entries (date, amount, account, category) would leave the
-    # journal stale. Mirror the delete guard — it must be unreconciled first.
+    # drive its generated entries (date, amount, account) would leave the journal
+    # stale. Mirror the delete guard — it must be unreconciled first. The category
+    # only drives entries on a direct reconciliation (see is_category_locked).
     accounting_fields = {
-        k
-        for k in ("date", "amount", "bank_account", "detected_category")
-        if k in payload.model_fields_set
+        k for k in ("date", "amount", "bank_account") if k in payload.model_fields_set
     }
-    if accounting_fields and tx.reconciled:
+    category_locked = "detected_category" in payload.model_fields_set and (
+        bank_service.is_category_locked(
+            tx, await bank_service.get_transaction_payment_ids(db, tx.id)
+        )
+    )
+    if (accounting_fields and tx.reconciled) or category_locked:
         raise unprocessable(
             "BANK_TRANSACTION_RECONCILED_LOCKED",
             "A reconciled transaction's date, amount, account or category cannot be "
@@ -216,8 +233,9 @@ async def delete_transaction(
     tx = await bank_service.get_transaction(db, tx_id)
     if tx is None:
         raise not_found("Transaction")
+    label = await describe_target(db, "bank_transaction", tx_id)
     try:
-        await bank_service.delete_manual_transaction(db, tx)
+        await bank_service.delete_transaction(db, tx)
     except ValueError as exc:
         raise unprocessable(
             "BANK_TRANSACTION_DELETE_FAILED",
@@ -229,7 +247,33 @@ async def delete_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
+        target_label=label,
     )
+
+
+@router.post("/transactions/{tx_id}/unreconcile", response_model=BankTransactionRead)
+async def unreconcile_transaction(
+    tx_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _AccountingAccess,
+) -> BankTransactionRead:
+    """Undo a reconciliation and delete the accounting entries it generated."""
+    tx = await bank_service.get_transaction(db, tx_id)
+    if tx is None:
+        raise not_found("Transaction")
+    try:
+        entry_count = await bank_service.unreconcile_transaction(db, tx)
+    except bank_service.UnreconcileError as exc:
+        raise conflict(exc.code, str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_TRANSACTION_UNRECONCILED,
+        actor=current_user,
+        target_id=tx_id,
+        target_type="bank_transaction",
+        detail={"category": tx.detected_category, "entries_deleted": entry_count},
+    )
+    return await _serialize_transaction(db, tx)
 
 
 @router.post("/transactions/reconcile-bulk", response_model=int)
@@ -239,13 +283,21 @@ async def reconcile_transactions_bulk(
     current_user: _WriteAccess,
 ) -> int:
     """Mark a batch of transactions as reconciled in a single request."""
+    # Read before reconciling: only the lines still open are reconciled, and the
+    # journal must say which ones — a bare count cannot be traced back.
+    pending_ids = await bank_service.list_unreconciled_transaction_ids(db, payload.ids)
+    labels = await describe_targets(db, [("bank_transaction", i) for i in pending_ids])
     count = await bank_service.reconcile_transactions_bulk(db, ids=payload.ids)
     await record_audit(
         db,
         action=AuditAction.BANK_TRANSACTION_BULK_RECONCILED,
         actor=current_user,
         target_type="bank_transaction",
-        detail={"count": count},
+        target_id=pending_ids[0] if len(pending_ids) == 1 else None,
+        detail={
+            "count": count,
+            "transactions": [labels.get(("bank_transaction", i), f"#{i}") for i in pending_ids],
+        },
     )
     return count
 
@@ -277,7 +329,7 @@ async def create_client_payment_from_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"invoice_id": payload.invoice_id, "type": "client"},
+        detail={"invoices": tx.reconciled_with, "invoice_id": payload.invoice_id, "type": "client"},
     )
     return await _serialize_transaction(db, tx)
 
@@ -309,7 +361,7 @@ async def create_client_payments_from_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"type": "client_multi"},
+        detail={"invoices": tx.reconciled_with, "type": "client_multi"},
     )
     return await _serialize_transaction(db, tx)
 
@@ -341,7 +393,11 @@ async def create_supplier_payment_from_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"invoice_id": payload.invoice_id, "type": "supplier"},
+        detail={
+            "invoices": tx.reconciled_with,
+            "invoice_id": payload.invoice_id,
+            "type": "supplier",
+        },
     )
     return await _serialize_transaction(db, tx)
 
@@ -369,7 +425,11 @@ async def link_client_payment_to_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"payment_id": payload.payment_id, "type": "link_client"},
+        detail={
+            "invoices": tx.reconciled_with,
+            "payment_id": payload.payment_id,
+            "type": "link_client",
+        },
     )
     return await _serialize_transaction(db, tx)
 
@@ -397,7 +457,11 @@ async def link_client_payments_to_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"count": len(payload.payment_ids), "type": "link_client_multi"},
+        detail={
+            "invoices": tx.reconciled_with,
+            "count": len(payload.payment_ids),
+            "type": "link_client_multi",
+        },
     )
     return await _serialize_transaction(db, tx)
 
@@ -425,6 +489,58 @@ async def link_supplier_payment_to_transaction(
         actor=current_user,
         target_id=tx_id,
         target_type="bank_transaction",
-        detail={"payment_id": payload.payment_id, "type": "link_supplier"},
+        detail={
+            "invoices": tx.reconciled_with,
+            "payment_id": payload.payment_id,
+            "type": "link_supplier",
+        },
+    )
+    return await _serialize_transaction(db, tx)
+
+
+@router.get(
+    "/transactions/{tx_id}/deposit-merge-candidates",
+    response_model=list[BankTransactionRead],
+)
+async def list_deposit_merge_candidates(
+    tx_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: _WriteAccess,
+) -> list[BankTransactionRead]:
+    """Provisional deposit lines this statement row could be folded into."""
+    try:
+        candidates = await bank_service.list_deposit_merge_candidates(db, tx_id=tx_id)
+    except LookupError as exc:
+        raise api_error(status.HTTP_404_NOT_FOUND, "BANK_RESOURCE_NOT_FOUND", str(exc)) from exc
+    except ValueError as exc:
+        raise unprocessable("BANK_DEPOSIT_MERGE_INVALID", str(exc)) from exc
+    return await _serialize_transactions(db, candidates)
+
+
+@router.post("/transactions/{tx_id}/merge-deposit", response_model=BankTransactionRead)
+async def merge_deposit_transaction(
+    tx_id: int,
+    payload: BankTransactionDepositMerge,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _WriteAccess,
+) -> BankTransactionRead:
+    """Fold this statement row into the provisional deposit line the user designated."""
+    try:
+        tx = await bank_service.merge_deposit_transaction(
+            db,
+            tx_id=tx_id,
+            provisional_tx_id=payload.provisional_tx_id,
+        )
+    except LookupError as exc:
+        raise api_error(status.HTTP_404_NOT_FOUND, "BANK_RESOURCE_NOT_FOUND", str(exc)) from exc
+    except ValueError as exc:
+        raise unprocessable("BANK_DEPOSIT_MERGE_INVALID", str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.BANK_DEPOSIT_MERGED,
+        actor=current_user,
+        target_id=tx.id,
+        target_type="bank_transaction",
+        detail={"absorbed_tx_id": tx_id},
     )
     return await _serialize_transaction(db, tx)

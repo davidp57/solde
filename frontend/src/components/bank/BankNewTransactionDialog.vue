@@ -16,6 +16,7 @@
           <div class="app-field">
             <label class="app-field__label">{{ t('bank.tx_date') }}</label>
             <AppDatePicker v-model="form.date" />
+            <AppFiscalYearDateWarning :date="form.date" />
           </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('bank.tx_amount') }}</label>
@@ -66,8 +67,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
+import AppFiscalYearDateWarning from '@/components/ui/AppFiscalYearDateWarning.vue'
 import Dialog from 'primevue/dialog'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
@@ -145,8 +148,8 @@ async function submit(): Promise<void> {
     }
     emit('update:visible', false)
     emit('saved')
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     saving.value = false
   }

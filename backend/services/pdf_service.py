@@ -33,6 +33,11 @@ def render_invoice_html(
     )
 
 
+def render_financial_statement_html(context: dict[str, object]) -> str:
+    """Render the bilan / compte de résultat template to an HTML string."""
+    return _template_env().get_template("financial_statement.html").render(**context)
+
+
 def generate_invoice_pdf(
     invoice: object,
     contact_name: str,

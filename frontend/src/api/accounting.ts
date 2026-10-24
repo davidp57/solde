@@ -794,6 +794,18 @@ export function getExportCsvUrl(
   return `/api/accounting/entries/${type}/export/csv${qs}`
 }
 
+export function getExportPdfUrl(
+  type: 'resultat' | 'bilan',
+  params: Record<string, string | number | undefined> = {},
+): string {
+  const sp = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v != null) sp.set(k, String(v))
+  }
+  const qs = sp.toString() ? `?${sp}` : ''
+  return `/api/accounting/entries/${type}/export/pdf${qs}`
+}
+
 // -----------------------------------------------------------------------
 // Contact history & créances douteuses
 // -----------------------------------------------------------------------

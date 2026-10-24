@@ -728,3 +728,81 @@ class TestReminderHistory:
         await db_session.commit()
         await db_session.refresh(invoice)  # type: ignore[arg-type]
         assert invoice.reminder_dates == ["2026-06-01", "2026-06-15"]  # type: ignore[union-attr]
+
+
+class TestSupplierInvoiceEntriesOnCreate:
+    """Supplier invoices are born SENT and never cross the DRAFT -> SENT
+    transition that generates entries elsewhere, so creation must do it."""
+
+    @pytest.mark.asyncio
+    async def test_creating_a_supplier_invoice_books_the_debt(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Real case: eight supplier invoices paid without the debt ever booked,
+        leaving 401000 with a 1141,45 debit balance and charges understated."""
+        await seed_default_rules(db_session)
+        contact = Contact(type=ContactType.FOURNISSEUR, nom="Fournisseur")
+        db_session.add(contact)
+        await db_session.flush()
+
+        invoice = await create_invoice(
+            db_session,
+            InvoiceCreate(
+                type=InvoiceType.FOURNISSEUR,
+                contact_id=contact.id,
+                date=date(2026, 5, 2),
+                lines=[
+                    InvoiceLineCreate(
+                        description="Fournitures",
+                        quantity=Decimal("1"),
+                        unit_price=Decimal("46.56"),
+                    )
+                ],
+            ),
+        )
+
+        assert invoice.status == InvoiceStatus.SENT
+        result = await db_session.execute(
+            select(AccountingEntry).where(
+                AccountingEntry.source_type == EntrySourceType.INVOICE,
+                AccountingEntry.source_id == invoice.id,
+            )
+        )
+        entries = list(result.scalars().all())
+        assert entries, "the debt must be booked on creation"
+        assert sum(e.debit for e in entries) == sum(e.credit for e in entries) == Decimal("46.56")
+        supplier = next(e for e in entries if e.account_number == "401000")
+        assert supplier.credit == Decimal("46.56"), "supplier account credited by the debt"
+
+    @pytest.mark.asyncio
+    async def test_client_invoice_still_waits_for_validation(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Client invoices start as drafts: nothing is booked until validation."""
+        await seed_default_rules(db_session)
+        contact = Contact(type=ContactType.CLIENT, nom="Client")
+        db_session.add(contact)
+        await db_session.flush()
+
+        invoice = await create_invoice(
+            db_session,
+            InvoiceCreate(
+                type=InvoiceType.CLIENT,
+                contact_id=contact.id,
+                date=date(2026, 5, 2),
+                lines=[
+                    InvoiceLineCreate(
+                        description="Cours", quantity=Decimal("1"), unit_price=Decimal("50.00")
+                    )
+                ],
+            ),
+        )
+
+        assert invoice.status == InvoiceStatus.DRAFT
+        result = await db_session.execute(
+            select(AccountingEntry).where(
+                AccountingEntry.source_type == EntrySourceType.INVOICE,
+                AccountingEntry.source_id == invoice.id,
+            )
+        )
+        assert list(result.scalars().all()) == []

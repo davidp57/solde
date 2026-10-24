@@ -4,19 +4,33 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt
-from jose import JWTError, jwt
+import jwt
 
 from backend.config import get_settings
+
+# JWT "type" claim: only access tokens may authenticate API requests; refresh
+# tokens are only accepted by /api/auth/refresh.
+ACCESS_TOKEN_TYPE = "access"
+REFRESH_TOKEN_TYPE = "refresh"
+
+
+#: bcrypt only reads this many bytes. bcrypt < 5 dropped the rest silently, and
+#: the stored hashes were made that way; bcrypt 5 raises instead.
+_BCRYPT_MAX_BYTES = 72
+
+
+def _bcrypt_input(password: str) -> bytes:
+    return password.encode()[:_BCRYPT_MAX_BYTES]
 
 
 def hash_password(password: str) -> str:
     """Return a bcrypt hash of the given plaintext password."""
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(_bcrypt_input(password), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Return True if plain_password matches the stored hash."""
-    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    return bcrypt.checkpw(_bcrypt_input(plain_password), hashed_password.encode())
 
 
 def create_access_token(
@@ -34,6 +48,7 @@ def create_access_token(
     """
     settings = get_settings()
     payload = data.copy()
+    payload.setdefault("type", ACCESS_TOKEN_TYPE)
     now = datetime.now(UTC)
     expire = now + (
         expires_delta
@@ -49,7 +64,7 @@ def create_refresh_token(username: str) -> str:
     """Create a long-lived refresh token for the given username."""
     settings = get_settings()
     return create_access_token(
-        data={"sub": username, "type": "refresh"},
+        data={"sub": username, "type": REFRESH_TOKEN_TYPE},
         expires_delta=timedelta(days=settings.jwt_refresh_token_expire_days),
     )
 
@@ -63,5 +78,5 @@ def decode_access_token(token: str) -> dict[str, Any] | None:
     settings = get_settings()
     try:
         return jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
-    except JWTError:
+    except jwt.InvalidTokenError:
         return None

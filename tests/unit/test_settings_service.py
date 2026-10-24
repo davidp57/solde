@@ -64,7 +64,7 @@ class TestGetSettings:
         assert settings.default_invoice_due_days is None
         assert settings.smtp_host is None
         assert settings.smtp_port == 587
-        assert settings.smtp_use_tls is True
+        assert settings.smtp_security == "starttls"
 
     async def test_creates_row_on_first_call(self, db_session: AsyncSession):
         await get_settings(db_session)
@@ -97,7 +97,7 @@ class TestUpdateSettings:
             smtp_user="user@example.com",
             smtp_password="secret",
             smtp_from_email="noreply@example.com",
-            smtp_use_tls=False,
+            smtp_security="ssl",
         )
         settings = await update_settings(db_session, payload)
 
@@ -105,7 +105,7 @@ class TestUpdateSettings:
         assert settings.smtp_port == 465
         assert settings.smtp_user == "user@example.com"
         assert settings.smtp_from_email == "noreply@example.com"
-        assert settings.smtp_use_tls is False
+        assert settings.smtp_security == "ssl"
 
     async def test_update_fiscal_year_start_month(self, db_session: AsyncSession):
         payload = AppSettingsUpdate(fiscal_year_start_month=1)

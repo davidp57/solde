@@ -39,13 +39,25 @@ class BankTransactionRead(BaseModel):
     detected_category: BankTransactionCategory
     payment_id: int | None
     payment_ids: list[int] = Field(default_factory=list)
+    #: True when the category drives entries already generated (direct reconciliation).
+    category_locked: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class BankImportDuplicate(BaseModel):
+    """An imported row paired with the transaction it probably duplicates."""
+
+    imported: BankTransactionRead
+    existing: BankTransactionRead
 
 
 class BankImportResult(BaseModel):
     created: list[BankTransactionRead]
     skipped: int
+    duplicates: list[BankImportDuplicate] = Field(default_factory=list)
+    #: Statement rows folded into a provisional deposit transaction created by Solde.
+    merged: int = 0
 
 
 class BankTransactionUpdate(BaseModel):
@@ -107,6 +119,11 @@ class BankTransactionClientPaymentsCreate(BaseModel):
 
 class BankTransactionClientPaymentLink(BaseModel):
     payment_id: int
+
+
+class BankTransactionDepositMerge(BaseModel):
+    #: The provisional (``manual``) deposit line the statement row is folded into.
+    provisional_tx_id: int
 
 
 class BankTransactionClientPaymentLinks(BaseModel):

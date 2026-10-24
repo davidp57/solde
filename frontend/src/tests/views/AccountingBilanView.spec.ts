@@ -2,6 +2,10 @@ import { mount } from '@vue/test-utils'
 import { defineComponent, h, inject, nextTick, provide } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('primevue/usetoast', () => ({
+  useToast: () => ({ add: vi.fn() }),
+}))
+
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string) => key,

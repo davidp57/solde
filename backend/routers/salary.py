@@ -18,6 +18,7 @@ from backend.schemas.salary import (
     WorkforceCostRow,
 )
 from backend.services import salary_service
+from backend.services.audit_labels import describe_target
 from backend.services.audit_service import AuditAction, record_audit
 
 if TYPE_CHECKING:
@@ -180,6 +181,7 @@ async def delete_salary(
     if salary is None:
         raise not_found("Salary")
     detail = {"employee_id": salary.employee_id, "month": salary.month}
+    label = await describe_target(db, "salary", salary_id)
     await salary_service.delete_salary(db, salary)
     await record_audit(
         db,
@@ -187,6 +189,7 @@ async def delete_salary(
         actor=current_user,
         target_id=salary_id,
         target_type="salary",
+        target_label=label,
         detail=detail,
     )
 

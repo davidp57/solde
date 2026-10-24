@@ -29,6 +29,22 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [TABLE-FIT](TABLE-FIT/PRD.md) — supprimer le scroll horizontal des tableaux sur grand écran (TEC-212) | ✅ |
 | [SALARY-FIX](SALARY-FIX/PRD.md) — fiabiliser les écritures comptables des salaires : net auto-validé, régénération à l'édition, garde-fou incomplet (BIZ-222 + TEC-213/214) | ✅ |
 | [PAY-CANCEL](PAY-CANCEL/PRD.md) — annulation d'un règlement client non encore encaissé, réservée à l'admin (BIZ-223/224) | ✅ |
+| [IMPORT-DUP](IMPORT-DUP/PRD.md) — doublons d'import bancaire : signalement à l'import + suppression d'une ligne importée (BIZ-258/259) | ✅ |
+| [UNRECONCILE](UNRECONCILE/PRD.md) — défaire le rapprochement d'une opération bancaire (BIZ-260/261) | ✅ |
+| [FY-ROLLOVER](FY-ROLLOVER/PRD.md) — bascule d'exercice depuis l'interface : pré-contrôles, ouverture avec report à nouveau, anti-chevauchement (BIZ-226 + TEC-217) | ✅ |
+| [DEPOSIT-MERGE](DEPOSIT-MERGE/PRD.md) — fusionner une remise confirmée avec sa ligne de relevé au lieu de la dupliquer (BIZ-227) | ✅ |
+| [DOCS](DOCS/PRD.md) — espace de documents : dépôt libre, exercice facultatif, étiquettes (BIZ-240→242) | ✅ |
+| [PAY-GUARD](PAY-GUARD/PRD.md) — garde-fou à la saisie d'un règlement en espèces : montant saisi, pas pré-rempli (BIZ-250) | ✅ |
+| [DEPOSIT-MERGE-2](DEPOSIT-MERGE-2/PRD.md) — rattraper la remise que la fusion automatique a manquée : date du bordereau, fenêtre élargie, rattachement manuel (TEC-250/251/252 + BIZ-251/252) | ✅ |
+| [DEPOSIT-ADOPT](DEPOSIT-ADOPT/PRD.md) — confirmer un bordereau sans créer de doublon : adoption de la ligne du relevé, fusion rapprochée d'office (BIZ-253 + TEC-253) | ✅ |
+| [CHECKLIST](CHECKLIST/PRD.md) — checklist mensuelle de tenue comptable : séance ordonnée par passages externes, état en base, clôture explicite (BIZ-254→256) | ✅ |
+| [SCHEMA-DRIFT](SCHEMA-DRIFT/PRD.md) — aligner les modèles ORM sur les migrations (17 écarts, dont l'unicité des numéros d'écriture) et le vérifier en CI (TEC-256/257) | ✅ |
+| [ENTRY-NUMBER](ENTRY-NUMBER/PRD.md) — numéros d'écriture : import Excel qui repart à 1 sur un numéro `SAL-…`, fausse boucle de nouvelle tentative dans `next_entry_number` (TEC-258/259) | ⬜ |
+| [ERROR-MESSAGES](ERROR-MESSAGES/PRD.md) — messages d'erreur explicites (résolveur central, table `api_errors` branchée) et catégorie des opérations rapprochées : verrou ciblé, cadenas, catégorie posée par le règlement, avertissement avant un rapprochement sans écriture (TEC-260 + BIZ-262/263) | ✅ |
+| [AUDIT-LOG](AUDIT-LOG/PRD.md) — journal d'audit lisible et cherchable : libellé de cible figé, détail en clair, recherche et filtres côté serveur (TEC-261/262 + BIZ-264) | ✅ |
+| [CHECKLIST-MSG](CHECKLIST-MSG/PRD.md) — messages laissés au trésorier par tous les rôles, affichés en tête de la séance de comptabilité (BIZ-265) | ✅ |
+| [PIN-DEPS](PIN-DEPS/PRD.md) — figer les versions des dépendances Python (CI et image Docker), mises à jour par Dependabot (TEC-263) | ✅ |
+| [PYJWT](PYJWT/PRD.md) — remplacer python-jose (presque plus maintenu, alertes de sécurité sur sa chaîne) par PyJWT pour les jetons de connexion (TEC-264) | ✅ |
 
 ## Lots archivés
 

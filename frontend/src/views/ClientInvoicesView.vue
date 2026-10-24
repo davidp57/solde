@@ -42,6 +42,17 @@
           @click="confirmBulkArchive"
         />
       </div>
+      <div class="app-field">
+        <Button
+          data-testid="invoices-show-all-history"
+          :label="t('invoices.show_all_history')"
+          :icon="showAllHistory ? 'pi pi-calendar-times' : 'pi pi-calendar'"
+          :severity="showAllHistory ? 'primary' : 'secondary'"
+          outlined
+          size="small"
+          @click="showAllHistory = !showAllHistory; loadInvoices()"
+        />
+      </div>
     </template>
 
       <AppListLimitBanner
@@ -542,12 +553,14 @@ import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
   duplicateInvoiceApi,
+  getInvoiceApi,
   downloadInvoicePdfApi,
   bulkArchiveInvoicesApi,
   listInvoicesApi,
   listInvoicesWithCountApi,
   writeOffInvoiceApi,
   restoreFromWriteoffApi,
+  regenerateInvoiceEntriesApi,
   type EmailKind,
   type Invoice,
   type InvoiceStatus,
@@ -588,6 +601,7 @@ import {
   isOverdueInvoice,
   isOpenReceivableInvoice,
 } from '../composables/useInvoiceMetrics'
+import { useAuthStore } from '../stores/auth'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useListLimitStore } from '../stores/listLimit'
 import { formatContactDisplayName } from '../utils/contact'
@@ -602,6 +616,7 @@ const confirm = useConfirm()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const authStore = useAuthStore()
 const fiscalYearStore = useFiscalYearStore()
 const { exportToExcel } = useTableExport()
 
@@ -613,6 +628,19 @@ const exportColumns = computed<ExportColumn[]>(() => [
   { field: 'total_amount_value', header: t('invoices.total') },
   { field: 'status_label', header: t('invoices.status') },
 ])
+
+async function regenerateEntries(invoice: Invoice): Promise<void> {
+  try {
+    const { entries } = await regenerateInvoiceEntriesApi(invoice.id)
+    toast.add({
+      severity: 'success',
+      summary: t('invoices.regenerate_entries_ok', { n: entries }),
+      life: 3000,
+    })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
+  }
+}
 
 function doExportExcel(): void {
   exportToExcel(displayedInvoices.value, exportColumns.value, 'client-invoices-export')
@@ -637,6 +665,10 @@ const onCloseDialog = useUnsavedChangesGuard(dialogVisible, () => Boolean(invoic
 const editingInvoice = ref<Invoice | null>(null)
 const statusFilter = ref<InvoiceStatus | null>(null)
 const unpaidOnly = ref(false)
+// Lifts the fiscal-year date filter — records dated outside the selected year
+// (or outside every year) are otherwise invisible here.
+const showAllHistory = ref(false)
+
 const showIrrecoverable = ref(false)
 
 // Email dialog
@@ -754,7 +786,7 @@ const displayedTotal = computed(() =>
 // the way loadInvoices fetches each segment).
 const fiscalYearScopedInvoices = computed(() => {
   const fy = fiscalYearStore.selectedFiscalYear
-  if (!fy) return allClientInvoices.value
+  if (!fy || showAllHistory.value) return allClientInvoices.value
   return allClientInvoices.value.filter((inv) => inv.date >= fy.start_date && inv.date <= fy.end_date)
 })
 
@@ -947,6 +979,17 @@ function clientMenuItems(invoice: Invoice): MenuItem[] {
     normal.push({ key: 'restore', label: t('invoices.restore_from_writeoff'), icon: 'pi pi-refresh', command: () => restoreFromWriteoff(invoice) })
   }
 
+  // Maintenance: an engine fix leaves older invoices with stale entries, and a
+  // paid invoice cannot be edited to trigger a rebuild.
+  if (authStore.isAdmin && invoice.status !== 'draft') {
+    normal.push({
+      key: 'regenerate-entries',
+      label: t('invoices.regenerate_entries'),
+      icon: 'pi pi-sync',
+      command: () => regenerateEntries(invoice),
+    })
+  }
+
   const danger: MenuItem[] = []
   const remaining = parseFloat(invoice.total_amount) - parseFloat(invoice.paid_amount)
   if (
@@ -989,8 +1032,9 @@ async function loadInvoices() {
       invoice_type: 'client',
       limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
     }
-    // Skip fiscal-year date filter for cross-year queries (overdue, unpaid from dashboard)
-    const skipDateFilter = unpaidOnly.value || statusFilter.value === 'overdue'
+    // Skip fiscal-year date filter for cross-year queries (overdue, unpaid from
+    // dashboard) and when the user asked to see the whole history.
+    const skipDateFilter = unpaidOnly.value || statusFilter.value === 'overdue' || showAllHistory.value
     if (fiscalYearStore.selectedFiscalYear && !skipDateFilter) {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
       filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
@@ -1063,9 +1107,34 @@ function openEditDialog(invoice: Invoice) {
   dialogVisible.value = true
 }
 
-function onSaved() {
+/**
+ * Reflect a server-confirmed invoice on screen without asking for the list again.
+ *
+ * The row appearing used to depend on a second request; whatever delays it or answers
+ * it from an earlier state left the screen stale while the change was safely stored.
+ * A created invoice is shown even when the active filters would exclude it: hiding what
+ * the user has just saved is worse than showing one row a filter would have dropped.
+ * `allClientInvoices` is kept in step because the receivable metrics read from it.
+ */
+function applyInvoiceLocally(invoice: Invoice): void {
+  const index = invoices.value.findIndex((candidate) => candidate.id === invoice.id)
+  if (index >= 0) invoices.value[index] = invoice
+  else invoices.value = [invoice, ...invoices.value]
+
+  const snapshotIndex = allClientInvoices.value.findIndex((c) => c.id === invoice.id)
+  if (snapshotIndex >= 0) allClientInvoices.value[snapshotIndex] = invoice
+  else allClientInvoices.value = [invoice, ...allClientInvoices.value]
+}
+
+function removeInvoiceLocally(invoiceId: number): void {
+  invoices.value = invoices.value.filter((candidate) => candidate.id !== invoiceId)
+  allClientInvoices.value = allClientInvoices.value.filter((c) => c.id !== invoiceId)
+}
+
+function onSaved(saved?: Invoice) {
   dialogVisible.value = false
-  void refreshInvoicesData()
+  if (saved) applyInvoiceLocally(saved)
+  else void refreshInvoicesData()
 }
 
 useKeyboardShortcuts({
@@ -1089,8 +1158,8 @@ async function openPdf(invoice: Invoice) {
     a.download = `facture-${invoice.number ?? invoice.id}.pdf`
     a.click()
     URL.revokeObjectURL(url)
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -1101,6 +1170,8 @@ function sendEmail(invoice: Invoice, kind: EmailKind = 'initial'): void {
 
 async function onEmailSent(): Promise<void> {
   emailDialogInvoiceId.value = null
+  // Sending records a reminder date on the invoice but returns nothing to rebuild it
+  // from, so the list is the only source here.
   await refreshInvoicesData()
 }
 
@@ -1113,12 +1184,12 @@ async function confirmWriteOff(): Promise<void> {
   if (!writeOffTarget.value) return
   writeOffLoading.value = true
   try {
-    await writeOffInvoiceApi(writeOffTarget.value.id)
+    const written = await writeOffInvoiceApi(writeOffTarget.value.id)
     writeOffDialogVisible.value = false
+    applyInvoiceLocally(written)
     toast.add({ severity: 'success', summary: t('invoices.write_off'), life: 3000 })
-    await refreshInvoicesData()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     writeOffLoading.value = false
   }
@@ -1126,11 +1197,11 @@ async function confirmWriteOff(): Promise<void> {
 
 async function restoreFromWriteoff(invoice: Invoice): Promise<void> {
   try {
-    await restoreFromWriteoffApi(invoice.id)
+    const restored = await restoreFromWriteoffApi(invoice.id)
+    applyInvoiceLocally(restored)
     toast.add({ severity: 'success', summary: t('invoices.restore_from_writeoff'), life: 3000 })
-    await refreshInvoicesData()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -1154,19 +1225,20 @@ async function executeBulkArchive(): Promise<void> {
       summary: t('invoices.bulk_archive_result', { archived: result.archived, skipped: result.skipped }),
       life: 5000,
     })
+    // A bulk operation answers with counts, not with the archived invoices.
     await refreshInvoicesData()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
 async function duplicate(invoice: Invoice) {
   try {
-    await duplicateInvoiceApi(invoice.id)
+    const copy = await duplicateInvoiceApi(invoice.id)
+    applyInvoiceLocally(copy)
     toast.add({ severity: 'success', summary: t('invoices.duplicated'), life: 3000 })
-    await refreshInvoicesData()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   }
 }
 
@@ -1241,7 +1313,13 @@ function openPaymentDialog(invoice: Invoice) {
 }
 
 async function onPaymentRecorded(invoiceId: number): Promise<void> {
-  await refreshInvoicesData()
+  // Fetch the one invoice that changed rather than the whole filtered list: a request
+  // for a known id cannot come back missing the row we are looking for.
+  try {
+    applyInvoiceLocally(await getInvoiceApi(invoiceId))
+  } catch {
+    await refreshInvoicesData()
+  }
   paymentInvoice.value = invoices.value.find((invoice) => invoice.id === invoiceId) ?? null
   if (historyVisible.value && historyInvoice.value?.id === invoiceId) {
     await loadHistoryPayments(invoiceId)
@@ -1258,8 +1336,8 @@ function confirmDelete(invoice: Invoice) {
     accept: async () => {
       try {
         await deleteInvoiceApi(invoice.id)
+        removeInvoiceLocally(invoice.id)
         toast.add({ severity: 'success', summary: t('invoices.deleted'), life: 3000 })
-        await refreshInvoicesData()
       } catch (error) {
         toast.add({
           severity: 'error',

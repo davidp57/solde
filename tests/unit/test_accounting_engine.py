@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from backend.models.accounting_entry import EntrySourceType
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.accounting_rule import (
     DEFAULT_RULES,
     AccountingRule,
@@ -371,6 +371,109 @@ class TestGenerateEntriesForInvoice:
             "706110": Decimal("130.00"),
             "756000": Decimal("30.00"),
         }
+
+    @pytest.mark.asyncio
+    async def test_discount_line_apart_keeps_the_group_balanced(
+        self, db_session: AsyncSession
+    ) -> None:
+        """Real case 2026-0125: a discount booked apart used to be dropped.
+
+        The debit took the net total while the credit only covered the positive
+        component, leaving the group short by the discount — 24 € that only
+        surfaced a month later, as an unbalanced trial balance at closing time.
+        """
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_GENERAL, "411100", "758000")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS,
+            lines=[
+                ("Cours de soutien", Decimal("104.00"), InvoiceLineType.COURSE),
+                ("Remise", Decimal("-24.00"), InvoiceLineType.OTHER),
+            ],
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        total_debit = sum(entry.debit for entry in entries)
+        total_credit = sum(entry.credit for entry in entries)
+        assert total_debit == total_credit == Decimal("104.00")
+        # The receivable carries the net amount actually owed.
+        assert any(
+            entry.account_number == "411100" and entry.debit == Decimal("80.00")
+            for entry in entries
+        )
+        # The discount lands as a debit on its revenue account, never a negative credit.
+        discount = next(entry for entry in entries if entry.account_number == "758000")
+        assert discount.debit == Decimal("24.00")
+        assert discount.credit == Decimal("0")
+
+    @pytest.mark.asyncio
+    async def test_discount_within_the_same_component_is_unchanged(
+        self, db_session: AsyncSession
+    ) -> None:
+        """A discount typed like the line it reduces nets off — no extra entry."""
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS,
+            lines=[
+                ("Cours de soutien", Decimal("104.00"), InvoiceLineType.COURSE),
+                ("Remise", Decimal("-24.00"), InvoiceLineType.COURSE),
+            ],
+        )
+
+        entries = await generate_entries_for_invoice(db_session, inv)
+
+        assert len(entries) == 2
+        assert sum(entry.debit for entry in entries) == Decimal("80.00")
+        assert sum(entry.credit for entry in entries) == Decimal("80.00")
+
+    @pytest.mark.asyncio
+    async def test_regeneration_replaces_entries_produced_by_the_old_rule(
+        self, db_session: AsyncSession
+    ) -> None:
+        """A paid invoice cannot be edited, so regeneration is the only way to fix it."""
+        from backend.services.invoice import regenerate_invoice_entries
+
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_CS, "411100", "706110")
+        await _seed_one_rule(db_session, TriggerType.INVOICE_CLIENT_GENERAL, "411100", "758000")
+        inv = await _make_invoice(
+            db_session,
+            label=InvoiceLabel.CS,
+            lines=[
+                ("Cours de soutien", Decimal("104.00"), InvoiceLineType.COURSE),
+                ("Remise", Decimal("-24.00"), InvoiceLineType.OTHER),
+            ],
+        )
+        # Stand in for what the buggy engine left behind: credit without the discount.
+        db_session.add(
+            AccountingEntry(
+                entry_number="000900",
+                date=inv.date,
+                account_number="706110",
+                label="ancienne ecriture",
+                debit=Decimal("0"),
+                credit=Decimal("104.00"),
+                source_type=EntrySourceType.INVOICE,
+                source_id=inv.id,
+                group_key=f"invoice:{inv.id}",
+            )
+        )
+        await db_session.flush()
+
+        created = await regenerate_invoice_entries(db_session, inv)
+
+        assert created == 3
+        result = await db_session.execute(
+            select(AccountingEntry).where(
+                AccountingEntry.source_type == EntrySourceType.INVOICE,
+                AccountingEntry.source_id == inv.id,
+            )
+        )
+        entries = list(result.scalars().all())
+        assert len(entries) == 3, "the stale entry must be gone"
+        assert sum(e.debit for e in entries) == sum(e.credit for e in entries) == Decimal("104.00")
 
     @pytest.mark.asyncio
     async def test_client_other_lines_use_general_rule(self, db_session: AsyncSession) -> None:

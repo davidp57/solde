@@ -34,6 +34,7 @@ data/*.db-shm
 # Uploaded files & generated PDFs (keep the folder, not the files)
 data/uploads/
 data/pdfs/
+data/documents/
 
 # Excel source files (kept locally, not versioned)
 data/*.xlsx
@@ -67,3 +68,12 @@ data/
 # Playwright
 frontend/test-results/
 frontend/playwright-report/
+# Local runtime database (never commit — contains real data)
+solde.db
+solde.db-shm
+solde.db-wal
+
+# Local tooling / design exports
+.claude/settings.local.json
+.claude/launch.json
+design_handoff_solde_*/

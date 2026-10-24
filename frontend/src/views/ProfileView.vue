@@ -133,6 +133,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Message from 'primevue/message'
@@ -244,7 +245,7 @@ function getApiErrorSummary(error: unknown): string {
     return t('common.error.notFound')
   }
 
-  return t('common.error.unknown')
+  return getErrorDetail(error, t('common.error.unknown'))
 }
 
 async function submitProfile(): Promise<void> {

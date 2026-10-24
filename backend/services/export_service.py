@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import csv
 import io
+from collections.abc import Iterable
 from datetime import date
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -150,3 +152,145 @@ async def export_bilan_csv(db: AsyncSession, fiscal_year_id: int | None = None) 
     rows.append(["Résultat de l'exercice", "", "", f"{data.resultat:.2f}".replace(".", ",")])
     rows.append(["TOTAL PASSIF", "", "", f"{data.total_passif:.2f}".replace(".", ",")])
     return _write_csv(headers, rows)
+
+
+# ---------------------------------------------------------------------------
+# PDF exports — bilan and compte de résultat, for archiving
+# ---------------------------------------------------------------------------
+
+
+def _fmt_amount(value: Decimal) -> str:
+    """Format a Decimal the French way: thousands spaced, comma decimal, € suffix."""
+    formatted = f"{value:,.2f}".replace(",", " ").replace(".", ",")
+    return f"{formatted} €"
+
+
+async def _statement_context(db: AsyncSession, fiscal_year_id: int | None) -> dict[str, Any]:
+    """Build the header context shared by both statements."""
+    from backend.services.settings import get_settings  # noqa: PLC0415
+
+    settings = await get_settings(db)
+    name: str | None = None
+    status: str | None = None
+    period: str | None = None
+    if fiscal_year_id is not None:
+        from backend.models.fiscal_year import FiscalYear  # noqa: PLC0415
+
+        fy = await db.get(FiscalYear, fiscal_year_id)
+        if fy is not None:
+            name = fy.name
+            status = str(fy.status)
+            period = f"Du {fy.start_date:%d/%m/%Y} au {fy.end_date:%d/%m/%Y}"
+    return {
+        "settings": settings,
+        "fiscal_year_name": name,
+        "fiscal_year_status": status,
+        "period": period,
+        "generated_at": f"{date.today():%d/%m/%Y}",
+    }
+
+
+def _statement_rows(rows: Iterable[Any]) -> list[dict[str, str]]:
+    """Flatten balance rows into template-ready dicts."""
+    return [
+        {
+            "account_number": r.account_number,
+            "account_label": r.account_label,
+            "amount": _fmt_amount(r.solde),
+        }
+        for r in rows
+    ]
+
+
+def _render_statement_pdf(context: dict[str, Any]) -> bytes:
+    """Render the shared financial-statement template to PDF bytes.
+
+    WeasyPrint is imported lazily to keep it out of the startup memory budget.
+    """
+    from weasyprint import HTML  # noqa: PLC0415
+
+    from backend.services.pdf_service import render_financial_statement_html  # noqa: PLC0415
+
+    return bytes(HTML(string=render_financial_statement_html(context)).write_pdf())
+
+
+async def build_resultat_context(
+    db: AsyncSession, fiscal_year_id: int | None = None
+) -> dict[str, Any]:
+    """Assemble the compte de résultat template context (rendering-free, so testable)."""
+    from backend.services.accounting_entry_service import get_resultat  # noqa: PLC0415
+
+    data = await get_resultat(db, fiscal_year_id=fiscal_year_id)
+    context = await _statement_context(db, fiscal_year_id)
+    deficit = data.resultat < 0
+    context.update(
+        title="Compte de résultat",
+        sections=[
+            {
+                "title": "Charges",
+                "amount_header": "Montant",
+                "rows": _statement_rows(data.charges),
+                "total_label": "Total des charges",
+                "total": _fmt_amount(data.total_charges),
+            },
+            {
+                "title": "Produits",
+                "amount_header": "Montant",
+                "rows": _statement_rows(data.produits),
+                "total_label": "Total des produits",
+                "total": _fmt_amount(data.total_produits),
+            },
+        ],
+        result_label="Déficit de l'exercice" if deficit else "Excédent de l'exercice",
+        result_amount=_fmt_amount(data.resultat),
+        result_is_negative=deficit,
+        show_result=True,
+    )
+    return context
+
+
+async def export_resultat_pdf(db: AsyncSession, fiscal_year_id: int | None = None) -> bytes:
+    """Export the compte de résultat as an archivable PDF."""
+    return _render_statement_pdf(await build_resultat_context(db, fiscal_year_id))
+
+
+async def build_bilan_context(
+    db: AsyncSession, fiscal_year_id: int | None = None
+) -> dict[str, Any]:
+    """Assemble the bilan template context (rendering-free, so testable)."""
+    from backend.services.accounting_entry_service import get_bilan  # noqa: PLC0415
+
+    data = await get_bilan(db, fiscal_year_id=fiscal_year_id)
+    context = await _statement_context(db, fiscal_year_id)
+    deficit = data.resultat < 0
+    context.update(
+        title="Bilan",
+        sections=[
+            {
+                "title": "Actif",
+                "amount_header": "Solde",
+                "rows": _statement_rows(data.actif),
+                "total_label": "Total de l'actif",
+                "total": _fmt_amount(data.total_actif),
+            },
+            {
+                "title": "Passif",
+                "amount_header": "Solde",
+                "rows": _statement_rows(data.passif),
+                "total_label": "Total du passif",
+                "total": _fmt_amount(data.total_passif),
+            },
+        ],
+        result_label="Déficit de l'exercice" if deficit else "Excédent de l'exercice",
+        result_amount=_fmt_amount(data.resultat),
+        result_is_negative=deficit,
+        # Once the year is closed the result already sits in 120000/129000 among the
+        # passif accounts; repeating it as a nil line would only puzzle the reader.
+        show_result=data.resultat != 0,
+    )
+    return context
+
+
+async def export_bilan_pdf(db: AsyncSession, fiscal_year_id: int | None = None) -> bytes:
+    """Export the simplified bilan as an archivable PDF."""
+    return _render_statement_pdf(await build_bilan_context(db, fiscal_year_id))

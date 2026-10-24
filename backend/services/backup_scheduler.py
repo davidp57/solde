@@ -266,6 +266,8 @@ async def _run_backup_job_inner(
 
                 return cb
 
+            # Names the stage in progress so a failure message says which one broke.
+            step = "envoi de la sauvegarde"
             try:
                 await sync_destination(
                     dest, src_paths, run_ts, on_progress=_make_progress_cb(dest_start, dest_end)
@@ -277,6 +279,7 @@ async def _run_backup_job_inner(
                 if pdfs_dir.exists():
                     # BIZ-216: optionally mirror only non-regenerable PDFs
                     # (archived invoices); the rest is rebuilt on demand (TEC-211).
+                    step = "miroir des PDF"
                     allowed = await archived_pdf_relpaths(db) if pdfs_only_archived else None
                     await mirror_dir_incremental(
                         dest, str(pdfs_dir.resolve()), "pdfs", allowed_relpaths=allowed
@@ -284,6 +287,7 @@ async def _run_backup_job_inner(
                 if include_uploads:
                     uploads_dir = Path("data/uploads")
                     if uploads_dir.exists():
+                        step = "miroir des pièces jointes"
                         await mirror_dir_incremental(dest, str(uploads_dir.resolve()), "uploads")
                 # Remote retention: prune old timestamped snapshots (keep N most
                 # recent). Best-effort — never fail the backup over pruning.
@@ -295,9 +299,11 @@ async def _run_backup_job_inner(
                     logger.warning("Remote prune failed for %s: %s", dest.name, exc)
             except Exception as exc:
                 overall_success = False
-                msg = f"{dest.name}: {exc}"
+                msg = f"{dest.name} — {step} : {_describe_error(exc)}"
                 error_details.append(msg)
-                logger.error("Sync failed for destination %s: %s", dest.name, exc)
+                logger.error(
+                    "Destination %s failed during %s: %s", dest.name, step, exc, exc_info=exc
+                )
             finally:
                 _set_progress(dest_end)
 
@@ -309,6 +315,19 @@ async def _run_backup_job_inner(
         await _send_failure_email("; ".join(error_details))
 
     logger.info("Backup job finished: %s", status_str)
+
+
+def _describe_error(exc: Exception) -> str:
+    """Return a compact, readable one-liner for a destination failure.
+
+    httpx status errors carry a multi-line message ending with a link to the
+    MDN page for the status code; that trailer is noise in a notification email.
+    """
+    text = " ".join(str(exc).split())
+    marker = "For more information check:"
+    if marker in text:
+        text = text.split(marker, 1)[0].strip()
+    return text
 
 
 async def _update_run_status(success: bool, error: str | None) -> None:
@@ -326,7 +345,12 @@ async def _update_run_status(success: bool, error: str | None) -> None:
 
 
 async def _send_failure_email(error: str) -> None:
-    """Send a notification email on backup failure if SMTP is configured."""
+    """Send a notification email on backup failure if SMTP is configured.
+
+    The alert exists to report that another mechanism failed, so its own failure
+    must not stay silent: it is appended to ``backup_last_run_error``, which the
+    administration screen displays.
+    """
     try:
         from backend.database import get_session
         from backend.models.app_settings import AppSettings
@@ -343,7 +367,7 @@ async def _send_failure_email(error: str) -> None:
                 port=settings.smtp_port,
                 user=settings.smtp_user,
                 password=settings.smtp_password,
-                use_tls=settings.smtp_use_tls,
+                security=settings.smtp_security,
                 from_email=settings.smtp_from_email,
                 to_email=recipient,
                 subject="[Solde] Échec de la sauvegarde automatique",
@@ -351,3 +375,21 @@ async def _send_failure_email(error: str) -> None:
             )
     except Exception as exc:
         logger.warning("Could not send backup failure notification: %s", exc)
+        await _append_run_error(f"Alerte e-mail non envoyée : {exc}")
+
+
+async def _append_run_error(note: str) -> None:
+    """Append *note* to backup_last_run_error, keeping the column limit."""
+    from backend.database import get_session
+
+    try:
+        async with get_session() as db:
+            result = await db.execute(select(AppSettings).where(AppSettings.id == 1))
+            settings = result.scalar_one_or_none()
+            if settings:
+                current = settings.backup_last_run_error
+                combined = f"{current} ; {note}" if current else note
+                settings.backup_last_run_error = combined[:1000]
+                await db.commit()
+    except Exception:
+        logger.exception("Could not record backup notification failure")

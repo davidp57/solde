@@ -327,9 +327,12 @@ async def update_payment(db: AsyncSession, payment_id: int, payload: PaymentUpda
 async def _find_cancel_refusal(db: AsyncSession, payment: Payment) -> str | None:
     """Return the refusal code blocking cancellation, or None if it is allowed.
 
-    Cancellation stays open as long as the money has not reached the bank account:
-    ``deposited`` is already True at creation time for cash and for bank-reconciled
-    transfers, so those are excluded without naming any payment method.
+    Cancellation stays open as long as the money has not reached the bank account.
+    Cash is the exception: it carries ``deposited=True`` from creation because it
+    is in the till, not at the bank — refusing it on that basis told users their
+    cash "already reached the bank account", which is plainly false, and left a
+    mistyped cash receipt with no way back. A cash receipt still in the till is
+    correctable; only a bank link or a closed year stops it.
     """
     from backend.models.fiscal_year import FiscalYearStatus  # noqa: PLC0415
     from backend.services.fiscal_year_service import find_fiscal_year_for_date  # noqa: PLC0415
@@ -339,7 +342,7 @@ async def _find_cancel_refusal(db: AsyncSession, payment: Payment) -> str | None
         raise InvoiceNotFoundError("Invoice not found")
     if invoice.type != InvoiceType.CLIENT:
         return "PAYMENT_SUPPLIER"
-    if payment.deposited:
+    if payment.deposited and payment.method != PaymentMethod.ESPECES:
         return "PAYMENT_DEPOSITED"
     if await _has_bank_link(db, payment.id):
         return "PAYMENT_RECONCILED"
@@ -446,6 +449,26 @@ async def _detach_from_deposit(db: AsyncSession, payment: Payment) -> None:
         await bank_service.delete_deposit(db, deposit_id)
 
 
+async def _delete_cash_entry_for_payment(db: AsyncSession, payment: Payment) -> None:
+    """Remove the till movement a cash receipt created, and refresh the running balances.
+
+    Leaving it behind would keep the money in the till after the receipt that
+    justified it is gone — the very mismatch cancellation is meant to repair.
+    """
+    if payment.method != PaymentMethod.ESPECES:
+        return
+
+    from sqlalchemy import delete as sql_delete  # noqa: PLC0415
+
+    from backend.models.cash import CashRegister  # noqa: PLC0415
+    from backend.services.cash_service import recompute_cash_balances  # noqa: PLC0415
+
+    await db.execute(sql_delete(CashRegister).where(CashRegister.payment_id == payment.id))
+    await db.flush()
+    await recompute_cash_balances(db)
+    await db.flush()
+
+
 async def cancel_payment(db: AsyncSession, payment_id: int) -> PaymentCancelPreview:
     """Cancel a client payment that has not been cashed in yet.
 
@@ -466,6 +489,7 @@ async def cancel_payment(db: AsyncSession, payment_id: int) -> PaymentCancelPrev
     invoice_id = payment.invoice_id
 
     await _detach_from_deposit(db, payment)
+    await _delete_cash_entry_for_payment(db, payment)
     await delete_entries_for_source(db, EntrySourceType.PAYMENT, payment_id)
     await db.delete(payment)
     await db.flush()

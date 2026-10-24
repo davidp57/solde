@@ -155,7 +155,21 @@ push / PR
     └── Frontend tests (vitest)
 ```
 
-Docker images are built and published to `ghcr.io/davidp57/solde` on every push to `main` (tagged `latest`) and on every version tag (`vX.Y.Z`).
+Docker images are built and published to `ghcr.io/davidp57/solde` on every push to `main` and to `develop`.
+
+| Tag | Moves on | Purpose |
+| --- | --- | --- |
+| `latest` | `main` only | What production pulls — `docker-compose.yml` defaults to it |
+| `main` / `develop` | their own branch | `develop` is the test image to deploy on the NAS |
+| `sha-<short>` | every build | Pin an exact commit |
+
+`latest` is deliberately restricted to `main`: a build from `develop` moving it would silently push a test image to production on the next `docker pull`.
+
+Deploy the test image by overriding the image reference, which `docker-compose.yml` already supports:
+
+```bash
+SOLDE_IMAGE=ghcr.io/davidp57/solde:develop docker compose up -d
+```
 
 ---
 

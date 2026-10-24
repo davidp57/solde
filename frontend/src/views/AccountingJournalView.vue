@@ -647,6 +647,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
@@ -656,6 +657,7 @@ import Select from 'primevue/select'
 import Tag from 'primevue/tag'
 import type { MenuItem } from 'primevue/menuitem'
 import { useToast } from 'primevue/usetoast'
+import { downloadAuthenticatedFile } from '../utils/downloadFile'
 import {
   createManualEntryApi,
   getExportCsvUrl,
@@ -1042,21 +1044,25 @@ async function saveManualEntry() {
     }
     closeManualDialog()
     await load()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     saving.value = false
   }
 }
 
-function downloadCsv() {
+async function downloadCsv() {
   const url = getExportCsvUrl('journal', {
     from_date: filters.value.from_date || undefined,
     to_date: filters.value.to_date || undefined,
     account_number: filters.value.account_number || undefined,
     fiscal_year_id: selectedFiscalYearId.value,
   })
-  window.open(url, '_blank')
+  try {
+    await downloadAuthenticatedFile(url, 'journal.csv')
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
+  }
 }
 
 watch(

@@ -362,6 +362,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import { createContactApi, listContactsApi, updateContactApi, type Contact } from '@/api/contacts'
 import { useUnsavedChangesGuard } from '@/composables/useUnsavedChangesGuard'
 import AppListState from '@/components/ui/AppListState.vue'
@@ -460,8 +461,8 @@ async function loadEmployees(): Promise<void> {
       search: search.value || undefined,
       active_only: false,
     })
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     loading.value = false
   }
@@ -598,8 +599,8 @@ async function submit(): Promise<void> {
     dialogVisible.value = false
     toast.add({ severity: 'success', summary: t('employees.saved'), life: 2000 })
     await loadEmployees()
-  } catch {
-    errorMessage.value = t('common.error.unknown')
+  } catch (err: unknown) {
+    errorMessage.value = getErrorDetail(err, t('common.error.unknown'))
   } finally {
     saving.value = false
   }
@@ -625,8 +626,8 @@ function confirmToggleActive(employee: Contact): void {
           life: 2000,
         })
         await loadEmployees()
-      } catch {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+      } catch (err: unknown) {
+        toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
       }
     },
   })

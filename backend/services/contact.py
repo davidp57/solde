@@ -654,7 +654,7 @@ async def send_member_mailing(
             port=settings.smtp_port,
             user=settings.smtp_user,
             password=settings.smtp_password,
-            use_tls=settings.smtp_use_tls,
+            security=settings.smtp_security,
             from_email=settings.smtp_from_email or settings.smtp_user or "",
             messages=messages,
         )

@@ -15,9 +15,11 @@ class ChatLog(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
-    asked_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
+    asked_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now(), index=True
+    )
     question: Mapped[str] = mapped_column(Text, nullable=False)
     prompt_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     completion_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)

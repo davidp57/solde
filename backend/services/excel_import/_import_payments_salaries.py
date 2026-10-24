@@ -162,7 +162,7 @@ async def _import_salaries_sheet(db: AsyncSession, ws: Any, result: ImportResult
     from backend.models.accounting_entry import AccountingEntry, EntrySourceType  # noqa: PLC0415
     from backend.models.contact import Contact, ContactType  # noqa: PLC0415
     from backend.models.salary import Salary  # noqa: PLC0415
-    from backend.services.accounting_engine import _next_entry_number  # noqa: PLC0415
+    from backend.services.accounting_engine import next_entry_numbers  # noqa: PLC0415
     from backend.services.fiscal_year_service import find_fiscal_year_id_for_date  # noqa: PLC0415
 
     parsed_sheet, normalized_rows, _ = _parse_salary_sheet(ws)
@@ -309,6 +309,7 @@ async def _import_salaries_sheet(db: AsyncSession, ws: Any, result: ImportResult
             entry_date = _salary_entry_date(month)
             fiscal_year_id = await find_fiscal_year_id_for_date(db, entry_date)
 
+            month_lines: list[tuple[str, str, str, Decimal, Decimal]] = []
             for group_kind, group_lines in zip(
                 ("accrual", "payment"),
                 _salary_month_group_lines(month, month_rows),
@@ -318,8 +319,18 @@ async def _import_salaries_sheet(db: AsyncSession, ws: Any, result: ImportResult
                 for account_number, label, debit, credit in group_lines:
                     if debit <= 0 and credit <= 0:
                         continue
-                    entry = AccountingEntry(
-                        entry_number=await _next_entry_number(db),
+                    month_lines.append((group_key, account_number, label, debit, credit))
+
+            # The session does not autoflush: numbering entry by entry would read
+            # the same max() each time. Allocate the month at once, then flush so
+            # the next month numbers after it.
+            entry_numbers = await next_entry_numbers(db, len(month_lines))
+            for entry_number, (group_key, account_number, label, debit, credit) in zip(
+                entry_numbers, month_lines, strict=True
+            ):
+                db.add(
+                    AccountingEntry(
+                        entry_number=entry_number,
                         date=entry_date,
                         account_number=account_number,
                         label=label,
@@ -330,8 +341,9 @@ async def _import_salaries_sheet(db: AsyncSession, ws: Any, result: ImportResult
                         source_id=None,
                         group_key=group_key,
                     )
-                    db.add(entry)
-                    result.entries_created += 1
+                )
+                result.entries_created += 1
+            await db.flush()
 
             existing_salary_entry_group_keys.add(f"salary-import:{month}:accrual")
             existing_salary_entry_group_keys.add(f"salary-import:{month}:payment")

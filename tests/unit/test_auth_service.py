@@ -77,3 +77,47 @@ def test_decode_access_token_expired() -> None:
     )
     result = decode_access_token(token)
     assert result is None
+
+
+def test_password_longer_than_72_bytes_is_hashed_and_verified() -> None:
+    """bcrypt 5 raises past 72 bytes; the policy accepts up to 128 characters."""
+    from backend.services.auth import hash_password, verify_password
+
+    password = "Aé1" + "x" * 125  # 128 characters, 129 bytes in UTF-8
+    hashed = hash_password(password)
+
+    assert verify_password(password, hashed) is True
+    assert verify_password("Aé1" + "y" * 125, hashed) is False
+
+
+def test_long_password_matches_a_hash_made_by_bcrypt_4() -> None:
+    """bcrypt 4 silently kept the first 72 bytes: such hashes must keep working."""
+    import bcrypt
+
+    from backend.services.auth import verify_password
+
+    password = "B2" + "z" * 100
+    legacy_hash = bcrypt.hashpw(password.encode()[:72], bcrypt.gensalt()).decode()
+
+    assert verify_password(password, legacy_hash) is True
+
+
+def test_decode_rejects_a_token_signed_with_another_key() -> None:
+    import jwt
+
+    from backend.services.auth import decode_access_token
+
+    forged = jwt.encode({"sub": "admin", "type": "access", "iat": 0}, "x" * 32, algorithm="HS256")
+
+    assert decode_access_token(forged) is None
+
+
+def test_decode_rejects_an_unsigned_token() -> None:
+    """``alg: none`` must never be accepted, whatever the library defaults to."""
+    import jwt
+
+    from backend.services.auth import decode_access_token
+
+    unsigned = jwt.encode({"sub": "admin", "type": "access"}, None, algorithm="none")
+
+    assert decode_access_token(unsigned) is None

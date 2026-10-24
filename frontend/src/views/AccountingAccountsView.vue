@@ -230,6 +230,7 @@ import Toast from 'primevue/toast'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import AppFilterMultiSelect from '@/components/ui/AppFilterMultiSelect.vue'
 import AppListState from '@/components/ui/AppListState.vue'
 import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
@@ -343,8 +344,8 @@ async function loadAccounts(): Promise<void> {
       is_default_label: account.is_default ? t('common.yes') : t('common.no'),
       focus_key: getFocusAccountKey(account.number),
     }))
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     loading.value = false
   }
@@ -372,8 +373,8 @@ async function runSeed(): Promise<void> {
         life: 3000,
       })
     }
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     seeding.value = false
   }

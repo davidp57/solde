@@ -370,13 +370,30 @@ describe('PaymentsView', () => {
     expect(wrapper.text()).toContain('REF-2025-001')
   })
 
-  it('falls back to the invoice number when the payment reference is empty', async () => {
+  it('shows the invoice number in its own column, next to the reference', async () => {
+    // A bank-reconciled transfer carries the bank wording as reference; the
+    // invoice must stay visible instead of being pushed out by it.
+    mockListPaymentsWithCount.mockResolvedValue({
+      items: [{ ...paymentFixture, method: 'virement', reference: 'VIR MME JAECK DIE' }],
+      total: 1,
+    })
+
+    const wrapper = mountView()
+    await flushView()
+
+    expect(wrapper.text()).toContain('VIR MME JAECK DIE')
+    expect(wrapper.text()).toContain('2025-0142')
+  })
+
+  it('leaves the reference column empty when there is no reference', async () => {
     mockListPaymentsWithCount.mockResolvedValue({ items: [{ ...paymentFixture, reference: null }], total: 1 })
 
     const wrapper = mountView()
     await flushView()
 
+    // The invoice column carries it; the reference column no longer borrows it.
     expect(wrapper.text()).toContain('2025-0142')
+    expect(wrapper.text()).not.toContain('REF-2025-001')
   })
 
   it('loads all payments when no fiscal year is selected', async () => {
@@ -436,6 +453,20 @@ describe('PaymentsView', () => {
     expect(wrapper.get('select').element).toHaveProperty('disabled', true)
   })
 
+  it('drops the fiscal-year date filter when showing all history', async () => {
+    const wrapper = mountView()
+    await flushView()
+    mockListPaymentsWithCount.mockClear()
+
+    await wrapper.get('[data-testid="payments-show-all-history"]').trigger('click')
+    await flushView()
+
+    // Showing all history drops the bounds entirely rather than passing undefined.
+    const params = mockListPaymentsWithCount.mock.calls.at(-1)?.[0]
+    expect(params).not.toHaveProperty('from_date')
+    expect(params).not.toHaveProperty('to_date')
+  })
+
   it('hides the cancel action from non-admin users', async () => {
     authStoreMock.isAdmin = false
 
@@ -462,6 +493,20 @@ describe('PaymentsView', () => {
     expect(toastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ severity: 'success', summary: 'payments.cancelled' }),
     )
+  })
+
+  it('drops a cancelled payment even when the list would answer stale', async () => {
+    const wrapper = mountView()
+    await flushView()
+    // Any later list fetch keeps returning the payment as if nothing happened.
+    mockListPaymentsWithCount.mockResolvedValue({ items: [paymentFixture], total: 1 })
+
+    await wrapper.get('[title="payments.cancel_action"]').trigger('click')
+    await flushView()
+    await wrapper.get('[data-testid="payment-cancel-confirm"]').trigger('click')
+    await flushView()
+
+    expect(wrapper.text()).not.toContain(paymentFixture.invoice_number)
   })
 
   it('announces the deposit slip impact in the confirmation dialog', async () => {

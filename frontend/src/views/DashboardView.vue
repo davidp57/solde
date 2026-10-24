@@ -162,6 +162,7 @@
 
     <QuickPaymentWizard v-model:visible="paymentWizardVisible" />
     <QuickInvoiceWizard v-model:visible="invoiceWizardVisible" />
+    <ConfirmDialog />
   </AppPage>
 </template>
 
@@ -176,6 +177,7 @@ import AppPageHeader from '../components/ui/AppPageHeader.vue'
 import AppPanel from '../components/ui/AppPanel.vue'
 import AppStatCard from '../components/ui/AppStatCard.vue'
 import AppWorklist, { type WorklistItem } from '../components/ui/AppWorklist.vue'
+import ConfirmDialog from 'primevue/confirmdialog'
 import QuickPaymentWizard from '../components/QuickPaymentWizard.vue'
 import QuickInvoiceWizard from '../components/QuickInvoiceWizard.vue'
 import BankPendingDepositsPanel from '../components/bank/BankPendingDepositsPanel.vue'

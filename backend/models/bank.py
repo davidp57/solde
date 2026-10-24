@@ -68,7 +68,7 @@ bank_transaction_payments = Table(
     "bank_transaction_payments",
     Base.metadata,
     SAColumn("transaction_id", ForeignKey("bank_transactions.id"), primary_key=True),
-    SAColumn("payment_id", ForeignKey("payments.id"), primary_key=True),
+    SAColumn("payment_id", ForeignKey("payments.id"), primary_key=True, index=True),
 )
 
 
@@ -86,7 +86,7 @@ class BankTransaction(Base):
     bank_account: Mapped[BankAccountType] = mapped_column(
         String(10), nullable=False, default=BankAccountType.COURANT, index=True
     )
-    reconciled: Mapped[bool] = mapped_column(nullable=False, default=False)
+    reconciled: Mapped[bool] = mapped_column(nullable=False, default=False, index=True)
     reconciled_with: Mapped[str | None] = mapped_column(String(100), nullable=True)
     source: Mapped[BankTransactionSource] = mapped_column(
         String(20), nullable=False, default=BankTransactionSource.MANUAL

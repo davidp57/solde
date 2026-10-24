@@ -1,0 +1,14 @@
+# Python dependencies are locked in requirements.txt (runtime, Docker) and
+# requirements-dev.txt (CI): nothing moves until a pull request says so.
+# One grouped pull request a month keeps them current; CI tests it like any other.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: monthly
+    groups:
+      python:
+        patterns:
+          - "*"

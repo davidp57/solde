@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import json
+import logging
+import re
 from calendar import monthrange
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Protocol
 
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.models.accounting_entry import AccountingEntry
+from backend.models.accounting_entry import AccountingEntry, EntrySourceType
 from backend.models.bank import (
     BankAccountType,
     BankTransaction,
@@ -24,6 +26,7 @@ from backend.models.bank import (
     deposit_payments,
 )
 from backend.models.cash import CashEntrySource, CashMovementType
+from backend.models.fiscal_year import FiscalYearStatus
 from backend.models.invoice import Invoice, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
 from backend.schemas.bank import (
@@ -35,6 +38,9 @@ from backend.schemas.bank import (
 )
 from backend.services import payment as payment_service
 from backend.services.bank_import import detect_transaction_category
+from backend.services.fiscal_year_service import find_fiscal_year_for_date
+
+logger = logging.getLogger(__name__)
 
 
 class _Reconcilable(Protocol):
@@ -46,6 +52,23 @@ class _Reconcilable(Protocol):
 _CURRENT_ACCOUNT_NUMBER = "512100"
 _SAVINGS_ACCOUNT_NUMBER = "512102"
 _FISCAL_YEAR_OPENING_LABEL_PREFIX = "Ouverture de l'exercice comptable"
+
+# Sources whose transactions may be deleted (when unreconciled). Excel-imported rows are
+# excluded: the reversible-import machinery tracks the rows it created, and deleting one
+# behind its back would break the rollback of that import run.
+DELETABLE_SOURCES: frozenset[BankTransactionSource] = frozenset(
+    {
+        BankTransactionSource.MANUAL,
+        BankTransactionSource.SYSTEM_OPENING,
+        BankTransactionSource.IMPORT_CSV,
+        BankTransactionSource.IMPORT_OFX,
+        BankTransactionSource.IMPORT_QIF,
+    }
+)
+
+# Window used to pair an imported row with an already-recorded equivalent. A statement
+# line keyed in by hand rarely carries the exact value date the bank later reports.
+_DUPLICATE_DATE_TOLERANCE = timedelta(days=3)
 
 
 def _shift_month(value: date, months: int) -> date:
@@ -175,6 +198,13 @@ async def _store_transaction_payment_links(
     tx.reconciled = True
     tx.reconciled_with = _build_reconciled_with_value(payment_ids, invoice_numbers)
     tx.payment_id = payment_ids[0] if len(payment_ids) == 1 else None
+    # A line settled by a payment *is* a customer or supplier payment, whatever the
+    # import guessed: leaving "other credit" on it mislabels work that was done right.
+    tx.detected_category = (
+        BankTransactionCategory.CUSTOMER_PAYMENT
+        if tx.amount > 0
+        else BankTransactionCategory.SUPPLIER_PAYMENT
+    )
 
 
 async def _finalize_payment_link(
@@ -276,6 +306,236 @@ async def get_excel_cutoffs(db: AsyncSession) -> dict[BankAccountType, date]:
         .group_by(BankTransaction.bank_account)
     )
     return {row[0]: row[1] for row in result.all()}
+
+
+#: Categories of a bank line that mirrors a deposit slip confirmed in Solde.
+_DEPOSIT_CATEGORIES = (
+    BankTransactionCategory.CHEQUE_DEPOSIT,
+    BankTransactionCategory.CASH_DEPOSIT,
+)
+
+#: How far the statement date may sit from the provisional transaction's date.
+#: The provisional line is dated from the slip itself, but that date is declarative
+#: (the slip may be carried to the bank a few days later), so the window absorbs the
+#: residual drift. The "exactly one candidate" guard still forbids any guessing.
+_DEPOSIT_MERGE_WINDOW_DAYS = 10
+
+
+#: Reference Solde writes on the provisional line, e.g. ``DEP-CHQ-8``.
+_SLIP_REFERENCE_RE = re.compile(r"^DEP-(?:ESP|CHQ)-(\d+)$")
+_SLIP_LABEL_RE = re.compile(r"^Bordereau #(\d+)")
+#: Matches the slip id inside a deposit line's description — see :func:`_deposit_description`.
+#: That description is the only mark that survives every deposit path: a merged line takes
+#: the statement's reference, and ``reconciled_with`` stays empty when the slip carries a
+#: hand-typed bank reference.
+_SLIP_IN_DESCRIPTION_RE = re.compile(r"\(bordereau #(\d+)\)")
+
+
+def _slip_label(deposit_id: int) -> str:
+    """Value shown in the journal's accounting-reference column for a deposit slip."""
+    return f"Bordereau #{deposit_id}"
+
+
+def _deposit_description(deposit_type: DepositType, deposit_id: int) -> str:
+    """Description carried by the bank line of a deposit slip.
+
+    Kept in one place because :data:`_SLIP_IN_DESCRIPTION_RE` reads the slip id back
+    out of it: the two must never drift apart.
+    """
+    kind = "d'espèces" if deposit_type == DepositType.ESPECES else "de chèques"
+    return f"Remise {kind} (bordereau #{deposit_id})"
+
+
+def _slip_label_from_reference(reference: str | None) -> str | None:
+    """Recover the slip label from the provisional line's own reference.
+
+    Returns None when the user supplied their own bank reference on the slip: the
+    link to the slip then lives in the description alone, and guessing is worse
+    than leaving the column empty.
+    """
+    if not reference:
+        return None
+    match = _SLIP_REFERENCE_RE.match(reference)
+    return _slip_label(int(match.group(1))) if match else None
+
+
+def _mark_merged_deposit_reconciled(tx: BankTransaction, slip_label: str | None) -> None:
+    """A merged deposit line *is* the slip — there is nothing left to reconcile by hand.
+
+    Deposit categories are deliberately absent from the accounting engine's trigger
+    map (their entries are generated when the slip is confirmed), so flagging the
+    line produces no entry: it only takes it out of the "still to handle" pile.
+    """
+    tx.reconciled = True
+    if slip_label is not None:
+        tx.reconciled_with = slip_label
+
+
+async def absorb_pending_deposit_transaction(
+    db: AsyncSession, payload: BankTransactionCreate
+) -> BankTransaction | None:
+    """Fold a statement row into the provisional transaction created at deposit confirmation.
+
+    Confirming a deposit slip credits the account right away with a ``manual``
+    transaction; the statement later brings the very same movement with the
+    bank's own reference. Nothing links the two — the import only deduplicates
+    on ``reference`` — so both used to be kept and the balance counted twice.
+
+    Returns the updated transaction when exactly one provisional candidate
+    matches, else None (the caller then inserts the row normally). Ambiguity is
+    never resolved by guessing: several candidates means no merge.
+    """
+    if payload.source in (BankTransactionSource.MANUAL, BankTransactionSource.SYSTEM_OPENING):
+        return None
+
+    category = detect_transaction_category(
+        amount=payload.amount,
+        description=payload.description,
+        reference=payload.reference,
+    )
+    if category not in _DEPOSIT_CATEGORIES:
+        return None
+
+    window = timedelta(days=_DEPOSIT_MERGE_WINDOW_DAYS)
+    result = await db.execute(
+        select(BankTransaction).where(
+            BankTransaction.source == BankTransactionSource.MANUAL,
+            BankTransaction.reconciled == False,  # noqa: E712
+            BankTransaction.bank_account == payload.bank_account,
+            BankTransaction.amount == payload.amount,
+            BankTransaction.detected_category.in_(_DEPOSIT_CATEGORIES),
+            BankTransaction.date >= payload.date - window,
+            BankTransaction.date <= payload.date + window,
+        )
+    )
+    candidates = list(result.scalars().all())
+    if len(candidates) != 1:
+        if len(candidates) > 1:
+            logger.info(
+                "Deposit merge skipped: %d provisional candidates for %s on %s",
+                len(candidates),
+                payload.amount,
+                payload.date,
+            )
+        return None
+
+    tx = candidates[0]
+    # Keep Solde's description — it names the deposit slip — but take the bank's
+    # date, reference and source so the row becomes the statement's own.
+    slip_label = _slip_label_from_reference(tx.reference)
+    tx.date = payload.date
+    tx.reference = payload.reference
+    tx.source = payload.source
+    _mark_merged_deposit_reconciled(tx, slip_label)
+    await db.flush()
+    await recompute_bank_balances(db)
+    await db.flush()
+    await db.refresh(tx)
+    return tx
+
+
+def _is_statement_source(source: BankTransactionSource) -> bool:
+    """True for a row that came from a bank statement rather than from Solde."""
+    return source not in (
+        BankTransactionSource.MANUAL,
+        BankTransactionSource.SYSTEM_OPENING,
+    )
+
+
+async def list_deposit_merge_candidates(db: AsyncSession, *, tx_id: int) -> list[BankTransaction]:
+    """Provisional deposit lines the given statement row could be folded into.
+
+    The counterpart of :func:`absorb_pending_deposit_transaction`, for after the
+    fact: when the automatic merge did not happen at import time (slip confirmed
+    well after the credit, statement imported first), both lines sit in the
+    account and the user has to sort it out.  Candidates are unreconciled
+    ``manual`` deposit lines on the same account, for the very same amount — no
+    date window here, since the user is the one designating the match.
+
+    Ordered by date proximity, closest first.
+    """
+    tx = await get_transaction(db, tx_id)
+    if tx is None:
+        raise LookupError("Transaction not found")
+    if not _is_statement_source(tx.source):
+        raise ValueError("only a statement row can absorb a provisional deposit line")
+    if tx.reconciled:
+        raise ValueError("this transaction is already reconciled")
+    if tx.detected_category not in _DEPOSIT_CATEGORIES:
+        raise ValueError("only a deposit row can be merged with a deposit slip")
+
+    result = await db.execute(
+        select(BankTransaction).where(
+            BankTransaction.id != tx.id,
+            BankTransaction.source == BankTransactionSource.MANUAL,
+            BankTransaction.reconciled == False,  # noqa: E712
+            BankTransaction.bank_account == tx.bank_account,
+            BankTransaction.amount == tx.amount,
+            BankTransaction.detected_category.in_(_DEPOSIT_CATEGORIES),
+        )
+    )
+    candidates = list(result.scalars().all())
+    candidates.sort(key=lambda c: abs((c.date - tx.date).days))
+    return candidates
+
+
+async def merge_deposit_transaction(
+    db: AsyncSession, *, tx_id: int, provisional_tx_id: int
+) -> BankTransaction:
+    """Fold a statement row into a provisional deposit line the user designated.
+
+    Same outcome as the automatic merge at import time: the provisional line is
+    kept — its description names the slip — and takes the statement's date,
+    reference and source; the imported row is then removed.  Returns the
+    surviving line.
+    """
+    candidates = await list_deposit_merge_candidates(db, tx_id=tx_id)
+    provisional = next((c for c in candidates if c.id == provisional_tx_id), None)
+    if provisional is None:
+        raise ValueError("this deposit slip line cannot absorb that statement row")
+
+    tx = await get_transaction(db, tx_id)
+    if tx is None:  # pragma: no cover — list_deposit_merge_candidates already checked
+        raise LookupError("Transaction not found")
+
+    slip_label = _slip_label_from_reference(provisional.reference)
+    provisional.date = tx.date
+    provisional.reference = tx.reference
+    provisional.source = tx.source
+    _mark_merged_deposit_reconciled(provisional, slip_label)
+    await db.delete(tx)
+    await db.flush()
+    await recompute_bank_balances(db)
+    await db.flush()
+    await db.refresh(provisional)
+    return provisional
+
+
+async def find_probable_duplicate(db: AsyncSession, tx: BankTransaction) -> BankTransaction | None:
+    """Return an already-recorded transaction that *tx* probably duplicates.
+
+    Reference-based deduplication (see `add_transaction`) only catches rows the bank
+    itself keyed: it is blind to a statement line entered by hand, which carries no
+    bank reference. Such a line and its later import are the same movement recorded
+    twice, and nothing flags it. This pairs them on account, amount and a short date
+    window, restricted to candidates with no reference and a different source — an
+    imported row that already had a reference would have been deduplicated upstream.
+    """
+    result = await db.execute(
+        select(BankTransaction)
+        .where(
+            BankTransaction.id != tx.id,
+            BankTransaction.bank_account == tx.bank_account,
+            BankTransaction.amount == tx.amount,
+            BankTransaction.reference.is_(None),
+            BankTransaction.source != tx.source,
+            BankTransaction.date >= tx.date - _DUPLICATE_DATE_TOLERANCE,
+            BankTransaction.date <= tx.date + _DUPLICATE_DATE_TOLERANCE,
+        )
+        .order_by(BankTransaction.date.asc(), BankTransaction.id.asc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 async def add_transaction(
@@ -489,22 +749,144 @@ async def update_transaction(
     return tx
 
 
-async def delete_manual_transaction(db: AsyncSession, tx: BankTransaction) -> None:
-    """Delete a manual (or system_opening) transaction and recompute balances.
+class UnreconcileError(ValueError):
+    """Raised when a reconciliation cannot be undone, carrying a machine-readable code."""
 
-    Raises ValueError if the transaction has a non-manual source or is reconciled.
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+#: Refusal codes for :func:`unreconcile_transaction`, mapped to their API message.
+UNRECONCILE_REFUSAL_MESSAGES: dict[str, str] = {
+    "NOT_RECONCILED": "transaction is not reconciled",
+    "RECONCILED_VIA_PAYMENT": ("reconciliation is held by a payment — cancel the payment instead"),
+    "RECONCILED_VIA_DEPOSIT": (
+        "reconciliation is held by a deposit slip — act on the slip instead"
+    ),
+    "FISCAL_YEAR_CLOSED": (
+        "transaction belongs to a closed fiscal year and cannot be unreconciled"
+    ),
+}
+
+
+def find_deposit_id_for_transaction(tx: BankTransaction) -> int | None:
+    """Return the id of the deposit slip a transaction belongs to, if any.
+
+    Nothing links a bank line to a slip in the schema, so the three marks a deposit
+    path leaves behind are read back, in order of reliability: the slip's own
+    reference on a line Solde created, the accounting-reference label, and finally
+    the description — the only one that survives a merge, where the line takes the
+    statement's reference and ``reconciled_with`` may never have been set.
     """
-    if tx.source not in (
-        BankTransactionSource.MANUAL,
-        BankTransactionSource.SYSTEM_OPENING,
+    for value, pattern in (
+        (tx.reference, _SLIP_REFERENCE_RE),
+        (tx.reconciled_with, _SLIP_LABEL_RE),
+        (tx.description, _SLIP_IN_DESCRIPTION_RE),
     ):
-        raise ValueError("Only manual transactions can be deleted")
+        match = pattern.search(value) if value else None
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def is_category_locked(tx: BankTransaction, payment_ids: Sequence[int]) -> bool:
+    """Tell whether the category of *tx* can no longer be edited.
+
+    Only a direct reconciliation (:func:`reconcile_transactions_bulk`) turns the
+    category into accounting entries, so only there would editing it leave the
+    journal stale. A line held by a payment or a deposit slip gets its entries from
+    the payment or the slip: its category is a label, free to fix.
+    """
+    if not tx.reconciled:
+        return False
+    if tx.payment_id is not None or payment_ids:
+        return False
+    return find_deposit_id_for_transaction(tx) is None
+
+
+async def unreconcile_transaction(db: AsyncSession, tx: BankTransaction) -> int:
+    """Undo a plain reconciliation and drop the entries it generated.
+
+    Returns the number of accounting entries removed — zero is a normal outcome, and
+    the common one: a `no_entry` transaction generates none, and neither does a
+    category absent from the engine's trigger map.
+
+    Only the direct path (:func:`reconcile_transactions_bulk`) is undone here. A
+    reconciliation held by a payment or by a deposit slip is refused with its own
+    code: undoing the flag alone would leave the payment or the slip pointing at a
+    line that no longer claims them, and undoing *them* is another operation
+    entirely.
+    """
+    from backend.services import accounting_engine  # noqa: PLC0415
+
+    if not tx.reconciled:
+        raise UnreconcileError("NOT_RECONCILED", UNRECONCILE_REFUSAL_MESSAGES["NOT_RECONCILED"])
+
+    if tx.payment_id is not None:
+        raise UnreconcileError(
+            "RECONCILED_VIA_PAYMENT", UNRECONCILE_REFUSAL_MESSAGES["RECONCILED_VIA_PAYMENT"]
+        )
+    linked = await db.execute(
+        select(bank_transaction_payments.c.transaction_id).where(
+            bank_transaction_payments.c.transaction_id == tx.id
+        )
+    )
+    if linked.first() is not None:
+        raise UnreconcileError(
+            "RECONCILED_VIA_PAYMENT", UNRECONCILE_REFUSAL_MESSAGES["RECONCILED_VIA_PAYMENT"]
+        )
+
+    if find_deposit_id_for_transaction(tx) is not None:
+        raise UnreconcileError(
+            "RECONCILED_VIA_DEPOSIT", UNRECONCILE_REFUSAL_MESSAGES["RECONCILED_VIA_DEPOSIT"]
+        )
+
+    fiscal_year = await find_fiscal_year_for_date(db, tx.date)
+    if fiscal_year is not None and fiscal_year.status == FiscalYearStatus.CLOSED:
+        raise UnreconcileError(
+            "FISCAL_YEAR_CLOSED", UNRECONCILE_REFUSAL_MESSAGES["FISCAL_YEAR_CLOSED"]
+        )
+
+    removed = await db.execute(
+        select(func.count())
+        .select_from(AccountingEntry)
+        .where(AccountingEntry.source_type == EntrySourceType.BANK_TRANSACTION)
+        .where(AccountingEntry.source_id == tx.id)
+    )
+    entry_count = int(removed.scalar_one())
+    await accounting_engine.delete_entries_for_source(db, EntrySourceType.BANK_TRANSACTION, tx.id)
+    tx.reconciled = False
+    tx.reconciled_with = None
+    await db.flush()
+    await db.refresh(tx)
+    return entry_count
+
+
+async def delete_transaction(db: AsyncSession, tx: BankTransaction) -> None:
+    """Delete a manual or directly-imported transaction and recompute balances.
+
+    Raises ValueError if the transaction comes from an Excel import or is reconciled.
+    """
+    if tx.source not in DELETABLE_SOURCES:
+        raise ValueError("Excel-imported transactions cannot be deleted")
     if tx.reconciled:
         raise ValueError("Reconciled transactions cannot be deleted")
     await db.delete(tx)
     await db.flush()
     await recompute_bank_balances(db)
     await db.flush()
+
+
+async def list_unreconciled_transaction_ids(db: AsyncSession, ids: list[int]) -> list[int]:
+    """Return, in date order, the ids among *ids* that are not reconciled yet."""
+    result = await db.execute(
+        select(BankTransaction.id)
+        .where(BankTransaction.id.in_(ids))
+        .where(BankTransaction.reconciled.is_(False))
+        .order_by(BankTransaction.date, BankTransaction.id)
+    )
+    return list(result.scalars())
 
 
 async def reconcile_transactions_bulk(
@@ -1058,6 +1440,63 @@ async def get_deposit_id_for_payment(db: AsyncSession, payment_id: int) -> int |
     return None if row is None else int(row[0])
 
 
+async def _adopt_statement_row_for_deposit(
+    db: AsyncSession,
+    *,
+    deposit: Deposit,
+    category: BankTransactionCategory,
+    description: str,
+    reference: str,
+) -> BankTransaction | None:
+    """Reuse the statement row that already carries this deposit, if it is there.
+
+    The mirror image of :func:`absorb_pending_deposit_transaction`: that one runs
+    when the slip is confirmed *before* the statement arrives.  When the statement
+    was imported first — the common case for a slip confirmed a few days late —
+    creating a provisional line would credit the account a second time, leaving
+    the user to merge the two by hand.
+
+    Returns the adopted row, or None when there is no single obvious match (the
+    caller then creates the provisional line as before).  Ambiguity is never
+    resolved by guessing: several candidates means no adoption.
+    """
+    window = timedelta(days=_DEPOSIT_MERGE_WINDOW_DAYS)
+    result = await db.execute(
+        select(BankTransaction).where(
+            BankTransaction.source.not_in(
+                (BankTransactionSource.MANUAL, BankTransactionSource.SYSTEM_OPENING)
+            ),
+            BankTransaction.reconciled == False,  # noqa: E712
+            BankTransaction.bank_account == BankAccountType.COURANT,
+            BankTransaction.amount == deposit.total_amount,
+            # The exact category, not merely a deposit one: a cash deposit must never
+            # be adopted by a cheque slip of the same amount.
+            BankTransaction.detected_category == category,
+            BankTransaction.date >= deposit.date - window,
+            BankTransaction.date <= deposit.date + window,
+        )
+    )
+    candidates = list(result.scalars().all())
+    if len(candidates) != 1:
+        if len(candidates) > 1:
+            logger.info(
+                "Deposit adoption skipped: %d statement candidates for %s on %s",
+                len(candidates),
+                deposit.total_amount,
+                deposit.date,
+            )
+        return None
+
+    tx = candidates[0]
+    # Solde's own wording names the slip, where "REM CHQ REF05001A05" says nothing.
+    # The bank's date, reference and source are left untouched: this row *is* the
+    # statement's.
+    tx.description = description
+    _mark_merged_deposit_reconciled(tx, _slip_label_from_reference(reference))
+    await db.flush()
+    return tx
+
+
 async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
     """Confirm a deposit (physically taken to the bank).
 
@@ -1065,7 +1504,17 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
     - Mark deposit as confirmed + set confirmed_date.
     - For especes: create CashEntry OUT (cash leaves the till for the bank).
     - For both types: generate accounting entries (caisse/chèques → banque).
-    - For cheques: create a positive BankTransaction representing the credit.
+    - For both types: credit the bank account with a positive BankTransaction —
+      unless the statement already brought that very movement, in which case that
+      row is adopted rather than doubled (see
+      :func:`_adopt_statement_row_for_deposit`).
+
+    The cash movement and the bank credit are dated from ``deposit.date`` — the day
+    the slip was made up — and not from the confirmation day: a slip confirmed late
+    would otherwise carry a date the bank never used, drifting away from the
+    accounting entries (already dated from the slip) and from the statement row that
+    is meant to absorb it.  ``confirmed_date`` still records when the confirmation
+    itself happened.
     """
     deposit = await get_deposit(db, deposit_id)
     if deposit is None:
@@ -1083,35 +1532,54 @@ async def confirm_deposit(db: AsyncSession, deposit_id: int) -> Deposit:
         reference = deposit.bank_reference or f"DEP-ESP-{deposit.id}"
         await create_cash_entry_record(
             db,
-            date=deposit.confirmed_date,
+            date=deposit.date,
             amount=deposit.total_amount,
             type=CashMovementType.OUT,
             reference=reference,
             description="Remise d'espèces en banque",
             source=CashEntrySource.DEPOSIT,
         )
-        # Also credit the bank account so the bank balance is updated
-        esp_tx = await create_bank_transaction_record(
+        # Also credit the bank account so the bank balance is updated — unless the
+        # statement already brought this very movement.
+        description = _deposit_description(DepositType.ESPECES, deposit.id)
+        adopted = await _adopt_statement_row_for_deposit(
             db,
-            date=deposit.confirmed_date,
-            amount=deposit.total_amount,
+            deposit=deposit,
+            category=BankTransactionCategory.CASH_DEPOSIT,
+            description=description,
             reference=reference,
-            description=f"Remise d'espèces (bordereau #{deposit.id})",
-            source=BankTransactionSource.MANUAL,
         )
-        esp_tx.detected_category = BankTransactionCategory.CASH_DEPOSIT
+        if adopted is None:
+            esp_tx = await create_bank_transaction_record(
+                db,
+                date=deposit.date,
+                amount=deposit.total_amount,
+                reference=reference,
+                description=description,
+                source=BankTransactionSource.MANUAL,
+            )
+            esp_tx.detected_category = BankTransactionCategory.CASH_DEPOSIT
     else:
         # Cheques: create a bank transaction credit so the bank balance is updated
         reference = deposit.bank_reference or f"DEP-CHQ-{deposit.id}"
-        chq_tx = await create_bank_transaction_record(
+        description = _deposit_description(DepositType.CHEQUES, deposit.id)
+        adopted = await _adopt_statement_row_for_deposit(
             db,
-            date=deposit.confirmed_date,
-            amount=deposit.total_amount,
+            deposit=deposit,
+            category=BankTransactionCategory.CHEQUE_DEPOSIT,
+            description=description,
             reference=reference,
-            description=f"Remise de chèques (bordereau #{deposit.id})",
-            source=BankTransactionSource.MANUAL,
         )
-        chq_tx.detected_category = BankTransactionCategory.CHEQUE_DEPOSIT
+        if adopted is None:
+            chq_tx = await create_bank_transaction_record(
+                db,
+                date=deposit.date,
+                amount=deposit.total_amount,
+                reference=reference,
+                description=description,
+                source=BankTransactionSource.MANUAL,
+            )
+            chq_tx.detected_category = BankTransactionCategory.CHEQUE_DEPOSIT
         # Mark linked cheque payments as fully deposited
         result = await db.execute(
             select(Payment)

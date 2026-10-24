@@ -16,6 +16,7 @@ from backend.schemas.bank import (
     DepositUpdate,
 )
 from backend.services import bank_service
+from backend.services.audit_labels import describe_target
 from backend.services.audit_service import AuditAction, record_audit
 
 router = APIRouter()
@@ -223,6 +224,7 @@ async def delete_deposit(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: _WriteAccess,
 ) -> None:
+    label = await describe_target(db, "bank_deposit", deposit_id)
     try:
         await bank_service.delete_deposit(db, deposit_id)
     except LookupError as exc:
@@ -235,5 +237,6 @@ async def delete_deposit(
         actor=current_user,
         target_id=deposit_id,
         target_type="bank_deposit",
+        target_label=label,
         detail={"action": "cancelled"},
     )

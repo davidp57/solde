@@ -661,7 +661,12 @@ async def _compute_resultat(
 
 
 async def get_resultat(db: AsyncSession, fiscal_year_id: int | None = None) -> ResultatRead:
-    """Build the compte de résultat for a given fiscal year using SQL aggregation."""
+    """Build the compte de résultat for a given fiscal year using SQL aggregation.
+
+    Closing entries are excluded: their whole purpose is to zero out the charge and
+    produit accounts, so counting them would report a nil result for every closed
+    year — precisely the years whose result one wants to read and archive.
+    """
     query = (
         select(
             AccountingEntry.account_number,
@@ -671,7 +676,10 @@ async def get_resultat(db: AsyncSession, fiscal_year_id: int | None = None) -> R
             func.sum(AccountingEntry.credit).label("total_credit"),
         )
         .join(AccountingAccount, AccountingEntry.account_number == AccountingAccount.number)
-        .where(AccountingAccount.type.in_([AccountType.CHARGE, AccountType.PRODUIT]))
+        .where(
+            AccountingAccount.type.in_([AccountType.CHARGE, AccountType.PRODUIT]),
+            AccountingEntry.source_type != EntrySourceType.CLOTURE,
+        )
     )
     if fiscal_year_id is not None:
         query = query.where(AccountingEntry.fiscal_year_id == fiscal_year_id)
@@ -835,9 +843,15 @@ async def get_bilan(db: AsyncSession, fiscal_year_id: int | None = None) -> Bila
     """Build a simplified balance sheet grouping actif and passif accounts."""
     balance_rows = await get_balance(db, fiscal_year_id=fiscal_year_id)
 
-    # Segregate by type
+    # Segregate by type. Balance rows carry a debit-minus-credit solde, which leaves
+    # every passif account — and the passif total — negative. A balance sheet is read
+    # with both sides positive, so passif is flipped to its credit-side convention.
     actif_rows = [r for r in balance_rows if r.account_type == AccountType.ACTIF]
-    passif_rows = [r for r in balance_rows if r.account_type == AccountType.PASSIF]
+    passif_rows = [
+        r.model_copy(update={"solde": -r.solde})
+        for r in balance_rows
+        if r.account_type == AccountType.PASSIF
+    ]
 
     # Compute current period resultat (produits - charges) to embed in passif
     total_c, total_p = await _compute_resultat(db, fiscal_year_id)

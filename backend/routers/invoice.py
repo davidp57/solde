@@ -37,6 +37,7 @@ from backend.schemas.invoice import (
 )
 from backend.services import invoice as invoice_service
 from backend.services import settings as settings_service
+from backend.services.audit_labels import describe_target
 from backend.services.audit_service import AuditAction, record_audit
 from backend.services.invoice import (
     BlockedContactError,
@@ -87,6 +88,8 @@ _WriteAccess = Annotated[
     User,
     Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
 ]
+# Regenerating entries rewrites accounting data — admin only.
+_AdminAccess = Annotated[User, Depends(require_role(UserRole.ADMIN))]
 _ReadAccess = Annotated[
     User,
     Depends(require_role(UserRole.SECRETAIRE, UserRole.TRESORIER, UserRole.ADMIN)),
@@ -280,6 +283,35 @@ async def write_off_invoice(
     return updated
 
 
+@router.post("/{invoice_id}/regenerate-entries", response_model=dict[str, int])
+async def regenerate_invoice_entries(
+    invoice_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _AdminAccess,
+) -> dict[str, int]:
+    """Rebuild the accounting entries of an invoice — admin maintenance action.
+
+    Needed after an engine fix: earlier invoices keep the entries the old code
+    produced, and a paid invoice cannot be edited to trigger a rebuild.
+    """
+    invoice = await invoice_service.get_invoice(db, invoice_id)
+    if invoice is None:
+        raise not_found("Invoice")
+    try:
+        created = await invoice_service.regenerate_invoice_entries(db, invoice)
+    except InvoiceStatusError as exc:
+        raise conflict("INVOICE_OPERATION_FAILED", str(exc)) from exc
+    await record_audit(
+        db,
+        action=AuditAction.INVOICE_ENTRIES_REGENERATED,
+        actor=current_user,
+        target_id=invoice_id,
+        target_type="invoice",
+        detail={"number": invoice.number, "entries": str(created)},
+    )
+    return {"entries": created}
+
+
 @router.post("/{invoice_id}/restore-from-writeoff", response_model=InvoiceRead)
 async def restore_from_writeoff(
     invoice_id: int,
@@ -393,6 +425,7 @@ async def delete_invoice(
     if invoice is None:
         raise not_found("Invoice")
     detail = {"number": invoice.number, "type": invoice.type}
+    label = await describe_target(db, "invoice", invoice_id)
     try:
         await invoice_service.delete_invoice(db, invoice)
     except InvoiceDeleteError as exc:
@@ -403,6 +436,7 @@ async def delete_invoice(
         actor=current_user,
         target_id=invoice_id,
         target_type="invoice",
+        target_label=label,
         detail=detail,
     )
 
@@ -611,7 +645,7 @@ async def send_invoice_email(
             smtp_user=app_settings.smtp_user or "",
             smtp_password=app_settings.smtp_password or "",
             smtp_from_email=app_settings.smtp_from_email or "",
-            smtp_use_tls=app_settings.smtp_use_tls,
+            smtp_security=app_settings.smtp_security,
             bcc=app_settings.smtp_bcc,
             recipient_email=payload.recipients,
             invoice_number=invoice.number,
@@ -621,6 +655,8 @@ async def send_invoice_email(
             override_subject=payload.subject,
             override_body=payload.body,
         )
+    except email_service.EmailInsecureCredentialsError as exc:
+        raise api_error(status.HTTP_400_BAD_REQUEST, "SMTP_INSECURE_CREDENTIALS", str(exc)) from exc
     except email_service.EmailSendError as exc:
         raise api_error(
             status.HTTP_502_BAD_GATEWAY, "EMAIL_DELIVERY_FAILED", f"Email delivery failed: {exc}"

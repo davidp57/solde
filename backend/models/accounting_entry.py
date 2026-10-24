@@ -6,7 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Date, DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
@@ -43,8 +43,13 @@ class AccountingEntry(Base):
     """A single debit or credit line in the accounting journal."""
 
     __tablename__ = "accounting_entries"
+    # Created by migration 0052: the database itself rejects a duplicate entry
+    # number, so two concurrent requests cannot write the same one.
+    __table_args__ = (
+        Index("ix_accounting_entries_entry_number_unique", "entry_number", unique=True),
+    )
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     entry_number: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     date: Mapped[_Date] = mapped_column(Date, nullable=False, index=True)
     # Denormalized account number (no FK — history must survive account changes)

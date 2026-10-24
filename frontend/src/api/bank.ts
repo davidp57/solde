@@ -41,6 +41,8 @@ export interface BankTransaction {
   bank_account: BankAccountType
   payment_id: number | null
   payment_ids: number[]
+  /** The category drives entries already generated (direct reconciliation): not editable. */
+  category_locked: boolean
 }
 
 export interface BankTransactionClientPaymentAllocation {
@@ -179,14 +181,48 @@ export async function deleteTransaction(id: number): Promise<void> {
   await apiClient.delete(`/api/bank/transactions/${id}`)
 }
 
+export async function unreconcileTransaction(id: number): Promise<BankTransaction> {
+  const response = await apiClient.post<BankTransaction>(
+    `/api/bank/transactions/${id}/unreconcile`,
+  )
+  return response.data
+}
+
 export async function reconcileTransactionsBulk(ids: number[]): Promise<number> {
   const response = await apiClient.post<number>('/api/bank/transactions/reconcile-bulk', { ids })
   return response.data
 }
 
+/** An imported row paired with the transaction it probably duplicates. */
+export interface BankImportDuplicate {
+  imported: BankTransaction
+  existing: BankTransaction
+}
+
 export interface BankImportResult {
   created: BankTransaction[]
   skipped: number
+  /** Statement rows folded into a deposit already recorded by Solde. */
+  merged: number
+  /** Imported rows that look like an equivalent of something already recorded. */
+  duplicates: BankImportDuplicate[]
+}
+
+/** Sources whose transactions may be deleted — mirrors `DELETABLE_SOURCES` server-side. */
+const DELETABLE_SOURCES: BankTransactionSource[] = [
+  'manual',
+  'system_opening',
+  'import_csv',
+  'import_ofx',
+  'import_qif',
+]
+
+/**
+ * Whether a transaction can be deleted: Excel-imported rows are locked (the reversible
+ * import tracks them), and a reconciled row must stay put for the journal to hold.
+ */
+export function canDeleteTransaction(tx: BankTransaction): boolean {
+  return DELETABLE_SOURCES.includes(tx.source) && !tx.reconciled
 }
 
 export async function importCsv(content: string): Promise<BankImportResult> {
@@ -287,6 +323,26 @@ export async function linkClientPaymentsToTransaction(
   const response = await apiClient.post<BankTransaction>(
     `/api/bank/transactions/${txId}/link-client-payments`,
     payload,
+  )
+  return response.data
+}
+
+export async function listDepositMergeCandidates(txId: number): Promise<BankTransaction[]> {
+  const response = await apiClient.get<BankTransaction[]>(
+    `/api/bank/transactions/${txId}/deposit-merge-candidates`,
+  )
+  return response.data
+}
+
+export async function mergeDepositTransaction(
+  txId: number,
+  provisionalTxId: number,
+): Promise<BankTransaction> {
+  const response = await apiClient.post<BankTransaction>(
+    `/api/bank/transactions/${txId}/merge-deposit`,
+    {
+      provisional_tx_id: provisionalTxId,
+    },
   )
   return response.data
 }

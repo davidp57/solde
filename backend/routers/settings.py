@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Annotated, NoReturn
 
 import anyio
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response, status
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,7 +30,7 @@ from backend.schemas.settings import (
     TreasurySystemOpeningUpdate,
 )
 from backend.services import settings as settings_service
-from backend.services.audit_service import AuditAction, record_audit
+from backend.services.audit_service import AuditAction, record_audit, search_audit_logs
 
 logger = logging.getLogger(__name__)
 
@@ -402,31 +402,34 @@ async def get_logs(
 
 @router.get("/audit-logs", response_model=list[AuditLogRead])
 async def get_audit_logs(
+    response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: _AdminRequired,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
+    q: Annotated[str | None, Query(max_length=200)] = None,
+    q_actions: Annotated[list[str] | None, Query()] = None,
     action: Annotated[str | None, Query()] = None,
     actor_id: Annotated[int | None, Query()] = None,
     from_date: Annotated[datetime | None, Query()] = None,
     to_date: Annotated[datetime | None, Query()] = None,
 ) -> list[AuditLogRead]:
-    """Return audit log entries with optional filters and pagination (admin only)."""
-    from sqlalchemy import select
+    """Search audit log entries, newest first (admin only).
 
-    from backend.models.audit_log import AuditLog
-
-    stmt = select(AuditLog)
-    if action is not None:
-        stmt = stmt.where(AuditLog.action == action)
-    if actor_id is not None:
-        stmt = stmt.where(AuditLog.actor_id == actor_id)
-    if from_date is not None:
-        from_dt = from_date if from_date.tzinfo is not None else from_date.replace(tzinfo=UTC)
-        stmt = stmt.where(AuditLog.created_at >= from_dt)
-    if to_date is not None:
-        to_dt = to_date if to_date.tzinfo is not None else to_date.replace(tzinfo=UTC)
-        stmt = stmt.where(AuditLog.created_at <= to_dt)
-    stmt = stmt.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
-    result = await db.execute(stmt)
-    return result.scalars().all()  # type: ignore[return-value]
+    ``action`` filters on an action code prefix (``bank.`` for every bank action);
+    ``q_actions`` lists the action codes whose displayed name matches ``q``. The total
+    matching count is returned in ``X-Total-Count``.
+    """
+    logs, total = await search_audit_logs(
+        db,
+        q=q,
+        q_actions=q_actions or (),
+        action_prefix=action,
+        actor_id=actor_id,
+        from_date=from_date,
+        to_date=to_date,
+        skip=skip,
+        limit=limit,
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return [AuditLogRead.model_validate(log) for log in logs]

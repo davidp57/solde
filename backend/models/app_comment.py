@@ -11,7 +11,7 @@ from backend.database import Base
 class AppComment(Base):
     __tablename__ = "app_comments"
 
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=False, index=True
     )

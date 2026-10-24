@@ -23,7 +23,12 @@ from backend.models.accounting_entry import (
     EntrySourceType,
     build_entry_group_key,
 )
-from backend.models.accounting_rule import AccountingRule, AccountingRuleEntry, TriggerType
+from backend.models.accounting_rule import (
+    AccountingRule,
+    AccountingRuleEntry,
+    EntrySide,
+    TriggerType,
+)
 from backend.models.bank import Deposit, DepositType
 from backend.models.contact import Contact
 from backend.models.invoice import (
@@ -154,8 +159,17 @@ async def _apply_rule_entries(
     for rule_entry, entry_number in zip(rule_entries, entry_numbers, strict=True):
         label = _render_template(rule_entry.description_template, context)
 
-        debit = amount if rule_entry.side == "debit" else Decimal("0")
-        credit = amount if rule_entry.side == "credit" else Decimal("0")
+        # A negative amount is the same posting the other way round (a discount
+        # credited to a revenue account is a debit of the same absolute value).
+        # Booking it as a negative credit would leave the group unbalanced.
+        side = rule_entry.side
+        value = amount
+        if value < 0:
+            value = -value
+            side = EntrySide.CREDIT if side == EntrySide.DEBIT else EntrySide.DEBIT
+
+        debit = value if side == EntrySide.DEBIT else Decimal("0")
+        credit = value if side == EntrySide.CREDIT else Decimal("0")
 
         entry = AccountingEntry(
             entry_number=entry_number,
@@ -174,6 +188,24 @@ async def _apply_rule_entries(
 
     await db.flush()
     return created
+
+
+def _warn_if_unbalanced(entries: Sequence[AccountingEntry], origin: str) -> None:
+    """Log an unbalanced group loudly instead of letting it reach the journal quietly.
+
+    Double-entry bookkeeping guarantees nothing if a group is written with
+    debits ≠ credits: the imbalance only surfaces much later, at closing time,
+    with no clue as to which document produced it.
+    """
+    total_debit = sum((entry.debit for entry in entries), start=Decimal("0"))
+    total_credit = sum((entry.credit for entry in entries), start=Decimal("0"))
+    if total_debit != total_credit:
+        logger.error(
+            "Unbalanced accounting group for %s: debit %s != credit %s",
+            origin,
+            total_debit,
+            total_credit,
+        )
 
 
 def _resolve_client_invoice_line_type(
@@ -225,7 +257,14 @@ async def _generate_split_client_invoice_entries(
     if total_amount <= 0:
         return []
 
+    # The label is derived from what the invoice actually sells, so only positive
+    # components count. Crediting, on the other hand, must cover every non-zero
+    # component: dropping a negative one (a discount booked apart from the line it
+    # discounts) credits more than the debit and unbalances the group.
     positive_line_types = {line_type for line_type, amount in grouped_amounts.items() if amount > 0}
+    credited_line_types = {
+        line_type for line_type, amount in grouped_amounts.items() if amount != 0
+    }
     derived_label = derive_client_invoice_label(positive_line_types)
 
     debit_rule = await _get_rule(db, _trigger_for_client_invoice_label(derived_label))
@@ -237,7 +276,7 @@ async def _generate_split_client_invoice_entries(
         return None
 
     credit_entries_by_type: dict[InvoiceLineType, Sequence[AccountingRuleEntry]] = {}
-    for line_type in positive_line_types:
+    for line_type in credited_line_types:
         component_rule = await _get_rule(db, _trigger_for_client_line_type(line_type))
         if component_rule is None:
             return None
@@ -259,7 +298,7 @@ async def _generate_split_client_invoice_entries(
             fiscal_year_id,
         )
     )
-    for line_type in sorted(positive_line_types, key=lambda value: value.value):
+    for line_type in sorted(credited_line_types, key=lambda value: value.value):
         created.extend(
             await _apply_rule_entries(
                 db,

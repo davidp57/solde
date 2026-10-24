@@ -101,6 +101,7 @@ import { useToast } from 'primevue/usetoast'
 import axios from 'axios'
 import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 
 import type { Contact } from '../api/contacts'
 import { createInvoiceApi, updateInvoiceApi, type Invoice } from '../api/invoices'
@@ -112,7 +113,7 @@ const props = defineProps<{
   contacts: Contact[]
 }>()
 const emit = defineEmits<{
-  saved: []
+  saved: [invoice: Invoice]
   cancel: []
 }>()
 
@@ -243,12 +244,10 @@ async function submit() {
       total_amount: String(form.total_amount),
       description: form.description || null,
     }
-    if (props.invoice) {
-      await updateInvoiceApi(props.invoice.id, payload)
-    } else {
-      await createInvoiceApi(payload)
-    }
-    emit('saved')
+    const savedInvoice = props.invoice
+      ? await updateInvoiceApi(props.invoice.id, payload)
+      : await createInvoiceApi(payload)
+    emit('saved', savedInvoice)
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 422) {
       const detail = error.response.data?.detail
@@ -261,10 +260,10 @@ async function submit() {
         }
         fieldErrors.value = errors
       } else {
-        toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+        toast.add({ severity: 'error', summary: getErrorDetail(error, t('common.error.unknown')), life: 5000 })
       }
     } else {
-      toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+      toast.add({ severity: 'error', summary: getErrorDetail(error, t('common.error.unknown')), life: 5000 })
     }
   } finally {
     saving.value = false

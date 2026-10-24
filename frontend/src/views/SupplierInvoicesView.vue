@@ -22,6 +22,20 @@
     @reset-filters="resetFilters"
     @export="doExportExcel"
   >
+    <template #toolbar-extras>
+      <div class="app-field">
+        <Button
+          data-testid="invoices-show-all-history"
+          :label="t('invoices.show_all_history')"
+          :icon="showAllHistory ? 'pi pi-calendar-times' : 'pi pi-calendar'"
+          :severity="showAllHistory ? 'primary' : 'secondary'"
+          outlined
+          size="small"
+          @click="showAllHistory = !showAllHistory; loadInvoices()"
+        />
+      </div>
+    </template>
+
 
       <AppListLimitBanner
         :view-key="LIMIT_VIEW_KEY"
@@ -519,10 +533,12 @@ import { useTableExport, type ExportColumn } from '@/composables/useTableExport'
 import { listContactsApi, type Contact } from '../api/contacts'
 import {
   deleteInvoiceApi,
+  getInvoiceApi,
   downloadInvoiceFileApi,
   listInvoicesWithCountApi,
   uploadInvoiceFileApi,
   type Invoice,
+  regenerateInvoiceEntriesApi,
 } from '../api/invoices'
 import { listPayments, type Payment } from '../api/payments'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
@@ -546,6 +562,7 @@ import {
 } from '../composables/useDataTableFilters'
 import { collectActiveFilterLabels } from '../composables/activeFilterLabels'
 import { useUnsavedChangesGuard } from '../composables/useUnsavedChangesGuard'
+import { useAuthStore } from '../stores/auth'
 import { useFiscalYearStore } from '../stores/fiscalYear'
 import { useListLimitStore } from '../stores/listLimit'
 import { formatContactDisplayName } from '../utils/contact'
@@ -557,6 +574,7 @@ const confirm = useConfirm()
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const authStore = useAuthStore()
 const fiscalYearStore = useFiscalYearStore()
 const limitStore = useListLimitStore()
 const LIMIT_VIEW_KEY = 'invoices-supplier'
@@ -570,6 +588,23 @@ const exportColumns: ExportColumn[] = [
   { field: 'total_amount_value', header: t('invoices.total') },
   { field: 'status_label', header: t('invoices.status') },
 ]
+async function regenerateEntries(invoice: Invoice): Promise<void> {
+  try {
+    const { entries } = await regenerateInvoiceEntriesApi(invoice.id)
+    toast.add({
+      severity: 'success',
+      summary: t('invoices.regenerate_entries_ok', { n: entries }),
+      life: 3000,
+    })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: getErrorDetail(error, t('common.error.unknown')),
+      life: 6000,
+    })
+  }
+}
+
 function doExportExcel(): void {
   exportToExcel(displayedInvoices.value, exportColumns, 'supplier-invoices-export')
 }
@@ -577,6 +612,10 @@ function doExportExcel(): void {
 const invoices = ref<Invoice[]>([])
 const contacts = ref<Contact[]>([])
 const loading = ref(false)
+// Lifts the fiscal-year date filter — records dated outside the selected year
+// (or outside every year) are otherwise invisible here.
+const showAllHistory = ref(false)
+
 const dialogVisible = ref(false)
 const editingInvoice = ref<Invoice | null>(null)
 const supplierFormRef = ref<InstanceType<typeof SupplierInvoiceForm> | null>(null)
@@ -792,6 +831,17 @@ function supplierMenuItems(invoice: Invoice): MenuItem[] {
     normal.push({ key: 'pay', label: t('invoices.record_payment'), icon: 'pi pi-wallet', command: () => openPaymentDialog(invoice) })
   }
 
+  // Maintenance: supplier invoices created before entries were booked on
+  // creation carry none, and a paid invoice cannot be edited to rebuild them.
+  if (authStore.isAdmin && invoice.status !== 'draft') {
+    normal.push({
+      key: 'regenerate-entries',
+      label: t('invoices.regenerate_entries'),
+      icon: 'pi pi-sync',
+      command: () => regenerateEntries(invoice),
+    })
+  }
+
   const danger: MenuItem[] = []
   if (invoice.status === 'draft') {
     danger.push({
@@ -812,7 +862,13 @@ function supplierMenuItems(invoice: Invoice): MenuItem[] {
 }
 
 async function onPaymentRecorded(invoiceId: number): Promise<void> {
-  await loadInvoices()
+  // Fetch the one invoice that changed: a request for a known id cannot come back
+  // missing the row we are looking for, unlike a filtered list.
+  try {
+    applyInvoiceLocally(await getInvoiceApi(invoiceId))
+  } catch {
+    await loadInvoices()
+  }
   // Refresh preview payments if preview is open for the same invoice
   if (previewInvoice.value?.id === invoiceId) {
     previewPayments.value = await listPayments({ invoice_id: invoiceId })
@@ -839,7 +895,7 @@ async function loadInvoices() {
       invoice_type: 'fournisseur',
       limit: limitStore.requestLimit(LIMIT_VIEW_KEY),
     }
-    if (fiscalYearStore.selectedFiscalYear) {
+    if (fiscalYearStore.selectedFiscalYear && !showAllHistory.value) {
       filters.from_date = fiscalYearStore.selectedFiscalYear.start_date
       filters.to_date = fiscalYearStore.selectedFiscalYear.end_date
     }
@@ -891,9 +947,22 @@ function openEditDialog(invoice: Invoice) {
   }
 }
 
-function onSaved() {
+/**
+ * Reflect a server-confirmed invoice on screen without re-fetching the list.
+ *
+ * A created invoice is shown even when the active filters would exclude it: hiding what
+ * the user has just saved is worse than showing a row a filter would have dropped.
+ */
+function applyInvoiceLocally(invoice: Invoice): void {
+  const index = invoices.value.findIndex((candidate) => candidate.id === invoice.id)
+  if (index >= 0) invoices.value[index] = invoice
+  else invoices.value = [invoice, ...invoices.value]
+}
+
+function onSaved(saved?: Invoice) {
   dialogVisible.value = false
-  void loadInvoices()
+  if (saved) applyInvoiceLocally(saved)
+  else void loadInvoices()
 }
 
 function openUploadDialog(invoice: Invoice) {
@@ -957,8 +1026,8 @@ async function downloadFile(invoice: Invoice) {
     a.download = `facture-${invoice.number}.${ext}`
     a.click()
     URL.revokeObjectURL(url)
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     previewDownloading.value = false
   }
@@ -1003,12 +1072,12 @@ async function uploadFile() {
   if (!uploadTargetId.value || !selectedFile.value) return
   uploading.value = true
   try {
-    await uploadInvoiceFileApi(uploadTargetId.value, selectedFile.value)
+    const withFile = await uploadInvoiceFileApi(uploadTargetId.value, selectedFile.value)
+    applyInvoiceLocally(withFile)
     toast.add({ severity: 'success', summary: t('invoices.file_uploaded'), life: 3000 })
     uploadDialogVisible.value = false
-    await loadInvoices()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 4000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     uploading.value = false
   }
@@ -1024,8 +1093,8 @@ function confirmDelete(invoice: Invoice) {
     accept: async () => {
       try {
         await deleteInvoiceApi(invoice.id)
+        invoices.value = invoices.value.filter((candidate) => candidate.id !== invoice.id)
         toast.add({ severity: 'success', summary: t('invoices.deleted'), life: 3000 })
-        await loadInvoices()
       } catch (error) {
         toast.add({
           severity: 'error',

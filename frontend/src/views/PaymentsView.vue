@@ -53,6 +53,15 @@
             size="small"
             @click="doExportExcel"
           />
+          <Button
+            data-testid="payments-show-all-history"
+            :label="t('payments.show_all_history')"
+            :icon="showAllHistory ? 'pi pi-calendar-times' : 'pi pi-calendar'"
+            :severity="showAllHistory ? 'primary' : 'secondary'"
+            outlined
+            size="small"
+            @click="showAllHistory = !showAllHistory; loadPayments()"
+          />
         </div>
 
         <div class="app-filter-grid">
@@ -85,6 +94,10 @@
             <div class="app-mobile-card-row app-mobile-card-row--between">
               <span class="app-mobile-card-label">{{ formatDisplayDate(data.date) }}</span>
               <span class="app-mobile-card-value" style="font-weight:700">{{ formatAmount(data.amount) }} €</span>
+            </div>
+            <div class="app-mobile-card-row" v-if="data.invoice_number">
+              <span class="app-mobile-card-label">{{ t('payments.invoice') }} :</span>
+              <span class="app-mobile-card-value">{{ data.invoice_number }}</span>
             </div>
             <div class="app-mobile-card-row">
               <Tag :value="t(`payments.methods.${data.method}`)" />
@@ -126,6 +139,7 @@
           'amount_value',
           'method',
           'reference_value',
+          'invoice_number',
           'cheque_number',
           'deposited',
         ]"
@@ -183,6 +197,18 @@
               :placeholder="t('common.all')"
               show-clear
             />
+          </template>
+        </Column>
+        <Column
+          field="invoice_number"
+          :header="t('payments.invoice')"
+          sortable
+          :show-filter-match-modes="false"
+          :show-add-button="false"
+        >
+          <template #body="{ data }">{{ data.invoice_number ?? '' }}</template>
+          <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" :placeholder="t('payments.invoice')" />
           </template>
         </Column>
         <Column
@@ -266,6 +292,10 @@
     >
       <div class="app-dialog-form">
         <div class="app-form-grid">
+          <div class="app-field">
+            <label class="app-field__label">{{ t('payments.invoice') }}</label>
+            <InputText :model-value="editingPayment?.invoice_number ?? ''" disabled />
+          </div>
           <div class="app-field">
             <label class="app-field__label">{{ t('payments.date') }}</label>
             <InputText v-model="paymentForm.date" type="date" disabled />
@@ -364,6 +394,7 @@ import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { getErrorDetail } from '@/utils/errorUtils'
 import {
   cancelPayment,
   getPaymentCancelPreview,
@@ -412,6 +443,7 @@ const exportColumns: ExportColumn[] = [
   { field: 'date', header: t('payments.date') },
   { field: 'amount_value', header: t('payments.amount') },
   { field: 'method_label', header: t('payments.method') },
+  { field: 'invoice_number', header: t('payments.invoice') },
   { field: 'reference_value', header: t('payments.reference') },
   { field: 'cheque_number', header: t('payments.cheque_number') },
   { field: 'deposited_label', header: t('payments.deposited') },
@@ -425,6 +457,10 @@ const payments = ref<Payment[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const undepositedOnly = ref(false)
+// Lifts the fiscal-year date filter — records dated outside the selected year
+// (or outside every year) are otherwise invisible here.
+const showAllHistory = ref(false)
+
 const dialogVisible = ref(false)
 const editingPayment = ref<Payment | null>(null)
 const cancelDialogVisible = ref(false)
@@ -466,6 +502,7 @@ const {
   amount_value: numericRangeFilter(),
   method: inFilter(),
   reference_value: textFilter(),
+  invoice_number: textFilter(),
   cheque_number: textFilter(),
   deposited: inFilter(),
 })
@@ -514,7 +551,7 @@ const yesNoOptions = computed(() => [
 ])
 
 function paymentReference(payment: Payment): string {
-  return payment.reference ?? payment.invoice_number ?? ''
+  return payment.reference ?? ''
 }
 
 function formatAmount(value: string | number): string {
@@ -556,9 +593,9 @@ async function openCancelDialog(payment: Payment): Promise<void> {
   cancelPreviewLoading.value = true
   try {
     cancelPreview.value = await getPaymentCancelPreview(payment.id)
-  } catch {
+  } catch (err: unknown) {
     cancelDialogVisible.value = false
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 3000 })
   } finally {
     cancelPreviewLoading.value = false
   }
@@ -599,10 +636,12 @@ async function confirmCancelPayment(): Promise<void> {
   try {
     await cancelPayment(payment.id)
     cancelDialogVisible.value = false
+    // Drop the row here rather than re-fetching the list: the screen must not depend on
+    // a second request to reflect what the server has already confirmed.
+    payments.value = payments.value.filter((candidate) => candidate.id !== payment.id)
     toast.add({ severity: 'success', summary: t('payments.cancelled'), life: 3000 })
-    await loadPayments()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     cancelling.value = false
   }
@@ -621,12 +660,18 @@ function openEditDialog(payment: Payment) {
   dialogVisible.value = true
 }
 
+/** Replace a row with what the server just returned, in place. */
+function applyUpdatedPayment(updated: Payment): void {
+  const index = payments.value.findIndex((candidate) => candidate.id === updated.id)
+  if (index >= 0) payments.value[index] = { ...payments.value[index], ...updated }
+}
+
 async function savePayment() {
   if (!editingPayment.value) return
 
   saving.value = true
   try {
-    await updatePayment(editingPayment.value.id, {
+    const updated = await updatePayment(editingPayment.value.id, {
       cheque_number:
         paymentForm.value.method === 'cheque'
           ? normalizeOptionalField(paymentForm.value.cheque_number)
@@ -635,10 +680,10 @@ async function savePayment() {
       notes: normalizeOptionalField(paymentForm.value.notes),
     })
     dialogVisible.value = false
+    applyUpdatedPayment(updated)
     toast.add({ severity: 'success', summary: t('payments.updated'), life: 3000 })
-    await loadPayments()
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     saving.value = false
   }
@@ -656,7 +701,7 @@ async function loadPayments() {
   loading.value = true
   try {
     // Skip fiscal-year date filter when showing all undeposited — they can span multiple years
-    const dateFilter = undepositedOnly.value
+    const dateFilter = undepositedOnly.value || showAllHistory.value
       ? {}
       : {
           from_date: fiscalYearStore.selectedFiscalYear?.start_date,
@@ -670,8 +715,8 @@ async function loadPayments() {
     })
     limitStore.setTotalCount(LIMIT_VIEW_KEY, total)
     payments.value = items
-  } catch {
-    toast.add({ severity: 'error', summary: t('common.error.unknown'), life: 3000 })
+  } catch (err: unknown) {
+    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
   } finally {
     loading.value = false
   }
