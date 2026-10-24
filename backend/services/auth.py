@@ -14,14 +14,23 @@ ACCESS_TOKEN_TYPE = "access"
 REFRESH_TOKEN_TYPE = "refresh"
 
 
+#: bcrypt only reads this many bytes. bcrypt < 5 dropped the rest silently, and
+#: the stored hashes were made that way; bcrypt 5 raises instead.
+_BCRYPT_MAX_BYTES = 72
+
+
+def _bcrypt_input(password: str) -> bytes:
+    return password.encode()[:_BCRYPT_MAX_BYTES]
+
+
 def hash_password(password: str) -> str:
     """Return a bcrypt hash of the given plaintext password."""
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return bcrypt.hashpw(_bcrypt_input(password), bcrypt.gensalt()).decode()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Return True if plain_password matches the stored hash."""
-    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    return bcrypt.checkpw(_bcrypt_input(plain_password), hashed_password.encode())
 
 
 def create_access_token(
