@@ -22,10 +22,14 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-          cache-dependency-path: pyproject.toml
+          cache-dependency-path: requirements-dev.txt
 
+      # Exact versions from the lock: an upstream release must not change what
+      # CI tests without a commit saying so.
       - name: Install dependencies
-        run: pip install -e ".[dev]"
+        run: |
+          pip install -r requirements-dev.txt
+          pip install --no-deps -e .
 
       - name: Ruff — lint
         run: ruff check backend/ tests/

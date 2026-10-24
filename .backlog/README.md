@@ -43,6 +43,7 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [ERROR-MESSAGES](ERROR-MESSAGES/PRD.md) — messages d'erreur explicites (résolveur central, table `api_errors` branchée) et catégorie des opérations rapprochées : verrou ciblé, cadenas, catégorie posée par le règlement, avertissement avant un rapprochement sans écriture (TEC-260 + BIZ-262/263) | ✅ |
 | [AUDIT-LOG](AUDIT-LOG/PRD.md) — journal d'audit lisible et cherchable : libellé de cible figé, détail en clair, recherche et filtres côté serveur (TEC-261/262 + BIZ-264) | ✅ |
 | [CHECKLIST-MSG](CHECKLIST-MSG/PRD.md) — messages laissés au trésorier par tous les rôles, affichés en tête de la séance de comptabilité (BIZ-265) | ✅ |
+| [PIN-DEPS](PIN-DEPS/PRD.md) — figer les versions des dépendances Python (CI et image Docker), mises à jour par Dependabot (TEC-263) | ✅ |
 
 ## Lots archivés
 

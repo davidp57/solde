@@ -22,13 +22,28 @@ cd solde
 python -m venv .venv
 .venv\Scripts\activate          # Windows
 # source .venv/bin/activate     # Linux / macOS
-pip install -e ".[dev]"
+pip install -r requirements-dev.txt   # exact versions, as in CI
+pip install --no-deps -e .
 Copy-Item .env.example .env     # Windows
 # cp .env.example .env          # Linux / macOS
 alembic upgrade head
 ```
 
 Edit `.env` and set at minimum `JWT_SECRET_KEY` to a random string of 32+ characters.
+
+Python dependencies are **locked**: `pyproject.toml` declares the accepted ranges, `requirements.txt` (runtime, used by the Docker image) and `requirements-dev.txt` (adds the dev tools, used by CI) pin every package to an exact version.
+CI and the image therefore test and ship the same versions, whatever is published upstream in between.
+
+To change a dependency, edit `pyproject.toml`, then regenerate both files (the commands are also written at the top of each file):
+
+```bash
+uv pip compile pyproject.toml --universal --python-version 3.11 -o requirements.txt
+uv pip compile pyproject.toml --extra dev --universal --python-version 3.11 -c requirements.txt -o requirements-dev.txt
+```
+
+Add `--upgrade` to move every package to its latest allowed version, or `--upgrade-package <name>` for one.
+Dependabot opens one grouped pull request a month with the updates; CI tests it like any other.
+After pulling a lock change, run `pip install -r requirements-dev.txt` again in your venv.
 
 ### 2. Install frontend dependencies
 

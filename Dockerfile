@@ -32,11 +32,11 @@ RUN addgroup --system solde && adduser --system --ingroup solde solde
 
 WORKDIR /app
 
-# Step 1: install dependencies (cached layer — only invalidated when deps change,
-# NOT on version bumps in pyproject.toml)
-COPY docker-requirements.txt ./
+# Step 1: install the locked dependencies (cached layer — only invalidated when
+# the lock changes, NOT on version bumps in pyproject.toml)
+COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r docker-requirements.txt
+    && pip install --no-cache-dir -r requirements.txt
 
 # Step 2: register package metadata with correct version (fast — no-deps)
 COPY pyproject.toml ./

@@ -301,6 +301,12 @@ Before validating release documentation, check all items below:
 
 ---
 
+## Python dependencies are locked
+
+`pyproject.toml` holds the accepted ranges; `requirements.txt` (Docker) and `requirements-dev.txt` (CI) pin exact versions. Any dependency change edits `pyproject.toml` **and** regenerates both files with the `uv pip compile` commands written at their top (see [docs/dev/contributing.md](../docs/dev/contributing.md)). Never hand-edit a pin in one file only.
+
+---
+
 ## RAM constraint reminder
 
 Target: ≤ 384 MB total on Synology NAS. When adding dependencies or architectural choices:
