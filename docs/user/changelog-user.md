@@ -8,6 +8,8 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Tous les utilisateurs
 
+- **Laisser un message pour la compta** — une icône de bulle, en haut à droite, ouvre une petite fenêtre pour écrire un message au trésorier : une facture reçue à la main, un chèque mis de côté, une dépense à rembourser. Le message s'affiche en tête de sa prochaine séance de comptabilité, jusqu'à ce qu'il l'ait traité. Vous voyez vos messages en attente et pouvez les retirer tant qu'ils n'ont pas été traités.
+
 - **Des messages d'erreur qui expliquent** — quand l'application refusait une action, elle affichait souvent « Une erreur est survenue », sans dire pourquoi. Elle donne maintenant la raison : opération déjà rapprochée, rôle insuffisant, serveur injoignable, etc.
 
 - **Avertissement avant un rapprochement « à vide »** — rapprocher une ligne en « Autre crédit », « Autre débit », « Paiement client » ou « Paiement fournisseur » avec le bouton **Rapprocher** ne passe aucune écriture comptable. L'application le signale désormais et propose de créer ou de rattacher plutôt le règlement de la facture.

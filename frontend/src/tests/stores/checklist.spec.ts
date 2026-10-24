@@ -5,12 +5,14 @@ const getCurrentChecklist = vi.fn()
 const openChecklistSession = vi.fn()
 const setChecklistStep = vi.fn()
 const closeChecklistSession = vi.fn()
+const setChecklistMessage = vi.fn()
 
 vi.mock('@/api/checklist', () => ({
   getCurrentChecklist: (...args: unknown[]) => getCurrentChecklist(...args),
   openChecklistSession: (...args: unknown[]) => openChecklistSession(...args),
   setChecklistStep: (...args: unknown[]) => setChecklistStep(...args),
   closeChecklistSession: (...args: unknown[]) => closeChecklistSession(...args),
+  setChecklistMessage: (...args: unknown[]) => setChecklistMessage(...args),
 }))
 
 import { useChecklistStore } from '../../stores/checklist'
@@ -30,7 +32,21 @@ function step(key: string, overrides: Record<string, unknown> = {}) {
   }
 }
 
-function detail(steps: ReturnType<typeof step>[]) {
+function message(id: number, overrides: Record<string, unknown> = {}) {
+  return {
+    id,
+    content: `message ${id}`,
+    author: 'sec',
+    created_at: '2026-09-20T10:00:00',
+    checked: false,
+    checked_by: null,
+    checked_at: null,
+    late: false,
+    ...overrides,
+  }
+}
+
+function detail(steps: ReturnType<typeof step>[], messages: ReturnType<typeof message>[] = []) {
   return {
     session: {
       id: 1,
@@ -44,6 +60,7 @@ function detail(steps: ReturnType<typeof step>[]) {
     },
     steps,
     signals: {},
+    messages,
   }
 }
 
@@ -151,5 +168,42 @@ describe('checklist store', () => {
     expect(closeChecklistSession).toHaveBeenCalledWith(1)
     expect(store.isOpen).toBe(false)
     expect(store.suggestedPeriod).toBe('2026-10')
+  })
+
+  it('keeps the count of messages waiting for a session', async () => {
+    getCurrentChecklist.mockResolvedValue({
+      detail: null,
+      suggested_period: '2026-09',
+      checked_count: 0,
+      total_count: 17,
+      waiting_messages: 2,
+    })
+    const store = useChecklistStore()
+
+    await store.load()
+
+    expect(store.waitingMessages).toBe(2)
+  })
+
+  it('applies the session returned when a message is ticked', async () => {
+    getCurrentChecklist.mockResolvedValue({
+      detail: detail([step('reconcile')], [message(5)]),
+      suggested_period: '2026-09',
+      checked_count: 0,
+      total_count: 1,
+      waiting_messages: 1,
+    })
+    setChecklistMessage.mockResolvedValue(
+      detail([step('reconcile')], [message(5, { checked: true })]),
+    )
+    const store = useChecklistStore()
+    await store.load()
+
+    await store.toggleMessage(5, true)
+
+    expect(setChecklistMessage).toHaveBeenCalledWith(1, 5, true)
+    expect(store.messages[0]?.checked).toBe(true)
+    // A message is not a step: the progress counter is unchanged.
+    expect(store.checkedCount).toBe(0)
   })
 })

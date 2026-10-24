@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
@@ -61,3 +61,29 @@ class ChecklistStepState(Base):
     checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     #: Left unchecked when the previous session was closed, and brought forward.
     carried_over: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class ChecklistMessage(Base):
+    """A note left for the accountant, read at the top of the next session.
+
+    Anyone can write one; nobody picks a month. A message waits, unchecked, until
+    a session is open, and stays in every following session until it is ticked.
+    Ticking it ties it to the session where it was dealt with — that is how a past
+    session lists the messages handled in it.
+    """
+
+    __tablename__ = "checklist_messages"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    author: Mapped[str] = mapped_column(String(100), nullable=False)
+    #: Local time, set in Python like ``closed_at``: the two are compared to tell a
+    #: message that already waited through a closed session.
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.now)
+    #: Set when the message is ticked; None while it is still waiting.
+    session_id: Mapped[int | None] = mapped_column(
+        ForeignKey("checklist_sessions.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    checked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    checked_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

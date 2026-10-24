@@ -4,6 +4,7 @@ import {
   closeChecklistSession,
   getCurrentChecklist,
   openChecklistSession,
+  setChecklistMessage,
   setChecklistStep,
   type ChecklistSessionDetail,
 } from '@/api/checklist'
@@ -18,12 +19,14 @@ export const useChecklistStore = defineStore('checklist', () => {
   const detail = ref<ChecklistSessionDetail | null>(null)
   const suggestedPeriod = ref('')
   const totalCount = ref(0)
+  const waitingMessages = ref(0)
   const loading = ref(false)
   const panelVisible = ref(false)
 
   const session = computed(() => detail.value?.session ?? null)
   const steps = computed(() => detail.value?.steps ?? [])
   const signals = computed(() => detail.value?.signals ?? {})
+  const messages = computed(() => detail.value?.messages ?? [])
   const checkedCount = computed(() => steps.value.filter((s) => s.checked).length)
   const isOpen = computed(() => session.value?.status === 'open')
   /** Steps the previous session was closed without — shown as a banner when any.  */
@@ -41,6 +44,7 @@ export const useChecklistStore = defineStore('checklist', () => {
       detail.value = current.detail
       suggestedPeriod.value = current.suggested_period
       totalCount.value = current.total_count
+      waitingMessages.value = current.waiting_messages
     } finally {
       loading.value = false
     }
@@ -55,6 +59,11 @@ export const useChecklistStore = defineStore('checklist', () => {
     apply(await setChecklistStep(session.value.id, stepKey, checked))
   }
 
+  async function toggleMessage(messageId: number, checked: boolean): Promise<void> {
+    if (!session.value) return
+    apply(await setChecklistMessage(session.value.id, messageId, checked))
+  }
+
   async function close(): Promise<void> {
     if (!session.value) return
     await closeChecklistSession(session.value.id)
@@ -65,17 +74,20 @@ export const useChecklistStore = defineStore('checklist', () => {
     detail,
     suggestedPeriod,
     totalCount,
+    waitingMessages,
     loading,
     panelVisible,
     session,
     steps,
     signals,
+    messages,
     checkedCount,
     isOpen,
     lateSteps,
     load,
     start,
     toggle,
+    toggleMessage,
     close,
   }
 })

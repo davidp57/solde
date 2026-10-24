@@ -183,3 +183,135 @@ async def test_treasurer_has_access(
 ) -> None:
     response = await client.get("/api/checklist/current", headers=tresorier_auth_headers)
     assert response.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Messages left for the accountant
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_every_role_can_leave_a_message(
+    client: AsyncClient,
+    readonly_auth_headers: dict,
+    secretaire_auth_headers: dict,
+    tresorier_auth_headers: dict,
+    auth_headers: dict,
+) -> None:
+    """The team writes for the accountant, and the accountant for a later self."""
+    for headers in (
+        readonly_auth_headers,
+        secretaire_auth_headers,
+        tresorier_auth_headers,
+        auth_headers,
+    ):
+        response = await client.post(
+            "/api/checklist/messages", json={"content": "Facture EDF reçue"}, headers=headers
+        )
+        assert response.status_code == 201
+        assert response.json()["content"] == "Facture EDF reçue"
+        mine = await client.get("/api/checklist/messages/mine", headers=headers)
+        assert [m["content"] for m in mine.json()] == ["Facture EDF reçue"]
+
+
+@pytest.mark.asyncio
+async def test_a_blank_message_is_refused(
+    client: AsyncClient, secretaire_user: User, secretaire_auth_headers: dict
+) -> None:
+    response = await client.post(
+        "/api/checklist/messages", json={"content": "   "}, headers=secretaire_auth_headers
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_messages_show_in_the_session_and_can_be_ticked(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+    secretaire_user: User,
+    secretaire_auth_headers: dict,
+) -> None:
+    posted = await client.post(
+        "/api/checklist/messages",
+        json={"content": "Chèque Dupont"},
+        headers=secretaire_auth_headers,
+    )
+    message_id = posted.json()["id"]
+    current = await client.get("/api/checklist/current", headers=auth_headers)
+    assert current.json()["waiting_messages"] == 1
+
+    session_id = await _open_session(client, auth_headers)
+    response = await client.put(
+        f"/api/checklist/sessions/{session_id}/messages/{message_id}",
+        json={"checked": True},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    [message] = response.json()["messages"]
+    assert message["checked"] is True
+    assert message["author"] == secretaire_user.username
+    # Dealt with: it is no longer the author's to withdraw.
+    mine = await client.get("/api/checklist/messages/mine", headers=secretaire_auth_headers)
+    assert mine.json() == []
+
+
+@pytest.mark.asyncio
+async def test_only_the_treasurer_ticks_a_message(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+    secretaire_user: User,
+    secretaire_auth_headers: dict,
+) -> None:
+    posted = await client.post(
+        "/api/checklist/messages", json={"content": "x"}, headers=secretaire_auth_headers
+    )
+    session_id = await _open_session(client, auth_headers)
+
+    response = await client.put(
+        f"/api/checklist/sessions/{session_id}/messages/{posted.json()['id']}",
+        json={"checked": True},
+        headers=secretaire_auth_headers,
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_ticking_an_unknown_message(
+    client: AsyncClient, admin_user: User, auth_headers: dict
+) -> None:
+    session_id = await _open_session(client, auth_headers)
+    response = await client.put(
+        f"/api/checklist/sessions/{session_id}/messages/9999",
+        json={"checked": True},
+        headers=auth_headers,
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_a_message_is_withdrawn_by_its_author_only(
+    client: AsyncClient,
+    admin_user: User,
+    auth_headers: dict,
+    secretaire_user: User,
+    secretaire_auth_headers: dict,
+) -> None:
+    posted = await client.post(
+        "/api/checklist/messages", json={"content": "x"}, headers=secretaire_auth_headers
+    )
+    message_id = posted.json()["id"]
+
+    refused = await client.delete(f"/api/checklist/messages/{message_id}", headers=auth_headers)
+    assert refused.status_code == 403
+
+    deleted = await client.delete(
+        f"/api/checklist/messages/{message_id}", headers=secretaire_auth_headers
+    )
+    assert deleted.status_code == 204
+    missing = await client.delete(
+        f"/api/checklist/messages/{message_id}", headers=secretaire_auth_headers
+    )
+    assert missing.status_code == 404

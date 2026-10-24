@@ -718,6 +718,16 @@ La tenue mensuelle enchaîne une vingtaine de gestes répartis sur quatre écran
 
 Le bouton se trouve dans le bandeau, présent sur **tous les écrans** : il affiche la progression (« 7 / 17 ») et ouvre la liste dans un **panneau latéral, à droite**. Ce panneau n'est pas bloquant : il peut rester ouvert pendant que vous travaillez dans l'application, et vous cochez au fil des gestes sans le fermer. Réservé au trésorier et à l'administrateur.
 
+### Les messages de l'équipe
+
+L'icône de **bulle**, à gauche du bouton de la séance, est ouverte à **tous les rôles**. Elle sert à laisser un message au trésorier : une facture reçue à la main, un chèque mis de côté, un remboursement promis. Le trésorier s'en sert aussi pour se noter quelque chose à faire à sa prochaine séance.
+
+Il n'y a pas de mois à choisir : le message s'affiche dans la séance ouverte ou, s'il n'y en a pas, dans la prochaine. Il apparaît en **premier bloc**, « Messages », avant la saisie, avec son auteur et sa date, et se coche comme une étape — sans compter dans la progression « 7 / 17 ».
+
+Un message non coché à la clôture reste affiché sur la séance suivante, avec la mention « En retard ». Une fois coché, il est rattaché à la séance qui l'a traité et reste consultable avec elle.
+
+Dans la fenêtre, chacun voit ses propres messages en attente et peut les **retirer** tant que le trésorier ne les a pas cochés. Un message ne se modifie pas : on le retire et on en écrit un autre.
+
 ### Démarrer une séance
 
 Le mois proposé dépend de la date : avant le 15, c'est le mois précédent ; à partir du 15, le mois en cours. Un mois déjà traité n'est jamais proposé deux fois. Vous pouvez corriger le mois avant de démarrer.

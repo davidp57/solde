@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models.checklist import (
+    ChecklistMessage,
     ChecklistPeriodType,
     ChecklistSession,
     ChecklistSessionStatus,
@@ -29,6 +30,14 @@ _PERIOD_SWITCH_DAY = 15
 
 class ChecklistError(ValueError):
     """Raised when an operation does not fit the state of the checklist."""
+
+
+class ChecklistForbiddenError(ChecklistError):
+    """Raised when a user acts on a message that is not theirs."""
+
+
+class ChecklistNotFoundError(ChecklistError):
+    """Raised when the message acted on does not exist."""
 
 
 def suggest_period(today: date) -> str:
@@ -209,6 +218,114 @@ async def close_session(
     await db.flush()
     await db.refresh(session)
     return session
+
+
+# ---------------------------------------------------------------------------
+# Messages left for the accountant
+# ---------------------------------------------------------------------------
+
+
+async def add_message(db: AsyncSession, *, content: str, author: str) -> ChecklistMessage:
+    """Leave a message for the next session — whoever writes it, whatever the month."""
+    text = content.strip()
+    if not text:
+        raise ChecklistError("a message cannot be empty")
+    message = ChecklistMessage(content=text, author=author)
+    db.add(message)
+    await db.flush()
+    await db.refresh(message)
+    return message
+
+
+async def list_waiting_messages(db: AsyncSession, *, author: str) -> list[ChecklistMessage]:
+    """An author's messages not dealt with yet — the ones they may still withdraw."""
+    result = await db.execute(
+        select(ChecklistMessage)
+        .where(ChecklistMessage.author == author, ChecklistMessage.checked.is_(False))
+        .order_by(ChecklistMessage.created_at, ChecklistMessage.id)
+    )
+    return list(result.scalars().all())
+
+
+async def get_session_messages(
+    db: AsyncSession, session: ChecklistSession
+) -> list[ChecklistMessage]:
+    """The messages a session shows.
+
+    A closed session shows what was ticked in it. The open one also shows every
+    message still waiting, whenever it was written: nothing is lost by closing a
+    session with a message left unchecked.
+    """
+    handled_here = ChecklistMessage.session_id == session.id
+    condition = (
+        handled_here | ChecklistMessage.checked.is_(False)
+        if session.status == ChecklistSessionStatus.OPEN
+        else handled_here
+    )
+    result = await db.execute(
+        select(ChecklistMessage)
+        .where(condition)
+        .order_by(ChecklistMessage.created_at, ChecklistMessage.id)
+    )
+    return list(result.scalars().all())
+
+
+async def count_waiting_messages(db: AsyncSession) -> int:
+    result = await db.execute(
+        select(func.count(ChecklistMessage.id)).where(ChecklistMessage.checked.is_(False))
+    )
+    return result.scalar_one()
+
+
+async def late_cutoff(db: AsyncSession) -> datetime | None:
+    """When the last session was closed: a message still waiting from before is late."""
+    previous = await _last_closed_session(db)
+    return previous.closed_at if previous is not None else None
+
+
+def is_message_late(message: ChecklistMessage, cutoff: datetime | None) -> bool:
+    return not message.checked and cutoff is not None and message.created_at < cutoff
+
+
+async def set_message(
+    db: AsyncSession,
+    *,
+    session: ChecklistSession,
+    message_id: int,
+    checked: bool,
+    actor: str | None = None,
+) -> ChecklistMessage:
+    if session.status != ChecklistSessionStatus.OPEN:
+        raise ChecklistError("a closed session cannot be changed")
+    message = await db.get(ChecklistMessage, message_id)
+    if message is None:
+        raise ChecklistNotFoundError(f"unknown message {message_id}")
+    if message.checked and message.session_id != session.id:
+        raise ChecklistError("this message was dealt with in another session")
+
+    message.checked = checked
+    message.session_id = session.id if checked else None
+    message.checked_by = actor if checked else None
+    message.checked_at = datetime.now() if checked else None
+    await db.flush()
+    await db.refresh(message)
+    return message
+
+
+async def delete_message(db: AsyncSession, *, message_id: int, actor: str) -> None:
+    """Withdraw a message — its author only, and only while it is still waiting.
+
+    Once ticked, it is part of the record of the session that dealt with it.
+    """
+    message = await db.get(ChecklistMessage, message_id)
+    if message is None:
+        raise ChecklistNotFoundError(f"unknown message {message_id}")
+    if message.author != actor:
+        raise ChecklistForbiddenError("only its author can withdraw a message")
+    if message.checked:
+        raise ChecklistError("a message already dealt with cannot be withdrawn")
+    await db.delete(message)
+    await db.flush()
 
 
 # ---------------------------------------------------------------------------

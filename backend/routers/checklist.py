@@ -3,16 +3,19 @@
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import get_db
 from backend.errors import api_error, unprocessable
 from backend.models.checklist import ChecklistSession
 from backend.models.user import User, UserRole
-from backend.routers.auth import require_role
+from backend.routers.auth import get_current_user, require_role
 from backend.schemas.checklist import (
     ChecklistCurrent,
+    ChecklistMessageCreate,
+    ChecklistMessageRead,
+    ChecklistMessageUpdate,
     ChecklistSessionDetail,
     ChecklistSessionOpen,
     ChecklistSessionRead,
@@ -26,6 +29,16 @@ from backend.services.checklist_steps import CHECKLIST_STEPS
 router = APIRouter(prefix="/checklist", tags=["checklist"])
 
 _Access = Annotated[User, Depends(require_role(UserRole.TRESORIER, UserRole.ADMIN))]
+#: Messages are written by anyone — the team, and the accountant for a later self.
+_AnyUser = Annotated[User, Depends(get_current_user)]
+
+
+def _checklist_exception(exc: checklist_service.ChecklistError, code: str) -> HTTPException:
+    if isinstance(exc, checklist_service.ChecklistNotFoundError):
+        return api_error(status.HTTP_404_NOT_FOUND, "CHECKLIST_MESSAGE_NOT_FOUND", str(exc))
+    if isinstance(exc, checklist_service.ChecklistForbiddenError):
+        return api_error(status.HTTP_403_FORBIDDEN, "CHECKLIST_MESSAGE_FORBIDDEN", str(exc))
+    return unprocessable(code, str(exc))
 
 
 async def _build_detail(
@@ -49,10 +62,18 @@ async def _build_detail(
     signals = (
         await checklist_service.compute_signals(db, period=session.period) if with_signals else {}
     )
+    cutoff = await checklist_service.late_cutoff(db)
+    messages = [
+        ChecklistMessageRead.model_validate(message).model_copy(
+            update={"late": checklist_service.is_message_late(message, cutoff)}
+        )
+        for message in await checklist_service.get_session_messages(db, session)
+    ]
     return ChecklistSessionDetail(
         session=ChecklistSessionRead.model_validate(session),
         steps=steps,
         signals=signals,
+        messages=messages,
     )
 
 
@@ -70,6 +91,7 @@ async def get_current_checklist(
         suggested_period=await checklist_service.next_available_period(db, date.today()),
         checked_count=checked,
         total_count=len(CHECKLIST_STEPS),
+        waiting_messages=await checklist_service.count_waiting_messages(db),
     )
 
 
@@ -174,3 +196,67 @@ async def close_checklist_session(
         detail={"period": closed.period},
     )
     return ChecklistSessionRead.model_validate(closed)
+
+
+@router.put("/sessions/{session_id}/messages/{message_id}", response_model=ChecklistSessionDetail)
+async def set_checklist_message(
+    session_id: int,
+    message_id: int,
+    payload: ChecklistMessageUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _Access,
+) -> ChecklistSessionDetail:
+    session = await checklist_service.get_session(db, session_id)
+    if session is None:
+        raise api_error(status.HTTP_404_NOT_FOUND, "CHECKLIST_SESSION_NOT_FOUND", "not found")
+    try:
+        await checklist_service.set_message(
+            db,
+            session=session,
+            message_id=message_id,
+            checked=payload.checked,
+            actor=current_user.username,
+        )
+    except checklist_service.ChecklistError as exc:
+        raise _checklist_exception(exc, "CHECKLIST_MESSAGE_INVALID") from exc
+    return await _build_detail(db, session)
+
+
+@router.post("/messages", response_model=ChecklistMessageRead, status_code=status.HTTP_201_CREATED)
+async def add_checklist_message(
+    payload: ChecklistMessageCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _AnyUser,
+) -> ChecklistMessageRead:
+    """Leave a message for the accountant, read at the top of the next session."""
+    try:
+        message = await checklist_service.add_message(
+            db, content=payload.content, author=current_user.username
+        )
+    except checklist_service.ChecklistError as exc:
+        raise _checklist_exception(exc, "CHECKLIST_MESSAGE_INVALID") from exc
+    return ChecklistMessageRead.model_validate(message)
+
+
+@router.get("/messages/mine", response_model=list[ChecklistMessageRead])
+async def list_my_checklist_messages(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _AnyUser,
+) -> list[ChecklistMessageRead]:
+    """The caller's messages not dealt with yet."""
+    messages = await checklist_service.list_waiting_messages(db, author=current_user.username)
+    return [ChecklistMessageRead.model_validate(m) for m in messages]
+
+
+@router.delete("/messages/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_checklist_message(
+    message_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: _AnyUser,
+) -> None:
+    try:
+        await checklist_service.delete_message(
+            db, message_id=message_id, actor=current_user.username
+        )
+    except checklist_service.ChecklistError as exc:
+        raise _checklist_exception(exc, "CHECKLIST_MESSAGE_INVALID") from exc

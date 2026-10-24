@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+import anyio
 import pytest
 
 _INDEX = b"<!doctype html><title>index</title>"
@@ -29,9 +30,17 @@ async def _raw_get(app: Any, path: str) -> tuple[int, dict[bytes, bytes], bytes]
         "server": ("test", 80),
     }
     messages: list[dict[str, Any]] = []
+    request_sent = False
 
     async def receive() -> dict[str, Any]:
-        return {"type": "http.request", "body": b"", "more_body": False}
+        # Like a real server: the body once, then nothing until the client leaves.
+        # Starlette >= 1.9 rejects a second http.request while it listens for that.
+        nonlocal request_sent
+        if not request_sent:
+            request_sent = True
+            return {"type": "http.request", "body": b"", "more_body": False}
+        await anyio.sleep_forever()
+        raise AssertionError("unreachable")
 
     async def send(message: dict[str, Any]) -> None:
         messages.append(message)
