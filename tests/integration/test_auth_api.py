@@ -1,8 +1,8 @@
 """Integration tests for the authentication API endpoints."""
 
+import jwt
 import pytest
 from httpx import ASGITransport, AsyncClient
-from jose import jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.config import get_settings

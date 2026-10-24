@@ -100,3 +100,24 @@ def test_long_password_matches_a_hash_made_by_bcrypt_4() -> None:
     legacy_hash = bcrypt.hashpw(password.encode()[:72], bcrypt.gensalt()).decode()
 
     assert verify_password(password, legacy_hash) is True
+
+
+def test_decode_rejects_a_token_signed_with_another_key() -> None:
+    import jwt
+
+    from backend.services.auth import decode_access_token
+
+    forged = jwt.encode({"sub": "admin", "type": "access", "iat": 0}, "x" * 32, algorithm="HS256")
+
+    assert decode_access_token(forged) is None
+
+
+def test_decode_rejects_an_unsigned_token() -> None:
+    """``alg: none`` must never be accepted, whatever the library defaults to."""
+    import jwt
+
+    from backend.services.auth import decode_access_token
+
+    unsigned = jwt.encode({"sub": "admin", "type": "access"}, None, algorithm="none")
+
+    assert decode_access_token(unsigned) is None
