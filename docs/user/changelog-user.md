@@ -4,7 +4,7 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
-## Version 1.13.0 — à paraître
+## Version 1.19.0 — 24 octobre 2026
 
 ### Tous les utilisateurs
 
@@ -18,11 +18,9 @@ Ce document présente les changements visibles dans l'application, version par v
 
 - **Barre latérale allégée** — les boutons séance de comptabilité, mode clair/sombre et déconnexion, ainsi que votre nom, apparaissaient deux fois : en haut de l'écran et en bas de la barre de gauche. Ils restent seulement en haut.
 
-- **Un règlement en espèces demande maintenant de saisir le montant** — jusqu'ici, le montant proposé était le solde de la facture : il suffisait de valider, même sans avoir compté l'argent. Pour les espèces, le champ se vide désormais et attend le montant réellement compté. Un bouton **« Reporter le solde dû »** reste disponible quand les deux coïncident, et l'application indique juste en dessous ce que le règlement va faire au solde de la caisse. Rien ne change pour les chèques, dont le montant est écrit sur le chèque.
-
 - **Sauvegarde OneDrive réparée** (administrateur) — la sauvegarde automatique se terminait en erreur toutes les nuits, alors que la base de données partait bien et se validait sans problème. C'est la copie des factures PDF qui échouait, et elle échouait **avant d'envoyer quoi que ce soit** : les PDF n'étaient donc plus sauvegardés depuis que leur nombre avait dépassé un certain seuil. Le retard est rattrapé automatiquement à la sauvegarde suivante (comptez un envoi plus long, une seule fois). En prime, un échec de sauvegarde indique maintenant **quelle étape** a échoué, au lieu d'une erreur technique sans contexte, et l'application patiente puis réessaie quand OneDrive se déclare temporairement surchargé — auparavant la sauvegarde s'arrêtait net.
 
-- **Factures et paiements se mettent à jour immédiatement** — comme l'écran Documents en 1.16.2, ces écrans ne montraient pas toujours le résultat d'une action (facture créée, supprimée, règlement annulé) sans recharger la page. C'est corrigé pour les trois écrans.
+- **Factures et paiements se mettent à jour immédiatement** — comme l'écran Documents, ces écrans ne montraient pas toujours le résultat d'une action (facture créée, supprimée, règlement annulé) sans recharger la page. C'est corrigé pour les trois écrans.
 
 - **Aperçu des documents** — l'icône œil affiche le document directement dans l'application : PDF, images, Markdown mis en forme et fichiers texte. Les formats que le navigateur ne sait pas afficher (Word, Excel) restent en téléchargement seul.
 
@@ -30,6 +28,22 @@ Ce document présente les changements visibles dans l'application, version par v
 - **Le document déposé apparaît immédiatement** — la liste ne se mettait pas toujours à jour après un dépôt, alors que le fichier était bien enregistré. Elle s'appuie maintenant sur la réponse du serveur au lieu de l'interroger une seconde fois. Idem après une modification ou une suppression.
 
 - **Nouvel espace « Documents »** — pour ranger dans l'application les pièces qui n'ont leur place nulle part ailleurs : statuts, procès-verbaux d'assemblée générale, attestations, bilans signés. Chaque document reçoit un titre, éventuellement un exercice et des étiquettes, et se retrouve ensuite par recherche ou par filtre. Tout le monde peut consulter et télécharger ; le dépôt et la suppression sont réservés aux gestionnaires et aux trésoriers.
+
+### Secrétaire
+
+- **Un règlement en espèces demande maintenant de saisir le montant** — jusqu'ici, le montant proposé était le solde de la facture : il suffisait de valider, même sans avoir compté l'argent. Pour les espèces, le champ se vide désormais et attend le montant réellement compté. Un bouton **« Reporter le solde dû »** reste disponible quand les deux coïncident, et l'application indique juste en dessous ce que le règlement va faire au solde de la caisse. Rien ne change pour les chèques, dont le montant est écrit sur le chèque.
+
+- **Écran Paiements : une colonne « Facture »** — le numéro de facture disparaissait pour les règlements par virement, masqué par le libellé de la banque. Il dispose maintenant de sa propre colonne, triable et filtrable, également reprise dans la recherche, l'export Excel et la fenêtre de modification d'un règlement.
+
+- **« Tout l'historique » sur les écrans Factures et Paiements** — comme pour la caisse, un bouton permet d'afficher les factures et les règlements sans se limiter à l'exercice sélectionné. Utile en début d'exercice, quand une saisie datée du nouvel exercice n'apparaît encore nulle part.
+
+- **Caisse : bouton « Tout l'historique »** — pour afficher le journal et les comptages sans se limiter à l'exercice sélectionné. Pratique pour retrouver une saisie faite hors période.
+
+- **Alerte si la date ne tombe dans aucun exercice** — en saisissant une entrée de caisse, un comptage, une opération bancaire ou un règlement de facture, un message apparaît si la date choisie n'appartient à aucun exercice comptable. C'est le piège classique en début d'exercice : la saisie est enregistrée, mais elle n'apparaît dans aucun écran filtré par exercice. Le message n'empêche pas d'enregistrer — il vous invite à créer l'exercice ou à corriger la date.
+
+- **Comptage de caisse : le total s'affiche pendant la saisie** — plus besoin d'enregistrer pour savoir ce qu'on a compté. Le dialogue affiche en direct le total des billets et des pièces, ainsi que l'**écart avec le solde théorique** de la caisse : si tout concorde, l'écart est à zéro et apparaît en vert.
+
+- **Caisse : l'origine d'un règlement est enfin juste** — un règlement de facture fournisseur payé en espèces s'affichait comme « Paiement client » dans le journal de caisse. Le mouvement était pourtant bien enregistré en sortie : seul l'intitulé était trompeur. La colonne distingue maintenant « Règlement client » et « Règlement fournisseur ».
 
 ### Trésorier
 
@@ -62,8 +76,6 @@ Ce document présente les changements visibles dans l'application, version par v
 
 - **Total du passif corrigé** — le bilan affichait un actif positif face à un passif négatif du même montant. Les deux colonnes se lisent maintenant en positif, avec des totaux égaux.
 
-- **Annuler un règlement en espèces** — une erreur de saisie sur un règlement en espèces (mauvaise facture, mauvais montant) était définitive : l'application refusait l'annulation en indiquant, à tort, que l'argent était déjà arrivé en banque. Les règlements en espèces sont désormais annulables tant qu'ils n'ont pas été rapprochés d'une opération bancaire ; le mouvement de caisse correspondant est retiré en même temps et le solde de caisse est recalculé.
-
 - **Banque : bouton « Tout l'historique »** — pour afficher les opérations et les remises sans se limiter à l'exercice sélectionné. Indispensable après un import de relevé contenant des opérations du nouvel exercice, qui n'apparaissaient nulle part.
 
 - **Factures fournisseur enfin comptabilisées** — une facture fournisseur saisie dans l'application ne générait aucune écriture comptable : seul son règlement en produisait une. Les charges étaient donc sous-évaluées et le compte fournisseur affichait un solde anormal. C'est corrigé pour les nouvelles factures, et l'action « Régénérer les écritures comptables » est désormais proposée sur les factures fournisseur pour rattraper les anciennes.
@@ -75,18 +87,11 @@ Ce document présente les changements visibles dans l'application, version par v
 
 - **Plus besoin de recharger la page après une action sur un exercice** — créer, clôturer ou ouvrir un exercice met maintenant à jour le sélecteur d'exercice en haut de l'écran immédiatement. Auparavant il fallait appuyer sur F5 pour que le nouvel exercice apparaisse.
 
-- **Écran Paiements : une colonne « Facture »** — le numéro de facture disparaissait pour les règlements par virement, masqué par le libellé de la banque. Il dispose maintenant de sa propre colonne, triable et filtrable, également reprise dans la recherche, l'export Excel et la fenêtre de modification d'un règlement.
 - **Ouverture d'un nouvel exercice réparée** — l'action « Ouvrir le prochain exercice » échouait avec une erreur technique dès qu'il y avait plusieurs soldes à reporter (banque, caisse, créances…), rendant la bascule impossible. Corrigé.
 
 - **Remises sur facture correctement comptabilisées** — une remise saisie sur une facture (ligne à montant négatif) pouvait être ignorée dans les écritures comptables, laissant une balance déséquilibrée du montant de la remise. Le problème n'apparaissait qu'à la clôture, sans indication de la facture en cause.
-- **Reconstruire les écritures d'une facture** (administrateur) — depuis le menu **⋯** d'une facture, l'action « Régénérer les écritures comptables » recrée ses écritures à partir des règles en vigueur. Utile après une correction de l'application : les factures déjà enregistrées gardent sinon leurs anciennes écritures. Sans effet sur un exercice clôturé.
 - **Avertissement de clôture plus juste** — le message sur les écritures non rattachées à un exercice ne signale plus que celles **datées dans la période que vous clôturez**. Les écritures plus anciennes ou postérieures, qui ne concernent pas cette clôture, n'y figurent plus, et les documents en cause sont nommés.
 - **Vérifications de clôture plus utiles** — quand la balance est déséquilibrée, la fenêtre de clôture indique maintenant **quelles écritures** posent problème et de combien, au lieu d'un simple total.
-
-- **« Tout l'historique » sur les écrans Factures et Paiements** — comme pour la caisse, un bouton permet d'afficher les factures et les règlements sans se limiter à l'exercice sélectionné. Utile en début d'exercice, quand une saisie datée du nouvel exercice n'apparaît encore nulle part.
-- **Alerte si la date ne tombe dans aucun exercice** — en saisissant une entrée de caisse, un comptage, une opération bancaire ou un règlement de facture, un message apparaît si la date choisie n'appartient à aucun exercice comptable. C'est le piège classique en début d'exercice : la saisie est enregistrée, mais elle n'apparaît dans aucun écran filtré par exercice. Le message n'empêche pas d'enregistrer — il vous invite à créer l'exercice ou à corriger la date.
-- **Caisse : bouton « Tout l'historique »** — pour afficher le journal et les comptages sans se limiter à l'exercice sélectionné. Pratique pour retrouver une saisie faite hors période.
-- **Comptage de caisse : le total s'affiche pendant la saisie** — plus besoin d'enregistrer pour savoir ce qu'on a compté. Le dialogue affiche en direct le total des billets et des pièces, ainsi que l'**écart avec le solde théorique** de la caisse : si tout concorde, l'écart est à zéro et apparaît en vert.
 
 - **Passer d'un exercice au suivant sans perdre les soldes** — une fois un exercice clôturé, sa ligne propose **« Ouvrir le prochain exercice »**. Cette action crée le nouvel exercice **et reporte les soldes** de banque, caisse, créances clients et dettes fournisseurs. Le nom et les dates sont pré-remplis dans la continuité du précédent.
 - **Attention au bouton « Nouvel exercice »** — il crée une période vide, **sans reprise des soldes**. Pour un changement d'exercice, passez toujours par « Ouvrir le prochain exercice ». Le manuel décrit la procédure complète de fin d'exercice.
@@ -95,13 +100,18 @@ Ce document présente les changements visibles dans l'application, version par v
 - **Soldes bancaires justes après suppression d'une opération** — supprimer une opération dans l'écran Banque laissait affichés les anciens soldes des lignes suivantes, comme si le compte était faux du montant supprimé. Les données en base étaient correctes ; seul l'affichage était périmé. La liste est maintenant rechargée automatiquement.
 - **Vos remises n'apparaissent plus en double** — jusqu'ici, confirmer un bordereau créait une opération bancaire, et l'import du relevé en créait une seconde pour le même mouvement : il fallait supprimer l'une des deux à la main, sinon le solde était faux. L'import reconnaît maintenant la remise déjà enregistrée et la complète avec les informations de la banque, au lieu de la dupliquer. Le message de fin d'import précise combien de remises ont été ainsi rapprochées.
 - Si deux remises du même montant tombent la même semaine, l'application ne devine pas : elle importe normalement, et vous gardez la main.
-- **Caisse : l'origine d'un règlement est enfin juste** — un règlement de facture fournisseur payé en espèces s'affichait comme « Paiement client » dans le journal de caisse. Le mouvement était pourtant bien enregistré en sortie : seul l'intitulé était trompeur. La colonne distingue maintenant « Règlement client » et « Règlement fournisseur ».
 
 ### Administrateur
 
 - **Journal d'audit lisible et cherchable** — chaque entrée nomme désormais ce qui a été touché (« 15/03/2026 · 150,00 € · VIR DUPONT », « F-2026-012 · Marie Dupont »), même si l'élément a été supprimé depuis, et le détail s'affiche en clair au lieu d'un code technique. Un champ de recherche et des filtres par domaine et par période donnent accès à tout l'historique — l'écran ne montrait jusqu'ici que les 50 dernières actions. Un « Tout rapprocher » liste les opérations qu'il a rapprochées.
 
 - **Envoi d'e-mails : un seul réglage de sécurité pour tous les envois** — l'interrupteur « Utiliser TLS » des paramètres SMTP n'avait pas le même effet sur l'envoi de factures que sur le mailing adhérents et sur l'alerte d'échec de sauvegarde : selon le réglage, l'un ou l'autre échouait. Il est remplacé par un choix **« Sécurité de la connexion »** — STARTTLS (port 587), SSL/TLS (port 465) ou Aucune (relais local sans identifiant) — qui vaut pour tous les envois. Votre réglage actuel est repris automatiquement, à l'identique pour l'envoi de factures. Et si l'alerte d'échec de sauvegarde ne peut pas partir, la raison apparaît désormais dans l'état de la sauvegarde au lieu de passer inaperçue.
+
+- **Annuler un règlement en espèces** — une erreur de saisie sur un règlement en espèces (mauvaise facture, mauvais montant) était définitive : l'application refusait l'annulation en indiquant, à tort, que l'argent était déjà arrivé en banque. Les règlements en espèces sont désormais annulables tant qu'ils n'ont pas été rapprochés d'une opération bancaire ; le mouvement de caisse correspondant est retiré en même temps et le solde de caisse est recalculé.
+
+- **Reconstruire les écritures d'une facture** — depuis le menu **⋯** d'une facture, l'action « Régénérer les écritures comptables » recrée ses écritures à partir des règles en vigueur. Utile après une correction de l'application : les factures déjà enregistrées gardent sinon leurs anciennes écritures. Sans effet sur un exercice clôturé.
+
+- **Sécurité renforcée** — trois failles ont été corrigées, dont une qui permettait de lire des fichiers du serveur sans être connecté. Le mot de passe d'envoi d'e-mails et la clé de l'assistant de chat n'apparaissent plus dans les journaux de l'application (les journaux déjà écrits ne sont pas effacés). La bibliothèque des jetons de connexion, presque plus maintenue, est remplacée sans déconnecter personne ; seul l'assistant de chat peut afficher une erreur au premier message dans l'heure qui suit la mise à jour, et recharger la page suffit.
 
 ## Version 1.10.0 — 3 août 2026
 
