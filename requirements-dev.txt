@@ -288,7 +288,7 @@ starlette==1.9.0
     # via
     #   -c requirements.txt
     #   fastapi
-tenacity==9.1.4
+tenacity==9.2.1
     # via
     #   -c requirements.txt
     #   google-genai
