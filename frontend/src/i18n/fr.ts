@@ -880,6 +880,21 @@ export default {
     close_remaining: 'Étapes non cochées : {count}',
     close_confirm: 'Clôturer',
     closed: 'Séance clôturée.',
+    messages: {
+      button: 'Laisser un message pour la compta',
+      dialog_title: 'Message pour la compta',
+      dialog_intro:
+        'Ce message s’affichera en tête de la prochaine séance de comptabilité, jusqu’à ce que le trésorier l’ait traité.',
+      content: 'Message',
+      send: 'Envoyer',
+      sent: 'Message envoyé.',
+      mine_title: 'Vos messages en attente',
+      withdraw: 'Retirer ce message',
+      block: 'Messages',
+      meta: '{author}, le {date}',
+      waiting: '{count} message(s) en attente pour la prochaine séance.',
+      close_remaining: '{count} message(s) non traité(s) : ils resteront affichés sur la séance suivante.',
+    },
     blocks: {
       entry: '1. Saisie',
       payroll: '2. Paies',

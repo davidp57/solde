@@ -14,6 +14,9 @@
         <p class="app-dialog-intro__eyebrow">{{ t('checklist.title') }}</p>
         <p class="app-dialog-intro__text">{{ t('checklist.intro') }}</p>
       </section>
+      <Message v-if="store.waitingMessages" severity="info">
+        {{ t('checklist.messages.waiting', { count: store.waitingMessages }) }}
+      </Message>
       <div class="app-field">
         <label class="app-field__label" for="checklist-period">
           {{ t('checklist.period') }}
@@ -51,6 +54,9 @@
           </li>
         </ul>
       </template>
+      <Message v-if="uncheckedMessages.length" severity="warn">
+        {{ t('checklist.messages.close_remaining', { count: uncheckedMessages.length }) }}
+      </Message>
       <div class="app-form-actions">
         <Button
           :label="t('common.cancel')"
@@ -71,6 +77,34 @@
       <p class="checklist-progress">
         {{ t('checklist.progress', { done: store.checkedCount, total: store.steps.length }) }}
       </p>
+
+      <!-- What the team left for this session comes before the routine. -->
+      <section v-if="store.messages.length" class="checklist-block">
+        <h3 class="checklist-block__title">{{ t('checklist.messages.block') }}</h3>
+        <div v-for="message in store.messages" :key="message.id" class="checklist-step">
+          <Checkbox
+            :input-id="`message-${message.id}`"
+            :model-value="message.checked"
+            binary
+            :disabled="busy"
+            @update:model-value="(value: boolean) => toggleMessage(message.id, value)"
+          />
+          <div class="checklist-step__body">
+            <label :for="`message-${message.id}`" class="checklist-step__label checklist-message">
+              {{ message.content }}
+              <Tag v-if="message.late" :value="t('checklist.late_tag')" severity="warn" />
+            </label>
+            <p class="checklist-step__signal">
+              {{
+                t('checklist.messages.meta', {
+                  author: message.author,
+                  date: formatDisplayDate(message.created_at),
+                })
+              }}
+            </p>
+          </div>
+        </div>
+      </section>
 
       <section v-for="block in blocks" :key="block.name" class="checklist-block">
         <h3 class="checklist-block__title">{{ t(`checklist.blocks.${block.name}`) }}</h3>
@@ -150,6 +184,7 @@ const headerLabel = computed(() =>
 )
 
 const uncheckedSteps = computed(() => store.steps.filter((s) => !s.checked))
+const uncheckedMessages = computed(() => store.messages.filter((m) => !m.checked))
 
 /** Blocks in the order the steps declare them, empty ones left out. */
 const blocks = computed(() => {
@@ -205,6 +240,10 @@ async function start(): Promise<void> {
 
 async function toggle(stepKey: string, checked: boolean): Promise<void> {
   await run(() => store.toggle(stepKey, checked))
+}
+
+async function toggleMessage(messageId: number, checked: boolean): Promise<void> {
+  await run(() => store.toggleMessage(messageId, checked))
 }
 
 async function close(): Promise<void> {
@@ -273,6 +312,10 @@ watch(
 .checklist-step__label {
   cursor: pointer;
   line-height: 1.35;
+}
+
+.checklist-message {
+  white-space: pre-wrap;
 }
 
 .checklist-step__external {

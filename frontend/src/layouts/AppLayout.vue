@@ -25,6 +25,14 @@
       </div>
       <div class="topbar-user">
         <Button
+          icon="pi pi-comment"
+          text
+          rounded
+          :aria-label="t('checklist.messages.button')"
+          :title="t('checklist.messages.button')"
+          @click="messageDialogVisible = true"
+        />
+        <Button
           v-if="auth.canAccessAccounting"
           icon="pi pi-check-square"
           text
@@ -97,6 +105,9 @@
       </RouterLink>
     </nav>
 
+    <!-- A note for the accountant, from any role and any screen -->
+    <ChecklistMessageDialog v-model:visible="messageDialogVisible" />
+
     <!-- Monthly bookkeeping checklist (reachable from every screen) -->
     <ChecklistPanel v-if="auth.canAccessAccounting" />
 
@@ -130,6 +141,7 @@ import { useChecklistStore } from '../stores/checklist'
 import NavMenu from '../components/NavMenu.vue'
 import ChatSidebar from '../components/chat/ChatSidebar.vue'
 import ChecklistPanel from '../components/checklist/ChecklistPanel.vue'
+import ChecklistMessageDialog from '../components/checklist/ChecklistMessageDialog.vue'
 import { useDarkMode } from '../composables/useDarkMode'
 import { useNavigation } from '../composables/useNavigation'
 const { t } = useI18n()
@@ -140,6 +152,7 @@ const { isDark, toggle: toggleDark } = useDarkMode()
 const { bottomNavItems } = useNavigation()
 
 const sidebarVisible = ref(false)
+const messageDialogVisible = ref(false)
 const appVersion = __APP_VERSION__
 const displayedUsername = computed(() => auth.user?.username ?? t('auth.me'))
 const fiscalYearOptions = computed(() => [

@@ -40,11 +40,37 @@ class ChecklistSessionRead(BaseModel):
     closed_by: str | None
 
 
+class ChecklistMessageRead(BaseModel):
+    """A message left for the accountant."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    content: str
+    author: str
+    created_at: datetime
+    checked: bool
+    checked_by: str | None
+    checked_at: datetime | None
+    #: Still waiting although a session was closed since it was written.
+    late: bool = False
+
+
+class ChecklistMessageCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class ChecklistMessageUpdate(BaseModel):
+    checked: bool
+
+
 class ChecklistSessionDetail(BaseModel):
     session: ChecklistSessionRead
     steps: list[ChecklistStepRead]
     #: Observed facts keyed by signal name — shown next to a step, never ticking it.
     signals: dict[str, dict[str, Any]]
+    #: Shown first, before the steps: what the team wants the accountant to know.
+    messages: list[ChecklistMessageRead] = []
 
 
 class ChecklistCurrent(BaseModel):
@@ -56,6 +82,8 @@ class ChecklistCurrent(BaseModel):
     suggested_period: str
     checked_count: int
     total_count: int
+    #: Messages not dealt with yet, so the panel can say so before a session starts.
+    waiting_messages: int = 0
 
 
 class ChecklistSessionOpen(BaseModel):

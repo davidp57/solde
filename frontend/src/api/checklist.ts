@@ -37,10 +37,24 @@ export interface ChecklistSession {
 /** Observed facts, keyed by signal name. Shown next to a step, never ticking it. */
 export type ChecklistSignals = Record<string, Record<string, string | number | null>>
 
+/** A message left for the accountant, shown first in the session. */
+export interface ChecklistMessage {
+  id: number
+  content: string
+  author: string
+  created_at: string
+  checked: boolean
+  checked_by: string | null
+  checked_at: string | null
+  /** Still waiting although a session was closed since it was written. */
+  late: boolean
+}
+
 export interface ChecklistSessionDetail {
   session: ChecklistSession
   steps: ChecklistStep[]
   signals: ChecklistSignals
+  messages: ChecklistMessage[]
 }
 
 export interface ChecklistCurrent {
@@ -48,6 +62,8 @@ export interface ChecklistCurrent {
   suggested_period: string
   checked_count: number
   total_count: number
+  /** Messages not dealt with yet. */
+  waiting_messages: number
 }
 
 export async function getCurrentChecklist(): Promise<ChecklistCurrent> {
@@ -84,4 +100,30 @@ export async function closeChecklistSession(sessionId: number): Promise<Checklis
 export async function listChecklistSessions(): Promise<ChecklistSession[]> {
   const response = await apiClient.get<ChecklistSession[]>('/api/checklist/sessions')
   return response.data
+}
+
+export async function setChecklistMessage(
+  sessionId: number,
+  messageId: number,
+  checked: boolean,
+): Promise<ChecklistSessionDetail> {
+  const response = await apiClient.put<ChecklistSessionDetail>(
+    `/api/checklist/sessions/${sessionId}/messages/${messageId}`,
+    { checked },
+  )
+  return response.data
+}
+
+export async function addChecklistMessage(content: string): Promise<ChecklistMessage> {
+  const response = await apiClient.post<ChecklistMessage>('/api/checklist/messages', { content })
+  return response.data
+}
+
+export async function listMyChecklistMessages(): Promise<ChecklistMessage[]> {
+  const response = await apiClient.get<ChecklistMessage[]>('/api/checklist/messages/mine')
+  return response.data
+}
+
+export async function deleteChecklistMessage(messageId: number): Promise<void> {
+  await apiClient.delete(`/api/checklist/messages/${messageId}`)
 }

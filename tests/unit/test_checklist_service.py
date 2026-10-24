@@ -311,3 +311,114 @@ async def test_next_period_is_the_plain_suggestion_when_free(db_session: AsyncSe
     suggested = await checklist_service.next_available_period(db_session, date(2026, 9, 20))
 
     assert suggested == "2026-09"
+
+
+# ---------------------------------------------------------------------------
+# Messages left for the accountant
+# ---------------------------------------------------------------------------
+
+
+async def test_a_message_waits_without_any_session(db_session: AsyncSession) -> None:
+    message = await checklist_service.add_message(
+        db_session, content="  Facture EDF  ", author="sec"
+    )
+
+    assert message.content == "Facture EDF"
+    assert message.session_id is None
+    assert message.checked is False
+
+
+async def test_an_empty_message_is_refused(db_session: AsyncSession) -> None:
+    with pytest.raises(checklist_service.ChecklistError):
+        await checklist_service.add_message(db_session, content="   ", author="sec")
+
+
+async def test_waiting_messages_show_in_the_open_session(db_session: AsyncSession) -> None:
+    await checklist_service.add_message(db_session, content="avant", author="sec")
+    session = await checklist_service.open_session(db_session, period="2026-09")
+    await checklist_service.add_message(db_session, content="pendant", author="sec")
+
+    messages = await checklist_service.get_session_messages(db_session, session)
+
+    assert [m.content for m in messages] == ["avant", "pendant"]
+
+
+async def test_ticking_a_message_ties_it_to_the_session(db_session: AsyncSession) -> None:
+    message = await checklist_service.add_message(db_session, content="x", author="sec")
+    session = await checklist_service.open_session(db_session, period="2026-09")
+
+    ticked = await checklist_service.set_message(
+        db_session, session=session, message_id=message.id, checked=True, actor="zip"
+    )
+
+    assert ticked.checked is True
+    assert ticked.session_id == session.id
+    assert ticked.checked_by == "zip"
+
+    unticked = await checklist_service.set_message(
+        db_session, session=session, message_id=message.id, checked=False, actor="zip"
+    )
+    assert unticked.session_id is None
+    assert unticked.checked_by is None
+
+
+async def test_an_unticked_message_moves_on_to_the_next_session(db_session: AsyncSession) -> None:
+    done = await checklist_service.add_message(db_session, content="fait", author="sec")
+    left = await checklist_service.add_message(db_session, content="reste", author="sec")
+    september = await checklist_service.open_session(db_session, period="2026-09")
+    await checklist_service.set_message(
+        db_session, session=september, message_id=done.id, checked=True
+    )
+    await checklist_service.close_session(db_session, session=september)
+
+    october = await checklist_service.open_session(db_session, period="2026-10")
+
+    assert [m.id for m in await checklist_service.get_session_messages(db_session, october)] == [
+        left.id
+    ]
+    # The closed session keeps what was dealt with in it, and only that.
+    assert [m.id for m in await checklist_service.get_session_messages(db_session, september)] == [
+        done.id
+    ]
+    assert checklist_service.is_message_late(left, await checklist_service.late_cutoff(db_session))
+
+
+async def test_a_message_cannot_be_ticked_in_a_closed_session(db_session: AsyncSession) -> None:
+    message = await checklist_service.add_message(db_session, content="x", author="sec")
+    session = await checklist_service.open_session(db_session, period="2026-09")
+    await checklist_service.close_session(db_session, session=session)
+
+    with pytest.raises(checklist_service.ChecklistError):
+        await checklist_service.set_message(
+            db_session, session=session, message_id=message.id, checked=True
+        )
+
+
+async def test_only_the_author_deletes_a_waiting_message(db_session: AsyncSession) -> None:
+    message = await checklist_service.add_message(db_session, content="x", author="sec")
+
+    with pytest.raises(checklist_service.ChecklistForbiddenError):
+        await checklist_service.delete_message(db_session, message_id=message.id, actor="other")
+
+    await checklist_service.delete_message(db_session, message_id=message.id, actor="sec")
+    assert await checklist_service.list_waiting_messages(db_session, author="sec") == []
+
+
+async def test_a_ticked_message_cannot_be_deleted(db_session: AsyncSession) -> None:
+    message = await checklist_service.add_message(db_session, content="x", author="sec")
+    session = await checklist_service.open_session(db_session, period="2026-09")
+    await checklist_service.set_message(
+        db_session, session=session, message_id=message.id, checked=True
+    )
+
+    with pytest.raises(checklist_service.ChecklistError):
+        await checklist_service.delete_message(db_session, message_id=message.id, actor="sec")
+
+
+async def test_waiting_messages_are_listed_per_author(db_session: AsyncSession) -> None:
+    await checklist_service.add_message(db_session, content="a", author="sec")
+    await checklist_service.add_message(db_session, content="b", author="other")
+
+    mine = await checklist_service.list_waiting_messages(db_session, author="sec")
+
+    assert [m.content for m in mine] == ["a"]
