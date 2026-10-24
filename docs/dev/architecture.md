@@ -50,7 +50,7 @@ WeasyPrint is imported on demand (not at startup) to respect this budget.
 | Database | SQLite (WAL mode) | Zero config, single-instance NAS |
 | ORM | SQLAlchemy 2 async | Async sessions, type safety |
 | Migrations | Alembic | Schema version control |
-| Authentication | python-jose (JWT) + bcrypt | Stateless JWTs; bcrypt direct (passlib incompatible with Python 3.13+) |
+| Authentication | PyJWT + bcrypt | Stateless JWTs; bcrypt direct (passlib incompatible with Python 3.13+) |
 | Validation | Pydantic v2 | Input/output schemas, settings |
 | PDF generation | WeasyPrint | Imported on demand |
 | Email | smtplib (stdlib) | No external dependency |
