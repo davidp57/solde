@@ -420,6 +420,16 @@
                   <span class="app-mobile-card-label">{{ t('payments.method') }} :</span>
                   <span class="app-mobile-card-value">{{ t(`payments.methods.${data.method}`) }}</span>
                 </div>
+                <div v-if="authStore.isAdmin" class="app-mobile-card-row">
+                  <Button
+                    icon="pi pi-trash"
+                    :label="t('payments.cancel_action')"
+                    text
+                    size="small"
+                    severity="danger"
+                    @click="openCancelPayment(data)"
+                  />
+                </div>
               </template>
             </AppMobileCardList>
             <DataTable
@@ -437,6 +447,21 @@
               </Column>
               <Column field="method" :header="t('payments.method')" sortable>
                 <template #body="{ data }">{{ t(`payments.methods.${data.method}`) }}</template>
+              </Column>
+              <Column v-if="authStore.isAdmin">
+                <template #body="{ data }">
+                  <Button
+                    icon="pi pi-trash"
+                    text
+                    rounded
+                    size="small"
+                    severity="danger"
+                    data-testid="supplier-payment-cancel"
+                    :title="t('payments.cancel_action')"
+                    :aria-label="t('payments.cancel_action')"
+                    @click="openCancelPayment(data)"
+                  />
+                </template>
               </Column>
             </DataTable>
           </div>
@@ -502,6 +527,11 @@
       :contact-name="paymentInvoice ? contactName(paymentInvoice.contact_id) : undefined"
       @paid="onPaymentRecorded"
     />
+    <PaymentCancelDialog
+      v-model:visible="cancelPaymentVisible"
+      :payment="cancelPaymentTarget"
+      @cancelled="(payment) => onPaymentRecorded(payment.invoice_id)"
+    />
 
     <ConfirmDialog />
     </template>
@@ -544,6 +574,7 @@ import { listPayments, type Payment } from '../api/payments'
 import SupplierInvoiceForm from '../components/SupplierInvoiceForm.vue'
 import InvoiceStatusBadge from '../components/invoices/InvoiceStatusBadge.vue'
 import InvoicePaymentDialog from '../components/invoices/InvoicePaymentDialog.vue'
+import PaymentCancelDialog from '../components/payments/PaymentCancelDialog.vue'
 import InvoiceWorkspace from '../components/invoices/InvoiceWorkspace.vue'
 import AppRowActions, { type RowAction } from '../components/ui/AppRowActions.vue'
 import type { FilterSegment } from '../components/ui/AppFilterSegments.vue'
@@ -823,9 +854,14 @@ function supplierMenuItems(invoice: Invoice): MenuItem[] {
   const normal: MenuItem[] = [
     { key: 'edit', label: t('invoices.edit'), icon: 'pi pi-pencil', command: () => openEditDialog(invoice) },
   ]
-  if (invoice.file_path) {
-    normal.push({ key: 'view', label: t('invoices.supplier.preview_file'), icon: 'pi pi-eye', command: () => openPreviewDialog(invoice) })
-  }
+  // The detail is offered even without an attachment: it is where the invoice's
+  // payments are listed, and cancelled.
+  normal.push({
+    key: 'view',
+    label: invoice.file_path ? t('invoices.supplier.preview_file') : t('invoices.actions.view'),
+    icon: 'pi pi-eye',
+    command: () => openPreviewDialog(invoice),
+  })
   normal.push({ key: 'upload', label: t('invoices.upload_file'), icon: 'pi pi-upload', command: () => openUploadDialog(invoice) })
   if (canRecordPayment(invoice)) {
     normal.push({ key: 'pay', label: t('invoices.record_payment'), icon: 'pi pi-wallet', command: () => openPaymentDialog(invoice) })
@@ -859,6 +895,15 @@ function supplierMenuItems(invoice: Invoice): MenuItem[] {
     items.push({ separator: true }, ...dangerItems)
   }
   return items
+}
+
+// Supplier payments are listed nowhere else: the Payments screen shows client ones.
+const cancelPaymentVisible = ref(false)
+const cancelPaymentTarget = ref<Payment | null>(null)
+
+function openCancelPayment(payment: Payment): void {
+  cancelPaymentTarget.value = payment
+  cancelPaymentVisible.value = true
 }
 
 async function onPaymentRecorded(invoiceId: number): Promise<void> {

@@ -338,14 +338,21 @@ Un règlement enregistré ne se modifie plus (montant, date et mode sont figés)
 **Jusqu'à quand** : tant que l'argent n'est **pas arrivé sur le compte bancaire**. Concrètement :
 
 - un **chèque** reçu d'un client reste annulable tant que sa remise n'a pas été confirmée ;
-- un règlement en **espèces** reste annulable : l'argent est en caisse, pas à la banque. L'annulation retire aussi le mouvement de caisse correspondant, et le solde de caisse est recalculé.
+- un règlement en **espèces** reste annulable : l'argent est en caisse, pas à la banque. L'annulation retire aussi le mouvement de caisse correspondant, et le solde de caisse est recalculé ;
+- un **virement fournisseur** saisi à la main reste annulable tant qu'il n'est pas lié à sa ligne de relevé.
+
+Les règlements **fournisseurs** suivent les mêmes règles que les règlements clients.
 
 En revanche, un virement reçu, un règlement déjà rapproché avec une opération bancaire ou appartenant à un exercice clôturé ne peuvent plus être annulés — dans ces cas, il faut passer par une écriture comptable de correction.
+
+Un règlement créé par l'**import Excel** ne s'annule pas non plus ici : le supprimer à la main empêcherait ensuite d'annuler cet import. C'est l'annulation d'import qui le supprime.
 
 **Comment** :
 
 1. Aller dans **Paiements** et retrouver la ligne concernée.
+   Pour un règlement **fournisseur**, que l'écran Paiements n'affiche pas : aller dans **Factures → Fournisseurs** et ouvrir la facture (menu **⋯**, **Voir**).
 2. Ouvrir le menu **⋯** de la ligne, puis **Annuler ce règlement**.
+   Pour un règlement fournisseur : cliquer sur la corbeille de la ligne, dans l'historique de la facture.
 3. Une fenêtre récapitule ce qui va se passer : le montant supprimé et, si le chèque figure déjà dans un bordereau de remise, l'effet sur ce bordereau — son total est recalculé, ou le bordereau est supprimé s'il ne contenait que ce chèque. Si l'annulation est impossible, la fenêtre en indique la raison.
 4. Confirmer. Le règlement et ses écritures comptables sont supprimés, et la facture repasse en attente de règlement.
 5. Ressaisir le ou les règlements corrects, puis reconstituer la remise en banque si nécessaire.
@@ -377,7 +384,9 @@ La procédure est similaire aux factures clients : la facture fournisseur est va
 Un règlement fournisseur peut se faire en espèces, par chèque ou par **virement**.
 Un virement s'enregistre le jour où vous le faites, depuis la facture : elle passe aussitôt à « payée ».
 Quand la ligne correspondante arrive avec le relevé, rattachez-la au règlement avec **Lier à un règlement existant** (menu de la ligne, écran Banque), et non avec **Rapprocher** : la ligne serait marquée rapprochée sans être reliée au règlement, qui resterait en attente.
-Saisissez le montant exact du virement : un règlement fournisseur ne se modifie ni ne s'annule après coup, et **Lier à un règlement existant** ne propose que les virements du même montant que la ligne.
+Saisissez le montant exact du virement : **Lier à un règlement existant** ne propose que les virements du même montant que la ligne.
+Si le montant est faux, l'administrateur annule le règlement (voir [Annuler un règlement saisi par erreur](#annuler-un-règlement-saisi-par-erreur)), puis vous le ressaisissez avant de le lier.
+Un virement jamais lié est signalé dans la séance de comptabilité, à l'étape « Rapprocher ».
 Si vous n'avez pas saisi le virement à l'avance, **Créer un règlement fournisseur** depuis la ligne du relevé fait les deux d'un coup.
 
 ---
@@ -761,6 +770,8 @@ Les étapes précédées d'une flèche **⇢** se font **hors de l'application**
 Certaines étapes affichent un fait observé : « Dernier import le 01/09/2026, 12 opérations enregistrées », « Chèques à remettre : 2, soit 234,00 € ». Ces indications **ne cochent rien** — elles vous aident à répondre, elles ne répondent pas à votre place. Une case cochée sans que vous ayez regardé n'aurait pas été vérifiée, et c'est précisément l'étape sautée qui coûte cher.
 
 > **Le compteur d'opérations à rapprocher ne dit pas la même chose que l'écran Banque**, et c'est voulu. Il ne compte que les opérations **venues d'un relevé** et datées **au plus tard à la fin du mois traité**. Il laisse donc de côté trois choses : les opérations reprises de l'historique lors de la mise en service, qui n'ont jamais eu vocation à être rapprochées ; le solde d'ouverture ; et les opérations que le relevé apporte pour le mois suivant. Les remises que vous avez enregistrées et qui attendent encore leur relevé sont comptées **à part**, car seul un import futur pourra les solder.
+>
+> Le même signal ajoute, quand il y en a, les **virements fournisseur** saisis à la main, datés au plus tard à la fin du mois, qui ne sont pas encore liés à leur ligne de relevé (**Lier à un règlement existant**, écran Banque). Ceux qui viennent de l'import Excel ne sont pas comptés : ils n'ont jamais eu vocation à être liés.
 
 ### Clôturer une séance
 

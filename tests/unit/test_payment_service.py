@@ -14,6 +14,16 @@ from backend.models.bank import BankTransaction, DepositType
 from backend.models.cash import CashEntrySource, CashMovementType, CashRegister
 from backend.models.contact import Contact, ContactType
 from backend.models.fiscal_year import FiscalYear, FiscalYearStatus
+from backend.models.import_run import (
+    ImportEffect,
+    ImportEffectAction,
+    ImportEffectStatus,
+    ImportOperation,
+    ImportOperationDecision,
+    ImportOperationStatus,
+    ImportRun,
+    ImportRunStatus,
+)
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
 from backend.schemas.bank import DepositCreate
@@ -716,12 +726,10 @@ async def test_cancel_payment_refused_when_deposited(db_session: AsyncSession) -
     assert await payment_service.get_payment(db_session, payment_id) is not None
 
 
-@pytest.mark.asyncio
-async def test_cancel_payment_refused_for_supplier_invoice(db_session: AsyncSession) -> None:
-    """Cheques issued to a supplier are out of scope for cancellation."""
+async def _make_supplier_invoice(db: AsyncSession) -> tuple[Contact, Invoice]:
     contact = Contact(type=ContactType.FOURNISSEUR, nom="Fournisseur", prenom="Test")
-    db_session.add(contact)
-    await db_session.flush()
+    db.add(contact)
+    await db.flush()
     inv = Invoice(
         number="FA-2024-009",
         type=InvoiceType.FOURNISSEUR,
@@ -731,15 +739,167 @@ async def test_cancel_payment_refused_for_supplier_invoice(db_session: AsyncSess
         paid_amount=Decimal("0"),
         status=InvoiceStatus.SENT,
     )
-    db_session.add(inv)
+    db.add(inv)
+    await db.flush()
+    return contact, inv
+
+
+async def _pay_supplier(
+    db: AsyncSession, contact: Contact, inv: Invoice, method: PaymentMethod
+) -> int:
+    payment = await payment_service.create_payment(
+        db,
+        PaymentCreate(
+            invoice_id=inv.id,
+            contact_id=contact.id,
+            amount=Decimal("100.00"),
+            date=date(2024, 2, 1),
+            method=method,
+        ),
+    )
+    return payment.id
+
+
+@pytest.mark.asyncio
+async def test_cancel_supplier_transfer_reverts_invoice(db_session: AsyncSession) -> None:
+    """A mistyped transfer to a supplier, not yet linked to the statement, can be undone."""
+    contact, inv = await _make_supplier_invoice(db_session)
+    payment_id = await _pay_supplier(db_session, contact, inv, PaymentMethod.VIREMENT)
+
+    preview = await payment_service.preview_payment_cancellation(db_session, payment_id)
+    assert preview.can_cancel is True
+
+    await payment_service.cancel_payment(db_session, payment_id)
+
+    assert await payment_service.get_payment(db_session, payment_id) is None
+    refreshed = (await db_session.execute(select(Invoice).where(Invoice.id == inv.id))).scalar_one()
+    assert refreshed.paid_amount == Decimal("0.00")
+    assert refreshed.status != InvoiceStatus.PAID
+
+
+@pytest.mark.asyncio
+async def test_cancel_supplier_cash_payment_puts_money_back_in_the_till(
+    db_session: AsyncSession,
+) -> None:
+    """Cancelling cash paid to a supplier drops the till outflow it created."""
+    contact, inv = await _make_supplier_invoice(db_session)
+    payment_id = await _pay_supplier(db_session, contact, inv, PaymentMethod.ESPECES)
+    outflows = select(CashRegister).where(
+        CashRegister.payment_id == payment_id,
+        CashRegister.type == CashMovementType.OUT,
+    )
+    assert len(list((await db_session.execute(outflows)).scalars())) == 1
+
+    await payment_service.cancel_payment(db_session, payment_id)
+
+    assert list((await db_session.execute(outflows)).scalars()) == []
+
+
+@pytest.mark.asyncio
+async def test_cancel_supplier_transfer_refused_once_linked_to_statement(
+    db_session: AsyncSession,
+) -> None:
+    """Once the transfer is matched to its statement line, the money has left: no undo."""
+    contact, inv = await _make_supplier_invoice(db_session)
+    payment_id = await _pay_supplier(db_session, contact, inv, PaymentMethod.VIREMENT)
+    db_session.add(
+        BankTransaction(
+            date=date(2024, 2, 3),
+            amount=Decimal("-100.00"),
+            description="VIR Fournisseur",
+            payment_id=payment_id,
+        )
+    )
     await db_session.flush()
-    payment_id = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
 
     with pytest.raises(payment_service.PaymentCancelError) as exc_info:
         await payment_service.cancel_payment(db_session, payment_id)
 
-    assert exc_info.value.code == "PAYMENT_SUPPLIER"
+    assert exc_info.value.code == "PAYMENT_RECONCILED"
+
+
+async def _mark_as_imported(
+    db: AsyncSession,
+    payment_id: int,
+    status: ImportEffectStatus = ImportEffectStatus.APPLIED,
+) -> None:
+    run = ImportRun(import_type="gestion", status=ImportRunStatus.COMPLETED, file_hash="x" * 64)
+    db.add(run)
+    await db.flush()
+    operation = ImportOperation(
+        run_id=run.id,
+        position=1,
+        operation_type="create_payment",
+        title="Règlement importé",
+        decision=ImportOperationDecision.APPLY,
+        status=ImportOperationStatus.APPLIED,
+    )
+    db.add(operation)
+    await db.flush()
+    db.add(
+        ImportEffect(
+            operation_id=operation.id,
+            position=1,
+            entity_type="payment",
+            action=ImportEffectAction.CREATE,
+            entity_id=payment_id,
+            status=status,
+        )
+    )
+    await db.flush()
+
+
+@pytest.mark.asyncio
+async def test_cancel_payment_refused_when_created_by_import(db_session: AsyncSession) -> None:
+    """Deleting a payment the Excel import created would break undoing that import."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
+    payment_id = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
+    await _mark_as_imported(db_session, payment_id)
+
+    preview = await payment_service.preview_payment_cancellation(db_session, payment_id)
+    assert preview.can_cancel is False
+    assert preview.reason_code == "PAYMENT_IMPORTED"
+    with pytest.raises(payment_service.PaymentCancelError) as exc_info:
+        await payment_service.cancel_payment(db_session, payment_id)
+    assert exc_info.value.code == "PAYMENT_IMPORTED"
     assert await payment_service.get_payment(db_session, payment_id) is not None
+
+
+@pytest.mark.asyncio
+async def test_cancel_refusal_for_imported_payment_names_the_bank_first(
+    db_session: AsyncSession,
+) -> None:
+    """An imported cheque already cashed in is refused for that reason, not for its import.
+
+    "Undo the import" would be the wrong advice for money that reached the bank.
+    """
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
+    payment_id = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
+    await _mark_as_imported(db_session, payment_id)
+    payment = (
+        await db_session.execute(select(Payment).where(Payment.id == payment_id))
+    ).scalar_one()
+    payment.deposited = True
+    await db_session.flush()
+
+    preview = await payment_service.preview_payment_cancellation(db_session, payment_id)
+
+    assert preview.reason_code == "PAYMENT_DEPOSITED"
+
+
+@pytest.mark.asyncio
+async def test_cancel_payment_allowed_when_its_import_was_undone(db_session: AsyncSession) -> None:
+    """Only an import still applied owns the payment; an undone effect no longer does."""
+    contact = await _make_contact(db_session)
+    inv = await _make_invoice(db_session, contact.id, Decimal("100.00"))
+    payment_id = await _make_cheque(db_session, contact.id, inv.id, Decimal("100.00"))
+    await _mark_as_imported(db_session, payment_id, ImportEffectStatus.UNDONE)
+
+    preview = await payment_service.preview_payment_cancellation(db_session, payment_id)
+
+    assert preview.can_cancel is True
 
 
 @pytest.mark.asyncio

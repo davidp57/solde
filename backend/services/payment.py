@@ -5,12 +5,13 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, ColumnExpressionArgument, exists, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from backend.models.cash import CashEntrySource, CashMovementType
 from backend.models.contact import Contact
+from backend.models.import_run import ImportEffect, ImportEffectStatus
 from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
 from backend.models.payment import Payment, PaymentMethod
 from backend.schemas.payment import (
@@ -39,11 +40,26 @@ class PaymentCancelError(PaymentDeleteError):
 
 #: Refusal codes for :func:`cancel_payment`, mapped to their API message.
 CANCEL_REFUSAL_MESSAGES: dict[str, str] = {
-    "PAYMENT_SUPPLIER": "only client payments can be cancelled",
     "PAYMENT_DEPOSITED": "payment has already been cashed in and cannot be cancelled",
     "PAYMENT_RECONCILED": "payment is linked to a bank transaction and cannot be cancelled",
     "FISCAL_YEAR_CLOSED": "payment belongs to a closed fiscal year and cannot be cancelled",
+    "PAYMENT_IMPORTED": "payment was created by an Excel import and can only be undone by it",
 }
+
+
+def imported_payment_clause(
+    payment_id: ColumnExpressionArgument[int] | int,
+) -> ColumnElement[bool]:
+    """SQL condition: the payment belongs to an Excel import that is still applied.
+
+    Undoing an import checks every object it touched and fails when one is gone,
+    so such a payment must be corrected through the import, never deleted by hand.
+    """
+    return exists().where(
+        ImportEffect.entity_type == "payment",
+        ImportEffect.entity_id == payment_id,
+        ImportEffect.status == ImportEffectStatus.APPLIED,
+    )
 
 
 def _build_payment_read(
@@ -333,6 +349,11 @@ async def _find_cancel_refusal(db: AsyncSession, payment: Payment) -> str | None
     cash "already reached the bank account", which is plainly false, and left a
     mistyped cash receipt with no way back. A cash receipt still in the till is
     correctable; only a bank link or a closed year stops it.
+
+    Supplier payments follow the same rules: a transfer recorded when it was sent
+    stays correctable until it is linked to its statement line. A payment the
+    Excel import created is refused whatever its state, since deleting it would
+    break undoing that import.
     """
     from backend.models.fiscal_year import FiscalYearStatus  # noqa: PLC0415
     from backend.services.fiscal_year_service import find_fiscal_year_for_date  # noqa: PLC0415
@@ -340,8 +361,6 @@ async def _find_cancel_refusal(db: AsyncSession, payment: Payment) -> str | None
     invoice = await _get_invoice(db, payment.invoice_id)
     if invoice is None:
         raise InvoiceNotFoundError("Invoice not found")
-    if invoice.type != InvoiceType.CLIENT:
-        return "PAYMENT_SUPPLIER"
     if payment.deposited and payment.method != PaymentMethod.ESPECES:
         return "PAYMENT_DEPOSITED"
     if await _has_bank_link(db, payment.id):
@@ -349,6 +368,10 @@ async def _find_cancel_refusal(db: AsyncSession, payment: Payment) -> str | None
     fiscal_year = await find_fiscal_year_for_date(db, payment.date)
     if fiscal_year is not None and fiscal_year.status == FiscalYearStatus.CLOSED:
         return "FISCAL_YEAR_CLOSED"
+    # Checked last: its message points to undoing the import, which only makes
+    # sense once nothing else stands in the way.
+    if (await db.execute(select(imported_payment_clause(payment.id)))).scalar_one():
+        return "PAYMENT_IMPORTED"
     return None
 
 
@@ -470,7 +493,7 @@ async def _delete_cash_entry_for_payment(db: AsyncSession, payment: Payment) -> 
 
 
 async def cancel_payment(db: AsyncSession, payment_id: int) -> PaymentCancelPreview:
-    """Cancel a client payment that has not been cashed in yet.
+    """Cancel a payment whose money has not reached or left the bank account yet.
 
     Detaches it from its deposit slip, drops the accounting entries it generated,
     deletes it and refreshes the invoice status. Returns what was done, for audit.

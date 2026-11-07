@@ -81,13 +81,21 @@ vi.mock('../../api/invoices', () => ({
 vi.mock('../../api/payments', () => ({
   listPayments: vi.fn(),
   createPayment: vi.fn(),
+  getPaymentCancelPreview: vi.fn(),
+  cancelPayment: vi.fn(),
   suggestChequeNumber: vi.fn().mockResolvedValue('20250101.01'),
 }))
 
 import SupplierInvoicesView from '../../views/SupplierInvoicesView.vue'
 import { listContactsApi } from '../../api/contacts'
 import { deleteInvoiceApi, listInvoicesWithCountApi } from '../../api/invoices'
-import { createPayment, listPayments, suggestChequeNumber } from '../../api/payments'
+import {
+  createPayment,
+  getPaymentCancelPreview,
+  listPayments,
+  suggestChequeNumber,
+} from '../../api/payments'
+import PaymentCancelDialog from '../../components/payments/PaymentCancelDialog.vue'
 
 const mockListContactsApi = vi.mocked(listContactsApi)
 const mockDeleteInvoiceApi = vi.mocked(deleteInvoiceApi)
@@ -555,6 +563,61 @@ describe('SupplierInvoicesView — preview dialog bottom navigation', () => {
     expect(prevButtons.length).toBeGreaterThanOrEqual(1)
     // All Previous buttons must be disabled at index 0
     expect(prevButtons.every((btn) => btn.element.disabled)).toBe(true)
+  })
+
+  it('lets an admin cancel a supplier payment from the invoice detail', async () => {
+    // Supplier payments are listed nowhere else: the Payments screen shows client ones.
+    const transfer = {
+      id: 42,
+      invoice_id: invoiceWithFile.id,
+      invoice_number: invoiceWithFile.number,
+      invoice_type: 'fournisseur',
+      contact_id: 10,
+      amount: '50.00',
+      date: '2025-02-20',
+      method: 'virement',
+      cheque_number: null,
+      reference: null,
+      notes: null,
+      deposited: false,
+      in_deposit: false,
+      deposit_date: null,
+      created_at: '2025-02-20T00:00:00',
+    }
+    mockListPayments.mockResolvedValue([transfer] as never)
+    vi.mocked(getPaymentCancelPreview).mockResolvedValue({
+      payment_id: 42,
+      can_cancel: false,
+      reason_code: 'PAYMENT_RECONCILED',
+      amount: '50.00',
+      date: '2025-02-20',
+      deposit_id: null,
+      deposit_date: null,
+      deposit_total_before: null,
+      deposit_total_after: null,
+      deposit_will_be_deleted: false,
+    })
+    const wrapper = mountView()
+    await flushView()
+    const previewButtons = wrapper
+      .findAll('button')
+      .filter((btn) => btn.attributes('title') === 'invoices.supplier.preview_file')
+    await previewButtons[0].trigger('click')
+    await flushView()
+
+    await wrapper.find('[data-testid="supplier-payment-cancel"]').trigger('click')
+    await flushView()
+
+    expect(getPaymentCancelPreview).toHaveBeenCalledWith(42)
+    expect(wrapper.text()).toContain('payments.cancel_refused.PAYMENT_RECONCILED')
+
+    // Once cancelled, the detail shows the payments left on the invoice.
+    mockListPayments.mockClear()
+    mockListPayments.mockResolvedValue([])
+    wrapper.findComponent(PaymentCancelDialog).vm.$emit('cancelled', transfer)
+    await flushView()
+    await flushView()
+    expect(mockListPayments).toHaveBeenCalledWith({ invoice_id: invoiceWithFile.id })
   })
 
   it('drops a deleted invoice even when the list would answer stale', async () => {

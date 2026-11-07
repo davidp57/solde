@@ -216,7 +216,12 @@ function signalText(step: ChecklistStep): string | null {
   // Some signals have a variant used only when a secondary count is non-zero:
   // mentioning "0 remise en attente" every month is noise.
   const suffix = Number(payload.awaiting ?? 0) > 0 ? '_awaiting' : ''
-  return t(`checklist.signals.${step.signal}${suffix}`, params)
+  const text = t(`checklist.signals.${step.signal}${suffix}`, params)
+  // Supplier transfers recorded when sent but never linked to their statement line.
+  if (Number(payload.unlinked_transfers ?? 0) > 0) {
+    return `${text} ${t('checklist.signals.unlinked_transfers', params)}`
+  }
+  return text
 }
 
 async function run(action: () => Promise<void>): Promise<void> {
