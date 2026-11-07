@@ -45,6 +45,7 @@ générateur). Les artefacts sont créés à `⬜ ready`. Convention détaillée
 | [CHECKLIST-MSG](CHECKLIST-MSG/PRD.md) — messages laissés au trésorier par tous les rôles, affichés en tête de la séance de comptabilité (BIZ-265) | ✅ |
 | [PIN-DEPS](PIN-DEPS/PRD.md) — figer les versions des dépendances Python (CI et image Docker), mises à jour par Dependabot (TEC-263) | ✅ |
 | [PYJWT](PYJWT/PRD.md) — remplacer python-jose (presque plus maintenu, alertes de sécurité sur sa chaîne) par PyJWT pour les jetons de connexion (TEC-264) | ✅ |
+| [PAY-NEW](PAY-NEW/PRD.md) — bouton « Nouveau paiement » dans la vue Paiements, qui ouvre l'assistant du tableau de bord (BIZ-266) | 🔄 |
 
 ## Lots archivés
 
