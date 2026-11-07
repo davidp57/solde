@@ -106,7 +106,11 @@ import AppFiscalYearDateWarning from '../ui/AppFiscalYearDateWarning.vue'
 import { createPayment, suggestChequeNumber } from '../../api/payments'
 import type { Invoice } from '../../api/invoices'
 import { remainingForInvoice } from '../../composables/useInvoiceMetrics'
-import { useCashPaymentGuard, type CashDirection } from '../../composables/useCashPaymentGuard'
+import {
+  useCashPaymentGuard,
+  type CashDirection,
+  type GuardedPaymentMethod,
+} from '../../composables/useCashPaymentGuard'
 import { formatCurrency, formatDisplayDate } from '@/utils/format'
 
 const props = defineProps<{
@@ -124,16 +128,22 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const toast = useToast()
 
-const paymentMethodOptions = [
+// A client transfer is only ever created from the bank statement (the backend
+// refuses it here); a supplier transfer can be recorded when it is sent, then
+// linked to the statement line with "Lier à un règlement existant".
+const paymentMethodOptions = computed(() => [
   { label: t('payments.methods.especes'), value: 'especes' },
   { label: t('payments.methods.cheque'), value: 'cheque' },
-]
+  ...(props.invoice?.type === 'fournisseur'
+    ? [{ label: t('payments.methods.virement'), value: 'virement' }]
+    : []),
+])
 
 const saving = ref(false)
 const form = ref({
   date: new Date() as Date,
   amount: null as number | null,
-  method: 'cheque' as 'especes' | 'cheque',
+  method: 'cheque' as GuardedPaymentMethod,
   cheque_number: '',
   reference: '',
   notes: '',
