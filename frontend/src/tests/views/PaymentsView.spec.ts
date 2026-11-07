@@ -83,8 +83,12 @@ vi.mock('../../stores/listLimit', () => ({
   useListLimitStore: () => limitStoreMock,
 }))
 
+const routeMock: { query: Record<string, string | undefined> } = { query: {} }
+const routerReplace = vi.fn()
+
 vi.mock('vue-router', () => ({
-  useRoute: () => ({ query: {} }),
+  useRoute: () => routeMock,
+  useRouter: () => ({ replace: routerReplace }),
 }))
 
 import PaymentsView from '../../views/PaymentsView.vue'
@@ -271,6 +275,19 @@ const DialogStub = defineComponent({
   template: '<div v-if="visible"><h2>{{ header }}</h2><slot /><slot name="footer" /></div>',
 })
 
+const PageHeaderStub = defineComponent({
+  template: '<div><slot /><slot name="actions" /></div>',
+})
+
+// Stands in for the dashboard's payment wizard: shows whether it is open and
+// lets a test fire the `saved` event the real wizard emits after a payment.
+const QuickPaymentWizardStub = defineComponent({
+  props: { visible: { type: Boolean, default: false } },
+  emits: ['update:visible', 'saved'],
+  template:
+    '<div v-if="visible" data-testid="quick-payment-wizard"><button data-testid="wizard-fire-saved" @click="$emit(\'saved\')" /></div>',
+})
+
 const CurrentRowKey = Symbol('current-row')
 
 const DataTableRowStub = defineComponent({
@@ -323,7 +340,8 @@ function mountView() {
     global: {
       stubs: {
         AppPage: ContainerStub,
-        AppPageHeader: ContainerStub,
+        AppPageHeader: PageHeaderStub,
+        QuickPaymentWizard: QuickPaymentWizardStub,
         AppPanel: ContainerStub,
         AppStatCard: ContainerStub,
         AppRowActions: AppRowActionsStub,
@@ -353,6 +371,55 @@ describe('PaymentsView', () => {
     mockCancelPreview.mockResolvedValue({ ...cancelPreviewFixture })
     mockCancelPayment.mockResolvedValue(undefined)
     authStoreMock.isAdmin = true
+    routeMock.query = {}
+  })
+
+  it('offers a "new payment" button that opens the payment wizard', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    const newButton = wrapper.find('[data-testid="payments-new"]')
+    expect(newButton.exists()).toBe(true)
+    expect(newButton.text()).toBe('payments.new')
+    expect(wrapper.find('[data-testid="quick-payment-wizard"]').exists()).toBe(false)
+
+    await newButton.trigger('click')
+
+    expect(wrapper.find('[data-testid="quick-payment-wizard"]').exists()).toBe(true)
+  })
+
+  it('opens the payment wizard on ?create=1 and drops the parameter', async () => {
+    routeMock.query = { create: '1', undeposited: '1' }
+
+    const wrapper = mountView()
+    await flushView()
+    await flushView()
+
+    expect(wrapper.find('[data-testid="quick-payment-wizard"]').exists()).toBe(true)
+    expect(routerReplace).toHaveBeenCalledWith({
+      name: 'payments',
+      query: { undeposited: '1', create: undefined },
+    })
+  })
+
+  it('does not open the payment wizard without ?create=1', async () => {
+    const wrapper = mountView()
+    await flushView()
+
+    expect(wrapper.find('[data-testid="quick-payment-wizard"]').exists()).toBe(false)
+    expect(routerReplace).not.toHaveBeenCalled()
+  })
+
+  it('reloads the payment list once the wizard has recorded a payment', async () => {
+    const wrapper = mountView()
+    await flushView()
+    await wrapper.find('[data-testid="payments-new"]').trigger('click')
+    expect(mockListPaymentsWithCount).toHaveBeenCalledTimes(1)
+
+    await wrapper.find('[data-testid="wizard-fire-saved"]').trigger('click')
+    await flushView()
+
+    expect(mockListPaymentsWithCount).toHaveBeenCalledTimes(2)
   })
 
   it('displays the payment reference in the table', async () => {

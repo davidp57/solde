@@ -202,4 +202,34 @@ describe('QuickPaymentWizard', () => {
       expect.objectContaining({ invoice_id: 42, amount: '310.00', method: 'especes' }),
     )
   })
+
+  async function submitCashPayment() {
+    const wrapper = await openOnPaymentStep()
+    await wrapper.find('select').setValue('especes')
+    await flushPromises()
+    const applyButton = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'payments.apply_remaining')
+    await applyButton!.trigger('click')
+    await flushPromises()
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+    return wrapper
+  }
+
+  it('emits saved once the payment is recorded, so a host list can refresh', async () => {
+    const wrapper = await submitCashPayment()
+
+    expect(createPayment).toHaveBeenCalled()
+    expect(wrapper.emitted('saved')).toHaveLength(1)
+  })
+
+  it('does not emit saved when recording the payment fails', async () => {
+    vi.mocked(createPayment).mockRejectedValueOnce(new Error('boom'))
+
+    const wrapper = await submitCashPayment()
+
+    expect(createPayment).toHaveBeenCalled()
+    expect(wrapper.emitted('saved')).toBeUndefined()
+  })
 })

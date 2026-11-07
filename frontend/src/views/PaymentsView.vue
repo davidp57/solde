@@ -4,7 +4,16 @@
       :eyebrow="t('ui.page.collection_eyebrow')"
       :title="t('payments.title')"
       :subtitle="t('payments.subtitle')"
-    />
+    >
+      <template #actions>
+        <Button
+          data-testid="payments-new"
+          :label="t('payments.new')"
+          icon="pi pi-plus"
+          @click="paymentWizardVisible = true"
+        />
+      </template>
+    </AppPageHeader>
 
     <section class="app-stat-grid">
       <AppStatCard
@@ -376,6 +385,7 @@
         />
       </template>
     </Dialog>
+    <QuickPaymentWizard v-model:visible="paymentWizardVisible" @saved="loadPayments" />
   </AppPage>
 </template>
 
@@ -392,7 +402,7 @@ import Tag from 'primevue/tag'
 import ToggleButton from 'primevue/togglebutton'
 import { useToast } from 'primevue/usetoast'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getErrorDetail } from '@/utils/errorUtils'
 import {
@@ -416,6 +426,7 @@ import AppStatCard from '@/components/ui/AppStatCard.vue'
 import AppRowActions, { type RowAction } from '@/components/ui/AppRowActions.vue'
 import AppTableSkeleton from '@/components/ui/AppTableSkeleton.vue'
 import AppMobileCardList from '@/components/ui/AppMobileCardList.vue'
+import QuickPaymentWizard from '@/components/QuickPaymentWizard.vue'
 import { useFiscalYearStore } from '@/stores/fiscalYear'
 import AppListLimitBanner from '@/components/ui/AppListLimitBanner.vue'
 import { useListLimitStore } from '@/stores/listLimit'
@@ -434,6 +445,7 @@ import {
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
 const route = useRoute()
+const router = useRouter()
 const toast = useToast()
 const fiscalYearStore = useFiscalYearStore()
 const limitStore = useListLimitStore()
@@ -461,6 +473,7 @@ const undepositedOnly = ref(false)
 // (or outside every year) are otherwise invisible here.
 const showAllHistory = ref(false)
 
+const paymentWizardVisible = ref(false)
 const dialogVisible = ref(false)
 const editingPayment = ref<Payment | null>(null)
 const cancelDialogVisible = ref(false)
@@ -752,6 +765,10 @@ onMounted(async () => {
     undepositedOnly.value = true
   }
   await loadPayments()
+  if (route.query.create === '1') {
+    paymentWizardVisible.value = true
+    void router.replace({ name: 'payments', query: { ...route.query, create: undefined } })
+  }
 })
 </script>
 

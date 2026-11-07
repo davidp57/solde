@@ -223,7 +223,11 @@ import { formatContactDisplayName } from '../utils/contact'
 import { formatCurrency } from '../utils/format'
 
 const props = defineProps<{ visible: boolean }>()
-const emit = defineEmits<{ (e: 'update:visible', v: boolean): void }>()
+const emit = defineEmits<{
+  (e: 'update:visible', v: boolean): void
+  // Fired after each recorded payment, so a host showing payments can refresh.
+  (e: 'saved'): void
+}>()
 
 const { t } = useI18n()
 const { isMobile } = useBreakpoints()
@@ -370,6 +374,7 @@ async function submitPayment() {
     savedAmount.value = amount
     savedNumber.value = selectedInvoice.value.number
     success.value = true
+    emit('saved')
   } catch {
     success.value = false
   } finally {
