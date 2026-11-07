@@ -4,6 +4,16 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.19.1 — à paraître
+
+### Secrétaire / Trésorier
+
+- **Payer une facture fournisseur par virement** — la fenêtre « Enregistrer un règlement » d'une facture fournisseur propose maintenant **Virement**, en plus du chèque et des espèces.
+  Vous enregistrez le virement le jour où vous le faites, et la facture passe aussitôt à « payée ».
+  Quand le relevé arrive, rattachez la ligne de la banque au règlement avec **Lier à un règlement existant**, et non avec **Rapprocher** : la ligne serait marquée rapprochée sans être reliée au règlement, qui resterait en attente.
+  Le montant doit être exact : un règlement fournisseur ne se modifie ni ne s'annule après coup, et la liaison ne propose que les virements du même montant que la ligne.
+  Pour les factures clients, rien ne change : un virement reçu se crée toujours depuis le relevé.
+
 ## Version 1.19.0 — 24 octobre 2026
 
 ### Tous les utilisateurs

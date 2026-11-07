@@ -208,6 +208,46 @@ describe('InvoicePaymentDialog', () => {
     expect(wrapper.text()).not.toContain('payments.cash_amount_hint')
   })
 
+  it('does not offer a transfer on a client invoice', async () => {
+    const wrapper = mount(InvoicePaymentDialog, {
+      props: { visible: false, invoice: makeInvoice() },
+      global: { stubs },
+    })
+    await wrapper.setProps({ visible: true })
+    await flushPromises()
+
+    const values = wrapper.findAll('option').map((option) => option.attributes('value'))
+    expect(values).toEqual(['especes', 'cheque'])
+  })
+
+  it('records a supplier transfer with the balance proposed and no cheque number', async () => {
+    vi.mocked(createPayment).mockClear()
+    const wrapper = mount(InvoicePaymentDialog, {
+      props: {
+        visible: false,
+        invoice: makeInvoice({ type: 'fournisseur', total_amount: '450.00' }),
+      },
+      global: { stubs },
+    })
+    await wrapper.setProps({ visible: true })
+    await flushPromises()
+
+    const values = wrapper.findAll('option').map((option) => option.attributes('value'))
+    expect(values).toContain('virement')
+
+    await wrapper.find('select').setValue('virement')
+    await flushPromises()
+
+    expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe('450')
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    expect(createPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ amount: '450.00', method: 'virement', cheque_number: null }),
+    )
+  })
+
   it('does not record a payment when the remaining amount is zero', async () => {
     vi.mocked(createPayment).mockClear()
     const invoice = makeInvoice({ total_amount: '100.00', paid_amount: '100.00' })

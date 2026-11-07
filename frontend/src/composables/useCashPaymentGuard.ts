@@ -1,7 +1,7 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import { getCashBalance } from '../api/cash'
 
-export type GuardedPaymentMethod = 'especes' | 'cheque'
+export type GuardedPaymentMethod = 'especes' | 'cheque' | 'virement'
 
 export interface GuardedPaymentForm {
   method: GuardedPaymentMethod

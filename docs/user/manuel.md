@@ -374,6 +374,12 @@ Un paiement par chèque ou espèces peut être associé à une remise en banque 
 
 La procédure est similaire aux factures clients : la facture fournisseur est validée puis associée à un ou plusieurs paiements.
 
+Un règlement fournisseur peut se faire en espèces, par chèque ou par **virement**.
+Un virement s'enregistre le jour où vous le faites, depuis la facture : elle passe aussitôt à « payée ».
+Quand la ligne correspondante arrive avec le relevé, rattachez-la au règlement avec **Lier à un règlement existant** (menu de la ligne, écran Banque), et non avec **Rapprocher** : la ligne serait marquée rapprochée sans être reliée au règlement, qui resterait en attente.
+Saisissez le montant exact du virement : un règlement fournisseur ne se modifie ni ne s'annule après coup, et **Lier à un règlement existant** ne propose que les virements du même montant que la ligne.
+Si vous n'avez pas saisi le virement à l'avance, **Créer un règlement fournisseur** depuis la ligne du relevé fait les deux d'un coup.
+
 ---
 
 ## 7. Caisse

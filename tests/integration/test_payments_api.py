@@ -92,6 +92,47 @@ async def test_create_payment_client_virement_is_rejected(
 
 
 @pytest.mark.asyncio
+async def test_create_payment_supplier_virement_is_accepted(
+    client: AsyncClient, db_session: AsyncSession, admin_user: User, auth_headers: dict
+) -> None:
+    # The invoice payment dialog offers a manual transfer on supplier invoices; it
+    # stays undeposited until linked to its bank statement line.
+    supplier = Contact(type=ContactType.FOURNISSEUR, nom="Prof")
+    db_session.add(supplier)
+    await db_session.flush()
+    invoice = Invoice(
+        number="FF-2024-001",
+        type=InvoiceType.FOURNISSEUR,
+        contact_id=supplier.id,
+        date=date(2024, 1, 15),
+        total_amount=Decimal("450.00"),
+        paid_amount=Decimal("0"),
+        status=InvoiceStatus.SENT,
+    )
+    db_session.add(invoice)
+    await db_session.commit()
+
+    response = await client.post(
+        "/api/payments/",
+        json={
+            "invoice_id": invoice.id,
+            "contact_id": supplier.id,
+            "amount": "450.00",
+            "date": "2024-03-01",
+            "method": PaymentMethod.VIREMENT,
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["method"] == "virement"
+    assert data["deposited"] is False
+    await db_session.refresh(invoice)
+    assert invoice.status == InvoiceStatus.PAID
+
+
+@pytest.mark.asyncio
 async def test_create_payment_returns_404_for_unknown_invoice(
     client: AsyncClient, db_session: AsyncSession, admin_user: User, auth_headers: dict
 ) -> None:
