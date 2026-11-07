@@ -4,9 +4,9 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
-## Version 1.19.1 — à paraître
+## Version 1.19.1 *(à venir)*
 
-### Secrétaire / Trésorier
+### Secrétaire
 
 - **Payer une facture fournisseur par virement** — la fenêtre « Enregistrer un règlement » d'une facture fournisseur propose maintenant **Virement**, en plus du chèque et des espèces.
   Vous enregistrez le virement le jour où vous le faites, et la facture passe aussitôt à « payée ».
