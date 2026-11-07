@@ -1,6 +1,6 @@
 # Lot PAY-NEW — Bouton « Nouveau paiement » dans la vue Paiements
 
-Status: 🔄 in-progress
+Status: ✅ done
 Branch: feature/pay-new-button → PR → develop
 
 ## Problem Statement
@@ -23,4 +23,4 @@ Pas de second formulaire.
 
 | Ticket | Titre | Statut |
 |---|---|---|
-| [BIZ-266](tickets/01-payments-new-button.md) | Bouton « Nouveau paiement » dans la vue Paiements | 🔄 |
+| [BIZ-266](tickets/01-payments-new-button.md) | Bouton « Nouveau paiement » dans la vue Paiements | ✅ |

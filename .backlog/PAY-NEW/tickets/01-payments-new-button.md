@@ -1,6 +1,6 @@
 # BIZ-266 — Bouton « Nouveau paiement » dans la vue Paiements
 
-Status: 🔄 in-progress
+Status: ✅ done
 Type: feature
 Files: `frontend/src/views/PaymentsView.vue`,
 `frontend/src/components/QuickPaymentWizard.vue`,
@@ -17,8 +17,8 @@ Files: `frontend/src/views/PaymentsView.vue`,
 
 ## Acceptance criteria
 
-- [ ] Le bouton est présent et ouvre l'assistant.
-- [ ] `?create=1` ouvre l'assistant et retire le paramètre de l'URL.
-- [ ] Un paiement enregistré dans l'assistant recharge la liste.
-- [ ] L'assistant n'émet pas `saved` quand l'enregistrement échoue.
-- [ ] Le tableau de bord continue d'ouvrir l'assistant comme avant.
+- [x] Le bouton est présent et ouvre l'assistant.
+- [x] `?create=1` ouvre l'assistant et retire le paramètre de l'URL.
+- [x] Un paiement enregistré dans l'assistant recharge la liste.
+- [x] L'assistant n'émet pas `saved` quand l'enregistrement échoue.
+- [x] Le tableau de bord continue d'ouvrir l'assistant comme avant.
