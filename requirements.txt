@@ -54,11 +54,11 @@ et-xmlfile==2.0.0
     # via openpyxl
 fastapi==0.162.0
     # via solde (pyproject.toml)
-fonttools==4.67.0
+fonttools==4.68.0
     # via weasyprint
 google-auth==2.62.0
     # via google-genai
-google-genai==2.33.0
+google-genai==2.34.0
     # via solde (pyproject.toml)
 greenlet==3.5.6
     # via sqlalchemy
@@ -98,7 +98,7 @@ markupsafe==3.0.4
     # via
     #   jinja2
     #   mako
-openai==3.37.0
+openai==3.41.0
     # via solde (pyproject.toml)
 openpyxl==3.1.5
     # via solde (pyproject.toml)
@@ -106,7 +106,7 @@ opentelemetry-api==1.45.1
     # via fastapi
 pillow==13.0.0
     # via weasyprint
-pyasn1==0.6.4
+pyasn1==0.6.5
     # via pyasn1-modules
 pyasn1-modules==0.4.2
     # via google-auth
@@ -121,7 +121,7 @@ pydantic==2.14.1
     #   pydantic-settings
 pydantic-core==2.50.1
     # via pydantic
-pydantic-settings==2.16.1
+pydantic-settings==2.16.2
     # via solde (pyproject.toml)
 pydyf==0.13.0
     # via weasyprint
@@ -149,9 +149,9 @@ sqlalchemy==2.1.6
     # via
     #   solde (pyproject.toml)
     #   alembic
-starlette==1.9.0
+starlette==1.10.0
     # via fastapi
-tenacity==9.1.4
+tenacity==9.2.1
     # via google-genai
 tinycss2==1.5.1
     # via
@@ -183,7 +183,7 @@ typing-inspection==0.4.4
     #   fastapi
     #   pydantic
     #   pydantic-settings
-tzdata==2026.5 ; sys_platform == 'win32'
+tzdata==2026.6 ; sys_platform == 'win32'
     # via tzlocal
 tzlocal==5.4.5
     # via apscheduler
