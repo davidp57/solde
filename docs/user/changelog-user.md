@@ -8,6 +8,9 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ### Secrétaire
 
+- **Bouton « Nouveau paiement » dans l'écran Paiements** — en haut de l'écran **Paiements**, sur ordinateur comme sur téléphone, un bouton ouvre le même assistant que la carte « Encoder un paiement » du tableau de bord : choisir la facture impayée, puis saisir le règlement.
+  Le paiement enregistré apparaît aussitôt dans la liste.
+
 - **Payer une facture fournisseur par virement** — la fenêtre « Enregistrer un règlement » d'une facture fournisseur propose maintenant **Virement**, en plus du chèque et des espèces.
   Vous enregistrez le virement le jour où vous le faites, et la facture passe aussitôt à « payée ».
   Quand le relevé arrive, rattachez la ligne de la banque au règlement avec **Lier à un règlement existant**, et non avec **Rapprocher** : la ligne serait marquée rapprochée sans être reliée au règlement, qui resterait en attente.

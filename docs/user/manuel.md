@@ -307,12 +307,14 @@ Le format de numérotation est configurable par l'administrateur (ex. `2026-001`
 
 ### Encoder un paiement
 
+Le bouton **Nouveau paiement**, en haut de l'écran **Paiements** (sur ordinateur comme sur téléphone), ouvre le même assistant que la tuile **Encoder un paiement** du tableau de bord.
+
 1. Cliquer sur **Nouveau paiement**.
-2. Sélectionner le **contact** (optionnel si la facture est connue).
-3. Saisir le **montant** et la **date**.
-4. Optionnel : lier le paiement à une ou plusieurs factures existantes (section **Factures liées**). Si non lié, la facture reste au statut *Validée*.
-5. Saisir la référence (numéro de virement, de chèque, etc.).
-6. Cliquer sur **Enregistrer**.
+2. Choisir la **facture** réglée dans la liste des factures client impayées (bouton **Choisir**).
+3. Saisir la **date**, le **montant** et le **mode** (chèque ou espèces), puis le numéro de chèque, la référence et les notes si besoin.
+4. Cliquer sur **Enregistrer**. Le paiement apparaît aussitôt dans la liste ; **Encoder un autre paiement** relance l'assistant.
+
+Un virement client ne se saisit pas ici : il se crée depuis le relevé bancaire (voir section Banque).
 
 ### Règlement en espèces : le montant est à saisir
 

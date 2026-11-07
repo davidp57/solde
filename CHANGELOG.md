@@ -11,6 +11,9 @@ Ce projet respecte le [Versionnage sémantique](https://semver.org/lang/fr/).
 
 ## [Non publié]
 
+### Ajouté
+- **Bouton « Nouveau paiement » dans la vue Paiements** (BIZ-266). La vue Paiements n'avait aucun point d'entrée pour créer un règlement, ni sur ordinateur ni sur téléphone. Un bouton principal dans l'en-tête ouvre l'assistant `QuickPaymentWizard`, le même que la carte « Encoder un paiement » du tableau de bord. L'assistant émet désormais `saved` après chaque paiement enregistré, et la vue recharge sa liste. La route accepte `?create=1` pour ouvrir l'assistant, comme les factures.
+
 ### Corrigé
 - **Règlement fournisseur par virement.** La fenêtre de règlement d'une facture (`InvoicePaymentDialog`), commune aux clients et aux fournisseurs depuis TEC-194, ne proposait que chèque et espèces. Or le serveur accepte un virement fournisseur saisi à la main (seul le virement client est réservé au relevé bancaire), et l'action « Lier à un règlement existant » de l'écran Banque ne cherche, côté fournisseur, que des virements : rien ne permettait plus d'en créer, donc elle ne trouvait jamais rien. « Virement » est désormais proposé pour les factures fournisseur uniquement ; le montant restant est pré-rempli comme pour un chèque.
 
