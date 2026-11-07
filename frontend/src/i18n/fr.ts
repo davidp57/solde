@@ -723,8 +723,8 @@ export default {
     cancel_confirm: 'Annuler le règlement',
     cancelled: 'Règlement annulé.',
     cancel_refused: {
-      PAYMENT_SUPPLIER:
-        "Seuls les règlements reçus des clients peuvent être annulés ici. Un règlement émis à un fournisseur n'est pas concerné.",
+      PAYMENT_IMPORTED:
+        "Ce règlement vient de l'import Excel : utilisez l'annulation d'import pour le supprimer. L'annuler ici empêcherait ensuite d'annuler cet import.",
       PAYMENT_DEPOSITED:
         "Ce règlement est déjà arrivé sur le compte bancaire : il ne peut plus être annulé. Il faut passer par une écriture comptable d'annulation.",
       PAYMENT_RECONCILED:
@@ -930,6 +930,8 @@ export default {
       unreconciled: 'Opérations du relevé encore à rapprocher : {count}',
       unreconciled_awaiting:
         'Opérations du relevé encore à rapprocher : {count} — plus {awaiting} remise(s) enregistrée(s) qui attendent le prochain relevé',
+      unlinked_transfers:
+        '— et {unlinked_transfers} virement(s) fournisseur saisi(s) pas encore lié(s) au relevé (Banque, « Lier à un règlement existant »)',
       last_cash_count: 'Dernier comptage le {date}',
       pending_cash: 'Caisse : {amount}',
       pending_cheques: 'Chèques à remettre : {count}, soit {amount}',

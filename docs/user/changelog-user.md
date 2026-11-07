@@ -4,6 +4,22 @@ Ce document présente les changements visibles dans l'application, version par v
 
 ---
 
+## Version 1.19.2 *(à venir)*
+
+### Administrateur
+
+- **Annuler un règlement fournisseur saisi par erreur** — un virement, un chèque ou des espèces versés à un fournisseur s'annulent maintenant comme un règlement client, tant que le virement n'est pas lié à sa ligne de relevé.
+  L'écran **Paiements** ne montre que les règlements clients : ouvrez la facture fournisseur (menu **⋯**, **Voir**) et cliquez sur la corbeille de la ligne du règlement.
+  **Voir** est désormais proposé pour toutes les factures fournisseur, même sans pièce jointe.
+  La facture repasse en attente, et le bon montant peut être ressaisi.
+- **Les règlements venus de l'import Excel ne s'annulent plus ici** — les annuler à la main empêchait ensuite d'annuler l'import lui-même.
+  La fenêtre d'annulation l'explique ; c'est l'annulation d'import qui les supprime.
+
+### Trésorier
+
+- **Virements fournisseur oubliés** — dans la séance de comptabilité, l'étape « Rapprocher » signale les virements fournisseur saisis qui ne sont toujours pas liés à leur ligne de relevé, par exemple : « … et 2 virement(s) fournisseur saisi(s) pas encore lié(s) au relevé ».
+  Un virement qui reste dans cette liste a été oublié, ou saisi avec un montant différent de celui de la banque : dans ce cas, faites-le annuler par l'administrateur et ressaisissez-le avant de le lier.
+
 ## Version 1.19.1 *(à venir)*
 
 ### Secrétaire
@@ -11,7 +27,7 @@ Ce document présente les changements visibles dans l'application, version par v
 - **Payer une facture fournisseur par virement** — la fenêtre « Enregistrer un règlement » d'une facture fournisseur propose maintenant **Virement**, en plus du chèque et des espèces.
   Vous enregistrez le virement le jour où vous le faites, et la facture passe aussitôt à « payée ».
   Quand le relevé arrive, rattachez la ligne de la banque au règlement avec **Lier à un règlement existant**, et non avec **Rapprocher** : la ligne serait marquée rapprochée sans être reliée au règlement, qui resterait en attente.
-  Le montant doit être exact : un règlement fournisseur ne se modifie ni ne s'annule après coup, et la liaison ne propose que les virements du même montant que la ligne.
+  Le montant doit être exact : la liaison ne propose que les virements du même montant que la ligne (en cas d'erreur, voir la version 1.19.2).
   Pour les factures clients, rien ne change : un virement reçu se crée toujours depuis le relevé.
 
 ## Version 1.19.0 — 24 octobre 2026

@@ -46,7 +46,7 @@ export interface PaymentUpdate {
 
 /** Refusal codes returned when a payment cannot be cancelled. */
 export type PaymentCancelReason =
-  | 'PAYMENT_SUPPLIER'
+  | 'PAYMENT_IMPORTED'
   | 'PAYMENT_DEPOSITED'
   | 'PAYMENT_RECONCILED'
   | 'FISCAL_YEAR_CLOSED'

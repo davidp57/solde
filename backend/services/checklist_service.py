@@ -342,10 +342,12 @@ async def compute_signals(db: AsyncSession, *, period: str) -> dict[str, dict[st
     """
     from backend.models.bank import BankTransaction, BankTransactionSource  # noqa: PLC0415
     from backend.models.cash import CashCount  # noqa: PLC0415
+    from backend.models.invoice import Invoice, InvoiceType  # noqa: PLC0415
     from backend.models.payment import Payment, PaymentMethod  # noqa: PLC0415
     from backend.models.salary import Salary  # noqa: PLC0415
     from backend.services import cash_service  # noqa: PLC0415
     from backend.services import settings as settings_service  # noqa: PLC0415
+    from backend.services.payment import imported_payment_clause  # noqa: PLC0415
 
     signals: dict[str, dict[str, Any]] = {}
 
@@ -398,9 +400,25 @@ async def compute_signals(db: AsyncSession, *, period: str) -> dict[str, dict[st
             BankTransaction.date <= period_end,
         )
     )
+    # A supplier transfer recorded when it was sent stays pending until it is
+    # linked to its statement line ("Lier à un règlement existant"). One never
+    # linked is either forgotten or mistyped. The import's historical transfers
+    # are left out: they were never meant to be linked.
+    unlinked_transfers = await db.execute(
+        select(func.count(Payment.id))
+        .join(Invoice, Invoice.id == Payment.invoice_id)
+        .where(
+            Invoice.type == InvoiceType.FOURNISSEUR,
+            Payment.method == PaymentMethod.VIREMENT,
+            Payment.deposited.is_(False),
+            Payment.date <= period_end,
+            ~imported_payment_clause(Payment.id),
+        )
+    )
     signals[ChecklistSignal.UNRECONCILED.value] = {
         "count": unreconciled.scalar_one(),
         "awaiting": awaiting.scalar_one(),
+        "unlinked_transfers": unlinked_transfers.scalar_one(),
     }
 
     last_count = await db.execute(select(func.max(CashCount.date)))

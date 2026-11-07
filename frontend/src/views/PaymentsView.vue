@@ -348,34 +348,11 @@
         />
       </template>
     </Dialog>
-    <Dialog
+    <PaymentCancelDialog
       v-model:visible="cancelDialogVisible"
-      :header="t('payments.cancel_title')"
-      modal
-      class="app-dialog app-dialog--medium"
-    >
-      <div class="app-dialog-form" data-testid="payment-cancel-body">
-        <p v-if="cancelPreviewLoading">{{ t('payments.cancel_loading') }}</p>
-        <template v-else-if="cancelPreview && cancelPreview.can_cancel">
-          <p>{{ cancelIntroText }}</p>
-          <p v-if="cancelDepositText">{{ cancelDepositText }}</p>
-          <p class="app-dialog-hint">{{ t('payments.cancel_hint') }}</p>
-        </template>
-        <Message v-else-if="cancelPreview" severity="warn">{{ cancelRefusalText }}</Message>
-      </div>
-      <template #footer>
-        <Button :label="t('common.close')" text @click="cancelDialogVisible = false" />
-        <Button
-          v-if="cancelPreview?.can_cancel"
-          data-testid="payment-cancel-confirm"
-          :label="t('payments.cancel_confirm')"
-          icon="pi pi-trash"
-          severity="danger"
-          :loading="cancelling"
-          @click="confirmCancelPayment"
-        />
-      </template>
-    </Dialog>
+      :payment="cancelTarget"
+      @cancelled="onPaymentCancelled"
+    />
   </AppPage>
 </template>
 
@@ -385,7 +362,6 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
-import Message from 'primevue/message'
 import type { MenuItem } from 'primevue/menuitem'
 import Select from 'primevue/select'
 import Tag from 'primevue/tag'
@@ -396,14 +372,12 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getErrorDetail } from '@/utils/errorUtils'
 import {
-  cancelPayment,
-  getPaymentCancelPreview,
   listPaymentsWithCount,
   updatePayment,
   type Payment,
-  type PaymentCancelPreview,
   type PaymentMethod,
 } from '@/api/payments'
+import PaymentCancelDialog from '@/components/payments/PaymentCancelDialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import AppPage from '@/components/ui/AppPage.vue'
 import AppDateRangeFilter from '@/components/ui/AppDateRangeFilter.vue'
@@ -464,9 +438,6 @@ const showAllHistory = ref(false)
 const dialogVisible = ref(false)
 const editingPayment = ref<Payment | null>(null)
 const cancelDialogVisible = ref(false)
-const cancelPreviewLoading = ref(false)
-const cancelling = ref(false)
-const cancelPreview = ref<PaymentCancelPreview | null>(null)
 const cancelTarget = ref<Payment | null>(null)
 const paymentForm = ref({
   amount: '',
@@ -586,65 +557,15 @@ function paymentMenuItems(payment: Payment): MenuItem[] {
   ]
 }
 
-async function openCancelDialog(payment: Payment): Promise<void> {
+function openCancelDialog(payment: Payment): void {
   cancelTarget.value = payment
-  cancelPreview.value = null
   cancelDialogVisible.value = true
-  cancelPreviewLoading.value = true
-  try {
-    cancelPreview.value = await getPaymentCancelPreview(payment.id)
-  } catch (err: unknown) {
-    cancelDialogVisible.value = false
-    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 3000 })
-  } finally {
-    cancelPreviewLoading.value = false
-  }
 }
 
-const cancelIntroText = computed(() => {
-  const preview = cancelPreview.value
-  if (!preview) return ''
-  return t('payments.cancel_intro', {
-    amount: formatAmount(preview.amount),
-    date: formatDisplayDate(preview.date),
-  })
-})
-
-const cancelDepositText = computed(() => {
-  const preview = cancelPreview.value
-  if (!preview || preview.deposit_id === null) return ''
-  const depositDate = formatDisplayDate(preview.deposit_date ?? '')
-  if (preview.deposit_will_be_deleted) {
-    return t('payments.cancel_deposit_deleted', { date: depositDate })
-  }
-  return t('payments.cancel_deposit_kept', {
-    date: depositDate,
-    before: formatAmount(preview.deposit_total_before ?? '0'),
-    after: formatAmount(preview.deposit_total_after ?? '0'),
-  })
-})
-
-const cancelRefusalText = computed(() => {
-  const code = cancelPreview.value?.reason_code
-  return code ? t(`payments.cancel_refused.${code}`) : ''
-})
-
-async function confirmCancelPayment(): Promise<void> {
-  const payment = cancelTarget.value
-  if (!payment) return
-  cancelling.value = true
-  try {
-    await cancelPayment(payment.id)
-    cancelDialogVisible.value = false
-    // Drop the row here rather than re-fetching the list: the screen must not depend on
-    // a second request to reflect what the server has already confirmed.
-    payments.value = payments.value.filter((candidate) => candidate.id !== payment.id)
-    toast.add({ severity: 'success', summary: t('payments.cancelled'), life: 3000 })
-  } catch (err: unknown) {
-    toast.add({ severity: 'error', summary: getErrorDetail(err, t('common.error.unknown')), life: 5000 })
-  } finally {
-    cancelling.value = false
-  }
+function onPaymentCancelled(payment: Payment): void {
+  // Drop the row here rather than re-fetching the list: the screen must not depend on
+  // a second request to reflect what the server has already confirmed.
+  payments.value = payments.value.filter((candidate) => candidate.id !== payment.id)
 }
 
 function openEditDialog(payment: Payment) {

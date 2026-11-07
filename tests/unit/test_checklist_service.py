@@ -274,6 +274,106 @@ async def test_unreconciled_signal_ignores_what_is_not_this_session_s_work(
 
 
 @pytest.mark.asyncio
+async def test_unreconciled_signal_counts_supplier_transfers_never_linked(
+    db_session: AsyncSession,
+) -> None:
+    """A transfer recorded when sent must end up linked to its statement line.
+
+    Only the ones typed in the application count: the import's historical
+    transfers were never meant to be linked, and listing them every month
+    would bury the one that matters.
+    """
+    from decimal import Decimal
+
+    from backend.models.contact import Contact, ContactType
+    from backend.models.import_run import (
+        ImportEffect,
+        ImportEffectAction,
+        ImportEffectStatus,
+        ImportOperation,
+        ImportOperationDecision,
+        ImportOperationStatus,
+        ImportRun,
+        ImportRunStatus,
+    )
+    from backend.models.invoice import Invoice, InvoiceStatus, InvoiceType
+    from backend.models.payment import Payment, PaymentMethod
+    from backend.schemas.payment import PaymentCreate
+    from backend.services import payment as payment_service
+
+    supplier = Contact(type=ContactType.FOURNISSEUR, nom="Prof", prenom="Théo")
+    db_session.add(supplier)
+    await db_session.flush()
+    invoice = Invoice(
+        number="FA-2026-001",
+        type=InvoiceType.FOURNISSEUR,
+        contact_id=supplier.id,
+        date=date(2026, 8, 1),
+        total_amount=Decimal("1000.00"),
+        paid_amount=Decimal("0"),
+        status=InvoiceStatus.SENT,
+    )
+    db_session.add(invoice)
+    await db_session.flush()
+
+    async def pay(on: date, method: PaymentMethod = PaymentMethod.VIREMENT) -> int:
+        payment = await payment_service.create_payment(
+            db_session,
+            PaymentCreate(
+                invoice_id=invoice.id,
+                contact_id=supplier.id,
+                amount=Decimal("10.00"),
+                date=on,
+                method=method,
+            ),
+        )
+        return payment.id
+
+    # The one to report: sent in the period, still not linked.
+    await pay(date(2026, 8, 12))
+    # Sent after the period: the next session's work.
+    await pay(date(2026, 9, 3))
+    # Already linked to its statement line.
+    linked = await pay(date(2026, 8, 14))
+    linked_payment = (
+        await db_session.execute(select(Payment).where(Payment.id == linked))
+    ).scalar_one()
+    linked_payment.deposited = True
+    # A cheque is not a transfer.
+    await pay(date(2026, 8, 15), PaymentMethod.CHEQUE)
+    # Historical transfer brought by the Excel import.
+    imported = await pay(date(2026, 8, 16))
+    run = ImportRun(import_type="gestion", status=ImportRunStatus.COMPLETED, file_hash="x" * 64)
+    db_session.add(run)
+    await db_session.flush()
+    operation = ImportOperation(
+        run_id=run.id,
+        position=1,
+        operation_type="create_payment",
+        title="Règlement importé",
+        decision=ImportOperationDecision.APPLY,
+        status=ImportOperationStatus.APPLIED,
+    )
+    db_session.add(operation)
+    await db_session.flush()
+    db_session.add(
+        ImportEffect(
+            operation_id=operation.id,
+            position=1,
+            entity_type="payment",
+            action=ImportEffectAction.CREATE,
+            entity_id=imported,
+            status=ImportEffectStatus.APPLIED,
+        )
+    )
+    await db_session.flush()
+
+    signals = await checklist_service.compute_signals(db_session, period="2026-08")
+
+    assert signals["unreconciled"]["unlinked_transfers"] == 1
+
+
+@pytest.mark.asyncio
 async def test_signals_are_dated_or_counted_facts(db_session: AsyncSession) -> None:
     signals = await checklist_service.compute_signals(db_session, period="2026-09")
 
