@@ -46,10 +46,12 @@ def _entry(number: str) -> AccountingEntry:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("allocate", ["single", "batch"])
+@pytest.mark.parametrize("allocate", ["single", "batch", "savepoint"])
 async def test_a_second_writer_waits_for_the_first_one_to_commit(
     file_engine: AsyncEngine, allocate: str
 ) -> None:
+    """``savepoint``: the second session allocates inside ``begin_nested`` (import runs),
+    whose SAVEPOINT opens a transaction without taking the write lock."""
     factory = async_sessionmaker(file_engine, class_=AsyncSession, expire_on_commit=False)
 
     async def _allocate(db: AsyncSession) -> str:
@@ -57,16 +59,21 @@ async def test_a_second_writer_waits_for_the_first_one_to_commit(
             return await next_entry_number(db)
         return (await next_entry_numbers(db, 1))[0]
 
+    async def _second() -> str:
+        if allocate == "savepoint":
+            async with second.begin_nested():
+                number = await _allocate(second)
+                second.add(_entry(number))
+        else:
+            number = await _allocate(second)
+            second.add(_entry(number))
+        await second.commit()
+        return number
+
     async with factory() as first, factory() as second:
         first_number = await _allocate(first)
         first.add(_entry(first_number))
         await first.flush()
-
-        async def _second() -> str:
-            number = await _allocate(second)
-            second.add(_entry(number))
-            await second.commit()
-            return number
 
         pending = asyncio.create_task(_second())
         await asyncio.sleep(0.3)

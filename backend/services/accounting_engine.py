@@ -63,15 +63,21 @@ async def _hold_write_lock(db: AsyncSession) -> None:
     writer waits on ``BEGIN IMMEDIATE`` (up to the driver's busy timeout) and then
     reads the maximum the first one committed.
 
-    The SQLite driver only opens a transaction on the first write, so a session
-    already inside one has written, and therefore already holds the lock.
+    A session already inside a transaction usually holds the lock — the SQLite
+    driver only opens one on the first write — but not always: a ``SAVEPOINT``
+    (``begin_nested``) opens a read-only transaction.  There, an empty write takes
+    the lock, waiting for it like ``BEGIN IMMEDIATE`` would.
     """
     conn = await db.connection()
     if conn.dialect.name != "sqlite":
         return
     raw = await conn.get_raw_connection()
     driver = raw.driver_connection
-    if driver is not None and not driver.in_transaction:
+    if driver is None:
+        return
+    if driver.in_transaction:
+        await conn.exec_driver_sql("UPDATE accounting_entries SET id = id WHERE 0")
+    else:
         await conn.exec_driver_sql("BEGIN IMMEDIATE")
 
 
