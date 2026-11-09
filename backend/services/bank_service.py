@@ -452,7 +452,8 @@ async def list_deposit_merge_candidates(db: AsyncSession, *, tx_id: int) -> list
     well after the credit, statement imported first), both lines sit in the
     account and the user has to sort it out.  Candidates are unreconciled
     ``manual`` deposit lines of the same slip type (cheques or cash) on the same
-    account, for the very same amount — no date window here, since the user is the one designating the match.
+    account, for the very same amount — no date window here, since the user is
+    the one designating the match.
 
     Ordered by date proximity, closest first.
     """
