@@ -1293,6 +1293,60 @@ async def test_no_merge_for_a_regular_statement_row(db_session: AsyncSession) ->
     assert merged is None
 
 
+async def _make_pending_cash_deposit_tx(
+    db: AsyncSession,
+    *,
+    amount: Decimal = Decimal("226.00"),
+    tx_date: date = date(2026, 7, 11),
+) -> BankTransaction:
+    """Create the provisional transaction a confirmed cash slip writes."""
+    tx = await bank_service.create_bank_transaction_record(
+        db,
+        date=tx_date,
+        amount=amount,
+        reference="DEP-ESP-7",
+        description="Remise d'espèces (bordereau #7)",
+        source=BankTransactionSource.MANUAL,
+    )
+    tx.detected_category = BankTransactionCategory.CASH_DEPOSIT
+    await db.flush()
+    return tx
+
+
+@pytest.mark.asyncio
+async def test_cheque_statement_row_never_absorbs_a_cash_slip_line(
+    db_session: AsyncSession,
+) -> None:
+    """Same amount, same days: a cheque credit must not be folded into a cash slip.
+
+    The merge would mark the cash slip's line reconciled with the cheque credit's
+    reference, and name the wrong slip in the audit trail (issue #195).
+    """
+    cash_line = await _make_pending_cash_deposit_tx(db_session)
+
+    merged = await bank_service.absorb_pending_deposit_transaction(db_session, _statement_row())
+
+    assert merged is None
+    await db_session.refresh(cash_line)
+    assert cash_line.reconciled is False
+    assert cash_line.reference == "DEP-ESP-7"
+
+
+@pytest.mark.asyncio
+async def test_cheque_statement_row_picks_the_cheque_slip_next_to_a_cash_one(
+    db_session: AsyncSession,
+) -> None:
+    """A cash slip of the same amount is not a rival candidate: the cheque one still merges."""
+    await _make_pending_cash_deposit_tx(db_session)
+    cheque_line = await _make_pending_deposit_tx(db_session)
+
+    merged = await bank_service.absorb_pending_deposit_transaction(db_session, _statement_row())
+
+    assert merged is not None
+    assert merged.id == cheque_line.id
+    assert merged.reconciled_with == "Bordereau #6"
+
+
 # ---------------------------------------------------------------------------
 # Deposit merge after the fact
 # ---------------------------------------------------------------------------
@@ -1328,6 +1382,19 @@ async def test_merge_candidates_lists_the_provisional_line(db_session: AsyncSess
     candidates = await bank_service.list_deposit_merge_candidates(db_session, tx_id=statement.id)
 
     assert [c.id for c in candidates] == [provisional.id]
+
+
+@pytest.mark.asyncio
+async def test_merge_candidates_ignores_a_slip_of_the_other_type(
+    db_session: AsyncSession,
+) -> None:
+    """A cheque credit is never offered a cash slip line, even for the same amount."""
+    await _make_pending_cash_deposit_tx(db_session, tx_date=date(2026, 7, 11))
+    statement = await _make_statement_deposit_tx(db_session)
+
+    candidates = await bank_service.list_deposit_merge_candidates(db_session, tx_id=statement.id)
+
+    assert candidates == []
 
 
 @pytest.mark.asyncio

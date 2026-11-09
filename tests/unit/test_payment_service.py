@@ -697,6 +697,92 @@ async def test_cancel_cash_payment_removes_it_from_the_till(db_session: AsyncSes
     assert refreshed.status != InvoiceStatus.PAID
 
 
+async def _make_cash_receipt(db: AsyncSession, receipt_date: date) -> int:
+    contact = await _make_contact(db)
+    inv = await _make_invoice(db, contact.id, Decimal("100.00"))
+    payment = await payment_service.create_payment(
+        db,
+        PaymentCreate(
+            invoice_id=inv.id,
+            contact_id=contact.id,
+            amount=Decimal("100.00"),
+            date=receipt_date,
+            method=PaymentMethod.ESPECES,
+        ),
+    )
+    return payment.id
+
+
+async def _bank_cash(db: AsyncSession, deposit_date: date, *, confirm: bool = True) -> None:
+    deposit = await bank_service.create_deposit(
+        db,
+        DepositCreate(
+            date=deposit_date,
+            type=DepositType.ESPECES,
+            total_amount=Decimal("100.00"),
+        ),
+    )
+    if confirm:
+        await bank_service.confirm_deposit(db, deposit.id)
+
+
+@pytest.mark.asyncio
+async def test_cancel_cash_payment_refused_once_the_cash_went_to_the_bank(
+    db_session: AsyncSession,
+) -> None:
+    """Cash swept to the bank by a confirmed slip is no longer in the till (issue #196).
+
+    Cancelling would delete the till's IN movement while the slip's OUT stays,
+    leaving the till 100 € short of what was actually counted.
+    """
+    payment_id = await _make_cash_receipt(db_session, date(2024, 2, 1))
+    await _bank_cash(db_session, date(2024, 2, 5))
+
+    preview = await payment_service.preview_payment_cancellation(db_session, payment_id)
+    assert preview.can_cancel is False
+    assert preview.reason_code == "PAYMENT_CASH_BANKED"
+
+    with pytest.raises(payment_service.PaymentCancelError) as exc_info:
+        await payment_service.cancel_payment(db_session, payment_id)
+
+    assert exc_info.value.code == "PAYMENT_CASH_BANKED"
+    assert await payment_service.get_payment(db_session, payment_id) is not None
+    till = list(
+        (
+            await db_session.execute(
+                select(CashRegister).where(CashRegister.payment_id == payment_id)
+            )
+        ).scalars()
+    )
+    assert len(till) == 1
+
+
+@pytest.mark.asyncio
+async def test_cancel_cash_payment_allowed_when_only_an_earlier_slip_was_banked(
+    db_session: AsyncSession,
+) -> None:
+    """A slip made up before the receipt could not have carried its cash."""
+    payment_id = await _make_cash_receipt(db_session, date(2024, 2, 10))
+    await _bank_cash(db_session, date(2024, 2, 5))
+
+    preview = await payment_service.preview_payment_cancellation(db_session, payment_id)
+
+    assert preview.can_cancel is True
+
+
+@pytest.mark.asyncio
+async def test_cancel_cash_payment_allowed_while_the_slip_is_not_confirmed(
+    db_session: AsyncSession,
+) -> None:
+    """An unconfirmed slip has not taken the cash out of the till yet."""
+    payment_id = await _make_cash_receipt(db_session, date(2024, 2, 1))
+    await _bank_cash(db_session, date(2024, 2, 5), confirm=False)
+
+    preview = await payment_service.preview_payment_cancellation(db_session, payment_id)
+
+    assert preview.can_cancel is True
+
+
 @pytest.mark.asyncio
 async def test_cancel_payment_refused_when_deposited(db_session: AsyncSession) -> None:
     """A cheque already cashed in at the bank cannot be cancelled."""

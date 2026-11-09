@@ -240,6 +240,7 @@ async def count_generated_accounting_entries(db: AsyncSession) -> int:
         EntrySourceType.SALARY,
         EntrySourceType.GESTION,
         EntrySourceType.CLOTURE,
+        EntrySourceType.RAN,
     )
     result = await db.execute(
         select(func.count(AccountingEntry.id)).where(

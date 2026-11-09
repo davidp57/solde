@@ -17,6 +17,14 @@ Ce document présente les changements visibles dans l'application, version par v
   Le montant doit être exact : un règlement fournisseur ne se modifie ni ne s'annule après coup, et la liaison ne propose que les virements du même montant que la ligne.
   Pour les factures clients, rien ne change : un virement reçu se crée toujours depuis le relevé.
 
+### Trésorier
+
+- **Remises et relevé bancaire** — à l'import d'un relevé, une remise de chèques n'est plus rattachée par erreur à un bordereau d'espèces du même montant, et inversement. L'action **Rattacher à un bordereau enregistré** ne propose plus que des bordereaux de la même nature que la ligne.
+
+- **Annuler un règlement en espèces** — l'annulation reste possible tant que les espèces sont en caisse. Dès qu'une remise d'espèces datée du jour du règlement ou après est confirmée, l'argent est considéré comme parti à la banque : l'annulation est refusée et la fenêtre l'explique, pour éviter de retirer de la caisse un montant qui n'y est plus.
+
+- **Journal : clôture et report à nouveau séparés** — dans le **Journal** groupé, les écritures de clôture d'un exercice et le report à nouveau de l'exercice suivant formaient un seul groupe, à cheval sur deux exercices, avec un total qui mélangeait les deux. Le report à nouveau forme maintenant son propre groupe dans l'exercice qu'il ouvre, et le filtre par origine propose **Report à nouveau**.
+
 ## Version 1.19.0 — 24 octobre 2026
 
 ### Tous les utilisateurs

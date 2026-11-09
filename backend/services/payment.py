@@ -41,6 +41,7 @@ class PaymentCancelError(PaymentDeleteError):
 CANCEL_REFUSAL_MESSAGES: dict[str, str] = {
     "PAYMENT_SUPPLIER": "only client payments can be cancelled",
     "PAYMENT_DEPOSITED": "payment has already been cashed in and cannot be cancelled",
+    "PAYMENT_CASH_BANKED": "the cash has already been taken to the bank and cannot be cancelled",
     "PAYMENT_RECONCILED": "payment is linked to a bank transaction and cannot be cancelled",
     "FISCAL_YEAR_CLOSED": "payment belongs to a closed fiscal year and cannot be cancelled",
 }
@@ -332,7 +333,8 @@ async def _find_cancel_refusal(db: AsyncSession, payment: Payment) -> str | None
     is in the till, not at the bank — refusing it on that basis told users their
     cash "already reached the bank account", which is plainly false, and left a
     mistyped cash receipt with no way back. A cash receipt still in the till is
-    correctable; only a bank link or a closed year stops it.
+    correctable; once a confirmed cash slip has swept the till to the bank, it is
+    not (see :func:`_cash_banked_since`). A bank link or a closed year stops it too.
     """
     from backend.models.fiscal_year import FiscalYearStatus  # noqa: PLC0415
     from backend.services.fiscal_year_service import find_fiscal_year_for_date  # noqa: PLC0415
@@ -344,12 +346,37 @@ async def _find_cancel_refusal(db: AsyncSession, payment: Payment) -> str | None
         return "PAYMENT_SUPPLIER"
     if payment.deposited and payment.method != PaymentMethod.ESPECES:
         return "PAYMENT_DEPOSITED"
+    if payment.method == PaymentMethod.ESPECES and await _cash_banked_since(db, payment.date):
+        return "PAYMENT_CASH_BANKED"
     if await _has_bank_link(db, payment.id):
         return "PAYMENT_RECONCILED"
     fiscal_year = await find_fiscal_year_for_date(db, payment.date)
     if fiscal_year is not None and fiscal_year.status == FiscalYearStatus.CLOSED:
         return "FISCAL_YEAR_CLOSED"
     return None
+
+
+async def _cash_banked_since(db: AsyncSession, receipt_date: date) -> bool:
+    """Report whether a confirmed cash slip, made up on or after *receipt_date*, exists.
+
+    A cash slip names no payment: it takes an amount out of the till. Nothing says
+    which receipts it carried, so any confirmed slip dated on or after the receipt
+    is taken to have carried it. Cancelling the receipt then would delete the till's
+    IN movement while the slip's OUT stays, leaving the till short of money that is
+    really at the bank.
+    """
+    from backend.models.bank import Deposit, DepositType  # noqa: PLC0415
+
+    result = await db.execute(
+        select(func.count())
+        .select_from(Deposit)
+        .where(
+            Deposit.type == DepositType.ESPECES,
+            Deposit.confirmed == True,  # noqa: E712
+            Deposit.date >= receipt_date,
+        )
+    )
+    return bool(result.scalar_one())
 
 
 async def _has_bank_link(db: AsyncSession, payment_id: int) -> bool:

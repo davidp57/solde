@@ -48,50 +48,54 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_ENTRY_NUMBER_MAX_RETRIES = 3
-
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
 
-async def next_entry_number(db: AsyncSession) -> str:
-    """Return the next sequential entry number (globally unique, 6 digits).
+async def _hold_write_lock(db: AsyncSession) -> None:
+    """Make sure this session holds SQLite's write lock before a number is read.
+
+    Numbers are ``MAX(entry_number) + 1``: two sessions reading the maximum before
+    either commits would both claim the same number, and the second insert would
+    hit the unique index (migration 0052) as an unhandled error.  Holding the
+    write lock from the read until the commit serialises allocations: a second
+    writer waits on ``BEGIN IMMEDIATE`` (up to the driver's busy timeout) and then
+    reads the maximum the first one committed.
+
+    A session already inside a transaction usually holds the lock — the SQLite
+    driver only opens one on the first write — but not always: a ``SAVEPOINT``
+    (``begin_nested``) opens a read-only transaction.  There, an empty write takes
+    the lock, waiting for it like ``BEGIN IMMEDIATE`` would.
+    """
+    conn = await db.connection()
+    if conn.dialect.name != "sqlite":
+        return
+    raw = await conn.get_raw_connection()
+    driver = raw.driver_connection
+    if driver is None:
+        return
+    if driver.in_transaction:
+        await conn.exec_driver_sql("UPDATE accounting_entries SET id = id WHERE 0")
+    else:
+        await conn.exec_driver_sql("BEGIN IMMEDIATE")
+
+
+async def next_entry_numbers(db: AsyncSession, count: int) -> list[str]:
+    """Allocate *count* sequential entry numbers (globally unique, 6 digits).
 
     Filters to numeric-only entry_number values (GLOB '[0-9]*') to avoid
     being misled by non-numeric entries such as 'RUN-*' import entries,
     which are lexicographically greater than '000NNN' and would otherwise
     cause the int() conversion to fail and silently reset the counter to 1.
 
-    Uses a retry loop to handle IntegrityError from the UNIQUE constraint
-    on entry_number in case of concurrent requests.
+    Concurrent sessions are serialised by :func:`_hold_write_lock`.  Within one
+    session, numbers must be inserted and flushed before the next allocation:
+    the maximum is read from the database, not from pending objects.
     """
-    for attempt in range(_ENTRY_NUMBER_MAX_RETRIES):
-        result = await db.execute(
-            select(func.max(AccountingEntry.entry_number)).where(
-                AccountingEntry.entry_number.op("GLOB")("[0-9][0-9][0-9][0-9][0-9][0-9]")
-            )
-        )
-        current_max: str | None = result.scalar_one_or_none()
-        next_num = 1 if current_max is None else int(current_max) + 1
-        candidate = f"{next_num:06d}"
-        if attempt == 0:
-            return candidate
-        # On retry, verify the candidate is still available
-        logger.warning(
-            "Entry number collision, retry %d/%d",
-            attempt,
-            _ENTRY_NUMBER_MAX_RETRIES,
-        )
-        return candidate
-    # Should never be reached, but satisfy type checker
-    raise RuntimeError("Failed to allocate entry number after retries")
-
-
-async def next_entry_numbers(db: AsyncSession, count: int) -> list[str]:
-    """Allocate *count* sequential entry numbers in a single DB round-trip."""
     if count <= 0:
         return []
+    await _hold_write_lock(db)
     result = await db.execute(
         select(func.max(AccountingEntry.entry_number)).where(
             AccountingEntry.entry_number.op("GLOB")("[0-9][0-9][0-9][0-9][0-9][0-9]")
@@ -100,6 +104,11 @@ async def next_entry_numbers(db: AsyncSession, count: int) -> list[str]:
     current_max: str | None = result.scalar_one_or_none()
     start = 1 if current_max is None else int(current_max) + 1
     return [f"{start + i:06d}" for i in range(count)]
+
+
+async def next_entry_number(db: AsyncSession) -> str:
+    """Return the next sequential entry number — see :func:`next_entry_numbers`."""
+    return (await next_entry_numbers(db, 1))[0]
 
 
 # Backward-compatible alias

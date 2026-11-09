@@ -403,7 +403,9 @@ async def absorb_pending_deposit_transaction(
             BankTransaction.reconciled == False,  # noqa: E712
             BankTransaction.bank_account == payload.bank_account,
             BankTransaction.amount == payload.amount,
-            BankTransaction.detected_category.in_(_DEPOSIT_CATEGORIES),
+            # The exact category, not merely a deposit one: a cheque credit must never
+            # be folded into a cash slip's line of the same amount.
+            BankTransaction.detected_category == category,
             BankTransaction.date >= payload.date - window,
             BankTransaction.date <= payload.date + window,
         )
@@ -449,8 +451,9 @@ async def list_deposit_merge_candidates(db: AsyncSession, *, tx_id: int) -> list
     fact: when the automatic merge did not happen at import time (slip confirmed
     well after the credit, statement imported first), both lines sit in the
     account and the user has to sort it out.  Candidates are unreconciled
-    ``manual`` deposit lines on the same account, for the very same amount — no
-    date window here, since the user is the one designating the match.
+    ``manual`` deposit lines of the same slip type (cheques or cash) on the same
+    account, for the very same amount — no date window here, since the user is
+    the one designating the match.
 
     Ordered by date proximity, closest first.
     """
@@ -471,7 +474,9 @@ async def list_deposit_merge_candidates(db: AsyncSession, *, tx_id: int) -> list
             BankTransaction.reconciled == False,  # noqa: E712
             BankTransaction.bank_account == tx.bank_account,
             BankTransaction.amount == tx.amount,
-            BankTransaction.detected_category.in_(_DEPOSIT_CATEGORIES),
+            # Same slip type only: offering a cash slip to a cheque credit invites
+            # the user to attach the statement row to the wrong slip.
+            BankTransaction.detected_category == tx.detected_category,
         )
     )
     candidates = list(result.scalars().all())

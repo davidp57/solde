@@ -340,7 +340,7 @@ Un règlement enregistré ne se modifie plus (montant, date et mode sont figés)
 **Jusqu'à quand** : tant que l'argent n'est **pas arrivé sur le compte bancaire**. Concrètement :
 
 - un **chèque** reçu d'un client reste annulable tant que sa remise n'a pas été confirmée ;
-- un règlement en **espèces** reste annulable : l'argent est en caisse, pas à la banque. L'annulation retire aussi le mouvement de caisse correspondant, et le solde de caisse est recalculé.
+- un règlement en **espèces** reste annulable tant que l'argent est en caisse. L'annulation retire aussi le mouvement de caisse correspondant, et le solde de caisse est recalculé. Dès qu'une remise d'espèces datée du jour du règlement ou après est confirmée, les espèces sont considérées comme parties à la banque et le règlement n'est plus annulable.
 
 En revanche, un virement reçu, un règlement déjà rapproché avec une opération bancaire ou appartenant à un exercice clôturé ne peuvent plus être annulés — dans ces cas, il faut passer par une écriture comptable de correction.
 

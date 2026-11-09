@@ -25,6 +25,10 @@ class EntrySourceType(StrEnum):
     MANUAL = "manual"
     CASH = "cash"
     CLOTURE = "cloture"
+    # Report à nouveau: the opening balances of a year, keyed by the year it opens.
+    # Kept apart from CLOTURE so a year's closing and the next year's opening never
+    # share a journal group (they used to be both ``cloture:<closed year>``).
+    RAN = "ran"
     WRITE_OFF = "write_off"
     BANK_TRANSACTION = "bank_transaction"
 
