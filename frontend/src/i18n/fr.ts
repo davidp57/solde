@@ -727,6 +727,8 @@ export default {
         "Seuls les règlements reçus des clients peuvent être annulés ici. Un règlement émis à un fournisseur n'est pas concerné.",
       PAYMENT_DEPOSITED:
         "Ce règlement est déjà arrivé sur le compte bancaire : il ne peut plus être annulé. Il faut passer par une écriture comptable d'annulation.",
+      PAYMENT_CASH_BANKED:
+        "Les espèces de ce règlement sont déjà parties à la banque : une remise d'espèces confirmée, datée du jour du règlement ou après, a vidé la caisse. Il ne peut plus être annulé ; il faut passer par une écriture comptable d'annulation.",
       PAYMENT_RECONCILED:
         'Ce règlement est rattaché à une opération bancaire. Détachez-le de cette opération avant de pouvoir l’annuler.',
       FISCAL_YEAR_CLOSED:

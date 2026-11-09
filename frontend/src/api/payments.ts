@@ -48,6 +48,7 @@ export interface PaymentUpdate {
 export type PaymentCancelReason =
   | 'PAYMENT_SUPPLIER'
   | 'PAYMENT_DEPOSITED'
+  | 'PAYMENT_CASH_BANKED'
   | 'PAYMENT_RECONCILED'
   | 'FISCAL_YEAR_CLOSED'
 
