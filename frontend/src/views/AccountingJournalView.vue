@@ -812,6 +812,7 @@ const sourceTypeOptions = [
   { label: t('accounting.journal.sources.cash'), value: 'cash' },
   { label: t('accounting.journal.sources.manual'), value: 'manual' },
   { label: t('accounting.journal.sources.cloture'), value: 'cloture' },
+  { label: t('accounting.journal.sources.ran'), value: 'ran' },
   { label: t('accounting.journal.sources.write_off'), value: 'write_off' },
   { label: t('accounting.journal.sources.bank_transaction'), value: 'bank_transaction' },
 ]

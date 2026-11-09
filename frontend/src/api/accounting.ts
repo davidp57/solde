@@ -73,6 +73,7 @@ export type EntrySourceType =
   | 'gestion'
   | 'manual'
   | 'cloture'
+  | 'ran'
 
 export interface AccountingEntryRead {
   id: number

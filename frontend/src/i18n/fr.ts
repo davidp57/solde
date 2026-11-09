@@ -1548,6 +1548,7 @@ export default {
         manual: 'Manuel',
         cash: 'Caisse',
         cloture: 'Clôture',
+        ran: 'Report à nouveau',
         write_off: 'Irrécouvrable',
         bank_transaction: 'Banque',
       },

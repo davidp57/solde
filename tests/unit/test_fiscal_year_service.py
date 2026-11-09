@@ -646,6 +646,56 @@ class TestClosingEntryShape:
         return list(result.scalars().all())
 
     @pytest.mark.asyncio
+    async def test_carry_forward_is_a_group_of_its_own(self, db_session: AsyncSession) -> None:
+        """Closing N and opening N+1 must not share a journal group (issue #197).
+
+        Both used to be keyed ``cloture:<N>``: the grouped journal filtered on N
+        then loaded the carry-forward lines of N+1 too, and added them to the
+        closing totals.
+        """
+        from backend.services.accounting_entry_service import get_grouped_journal
+
+        fy = await self._year_with_activity(db_session, produits="1000.00", charges="600.00")
+        await close_fiscal_year(db_session, fy)
+        new_fy = await open_new_fiscal_year(
+            db_session,
+            fy,
+            FiscalYearCreate(name="2026", start_date=date(2026, 8, 1), end_date=date(2027, 7, 31)),
+        )
+        # Closing N+1 as well: its closing group must not swallow its own carry-forward.
+        await close_fiscal_year(db_session, new_fy)
+
+        for year in (fy, new_fy):
+            groups = await get_grouped_journal(db_session, fiscal_year_id=year.id)
+            # The seeded activity lines carry no source: each is a one-line group.
+            generated = [g for g in groups if not g.group_key.startswith("entry:")]
+            assert generated
+            for group in generated:
+                assert all(line.fiscal_year_id == year.id for line in group.lines), (
+                    f"group {group.group_key} spans several fiscal years"
+                )
+                assert group.total_debit == group.total_credit
+                assert len({line.date for line in group.lines}) == 1, (
+                    f"group {group.group_key} mixes several documents"
+                )
+
+        carried = (
+            (
+                await db_session.execute(
+                    select(AccountingEntry).where(
+                        AccountingEntry.source_type == EntrySourceType.RAN
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert carried
+        assert {(e.source_id, e.group_key, e.fiscal_year_id) for e in carried} == {
+            (new_fy.id, f"ran:{new_fy.id}", new_fy.id)
+        }
+
+    @pytest.mark.asyncio
     async def test_closing_entry_is_balanced(self, db_session: AsyncSession) -> None:
         """It used to post a single line with no counterpart, unbalancing the year."""
         fy = await self._year_with_activity(db_session, produits="1000.00", charges="600.00")
@@ -976,7 +1026,7 @@ class TestOpenNewFiscalYear:
         result = await db_session.execute(
             select(AccountingEntry).where(
                 AccountingEntry.fiscal_year_id == new_fy.id,
-                AccountingEntry.source_type == EntrySourceType.CLOTURE,
+                AccountingEntry.source_type == EntrySourceType.RAN,
             )
         )
         ran_entries = list(result.scalars().all())

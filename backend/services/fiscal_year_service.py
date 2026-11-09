@@ -359,7 +359,7 @@ async def open_new_fiscal_year(
     """Create a new fiscal year and generate report-à-nouveau entries.
 
     For each actif/passif account with a non-zero solde in the closed FY,
-    a CLOTURE entry is added to the new FY to carry the balance forward.
+    a RAN entry is added to the new FY to carry the balance forward.
     """
     if closed_fy.status != FiscalYearStatus.CLOSED:
         raise FiscalYearError("Source fiscal year must be CLOSED to open a new one")
@@ -424,9 +424,11 @@ async def open_new_fiscal_year(
                 debit=abs_solde if is_debit else Decimal("0"),
                 credit=Decimal("0") if is_debit else abs_solde,
                 fiscal_year_id=new_fy.id,
-                source_type=EntrySourceType.CLOTURE,
-                source_id=closed_fy.id,
-                group_key=build_entry_group_key(EntrySourceType.CLOTURE, closed_fy.id),
+                # Keyed by the year it opens, not the one it closes: the closed
+                # year's own closing entries already use ``cloture:<closed year>``.
+                source_type=EntrySourceType.RAN,
+                source_id=new_fy.id,
+                group_key=build_entry_group_key(EntrySourceType.RAN, new_fy.id),
             )
         )
     for entry in carried_entries:
