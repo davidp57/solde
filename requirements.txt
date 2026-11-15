@@ -106,7 +106,7 @@ opentelemetry-api==1.45.1
     # via fastapi
 pillow==13.0.0
     # via weasyprint
-pyasn1==0.6.4
+pyasn1==0.6.5
     # via pyasn1-modules
 pyasn1-modules==0.4.2
     # via google-auth
